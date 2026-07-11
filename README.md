@@ -1,2 +1,3 @@
-# cortex
-Cortex memory and information highway system EnGenAI cortex is based on.
+# Cortex
+
+Memory and information highway for Kaidera and Kaidera OS.
