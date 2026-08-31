@@ -3,8 +3,12 @@
 ## v0.1.0 — the extraction (in progress)
 
 Clean import from Kaidera OS at a pinned revision: `cortex-api`, embed/graph/pdf workers,
-Postgres schema + forward-only migrations, the `cortex-*` CLI, packaged as a wheel with a
-standalone compose file and a real-engine deploy smoke in CI.
+Postgres schema + forward-only migrations, the `cortex-*` CLI, packaged as a wheel.
+
+Ships as the **six-layer containerised appliance** with one-command installers — macOS
+(installs Apple Container if missing) and Linux (rootless podman, fail-loud requirements) —
+plus the **discovery contract**: `/.well-known/cortex` capability manifest, agent boot
+context, and generated harness instruction files. Real-engine deploy smoke in CI.
 
 ## v0.1.x — debts the production system already named
 

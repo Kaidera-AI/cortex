@@ -1,12 +1,13 @@
 # Deployment
 
-## Standalone
+## Standalone — the six-layer appliance
 
-One compose project, three tiers, strict order: `db` → migrations → `api` → workers.
+Cortex ships fully containerised, exactly as it runs in production today: `db` → `migrate`
+→ `cortex-api` → three workers, health-gated in order, accessible only via the API.
 
-- **Linux:** rootless podman (>= 5.0 recommended, cgroup manager `systemd`).
-- **macOS:** Docker or Apple Container. One containerisation technology per machine —
-  do not mix engines on a host.
+- **Linux:** rootless podman >= 5.0, cgroup manager `systemd` — [install guide](install-linux.md).
+- **macOS:** Apple Container (the installer installs it if missing) — [install guide](install-macos.md).
+- One containerisation technology per machine — never mix engines on a host.
 - Health endpoints gate readiness; a service is up when its probe answers, not when its
   container starts.
 - **Migrations are forward-only** and receipted: the running schema baseline is recorded,

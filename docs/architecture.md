@@ -2,13 +2,19 @@
 
 ## Services
 
-| Service | Job | Talks to |
-|---|---|---|
-| `cortex-api` | FastAPI. Memory, handoffs, registry, search, boot context, doctor | Postgres |
-| `embed-worker` | embedding enrichment for memory + ingest rows | Postgres |
-| `graph-worker` | graph enrichment (entities, relations) | Postgres |
-| `pdf-worker` | document/PDF ingest | Postgres |
-| `db` | Postgres 16 — the single source of truth | — |
+Cortex deploys as a **six-layer containerised appliance**:
+
+| # | Layer | Job | Talks to |
+|---|---|---|---|
+| 1 | `db` | Postgres 16 — the single source of truth | — |
+| 2 | `migrate` | one-shot schema custody: forward-only, receipted migrations | Postgres |
+| 3 | `cortex-api` | FastAPI. Memory, handoffs, registry, search, boot context, doctor, the discovery manifest | Postgres |
+| 4 | `embed-worker` | embedding enrichment for memory + ingest rows | Postgres |
+| 5 | `graph-worker` | graph enrichment (entities, relations) | Postgres |
+| 6 | `pdf-worker` | document/PDF ingest | Postgres |
+
+Startup order is 1 → 2 → 3 → 4·5·6, health-gated at each step. How a project *finds* a
+running Cortex and learns what it can do is its own contract: [discovery](discovery.md).
 
 Workers are enrichment, not request-path: the API accepts writes immediately and workers
 catch up. The CLI (`cortex-boot`, `cortex-handoff`, `cortex-log`, `cortex-search`,

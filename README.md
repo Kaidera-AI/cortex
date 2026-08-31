@@ -46,16 +46,29 @@ Principles (each one paid for in production, not aspirational):
 
 ## Standalone or embedded
 
-Cortex runs **standalone** — one compose file: `db` → `api` → workers — as the memory system
-for any agent stack. It also runs **inside Kaidera OS as a module**: each release ships a
+Cortex runs **standalone** as a six-layer containerised appliance — `db` → `migrate` →
+`cortex-api` → three enrichment workers — the memory system for any agent stack, on macOS
+(Apple Container) or Linux (rootless podman). It also runs **inside Kaidera OS as a module**: each release ships a
 versioned, hash-pinned artifact that the KOS appliance installs at image build. Same code,
 two lives, one owner per fact.
 
 ## Docs
 
-- [Architecture](docs/architecture.md)
-- [Deployment](docs/deployment.md)
+**Start here**
+- [Install on macOS](docs/install-macos.md) (Apple Container) · [Install on Linux](docs/install-linux.md) (rootless podman)
 - [Quickstart](docs/quickstart.md) *(the v0.1.0 target CLI — commands are live in Kaidera OS today)*
+- [Discovery — how a project finds Cortex and learns what it can do](docs/discovery.md)
+
+**Guides**
+- [Create a project](docs/guides/create-a-project.md)
+- [Multi-agent teams](docs/guides/multi-agent-teams.md) — identity, roles, the orchestrator
+- [Handoffs](docs/guides/handoffs.md) — how work moves
+- [Memory](docs/guides/memory.md) — decisions, lessons, search, retention
+- [Ingest](docs/guides/ingest.md) · [Operations](docs/guides/operations.md)
+
+**Reference**
+- [Architecture](docs/architecture.md) — the six-layer appliance
+- [Deployment](docs/deployment.md)
 - [Development & ways of working](docs/development.md)
 - [Roadmap](ROADMAP.md)
 
