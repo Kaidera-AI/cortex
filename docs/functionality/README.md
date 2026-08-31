@@ -8,25 +8,29 @@ up**, and **honest limits**.
 The measured surface being documented: **79 CLI commands, 121 API routes.** The workstream
 is done when that inventory and this index agree — zero undocumented commands.
 
-| Area | Doc | Status |
-|---|---|---|
-| Code graph + blast radius | [blast-radius.md](blast-radius.md) | ✅ exemplar |
-| Memory (decisions/lessons/diary/lineage) | ../guides/memory.md → deepens here | mining |
-| Search (semantic + rerank + budget) | search.md | mining |
-| Embeddings + backfill | embeddings.md | mining |
-| Knowledge graph (entities/relations) | knowledge-graph.md | mining |
-| Handoffs (state-aware lifecycle) | ../guides/handoffs.md → deepens here | mining |
-| Registry (projects/roster/identity/export/import/merge) | registry.md | mining |
-| Boot + onboarding | boot.md | mining |
-| Harness generation + cutover | harness-integration.md | mining |
-| Ingest (sessions/codex/claude-state/artifacts/audio) | ../guides/ingest.md → deepens here | mining |
-| Dashboards + reporting | dashboards.md | mining |
-| Doctor, degradation, recall checks | ../guides/operations.md → deepens here | mining |
-| Retention + maintenance | operations | mining |
-| Backup + migrations | operations | mining |
-| Skills registry | skills.md | mining |
-| Beat/orchestrator feed | orchestrator-feed.md | mining |
-| Epics + work products | program-tracking.md | mining |
+| # | Doc | Covers | Status |
+|---|---|---|---|
+| 1 | memory.md | verbatim store; decisions/lessons/knowledge; diary; chat→LTM; lineage; invalidation; audit | mining done, writing |
+| 2 | handoffs.md | **atomic claim (CAS)**; informative 403/409 naming the claimer; **release/handback**; atomic completion handback; retry/requeue; create-dedupe; evidence bundles + quality classes; cross-project relay | mining done, writing |
+| 3 | search.md | hybrid BM25+trigram+vector+graph+RRF; rerank; exact-ID fast path; request budget + honest `degraded[]`; bulkhead; soak gate | mining done, writing |
+| 4 | embeddings.md | write-path enrichment; degraded mode; backfill; halfvec; recall gate; keyless local search | mining done, writing |
+| 5 | knowledge-graph.md | entities/relationships (dual-level); LLM extraction + dedup; 2-hop; A/B-validated hybrid rule; salvage cleanup | mining done, writing |
+| 6 | [blast-radius.md](blast-radius.md) | code graph, blast radius, callers, impact, hotspots | ✅ shipped |
+| 7 | work-products.md | completion receipts; `cortex-brief` no-re-discovery contract; freshness + supersession | mining done, writing |
+| 8 | registry.md | projects; identity `agent@project`; roster; runtime authority; export/import/merge | mining done, writing |
+| 9 | boot.md | tiered boot context (27× token cut); persona contract + provenance; imperative next-action | mining done, writing |
+| 10 | harness-integration.md | generated harness mirrors; cutover/rollback/doctor; skills registry + on-demand selection; MCP | mining done, writing |
+| 11 | ingest.md | sessions/transcripts (idempotent, fail-closed); artifacts + edges; multimodal workers | mining done, writing |
+| 12 | operations.md | effect-verifying doctor; storage profiler; retention; migrations; backup; bounded admin SQL | mining done, writing |
+| 13 | orchestrator-feed.md | dispatchable/stale queues; SSE events; fail-loud dashboards | mining done, writing |
+| 14 | autonomy.md | dispatch funnel; watchdog with escalation backoff; propose mode; **responsibility routing**; worktree isolation — how handoff+handback becomes full autonomy | mining done, writing |
+| 15 | security.md | hashed tokens; RLS + two-pool split; provider-key custody; fitness gates | mining done, writing |
+| 16 | verification.md | claim checks against code/knowledge/runtime; recall gates; read-back-confirmed writes | mining done, writing |
+
+Mining is complete: five parallel passes over six months of both source projects (git
+history, documentation tree, the full CLI+API surface, the platform lineage, and agent
+memory) produced ~390 cited evidence rows. Each doc above is written from that census —
+which is why every "why it exists" will name a real commit, incident, or measured run.
 
 **The bar every doc must clear:** every "why" cites a commit, a memory row, or a measured
 run. A doc that can't say why something exists goes back to mining, not to publication.
