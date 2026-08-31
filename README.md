@@ -66,7 +66,12 @@ two lives, one owner per fact.
 - [Memory](docs/guides/memory.md) — decisions, lessons, search, retention
 - [Ingest](docs/guides/ingest.md) · [Operations](docs/guides/operations.md)
 
+**Models & providers**
+- [Models — embeddings & rerank, the provider ladder](docs/models.md) (Ollama → NVIDIA free → OpenRouter)
+- [Providers on a standalone Cortex](docs/providers-standalone.md) — subscriptions for your agents, API providers for enrichment
+
 **Reference**
+- [Functionality reference](docs/functionality/README.md) — one doc per functionality, built from real history
 - [Architecture](docs/architecture.md) — the six-layer appliance
 - [Deployment](docs/deployment.md)
 - [Development & ways of working](docs/development.md)

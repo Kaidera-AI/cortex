@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Docs: model guide (how embeddings/rerank are used; Ollama → NVIDIA free → OpenRouter
+  ladder), standalone provider guide (subscription plane vs enrichment plane), and the
+  functionality reference — 21-area inventory over the measured 79-command / 121-route
+  surface, with the code-graph/blast-radius exemplar written from recorded history.
 - Docs: six-layer appliance architecture, macOS (Apple Container) + Linux (rootless
   podman) install contracts, the discovery contract (`/.well-known/cortex`, boot context,
   generated harness files), and guides — create a project, multi-agent teams, handoffs,
