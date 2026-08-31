@@ -34,9 +34,24 @@ mutates Postgres directly except the API and its migrations.**
    the data path. Every repair is possible as the owning user.
 5. **Fail loud.** Fresh deploys bootstrap schema explicitly and write a receipt. Silent
    defaults are the most expensive defect class we know.
-6. **One owner per fact.** Provider configuration belongs to OpenKai (Cortex ships an
-   adapter, never a second implementation). Host lifecycle (volumes, backup, upgrade)
-   belongs to the deployment, not to Cortex.
+6. **One owner per fact.** Host lifecycle (volumes, backup, upgrade) belongs to the
+   deployment, not to Cortex. Provider configuration belongs to
+   [OpenKai](https://github.com/Kaidera-AI/openkai) — see below.
+
+## Provider settings: the file is the contract
+
+Cortex reaches model providers through OpenKai's provider registry. The seam is designed so
+readers never care who wrote the settings:
+
+- **OpenKai installed** — OpenKai authors the central settings file; Cortex (and anything
+  else, e.g. a host UI) reads that one file.
+- **OpenKai absent** — first-run bootstrap shows a soft, skippable prompt recommending
+  OpenKai. On skip, Cortex **materialises the identical file at the identical path** from a
+  pinned template: a schema materialiser, never a re-implementation of provider logic.
+- **Never overwrite.** An existing file wins; if OpenKai is installed later it adopts the
+  file and becomes its author.
+- **Provenance lives beside the file**, in a receipt — never as an extra key inside it, so
+  the two worlds stay byte-schema-identical for every reader.
 
 ## Security
 
