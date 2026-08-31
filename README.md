@@ -1,5 +1,7 @@
 # Cortex
 
+![Cortex](assets/cortex-banner.png)
+
 **Persistent memory and coordination for AI agent teams.** Postgres-backed. Built and
 battle-tested inside [Kaidera OS](https://kaidera.ai), now becoming an independent
 open-source product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
