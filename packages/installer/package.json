@@ -1,0 +1,13 @@
+{
+  "name": "@kaidera-ai/cortex",
+  "version": "0.0.1",
+  "description": "Installer and launcher for Cortex — persistent memory and coordination for AI agent teams",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/Kaidera-AI/cortex.git", "directory": "packages/installer" },
+  "homepage": "https://github.com/Kaidera-AI/cortex#readme",
+  "bin": { "cortex": "bin/cortex.js" },
+  "files": ["bin/"],
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node bin/cortex.js preflight --json > /dev/null && node --test" },
+  "private": false
+}
