@@ -4,19 +4,24 @@ Cortex needs models in two places — neither is optional if you want search tha
 
 ```mermaid
 flowchart LR
-    subgraph write["Write path (async, workers)"]
-        W[memory / ingest row] --> EW[embed-worker] -->|vector| PG[(Postgres)]
+    subgraph media["Optional media extraction"]
+        M[audio / image / video] --> MW[Whisper or vision worker] --> AR[L5 artifact text]
+    end
+    subgraph write["Write path (async enrichment)"]
+        W[memory / ingest row] --> EW[embed-worker] -->|768-d vector| PG[(Postgres)]
         W --> GW[graph-worker] -->|entities + relations| PG
+        AR --> EW
     end
     subgraph read["Read path (search, budgeted)"]
         Q[query] --> E2[embed query] --> V[vector match] --> R[rerank] --> G[graph expand] --> A[ranked answer]
     end
 ```
 
-- **Embedding** runs twice: once per row at write time (enrichment, never blocking the
-  write) and once per query at search time.
-- **Rerank** re-orders the vector candidates by actual relevance. It is the difference
-  between "similar words" and "the right answer".
+- **Embedding** runs twice: once per row during asynchronous enrichment and once per query
+  at search time. Artifact backfill embeds non-empty `raw_content`, then `caption`, then
+  `source_file`; artifacts use the same 768-dimensional vector/search contract.
+- **Rerank** re-orders vector candidates by actual relevance. It is the difference between
+  “similar words” and “the right answer”.
 
 Two production lessons are designed into v0.1.0, because we paid for them:
 
@@ -26,6 +31,23 @@ Two production lessons are designed into v0.1.0, because we paid for them:
 2. **Provider model ids are exact strings.** OpenRouter's free rerank models require the
    `:free` suffix; without it every rerank call fails and (see lesson 1) used to fail
    silently.
+
+## Media extraction models
+
+Media understanding is upstream of embedding:
+
+- `cortex-audio-worker` runs Whisper. Audio is transcribed directly; video first becomes a
+  mono 16 kHz audio track through ffmpeg. `base` is the default, while `medium`/`large`
+  trade latency and memory for accuracy.
+- `cortex-vision-worker` pins Ollama 0.33.2 and defaults to `qwen3-vl:4b`. It pulls the
+  model lazily into the shared `cortex-models` volume and returns text descriptions.
+
+These workers are selected by the source Compose `multimodal` or `full` profile and remain
+internal to `cortex-net`. They are not provider fallbacks and do not read API keys. A media
+worker produces text; the normal embedding provider then makes that text searchable.
+
+Video visual/keyframe analysis is not part of this contract. Only the audio track is
+transcribed.
 
 ## Choosing providers: the ladder
 

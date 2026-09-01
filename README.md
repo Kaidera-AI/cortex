@@ -6,10 +6,11 @@
 battle-tested inside [Kaidera OS](https://kaidera.ai), now becoming an independent
 open-source product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
 
-> **Status: extraction in progress.** The code (≈21k lines of API, 70 executable CLI
-> commands plus nine support/retired files, ingest workers, migrations) runs in production
-> inside Kaidera OS today and lands here as **v0.1.0**. This scaffold defines the contract
-> it arrives under. Watch the repo or open a discussion if you want to shape it.
+> **Status: extraction in progress.** The v0.1.0 target now comprises ≈21k lines of API,
+> 72 executable CLI commands plus nine support/retired files, ingest workers, and
+> migrations. It is extracted from the battle-tested Kaidera OS production lineage; the
+> standalone payload and newly added surfaces remain unavailable until their release gates
+> pass.
 
 ## Install
 
@@ -58,7 +59,7 @@ Give a team of AI workers what a human team takes for granted:
 ```mermaid
 flowchart LR
     CLI["cortex-* CLI"] -->|HTTP| API["cortex-api (FastAPI)"]
-    API --> PG[("Postgres 16")]
+    API --> PG[("Postgres 18 + pgvector")]
     EW["embed-worker"] --> PG
     GW["graph-worker"] --> PG
     PW["pdf-worker"] --> PG
@@ -93,7 +94,7 @@ two lives, one owner per fact.
 - [Multi-agent teams](docs/guides/multi-agent-teams.md) — identity, roles, the orchestrator
 - [Handoffs](docs/guides/handoffs.md) — how work moves
 - [Memory](docs/guides/memory.md) — decisions, lessons, search, retention
-- [Ingest](docs/guides/ingest.md) · [Operations](docs/guides/operations.md)
+- [Ingest](docs/guides/ingest.md) · [Multimodal ingestion](docs/guides/multimodal-ingestion.md) · [Operations](docs/guides/operations.md)
 - [Deployment process](docs/guides/deployment-process.md) — install stream, preflight, verification, UAT runbook
 
 **Models & providers**
@@ -101,7 +102,7 @@ two lives, one owner per fact.
 - [Providers on a standalone Cortex](docs/providers-standalone.md) — subscriptions for your agents, API providers for enrichment
 
 **Reference**
-- [CLI reference](docs/cli-reference.md) — all 70 executable commands plus the internal and retired support surface
+- [CLI reference](docs/cli-reference.md) — all 72 executable commands plus the internal and retired support surface
 - [Functionality reference](docs/functionality/README.md) — one doc per functionality, built from real history
 - [Architecture](docs/architecture.md) — the six-layer appliance
 - [Deployment](docs/deployment.md)

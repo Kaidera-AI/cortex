@@ -16,7 +16,7 @@ Ingest is Cortex's project-scoped write boundary for:
 - Claude local plans, todos and IndexedDB state;
 - Markdown memory corpora and save-chat checkpoints;
 - non-chat artifacts from a repository, vault, upload, API capture or transcript;
-- PDF, image/diagram and audio-derived content through guarded workers;
+- PDF, image/diagram, audio and video-audio content through guarded workers;
 - optional write-side memory transforms: E2 commitment distillation and E4 deterministic
   symbolic compaction.
 
@@ -68,17 +68,21 @@ flowchart TB
     subgraph l5_sources["Layer 5 sources"]
         DOC[repo / vault / upload]
         PDF[PDF worker]
-        IMG[vision worker]
-        AUD[audio / Whisper]
+        IMG[image]
+        AUD[audio]
+        VID[video]
     end
     DOC --> ART[POST /artifacts]
     PDF --> ART
-    IMG --> ART
-    AUD --> ART
+    IMG --> IPROXY[POST /artifacts/describe-image] --> VW[vision worker] --> ART
+    AUD --> TPROXY[POST /artifacts/transcribe] --> AW[audio worker] --> ART
+    VID --> TPROXY
+    AW -->|video: ffmpeg mono 16 kHz first| ART
     ART --> HASH["UPSERT by project + source_file + content_hash"]
     HASH --> L5[(artifacts)]
     HASH --> EDGE[(artifact_edges)]
-    L5 --> LOOP["/search hit + CLI Artifacts group + live smoke"]
+    L5 --> EMB[768-d embedding backfill]
+    EMB --> LOOP["lexical + vector /search hit\nCLI Artifacts group + live smoke"]
     EDGE --> LOOP
 ```
 
@@ -194,17 +198,18 @@ requires a SHA-256 content hash and upserts on `(project, source_file, content_h
 repeating the same artifact updates its enrichment metadata without creating a duplicate
 edge. Use `--parent-artifact-id` for derived chunks or child media.
 
-Audio can use an existing transcript or invoke the available Whisper implementation:
+Audio, image and video wrappers share the container-backed artifact path:
 
 ```bash
-cortex-ingest-audio interview.wav kai my-project \
-  --transcript-file interview.txt \
-  --source-type transcript \
-  --section-context "Architecture interview"
+cortex-ingest-audio interview.wav kai my-project --model medium
+cortex-ingest-audio interview.wav kai my-project --transcript-file interview.txt
+cortex-ingest-image architecture.png kai my-project --prompt "Read labels and arrows"
+cortex-ingest-video demo.webm kai my-project --model base
 ```
 
-The wrapper tries `whisper` and falls back to `whisper-cli` with a supplied GGML model. It
-stores the audio as the source artifact and the transcript as raw content.
+`cortex-api` authenticates the writer and streams media to the internal worker. Video
+extracts a mono 16 kHz audio track before Whisper; it does not analyse keyframes. The
+result is persisted through `POST /artifacts`, never direct SQL or host Whisper/Ollama.
 
 After any L5 write, acceptance is not “the command returned 0”. Confirm the artifact is
 found through `/search`, appears in the CLI's Artifacts group, and survives a live query
@@ -234,13 +239,14 @@ failed enablement gate, not a warning.
 3. Keep transcript source paths stable and readable by the process running the CLI.
 4. For artifacts, expose the source file and any extracted raw-content file to the CLI, and
    choose project-meaningful edge types and targets.
-5. Select multimodal workers through the guarded managed-runtime profile. The shipped
-   topology has PDF processing in the core worker set and adds audio/vision in the `full`
-   profile; full activation is capacity-gated and runtime control is unavailable outside
-   the native managed boundary. Worker capabilities are signalled in boot rather than
-   guessed by callers.
-6. Configure ingest/embed model choices centrally through `PATCH /admin/cortex/config`;
-   do not put model literals in individual callers.
+5. Start the source Compose `multimodal` (or retained `full`) profile when local
+   audio/vision inference is required. The workers stay internal to `cortex-net`, and the
+   API remains available when they are absent. Managed installer/runtime qualification is
+   a separate release gate; source Compose success is not release approval.
+6. Configure embedding, rerank and analysis models centrally through
+   `PATCH /admin/cortex/config`. Media extraction uses the worker default or per-request
+   `model`/CLI `--model`: vision defaults to `CORTEX_VISION_MODEL=qwen3-vl:4b`; audio
+   defaults to Whisper `base`.
 7. Leave E2/E4 off until the shipped recall benchmark passes against the deployment's
    representative corpus with zero commitment loss.
 
@@ -263,8 +269,9 @@ failed enablement gate, not a warning.
   retrieval, not a prefix-enumeration API; galleries need their own run-state index.
 - PDF, vision and audio worker loss degrades enrichment. It must not prevent core L1 writes
   or search over content already stored and embedded.
-- Audio transcription requires an available `whisper` command or `whisper-cli` plus a
-  model file. Vision escalation is selective, not a pass over every artifact.
+- Audio/video transcription and image description require the internal worker selected by
+  the `multimodal` or `full` source profile. Video supports audio-track transcription only;
+  it does not extract keyframes or describe silent video.
 - Platform-lineage FileVault bridges, tenant provenance bundles, Milvus L2, tenant
   governance and SaaS ingestion controls are outside the v0.1.0 extraction.
 
@@ -275,6 +282,7 @@ Functionality census rows 126–128, 184–186, 219, 258 and 272–275; session 
 `c20b26c2`; shadowed-function repair `dbf5e963`; multimodal runtime control `50e70948` and
 capability signal `4bc327c4`; central ingest settings `92f75561`; Explain/L5 commits
 `45965b72`, `665c8a2b`, `bc6c92e8` and `fe3b50b2`; current source surfaces
-`.agents/scripts/cortex-ingest-{session,codex,all,beat-sessions,claude-local-state,artifact,audio}`,
-`.agents/api/main.py::ingest_session`, `.agents/api/main.py::ingest_artifact`, and
+`.agents/scripts/cortex-ingest-{session,codex,all,beat-sessions,claude-local-state,artifact,audio,image,video}`,
+`.agents/api/main.py::{ingest_session,ingest_artifact,transcribe_artifact,describe_artifact_image}`,
+the artifact embedding/search stages, and
 `.agents/api/ingest/{chat_distill,symbolic_compact,recall_gate}.py`.

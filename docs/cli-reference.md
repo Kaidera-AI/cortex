@@ -7,24 +7,24 @@
 
 ## Scope and counting
 
-The measured inventory is **79 files**:
+The measured inventory is **81 files**:
 
-- **70 executable `cortex-*` commands** intended as the supported user, agent or operator
+- **72 executable `cortex-*` commands** intended as the supported user, agent or operator
   surface;
 - **seven internal support libraries/workers**, which are implementation details and must
   not be presented as commands; and
 - **two retired, fail-closed shims**, retained only to reject obsolete direct-worker paths.
 
-Appendix 2 of the functionality census lists 78 files because its public cluster tables
-omit the live `cortex-state` command. The command exists at
-`.agents/scripts/cortex-state`; it calls project-scoped `GET /state`, and its history begins
-in commit `35d5300c` (2026-06-02, “Initial commit: localdev workspace + E007 Autonomy v2
-harness”). It is included below, bringing the reconciled total to 79.
+The 2026-08-31 census table listed 78 files. The live `cortex-state` command reconciled
+that snapshot to 79; multimodal productionisation then added `cortex-ingest-image` and
+`cortex-ingest-video`. Current measured source therefore contains 81 files. The two new
+commands share the container-backed media dispatcher and do not add another extraction
+implementation.
 
 Core invocations show the shortest useful form, not every option. Run `--help` after the
 v0.1.0 extraction lands for the complete parser contract.
 
-## Public executable commands (70)
+## Public executable commands (72)
 
 ### Handoffs and work-product lookup
 
@@ -98,6 +98,8 @@ v0.1.0 extraction lands for the complete parser contract.
 | `cortex-ingest-memories` | Ingest a bounded Markdown memory corpus through typed endpoints. | `cortex-ingest-memories [--path <dir>] [--limit <n>]` |
 | `cortex-ingest-artifact` | Persist a non-chat artifact with explicit source type and optional tenancy metadata. | `cortex-ingest-artifact <path> [agent] [project]` |
 | `cortex-ingest-audio` | Transcribe audio, or import a supplied transcript, as a durable artifact. | `cortex-ingest-audio <audio-path> [agent] [project]` |
+| `cortex-ingest-image` | Describe an image through the internal vision worker and persist it as a durable artifact. | `cortex-ingest-image <image-path> [agent] [project] [--model <name>]` |
+| `cortex-ingest-video` | Extract and transcribe a video's audio track through the internal audio worker, then persist it. | `cortex-ingest-video <video-path> [agent] [project] [--model <name>]` |
 | `cortex-save-chat` | Save an atomic session/message/event/knowledge checkpoint summary. | `cortex-save-chat <agent> <topic> <summary>` |
 | `cortex-rebuild-history` | Replace project chat history from local Claude and Codex transcript sources. | `cortex-rebuild-history [--dry-run]` |
 | `cortex-history` | Display recent project message history with agent, count and date filters. | `cortex-history [--agent <name>] [--last <n>]` |
@@ -203,7 +205,7 @@ replacement and exit 2; neither calls a provider or database.
 
 ## Boundaries and honest limitations
 
-- The 70 executables mix agent-facing, user-facing and operator/admin commands. “Public”
+- The 72 executables mix agent-facing, user-facing and operator/admin commands. “Public”
   means supported command surface, not that every command is safe without the role and
   confirmation documented by its parser.
 - The seven support files are discoverable here so packagers can account for the complete
@@ -217,13 +219,13 @@ replacement and exit 2; neither calls a provider or database.
 
 ## Sources
 
-- Complete surface census, cluster descriptions, and the 79-file correction note:
+- Complete 2026-08-31 surface census and its 2026-09-01 multimodal correction:
   `Program/Release_v0.1.0/E021_CORTEX_INDEPENDENT_PRODUCT/FUNCTIONALITY_CENSUS.md`,
   Appendix 2.
 - Current measured command files and parser/header contracts: Kaidera OS
-  `.agents/scripts/cortex-*` (70 files), plus the nine separately classified files named
+  `.agents/scripts/cortex-*` (72 files), plus the nine separately classified files named
   above.
-- Omitted live command evidence: `.agents/scripts/cortex-state` (project-scoped
-  `GET /state`); history commit `35d5300ca19838ed926453ded8138ded48578de2`, 2026-06-02.
+- Follow-on command evidence: `.agents/scripts/cortex-state` (project-scoped `GET /state`)
+  and the container-backed `.agents/scripts/cortex-ingest-{image,video}` wrappers.
 - API-only coordination boundary and state route: functionality census Appendix 3,
   **API-only coordination boundary**; `.agents/api/main.py`.

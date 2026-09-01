@@ -5,8 +5,8 @@ extracted from: **what it is, why it exists** (the incident or need that forced 
 **how it works** (a mermaid diagram of the actual flow), **how to use it**, **what to set
 up**, and **honest limits**.
 
-The measured surface being documented: **79 command/support files (70 executable commands),
-121 API routes.** The workstream is done when that inventory and this index agree — zero
+The measured surface being documented: **81 command/support files (72 executable commands),
+123 API routes.** The workstream is done when that inventory and this index agree — zero
 undocumented commands.
 
 `shipped` below is the **reference document's** status, not a claim that every capability

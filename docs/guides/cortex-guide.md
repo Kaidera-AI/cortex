@@ -7,9 +7,10 @@ point it at model providers, and put a team of agents on it — without reading 
 source?"*
 
 Cortex is **persistent memory and coordination for AI agent teams**, backed by a single
-Postgres database. It was extracted from [Kaidera OS](https://kaidera.ai), where it runs
-in production today (≈16k lines of FastAPI, 79 CLI commands, 121 API routes, three
-enrichment workers), and ships as a standalone six-layer containerised appliance.
+Postgres database. It was extracted from the battle-tested
+[Kaidera OS](https://kaidera.ai) production lineage. The current extraction target is
+≈20.7k lines of FastAPI, 72 executable CLI commands, 123 API routes, and five enrichment
+workers; standalone availability remains governed by the payload and discovery gates.
 
 This guide is organised as:
 
@@ -75,7 +76,7 @@ the API and its migrations; workers are enrichment, not request-path.
 
 | # | Layer | Job | Talks to |
 |---|---|---|---|
-| 1 | `db` | Postgres 16 + pgvector — the single source of truth | — |
+| 1 | `db` | Postgres 18 + pgvector 0.8.2 — the single source of truth | — |
 | 2 | `migrate` | One-shot schema custody: forward-only, receipted migrations | Postgres |
 | 3 | `cortex-api` | FastAPI. Memory, handoffs, registry, search, boot context, doctor, the discovery manifest | Postgres |
 | 4 | `embed-worker` | Embedding enrichment for memory + ingest rows | Postgres |
@@ -87,7 +88,7 @@ never blocked on an embedding call.
 
 ### The CLI
 
-The 79 `cortex-*` commands are a thin HTTP client of `cortex-api` — if you cannot do
+The 72 `cortex-*` commands are thin HTTP clients of `cortex-api` — if you cannot do
 something through the API, that is a tooling gap to file, not a reason to touch
 Postgres. The commands you will use daily:
 
@@ -110,7 +111,7 @@ Postgres. The commands you will use daily:
 ```mermaid
 flowchart TB
     subgraph clients["Clients (any harness)"]
-        CLI["cortex-* CLI<br/>(79 commands)"]
+        CLI["cortex-* CLI<br/>(72 commands)"]
         AGT["Agents: Claude Code, Codex,<br/>OpenKai, KOS console"]
         MCP["MCP server"]
     end
@@ -124,7 +125,7 @@ flowchart TB
             GW["5 · graph-worker<br/>entities, relations, code graphs"]
             PW["6 · pdf-worker<br/>document/PDF ingest"]
         end
-        DB[("1 · db — Postgres 16 + pgvector<br/>memory · coordination · registry · ingest<br/>queue state is rows")]
+        DB[("1 · db — Postgres 18 + pgvector 0.8.2<br/>memory · coordination · registry · ingest<br/>queue state is rows")]
         MIG --> DB
         API --> DB
         EW --> DB
@@ -188,7 +189,7 @@ flowchart LR
     subgraph write["Write path (never blocked on enrichment)"]
         W1["cortex-log decision/lesson<br/>cortex-ingest-* document/session"] --> APIW["cortex-api<br/>stores row immediately"]
         APIW --> PGW[("Postgres")]
-        PGW -.->|enrichment queue (rows)| EW["embed-worker<br/>embed → vector"]
+        PGW -.->|enrichment queue rows| EW["embed-worker<br/>embed → vector"]
         PGW -.-> GW["graph-worker<br/>entities + relations"]
         EW --> PGW
         GW --> PGW
@@ -456,7 +457,7 @@ OpenKai is the terminal-first agent harness, and the provider authority:
    `cortex-boot`, act as `worker@project`, and their skills manifest rides the
    `cortex.persona.v2` boot contract — the skill registry (`cortex-skill`,
    `POST /skills`, `/skills/{slug}/bind`) is served by Cortex and selected on demand.
-3. **The CLI is the integration.** OpenKai calls the same 79 `cortex-*` commands over
+3. **The CLI is the integration.** OpenKai calls the same 72 `cortex-*` commands over
    `CORTEX_URL` + `CORTEX_TOKEN`; there is no private channel.
 
 The seam is designed so readers never care who wrote the settings — OpenKai present
@@ -657,6 +658,6 @@ operator act.
 - E020 epic — *v0.2.003 OS-Independent Appliance*: `Program/Release_v0.1.0/E020_V02003_OS_INDEPENDENT_APPLIANCE/EPIC_SPEC.md` (kaidera-os, range `468b53f7..97f856ea`); the CTO directives of 2026-08-19/20 quoted there.
 - Handoff `585fd83f` (kai→ren, 2026-08-31) — E020 full adversarial + functional review: findings F38 (`systemctl is-enabled` cannot express failure; measured on kos26, systemd 259) and F39/F40 (prune orphaned networks; networks as a third resource kind). Live Cortex, project `kaidera-os`.
 - Handoff `cfa51cc9` (kai→ren, 2026-08-31) — E021 P0: the Cortex split boundary; CTO directive 2026-08-31 to split Cortex out as an independent MIT product consumed as a hash-pinned artifact, the OpenKai pattern. Live Cortex, project `kaidera-os`.
-- API surface: `.agents/api/main.py` (≈16.3k lines, 121 routes), `.agents/api/README.md`, `.agents/scripts/` (79 commands), `.agents/docker-compose.cortex.yml` in kaidera-os.
+- API surface: `.agents/api/main.py` (≈20.7k lines, 123 routes), `.agents/api/README.md`, `.agents/scripts/` (72 executables; 81 command/support files), `.agents/docker-compose.cortex.yml` in kaidera-os.
 - The 27× boot compression figure: `local-cortex/README.md`, `local-cortex/ARCHITECTURE.md` (L0+L1+L2 boot stack), and the E65 tuning-knobs spec.
 - Companion docs: [architecture](../architecture.md) · [discovery](../discovery.md) · [models](../models.md) · [providers-standalone](../providers-standalone.md) · [deployment](../deployment.md) · [functionality index](../functionality/README.md).
