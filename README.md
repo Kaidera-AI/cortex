@@ -6,10 +6,10 @@
 battle-tested inside [Kaidera OS](https://kaidera.ai), now becoming an independent
 open-source product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
 
-> **Status: extraction in progress.** The code (≈21k lines of API, 79 CLI commands, ingest
-> workers, migrations) runs in production inside Kaidera OS today and lands here as
-> **v0.1.0**. This scaffold defines the contract it arrives under. Watch the repo or open a
-> discussion if you want to shape it.
+> **Status: extraction in progress.** The code (≈21k lines of API, 70 executable CLI
+> commands plus nine support/retired files, ingest workers, migrations) runs in production
+> inside Kaidera OS today and lands here as **v0.1.0**. This scaffold defines the contract
+> it arrives under. Watch the repo or open a discussion if you want to shape it.
 
 ## Install
 
@@ -101,6 +101,7 @@ two lives, one owner per fact.
 - [Providers on a standalone Cortex](docs/providers-standalone.md) — subscriptions for your agents, API providers for enrichment
 
 **Reference**
+- [CLI reference](docs/cli-reference.md) — all 70 executable commands plus the internal and retired support surface
 - [Functionality reference](docs/functionality/README.md) — one doc per functionality, built from real history
 - [Architecture](docs/architecture.md) — the six-layer appliance
 - [Deployment](docs/deployment.md)
