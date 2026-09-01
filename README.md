@@ -11,6 +11,33 @@ open-source product — the same path [OpenKai](https://github.com/Kaidera-AI/op
 > **v0.1.0**. This scaffold defines the contract it arrives under. Watch the repo or open a
 > discussion if you want to shape it.
 
+## Install
+
+One dependency-free launcher behind every channel — same file, same behaviour:
+
+```bash
+# Homebrew (macOS / Linux)
+brew install kaidera-ai/kaidera/cortex
+
+# npm
+npx @kaidera-ai/cortex preflight     # check this machine against the deployment contract
+npx @kaidera-ai/cortex install       # deploy the six-layer appliance
+
+# bun — the same package
+bunx @kaidera-ai/cortex preflight
+bunx @kaidera-ai/cortex install
+
+# roll back to the previously deployed payload (code only, never schema)
+cortex install --rollback
+```
+
+**Engines, one per machine, latest stable versions:** macOS runs **Apple Container**
+(the installer installs it if missing); Linux runs **rootless Podman** (hard floor
+`>= 5.0` — the installer refuses loudly below it, never a degraded install).
+`preflight` works today and reports honestly; `install` deploys once the v0.1.0
+payload ships — until then it refuses by design, because a published launcher never
+pretends. Full detail: [deployment process](docs/guides/deployment-process.md).
+
 ## What it does
 
 Give a team of AI workers what a human team takes for granted:

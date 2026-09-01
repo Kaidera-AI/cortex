@@ -3,8 +3,8 @@
 > v0.1.0 target contract. The stack runs in production on macOS under Apple Container
 > today; the one-command installer packages that setup.
 
-One containerisation technology per machine: on macOS that is **Apple Container** —
-the installer never mixes engines on a host.
+One containerisation technology per machine: on macOS that is **Apple Container**, at
+the **latest stable version** — the installer never mixes engines on a host.
 
 ## What the installer does
 

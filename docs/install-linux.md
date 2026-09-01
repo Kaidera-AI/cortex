@@ -3,7 +3,9 @@
 > v0.1.0 target contract. This mirrors the hardened Linux appliance path Cortex ships
 > inside today.
 
-One containerisation technology per machine: on Linux that is **rootless podman**.
+One containerisation technology per machine: on Linux that is **rootless podman**,
+at the **latest stable version** (the `>= 5.0` floor below is a refusal line, not a
+target — install current stable).
 
 ## Requirements (fail loud, checked up front)
 

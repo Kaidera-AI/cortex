@@ -1,0 +1,54 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  launcher-contract:
+    # One launcher behind every channel means one behavioural contract, proven under both
+    # runtimes on every change. The runner is NOT a compliant Cortex host, so the gate
+    # tests the CONTRACT (exit codes, JSON shape, honest refusal), never host compliance.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        runtime: [node, bun]
+    steps:
+      - uses: actions/checkout@v4
+      - if: matrix.runtime == 'node'
+        uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+      - name: contract checks
+        shell: bash
+        run: |
+          set -u
+          RT=${{ matrix.runtime }}
+          CLI="packages/installer/bin/cortex.js"
+          run() { "$RT" "$CLI" "$@"; }
+
+          # version + help exit 0
+          run version
+          run help
+
+          # install refuses with exit 2 and names what is pending (never a partial deploy)
+          set +e; out=$(run install 2>&1); rc=$?; set -e
+          [ "$rc" -eq 2 ] || { echo "install must exit 2 pre-payload, got $rc"; exit 1; }
+          grep -q "REFUSED" <<<"$out" || { echo "install refusal must be loud"; exit 1; }
+
+          # rollback carries the same refusal pre-payload
+          set +e; out=$(run install --rollback 2>&1); rc=$?; set -e
+          [ "$rc" -eq 2 ] || { echo "rollback must exit 2 pre-payload, got $rc"; exit 1; }
+
+          # preflight --json always yields valid JSON with the contract shape;
+          # its exit code reflects the RUNNER's compliance and is not asserted.
+          set +e; run preflight --json > preflight.json; set -e
+          python3 - <<'PY'
+          import json
+          d = json.load(open("preflight.json"))
+          assert isinstance(d["ok"], bool) and isinstance(d["checks"], list) and d["checks"]
+          for c in d["checks"]:
+              assert set(c) >= {"name", "ok", "detail"}
+              if not c["ok"]:
+                  assert c.get("remedy"), f"failing check without remedy: {c['name']}"
+          print("preflight JSON contract ok:", len(d["checks"]), "checks")
+          PY

@@ -145,7 +145,9 @@ Two rollback paths, both explicit operator acts — nothing rolls back silently:
   to the previously deployed digest-pinned payload: the launcher re-deploys the prior
   verified artifact and re-runs verification (health endpoints + doctor) before calling
   the rollback done. A rollback it cannot verify by digest is refused, same rule as
-  install.
+  install. Code rollback never rolls back schema: migrations are forward-only, so a
+  target payload older than the current schema baseline is refused — recover the data
+  with a restore first, then roll the code.
 
 ## What to set up
 
@@ -153,8 +155,10 @@ Two rollback paths, both explicit operator acts — nothing rolls back silently:
 
 - **npm publish is gated on v0.1.0.** The `@kaidera-ai/cortex` package is scaffolded and
   pushed to the repo; it publishes only with the release, after maintainer go.
-- **First publish creates the `@kaidera-ai` npm org.** That is a one-time outward act —
-  it names the organisation publicly — so it is gated on explicit operator go, not on CI.
+- **First publish creates the `@kaidera-ai` npm org.** A one-time outward act — it names
+  the organisation publicly. **Operator go was given 2026-09-01** ("publish all the
+  packages on our open-source repo, after full review"); the act itself still executes
+  only as part of the reviewed v0.1.0 publish flow, never from CI.
 - The **brew formula** lands with the same release, following the shipping
   `kaidera-os.rb` tap pattern, so all three channels appear together and resolve to the
   same digest.

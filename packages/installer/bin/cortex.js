@@ -94,17 +94,22 @@ function preflight(json) {
   return ok ? 0 : 1;
 }
 
-function install() {
+function install(rollback) {
   if (!PAYLOAD) {
     process.stderr.write(
-      "cortex install: REFUSED — the v0.1.0 release payload does not exist yet.\n" +
+      `cortex ${rollback ? "install --rollback" : "install"}: REFUSED — the v0.1.0 release payload does not exist yet.\n` +
       "This launcher ships ahead of the extraction (github.com/Kaidera-AI/cortex, ROADMAP.md)\n" +
       "so channels and preflight can be proven early. It will never deploy a stack it cannot\n" +
       "verify by digest. Run `cortex preflight` to prepare this machine.\n"
     );
     return 2;
   }
-  // v0.1.0: verify digest -> deploy six layers -> doctor -> print discovery URL.
+  // v0.1.0 install: verify digest -> deploy six layers -> doctor -> print discovery URL.
+  // v0.1.0 --rollback: re-deploy the PREVIOUS digest-pinned payload and re-verify by
+  // effect (health + doctor). Contract (docs/guides/deployment-process.md): a rollback
+  // that cannot be verified by digest is refused, and code rollback NEVER rolls back
+  // schema -- migrations are forward-only, so a target payload older than the current
+  // schema baseline is refused; recovering data is a restore, an explicit separate act.
   return 0;
 }
 
@@ -113,7 +118,7 @@ function main(argv) {
   const json = rest.includes("--json");
   switch (cmd) {
     case "preflight": return preflight(json);
-    case "install": return install();
+    case "install": return install(rest.includes("--rollback"));
     case "version": case "--version": case "-v":
       process.stdout.write(VERSION + "\n"); return 0;
     default:
@@ -121,6 +126,8 @@ function main(argv) {
         "cortex — persistent memory and coordination for AI agent teams\n\n" +
         "  cortex preflight [--json]   check this machine against the deployment contract\n" +
         "  cortex install              deploy the six-layer appliance (v0.1.0 payload required)\n" +
+        "  cortex install --rollback   re-deploy the previous digest-pinned payload (code only,\n" +
+        "                              never schema; data recovery is a restore)\n" +
         "  cortex version\n\n" +
         "Docs: https://github.com/Kaidera-AI/cortex\n"
       );
