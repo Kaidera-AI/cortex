@@ -67,6 +67,7 @@ two lives, one owner per fact.
 - [Handoffs](docs/guides/handoffs.md) — how work moves
 - [Memory](docs/guides/memory.md) — decisions, lessons, search, retention
 - [Ingest](docs/guides/ingest.md) · [Operations](docs/guides/operations.md)
+- [Deployment process](docs/guides/deployment-process.md) — install stream, preflight, verification, UAT runbook
 
 **Models & providers**
 - [Models — embeddings & rerank, the provider ladder](docs/models.md) (Ollama → NVIDIA free → OpenRouter)
