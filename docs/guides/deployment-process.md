@@ -122,6 +122,41 @@ fallbacks — a second engine on the machine is an install-stream refusal, enfor
 preflight. Nothing in install or repair may require sudo or a password; every path is
 user-owned.
 
+### Case study — Apple Container → Podman migration (2026-09-01)
+
+The first production engine migration on macOS moved a live kaidera-os Cortex from
+Apple Container to rootless Podman 6.0.2 with full data fidelity (exact row-count match
+across 1.78 M messages; 76/76 FK constraints; all extensions). Three of its failures
+shaped this contract directly:
+
+1. **The Ignition machine failure.** A Podman machine whose default connection pointed
+   at a VM that had never booted failed Ignition ("only Ignition spec v3.0.0+ configs
+   are accepted") and stuck in emergency mode; a fresh `machine init` then defaulted to
+   libkrun + 2 GiB and hung silently. The remedy — explicit
+   `--provider applehv --memory 10240`, and `podman system connection default` *before*
+   `machine start` (which otherwise blocks forever on an interactive prompt) — is why
+   engine setup must be explicit and verified, never defaulted.
+2. **The Darwin gate.** The shared engine resolver hard-rejected Podman on non-Linux
+   hosts, so the stack that was *meant* to migrate could not select its target engine.
+   The fix (explicit `KAIDERA_CONTAINER_ENGINE=podman` honoured on Darwin, auto
+   unchanged) plus the systemd guard (`install_podman_boot_service` early-returns off
+   Linux; boot persistence on macOS is launchd) are the two repo patches this migration
+   upstreamed.
+3. **The ownership/ACL issue.** `pg_restore --no-owner --no-privileges` silently
+   reassigned 36 `cortex_app`-owned tables (including `handoffs`) to `postgres` and
+   dropped their ACLs; the writer gate failed closed with a misleading 503 while the
+   real error (`permission denied for table handoffs`) sat in the API logs. The rule is
+   now permanent: never restore Cortex databases with `--no-owner`/`--no-privileges`,
+   or replay ownership and ACL sections immediately afterwards, and always smoke-test
+   with the writer-gate probe (`GET /handoffs` as the app role).
+
+The full runbook — sequence, volume seeding, pg_restore gotchas, verification
+checklist, rollback — is [migration-apple-to-podman.md](migration-apple-to-podman.md).
+Note the tension this migration exposes: preflight's no-second-engine check assumes
+macOS means Apple Container, yet Podman-on-macOS is now a measured, working engine.
+Resolving that (strategy doc design/17) is an open follow-up; until then the check
+stands for the standalone installer and the runbook applies to kaidera-os hosts.
+
 ## How to use it
 
 ```bash

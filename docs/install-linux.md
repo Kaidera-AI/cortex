@@ -10,7 +10,10 @@ target — install current stable).
 ## Requirements (fail loud, checked up front)
 
 - `podman >= 5.0` — `podman update --restart` does not exist before it; Ubuntu 24.04 ships
-  4.9.3, which is **too old**. The installer refuses rather than degrading.
+  4.9.3, which is **too old**. The installer refuses rather than degrading. (Measured
+  good: 6.0.2 rootless, crun/overlay — the version the 2026-09-01 macOS migration
+  validated end to end; the same floor now applies to the supported
+  [Podman-on-macOS path](install-macos.md#alternative-engine-rootless-podman-on-macos-measured).)
 - cgroup manager **`systemd`** — without it healthcheck timers never schedule and every
   `service_healthy` condition waits forever.
 - Rootless, with **linger enabled** and `podman-restart.service` enabled, so the stack

@@ -35,6 +35,8 @@ cortex install --rollback
 **Engines, one per machine, latest stable versions:** macOS runs **Apple Container**
 (the installer installs it if missing); Linux runs **rootless Podman** (hard floor
 `>= 5.0` — the installer refuses loudly below it, never a degraded install).
+Rootless Podman is also a measured macOS engine (explicit opt-in; proven by the
+[2026-09-01 production migration](docs/guides/migration-apple-to-podman.md)).
 `preflight` works today and reports honestly; `install` deploys once the v0.1.0
 payload ships — until then it refuses by design, because a published launcher never
 pretends. Full detail: [deployment process](docs/guides/deployment-process.md).
@@ -96,6 +98,7 @@ two lives, one owner per fact.
 - [Memory](docs/guides/memory.md) — decisions, lessons, search, retention
 - [Ingest](docs/guides/ingest.md) · [Multimodal ingestion](docs/guides/multimodal-ingestion.md) · [Operations](docs/guides/operations.md)
 - [Deployment process](docs/guides/deployment-process.md) — install stream, preflight, verification, UAT runbook
+- [Migration: Apple Container → Podman on macOS](docs/guides/migration-apple-to-podman.md) — measured runbook, pg_restore fidelity, rollback
 
 **Models & providers**
 - [Models — embeddings & rerank, the provider ladder](docs/models.md) (Ollama → NVIDIA free → OpenRouter)

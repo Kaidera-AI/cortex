@@ -661,3 +661,39 @@ operator act.
 - API surface: `.agents/api/main.py` (≈20.7k lines, 123 routes), `.agents/api/README.md`, `.agents/scripts/` (72 executables; 81 command/support files), `.agents/docker-compose.cortex.yml` in kaidera-os.
 - The 27× boot compression figure: `local-cortex/README.md`, `local-cortex/ARCHITECTURE.md` (L0+L1+L2 boot stack), and the E65 tuning-knobs spec.
 - Companion docs: [architecture](../architecture.md) · [discovery](../discovery.md) · [models](../models.md) · [providers-standalone](../providers-standalone.md) · [deployment](../deployment.md) · [functionality index](../functionality/README.md).
+
+## Appendix A — Known issues and fixes: the Apple→Podman migration (2026-09-01)
+
+Measured during the first production Apple Container → rootless Podman migration on
+macOS (Kai handoffs `5d1c168a`, `d8bce0ba`). Each item is a fix that is now permanent
+or a trap that is now documented. The full runbook:
+[migration-apple-to-podman.md](migration-apple-to-podman.md).
+
+- **`pg_restore --no-owner --no-privileges` breaks `cortex_app` silently.** 36 public
+  tables (incl. `handoffs`, `agents`) are owned by `cortex_app` with ACL-granted access;
+  stripping owners/ACLs on restore makes the writer gate fail closed with a misleading
+  `503 'roster policy unavailable'`. The real error is in the API container logs. Rule:
+  never strip ownership on Cortex restores, or replay `OWNER TO` + ACL sections as
+  separate passes immediately after. `harness_app` needs the same replay (21 tables).
+- **`DROP SCHEMA public CASCADE` is not a clean slate.** Installer-pre-migrated schema
+  `cortex` survives it and collides on restore (~139 benign "already exists" errors).
+  Drop both schemas, or restore into a freshly created database.
+- **`/healthz` does not exist; `/health` does.** Runbooks referencing `/healthz` are
+  wrong (pre-existing, not a regression).
+- **Engine gate is fixed upstream.** `KAIDERA_CONTAINER_ENGINE=podman` is honoured on
+  Darwin (auto still resolves to Docker on macOS); `install.sh` no longer dies calling
+  Linux-only `systemctl` for podman boot persistence off Linux.
+- **Stale Apple port forwarders survive `container stop`.** Only `container system
+  stop` releases `127.0.0.1:5499/5500/8501`; Podman then reports the opaque "internal
+  libpod error" — `podman --log-level=debug start <c>` reveals the real bind conflict.
+- **The old engine's launchd reconciler fights the migration.** Bootout
+  `ai.kaidera.kaidera-os.apple-container` before cutover or it resurrects `cortex-pg`
+  mid-flight.
+- **Podman machine automation traps:** set `podman system connection default` before
+  `machine start` (interactive prompt hangs otherwise); init explicitly with
+  `--provider applehv --memory 10240` (defaults hung silently); only one VM can be
+  active at a time on macOS.
+- **Graphs/models were host bind mounts under Apple Container.** Podman named volumes
+  start empty and must be seeded (virtiofs makes this fast — 22 GiB in ~60 s).
+- **The writer-gate probe is the restore smoke test.** `GET`/`POST /handoffs` as the
+  app role proves ownership/ACL fidelity better than any row count alone.

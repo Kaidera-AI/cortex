@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Docs: Apple Container → rootless Podman migration runbook
+  (`docs/guides/migration-apple-to-podman.md`) from the measured 2026-09-01 production
+  migration — full sequence, the `pg_restore --no-owner` ownership/ACL restore-fidelity
+  discovery, podman-compose gotchas, verification checklist, rollback path; case study
+  folded into the deployment-process guide, known-issues appendix in the Cortex guide,
+  and the Podman-on-macOS alternative engine documented in the macOS install contract.
 - Docs: model guide (how embeddings/rerank are used; Ollama → NVIDIA free → OpenRouter
   ladder), standalone provider guide (subscription plane vs enrichment plane), and the
   functionality reference — 21-area inventory over the measured 79-command / 121-route
