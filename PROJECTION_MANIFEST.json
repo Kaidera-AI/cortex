@@ -1,9 +1,9 @@
 {
   "components": {
     "api": {
-      "files": 82,
+      "files": 83,
       "path": "packages/api",
-      "tree_sha256": "47661276ea145370f40852627f1fac3e44e2a9f42e0728eea6e5bd308bd3ef15"
+      "tree_sha256": "dbfcedc2f9d247cdb4ce2d920f428055b72e1b91213a43df19bdd8dffcee018f"
     },
     "cli": {
       "files": 72,
