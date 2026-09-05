@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# cortex-log — write an agent event through the Cortex API
+# Usage: cortex-log [--confirm|--no-confirm] [--goal <goal-id>] <agent_name> <event_type> <summary> [files...]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+VALID_TYPES="commit decision lesson started stopped blocked unblocked bug handoff question"
+
+usage() {
+    printf 'Usage: cortex-log [--confirm|--no-confirm] [--goal <goal-id>] <agent_name> <event_type> <summary> [files...]\n\n'
+    printf 'Options:\n'
+    printf '  --confirm     Read the written row back and fail if summary/files do not match exactly (default)\n'
+    printf '  --no-confirm  Disable client read-back confirmation; API verified=true is still required\n\n'
+    printf 'Valid event types:\n'
+    printf '  %s\n' "${VALID_TYPES}"
+    exit 1
+}
+
+cortex_api_call_json() {
+    cortex_api_call "$@"
+}
+
+if [ "$#" -lt 1 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    usage
+fi
+
+GOAL_ID="${CORTEX_PARENT_GOAL_ID:-${CORTEX_EPIC_ID:-}}"
+CONFIRM="${CORTEX_WRITE_CONFIRM:-1}"
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --confirm)
+            CONFIRM=1
+            shift
+            ;;
+        --no-confirm)
+            CONFIRM=0
+            shift
+            ;;
+        --goal|--goal-parent)
+            [ "$#" -ge 2 ] || usage
+            GOAL_ID="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        --*)
+            printf 'ERROR: Unknown flag: %s\n' "$1" >&2
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ "$#" -lt 3 ]; then
+    usage
+fi
+
+AGENT_NAME="$(cortex_agent_base_name "$1" | tr '[:upper:]' '[:lower:]')"
+EVENT_TYPE="$2"
+SUMMARY="$3"
+shift 3
+
+if [ -n "${GOAL_ID}" ] && [[ "${SUMMARY}" != \[GOAL:* ]]; then
+    SUMMARY="[GOAL:${GOAL_ID}] ${SUMMARY}"
+fi
+
+if ! printf '%s\n' "${VALID_TYPES}" | grep -qw "${EVENT_TYPE}"; then
+    printf 'ERROR: Invalid event type "%s"\n\n' "${EVENT_TYPE}" >&2
+    printf 'Valid event types: %s\n' "${VALID_TYPES}" >&2
+    exit 1
+fi
+
+payload="$(
+    python3 - "${EVENT_TYPE}" "${SUMMARY}" "${GOAL_ID}" "$@" <<'PYEOF'
+import json
+import sys
+
+event_type = sys.argv[1]
+summary = sys.argv[2]
+goal_id = sys.argv[3]
+files = sys.argv[4:]
+
+body = {
+    "event_type": event_type,
+    "summary": summary,
+}
+
+if files:
+    body["files_affected"] = files
+if goal_id:
+    body["metadata"] = {"parent_goal_id": goal_id, "goal_ancestry": [goal_id]}
+
+print(json.dumps(body))
+PYEOF
+)"
+
+response="$(cortex_api_call_json POST "/log" "${payload}" "${AGENT_NAME}" 2>&1)" || {
+    rc=$?
+    printf 'ERROR: cortex-log API request failed for [%s] %s\n' "${EVENT_TYPE}" "${AGENT_NAME}" >&2
+    printf '%s\n' "${response}" >&2
+    exit "${rc}"
+}
+
+response_check="$(
+python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("response was not valid JSON")
+    raise SystemExit(1)
+
+if not isinstance(data, dict):
+    print("response was not a JSON object")
+    raise SystemExit(1)
+
+if not (data.get("logged") is True or data.get("id")):
+    print("response did not include logged=true or a write id")
+    raise SystemExit(1)
+
+if data.get("verified") is not True:
+    print("response did not include verified=true")
+    raise SystemExit(1)
+
+raise SystemExit(0)
+PYEOF
+)" || {
+    printf 'ERROR: cortex-log API returned an unexpected or unverified response\n' >&2
+    [ -n "${response_check}" ] && printf 'ERROR: %s\n' "${response_check}" >&2
+    printf '%s\n' "${response}" >&2
+    exit 1
+}
+
+if [ "${CONFIRM}" = "1" ]; then
+    confirm_meta="$(python3 - "${EVENT_TYPE}" "${response}" <<'PYEOF'
+import json
+import sys
+
+event_type = sys.argv[1]
+data = json.loads(sys.argv[2])
+kind = event_type if event_type in {"decision", "lesson"} else "team_event"
+row_id = data.get("id")
+team_event_id = data.get("team_event_id")
+if not row_id:
+    raise SystemExit("missing write id in API response")
+print(kind)
+print(row_id)
+print(team_event_id or "")
+PYEOF
+)" || {
+        printf 'ERROR: cortex-log could not determine write ID for confirmation\n' >&2
+        printf '%s\n' "${response}" >&2
+        exit 1
+    }
+    confirm_kind="$(printf '%s\n' "${confirm_meta}" | sed -n '1p')"
+    confirm_id="$(printf '%s\n' "${confirm_meta}" | sed -n '2p')"
+    team_event_id="$(printf '%s\n' "${confirm_meta}" | sed -n '3p')"
+
+    confirm_response="$(cortex_api_call_json GET "/verify/write?kind=$(cortex_api_urlencode "${confirm_kind}")&id=$(cortex_api_urlencode "${confirm_id}")" "" "${AGENT_NAME}" 2>&1)" || {
+        status=$?
+        printf 'ERROR: cortex-log confirm read-back failed for %s %s\n' "${confirm_kind}" "${confirm_id}" >&2
+        printf '%s\n' "${confirm_response}" >&2
+        exit "${status}"
+    }
+    python3 - "${confirm_response}" "${SUMMARY}" "${EVENT_TYPE}" "${confirm_kind}" "$@" <<'PYEOF' || exit 1
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+expected_summary = sys.argv[2]
+expected_event_type = sys.argv[3]
+kind = sys.argv[4]
+expected_files = list(sys.argv[5:])
+row = data.get("row") or {}
+if row.get("summary") != expected_summary:
+    print("ERROR: cortex-log confirm read-back summary mismatch", file=sys.stderr)
+    raise SystemExit(1)
+if kind == "team_event" and row.get("event_type") != expected_event_type:
+    print("ERROR: cortex-log confirm read-back event_type mismatch", file=sys.stderr)
+    raise SystemExit(1)
+if kind == "team_event" and list(row.get("files") or []) != expected_files:
+    print("ERROR: cortex-log confirm read-back files mismatch", file=sys.stderr)
+    raise SystemExit(1)
+PYEOF
+
+    if [ -n "${team_event_id}" ]; then
+        event_response="$(cortex_api_call_json GET "/verify/write?kind=team_event&id=$(cortex_api_urlencode "${team_event_id}")" "" "${AGENT_NAME}" 2>&1)" || {
+            status=$?
+            printf 'ERROR: cortex-log confirm read-back failed for team_event %s\n' "${team_event_id}" >&2
+            printf '%s\n' "${event_response}" >&2
+            exit "${status}"
+        }
+        python3 - "${event_response}" "${SUMMARY}" "${EVENT_TYPE}" "$@" <<'PYEOF' || exit 1
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+expected_summary = sys.argv[2]
+expected_event_type = sys.argv[3]
+expected_files = list(sys.argv[4:])
+row = data.get("row") or {}
+if row.get("summary") != expected_summary:
+    print("ERROR: cortex-log confirm read-back team_event summary mismatch", file=sys.stderr)
+    raise SystemExit(1)
+if row.get("event_type") != expected_event_type:
+    print("ERROR: cortex-log confirm read-back team_event event_type mismatch", file=sys.stderr)
+    raise SystemExit(1)
+if list(row.get("files") or []) != expected_files:
+    print("ERROR: cortex-log confirm read-back team_event files mismatch", file=sys.stderr)
+    raise SystemExit(1)
+PYEOF
+    fi
+fi
+
+printf '\033[32mLogged: [%s] %s — %s\033[0m\n' "${EVENT_TYPE}" "${AGENT_NAME}" "${SUMMARY}"

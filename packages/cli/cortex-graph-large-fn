@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# cortex-graph-large-fn — Find oversized functions/classes (risk hotspots)
+# Usage: cortex-graph-large-fn [--min N] [--kind Function|Class] [--repo <path>] [--max-results N]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+MIN_LINES=200
+KIND=""
+LIMIT=100
+REPO_ROOT=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --min)   MIN_LINES="$2"; shift 2 ;;
+        --kind)  KIND="$2"; shift 2 ;;
+        --limit|--max-results) LIMIT="$2"; shift 2 ;;
+        --repo)  REPO_ROOT="$2"; shift 2 ;;
+        --help|-h) printf 'Usage: cortex-graph-large-fn [--min N] [--kind Function|Class] [--repo <path>] [--max-results N]\n'; exit 0 ;;
+        *)       printf 'ERROR: Unknown flag: %s\n' "$1" >&2; exit 1 ;;
+    esac
+done
+
+if [ -z "${REPO_ROOT}" ]; then
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+case "${MIN_LINES}:${LIMIT}" in
+    *[!0-9:]*|:*|*:) printf 'ERROR: min and max-results must be integers\n' >&2; exit 2 ;;
+esac
+if [ "${MIN_LINES}" -lt 1 ] || [ "${LIMIT}" -lt 1 ]; then
+    printf 'ERROR: min and max-results must be at least 1\n' >&2; exit 2
+fi
+
+payload="$(python3 - "${REPO_ROOT}" "${MIN_LINES}" "${KIND}" "${LIMIT}" <<'PYEOF'
+import json
+import sys
+
+print(json.dumps({
+    "repo": sys.argv[1],
+    "min_lines": int(sys.argv[2]),
+    "kind": sys.argv[3] or None,
+    "limit": int(sys.argv[4]),
+}))
+PYEOF
+)"
+
+CORTEX_API_MAX_TIME=80 cortex_api_call_json POST "/graph/large-fn" "${payload}" | python3 -c '
+import json
+import sys
+
+result = json.load(sys.stdin)
+if not isinstance(result, dict):
+    print("ERROR: malformed code graph response", file=sys.stderr)
+    raise SystemExit(2)
+status = result.get("status")
+if status not in {"ok", "error"}:
+    print("ERROR: unsupported code graph status", file=sys.stderr)
+    raise SystemExit(2)
+if status == "error":
+    detail = str(result.get("error") or result.get("summary") or "large-function query failed")
+    print("ERROR: {}".format(detail[:500]), file=sys.stderr)
+    raise SystemExit(1)
+rows = result.get("results") or []
+if not isinstance(rows, list):
+    print("ERROR: malformed code graph results", file=sys.stderr)
+    raise SystemExit(2)
+print("Functions/classes over {} lines: {}".format(sys.argv[1], len(rows)))
+print("{:>6}  {:<40} Location".format("Lines", "Name"))
+print("{:>6}  {:<40} --------".format("-----", "----"))
+for item in rows:
+    size = int(item.get("line_end", 0)) - int(item.get("line_start", 0))
+    location = "{}:{}".format(
+        item.get("file_path", "?"), item.get("line_start", "?")
+    )
+    print("{:6d}  {:<40} {}".format(size, item.get("name", "?"), location))
+' "${MIN_LINES}"

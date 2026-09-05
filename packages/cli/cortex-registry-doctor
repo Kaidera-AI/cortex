@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# cortex-registry-doctor — inspect and safely clean Cortex agent-registry drift.
+#
+# Read path: GET /admin/cortex/doctor, registry_health check.
+# Write path: POST /admin/agents/remove for doctor-listed safe candidates only.
+# No direct database access; dry-run by default.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-registry-doctor [--clean] [--confirm] [--json]
+
+Inspects Cortex agent-registry hygiene using /admin/cortex/doctor check
+"registry_health". By default this is read-only and prints the safe cleanup
+candidates. --clean remains a dry-run unless --confirm is also passed.
+
+Cleanup deactivates only the doctor-listed safe candidates via POST
+/admin/agents/remove. It never mutates Postgres directly.
+EOF
+}
+
+CLEAN=0
+CONFIRM=0
+JSON_OUT=0
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --clean) CLEAN=1; shift ;;
+        --confirm) CONFIRM=1; shift ;;
+        --json) JSON_OUT=1; shift ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+report="$(cortex_api_call_admin GET "/admin/cortex/doctor")"
+if [ -z "${report}" ]; then
+    echo "ERROR: /admin/cortex/doctor returned an empty response; is cortex-api running and using the current package?" >&2
+    exit 1
+fi
+report_file="$(mktemp "${TMPDIR:-/tmp}/cortex-registry-report.XXXXXX")"
+plan_file="$(mktemp "${TMPDIR:-/tmp}/cortex-registry-clean.XXXXXX")"
+trap 'rm -f "${report_file}" "${plan_file}"' EXIT
+printf '%s' "${report}" >"${report_file}"
+
+python3 - "${report_file}" "${plan_file}" "${JSON_OUT}" <<'PYEOF'
+import json
+import sys
+
+report_path = sys.argv[1]
+plan_path = sys.argv[2]
+json_out = sys.argv[3] == "1"
+try:
+    with open(report_path, "r", encoding="utf-8") as handle:
+        report = json.load(handle)
+except json.JSONDecodeError as exc:
+    print(f"ERROR: /admin/cortex/doctor returned non-JSON: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+registry = next((c for c in report.get("checks", []) if c.get("id") == "registry_health"), None)
+if registry is None:
+    print("ERROR: /admin/cortex/doctor did not include registry_health", file=sys.stderr)
+    raise SystemExit(1)
+
+evidence = registry.get("evidence") or {}
+candidates = list(evidence.get("safe_cleanup_candidates") or [])
+candidate_count = int(evidence.get("safe_cleanup_candidate_count") or len(candidates))
+with open(plan_path, "w", encoding="utf-8") as handle:
+    json.dump(candidates, handle)
+
+if json_out:
+    print(json.dumps(registry, indent=2, sort_keys=True))
+else:
+    print(f"registry_health status: {registry.get('status')}")
+    print(f"scanned agent rows: {evidence.get('scanned_agent_rows', 0)}")
+    print(f"issue counts: {json.dumps(evidence.get('issue_counts') or {}, sort_keys=True)}")
+    print(f"cross-project duplicate names: {len(evidence.get('cross_project_duplicates') or [])}")
+    print(f"safe cleanup candidates: {candidate_count}")
+    for item in candidates[:50]:
+        reasons = ",".join(item.get("reasons") or [])
+        print(f"  - {item.get('project')}/{item.get('agent')} role={item.get('role') or '(none)'} reasons={reasons}")
+    if len(candidates) > 50:
+        print(f"  ... {len(candidates) - 50} more")
+PYEOF
+
+if [ "${CLEAN}" != "1" ]; then
+    exit 0
+fi
+
+candidate_count="$(python3 - "${plan_file}" <<'PYEOF'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    print(len(json.load(handle)))
+PYEOF
+)"
+
+if [ "${candidate_count}" = "0" ]; then
+    echo "No safe cleanup candidates."
+    exit 0
+fi
+
+if [ "${CONFIRM}" != "1" ]; then
+    echo "DRY RUN: pass --clean --confirm to deactivate these ${candidate_count} roster row(s)."
+    exit 0
+fi
+
+cleanup_succeeded=0
+cleanup_failed=0
+
+while IFS=$'\t' read -r project agent; do
+    [ -n "${project}" ] && [ -n "${agent}" ] || continue
+    payload="$(python3 - "${project}" "${agent}" <<'PYEOF'
+import json
+import sys
+print(json.dumps({"project": sys.argv[1], "agent_name": sys.argv[2]}))
+PYEOF
+)"
+    echo "Deactivating ${project}/${agent}"
+    if response="$(cortex_api_call_admin POST "/admin/agents/remove" "${payload}" 2>&1)"; then
+        cleanup_succeeded=$((cleanup_succeeded + 1))
+    else
+        cleanup_failed=$((cleanup_failed + 1))
+        printf 'WARN: failed to deactivate %s/%s: %s\n' \
+            "${project}" "${agent}" "${response}" >&2
+    fi
+done < <(python3 - "${plan_file}" <<'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    for item in json.load(handle):
+        project = str(item.get("project") or "").strip()
+        agent = str(item.get("agent") or "").strip()
+        if project and agent:
+            print(project + "\t" + agent)
+PYEOF
+)
+
+echo "Registry cleanup complete: ${cleanup_succeeded} succeeded, ${cleanup_failed} failed."
+if [ "${cleanup_failed}" -gt 0 ]; then
+    exit 1
+fi

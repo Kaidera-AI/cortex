@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!worker.py
+!worker-entrypoint
+!debian-snapshot.sources
+!requirements.in
+!requirements.lock

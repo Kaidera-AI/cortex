@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""Create and validate Cortex handoff evidence bundles."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+GATES = ("implementation", "review", "pr", "deploy", "uat", "smoke", "human_acceptance")
+GATE_STATUSES = ("not_applicable", "pending", "blocked", "complete")
+PASS_WORDS = ("pass", "passed", "healthy", "accepted", "complete", "success")
+FAIL_WORDS = ("fail", "failed", "error", "traceback", "blocked")
+
+
+def local_identity_agents() -> set[str]:
+    agents_dir = ROOT / ".agents" / "agents"
+    if not agents_dir.exists():
+        return set()
+    return {
+        path.name[: -len("_IDENTITY.md")].lower()
+        for path in agents_dir.glob("*_IDENTITY.md")
+        if path.name.endswith("_IDENTITY.md")
+    }
+
+
+def local_workspace_project() -> str:
+    config = ROOT / ".agents" / "config" / "workspace.json"
+    try:
+        payload = json.loads(config.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return ""
+    program = payload.get("program") or {}
+    return str(program.get("key") or "").strip().lower()
+
+
+def split_csv(values: list[str]) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        for item in value.split(","):
+            item = item.strip()
+            if item:
+                result.append(item)
+    return result
+
+
+def parse_gate(value: str) -> tuple[str, str]:
+    if "=" not in value:
+        raise ValueError(f"gate must use name=status: {value}")
+    name, status = (part.strip().lower().replace("-", "_") for part in value.split("=", 1))
+    if name not in GATES:
+        raise ValueError(f"unknown gate {name!r}; expected one of {', '.join(GATES)}")
+    if status not in GATE_STATUSES:
+        raise ValueError(f"unknown gate status {status!r}; expected one of {', '.join(GATE_STATUSES)}")
+    return name, status
+
+
+def pass_like(line: str) -> bool:
+    text = line.lower()
+    return any(word in text for word in PASS_WORDS) and not any(word in text for word in FAIL_WORDS)
+
+
+def validate_args(args: argparse.Namespace) -> list[str]:
+    errors: list[str] = []
+    agent = args.agent.lower().strip()
+    if not args.project.strip():
+        errors.append("--project or CORTEX_PROJECT is required")
+    project = args.project.strip().lower()
+    if project and project == local_workspace_project():
+        roster = local_identity_agents()
+        if roster and agent not in roster:
+            errors.append(
+                f"{project} evidence agent must be one of: " + ", ".join(sorted(roster))
+            )
+    if not args.handoff and not args.unresolved_id:
+        errors.append("--handoff or --unresolved-id is required")
+    if args.unresolved_id and not args.unresolved_reason:
+        errors.append("--unresolved-reason is required with --unresolved-id")
+    if not args.summary.strip():
+        errors.append("--summary is required")
+    if not split_csv(args.files):
+        errors.append("at least one --file/--files entry is required")
+    if not args.verify:
+        errors.append("at least one --verify entry is required")
+    if not args.residual_risk.strip():
+        errors.append("--residual-risk is required")
+    if args.progress_draft and not args.verify:
+        errors.append("--progress-draft requires verification evidence")
+    if args.progress_draft:
+        failing = [line for line in args.verify if not pass_like(line)]
+        if failing:
+            errors.append("--progress-draft requires pass-like verification evidence; failing/unclear: " + "; ".join(failing))
+    for gate in args.gate:
+        try:
+            parse_gate(gate)
+        except ValueError as exc:
+            errors.append(str(exc))
+    return errors
+
+
+def gate_map(raw_gates: list[str]) -> dict[str, str]:
+    gates = {name: "not_applicable" for name in GATES}
+    for raw in raw_gates:
+        name, status = parse_gate(raw)
+        gates[name] = status
+    return gates
+
+
+def render_bundle(args: argparse.Namespace) -> str:
+    created_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    agent = args.agent.lower().strip()
+    files = split_csv(args.files)
+    gates = gate_map(args.gate)
+    bundle_type = "unresolved_reference" if args.unresolved_id else "handoff_evidence"
+    record_id = args.unresolved_id or args.handoff
+
+    lines = [
+        "# Cortex Evidence Bundle",
+        "",
+        f"- schema: cortex.evidence-bundle.v1",
+        f"- type: {bundle_type}",
+        f"- project: {args.project}",
+        f"- agent: {agent}",
+        f"- handoff: {args.handoff or '(none)'}",
+        f"- unresolved_id: {args.unresolved_id or '(none)'}",
+        f"- created_at: {created_at}",
+        "",
+        "## Summary",
+        "",
+        args.summary.strip(),
+        "",
+        "## Files",
+        "",
+    ]
+    lines.extend(f"- {item}" for item in files)
+    lines.extend(["", "## Verification", ""])
+    lines.extend(f"- {item.strip()}" for item in args.verify)
+    if args.live_smoke:
+        lines.extend(["", "## Live Smokes", ""])
+        lines.extend(f"- {item.strip()}" for item in args.live_smoke)
+    lines.extend(
+        [
+            "",
+            "## Lifecycle Gates",
+            "",
+            "| Gate | Status |",
+            "|---|---|",
+        ]
+    )
+    lines.extend(f"| {gate} | {status} |" for gate, status in gates.items())
+    if args.unresolved_id:
+        lines.extend(
+            [
+                "",
+                "## Unresolved Reference",
+                "",
+                f"- id: {args.unresolved_id}",
+                f"- reason: {args.unresolved_reason.strip()}",
+                f"- next_action: {args.next_action.strip() or 'Create a focused follow-up handoff or CTO consult with exact missing evidence.'}",
+            ]
+        )
+    lines.extend(["", "## Residual Risk", "", args.residual_risk.strip()])
+    if args.progress_draft:
+        lines.extend(
+            [
+                "",
+                "## Progress Draft",
+                "",
+                (
+                    f"- {created_at[:10]} - {args.summary.strip()} "
+                    f"Evidence bundle `{record_id}` verified by {agent}; residual risk: {args.residual_risk.strip()}"
+                ),
+                "",
+                "## Changelog Draft",
+                "",
+                f"- {args.summary.strip()}",
+                *[f"- Verification: {item.strip()}" for item in args.verify],
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_output(text: str, out: str) -> Path | None:
+    if not out:
+        print(text, end="")
+        return None
+    path = Path(out)
+    if not path.is_absolute():
+        path = ROOT / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    print(f"Wrote evidence bundle: {path}")
+    return path
+
+
+def log_bundle(args: argparse.Namespace, path: Path | None) -> None:
+    summary_id = args.handoff or args.unresolved_id or "no-id"
+    summary = f"[EVIDENCE-BUNDLE:{summary_id}] {args.summary.strip()} Residual risk: {args.residual_risk.strip()}"
+    cmd = [str(ROOT / ".agents/scripts/cortex-log"), args.agent.lower(), "decision", summary]
+    if path is not None:
+        cmd.append(str(path.relative_to(ROOT) if path.is_relative_to(ROOT) else path))
+    env = os.environ.copy()
+    env.setdefault("CORTEX_PROJECT", args.project)
+    subprocess.run(cmd, cwd=ROOT, env=env, check=True)
+
+
+def parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Create a Cortex evidence bundle.")
+    parser.add_argument("--project", default=os.environ.get("CORTEX_PROJECT", ""))
+    parser.add_argument("--agent", required=True)
+    parser.add_argument("--handoff", default="")
+    parser.add_argument("--summary", required=True)
+    parser.add_argument("--file", "--files", dest="files", action="append", default=[])
+    parser.add_argument("--verify", action="append", default=[])
+    parser.add_argument("--live-smoke", action="append", default=[])
+    parser.add_argument("--gate", action="append", default=[], help="Lifecycle gate status, e.g. implementation=complete")
+    parser.add_argument("--residual-risk", required=True)
+    parser.add_argument("--unresolved-id", default="")
+    parser.add_argument("--unresolved-reason", default="")
+    parser.add_argument("--next-action", default="")
+    parser.add_argument("--progress-draft", action="store_true")
+    parser.add_argument("--out", default="")
+    parser.add_argument("--log", action="store_true", help="Log a Cortex decision after writing/printing the bundle.")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    errors = validate_args(args)
+    if errors:
+        print("ERROR: invalid evidence bundle:", file=sys.stderr)
+        for error in errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 2
+    text = render_bundle(args)
+    path = write_output(text, args.out)
+    if args.log:
+        log_bundle(args, path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

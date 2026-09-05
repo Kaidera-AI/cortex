@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Import one named-field Cortex project export through the admin API.
+set -euo pipefail
+umask 077
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-import-project <target-project-key> <export.json> [--allow-existing]
+
+The target must already be registered with cortex-init-project. By default the
+import fails if project data already exists; --allow-existing enables idempotent
+ON CONFLICT merging after operator review.
+EOF
+}
+
+[ "$#" -ge 2 ] || { usage >&2; exit 2; }
+case "${1:-}" in --help|-h) usage; exit 0 ;; esac
+TARGET_PROJECT="$1"
+INPUT="$2"
+shift 2
+ALLOW_EXISTING=false
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --allow-existing) ALLOW_EXISTING=true; shift ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+[ -f "$INPUT" ] || { echo "ERROR: export file not found: $INPUT" >&2; exit 1; }
+
+if [ -f "$INPUT.sha256" ]; then
+    INPUT_DIR="$(cd "$(dirname "$INPUT")" && pwd)"
+    (cd "$INPUT_DIR" && shasum -a 256 -c "$(basename "$INPUT").sha256")
+fi
+
+REQUEST="$(mktemp "${TMPDIR:-/tmp}/cortex-project-import.XXXXXX.json")"
+trap 'rm -f "$REQUEST"' EXIT
+python3 - "$INPUT" "$REQUEST" "$ALLOW_EXISTING" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+source, target, allow_existing = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+payload = json.loads(source.read_text(encoding="utf-8"))
+if payload.get("format") != "kaidera.cortex-project.v1":
+    raise SystemExit("ERROR: unsupported Cortex project export format")
+payload["allow_existing"] = allow_existing == "true"
+target.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
+PY
+
+CORTEX_PROJECT="$TARGET_PROJECT"
+ENCODED_PROJECT="$(cortex_api_urlencode_strict "$TARGET_PROJECT")"
+CALLER_AGENT="${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${BEAT_CORTEX_AGENT:-}}}"
+CORTEX_API_PAYLOAD_FILE="$REQUEST" \
+CORTEX_API_MAX_TIME="${CORTEX_PROJECT_TRANSFER_TIMEOUT_S:-1800}" \
+    cortex_api_call_admin POST "/admin/projects/${ENCODED_PROJECT}/import" "" "$CALLER_AGENT"
+printf '\n'

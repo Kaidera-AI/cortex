@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# cortex-brief — cheap Work Product Memory lookup before rediscovering code
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage:\n'
+    printf '  cortex-brief <query>\n'
+    printf '  cortex-brief --file <path> [--limit <n>]\n'
+    printf '  cortex-brief --symbol <name> [--limit <n>]\n'
+    printf '  cortex-brief --handoff <id> [--limit <n>]\n'
+    exit 1
+}
+
+Q=""
+FILE=""
+SYMBOL=""
+HANDOFF=""
+STATUS="current"
+LIMIT="5"
+QUERY_PARTS=()
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --query|-q) Q="$2"; shift 2 ;;
+        --file) FILE="$2"; shift 2 ;;
+        --symbol) SYMBOL="$2"; shift 2 ;;
+        --handoff|--handoff-id) HANDOFF="$2"; shift 2 ;;
+        --status) STATUS="$2"; shift 2 ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        --help|-h) usage ;;
+        --*) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+        *) QUERY_PARTS+=("$1"); shift ;;
+    esac
+done
+
+if [ -z "${Q}" ] && [ "${#QUERY_PARTS[@]}" -gt 0 ]; then
+    Q="${QUERY_PARTS[*]}"
+fi
+
+if [ -z "${Q}" ] && [ -z "${FILE}" ] && [ -z "${SYMBOL}" ] && [ -z "${HANDOFF}" ]; then
+    usage
+fi
+
+PATH_WITH_QUERY="$(python3 - "${Q}" "${FILE}" "${SYMBOL}" "${HANDOFF}" "${STATUS}" "${LIMIT}" <<'PYEOF'
+import sys
+import urllib.parse
+
+keys = ["q", "file", "symbol", "handoff_id", "status", "limit"]
+values = sys.argv[1:]
+params = [(k, v) for k, v in zip(keys, values) if v]
+print("/brief?" + urllib.parse.urlencode(params))
+PYEOF
+)"
+
+if ! RESPONSE="$(cortex_api_call_json GET "${PATH_WITH_QUERY}" "" "" 2>&1)"; then
+    status red "ERROR: cortex-brief API call failed."
+    printf '%s\n' "${RESPONSE}" >&2
+    exit 1
+fi
+
+python3 - "${RESPONSE}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+items = data.get("work_products") or []
+if not items:
+    print("\033[33mNo current work-product brief found.\033[0m")
+    raise SystemExit(0)
+
+for idx, item in enumerate(items, 1):
+    print(f"\n[{idx}] {item.get('title') or '(untitled)'}")
+    print(f"    ID:      {item.get('id')}")
+    print(f"    Status:  {item.get('status')}  Activity: {item.get('activity_type') or ''}")
+    if item.get("handoff_id"):
+        print(f"    Handoff: {item.get('handoff_id')}")
+    print(f"    Summary: {item.get('summary') or ''}")
+    if item.get("behavior_summary"):
+        print(f"    Behavior: {item.get('behavior_summary')}")
+    if item.get("architecture_notes"):
+        print(f"    Arch:    {item.get('architecture_notes')}")
+    files = item.get("files_changed") or []
+    if files:
+        print(f"    Files:   {', '.join(files[:8])}")
+    tests = item.get("tests_run") or []
+    if tests:
+        rendered = []
+        for test in tests[:5]:
+            if isinstance(test, dict):
+                rendered.append(" ".join(str(test.get(k) or "") for k in ("command", "result", "notes")).strip())
+            else:
+                rendered.append(str(test))
+        print(f"    Tests:   {'; '.join([t for t in rendered if t])}")
+    risks = item.get("risks") or []
+    if risks:
+        print(f"    Risks:   {'; '.join(risks)}")
+    followups = item.get("followups") or []
+    if followups:
+        print(f"    Next:    {'; '.join(followups)}")
+print("")
+PYEOF

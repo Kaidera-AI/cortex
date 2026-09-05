@@ -1,0 +1,12 @@
+# Runtime and model-fetch dependencies. Compile as one universal CPython 3.12 lock
+# for Linux x86_64 and aarch64 with the documented uv command in requirements.lock.
+fastapi==0.141.1
+pydantic==2.11.4
+safetensors==0.8.0
+sentence-transformers==6.0.0
+setuptools==84.0.0
+starlette==1.6.0
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl#sha256=4ca4a9394b0c771238a4f73590fdbbc4debad85ed0fa63d026ae1b085da7d6e2 ; platform_machine == "x86_64"
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl#sha256=6f307c2c32d764ffc6ff6893b801fad6d4752f3e67966cb8abf1843427c02604 ; platform_machine == "aarch64"
+transformers==5.15.1
+uvicorn[standard]==0.52.3

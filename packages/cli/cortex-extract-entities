@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# cortex-extract-entities — extract graph entities through API by default.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-extract-entities [--source project_memory|all|decisions|lessons|knowledge|work_products] [--limit N]
+                               [--backfill] [--reprocess] [--use-llm] [--model MODEL] [--dry-run|--apply]
+EOF
+}
+
+SOURCE="project_memory"
+LIMIT=20
+BACKFILL=false
+DRY_RUN=true
+REPROCESS=false
+USE_LLM=false
+MODEL=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --source) SOURCE="$2"; shift 2 ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        --backfill) BACKFILL=true; shift ;;
+        --reprocess) REPROCESS=true; shift ;;
+        --use-llm) USE_LLM=true; shift ;;
+        --model) MODEL="$2"; shift 2 ;;
+        --apply) DRY_RUN=false; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --local-worker)
+            echo "ERROR: --local-worker was retired; entity extraction must run through cortex-api" >&2
+            exit 2
+            ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+cortex_api_call_json GET "/graph/stats" >/dev/null 2>&1 || true
+payload="$(python3 - "${CORTEX_PROJECT}" "${SOURCE}" "${LIMIT}" "${BACKFILL}" "${DRY_RUN}" "${REPROCESS}" "${USE_LLM}" "${MODEL}" <<'PYEOF'
+import json, sys
+print(json.dumps({
+    "project": sys.argv[1],
+    "source": sys.argv[2],
+    "limit": int(sys.argv[3] or 20),
+    "backfill": sys.argv[4].lower() == "true",
+    "dry_run": sys.argv[5].lower() == "true",
+    "reprocess": sys.argv[6].lower() == "true",
+    "use_llm": sys.argv[7].lower() == "true",
+    "model": sys.argv[8] or None,
+}))
+PYEOF
+)"
+
+cortex_api_call_admin POST "/cortex-graph-extract" "${payload}"

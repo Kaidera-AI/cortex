@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# cortex-progress-dashboard - compatibility wrapper for the markdown dashboard.
+#
+# The active E75 dashboard renderer is cortex-dashboard-md. This command remains
+# as a stable operator entrypoint for older runbooks and closeout checks.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-progress-dashboard [--watch SEC]
+
+Renders the current Cortex markdown dashboard to stdout through
+cortex-dashboard-md. The dashboard file is regenerated before printing.
+
+Options are passed through to cortex-dashboard-md.
+EOF
+}
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+exec "${SCRIPT_DIR}/cortex-dashboard-md" --pane --quiet "$@"

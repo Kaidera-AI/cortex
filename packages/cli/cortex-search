@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# cortex-search — search Cortex memory through the API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+    local code="${1:-1}"
+    cat <<'EOF'
+Usage:
+  cortex-search <query>
+  cortex-search <query> --type knowledge|decisions|lessons|events|messages|artifacts|work_products
+  cortex-search <query> --room <topic> --hall <scope> [--limit N] [--no-rerank] [--graph]
+EOF
+    exit "${code}"
+}
+
+if [ "$#" -eq 0 ]; then
+    usage 1
+fi
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage 0
+fi
+
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+QUERY="$1"
+shift
+SEARCH_TYPE="all"
+ROOM=""
+HALL="project"
+LIMIT=20
+RERANK=true
+GRAPH=false
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --type|--hall-type) SEARCH_TYPE="$2"; shift 2 ;;
+        --room) ROOM="$2"; shift 2 ;;
+        --hall) HALL="$2"; shift 2 ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        --no-rerank) RERANK=false; shift ;;
+        --graph) GRAPH=true; shift ;;
+        --include-global|--include-invalidated|--wing)
+            if [ "$1" = "--wing" ]; then shift 2; else shift; fi
+            ;;
+        --help|-h) usage 0 ;;
+        *) echo "ERROR: Unknown flag: $1" >&2; usage 1 ;;
+    esac
+done
+
+path="/search?q=$(cortex_api_urlencode "${QUERY}")&type=$(cortex_api_urlencode "${SEARCH_TYPE}")&hall=$(cortex_api_urlencode "${HALL}")&limit=${LIMIT}&rerank=${RERANK}&graph=${GRAPH}"
+if [ -n "${ROOM}" ]; then
+    path="${path}&room=$(cortex_api_urlencode "${ROOM}")"
+fi
+
+cortex_api_call_json GET "${path}" | python3 -S -c 'import json,sys; data=json.load(sys.stdin); print(json.dumps(data, indent=2, sort_keys=True))'

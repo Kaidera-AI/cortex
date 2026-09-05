@@ -1,0 +1,458 @@
+#!/usr/bin/env python3
+"""Acceptance soak for the bounded abort-safe /search fix (incident 912073e2).
+
+Run this ON the Cortex host. It is the data-plane proof the release gate needs:
+a container healthcheck or a bare /health 200 is exactly what masked the
+incident for 14 hours, so this drives real concurrent /search traffic with
+forced mid-flight client disconnects and then reads the cluster's own logs.
+
+    cortex-search-soak --url http://localhost:8501 --project <key> \
+        --token "$CORTEX_TOKEN" --duration 600
+
+Exit 0 = gate passes. Exit 1 = gate fails (reason printed). Exit 2 = could not
+run the check at all (never read that as a pass).
+
+ponytail: stdlib only, threads not asyncio — this has to run on a bare prod host
+with no pip install, and at gate concurrency (<100) threads are plenty.
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import socket
+import ssl
+import struct
+import subprocess
+import sys
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+# Postgres log lines that mean the postmaster recovered / a backend died hard.
+# These are the 362-recoveries-in-14h signature from the incident.
+PG_CRASH_MARKERS = [
+    "database system was not properly shut down",
+    "terminating connection because of crash of another server process",
+    "the database system is in recovery mode",
+    "was terminated by signal",
+    "startup process",
+]
+# SIGPIPE specifically — step 3 of the gate asks whether the runtime/log
+# transport also needs remediation, not just the query that triggered it.
+PG_SIGPIPE = re.compile(r"terminated by signal 13|SIGPIPE")
+
+# API-side symptoms of a connection returned dirty to the pool.
+API_POOL_MARKERS = [
+    "connection has been released back to the pool",
+    "connection is closed",
+    "InterfaceError",
+    "another operation is in progress",
+]
+
+QUERIES = [
+    "release gate", "handoff", "cortex search", "postgres recovery",
+    "index scan", "bounded search", "statement timeout", "trigram",
+]
+
+
+def resolve_container_engine(requested, containers):
+    """Resolve the live Podman engine that owns every named container."""
+    requested = (requested or "auto").strip().lower()
+    aliases = {"rootless-podman": "podman"}
+    requested = aliases.get(requested, requested)
+    candidates = ("podman",) if requested == "auto" else (requested,)
+    for engine in candidates:
+        if engine != "podman" or shutil.which(engine) is None:
+            continue
+        if all(
+            subprocess.run(
+                [engine, "inspect", container],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            ).returncode
+            == 0
+            for container in containers
+        ):
+            return engine
+    return None
+
+
+def container_logs(engine, container, since_iso):
+    """Read logs from the resolved engine; None means required evidence is absent."""
+    try:
+        out = subprocess.run(
+            [engine, "logs", "--since", since_iso, container],
+            capture_output=True, text=True, timeout=60,
+        )
+        if out.returncode != 0:
+            detail = (out.stderr or out.stdout or "unknown error").strip().splitlines()
+            message = detail[-1] if detail else "unknown error"
+            print(f"  ! {engine} logs failed for {container}: {message}", file=sys.stderr)
+            return None
+        return (out.stdout or "") + (out.stderr or "")
+    except Exception as exc:  # noqa: BLE001 - diagnostics must never crash the soak
+        print(f"  ! could not read {engine} logs for {container}: {exc}", file=sys.stderr)
+        return None
+
+
+def count_markers(text, markers):
+    return {m: text.count(m) for m in markers if text.count(m)}
+
+
+def admin_stats(url, project, token):
+    """Index-scan counters (8210567e). Proves idx_*_trgm is actually scanned."""
+    req = urllib.request.Request(f"{url}/admin/stats")
+    req.add_header("X-Project", project)
+    if token:
+        req.add_header("X-Cortex-Admin-Token", token)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! /admin/stats unavailable: {exc}", file=sys.stderr)
+        return None
+
+
+def trgm_scans(stats):
+    """Flatten stats -> {index_name: scans} for trigram indexes only."""
+    found = {}
+    if not stats:
+        return found
+    for table in (stats.get("tables") or []):
+        for idx in (table.get("indexes") or []):
+            name = idx.get("name", "")
+            if "trgm" in name:
+                found[name] = idx.get("scans", 0)
+    return found
+
+
+class Stats:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.latencies = []
+        self.codes = {}
+        self.shed = 0          # typed 503 search_overloaded - CORRECT behavior
+        self.hard_5xx = 0      # any other 5xx - gate failure
+        self.errors = {}
+        self.aborts = 0
+        self.degraded = {}
+
+    def record(self, code, elapsed, body=None):
+        with self.lock:
+            self.latencies.append(elapsed)
+            self.codes[code] = self.codes.get(code, 0) + 1
+            if code == 503 and body and "search_overloaded" in body:
+                self.shed += 1
+            elif 500 <= code < 600:
+                self.hard_5xx += 1
+            if body and '"degraded"' in body:
+                try:
+                    for stage in json.loads(body).get("degraded", []):
+                        self.degraded[stage] = self.degraded.get(stage, 0) + 1
+                except Exception:  # noqa: BLE001
+                    pass
+
+    def record_error(self, kind):
+        with self.lock:
+            self.errors[kind] = self.errors.get(kind, 0) + 1
+
+    def record_abort(self):
+        with self.lock:
+            self.aborts += 1
+
+
+def normal_worker(stop, url, project, token, stats, idx):
+    n = idx
+    while not stop.is_set():
+        q = QUERIES[n % len(QUERIES)]
+        n += 1
+        target = f"{url}/search?q={urllib.parse.quote(q)}&limit=20"
+        req = urllib.request.Request(target)
+        req.add_header("X-Project", project)
+        if token:
+            # X-Cortex-Admin-Token, NOT Authorization: Bearer. The admin token is not a
+            # JWT, so the local_jwt_middleware rejects it as a malformed bearer and every
+            # request 401s before it reaches the search path — which is exactly how the
+            # first run of this soak produced 121,755 requests, a 12ms p95 and a bogus
+            # GATE PASSED without ever touching Postgres.
+            req.add_header("X-Cortex-Admin-Token", token)
+        t0 = time.monotonic()
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                body = r.read().decode("utf-8", "replace")
+                stats.record(r.status, time.monotonic() - t0, body)
+        except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", "replace")
+            except Exception:  # noqa: BLE001
+                pass
+            stats.record(e.code, time.monotonic() - t0, body)
+        except Exception as exc:  # noqa: BLE001
+            stats.record_error(type(exc).__name__)
+        time.sleep(0.05)
+
+
+def abort_worker(stop, url, project, token, stats, idx, interval):
+    """Forced client disconnect mid-query: RST, not a graceful FIN.
+
+    This is the actual incident trigger - a search that outlives its client.
+    SO_LINGER(1, 0) makes close() send RST so the server sees the socket die
+    hard, the way a killed CLI or a closed browser tab does.
+    """
+    parts = urllib.parse.urlparse(url)
+    host = parts.hostname
+    port = parts.port or (443 if parts.scheme == "https" else 80)
+    n = idx
+    while not stop.is_set():
+        q = QUERIES[n % len(QUERIES)]
+        n += 1
+        sock = None
+        try:
+            sock = socket.create_connection((host, port), timeout=10)
+            if parts.scheme == "https":
+                sock = ssl.create_default_context().wrap_socket(
+                    sock, server_hostname=host
+                )
+            path = f"/search?q={urllib.parse.quote(q)}&limit=100"
+            hdrs = [
+                f"GET {path} HTTP/1.1",
+                f"Host: {host}",
+                f"X-Project: {project}",
+            ]
+            if token:
+                hdrs.append(f"X-Cortex-Admin-Token: {token}")
+            hdrs += ["Connection: close", "", ""]
+            sock.sendall("\r\n".join(hdrs).encode())
+            # Let the query get into Postgres, then vanish.
+            time.sleep(0.05 + (n % 9) * 0.05)
+            sock.setsockopt(
+                socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+            )
+            sock.close()
+            sock = None
+            stats.record_abort()
+        except Exception as exc:  # noqa: BLE001
+            stats.record_error(f"abort:{type(exc).__name__}")
+        finally:
+            if sock is not None:
+                try:
+                    sock.close()
+                except Exception:  # noqa: BLE001
+                    pass
+        time.sleep(interval)
+
+
+def pct(values, p):
+    if not values:
+        return 0.0
+    s = sorted(values)
+    return s[min(int(len(s) * p), len(s) - 1)]
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--url", default=os.getenv("CORTEX_URL", "http://localhost:8501"))
+    ap.add_argument("--project", default=os.getenv("CORTEX_PROJECT", ""))
+    ap.add_argument(
+        "--token",
+        default=os.getenv("CORTEX_ADMIN_TOKEN", os.getenv("CORTEX_TOKEN", "")),
+    )
+    ap.add_argument("--duration", type=int, default=600, help="seconds (gate: >=600)")
+    ap.add_argument("--concurrency", type=int, default=12)
+    ap.add_argument("--abort-workers", type=int, default=6)
+    ap.add_argument(
+        "--abort-interval",
+        type=float,
+        default=0.05,
+        help="seconds between forced disconnects per abort worker",
+    )
+    ap.add_argument("--pg-container", default="cortex-pg")
+    ap.add_argument("--api-container", default="cortex-api")
+    ap.add_argument(
+        "--container-engine",
+        default=os.getenv("KAIDERA_CONTAINER_ENGINE", "auto"),
+        help="podman or auto-detect by live container ownership",
+    )
+    ap.add_argument("--p95-budget", type=float, default=2.0)
+    ap.add_argument("--max-budget", type=float, default=5.0)
+    args = ap.parse_args()
+
+    if not args.project:
+        print("FATAL: --project (or CORTEX_PROJECT) is required.", file=sys.stderr)
+        return 2
+    if args.abort_interval < 0:
+        print("FATAL: --abort-interval must be non-negative.", file=sys.stderr)
+        return 2
+    if args.duration < 600:
+        print(f"FATAL: duration {args.duration}s is under the 600s gate minimum.", file=sys.stderr)
+        return 2
+    if args.concurrency < 1 or args.abort_workers < 1:
+        print("FATAL: concurrency and abort-workers must both be positive.", file=sys.stderr)
+        return 2
+
+    engine = resolve_container_engine(
+        args.container_engine, (args.pg_container, args.api_container)
+    )
+    if engine is None:
+        print(
+            "FATAL: could not resolve one Podman engine owning both required "
+            f"containers ({args.pg_container}, {args.api_container}).",
+            file=sys.stderr,
+        )
+        return 2
+
+    url = args.url.rstrip("/")
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    print(f"== soak: {url} project={args.project} for {args.duration}s ==")
+    print(f"   container engine: {engine}")
+    print(
+        f"   {args.concurrency} search workers + {args.abort_workers} abort workers "
+        f"({args.abort_interval:g}s abort interval)"
+    )
+
+    before = trgm_scans(admin_stats(url, args.project, args.token))
+    print(f"   trigram index scans BEFORE: {before or '(unavailable)'}")
+
+    stats = Stats()
+    stop = threading.Event()
+    threads = []
+    for i in range(args.concurrency):
+        t = threading.Thread(
+            target=normal_worker,
+            args=(stop, url, args.project, args.token, stats, i),
+            daemon=True,
+        )
+        t.start()
+        threads.append(t)
+    for i in range(args.abort_workers):
+        t = threading.Thread(
+            target=abort_worker,
+            args=(stop, url, args.project, args.token, stats, i, args.abort_interval),
+            daemon=True,
+        )
+        t.start()
+        threads.append(t)
+
+    start = time.monotonic()
+    try:
+        while time.monotonic() - start < args.duration:
+            time.sleep(15)
+            with stats.lock:
+                done, shed, hard = len(stats.latencies), stats.shed, stats.hard_5xx
+            el = int(time.monotonic() - start)
+            print(f"   [{el:4d}s] {done} req, {shed} shed(503), {hard} hard-5xx")
+    except KeyboardInterrupt:
+        print("   interrupted - reporting partial results")
+    stop.set()
+    for t in threads:
+        t.join(timeout=15)
+
+    after = trgm_scans(admin_stats(url, args.project, args.token))
+    pg_log = container_logs(engine, args.pg_container, since)
+    api_log = container_logs(engine, args.api_container, since)
+    pg_crashes = count_markers(pg_log or "", PG_CRASH_MARKERS)
+    sigpipes = len(PG_SIGPIPE.findall(pg_log or ""))
+    pool_errs = count_markers(api_log or "", API_POOL_MARKERS)
+
+    lat = stats.latencies
+    p95, mx = pct(lat, 0.95), (max(lat) if lat else 0.0)
+
+    print("\n== RESULTS ==")
+    print(f"  requests            : {len(lat)}")
+    print(f"  forced aborts       : {stats.aborts}")
+    print(f"  status codes        : {stats.codes}")
+    print(f"  shed 503 (EXPECTED) : {stats.shed}")
+    print(f"  hard 5xx (FAIL)     : {stats.hard_5xx}")
+    print(f"  degraded stages     : {stats.degraded or '(none)'}")
+    print(f"  transport errors    : {stats.errors or '(none)'}")
+    print(f"  p95 / max           : {p95:.3f}s / {mx:.3f}s")
+    print(f"  pg crash markers    : {pg_crashes or '(none)'}")
+    print(f"  pg SIGPIPE          : {sigpipes}")
+    print(f"  api pool errors     : {pool_errs or '(none)'}")
+    print(f"  trgm scans before   : {before or '(unavailable)'}")
+    print(f"  trgm scans after    : {after or '(unavailable)'}")
+
+    fails = []
+    if stats.hard_5xx:
+        fails.append(f"{stats.hard_5xx} hard 5xx (untyped - 503 search_overloaded is exempt)")
+    if pg_crashes:
+        fails.append(f"postgres crash/recovery markers: {pg_crashes}")
+    if sigpipes:
+        fails.append(f"{sigpipes} SIGPIPE terminations")
+    if pool_errs:
+        fails.append(f"connection-pool reuse errors: {pool_errs}")
+    if p95 > args.p95_budget:
+        fails.append(f"p95 {p95:.3f}s over {args.p95_budget}s budget")
+    if mx > args.max_budget:
+        fails.append(f"max {mx:.3f}s over {args.max_budget}s budget")
+    if not lat:
+        print("\nGATE INCONCLUSIVE: no requests completed.")
+        return 2
+
+    # Did the traffic actually REACH the search path? Every check above is vacuously
+    # clean when requests are rejected at the edge: no query runs, so no crash, no
+    # SIGPIPE, no pool churn, and a p95 that measures the cost of an error response.
+    #
+    # This is not hypothetical. The first run of this soak sent the admin token as
+    # `Authorization: Bearer`, which the JWT middleware rejects, and reported:
+    #     status codes : {401: 121755}
+    #     p95 / max    : 0.012s / 0.783s
+    #     GATE PASSED
+    # 121,755 requests, none of which touched Postgres, laundered into a release-gate
+    # pass. Same failure shape as the /health 200 that masked the original incident for
+    # 14 hours: a green signal from a probe that tested nothing.
+    ok = sum(n for code, n in stats.codes.items() if 200 <= int(code) < 300)
+    if ok == 0:
+        print(
+            f"\nGATE INCONCLUSIVE: {len(lat)} requests completed but NONE succeeded "
+            f"(status codes: {stats.codes}). The search path was never exercised, so "
+            "every clean result above is vacuous.\n"
+            "  hint: /search wants X-Cortex-Admin-Token, not Authorization: Bearer — "
+            "the admin token is not a JWT."
+        )
+        return 2
+    recognised = ok + stats.shed
+    if recognised / len(lat) < 0.95:
+        print(
+            f"\nGATE INCONCLUSIVE: only {recognised}/{len(lat)} requests "
+            f"({recognised / len(lat):.0%}) were successful or typed load-shedding "
+            f"responses (status codes: {stats.codes}). Unexpected edge failures make "
+            "the data-plane evidence ambiguous."
+        )
+        return 2
+
+    missing_evidence = []
+    if pg_log is None or api_log is None:
+        missing_evidence.append(f"required {engine} container logs were unavailable")
+    if not before or not after:
+        missing_evidence.append("trigram index counters were unavailable")
+    if args.abort_workers and stats.aborts == 0:
+        missing_evidence.append("no forced client abort completed")
+    if missing_evidence:
+        print("\nGATE INCONCLUSIVE: required evidence was not collected:")
+        for item in missing_evidence:
+            print(f"  - {item}")
+        return 2
+
+    if not any(after[k] > before.get(k, 0) for k in after):
+        fails.append("no trigram index scan growth during the soak")
+
+    if fails:
+        print("\nGATE FAILED:")
+        for f in fails:
+            print(f"  - {f}")
+        return 1
+    print("\nGATE PASSED: no recoveries, no SIGPIPE, no pool reuse errors, "
+          "no untyped 5xx, latency within budget.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

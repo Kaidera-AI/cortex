@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# cortex-graph-stats — project-scoped managed code-graph statistics
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+OUTPUT="text"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --json) OUTPUT="json"; shift ;;
+        --help|-h)
+            printf 'Usage: cortex-graph-stats [--json]\n'
+            printf 'Returns statistics for the project selected by the scoped Cortex API context.\n'
+            exit 0
+            ;;
+        --repo|--top-functions|--languages|--edges|--max|--max-results)
+            printf 'ERROR: %s is retired; graph statistics are project-scoped at the API boundary\n' "$1" >&2
+            exit 2
+            ;;
+        *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; exit 2 ;;
+    esac
+done
+
+cortex_api_call_json GET "/graph/stats" | python3 -S -c '
+import json
+import sys
+
+def fail(message):
+    print("ERROR: invalid code graph stats response: {}".format(message), file=sys.stderr)
+    raise SystemExit(1)
+
+def count(obj, field):
+    value = obj.get(field)
+    if type(value) is not int or value < 0:
+        fail("{} must be a non-negative integer".format(field))
+    return value
+
+try:
+    result = json.load(sys.stdin)
+except (OSError, ValueError) as exc:
+    fail("malformed JSON ({})".format(exc))
+if not isinstance(result, dict):
+    fail("top-level value must be an object")
+
+total_nodes = count(result, "total_nodes")
+total_edges = count(result, "total_edges")
+repos = result.get("repos")
+if not isinstance(repos, list) or len(repos) != 1:
+    fail("repos must contain exactly one materialized project graph store")
+
+seen_nodes = 0
+seen_edges = 0
+for item in repos:
+    if not isinstance(item, dict):
+        fail("every repos entry must be an object")
+    name = item.get("name")
+    if not isinstance(name, str) or not name.strip():
+        fail("every repos entry must identify its storage name")
+    if "error" in item:
+        detail = item.get("error")
+        fail("{}: {}".format(name, detail if isinstance(detail, str) and detail else "worker read failed"))
+    seen_nodes += count(item, "nodes")
+    seen_edges += count(item, "edges")
+    if "path" in item and (not isinstance(item["path"], str) or not item["path"]):
+        fail("{} has an invalid graph path".format(name))
+
+if seen_nodes != total_nodes or seen_edges != total_edges:
+    fail("aggregate counts do not match the scoped graph-store receipt")
+
+if sys.argv[1] == "json":
+    json.dump(result, sys.stdout, separators=(",", ":"), sort_keys=True)
+    sys.stdout.write("\n")
+    raise SystemExit(0)
+
+print("Managed code graph statistics")
+print("  nodes: {}".format(total_nodes))
+print("  edges: {}".format(total_edges))
+print("  graph stores: {}".format(len(repos)))
+for item in repos:
+    print(
+        "  {}: {} nodes, {} edges".format(
+            item["name"],
+            item["nodes"],
+            item["edges"],
+        )
+    )
+' "${OUTPUT}"

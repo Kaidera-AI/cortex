@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# cortex-memory — create or update durable project knowledge in Cortex via API
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage:\n'
+    printf '  cortex-memory --agent <name> --section <title> --content <text>\n'
+    printf '                [--category <category>] [--source <source>]\n'
+    exit 1
+}
+
+AGENT_NAME=""
+SECTION=""
+CONTENT=""
+CATEGORY="operational"
+SOURCE=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --agent) AGENT_NAME="${2:-}"; shift 2 ;;
+        --section) SECTION="${2:-}"; shift 2 ;;
+        --content) CONTENT="${2:-}"; shift 2 ;;
+        --category) CATEGORY="${2:-}"; shift 2 ;;
+        --source) SOURCE="${2:-}"; shift 2 ;;
+        --help|-h) usage ;;
+        *) usage ;;
+    esac
+done
+
+[ -n "${AGENT_NAME}" ] || usage
+[ -n "${SECTION}" ] || usage
+[ -n "${CONTENT}" ] || usage
+
+PAYLOAD="$(python3 -c "
+import json, sys
+payload = {
+    'section': sys.argv[1],
+    'content': sys.argv[2],
+    'category': sys.argv[3],
+}
+if sys.argv[4]:
+    payload['source'] = sys.argv[4]
+print(json.dumps(payload))
+" "${SECTION}" "${CONTENT}" "${CATEGORY}" "${SOURCE}")"
+
+RESPONSE="$(cortex_api_json POST "/memory" "${PAYLOAD}" "${AGENT_NAME}")"
+
+printf '%s' "${RESPONSE}" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+action = data.get('action', 'stored')
+print(f'\033[32m{action.title()} memory: {sys.argv[1]}\033[0m')
+" "${SECTION}"

@@ -1,0 +1,282 @@
+#!/usr/bin/env bash
+# cortex-memory-audit - API-backed profile hash and memory drift helper.
+#
+# Commands:
+#   cortex-memory-audit hash --agent <agent>
+#   cortex-memory-audit audit [--strict] [--notify]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+exec python3 - "$@" <<'PYEOF'
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import json
+import os
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+
+PROJECT = os.environ.get("CORTEX_PROJECT", "")
+if not PROJECT:
+    raise SystemExit("CORTEX_PROJECT is required for cortex-memory-audit")
+API_BASE = (os.environ.get("CORTEX_API_URL") or os.environ.get("CORTEX_API") or "http://localhost:8501").rstrip("/")
+ADMIN_TOKEN = os.environ.get("CORTEX_ADMIN_TOKEN", "")
+if not ADMIN_TOKEN:
+    raise SystemExit("CORTEX_ADMIN_TOKEN is required for cortex-memory-audit")
+
+
+def api_request(method: str, path: str, payload: dict[str, object] | None = None, agent: str = "beat") -> dict[str, object]:
+    data = None
+    headers = {
+        "X-Project": PROJECT,
+        "X-Cortex-Admin-Token": ADMIN_TOKEN,
+        "X-Agent-Name": agent,
+    }
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(f"{API_BASE}{path}", data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            text = resp.read().decode("utf-8")
+            return json.loads(text) if text else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"{method} {path} failed: HTTP {exc.code}: {detail}") from exc
+
+
+def sql_literal(value: object) -> str:
+    if value is None:
+        return "NULL"
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def sql_exec(sql: str) -> None:
+    api_request("POST", "/admin/sql/exec", {"sql": sql})
+
+
+def sql_query(sql: str) -> list[list[object]]:
+    body = api_request("POST", "/admin/sql/query", {"sql": sql})
+    return body.get("rows", []) or []
+
+
+def ensure_schema() -> None:
+    sql_exec(
+        """
+        CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+        CREATE TABLE IF NOT EXISTS profile_bundles (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            project_id UUID NOT NULL REFERENCES cortex_projects(id) ON DELETE CASCADE,
+            agent_name TEXT NOT NULL,
+            version INT NOT NULL,
+            content_hash TEXT NOT NULL,
+            source_paths JSONB NOT NULL,
+            rendered_markdown TEXT NOT NULL,
+            rendered_json JSONB NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            UNIQUE (project_id, agent_name, version)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_profile_bundles_project_agent
+            ON profile_bundles (project_id, lower(agent_name));
+        CREATE INDEX IF NOT EXISTS idx_profile_bundles_hash
+            ON profile_bundles (content_hash);
+
+        CREATE TABLE IF NOT EXISTS memory_sync_events (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            project_id UUID NOT NULL REFERENCES cortex_projects(id) ON DELETE CASCADE,
+            source TEXT NOT NULL,
+            target TEXT NOT NULL,
+            direction TEXT NOT NULL CHECK (direction IN ('to-cortex', 'to-harness')),
+            content_hash TEXT NOT NULL,
+            conflict_policy TEXT NOT NULL,
+            result TEXT NOT NULL CHECK (result IN ('accepted', 'rejected', 'inbox')),
+            created_at TIMESTAMPTZ DEFAULT now()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_sync_events_project_created
+            ON memory_sync_events (project_id, created_at DESC);
+        """
+    )
+
+
+def project_id() -> str:
+    encoded = urllib.parse.quote(PROJECT)
+    project = api_request("GET", f"/projects/{encoded}")
+    pid = str(project.get("project_id") or "").strip()
+    if not pid:
+        raise SystemExit(f"ERROR: registered project {PROJECT!r} has no project_id")
+    return pid
+
+
+def latest_bundle(agent: str, pid: str) -> tuple[int, str] | None:
+    rows = sql_query(
+        """
+        SELECT version, content_hash
+          FROM profile_bundles
+         WHERE project_id = {project_id}::uuid
+           AND lower(agent_name) = lower({agent})
+         ORDER BY version DESC
+         LIMIT 1
+        """.format(
+            project_id=sql_literal(pid),
+            agent=sql_literal(agent),
+        )
+    )
+    if not rows:
+        return None
+    return int(rows[0][0]), str(rows[0][1])
+
+
+def boot_markdown(agent: str) -> str:
+    encoded = urllib.parse.quote(agent)
+    body = api_request("GET", f"/boot/{encoded}?budget=1200", agent=agent)
+    boot = body.get("boot")
+    if not boot:
+        raise RuntimeError("/boot response did not include boot text")
+    return str(boot)
+
+
+def log_decision(agent: str, summary: str) -> None:
+    api_request("POST", "/log", {"event_type": "decision", "summary": summary}, agent=agent)
+
+
+def record_memory_sync_event(agent: str, pid: str, digest: str, conflict_policy: str) -> None:
+    sql_exec(
+        """
+        INSERT INTO memory_sync_events (
+            project_id, source, target, direction,
+            content_hash, conflict_policy, result
+        ) VALUES (
+            {project_id}::uuid, {source}, {target}, 'to-cortex',
+            {content_hash}, {conflict_policy}, 'accepted'
+        )
+        """.format(
+            project_id=sql_literal(pid),
+            source=sql_literal(f"boot/{agent}"),
+            target=sql_literal(f"profile_bundles/{agent}"),
+            content_hash=sql_literal(digest),
+            conflict_policy=sql_literal(conflict_policy),
+        )
+    )
+
+
+def cmd_hash(args: argparse.Namespace) -> int:
+    ensure_schema()
+    agent = args.agent.strip().lower()
+    pid = project_id()
+    rendered = boot_markdown(agent)
+    digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    latest = latest_bundle(agent, pid)
+    if latest and latest[1] == digest:
+        record_memory_sync_event(agent, pid, digest, "unchanged-existing-version")
+        print(f"profile hash unchanged: {agent}@{PROJECT} v{latest[0]} {digest[:12]}; sync event recorded")
+        return 0
+
+    version = 1 if latest is None else latest[0] + 1
+    rendered_json = {
+        "agent": agent,
+        "project": PROJECT,
+        "project_id": pid,
+        "compiled_at": dt.datetime.now(dt.UTC).isoformat(),
+        "profile_hash": digest,
+    }
+    sql_exec(
+        """
+        INSERT INTO profile_bundles (
+            project_id, agent_name, version, content_hash,
+            source_paths, rendered_markdown, rendered_json
+        ) VALUES (
+            {project_id}::uuid, {agent}, {version}, {content_hash},
+            {source_paths}::jsonb, {rendered_markdown}, {rendered_json}::jsonb
+        )
+        """.format(
+            project_id=sql_literal(pid),
+            agent=sql_literal(agent),
+            version=int(version),
+            content_hash=sql_literal(digest),
+            source_paths=sql_literal(json.dumps(["/boot", "agent_profiles", "cortex durable memory"])),
+            rendered_markdown=sql_literal(rendered),
+            rendered_json=sql_literal(json.dumps(rendered_json)),
+        )
+    )
+    record_memory_sync_event(agent, pid, digest, "append-version-on-change")
+    print(f"profile hash recorded: {agent}@{PROJECT} v{version} {digest[:12]}")
+    return 0
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    ensure_schema()
+    pid = project_id()
+    bundle_rows = sql_query(
+        """
+        SELECT COUNT(*)::int, COUNT(DISTINCT lower(agent_name))::int
+          FROM profile_bundles
+         WHERE project_id = {project_id}::uuid
+        """.format(project_id=sql_literal(pid))
+    )
+    event_rows = sql_query(
+        """
+        SELECT COUNT(*)::int
+          FROM memory_sync_events
+         WHERE project_id = {project_id}::uuid
+           AND created_at >= NOW() - INTERVAL '24 hours'
+        """.format(project_id=sql_literal(pid))
+    )
+    bundle_count, agent_count = (bundle_rows[0] if bundle_rows else [0, 0])
+    recent_events = event_rows[0][0] if event_rows else 0
+    print("memory audit:")
+    print(f"  scope: project={PROJECT} project_id={pid}")
+    print(f"  profile_bundles: {bundle_count} rows across {agent_count} agent(s)")
+    print(f"  memory_sync_events_24h: {recent_events}")
+    if args.strict and (int(bundle_count) <= 0 or int(agent_count) <= 0 or int(recent_events) <= 0):
+        print("  strict: failed - expected profile bundle and recent sync-event evidence", file=sys.stderr)
+        return 1
+    if args.strict:
+        print("  strict: passed")
+    if args.notify:
+        log_decision(
+            "beat",
+            f"cortex-memory-audit audit project={PROJECT} profile_bundles={bundle_count} agents={agent_count} events_24h={recent_events}",
+        )
+        print("  notify: logged decision")
+    return 0
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Audit Cortex profile memory through cortex-api")
+    sub = parser.add_subparsers(dest="command", required=True)
+    hash_parser = sub.add_parser("hash", help="record a profile hash for one agent")
+    hash_parser.add_argument("--agent", required=True)
+    audit_parser = sub.add_parser("audit", help="audit profile memory rows")
+    audit_parser.add_argument("--strict", action="store_true")
+    audit_parser.add_argument("--notify", action="store_true")
+    return parser.parse_args(argv)
+
+
+def main() -> int:
+    args = parse_args(sys.argv[1:])
+    if args.command == "hash":
+        return cmd_hash(args)
+    if args.command == "audit":
+        return cmd_audit(args)
+    raise RuntimeError(f"unknown command: {args.command}")
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1)
+PYEOF

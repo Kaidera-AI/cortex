@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# cortex-onboard — onboard agents and check onboarding/closure diagnostics.
+#
+# Usage:
+#   cortex-onboard <agent_name>              Full onboarding
+#   cortex-onboard --check <agent_name>      Check if agent has onboarded
+#   cortex-onboard --check-all               Check all registered agents
+#   cortex-onboard --verify-closure          Check stale/under-reported handoffs
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="${SCRIPT_DIR}:${PATH}:/opt/homebrew/opt/libpq/bin"  # fitness:allow-literal false-match: standard macOS Homebrew libpq path, not a project literal
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+status() {
+    local color="$1"
+    shift
+    local code="33"
+    case "${color}" in
+        green) code="32" ;;
+        red) code="31" ;;
+        yellow) code="33" ;;
+    esac
+    printf '\033[%sm%s\033[0m\n' "${code}" "$*"
+}
+
+usage() {
+    printf 'Usage:\n'
+    printf '  cortex-onboard <agent>           Run full onboarding for an agent\n'
+    printf '  cortex-onboard --check <agent>   Check if agent has onboarded\n'
+    printf '  cortex-onboard --check-all       Check all agents onboarding status\n'
+    printf '  cortex-onboard --verify-closure  Find stale or under-reported handoffs\n'
+    exit 1
+}
+
+diagnostics() {
+    local query="$1"
+    local response
+    if ! response="$(cortex_api_call GET "/onboard/diagnostics${query}" 2>&1)"; then
+        printf 'ERROR: cortex-onboard diagnostics API request failed\n' >&2
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+    printf '%s' "${response}"
+}
+
+[ "$#" -lt 1 ] && usage
+
+case "$1" in
+
+    --check)
+        AGENT="${2:?agent name required}"
+        agent_name="$(cortex_agent_base_name "${AGENT}" | tr '[:upper:]' '[:lower:]')"
+        response="$(diagnostics "?agent=$(cortex_api_urlencode "${agent_name}")")"
+
+        CORTEX_ONBOARD_JSON="${response}" python3 <<'PY'
+import json
+import os
+import sys
+
+data = json.loads(os.environ["CORTEX_ONBOARD_JSON"])
+agent = (data.get("agents") or [{}])[0]
+name = agent.get("agent") or "(unknown)"
+if agent.get("onboarded"):
+    print(f"\033[32m{name}: onboarded within last 7 days\033[0m")
+    if agent.get("latest_at"):
+        print(f"  latest: {agent['latest_at']}")
+else:
+    print(f"\033[31m{name}: NOT onboarded - needs cortex-onboard {name}\033[0m")
+    sys.exit(1)
+PY
+        ;;
+
+    --check-all)
+        response="$(diagnostics "")"
+        CORTEX_ONBOARD_JSON="${response}" python3 <<'PY'
+import json
+import os
+
+data = json.loads(os.environ["CORTEX_ONBOARD_JSON"])
+print(f"\nOnboarding status [{data.get('project')}]\n")
+for agent in data.get("agents", []):
+    name = agent.get("agent") or "(unknown)"
+    if agent.get("onboarded"):
+        print(f"  OK   {name:<12} onboarded")
+    else:
+        print(f"  MISS {name:<12} NOT onboarded")
+print()
+PY
+        ;;
+
+    --verify-closure)
+        response="$(diagnostics "?closure=true")"
+        CORTEX_ONBOARD_JSON="${response}" python3 <<'PY'
+import json
+import os
+
+data = json.loads(os.environ["CORTEX_ONBOARD_JSON"])
+closure = data.get("closure") or {}
+
+print(f"\nUnclosed handoffs [{data.get('project')}]\n")
+stale = closure.get("stale_handoffs") or []
+if not stale:
+    print("\033[32mNo stale claimed handoffs.\033[0m")
+else:
+    print(f"{'ID:HEX':<13}  {'AGENT':<14}  {'PRI':<8}  {'MIN':>6}  SUMMARY")
+    print("-" * 100)
+    for row in stale:
+        print(
+            f"{row.get('compound_id',''):<13}  {row.get('claimed_by',''):<14}  "
+            f"{row.get('priority',''):<8}  {row.get('minutes',0):>5}m  "
+            f"{row.get('summary','')}"
+        )
+    print("\n\033[33mThese handoffs are claimed but not completed.\033[0m")
+
+print("\nRecently completed without lifecycle report:")
+missing_reports = closure.get("completed_without_lifecycle_report") or []
+if not missing_reports:
+    print("\033[32mAll recently completed handoffs have lifecycle reports.\033[0m")
+else:
+    for row in missing_reports:
+        print(f"  {row.get('compound_id',''):<13}  {row.get('claimed_by',''):<14}  {row.get('summary','')}")
+    print("\033[33mThese completions are missing handoff_completed lifecycle evidence.\033[0m")
+
+print("\nAgents without diary entry today:")
+missing_diary = closure.get("agents_missing_diary") or []
+if not missing_diary:
+    print("\033[32mNo diary gaps for agents with claimed work today.\033[0m")
+else:
+    for row in missing_diary:
+        print(f"  MISS {row.get('agent_name',''):<12} claimed_today={row.get('claimed_today',0)}")
+print()
+PY
+        ;;
+
+    --help|-h)
+        usage
+        ;;
+
+    *)
+        AGENT="$1"
+        agent_name="$(cortex_agent_base_name "${AGENT}" | tr '[:upper:]' '[:lower:]')"
+
+        printf '\n'
+        status green "=== Cortex onboarding: ${agent_name} ==="
+
+        printf '\nStep 1: Reading cortex.md (the Cortex session rules)...\n'
+        RULES="${AGENTS_DIR}/rules/cortex.md"
+        if [ -f "${RULES}" ]; then
+            printf '  Key rules:\n'
+            grep -A1 "Identity Discipline\\|Never touch the Cortex database\\|Logging cadence\\|Communication" "${RULES}" 2>/dev/null | head -12 | sed 's/^/    /'
+            printf '  (full file: .agents/rules/cortex.md)\n'
+        else
+            status red "  cortex.md not found!"
+        fi
+
+        printf '\nStep 2: Booting...\n'
+        cortex-boot "${agent_name}" 2>/dev/null | sed 's/^/  /'
+
+        printf '\nStep 3: Logging acknowledgment...\n'
+        cortex-log "${agent_name}" decision "Cortex onboarding complete. Read cortex.md. Understand: agent@project identity (the retired name:hex form is rejected), project isolation, handoff closure outcomes, progress updates, and lead/reviewer communication flow." 2>/dev/null
+
+        printf '\nStep 4: Checking handoffs...\n'
+        cortex-handoff --mine "${agent_name}" 2>/dev/null | head -10 | sed 's/^/  /'
+
+        printf '\nStep 5: Ready.\n'
+        status green "${agent_name} onboarded to Cortex."
+        printf '\n'
+        ;;
+esac

@@ -1,0 +1,9 @@
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn[standard]==0.52.3
+asyncpg==0.31.0
+httpx==0.28.1
+mcp[cli]==1.28.1
+pydantic==2.11.4
+prometheus_client==0.22.1
+sse-starlette==3.4.8

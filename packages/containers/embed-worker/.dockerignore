@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!fetch-models.py
+!model-pins.json
+!requirements.lock
+!worker.py
+!worker-entrypoint

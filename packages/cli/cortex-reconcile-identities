@@ -1,0 +1,584 @@
+#!/usr/bin/env bash
+# cortex-reconcile-identities — collapse alias agent identities to their canonical names.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-reconcile-identities [--project <key>] [--dry-run]
+  cortex-reconcile-identities --all [--dry-run]
+EOF
+    exit 1
+}
+
+DRY_RUN=0
+RECONCILE_ALL=0
+PROJECTS=()
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --project)
+            [ $# -ge 2 ] || usage
+            PROJECTS+=("$2")
+            shift 2
+            ;;
+        --all)
+            RECONCILE_ALL=1
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            echo "ERROR: Unknown flag: $1" >&2
+            usage
+            ;;
+    esac
+done
+
+if ! pg_available; then
+    echo "ERROR: Cortex PostgreSQL is not reachable." >&2
+    exit 1
+fi
+
+if [ "${RECONCILE_ALL}" -eq 1 ]; then
+    if [ -n "${WORKSPACE_CONFIG_FILE:-}" ] && [ -f "${WORKSPACE_CONFIG_FILE}" ]; then
+        while IFS= read -r project_key; do
+            [ -n "${project_key}" ] && PROJECTS+=("${project_key}")
+        done < <(
+            python3 - "${WORKSPACE_CONFIG_FILE}" <<'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1], "r") as handle:
+    config = json.load(handle)
+
+for project in config.get("projects", []):
+    key = str(project.get("key", "")).strip()
+    if key:
+        print(key)
+PYEOF
+        )
+    fi
+fi
+
+if [ "${#PROJECTS[@]}" -eq 0 ]; then
+    PROJECTS=("${CORTEX_PROJECT}")
+fi
+
+deduped_projects=()
+seen_projects=""
+for project_name in "${PROJECTS[@]}"; do
+    [ -n "${project_name}" ] || continue
+    if printf '%s\n' "${seen_projects}" | grep -Fqx "${project_name}"; then
+        continue
+    fi
+    deduped_projects+=("${project_name}")
+    if [ -n "${seen_projects}" ]; then
+        seen_projects="${seen_projects}
+${project_name}"
+    else
+        seen_projects="${project_name}"
+    fi
+done
+PROJECTS=("${deduped_projects[@]}")
+
+normalize_mappings() {
+    local project_name="$1"
+    local names_file="$2"
+    python3 - "${WORKSPACE_CONFIG_FILE:-}" "${project_name}" "${names_file}" <<'PYEOF'
+import json
+import os
+import re
+import sys
+
+config_path, project_name, names_file = sys.argv[1:4]
+
+alias_map = {}
+pattern_map = {}
+if config_path and os.path.isfile(config_path):
+    try:
+        with open(config_path, "r") as handle:
+            config = json.load(handle)
+        alias_map = config.get("agent_aliases", {}) or {}
+        pattern_map = config.get("agent_alias_patterns", {}) or {}
+    except Exception:
+        alias_map = {}
+        pattern_map = {}
+
+project_aliases = alias_map.get(project_name, {}) if isinstance(alias_map, dict) else {}
+global_aliases = alias_map.get("*", {}) if isinstance(alias_map, dict) else {}
+project_patterns = pattern_map.get(project_name, []) if isinstance(pattern_map, dict) else []
+global_patterns = pattern_map.get("*", []) if isinstance(pattern_map, dict) else []
+
+with open(names_file, "r") as handle:
+    for raw in handle:
+        normalized = raw.strip().lower()
+        if not normalized:
+            continue
+
+        resolved = project_aliases.get(normalized) or global_aliases.get(normalized)
+        if not resolved:
+            for bucket in (project_patterns, global_patterns):
+                if not isinstance(bucket, list):
+                    continue
+                for entry in bucket:
+                    if not isinstance(entry, dict):
+                        continue
+                    pattern = str(entry.get("pattern") or "").strip()
+                    canonical = str(entry.get("canonical") or "").strip().lower()
+                    if not pattern or not canonical:
+                        continue
+                    try:
+                        if re.match(pattern, normalized):
+                            resolved = canonical
+                            break
+                    except re.error:
+                        continue
+                if resolved:
+                    break
+
+        resolved = (resolved or normalized).strip().lower()
+        if resolved != normalized:
+            print(f"{normalized}\t{resolved}")
+PYEOF
+}
+
+reconcile_project() {
+    local project_name="$1"
+    local project_sql
+    project_sql="$(sql_escape "${project_name}")"
+    local raw_names
+    raw_names="$(pg_query "
+        WITH names(name) AS (
+            SELECT name FROM agents WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM agent_profiles WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM session_sources WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM messages WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM decisions WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM lessons WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM team_events WHERE project = '${project_sql}'
+            UNION ALL SELECT from_agent FROM handoffs WHERE project = '${project_sql}'
+            UNION ALL SELECT claimed_by FROM handoffs WHERE project = '${project_sql}'
+            UNION ALL SELECT assigned_agent FROM tasks WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM archive_decisions WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM archive_events WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM archive_lessons WHERE project = '${project_sql}'
+            UNION ALL SELECT agent_name FROM archive_messages WHERE project = '${project_sql}'
+            UNION ALL SELECT from_agent FROM archive_handoffs WHERE project = '${project_sql}'
+        )
+        SELECT DISTINCT lower(name)
+          FROM names
+         WHERE name IS NOT NULL
+           AND BTRIM(name) <> ''
+         ORDER BY 1;
+    " 2>/dev/null || true)"
+
+    local names_file
+    names_file="$(mktemp /tmp/cortex-reconcile-names.XXXXXX)"
+    printf '%s\n' "${raw_names}" > "${names_file}"
+
+    local mappings
+    mappings="$(normalize_mappings "${project_name}" "${names_file}" || true)"
+    mappings="$(printf '%s\n' "${mappings}" | awk 'NF' | awk '!seen[$0]++')"
+    rm -f "${names_file}"
+
+    if [ -z "${mappings}" ]; then
+        printf '%s: clean\n' "${project_name}"
+        return 0
+    fi
+
+    local mapping_count
+    mapping_count="$(printf '%s\n' "${mappings}" | awk 'NF {count++} END {print count+0}')"
+
+    if [ "${DRY_RUN}" -eq 1 ]; then
+        printf '%s: %s alias name(s)\n' "${project_name}" "${mapping_count}"
+        while IFS=$'\t' read -r alias_name canonical_name; do
+            [ -n "${alias_name}" ] || continue
+            printf '  %s -> %s\n' "${alias_name}" "${canonical_name}"
+        done <<< "${mappings}"
+        return 0
+    fi
+
+    local alias_values_sql=""
+    while IFS=$'\t' read -r alias_name canonical_name; do
+        [ -n "${alias_name}" ] || continue
+        local escaped_alias escaped_canonical
+        escaped_alias="$(sql_escape "${alias_name}")"
+        escaped_canonical="$(sql_escape "${canonical_name}")"
+        if [ -n "${alias_values_sql}" ]; then
+            alias_values_sql="${alias_values_sql}, "
+        fi
+        alias_values_sql="${alias_values_sql}('${escaped_alias}', '${escaped_canonical}')"
+    done <<< "${mappings}"
+
+    local tmp_sql
+    tmp_sql="$(mktemp /tmp/cortex-reconcile-identities.XXXXXX)"
+
+    cat > "${tmp_sql}" <<EOF
+BEGIN;
+
+CREATE TEMP TABLE merge_agent_aliases (
+    alias_name TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL
+);
+
+INSERT INTO merge_agent_aliases (alias_name, canonical_name) VALUES ${alias_values_sql};
+
+CREATE TEMP TABLE merge_agent_resolution AS
+WITH relevant AS (
+    SELECT a.id,
+           a.name,
+           a.role,
+           a.model,
+           a.capabilities,
+           a.created_at,
+           COALESCE(alias.canonical_name, lower(a.name)) AS canonical_name,
+           CASE WHEN lower(a.name) = COALESCE(alias.canonical_name, lower(a.name)) THEN 0 ELSE 1 END AS alias_rank,
+           CASE WHEN NULLIF(BTRIM(COALESCE(a.role, '')), '') IS NULL THEN 1 ELSE 0 END AS empty_role_rank,
+           CASE WHEN NULLIF(BTRIM(COALESCE(a.model, '')), '') IS NULL THEN 1 ELSE 0 END AS empty_model_rank
+      FROM agents a
+ LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(a.name)
+     WHERE a.project = '${project_sql}'
+),
+ranked AS (
+    SELECT id AS agent_id,
+           first_value(id) OVER (
+               PARTITION BY canonical_name
+               ORDER BY empty_role_rank, empty_model_rank, alias_rank, created_at, id
+           ) AS canonical_agent_id
+      FROM relevant
+)
+SELECT DISTINCT agent_id, canonical_agent_id FROM ranked;
+
+CREATE TEMP TABLE merge_agent_rollup AS
+WITH relevant AS (
+    SELECT a.id,
+           mar.canonical_agent_id,
+           COALESCE(alias.canonical_name, lower(a.name)) AS canonical_name,
+           NULLIF(BTRIM(COALESCE(a.role, '')), '') AS role,
+           NULLIF(BTRIM(COALESCE(a.model, '')), '') AS model,
+           a.capabilities,
+           a.created_at,
+           CASE WHEN lower(a.name) = COALESCE(alias.canonical_name, lower(a.name)) THEN 0 ELSE 1 END AS alias_rank
+      FROM agents a
+      JOIN merge_agent_resolution mar ON mar.agent_id = a.id
+ LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(a.name)
+     WHERE a.project = '${project_sql}'
+)
+SELECT canonical_agent_id,
+       canonical_name,
+       (ARRAY_AGG(role ORDER BY alias_rank, created_at, id)
+            FILTER (WHERE role IS NOT NULL))[1] AS merged_role,
+       (ARRAY_AGG(model ORDER BY alias_rank, created_at, id)
+            FILTER (WHERE model IS NOT NULL))[1] AS merged_model,
+       (ARRAY_AGG(capabilities ORDER BY alias_rank, created_at, id)
+            FILTER (WHERE capabilities IS NOT NULL AND capabilities <> '{}'::jsonb))[1] AS merged_capabilities
+  FROM relevant
+ GROUP BY canonical_agent_id, canonical_name;
+
+UPDATE agent_sessions s
+   SET agent_id = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE s.agent_id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE agent_sessions s
+   SET handed_off_to = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE s.handed_off_to = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE decisions d
+   SET agent_id = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE d.agent_id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE lessons l
+   SET agent_id = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE l.agent_id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE agents a
+   SET name = rollup.canonical_name,
+       role = COALESCE(rollup.merged_role, a.role),
+       model = COALESCE(rollup.merged_model, a.model),
+       capabilities = COALESCE(rollup.merged_capabilities, a.capabilities)
+  FROM merge_agent_rollup rollup
+ WHERE a.id = rollup.canonical_agent_id;
+
+DELETE FROM agents a
+ USING merge_agent_resolution mar
+ WHERE a.id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+INSERT INTO agent_profiles (project, agent_name, profile_kind, role, source_file, profile_text, metadata, updated_at)
+SELECT '${project_sql}',
+       COALESCE(alias.canonical_name, lower(ap.agent_name)),
+       ap.profile_kind,
+       ap.role,
+       ap.source_file,
+       ap.profile_text,
+       ap.metadata,
+       ap.updated_at
+  FROM agent_profiles ap
+  LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(ap.agent_name)
+ WHERE ap.project = '${project_sql}'
+ON CONFLICT (project, agent_name, profile_kind, source_file) DO UPDATE SET
+    role = EXCLUDED.role,
+    profile_text = EXCLUDED.profile_text,
+    metadata = EXCLUDED.metadata,
+    updated_at = GREATEST(agent_profiles.updated_at, EXCLUDED.updated_at);
+
+DELETE FROM agent_profiles ap
+ USING merge_agent_aliases alias
+ WHERE ap.project = '${project_sql}'
+   AND lower(ap.agent_name) = alias.alias_name;
+
+UPDATE session_sources ss
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE ss.project = '${project_sql}'
+   AND lower(ss.agent_name) = alias.alias_name;
+
+UPDATE messages m
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE m.project = '${project_sql}'
+   AND lower(m.agent_name) = alias.alias_name;
+
+UPDATE decisions d
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE d.project = '${project_sql}'
+   AND lower(d.agent_name) = alias.alias_name;
+
+UPDATE lessons l
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE l.project = '${project_sql}'
+   AND lower(l.agent_name) = alias.alias_name;
+
+UPDATE team_events e
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE e.project = '${project_sql}'
+   AND lower(e.agent_name) = alias.alias_name;
+
+UPDATE handoffs h
+   SET from_agent = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE h.project = '${project_sql}'
+   AND lower(h.from_agent) = alias.alias_name;
+
+UPDATE handoffs h
+   SET claimed_by = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE h.project = '${project_sql}'
+   AND lower(h.claimed_by) = alias.alias_name;
+
+UPDATE tasks t
+   SET assigned_agent = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE t.project = '${project_sql}'
+   AND lower(t.assigned_agent) = alias.alias_name;
+
+UPDATE archive_decisions d
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE d.project = '${project_sql}'
+   AND lower(d.agent_name) = alias.alias_name;
+
+UPDATE archive_events e
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE e.project = '${project_sql}'
+   AND lower(e.agent_name) = alias.alias_name;
+
+UPDATE archive_lessons l
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE l.project = '${project_sql}'
+   AND lower(l.agent_name) = alias.alias_name;
+
+UPDATE archive_messages m
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE m.project = '${project_sql}'
+   AND lower(m.agent_name) = alias.alias_name;
+
+UPDATE archive_handoffs h
+   SET from_agent = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE h.project = '${project_sql}'
+   AND lower(h.from_agent) = alias.alias_name;
+
+UPDATE knowledge k
+   SET section = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE k.project = '${project_sql}'
+   AND k.category = 'chat-summary'
+   AND lower(k.section) = alias.alias_name;
+
+UPDATE session_sources ss
+   SET agent_name = a.name
+  FROM agents a
+ WHERE ss.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(ss.agent_name) = a.name
+   AND ss.agent_name <> a.name;
+
+UPDATE messages m
+   SET agent_name = a.name
+  FROM agents a
+ WHERE m.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(m.agent_name) = a.name
+   AND m.agent_name <> a.name;
+
+UPDATE decisions d
+   SET agent_name = a.name
+  FROM agents a
+ WHERE d.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(d.agent_name) = a.name
+   AND d.agent_name <> a.name;
+
+UPDATE lessons l
+   SET agent_name = a.name
+  FROM agents a
+ WHERE l.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(l.agent_name) = a.name
+   AND l.agent_name <> a.name;
+
+UPDATE team_events e
+   SET agent_name = a.name
+  FROM agents a
+ WHERE e.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(e.agent_name) = a.name
+   AND e.agent_name <> a.name;
+
+UPDATE handoffs h
+   SET from_agent = a.name
+  FROM agents a
+ WHERE h.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(h.from_agent) = a.name
+   AND h.from_agent <> a.name;
+
+UPDATE handoffs h
+   SET claimed_by = a.name
+  FROM agents a
+ WHERE h.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(h.claimed_by) = a.name
+   AND h.claimed_by <> a.name;
+
+UPDATE tasks t
+   SET assigned_agent = a.name
+  FROM agents a
+ WHERE t.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(t.assigned_agent) = a.name
+   AND t.assigned_agent <> a.name;
+
+UPDATE archive_decisions d
+   SET agent_name = a.name
+  FROM agents a
+ WHERE d.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(d.agent_name) = a.name
+   AND d.agent_name <> a.name;
+
+UPDATE archive_events e
+   SET agent_name = a.name
+  FROM agents a
+ WHERE e.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(e.agent_name) = a.name
+   AND e.agent_name <> a.name;
+
+UPDATE archive_lessons l
+   SET agent_name = a.name
+  FROM agents a
+ WHERE l.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(l.agent_name) = a.name
+   AND l.agent_name <> a.name;
+
+UPDATE archive_messages m
+   SET agent_name = a.name
+  FROM agents a
+ WHERE m.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(m.agent_name) = a.name
+   AND m.agent_name <> a.name;
+
+UPDATE archive_handoffs h
+   SET from_agent = a.name
+  FROM agents a
+ WHERE h.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND lower(h.from_agent) = a.name
+   AND h.from_agent <> a.name;
+
+UPDATE knowledge k
+   SET section = a.name
+  FROM agents a
+ WHERE k.project = '${project_sql}'
+   AND k.category = 'chat-summary'
+   AND lower(k.section) = a.name
+   AND k.section <> a.name;
+
+UPDATE agent_sessions s
+   SET agent_id = a.id
+  FROM session_sources src
+  JOIN agents a
+    ON a.project = '${project_sql}'
+   AND a.name = lower(src.agent_name)
+ WHERE s.id = src.session_id
+   AND s.project = '${project_sql}'
+   AND (s.agent_id IS NULL OR s.agent_id <> a.id);
+
+UPDATE decisions d
+   SET agent_id = a.id
+  FROM agents a
+ WHERE d.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND d.agent_name IS NOT NULL
+   AND lower(d.agent_name) = a.name
+   AND (d.agent_id IS NULL OR d.agent_id <> a.id);
+
+UPDATE lessons l
+   SET agent_id = a.id
+  FROM agents a
+ WHERE l.project = '${project_sql}'
+   AND a.project = '${project_sql}'
+   AND l.agent_name IS NOT NULL
+   AND lower(l.agent_name) = a.name
+   AND (l.agent_id IS NULL OR l.agent_id <> a.id);
+
+COMMIT;
+EOF
+
+    pg_exec_file "${tmp_sql}" >/dev/null
+    rm -f "${tmp_sql}"
+
+    printf '%s: merged %s alias name(s)\n' "${project_name}" "${mapping_count}"
+}
+
+for project_name in "${PROJECTS[@]}"; do
+    reconcile_project "${project_name}"
+done

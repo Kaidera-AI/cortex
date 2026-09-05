@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "model": {
+    "artifacts": [
+      {
+        "path": "config.json",
+        "sha256": "88014d4dd5f874bf4050a57e76029ffdb42bead2c0c9253b4eb21bc65da8a5d9",
+        "size": 1416
+      },
+      {
+        "path": "onnx/model_quantized.onnx",
+        "sha256": "76dc4f417876e48b2fae7f325cb052f46099c890e6a7c1b60f91ff5027d751ef",
+        "size": 600223343
+      },
+      {
+        "path": "tokenizer.json",
+        "sha256": "93623af029cdc69b87f2864d3b2cc2424fdf16684f15e139b5b9d08ec34ced91",
+        "size": 11423701
+      },
+      {
+        "path": "tokenizer_config.json",
+        "sha256": "bc3e7cb4dad833a185d4bfbb4880562dc9b0cb101c47b8985078122a122d553a",
+        "size": 349
+      }
+    ],
+    "license": "Apache-2.0",
+    "repo_id": "n24q02m/Qwen3-Embedding-0.6B-ONNX",
+    "revision": "dc873d64d6143f27ad68dadbd1f0d9a4371b994e"
+  }
+}

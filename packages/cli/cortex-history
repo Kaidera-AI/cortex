@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# cortex-history — display recent agent message history
+# Usage: cortex-history [--agent <name>] [--last <n>] [--since <date>]
+#
+# REN-ARCH-01: routes through the typed GET /history API (project-scoped via
+# X-Project + acquire_scoped) instead of direct superuser SQL against messages.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage:\n'
+    printf '  cortex-history\n'
+    printf '  cortex-history [--agent <name>] [--last <n>] [--since <date>]\n'
+    printf '\nDefaults: last 20 messages for the current project.\n'
+    printf '\nExamples:\n'
+    printf '  cortex-history --agent lead\n'
+    printf '  cortex-history --last 50\n'
+    printf '  cortex-history --since 2026-01-01\n'
+    printf '  cortex-history --agent analyst --last 10 --since 2026-05-01\n'
+    exit 1
+}
+
+AGENT_ARG=""
+LAST=20
+SINCE_ARG=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --agent)
+            [ $# -lt 2 ] && { printf 'ERROR: --agent requires a name\n' >&2; usage; }
+            AGENT_ARG="$2"
+            shift 2
+            ;;
+        --last)
+            [ $# -lt 2 ] && { printf 'ERROR: --last requires a number\n' >&2; usage; }
+            if ! [[ "$2" =~ ^[0-9]+$ ]] || [ "$2" -lt 1 ]; then
+                printf 'ERROR: --last must be a positive integer\n' >&2
+                exit 1
+            fi
+            LAST="$2"
+            shift 2
+            ;;
+        --since)
+            [ $# -lt 2 ] && { printf 'ERROR: --since requires a date (YYYY-MM-DD)\n' >&2; usage; }
+            SINCE_ARG="$2"
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            printf 'ERROR: Unknown flag: %s\n' "$1" >&2
+            usage
+            ;;
+    esac
+done
+
+# API caps last at 200; clamp client-side so large values don't 422.
+[ "${LAST}" -gt 200 ] && LAST=200
+
+printf '\n## Message History — %s' "${CORTEX_PROJECT}"
+[ -n "${AGENT_ARG}" ] && printf ' / agent: %s' "${AGENT_ARG}"
+[ -n "${SINCE_ARG}" ] && printf ' / since: %s' "${SINCE_ARG}"
+printf '  (last %d)\n\n' "${LAST}"
+
+query="/history?last=${LAST}"
+[ -n "${AGENT_ARG}" ] && query="${query}&agent=$(cortex_api_urlencode "${AGENT_ARG}")"
+[ -n "${SINCE_ARG}" ] && query="${query}&since=$(cortex_api_urlencode "${SINCE_ARG}")"
+
+if ! response="$(cortex_api_call GET "${query}" 2>&1)"; then
+    printf 'ERROR: cortex-history API request failed\n' >&2
+    printf '%s\n' "${response}" >&2
+    exit 1
+fi
+
+CORTEX_HISTORY_JSON="${response}" python3 <<'PY'
+import json
+import os
+
+data = json.loads(os.environ.get("CORTEX_HISTORY_JSON", "{}"))
+msgs = data.get("messages", [])
+if not msgs:
+    print("(no messages found)\n")
+    raise SystemExit(0)
+
+print(f'{"When":<14}  {"Agent":<14}  {"Role":<10}  Content')
+print(f'{"-" * 14}  {"-" * 14}  {"-" * 10}  {"-" * 56}')
+for m in msgs:
+    content = (m.get("content") or "").replace("\n", " ")
+    if len(content) > 80:
+        content = content[:77] + "..."
+    print(
+        f'{(m.get("when") or ""):<14}  {(m.get("agent_name") or ""):<14}  '
+        f'{(m.get("role") or ""):<10}  {content}'
+    )
+print(f"\n{len(msgs)} message(s)\n")
+PY

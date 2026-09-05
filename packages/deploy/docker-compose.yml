@@ -1,0 +1,283 @@
+# Cortex standalone appliance — six-layer REFERENCE layout (design 23 sec 5a).
+# STATUS: REFERENCE-ONLY, NOT DEPLOYABLE. Design 23 orders db -> migrate -> api;
+# the API does not self-migrate at boot (migrations are gated behind
+# POST /admin/migrations/apply), and this projection carries no Cortex-only
+# one-shot migrator. A deployable stack requires the shared migration engine
+# extraction (design 23 P2) plus fresh + seeded upgrade tests, then re-projection.
+# Workers: embed/graph/audio+vision/pdf. No KOS console, no harness app DB.
+#
+# Provider keys: Cortex consumes them through the OpenKai projection seam
+# (design 23 sec 5c). Point OPENKAI_PROVIDER_PROJECTION_DIR at a directory
+# holding the projection env; with no keys, search falls back to lexical and
+# health reports the degraded provider honestly.
+name: cortex
+
+services:
+  cortex-pg:
+    image: pgvector/pgvector:0.8.2-pg18@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d
+    container_name: cortex-pg
+    restart: unless-stopped
+    shm_size: 256m
+    ports:
+      - "127.0.0.1:5499:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CORTEX_DB_PASSWORD:?set CORTEX_DB_PASSWORD}
+      POSTGRES_DB: platform_agent_memory
+    command:
+      - postgres
+      - -c
+      - shared_buffers=384MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - max_parallel_workers_per_gather=0
+    volumes:
+      - cortex-pg-data:/var/lib/postgresql
+      - ../schema/initdb:/docker-entrypoint-initdb.d:ro
+      - ../schema/cortex-schema-full.sql:/cortex-bootstrap/cortex-schema-full.sql:ro
+    networks: [cortex-net]
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1 -d platform_agent_memory"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  cortex-api:
+    build:
+      context: ../api
+      args:
+        KOS_VERSION: ${KOS_VERSION:-dev}
+        KOS_SOURCE_REVISION: ${KOS_SOURCE_REVISION:-0000000000000000000000000000000000000000}
+        KOS_IMAGE_SOURCE: ${KOS_IMAGE_SOURCE:-https://github.com/Kaidera-AI/cortex}
+        KOS_EDITION: ${KOS_EDITION:-open-source}
+    image: localhost/cortex/api:${KOS_VERSION:-dev}
+    container_name: cortex-api
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m,mode=1777"]
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      CORTEX_API_URL: "http://localhost:8501"
+      CORTEX_PG_DSN: postgresql://postgres:${CORTEX_DB_PASSWORD:?}@cortex-pg:5432/platform_agent_memory
+      CORTEX_PG_DSN_APP: postgresql://cortex_app:${CORTEX_APP_PASSWORD:?set CORTEX_APP_PASSWORD}@cortex-pg:5432/platform_agent_memory
+      CORTEX_PG_DSN_ADMIN: postgresql://postgres:${CORTEX_DB_PASSWORD:?}@cortex-pg:5432/platform_agent_memory
+      CORTEX_EVENT_BACKEND: postgres
+      OPENKAI_PROVIDER_PROJECTION_DIR: "${OPENKAI_PROVIDER_PROJECTION_DIR:-/run/openkai-provider}"
+      CORTEX_APP_STATEMENT_TIMEOUT_MS: "${CORTEX_APP_STATEMENT_TIMEOUT_MS:-15000}"
+      CORTEX_SEARCH_STATEMENT_TIMEOUT_MS: "${CORTEX_SEARCH_STATEMENT_TIMEOUT_MS:-3000}"
+      CORTEX_SEARCH_TOTAL_BUDGET_MS: "${CORTEX_SEARCH_TOTAL_BUDGET_MS:-4500}"
+      CORTEX_SEARCH_MAX_CONCURRENCY: "${CORTEX_SEARCH_MAX_CONCURRENCY:-2}"
+      CORTEX_SURFACE_VERSION: "cortex-standalone"
+      CORTEX_MIGRATIONS_DIR: /app/migrations
+      CORTEX_EMBED_PROVIDER: openrouter
+      CORTEX_EMBED_MODEL: "nvidia/llama-nemotron-embed-vl-1b-v2:free"
+      CORTEX_EMBED_DIMS: "768"
+      CORTEX_RERANK_ENABLED: "true"
+      CORTEX_RERANK_PROVIDER: nvidia
+      CORTEX_RERANK_MODEL: "nv-rerank-qa-mistral-4b:1"
+      CORTEX_LOCAL_STATE_PROJECT: _local_state
+      CORTEX_CUSTOMER: ${CORTEX_CUSTOMER:-local}
+      HOST_PROJECTS_ROOT: "${HOST_PROJECTS_ROOT:-/projects}"
+      CORTEX_V2_ENTITY_MODEL: "google/gemma-4-31b-it:free"
+      CORTEX_ANALYSIS_MODEL: "google/gemma-4-31b-it:free"
+      CORTEX_ANALYSIS_FALLBACK_MODELS: "nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free,minimax/minimax-m2.5:free,openai/gpt-oss-120b:free"
+    depends_on:
+      cortex-pg:
+        condition: service_healthy
+    volumes:
+      - ../schema/migrations:/app/migrations:ro
+      - ${HOST_PROJECTS_ROOT:-./projects}:/projects:ro
+      - type: bind
+        source: "${OPENKAI_PROVIDER_PROJECTION_DIR_HOST:-/tmp/cortex-openkai-projection}"
+        target: /run/openkai-provider
+        read_only: true
+        bind:
+          create_host_path: true
+    networks: [cortex-net]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/health', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  cortex-embed-worker:
+    build:
+      context: ../containers/embed-worker
+      args:
+        KOS_VERSION: ${KOS_VERSION:-dev}
+        KOS_SOURCE_REVISION: ${KOS_SOURCE_REVISION:-0000000000000000000000000000000000000000}
+        KOS_IMAGE_SOURCE: ${KOS_IMAGE_SOURCE:-https://github.com/Kaidera-AI/cortex}
+        KOS_EDITION: ${KOS_EDITION:-open-source}
+    image: localhost/cortex/embed-worker:${KOS_VERSION:-dev}
+    container_name: cortex-embed-worker
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    profiles: [full]
+    networks: [cortex-net]
+    depends_on:
+      cortex-api:
+        condition: service_healthy
+    volumes:
+      - cortex-models:/home/kaidera/.cache
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9005/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  cortex-graph-worker:
+    build:
+      context: ../containers/graph-worker
+      args:
+        KOS_VERSION: ${KOS_VERSION:-dev}
+        KOS_SOURCE_REVISION: ${KOS_SOURCE_REVISION:-0000000000000000000000000000000000000000}
+        KOS_IMAGE_SOURCE: ${KOS_IMAGE_SOURCE:-https://github.com/Kaidera-AI/cortex}
+        KOS_EDITION: ${KOS_EDITION:-open-source}
+    image: localhost/cortex/graph-worker:${KOS_VERSION:-dev}
+    container_name: cortex-graph-worker
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [cortex-net]
+    depends_on:
+      cortex-api:
+        condition: service_healthy
+    volumes:
+      - cortex-models:/home/kaidera/.cache
+      - cortex-graphs:/var/lib/cortex/graphs
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9004/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  cortex-audio-worker:
+    build:
+      context: ../containers/audio-worker
+      args:
+        KOS_VERSION: ${KOS_VERSION:-dev}
+        KOS_SOURCE_REVISION: ${KOS_SOURCE_REVISION:-0000000000000000000000000000000000000000}
+        KOS_IMAGE_SOURCE: ${KOS_IMAGE_SOURCE:-https://github.com/Kaidera-AI/cortex}
+        KOS_EDITION: ${KOS_EDITION:-open-source}
+    image: localhost/cortex/audio-worker:${KOS_VERSION:-dev}
+    container_name: cortex-audio-worker
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    profiles: [full]
+    networks: [cortex-net]
+    depends_on:
+      cortex-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9003/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  cortex-vision-worker:
+    build:
+      context: ../containers/vision-worker
+      args:
+        KOS_VERSION: ${KOS_VERSION:-dev}
+        KOS_SOURCE_REVISION: ${KOS_SOURCE_REVISION:-0000000000000000000000000000000000000000}
+        KOS_IMAGE_SOURCE: ${KOS_IMAGE_SOURCE:-https://github.com/Kaidera-AI/cortex}
+        KOS_EDITION: ${KOS_EDITION:-open-source}
+    image: localhost/cortex/vision-worker:${KOS_VERSION:-dev}
+    container_name: cortex-vision-worker
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    profiles: [full]
+    networks: [cortex-net]
+    depends_on:
+      cortex-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9002/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  cortex-pdf-worker:
+    build:
+      context: ../containers/pdf-worker
+      args:
+        KOS_VERSION: ${KOS_VERSION:-dev}
+        KOS_SOURCE_REVISION: ${KOS_SOURCE_REVISION:-0000000000000000000000000000000000000000}
+        KOS_IMAGE_SOURCE: ${KOS_IMAGE_SOURCE:-https://github.com/Kaidera-AI/cortex}
+        KOS_EDITION: ${KOS_EDITION:-open-source}
+    image: localhost/cortex/pdf-worker:${KOS_VERSION:-dev}
+    container_name: cortex-pdf-worker
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [cortex-net]
+    depends_on:
+      cortex-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9006/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+networks:
+  cortex-net:
+
+volumes:
+  cortex-pg-data:
+  cortex-models:
+  cortex-graphs:

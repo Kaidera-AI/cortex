@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# cortex-apply-migrations — apply checked-in schema migrations through cortex-api.
+#
+# This is operator tooling. It does not call psql; it delegates to the
+# admin-gated /admin/migrations/apply endpoint owned by cortex-api.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-apply-migrations [--dry-run] [--json] [--target <migration.sql>] [--max-count <N>]
+  cortex-apply-migrations --apply [--json] [--target <migration.sql>] [--max-count <N>]
+  cortex-apply-migrations --list [--json]
+
+Defaults to --dry-run. Use --apply for mutation.
+EOF
+}
+
+DRY_RUN=1
+LIST_ONLY=0
+JSON_OUT=0
+MAX_COUNT=""
+TARGETS=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --apply)
+            DRY_RUN=0
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --list)
+            LIST_ONLY=1
+            shift
+            ;;
+        --target)
+            [ "$#" -ge 2 ] || { echo "ERROR: --target requires a migration filename" >&2; exit 2; }
+            TARGETS+=("$2")
+            shift 2
+            ;;
+        --max-count)
+            [ "$#" -ge 2 ] || { echo "ERROR: --max-count requires an integer" >&2; exit 2; }
+            MAX_COUNT="$2"
+            shift 2
+            ;;
+        --json)
+            JSON_OUT=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+if [ -n "${MAX_COUNT}" ] && ! [[ "${MAX_COUNT}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --max-count must be an integer >= 0" >&2
+    exit 2
+fi
+
+if [ "${LIST_ONLY}" -eq 1 ]; then
+    response="$(cortex_api_call_admin GET "/admin/migrations")"
+else
+    payload="$(
+        python3 - "${DRY_RUN}" "${MAX_COUNT}" "${TARGETS[@]+"${TARGETS[@]}"}" <<'PY'
+import json
+import sys
+
+dry_run = sys.argv[1] == "1"
+max_count = int(sys.argv[2]) if sys.argv[2] else None
+targets = sys.argv[3:]
+print(json.dumps({
+    "dry_run": dry_run,
+    "target_ids": targets,
+    "max_count": max_count,
+    "applied_by": "cortex-apply-migrations",
+}))
+PY
+    )"
+    response="$(cortex_api_call_admin POST "/admin/migrations/apply" "${payload}")"
+fi
+
+if [ "${JSON_OUT}" -eq 1 ]; then
+    printf '%s\n' "${response}"
+    exit 0
+fi
+
+CORTEX_MIGRATIONS_JSON="${response}" python3 <<'PY'
+import json
+import os
+
+data = json.loads(os.environ.get("CORTEX_MIGRATIONS_JSON") or "{}")
+print(f"Schema migrations: source={data.get('source_dir', '?')} surface={data.get('surface_version', '?')}")
+if "dry_run" in data:
+    mode = "dry-run" if data.get("dry_run") else "apply"
+    print(f"Mode: {mode}; applied={data.get('applied_count', 0)} pending={data.get('pending_count', 0)}")
+
+rows = data.get("results") or data.get("migrations") or []
+if not rows:
+    print("(no migrations)")
+    raise SystemExit(0)
+
+print("")
+print(f'{"Status":<18} {"Action":<14} Migration')
+print("-" * 70)
+for row in rows:
+    print(f'{(row.get("status") or ""):<18} {(row.get("action") or ""):<14} {row.get("id") or ""}')
+PY

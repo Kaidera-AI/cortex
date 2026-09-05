@@ -1,0 +1,54 @@
+# The API image builds from the repository root to consume the one canonical,
+# hash-complete dependency lock. Deny everything else by default.
+**
+
+!.agents/
+!.agents/api/
+!.agents/api/main.py
+!.agents/api/mcp_server.py
+!.agents/api/observability.py
+!.agents/api/openkai_provider_env.py
+!.agents/api/ingest/
+!.agents/api/ingest/**
+!.agents/api/models/
+!.agents/api/models/**
+
+!appliance/
+!appliance/requirements/
+!appliance/requirements/cortex-py312.lock
+
+# These exclusions must remain last. Broad source re-includes above must never
+# admit ignored secrets, generated artifacts, or host build state that is not
+# represented by the source SHA.
+node_modules
+node_modules/**
+**/.git
+**/.git/**
+**/.env
+**/.env.*
+**/node_modules
+**/node_modules/**
+**/dist
+**/dist/**
+**/.venv
+**/.venv/**
+**/venv
+**/venv/**
+**/__pycache__
+**/__pycache__/**
+**/.pytest_cache
+**/.pytest_cache/**
+**/.ruff_cache
+**/.ruff_cache/**
+**/.mypy_cache
+**/.mypy_cache/**
+**/.coverage
+**/coverage.xml
+**/*.pyc
+**/*.pyo
+**/*.log
+**/*.pem
+**/*.key
+**/*.dump
+**/*.sql.gz
+**/.DS_Store

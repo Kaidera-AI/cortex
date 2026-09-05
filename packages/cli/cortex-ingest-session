@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# cortex-ingest-session — ingest one Claude-style session through the Cortex API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    echo "Usage: cortex-ingest-session [--allow-placeholder] [--allow-parse-loss] <jsonl-file> [agent] [project]"
+}
+
+ALLOW_PLACEHOLDER=0
+ALLOW_PARSE_LOSS="${CORTEX_SESSION_ALLOW_PARSE_LOSS:-0}"
+
+while [ "$#" -gt 0 ]; do
+    case "${1:-}" in
+        --allow-placeholder)
+            ALLOW_PLACEHOLDER=1
+            shift
+            ;;
+        --allow-parse-loss)
+            ALLOW_PARSE_LOSS=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --*)
+            echo "ERROR: unknown flag: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ "$#" -lt 1 ]; then
+    usage
+    exit 0
+fi
+
+SESSION_FILE="$1"
+AGENT_NAME="${2:-${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${BEAT_CORTEX_AGENT:-}}}}"
+if [ -n "${3:-}" ]; then
+    export CORTEX_PROJECT="$3"
+fi
+[ -f "${SESSION_FILE}" ] || { echo "ERROR: session file not found: ${SESSION_FILE}" >&2; exit 1; }
+if [ -z "${AGENT_NAME}" ]; then
+    echo "ERROR: agent is required for session ingest; pass [agent] or set CORTEX_AGENT/CORTEX_AGENT_ID/BEAT_CORTEX_AGENT." >&2
+    exit 2
+fi
+AGENT_NAME="$(cortex_agent_base_name "${AGENT_NAME}" | tr '[:upper:]' '[:lower:]')"
+
+payload_status=0
+payload="$(
+python3 - "${SESSION_FILE}" "${AGENT_NAME}" "${ALLOW_PLACEHOLDER}" "${ALLOW_PARSE_LOSS}" <<'PYEOF'
+import json
+import os
+import sys
+import uuid
+from pathlib import Path
+
+path = Path(sys.argv[1]).resolve()
+agent = sys.argv[2].lower().strip() or "agent"
+allow_placeholder = sys.argv[3] == "1"
+allow_parse_loss = sys.argv[4] == "1"
+stem = path.stem
+try:
+    session_id = str(uuid.UUID(stem))
+except ValueError:
+    session_id = str(uuid.uuid5(uuid.NAMESPACE_URL, str(path)))
+
+messages = []
+nonempty_lines = 0
+parsed_records = 0
+skipped_lines = []
+
+with path.open("r", encoding="utf-8", errors="replace") as handle:
+    for line_number, line in enumerate(handle, start=1):
+        line = line.strip()
+        if not line:
+            continue
+        nonempty_lines += 1
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError as exc:
+            skipped_lines.append({"line": line_number, "error": str(exc)})
+            continue
+        parsed_records += 1
+        role = item.get("role") or item.get("type") or "system"
+        if role == "assistant":
+            role = "assistant"
+        elif role == "user":
+            role = "user"
+        elif role not in {"system", "human", "agent"}:
+            role = "system"
+        content = item.get("content") or item.get("text") or item.get("message") or ""
+        if isinstance(content, (dict, list)):
+            content = json.dumps(content, ensure_ascii=False)
+        content = str(content).strip()
+        if content:
+            messages.append({"role": role, "content": content, "metadata": {"source": "local-file"}})
+
+if skipped_lines and not allow_parse_loss:
+    print(
+        f"ERROR: cortex-ingest-session refused parse-loss for {path}: "
+        f"{len(skipped_lines)} invalid JSONL line(s). Re-run with --allow-parse-loss only if this loss is intentional.",
+        file=sys.stderr,
+    )
+    raise SystemExit(3)
+
+if not messages:
+    if nonempty_lines > 0 and not allow_placeholder:
+        print(
+            f"ERROR: cortex-ingest-session parsed zero real messages from non-empty file {path}; "
+            "refusing placeholder ingest. Re-run with --allow-placeholder only if intentional.",
+            file=sys.stderr,
+        )
+        raise SystemExit(4)
+    if nonempty_lines == 0 and not allow_placeholder:
+        print(
+            f"ERROR: cortex-ingest-session parsed zero real messages from empty file {path}; "
+            "refusing placeholder ingest. Re-run with --allow-placeholder only if intentional.",
+            file=sys.stderr,
+        )
+        raise SystemExit(4)
+    messages.append({
+        "role": "system",
+        "content": f"Imported session file {path.name}",
+        "metadata": {"source": "local-file", "placeholder": True},
+    })
+
+print(json.dumps({
+    "session_uuid": session_id,
+    "agent": agent,
+    "task": f"Imported session {path.name}",
+    "source_path": str(path),
+    "provider": "claude",
+    "cwd": os.getcwd(),
+    "source_kind": "claude-session",
+    "metadata": {
+        "filename": path.name,
+        "nonempty_lines": nonempty_lines,
+        "parsed_records": parsed_records,
+        "messages_parsed": len(messages),
+        "skipped_lines": len(skipped_lines),
+        "parse_loss_allowed": allow_parse_loss,
+        "placeholder_allowed": allow_placeholder,
+    },
+    "messages": messages,
+}))
+PYEOF
+)" || payload_status=$?
+
+if [ "${payload_status}" -ne 0 ]; then
+    exit "${payload_status}"
+fi
+
+cortex_api_call_json POST "/sessions/ingest" "${payload}" "${AGENT_NAME}"
+printf 'Ingested %s\n' "${SESSION_FILE}"

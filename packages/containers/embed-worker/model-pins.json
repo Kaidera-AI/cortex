@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "models": {
+    "embedding": {
+      "artifacts": [
+        {
+          "path": "1_Pooling/config.json",
+          "sha256": "a37f83ada23e7887be6b88f4998927dbeac0038af301553c7cd5461413bf1a56",
+          "size": 190
+        },
+        {
+          "path": "config.json",
+          "sha256": "d46a3e04ded82bba22528424480697d394eeda6a27484e08c5bb2bdf5906cfa0",
+          "size": 571
+        },
+        {
+          "path": "config_sentence_transformers.json",
+          "sha256": "061ca9d39661d6c6d6de5ba27f79a1cd5770ea247f8d46412a68a498dc5ac9f3",
+          "size": 116
+        },
+        {
+          "path": "model.safetensors",
+          "sha256": "78c0197b6159d92658e319bc1d72e4c73a9a03dd03815e70e555c5ef05615658",
+          "size": 437971872
+        },
+        {
+          "path": "modules.json",
+          "sha256": "84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf",
+          "size": 349
+        },
+        {
+          "path": "sentence_bert_config.json",
+          "sha256": "cabfacded9272091a06ff595a46ef027a76ddf4ac9e77d0fcf11c605748f1667",
+          "size": 53
+        },
+        {
+          "path": "special_tokens_map.json",
+          "sha256": "9ef40e9c160511bf3f46ceb71f1471dafa1e9473d5120bb816c36b2efa75f8ba",
+          "size": 239
+        },
+        {
+          "path": "tokenizer.json",
+          "sha256": "b8be2c30ba5dd723a6d5ee26d013da103d5408d92ddcb23747622f9e48f1d842",
+          "size": 466021
+        },
+        {
+          "path": "tokenizer_config.json",
+          "sha256": "67f2ff7e223518e729869bb3a70f0caf8368fe549383fc11cfe2dfb42fffc268",
+          "size": 363
+        },
+        {
+          "path": "vocab.txt",
+          "sha256": "dbd90cb94e2247bd4d4ccaecbf616d2290e66691d7d5e5bb81f063c2d0649ada",
+          "size": 231536
+        }
+      ],
+      "dimensions": 768,
+      "license": "Apache-2.0",
+      "repo_id": "sentence-transformers/all-mpnet-base-v2",
+      "revision": "e8c3b32edf5434bc2275fc9bab85f82640a19130"
+    },
+    "rerank": {
+      "artifacts": [
+        {
+          "path": "config.json",
+          "sha256": "380e02c93f431831be65d99a4e7e5f67c133985bf2e77d9d4eba46847190bacc",
+          "size": 794
+        },
+        {
+          "path": "model.safetensors",
+          "sha256": "821d1aa69520101d6e0737f78a042ae25b19e5cb9160701909d10434f4aeb0ae",
+          "size": 90870598
+        },
+        {
+          "path": "special_tokens_map.json",
+          "sha256": "3c3507f36dff57bce437223db3b3081d1e2b52ec3e56ee55438193ecb2c94dd6",
+          "size": 132
+        },
+        {
+          "path": "tokenizer.json",
+          "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+          "size": 711396
+        },
+        {
+          "path": "tokenizer_config.json",
+          "sha256": "a5c2e5a7b1a29a0702cd28c08a399b5ecc110c263009d17f7e3b415f25905fd8",
+          "size": 1330
+        },
+        {
+          "path": "vocab.txt",
+          "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3",
+          "size": 231508
+        }
+      ],
+      "license": "Apache-2.0",
+      "repo_id": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a"
+    }
+  }
+}

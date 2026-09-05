@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# cortex-board — task board management through the Cortex API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-board [--agent NAME] [--sprint SPRINT] [--status STATUS] [--include-done]
+  cortex-board list [filters]
+  cortex-board add --title TITLE [--agent NAME] [--role ROLE] [--priority N] [--description TEXT]
+  cortex-board update <task-id> --status STATUS
+  cortex-board done <task-id>
+EOF
+}
+
+cmd="list"
+if [ "$#" -gt 0 ]; then
+    case "$1" in
+        list|add|update|done)
+            cmd="$1"
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+    esac
+fi
+
+urlencode() { cortex_api_urlencode "$1"; }
+
+render_json() {
+    python3 -c 'import json,sys; data=json.load(sys.stdin); print(json.dumps(data, indent=2, sort_keys=True))'
+}
+
+case "${cmd}" in
+    list)
+        AGENT=""
+        SPRINT=""
+        STATUS=""
+        INCLUDE_DONE=0
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                --agent) AGENT="$2"; shift 2 ;;
+                --sprint) SPRINT="$2"; shift 2 ;;
+                --status) STATUS="$2"; shift 2 ;;
+                --include-done) INCLUDE_DONE=1; shift ;;
+                --help|-h) usage; exit 0 ;;
+                *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+            esac
+        done
+        path="/board?include_done=false"
+        [ "${INCLUDE_DONE}" -eq 1 ] && path="/board?include_done=true"
+        [ -n "${AGENT}" ] && path="${path}&agent=$(urlencode "${AGENT}")"
+        [ -n "${SPRINT}" ] && path="${path}&sprint=$(urlencode "${SPRINT}")"
+        [ -n "${STATUS}" ] && path="${path}&status=$(urlencode "${STATUS}")"
+        cortex_api_call_json GET "/board${path#/board}" | render_json
+        ;;
+    add)
+        TITLE=""
+        ASSIGNED_AGENT=""
+        ASSIGNED_ROLE=""
+        PRIORITY="50"
+        DESCRIPTION=""
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                --title) TITLE="$2"; shift 2 ;;
+                --agent) ASSIGNED_AGENT="$2"; shift 2 ;;
+                --role) ASSIGNED_ROLE="$2"; shift 2 ;;
+                --priority) PRIORITY="$2"; shift 2 ;;
+                --description) DESCRIPTION="$2"; shift 2 ;;
+                --help|-h) usage; exit 0 ;;
+                *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+            esac
+        done
+        [ -n "${TITLE}" ] || { echo "ERROR: add requires --title" >&2; exit 2; }
+        payload="$(python3 - "${TITLE}" "${ASSIGNED_AGENT}" "${ASSIGNED_ROLE}" "${PRIORITY}" "${DESCRIPTION}" <<'PYEOF'
+import json, sys
+print(json.dumps({
+    "title": sys.argv[1],
+    "assigned_agent": sys.argv[2] or None,
+    "assigned_role": sys.argv[3] or None,
+    "priority": int(sys.argv[4] or 50),
+    "description": sys.argv[5] or None,
+}))
+PYEOF
+)"
+        cortex_api_call_json POST "/board" "${payload}" | render_json
+        ;;
+    update|done)
+        [ "$#" -ge 1 ] || { echo "ERROR: ${cmd} requires task id" >&2; exit 2; }
+        TASK_ID="$1"
+        shift
+        NEW_STATUS="done"
+        if [ "${cmd}" = "update" ]; then
+            NEW_STATUS=""
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    --status) NEW_STATUS="$2"; shift 2 ;;
+                    --help|-h) usage; exit 0 ;;
+                    *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+                esac
+            done
+            [ -n "${NEW_STATUS}" ] || { echo "ERROR: update requires --status" >&2; exit 2; }
+        fi
+        payload="$(python3 - "${NEW_STATUS}" <<'PYEOF'
+import json, sys
+print(json.dumps({"status": sys.argv[1]}))
+PYEOF
+)"
+        cortex_api_call_json PATCH "/board/${TASK_ID}" "${payload}" | render_json
+        ;;
+esac

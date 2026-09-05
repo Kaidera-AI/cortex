@@ -1,0 +1,8 @@
+# Graph-worker HTTP and storage runtime (CPython 3.13/Linux).
+# 1.1.0 has no CPython 3.13 wheel; 1.1.1 is the smallest release that does.
+duckdb==1.1.1
+fastapi==0.141.1
+pydantic==2.11.4
+sqlite-vec==0.1.6
+starlette==1.6.0
+uvicorn[standard]==0.52.3

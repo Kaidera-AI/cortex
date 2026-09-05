@@ -1,0 +1,38 @@
+{
+  "components": {
+    "api": {
+      "files": 82,
+      "path": "packages/api",
+      "tree_sha256": "59d8ab5fc08e77b41a133b8e0799c4430ceb8de950f1aa437d28c8afefa6ab7e"
+    },
+    "cli": {
+      "files": 72,
+      "path": "packages/cli",
+      "tree_sha256": "6280c39d82678bde3b90e5de6672c1d9718ebfdf402c4e79e6314cb733c9297d"
+    },
+    "containers": {
+      "files": 41,
+      "path": "packages/containers",
+      "tree_sha256": "1aaa1def6348e1a1fe77fa9330d2f8a031072a724091fc31f1f98e8475bb8f64"
+    },
+    "deploy": {
+      "files": 1,
+      "path": "packages/deploy",
+      "tree_sha256": "b7d478d4239ac975367870d8883bddbcf146db13063cd43776f7b495a289b059"
+    },
+    "schema": {
+      "files": 88,
+      "path": "packages/schema",
+      "tree_sha256": "f337936494183a6c77d9dd7501ea0555b9212056f0959055c647f82b8192eb48"
+    }
+  },
+  "entry_points": {
+    "api_main": "36ba2faec5e3614daf230ce0b3b5ed04a25b0582314da26f0d45e41be9e007bf",
+    "compose": "a1459a379e8cbfb0f460d51c26b88a317cb79307289c3037b938cf31b5f01df2",
+    "schema": "4f2a5e452fff3a4aee73e1a19117f52e9952be6c0b8c236a3b77716dbee3ee6d"
+  },
+  "schema": "cortex.projection_manifest.v1",
+  "source_provenance": "pristine git archive of committed HEAD",
+  "source_repo": "Kaidera-AI/kaideraos",
+  "source_revision": "0466201d44f7baab950cfd2f454dce979ce91e88"
+}

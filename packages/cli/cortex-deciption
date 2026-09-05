@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Back-compat/typo alias for cortex-discipline.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${SCRIPT_DIR}/cortex-discipline" "$@"

@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+# Shared dispatcher for cortex-ingest-audio, cortex-ingest-image, and cortex-ingest-video.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+MEDIA_KIND="${CORTEX_MEDIA_KIND:-audio}"
+COMMAND_NAME="cortex-ingest-${MEDIA_KIND}"
+
+usage() {
+    cat <<EOF
+Usage:
+  ${COMMAND_NAME} <media-path> [agent-name] [project] [options]
+
+Options:
+  --transcript-file <path>  Use supplied text for audio/video instead of a worker call.
+  --model <name>            Optional container-worker model.
+  --prompt <text>           Optional image-description prompt.
+  --source-type <type>      Forwarded to cortex-ingest-artifact.
+  --customer-id <uuid>      Optional customer boundary ID.
+  --org-id <uuid>           Optional organisation ID.
+  --section-context <text>  Optional durable-memory context.
+  --metadata-json <json>    Merge extra metadata into the artifact row.
+  --edge-type <type>        Optional relationship type.
+  --target-type <type>      Required with --edge-type.
+  --target-ref <ref>        Required with --edge-type.
+  --dry-run                 Extract and print the final API payload without writing.
+
+Without --transcript-file, media is sent through cortex-api to the internal audio
+or vision worker. Start the compose 'multimodal' (or 'full') profile first.
+EOF
+    exit 1
+}
+
+case "${MEDIA_KIND}" in
+    audio|image|video) ;;
+    *)
+        echo "ERROR: unsupported CORTEX_MEDIA_KIND: ${MEDIA_KIND}" >&2
+        exit 2
+        ;;
+esac
+
+if [[ $# -lt 1 ]]; then
+    usage
+fi
+
+MEDIA_PATH="$1"
+shift
+
+AGENT_NAME=""
+SESSION_PROJECT="${CORTEX_PROJECT}"
+TRANSCRIPT_FILE=""
+WORKER_MODEL=""
+VISION_PROMPT=""
+SOURCE_TYPE=""
+CUSTOMER_ID=""
+ORG_ID=""
+SECTION_CONTEXT=""
+METADATA_JSON="{}"
+EDGE_TYPE=""
+TARGET_TYPE=""
+TARGET_REF=""
+DRY_RUN=0
+
+if [[ $# -gt 0 && "${1}" != --* ]]; then
+    AGENT_NAME="$1"
+    shift
+fi
+if [[ $# -gt 0 && "${1}" != --* ]]; then
+    SESSION_PROJECT="$1"
+    shift
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --transcript-file)
+            TRANSCRIPT_FILE="${2:-}"
+            shift 2
+            ;;
+        --model)
+            WORKER_MODEL="${2:-}"
+            shift 2
+            ;;
+        --prompt)
+            VISION_PROMPT="${2:-}"
+            shift 2
+            ;;
+        --source-type)
+            SOURCE_TYPE="${2:-}"
+            shift 2
+            ;;
+        --customer-id)
+            CUSTOMER_ID="${2:-}"
+            shift 2
+            ;;
+        --org-id)
+            ORG_ID="${2:-}"
+            shift 2
+            ;;
+        --section-context)
+            SECTION_CONTEXT="${2:-}"
+            shift 2
+            ;;
+        --metadata-json)
+            METADATA_JSON="${2:-}"
+            shift 2
+            ;;
+        --edge-type)
+            EDGE_TYPE="${2:-}"
+            shift 2
+            ;;
+        --target-type)
+            TARGET_TYPE="${2:-}"
+            shift 2
+            ;;
+        --target-ref)
+            TARGET_REF="${2:-}"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            echo "ERROR: unknown flag: $1" >&2
+            usage
+            ;;
+    esac
+done
+
+if [[ ! -f "${MEDIA_PATH}" ]]; then
+    echo "ERROR: media file not found: ${MEDIA_PATH}" >&2
+    exit 1
+fi
+MEDIA_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${MEDIA_PATH}")"
+
+if [[ "${MEDIA_KIND}" == "image" && -n "${TRANSCRIPT_FILE}" ]]; then
+    echo "ERROR: --transcript-file applies only to audio or video." >&2
+    exit 2
+fi
+if [[ "${MEDIA_KIND}" != "image" && -n "${VISION_PROMPT}" ]]; then
+    echo "ERROR: --prompt applies only to image ingestion." >&2
+    exit 2
+fi
+if [[ -n "${TRANSCRIPT_FILE}" ]]; then
+    if [[ ! -f "${TRANSCRIPT_FILE}" ]]; then
+        echo "ERROR: transcript file not found: ${TRANSCRIPT_FILE}" >&2
+        exit 1
+    fi
+    TRANSCRIPT_FILE="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${TRANSCRIPT_FILE}")"
+fi
+if [[ -n "${EDGE_TYPE}" || -n "${TARGET_TYPE}" || -n "${TARGET_REF}" ]]; then
+    if [[ -z "${EDGE_TYPE}" || -z "${TARGET_TYPE}" || -z "${TARGET_REF}" ]]; then
+        echo "ERROR: --edge-type, --target-type, and --target-ref must be provided together." >&2
+        exit 2
+    fi
+fi
+
+FORWARD_METADATA_JSON="$(
+    python3 - "${METADATA_JSON}" "${MEDIA_KIND}" "${MEDIA_PATH}" "${TRANSCRIPT_FILE}" <<'PYEOF'
+import json
+import sys
+
+metadata = json.loads(sys.argv[1] or "{}")
+if not isinstance(metadata, dict):
+    raise SystemExit("metadata JSON must decode to an object")
+kind, source, transcript = sys.argv[2:]
+metadata[f"{kind}_source"] = source
+metadata["extraction_path"] = "provided_transcript" if transcript else "cortex_api_worker"
+if transcript:
+    metadata["transcript_source"] = transcript
+print(json.dumps(metadata, ensure_ascii=False, sort_keys=True))
+PYEOF
+)"
+
+cmd=("${SCRIPT_DIR}/cortex-ingest-artifact" "${MEDIA_PATH}")
+if [[ -n "${AGENT_NAME}" ]]; then
+    cmd+=("${AGENT_NAME}")
+fi
+if [[ -n "${SESSION_PROJECT}" ]]; then
+    cmd+=("${SESSION_PROJECT}")
+fi
+cmd+=(--modality "${MEDIA_KIND}" --metadata-json "${FORWARD_METADATA_JSON}")
+
+if [[ -n "${TRANSCRIPT_FILE}" ]]; then
+    cmd+=(--raw-content-file "${TRANSCRIPT_FILE}" --extraction-method provided_transcript)
+else
+    if [[ -n "${WORKER_MODEL}" ]]; then
+        cmd+=(--worker-model "${WORKER_MODEL}")
+    fi
+    if [[ -n "${VISION_PROMPT}" ]]; then
+        cmd+=(--vision-prompt "${VISION_PROMPT}")
+    fi
+fi
+if [[ -n "${SOURCE_TYPE}" ]]; then
+    cmd+=(--source-type "${SOURCE_TYPE}")
+fi
+if [[ -n "${CUSTOMER_ID}" ]]; then
+    cmd+=(--customer-id "${CUSTOMER_ID}")
+fi
+if [[ -n "${ORG_ID}" ]]; then
+    cmd+=(--org-id "${ORG_ID}")
+fi
+if [[ -n "${SECTION_CONTEXT}" ]]; then
+    cmd+=(--section-context "${SECTION_CONTEXT}")
+fi
+if [[ -n "${EDGE_TYPE}" ]]; then
+    cmd+=(--edge-type "${EDGE_TYPE}" --target-type "${TARGET_TYPE}" --target-ref "${TARGET_REF}")
+fi
+if [[ "${DRY_RUN}" -eq 1 ]]; then
+    cmd+=(--dry-run)
+fi
+
+"${cmd[@]}"

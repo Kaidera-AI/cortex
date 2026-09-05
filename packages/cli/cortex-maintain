@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+# cortex-maintain — Daily maintenance: ingest, embed, extract, clean.
+#
+# Usage:
+#   cortex-maintain                Full daily maintenance
+#   cortex-maintain --ingest       Ingest chat history only
+#   cortex-maintain --embed        Embed unembedded content only
+#   cortex-maintain --extract      Extract entities from graph-backed memory sources
+#   cortex-maintain --freshness    Check work-product freshness against host files
+#   cortex-maintain --stats        Show maintenance stats
+#
+# Beat or an operator runs this daily. You can also trigger it manually.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="${SCRIPT_DIR}:${PATH}:/opt/homebrew/opt/libpq/bin"  # fitness:allow-literal false-match: standard macOS Homebrew libpq path, not a project literal
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+PROJECT="${CORTEX_PROJECT}"
+MODE="${1:---full}"
+
+status green "=== Cortex Maintenance [${PROJECT}] ==="
+
+# ─────────────────────────────────────────────────────────────
+# 1. INGEST — sync chat transcripts to Cortex
+# ─────────────────────────────────────────────────────────────
+
+do_ingest() {
+    printf '\n[INGEST] Syncing chat transcripts...\n'
+
+    if [ -x "${SCRIPT_DIR}/cortex-sync-workspace" ]; then
+        "${SCRIPT_DIR}/cortex-sync-workspace" --sessions-only 2>/dev/null && \
+            printf '  ✓ Transcripts synced\n' || \
+            printf '  ⚠ Sync had issues (non-critical)\n'
+    else
+        printf '  ⚠ cortex-sync-workspace not found\n'
+    fi
+
+    # Also ingest Claude local state if available
+    if [ -x "${SCRIPT_DIR}/cortex-ingest-claude-local-state" ]; then
+        "${SCRIPT_DIR}/cortex-ingest-claude-local-state" 2>/dev/null && \
+            printf '  ✓ Claude local state synced\n' || \
+            printf '  ⚠ Local state sync skipped\n'
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────
+# 2. EMBED — fill embedding gaps
+# ─────────────────────────────────────────────────────────────
+
+do_embed() {
+    printf '\n[EMBED] Filling embedding gaps...\n'
+
+    if [ -x "${SCRIPT_DIR}/cortex-embed" ]; then
+        run_embed_table decisions 50
+        run_embed_table lessons 20
+        run_embed_table knowledge 30
+        run_embed_table work_products 30
+        run_embed_table messages 100
+    else
+        printf '  ⚠ cortex-embed not found\n'
+    fi
+}
+
+run_embed_table() {
+    local table="$1"
+    local limit="$2"
+    local output
+
+    if output="$("${SCRIPT_DIR}/cortex-embed" --table "${table}" --limit "${limit}" 2>&1)"; then
+        python3 - "${table}" "${output}" <<'PYEOF' | sed 's/^/  /'
+import json
+import sys
+
+table = sys.argv[1]
+raw = sys.argv[2]
+payload = None
+for line in reversed(raw.splitlines()):
+    line = line.strip()
+    if not line.startswith("{"):
+        continue
+    try:
+        payload = json.loads(line)
+        break
+    except Exception:
+        continue
+
+if not payload:
+    print(f"✓ {table}: completed")
+    raise SystemExit(0)
+
+tables = payload.get("tables") or {}
+stats = tables.get(table) or payload
+processed = stats.get("processed", payload.get("processed", 0))
+embedded = stats.get("embedded", payload.get("embedded", 0))
+errors = stats.get("errors", payload.get("errors", 0))
+skipped = stats.get("skipped", payload.get("skipped", 0))
+print(f"✓ {table}: processed={processed} embedded={embedded} errors={errors} skipped={skipped}")
+PYEOF
+    else
+        printf '  ⚠ %s embedding failed\n' "${table}"
+        printf '%s\n' "${output}" | sed 's/^/    /'
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────
+# 3. EXTRACT — build knowledge graph from durable project memory
+# ─────────────────────────────────────────────────────────────
+
+do_extract() {
+    printf '\n[EXTRACT] Building knowledge graph...\n'
+    printf '  source: project_memory (knowledge + work_products; use cortex-extract-entities --source all for explicit full-memory extraction)\n'
+
+    if [ -x "${SCRIPT_DIR}/cortex-extract-entities" ]; then
+        "${SCRIPT_DIR}/cortex-extract-entities" --source project_memory --limit 20 | \
+            grep -E "entities|processed|Done" | sed 's/^/  /'
+    else
+        printf '  ⚠ cortex-extract-entities not found\n'
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────
+# 4. FRESHNESS — mark changed work-product briefs stale
+# ─────────────────────────────────────────────────────────────
+
+do_freshness() {
+    printf '\n[FRESHNESS] Checking work-product file hashes...\n'
+
+    if [ -x "${SCRIPT_DIR}/cortex-work-product" ]; then
+        "${SCRIPT_DIR}/cortex-work-product" --check-freshness --limit 100 --apply 2>/dev/null | \
+            sed 's/^/  /'
+    else
+        printf '  ⚠ cortex-work-product not found\n'
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────
+# 5. CLEAN — clear stale Redis cache, archive old handoffs
+# ─────────────────────────────────────────────────────────────
+
+do_clean() {
+    printf '\n[CLEAN] API maintenance cleanup...\n'
+    printf '  ✓ Boot/cache state is API-owned; no Redis cache sweep needed\n'
+
+    local payload response
+    payload='{"older_than_hours":168}'
+    if response="$(cortex_api_call_admin POST "/beat/handoffs/archive-stale" "${payload}" 2>/dev/null)"; then
+        python3 - "${response}" <<'PYEOF' | sed 's/^/  /'
+import json
+import sys
+data = json.loads(sys.argv[1])
+print(f"✓ Archived {data.get('archived', 0)} stale handoffs (>7 days)")
+PYEOF
+    else
+        printf '  ⚠ Stale handoff archive skipped; API admin cleanup failed\n'
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────
+# 6. STATS — show maintenance dashboard
+# ─────────────────────────────────────────────────────────────
+
+do_stats() {
+    printf '\n[STATS] Cortex health\n\n'
+
+    # Embedding coverage
+    if [ -x "${SCRIPT_DIR}/cortex-embed" ]; then
+        "${SCRIPT_DIR}/cortex-embed" --stats 2>/dev/null | sed 's/^/  /'
+    fi
+
+    # Entity graph
+    if [ -x "${SCRIPT_DIR}/cortex-entities" ]; then
+        "${SCRIPT_DIR}/cortex-entities" --stats 2>/dev/null | grep -E "Entities:|Relationships:|processed" | sed 's/^/  /'
+    fi
+
+    # Onboarding status
+    if [ -x "${SCRIPT_DIR}/cortex-onboard" ]; then
+        "${SCRIPT_DIR}/cortex-onboard" --check-all 2>/dev/null | sed 's/^/  /'
+    fi
+
+    # Handoff health
+    printf '\n  Handoff health:\n'
+    if status_payload="$(cortex_api_call_admin GET "/beat/status" 2>/dev/null)"; then
+        python3 - "${status_payload}" <<'PYEOF' | sed 's/^/  /'
+import json
+import sys
+data = json.loads(sys.argv[1])
+counts = data.get("counts") or {}
+print(
+    "pending: {pending}, claimed: {claimed}, stale: {stale}, consults: {consults}".format(
+        pending=counts.get("pending", 0),
+        claimed=counts.get("claimed", 0),
+        stale=counts.get("stale", 0),
+        consults=counts.get("consults", 0),
+    )
+)
+PYEOF
+    else
+        printf '  ⚠ Handoff health unavailable from API\n'
+    fi
+
+    printf '\n'
+}
+
+# ─────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────
+
+case "${MODE}" in
+    --full)
+        do_ingest
+        do_embed
+        do_extract
+        do_freshness
+        do_clean
+        do_stats
+        cortex-log "cortex-maintain" decision "Daily maintenance complete: ingest + embed + extract + freshness + clean" 2>/dev/null || true
+        status green "Maintenance complete."
+        ;;
+    --ingest)  do_ingest ;;
+    --embed)   do_embed ;;
+    --extract) do_extract ;;
+    --freshness) do_freshness ;;
+    --clean)   do_clean ;;
+    --stats)   do_stats ;;
+    --help|-h) printf 'Usage: cortex-maintain [--full|--ingest|--embed|--extract|--freshness|--clean|--stats]\n' ;;
+    *)         printf 'Unknown mode: %s\n' "${MODE}" >&2; exit 1 ;;
+esac

@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# cortex-graph-callers — Who calls a function/class
+# Usage: cortex-graph-callers <function_name> [--repo <path>] [--max-results N]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+REPO_ROOT=""
+TARGET=""
+PATTERN="callers_of"
+MAX_RESULTS=100
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --repo)       REPO_ROOT="$2"; shift 2 ;;
+        --callees)    PATTERN="callees_of"; shift ;;
+        --imports)    PATTERN="imports_of"; shift ;;
+        --importers)  PATTERN="importers_of"; shift ;;
+        --tests)      PATTERN="tests_for"; shift ;;
+        --inheritors) PATTERN="inheritors_of"; shift ;;
+        --children)   PATTERN="children_of"; shift ;;
+        --max|--max-results) MAX_RESULTS="$2"; shift 2 ;;
+        --help|-h)    printf 'Usage: cortex-graph-callers <target> [--callees|--imports|--importers|--tests|--inheritors] [--repo <path>] [--max-results N]\n'; exit 0 ;;
+        *)            TARGET="$1"; shift ;;
+    esac
+done
+
+if [ -z "${TARGET}" ]; then
+    printf 'ERROR: function/class name required\n' >&2; exit 1
+fi
+case "${MAX_RESULTS}" in
+    ''|*[!0-9]*) printf 'ERROR: max-results must be an integer\n' >&2; exit 2 ;;
+esac
+if [ "${MAX_RESULTS}" -lt 1 ]; then
+    printf 'ERROR: max-results must be at least 1\n' >&2; exit 2
+fi
+
+if [ -z "${REPO_ROOT}" ]; then
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+
+payload="$(python3 - "${REPO_ROOT}" "${TARGET}" "${PATTERN}" "${MAX_RESULTS}" <<'PYEOF'
+import json
+import sys
+
+print(json.dumps({
+    "repo": sys.argv[1],
+    "target": sys.argv[2],
+    "pattern": sys.argv[3],
+    "max_results": int(sys.argv[4]),
+}))
+PYEOF
+)"
+
+CORTEX_API_MAX_TIME=80 cortex_api_call_json POST "/graph/callers" "${payload}" | python3 -c '
+import json
+import sys
+
+result = json.load(sys.stdin)
+if not isinstance(result, dict):
+    print("ERROR: malformed code graph response", file=sys.stderr)
+    raise SystemExit(2)
+status = result.get("status")
+if status not in {"ok", "ambiguous", "not_found", "error"}:
+    print("ERROR: unsupported code graph status", file=sys.stderr)
+    raise SystemExit(2)
+if status == "error":
+    detail = str(result.get("error") or result.get("summary") or "code graph query failed")
+    print("ERROR: {}".format(detail[:500]), file=sys.stderr)
+    raise SystemExit(1)
+
+rows = result.get("results") or []
+if not isinstance(rows, list):
+    print("ERROR: malformed code graph results", file=sys.stderr)
+    raise SystemExit(2)
+totals = result.get("totals")
+total = totals.get("results") if isinstance(totals, dict) else None
+if isinstance(total, bool) or not isinstance(total, int) or total < len(rows):
+    print("ERROR: malformed code graph result total", file=sys.stderr)
+    raise SystemExit(2)
+indexed = result.get("target_indexed") is True
+print(
+    "{}({}): status={}; target_indexed={}; {} result(s)".format(
+        sys.argv[1], sys.argv[2], status, "yes" if indexed else "no", total
+    )
+)
+if result.get("truncated"):
+    print("  (showing first {}; use --max-results to adjust)".format(sys.argv[3]))
+hint = str(result.get("hint") or "")
+if hint:
+    print("  Hint: {}".format(hint[:500]))
+candidates = result.get("candidates") or []
+if not isinstance(candidates, list):
+    print("ERROR: malformed code graph candidates", file=sys.stderr)
+    raise SystemExit(2)
+if candidates:
+    print("  Candidates:")
+    for candidate in candidates:
+        if isinstance(candidate, dict):
+            name = candidate.get("qualified_name") or candidate.get("name") or candidate.get("target") or "?"
+            location = candidate.get("file_path")
+            line = candidate.get("line_start")
+            suffix = " @ {}:{}".format(location, line or "?") if location else ""
+            print("    {}{}".format(name, suffix))
+        else:
+            print("    {}".format(str(candidate)[:500]))
+for item in rows:
+    if not isinstance(item, dict):
+        continue
+    location = "{}:{}".format(
+        item.get("file_path", "?"), item.get("line_start", "?")
+    )
+    print("  {} @ {}".format(item.get("name", "?"), location))
+' "${PATTERN}" "${TARGET}" "${MAX_RESULTS}"

@@ -1,0 +1,369 @@
+#!/usr/bin/env bash
+# cortex-skill — API-backed skill management for the local Cortex.
+#
+# A skill is a folder containing SKILL.md (markdown + YAML frontmatter:
+# name/description/scope/tags/when_to_load) plus optional scripts/. GLOBAL skills
+# (scope=global) live in the shared skills repo under .agents/skills/<slug>/ and
+# are registered in agent_skills with scope='global' (sentinel project '*'); they
+# reach EVERY project/agent at boot with no binding. PROJECT/AGENT skills are
+# bound to a subject to be delivered.
+#
+# Usage:
+#   cortex-skill install <github-url-or-local-path> [--scope global|project] [--project KEY]
+#       Clone/copy a skill, register it via POST /skills, copy it under .agents/skills/<slug>/.
+#   cortex-skill list
+#       GET /skills — compact table (slug, scope, version, description).
+#   cortex-skill bind <slug> --to <agent-or-role> [--kind agent|role] [--project KEY]
+#       POST /skills/{slug}/bind — deliver a skill to a subject.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENTS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SKILLS_DIR="${AGENTS_DIR}/skills"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-skill install <github-url-or-local-path> [--scope global|project|agent] [--project KEY]
+      Clone (git URL) or copy (local path) a skill folder, parse its SKILL.md
+      frontmatter, register it via POST /skills, and copy it under
+      .agents/skills/<slug>/. Default scope is global (shared skills repo,
+      stored under sentinel project '*').
+
+  cortex-skill list
+      List skills visible to this project (all global + this project's own).
+
+  cortex-skill bind <slug> --to <agent-or-role> [--kind agent|role] [--project KEY]
+      Bind a skill to a role (default) or a single agent so it reaches that
+      subject at boot.
+EOF
+}
+
+# Resolve the caller identity for the X-Agent-Name header (writer gate), mirroring
+# cortex-add-agent's fallback chain: env → workspace default agent.
+resolve_caller_agent() {
+    local caller="${CORTEX_AGENT:-${CORTEX_AGENT_ID:-}}"
+    if [ -z "${caller}" ] && [ -f "${WORKSPACE_CONFIG_FILE}" ]; then
+        caller="$(python3 - "${WORKSPACE_CONFIG_FILE}" "${CORTEX_PROJECT}" <<'PYEOF'
+import json, sys
+config_path, project_key = sys.argv[1], sys.argv[2]
+try:
+    with open(config_path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+except Exception:
+    sys.exit(0)
+for project in data.get("projects", []):
+    if project.get("key") == project_key and project.get("default_agent"):
+        print(project["default_agent"]); break
+PYEOF
+)"
+    fi
+    printf '%s' "$(cortex_agent_base_name "${caller}" | tr '[:upper:]' '[:lower:]')"
+}
+
+# Parse SKILL.md YAML frontmatter; print "name<TAB>description<TAB>scope" using
+# PyYAML when available, else a minimal front-matter parse (tolerates no PyYAML).
+parse_skill_frontmatter() {
+    local skill_md="$1"
+    python3 - "${skill_md}" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    text = fh.read()
+
+front = {}
+if text.lstrip().startswith("---"):
+    body = text.lstrip()
+    # strip the leading '---' line, then read up to the closing '---'
+    after = body.split("---", 2)
+    if len(after) >= 3:
+        block = after[1]
+        try:
+            import yaml  # type: ignore
+            loaded = yaml.safe_load(block) or {}
+            if isinstance(loaded, dict):
+                front = {str(k).lower(): v for k, v in loaded.items()}
+        except Exception:
+            # Minimal "key: value" front-matter parse (no nested structures).
+            for line in block.splitlines():
+                line = line.rstrip()
+                if not line or line.lstrip().startswith("#") or ":" not in line:
+                    continue
+                if line[:1] in (" ", "\t", "-"):  # skip list items / nested
+                    continue
+                key, _, val = line.partition(":")
+                val = val.strip().strip('"').strip("'")
+                front[key.strip().lower()] = val
+
+def s(v):
+    return "" if v is None else str(v).replace("\t", " ").replace("\n", " ").strip()
+
+print("\t".join([s(front.get("name")), s(front.get("description")), s(front.get("scope"))]))
+PYEOF
+}
+
+slugify() {
+    python3 - "$1" <<'PYEOF'
+import re, sys
+v = (sys.argv[1] or "").strip().lower()
+v = re.sub(r"[^a-z0-9]+", "-", v).strip("-")
+print(v or "skill")
+PYEOF
+}
+
+# Find SKILL.md at the repo root or in the first subdir that contains one.
+find_skill_md() {
+    local root="$1"
+    if [ -f "${root}/SKILL.md" ]; then
+        printf '%s' "${root}/SKILL.md"
+        return 0
+    fi
+    local found
+    found="$(find "${root}" -maxdepth 3 -type f -name SKILL.md 2>/dev/null | sort | head -n1 || true)"
+    [ -n "${found}" ] && printf '%s' "${found}"
+}
+
+cmd_install() {
+    local source="${1:-}"
+    [ -n "${source}" ] || { echo "ERROR: install requires <github-url-or-local-path>" >&2; usage >&2; exit 2; }
+    shift || true
+    local scope="" scope_explicit=0 project_override=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --scope) scope="$2"; scope_explicit=1; shift 2 ;;
+            --project) project_override="$2"; shift 2 ;;
+            --help|-h) usage; exit 0 ;;
+            *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+        esac
+    done
+
+    local tmp
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/cortex-skill.XXXXXX")"
+    # shellcheck disable=SC2064
+    trap "rm -rf '${tmp}'" EXIT
+
+    local fetch_root
+    if [ -d "${source}" ]; then
+        # Local path: copy its contents into the temp dir.
+        cp -R "${source}/." "${tmp}/"
+        fetch_root="${tmp}"
+    elif printf '%s' "${source}" | grep -Eq '^(https?://|git@|ssh://)'; then
+        echo "Cloning ${source} ..." >&2
+        if ! git clone --depth 1 "${source}" "${tmp}/repo" >/dev/null 2>&1; then
+            echo "ERROR: git clone failed for ${source}" >&2
+            exit 1
+        fi
+        fetch_root="${tmp}/repo"
+    else
+        echo "ERROR: '${source}' is neither an existing local path nor a git URL." >&2
+        exit 1
+    fi
+
+    # Find ALL SKILL.md files: a single-skill repo yields one; a skills
+    # collection (many SKILL.md in subfolders) yields all of them. A local path
+    # that is itself a skill folder (its own SKILL.md at top level) is found too.
+    local skill_md_list
+    skill_md_list="$(find "${fetch_root}" -maxdepth 4 -type f -name SKILL.md 2>/dev/null | sort -u || true)"
+    if [ -z "${skill_md_list}" ]; then
+        echo "ERROR: no SKILL.md found in ${source} (looked at repo root + subdirs)." >&2
+        exit 1
+    fi
+
+    local caller
+    caller="$(resolve_caller_agent)"
+    [ -n "${caller}" ] || caller="${CORTEX_PROJECT}"
+    mkdir -p "${SKILLS_DIR}"
+
+    # Track per-skill outcomes so one failure never aborts the whole run.
+    local -a ok_slugs=() ok_scopes=() ok_paths=()
+    local -a fail_slugs=() fail_reasons=()
+
+    local skill_md
+    while IFS= read -r skill_md; do
+        [ -n "${skill_md}" ] || continue
+
+        # Each skill is its own folder: the directory containing THIS SKILL.md.
+        local skill_folder
+        skill_folder="$(cd "$(dirname "${skill_md}")" && pwd)"
+
+        # Parse frontmatter (name/description/scope) for THIS skill.
+        local meta name description fm_scope
+        meta="$(parse_skill_frontmatter "${skill_md}")"
+        name="$(printf '%s' "${meta}" | cut -f1)"
+        description="$(printf '%s' "${meta}" | cut -f2)"
+        fm_scope="$(printf '%s' "${meta}" | cut -f3)"
+
+        # Resolve scope per-skill: explicit --scope wins; else this SKILL.md's
+        # frontmatter scope; else global.
+        local skill_scope
+        if [ "${scope_explicit}" -eq 1 ]; then
+            skill_scope="${scope}"
+        elif [ -n "${fm_scope}" ]; then
+            skill_scope="${fm_scope}"
+        else
+            skill_scope="global"
+        fi
+        [ -n "${skill_scope}" ] || skill_scope="global"
+
+        # Derive slug from frontmatter name, else THIS skill's folder basename
+        # (never the repo basename — that would collide all skills onto one slug).
+        local slug_src="${name}"
+        [ -n "${slug_src}" ] || slug_src="$(basename "${skill_folder}")"
+        local slug
+        slug="$(slugify "${slug_src}")"
+
+        # Compute body_hash = sha256 of THIS SKILL.md.
+        local body_hash
+        if command -v shasum >/dev/null 2>&1; then
+            body_hash="$(shasum -a 256 "${skill_md}" | awk '{print $1}')"
+        else
+            body_hash="$(sha256sum "${skill_md}" | awk '{print $1}')"
+        fi
+
+        # Copy THIS skill folder into the shared store: .agents/skills/<slug>/.
+        local dest="${SKILLS_DIR}/${slug}"
+        rm -rf "${dest}"
+        mkdir -p "${dest}"
+        cp -R "${skill_folder}/." "${dest}/"
+        local body_ref=".agents/skills/${slug}/SKILL.md"
+
+        # Build the registration payload for THIS skill.
+        local payload
+        payload="$(python3 - "${slug}" "${name}" "${description}" "${skill_scope}" "${body_ref}" "${body_hash}" <<'PYEOF'
+import json, sys
+slug, name, description, scope, body_ref, body_hash = sys.argv[1:7]
+out = {
+    "skill_slug": slug,
+    "scope": scope or "global",
+    "body_ref": body_ref,
+    "body_hash": body_hash,
+    "version": "1",
+}
+if name:
+    out["name"] = name
+if description:
+    out["description"] = description
+print(json.dumps(out))
+PYEOF
+)"
+
+        # A GLOBAL skill registers under the shared '*' repo that EVERY agent boots
+        # from, so the API admin-gates it (require_admin_access). Send the admin token
+        # for a global install; project/agent-scoped installs stay on the plain
+        # writer-gated call. cortex_api_call_admin has the SAME signature + loads
+        # CORTEX_ADMIN_TOKEN from .env.
+        local _api_call="cortex_api_call_json"
+        [ "${skill_scope}" = "global" ] && _api_call="cortex_api_call_admin"
+
+        local response
+        if [ -n "${project_override}" ]; then
+            response="$(CORTEX_PROJECT="${project_override}" "${_api_call}" POST "/skills" "${payload}" "${caller}")" || response=""
+        else
+            response="$("${_api_call}" POST "/skills" "${payload}" "${caller}")" || response=""
+        fi
+
+        if [ -z "${response}" ]; then
+            fail_slugs+=("${slug}")
+            fail_reasons+=("registration failed (scope=${skill_scope}, see API error above)")
+            continue
+        fi
+
+        ok_slugs+=("${slug}")
+        ok_scopes+=("${skill_scope}")
+        ok_paths+=("${dest}")
+    done <<< "${skill_md_list}"
+
+    # Summary: one line per registered skill, plus any failures (run never aborts
+    # on a single skill — it continues and reports below).
+    printf 'Registered %d skill(s):\n' "${#ok_slugs[@]}"
+    local i
+    for i in "${!ok_slugs[@]}"; do
+        printf '  %s · %s · %s\n' "${ok_slugs[$i]}" "${ok_scopes[$i]}" "${ok_paths[$i]}"
+    done
+    if [ "${#fail_slugs[@]}" -gt 0 ]; then
+        printf 'FAILED %d skill(s):\n' "${#fail_slugs[@]}"
+        for i in "${!fail_slugs[@]}"; do
+            printf '  %s — %s\n' "${fail_slugs[$i]}" "${fail_reasons[$i]}"
+        done
+        return 1
+    fi
+}
+
+cmd_list() {
+    local response
+    response="$(cortex_api_call_json GET "/skills" "" "")"
+    printf '%s' "${response}" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    print("ERROR: could not parse /skills response", file=sys.stderr); sys.exit(1)
+rows = data.get("skills", []) if isinstance(data, dict) else (data or [])
+if not rows:
+    print("No skills registered."); sys.exit(0)
+def trunc(v, n):
+    v = (v or "").replace("\n", " ")
+    return v if len(v) <= n else v[: n - 1] + "..."
+fmt = "{0:<24} {1:<8} {2:<5} {3}"
+print(fmt.format("SLUG", "SCOPE", "VER", "DESCRIPTION"))
+print(fmt.format("-" * 24, "-" * 8, "-" * 5, "-" * 40))
+for r in rows:
+    print(fmt.format(
+        trunc(r.get("skill_slug"), 24),
+        trunc(r.get("scope"), 8),
+        trunc(r.get("version"), 5),
+        trunc(r.get("description"), 48),
+    ))
+'
+}
+
+cmd_bind() {
+    local slug="${1:-}"
+    [ -n "${slug}" ] || { echo "ERROR: bind requires <slug>" >&2; usage >&2; exit 2; }
+    shift || true
+    local subject="" kind="role" project_override=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --to) subject="$2"; shift 2 ;;
+            --kind) kind="$2"; shift 2 ;;
+            --project) project_override="$2"; shift 2 ;;
+            --help|-h) usage; exit 0 ;;
+            *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+        esac
+    done
+    [ -n "${subject}" ] || { echo "ERROR: bind requires --to <agent-or-role>" >&2; usage >&2; exit 2; }
+
+    local caller payload
+    caller="$(resolve_caller_agent)"
+    [ -n "${caller}" ] || caller="${CORTEX_PROJECT}"
+    payload="$(python3 - "${kind}" "${subject}" "${project_override}" <<'PYEOF'
+import json, sys
+kind, subject, project = sys.argv[1:4]
+out = {"subject_kind": kind or "role", "subject": subject}
+if project:
+    out["project"] = project
+print(json.dumps(out))
+PYEOF
+)"
+    local response
+    response="$(cortex_api_call_json POST "/skills/${slug}/bind" "${payload}" "${caller}")"
+    printf 'Bound %s -> %s (%s)\n' "${slug}" "${subject}" "${kind}"
+    printf '%s\n' "${response}"
+}
+
+main() {
+    local sub="${1:-}"
+    case "${sub}" in
+        install) shift; cmd_install "$@" ;;
+        list) shift; cmd_list "$@" ;;
+        bind) shift; cmd_bind "$@" ;;
+        --help|-h|"") usage; [ -z "${sub}" ] && exit 1 || exit 0 ;;
+        *) echo "ERROR: unknown subcommand: ${sub}" >&2; usage >&2; exit 2 ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# cortex-save-chat — Save a checkpoint summary to Cortex.
+# Usage: cortex-save-chat <agent> <topic> <summary>
+# Example: cortex-save-chat lead "Implementation checkpoint" "Captured current project state..."
+#
+# Routed through the typed API endpoint POST /save-chat/{agent}, which writes an
+# atomic agents + agent_sessions + messages + team_events + knowledge checkpoint
+# scoped to the active project (X-Project).
+#
+# Previously this command ran direct multi-statement SQL through a raw superuser
+# DB helper, which (a) bypassed Row-Level Security, (b) ran a
+# non-project-scoped knowledge DELETE, and (c) inserted the knowledge row with no
+# `project` column so it could misfile summaries into another project. The API path
+# connects as the non-superuser cortex_app role with `SET cortex.project`, so RLS
+# enforces isolation and the success/failure is real (no silent /dev/null swallow).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage: cortex-save-chat <agent> <topic> <summary>\n\n'
+    printf 'Saves a checkpoint summary (session + message + event + knowledge)\n'
+    printf 'into Cortex through the typed API, scoped to the active project.\n\n'
+    printf 'Use at the end of each session or major checkpoint to preserve context.\n\n'
+    printf 'Example:\n'
+    printf "  cortex-save-chat lead 'Implementation checkpoint' 'Captured current project state...'\n"
+    exit 1
+}
+
+if [ "$#" -lt 3 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+fi
+
+AGENT_RAW="$1"
+TOPIC="$2"
+SUMMARY="$3"
+
+# The API path segment and the server both normalise; lower-case + trim here so
+# the URL is clean. Agent names are single tokens (e.g. a worker name).
+AGENT="$(printf '%s' "${AGENT_RAW}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+if [ -z "${AGENT}" ]; then
+    echo "ERROR: agent name is empty" >&2
+    exit 1
+fi
+
+# Build the JSON payload with python so topic/summary are safely escaped.
+payload="$(TOPIC_ENV="${TOPIC}" SUMMARY_ENV="${SUMMARY}" python3 -c '
+import json, os
+print(json.dumps({"topic": os.environ["TOPIC_ENV"], "summary": os.environ["SUMMARY_ENV"]}))
+')"
+
+agent_path="$(cortex_api_urlencode "${AGENT}")"
+
+if ! response="$(cortex_api_call POST "/save-chat/${agent_path}" "${payload}" "${AGENT}" 2>&1)"; then
+    printf '\033[31mFailed to save checkpoint (API error):\033[0m %s\n' "${response}" >&2
+    exit 1
+fi
+
+echo -e "\033[32mCheckpoint saved: ${TOPIC}\033[0m"
+echo "  Agent:   ${AGENT}"
+echo "  Project: ${CORTEX_PROJECT}"

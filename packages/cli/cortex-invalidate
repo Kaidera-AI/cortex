@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# cortex-invalidate — Mark a decision/lesson/handoff as superseded (or undo).
+#
+# Usage:
+#   cortex-invalidate <id> [--superseded-by <new-id>] [--reason <text>]
+#   cortex-invalidate <id> --undo              Reverse an invalidation
+#
+# REN-ARCH-01: routes through the typed POST /invalidate/{id} API (project-scoped;
+# the server resolves which table holds the id and handles undo) instead of
+# direct superuser SQL UPDATEs. The legacy Redis L1 boot-cache clear is dropped —
+# the runtime is Postgres-backed (Redis retired per ARCHITECTURE.md).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage: cortex-invalidate <id> [--superseded-by <new-id>] [--reason <text>]\n'
+    printf '       cortex-invalidate <id> --undo\n\n'
+    printf 'Marks a decision, lesson, or handoff as invalidated.\n'
+    printf 'Invalidated items are excluded from cortex-search and cortex-boot by default.\n\n'
+    printf 'Options:\n'
+    printf '  --superseded-by <id>  Link to the replacement decision/lesson/handoff\n'
+    printf '  --reason <text>       Reason for invalidation (required unless --undo)\n'
+    printf '  --undo                Reverse a previous invalidation\n'
+    exit 1
+}
+
+if [ "$#" -lt 1 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    usage
+fi
+
+TARGET_ID="$1"
+shift
+
+SUPERSEDED_BY=""
+REASON=""
+UNDO=false
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --superseded-by) SUPERSEDED_BY="${2:-}"; shift 2 ;;
+        --reason)        REASON="${2:-}"; shift 2 ;;
+        --undo)          UNDO=true; shift ;;
+        *)               printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+    esac
+done
+
+if [ "${UNDO}" = "false" ] && [ -z "${REASON}" ]; then
+    printf 'ERROR: --reason is required (prevents accidental invalidation)\n' >&2
+    usage
+fi
+
+payload="$(UNDO_ENV="${UNDO}" REASON_ENV="${REASON}" SUP_ENV="${SUPERSEDED_BY}" python3 -c '
+import json, os
+body = {"undo": os.environ["UNDO_ENV"] == "true"}
+if os.environ.get("REASON_ENV"):
+    body["reason"] = os.environ["REASON_ENV"]
+if os.environ.get("SUP_ENV"):
+    body["superseded_by"] = os.environ["SUP_ENV"]
+print(json.dumps(body))
+')"
+
+id_path="$(cortex_api_urlencode "${TARGET_ID}")"
+if ! response="$(cortex_api_call POST "/invalidate/${id_path}" "${payload}" 2>&1)"; then
+    printf '\033[31mERROR: invalidate failed for %s\033[0m\n' "${TARGET_ID}" >&2
+    printf '%s\n' "${response}" >&2
+    exit 1
+fi
+
+CORTEX_INV_JSON="${response}" python3 <<'PY'
+import json
+import os
+
+d = json.loads(os.environ.get("CORTEX_INV_JSON", "{}"))
+action = d.get("action", "invalidated")
+verb = "Invalidation reversed" if action == "undo" else "Invalidated"
+print(f"\033[32m{verb}: {d.get('id', '?')} in {d.get('table', '?')}\033[0m")
+if d.get("summary"):
+    print(f"  Summary: {d['summary']}")
+PY
+
+if [ "${UNDO}" = "false" ]; then
+    [ -n "${REASON}" ] && printf '  Reason:  %s\n' "${REASON}"
+    [ -n "${SUPERSEDED_BY}" ] && printf '  Superseded by: %s\n' "${SUPERSEDED_BY}"
+fi

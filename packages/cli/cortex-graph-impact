@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# cortex-graph-impact — Risk-scored impact of a git commit or diff
+# Usage: cortex-graph-impact [<commit>] [--repo <path>] [--max-results N]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+BASE="HEAD~1"
+REPO_ROOT=""
+MAX_RESULTS=100
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --repo)  REPO_ROOT="$2"; shift 2 ;;
+        --base)  BASE="$2"; shift 2 ;;
+        --max|--max-results) MAX_RESULTS="$2"; shift 2 ;;
+        --help|-h) printf 'Usage: cortex-graph-impact [--base <ref>] [--repo <path>] [--max-results N]\n'; exit 0 ;;
+        *)       BASE="$1"; shift ;;
+    esac
+done
+
+if [ -z "${REPO_ROOT}" ]; then
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
+case "${MAX_RESULTS}" in
+    ''|*[!0-9]*) printf 'ERROR: max-results must be an integer\n' >&2; exit 2 ;;
+esac
+if [ "${MAX_RESULTS}" -lt 1 ]; then
+    printf 'ERROR: max-results must be at least 1\n' >&2; exit 2
+fi
+
+payload="$(python3 - "${REPO_ROOT}" "${BASE}" "${MAX_RESULTS}" <<'PYEOF'
+import json
+import sys
+
+print(json.dumps({
+    "repo": sys.argv[1],
+    "base": sys.argv[2],
+    "max_results": int(sys.argv[3]),
+}))
+PYEOF
+)"
+
+CORTEX_API_MAX_TIME=140 cortex_api_call_json POST "/graph/impact" "${payload}" | python3 -c '
+import json
+import sys
+
+result = json.load(sys.stdin)
+if not isinstance(result, dict):
+    print("ERROR: malformed code graph response", file=sys.stderr)
+    raise SystemExit(2)
+status = result.get("status")
+if status not in {"ok", "error"}:
+    print("ERROR: unsupported code graph status", file=sys.stderr)
+    raise SystemExit(2)
+if status == "error":
+    detail = str(result.get("error") or result.get("summary") or "impact query failed")
+    print("ERROR: {}".format(detail[:500]), file=sys.stderr)
+    raise SystemExit(1)
+context = result.get("context")
+totals = result.get("totals")
+if not isinstance(context, dict) or not isinstance(totals, dict):
+    print("ERROR: malformed impact response", file=sys.stderr)
+    raise SystemExit(2)
+graph = context.get("graph")
+if not isinstance(graph, dict):
+    print("ERROR: malformed impact graph", file=sys.stderr)
+    raise SystemExit(2)
+changed_nodes = graph.get("changed_nodes") or []
+impacted_nodes = graph.get("impacted_nodes") or []
+edges = graph.get("edges") or []
+impacted_file_rows = context.get("impacted_files") or []
+if not all(isinstance(rows, list) for rows in (changed_nodes, impacted_nodes, edges, impacted_file_rows)):
+    print("ERROR: malformed impact collections", file=sys.stderr)
+    raise SystemExit(2)
+
+def count(name):
+    value = totals.get(name)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        print("ERROR: malformed impact count: {}".format(name), file=sys.stderr)
+        raise SystemExit(2)
+    return value
+
+changed = count("changed_nodes")
+impacted = count("impacted_nodes")
+files = count("impacted_files")
+print("Impact: {} changed nodes -> {} impacted ({} files)".format(changed, impacted, files))
+summary = str(result.get("summary") or "")
+if summary:
+    print("  {}".format(summary[:500]))
+if impacted_file_rows:
+    print("\nImpacted files:")
+    for path in impacted_file_rows:
+        print("  {}".format(str(path)[:1000]))
+guidance = context.get("review_guidance")
+if not isinstance(guidance, str):
+    print("ERROR: malformed review guidance", file=sys.stderr)
+    raise SystemExit(2)
+if guidance:
+    print("\nReview guidance:\n  {}".format(guidance[:4000].replace("\n", "\n  ")))
+untested = context.get("untested_functions") or []
+if not isinstance(untested, list):
+    print("ERROR: malformed untested-functions list", file=sys.stderr)
+    raise SystemExit(2)
+untested_total = count("untested_functions")
+if untested_total:
+    print("\nUntested functions in change set: {}".format(untested_total))
+    for item in untested:
+        if isinstance(item, dict):
+            print("  {}".format(item.get("qualified_name") or item.get("name") or "?"))
+        else:
+            print("  {}".format(str(item)[:500]))
+if result.get("truncated"):
+    print("\n  (response truncated at the requested result ceiling)")
+'

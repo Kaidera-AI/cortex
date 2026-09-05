@@ -1,0 +1,10 @@
+{
+  "cases": [
+    {
+      "name": "completed_work_prefers_work_product_memory",
+      "query": "dashboard baseline",
+      "expected_first_source": "work_products",
+      "expected_first_tier": "work-product"
+    }
+  ]
+}

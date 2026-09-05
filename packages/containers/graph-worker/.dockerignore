@@ -1,0 +1,12 @@
+**
+!Dockerfile
+!worker.py
+!worker-entrypoint
+!fetch-qwen3-model.py
+!qwen3-model-pins.json
+!verify-qwen3-model.py
+!debian-snapshot.sources
+!requirements.bcrg.in
+!requirements.bcrg.lock
+!requirements.runtime.in
+!requirements.runtime.lock

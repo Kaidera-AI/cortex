@@ -1,0 +1,495 @@
+#!/usr/bin/env bash
+# cortex-backup — Full Cortex/KOS deployment backup (engine-agnostic)
+#
+# Dumps both Postgres databases, project files AND deployment config into a
+# timestamped tarball so a WHOLE service + deployment can be rebuilt from it.
+#
+# Usage:
+#   cortex-backup                 Full backup: DBs + files + config (default)
+#   cortex-backup --db-only       Data dumps only (Postgres)
+#   cortex-backup --files-only    Project files + config only (no DB)
+#   cortex-backup --no-secrets    Exclude secrets (.env / key material) from the tarball
+#
+# The default is a PERSONAL full-recovery tarball and INCLUDES secrets
+# (local-cortex/.env, beat.env, key material) so a restore is turnkey. Pass
+# --no-secrets to produce a shareable/redistributable tarball; the RESTORE-NOTES
+# then lists the secret slots to re-enter by hand.
+#
+# Container engine: auto-detected (podman first, docker as legacy rollback), so
+# `docker exec` is no longer
+# hard-coded. Dumps stream over the engine's exec to stdout (no `cp`, no in-
+# container temp file), which works identically across both engines.
+#
+# Created: 2026-06-08 · engine-agnostic + full-deployment restore: 2026-07-20
+
+set -euo pipefail
+umask 077
+
+# ── Configuration ───────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_CANDIDATE="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -d "$ROOT_CANDIDATE/local-cortex" ] || [ -d "$ROOT_CANDIDATE/.git" ]; then
+    DEFAULT_PROJECT_ROOT="$ROOT_CANDIDATE"
+else
+    DEFAULT_PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+BACKUP_DIR="${CORTEX_BACKUP_DIR:-${CORTEX_BACKUP_ROOT:-$HOME/Library/CloudStorage/Dropbox}/cortex-backups}"
+PROJECT_ROOT="${CORTEX_PROJECT_ROOT:-$DEFAULT_PROJECT_ROOT}"
+TIMESTAMP="$(date +%Y-%m-%d-%H%M%S)"
+BACKUP_NAME="cortex-backup-${TIMESTAMP}"
+STAGE="$(mktemp -d -t cortex-backup-XXXXXX)"
+PACKAGE_TMP=""
+CHECKSUM_TMP=""
+cleanup() {
+    rm -rf -- "$STAGE"
+    [ -z "$PACKAGE_TMP" ] || rm -f -- "$PACKAGE_TMP"
+    [ -z "$CHECKSUM_TMP" ] || rm -f -- "$CHECKSUM_TMP"
+}
+trap cleanup EXIT
+
+# ── Arg parsing: one mode + optional --no-secrets ───────────────────────────
+MODE="--full"
+MODE_SET=0
+NO_SECRETS=0
+for arg in "$@"; do
+    case "$arg" in
+        --full|--db-only|--files-only)
+            if [ "$MODE_SET" = 1 ]; then
+                echo "ERROR: choose exactly one backup mode" >&2
+                exit 1
+            fi
+            MODE="$arg"
+            MODE_SET=1
+            ;;
+        --no-secrets) NO_SECRETS=1 ;;
+        -h|--help) SHOW_HELP=1 ;;
+        *) echo "ERROR: unknown argument '$arg'" >&2; exit 1 ;;
+    esac
+done
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-backup [--full|--db-only|--files-only] [--no-secrets]
+
+  --full        Full backup: DB dumps + project files + deployment config (default)
+  --db-only     Data dumps only (platform_agent_memory + harness_app)
+  --files-only  Project files + config only (no DB dump)
+  --no-secrets  Exclude secrets (.env / key material) — shareable tarball
+
+Default INCLUDES secrets (turnkey personal recovery). Output:
+$CORTEX_BACKUP_DIR, or $CORTEX_BACKUP_ROOT/cortex-backups by default.
+EOF
+}
+
+if [ "${SHOW_HELP:-0}" = "1" ]; then usage; exit 0; fi
+
+# ── Container engine detection (podman / legacy docker) ─────────────────────
+ENGINE_KIND=""
+ENGINE_CLI=""
+
+engine_available() {
+    local kind="$1" cli="$2"
+    command -v "$cli" >/dev/null 2>&1 || return 1
+    case "$kind" in
+        docker|podman) "$cli" info >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+
+select_engine() {
+    local requested
+    requested="$(printf '%s' "${KAIDERA_CONTAINER_ENGINE:-auto}" | tr '[:upper:]' '[:lower:]')"
+    case "$requested" in
+        docker)
+            engine_available docker "${KAIDERA_DOCKER_BIN:-docker}" || return 1
+            ENGINE_KIND="docker"
+            ENGINE_CLI="${KAIDERA_DOCKER_BIN:-docker}"
+            ;;
+        podman)
+            engine_available podman "${KAIDERA_PODMAN_BIN:-podman}" || return 1
+            ENGINE_KIND="podman"
+            ENGINE_CLI="${KAIDERA_PODMAN_BIN:-podman}"
+            ;;
+        ""|auto)
+            if engine_available podman "${KAIDERA_PODMAN_BIN:-podman}"; then
+                ENGINE_KIND="podman"
+                ENGINE_CLI="${KAIDERA_PODMAN_BIN:-podman}"
+            elif engine_available docker "${KAIDERA_DOCKER_BIN:-docker}"; then
+                ENGINE_KIND="docker"
+                ENGINE_CLI="${KAIDERA_DOCKER_BIN:-docker}"
+            else
+                return 1
+            fi
+            ;;
+        *)
+            echo "ERROR: invalid KAIDERA_CONTAINER_ENGINE=${requested}" >&2
+            exit 1
+            ;;
+    esac
+}
+select_engine || true
+
+mkdir -p "$BACKUP_DIR"
+
+echo "═══ Cortex/KOS Backup — ${TIMESTAMP} ═══"
+echo "  Mode:      ${MODE}$([ "$NO_SECRETS" = 1 ] && echo ' (no-secrets)')"
+echo "  Engine:    ${ENGINE_KIND:-<none detected>}"
+echo "  Project:   ${PROJECT_ROOT}"
+echo "  Output:    ${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
+echo ""
+
+# DSNs for the network dump path (engine-agnostic — needs no engine CLI to be
+# reachable). Override CORTEX_PG_DSN for a deployment
+# whose brain DB is not on the default port. appdb DSN comes from the console's env.
+APPDB_DSN="${HARNESS_APPDB_DSN_HOST:-${HARNESS_APPDB_DSN:-postgresql://harness:harness@127.0.0.1:5500/harness_app}}"
+CORTEXPG_DSN="${CORTEX_PG_DSN_ADMIN:-${CORTEX_PG_DSN:-postgresql://postgres:postgres@127.0.0.1:5499/platform_agent_memory}}"
+DB_DUMP_FAILURES=0
+BACKUP_PARTIAL=0
+
+_dump_ok() {  # _dump_ok <outfile> <label> — size sanity after a dump
+    local out="$1" label="$2" size magic
+    size=$(wc -c < "$out" | tr -d ' ')
+    magic="$(dd if="$out" bs=5 count=1 2>/dev/null || true)"
+    if [ "$size" -lt 100 ] || [ "$magic" != "PGDMP" ]; then
+        echo "    ✗ ${label} dump failed validation (${size} bytes)" >&2
+        rm -f "$out"
+        return 1
+    fi
+    echo "    ✓ ${label} dumped ($(awk "BEGIN { printf \"%.2f\", ${size} / 1024 / 1024 }") MB)"
+}
+
+container_candidates() {
+    local service="$1" override="$2"
+    [ -n "$override" ] && printf '%s\n' "$override"
+    [ "$override" = "$service" ] || printf '%s\n' "$service"
+}
+
+# ── Dump a postgres DB — DSN/network first (portable), engine exec as fallback ──
+# The network path uses the host pg_dump against the reachable DSN and needs NO
+# container engine. If the DSN is unreachable,
+# fall back to `<engine> exec <name> pg_dump` (podman/docker).
+pg_dump_db() {
+    local service="$1" override="$2" db_name="$3" user="$4" outfile="$5" dsn="$6"
+    local candidate
+    # (1) network/DSN dump — engine-agnostic
+    if [ -n "$dsn" ] && command -v pg_dump >/dev/null 2>&1; then
+        echo "  Dumping ${db_name} via DSN (host pg_dump)..."
+        if PGCONNECT_TIMEOUT="${CORTEX_BACKUP_CONNECT_TIMEOUT:-5}" \
+            pg_dump "$dsn" --format=custom --compress=6 --no-owner --no-acl \
+            > "$outfile" 2>"$STAGE/.dumperr"; then
+            if _dump_ok "$outfile" "$db_name"; then return 0; fi
+        fi
+        echo "    ℹ DSN dump unavailable — trying ${ENGINE_KIND:-engine} exec" >&2
+    fi
+    # (2) engine exec fallback (stdout redirect — no cp, no in-container temp)
+    while IFS= read -r candidate; do
+        [ -n "$candidate" ] || continue
+        echo "  Dumping ${db_name} via ${ENGINE_KIND} exec (${candidate})..."
+        if "$ENGINE_CLI" exec "$candidate" pg_dump -U "$user" -d "$db_name" \
+            --format=custom --compress=6 --no-owner --no-acl \
+            > "$outfile" 2>"$STAGE/.dumperr"; then
+            if _dump_ok "$outfile" "$db_name"; then return 0; fi
+        fi
+    done < <([ -n "$ENGINE_CLI" ] && container_candidates "$service" "$override" || true)
+    if [ -n "$ENGINE_CLI" ]; then
+        echo "    ✗ ${db_name} dump FAILED (no reachable DSN or container):" >&2
+    else
+        echo "    ✗ ${db_name} dump FAILED (no reachable DSN and no engine):" >&2
+    fi
+    [ -s "$STAGE/.dumperr" ] && sed 's/^/      /' "$STAGE/.dumperr" >&2
+    rm -f "$outfile"
+    return 1
+}
+
+# ── Database Backup ─────────────────────────────────────────────────────────
+do_db_backup() {
+    echo "[DB] Dumping PostgreSQL databases..."
+    mkdir -p "$STAGE/db"
+    if [ -z "$ENGINE_CLI" ] && ! command -v pg_dump >/dev/null 2>&1; then
+        echo "  ⚠ no container engine AND no host pg_dump — cannot dump DBs" >&2
+        DB_DUMP_FAILURES=2
+        BACKUP_PARTIAL=1
+        echo ""
+        return 0
+    fi
+    if ! pg_dump_db "cortex-pg" "${CORTEX_PG_CONTAINER:-}" "platform_agent_memory" "postgres" \
+        "$STAGE/db/platform_agent_memory.dump" "$CORTEXPG_DSN"; then
+        DB_DUMP_FAILURES=$((DB_DUMP_FAILURES + 1))
+    fi
+    if ! pg_dump_db "harness-appdb" "${HARNESS_APPDB_CONTAINER:-}" "harness_app" "harness" \
+        "$STAGE/db/harness_app.dump" "$APPDB_DSN"; then
+        DB_DUMP_FAILURES=$((DB_DUMP_FAILURES + 1))
+    fi
+    if [ "$DB_DUMP_FAILURES" -gt 0 ]; then
+        BACKUP_PARTIAL=1
+        echo "  ⚠ Database backup partial (${DB_DUMP_FAILURES}/2 dumps failed)"
+    else
+        echo "  ✓ Database dumps complete"
+    fi
+    echo ""
+}
+
+# ── Deployment Config Backup (the full-recovery addition) ───────────────────
+do_config_backup() {
+    echo "[CONFIG] Capturing deployment config$([ "$NO_SECRETS" = 1 ] && echo ' (secrets excluded)')..."
+    mkdir -p "$STAGE/config"
+
+    # .agents/config — runtime.yaml, workspace.json, registry snapshot, beat.env.
+    if [ -d "$PROJECT_ROOT/.agents/config" ]; then
+        mkdir -p "$STAGE/config/agents-config"
+        if [ "$NO_SECRETS" = 1 ]; then
+            rsync -a --exclude='.env*' --exclude='*.env' --exclude='*secret*' \
+                --exclude='*credential*' --exclude='*.pem' --exclude='*.key' \
+                --exclude='*.p12' --exclude='*.pfx' \
+                "$PROJECT_ROOT/.agents/config/" "$STAGE/config/agents-config/"
+        else
+            rsync -a "$PROJECT_ROOT/.agents/config/" "$STAGE/config/agents-config/"
+        fi
+        echo "  ✓ .agents/config"
+    fi
+
+    # Console launcher scripts + launchd plist (macOS) — how the service starts.
+    if [ "$NO_SECRETS" = 0 ]; then
+        for f in "$PROJECT_ROOT"/run-kaidera-os-console*.sh; do
+            [ -f "$f" ] && cp "$f" "$STAGE/config/" 2>/dev/null || true
+        done
+    fi
+    local plist="$HOME/Library/LaunchAgents/ai.kaidera.kaidera-os.console.plist"
+    if [ "$NO_SECRETS" = 0 ] && [ -f "$plist" ]; then
+        cp "$plist" "$STAGE/config/"
+        echo "  ✓ launchd plist"
+    fi
+
+    # local-cortex/.env (the deployment secret) — only when secrets are included.
+    if [ "$NO_SECRETS" = 0 ] && [ -f "$PROJECT_ROOT/local-cortex/.env" ]; then
+        cp "$PROJECT_ROOT/local-cortex/.env" "$STAGE/config/local-cortex.env" 2>/dev/null && echo "  ✓ local-cortex/.env (SECRET)"
+    fi
+
+    # Record which secret slots exist (names only) for the re-entry checklist.
+    # Every step guarded (|| true / continue) so a no-match glob can't abort set -e.
+    local slots="$STAGE/config/SECRET-SLOTS.txt"
+    echo "# Secret slots present in this deployment (values NOT recorded here)" > "$slots"
+    if [ -f "$PROJECT_ROOT/local-cortex/.env" ]; then
+        grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$PROJECT_ROOT/local-cortex/.env" 2>/dev/null | tr -d '=' >> "$slots" || true
+    fi
+    for ef in "$PROJECT_ROOT"/.agents/config/*.env; do
+        [ -f "$ef" ] || continue
+        grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$ef" 2>/dev/null | tr -d '=' >> "$slots" || true
+    done
+    sort -u -o "$slots" "$slots" 2>/dev/null || true
+    echo "  ✓ secret-slot inventory"
+    echo ""
+}
+
+# ── Files Backup ────────────────────────────────────────────────────────────
+do_files_backup() {
+    echo "[FILES] Backing up project files..."
+    command -v rsync >/dev/null 2>&1 || { echo "ERROR: rsync is required for file backups" >&2; return 1; }
+    EXCLUDES=(
+        --exclude='__pycache__/' --exclude='.pytest_cache/' --exclude='*.pyc'
+        --exclude='node_modules/' --exclude='.DS_Store' --exclude='.git/'
+        --exclude='logs/' --exclude='state/' --exclude='output/'
+        --exclude='.venv/' --exclude='*.bak' --exclude='dist/'
+    )
+    [ "$NO_SECRETS" = 1 ] && EXCLUDES+=(
+        --exclude='.env*' --exclude='*.env' --exclude='*.pem' --exclude='*.key'
+        --exclude='*.p12' --exclude='*.pfx' --exclude='*secret*' --exclude='*credential*'
+    )
+
+    mkdir -p "$STAGE/project/.agents"
+    AGENT_EXCLUDES=("${EXCLUDES[@]}" --exclude='config/')
+    [ -d "$PROJECT_ROOT/.agents" ] && \
+        rsync -a "${AGENT_EXCLUDES[@]}" "$PROJECT_ROOT/.agents/" "$STAGE/project/.agents/"
+    mkdir -p "$STAGE/project/local-cortex"
+    LOCAL_CORTEX_EXCLUDES=("${EXCLUDES[@]}" --exclude='.env')
+    [ -d "$PROJECT_ROOT/local-cortex" ] && \
+        rsync -a "${LOCAL_CORTEX_EXCLUDES[@]}" "$PROJECT_ROOT/local-cortex/" "$STAGE/project/local-cortex/"
+    mkdir -p "$STAGE/project/beat"
+    [ -d "$PROJECT_ROOT/beat" ] && \
+        rsync -a "${EXCLUDES[@]}" "$PROJECT_ROOT/beat/" "$STAGE/project/beat/"
+    mkdir -p "$STAGE/project/agents"
+    cp "$PROJECT_ROOT/agents/"*IDENTITY*.md "$STAGE/project/agents/" 2>/dev/null || true
+    for rf in AGENTS.md CLAUDE.md GEMINI.md cortex.md Makefile; do
+        [ -f "$PROJECT_ROOT/$rf" ] && cp "$PROJECT_ROOT/$rf" "$STAGE/project/$rf"
+    done
+    [ -f "$PROJECT_ROOT/.agents/docker-compose.cortex.yml" ] && \
+        cp "$PROJECT_ROOT/.agents/docker-compose.cortex.yml" "$STAGE/docker-compose.cortex.yml"
+    echo "  ✓ Project files copied"; echo ""
+}
+
+# ── Engine State Snapshot ───────────────────────────────────────────────────
+do_engine_info() {
+    [ -n "$ENGINE_CLI" ] || return 0
+    echo "[ENGINE] Capturing ${ENGINE_KIND} state..."
+    mkdir -p "$STAGE/engine"
+    case "$ENGINE_KIND" in
+        docker|podman)
+            "$ENGINE_CLI" ps --all --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' \
+                > "$STAGE/engine/containers.txt" 2>/dev/null || true
+            "$ENGINE_CLI" images > "$STAGE/engine/images.txt" 2>/dev/null || true
+            "$ENGINE_CLI" volume ls > "$STAGE/engine/volumes.txt" 2>/dev/null || true
+            ;;
+    esac
+    echo "$ENGINE_KIND" > "$STAGE/engine/engine.txt"
+    echo "  ✓ ${ENGINE_KIND} state captured"; echo ""
+}
+
+# ── RESTORE-NOTES (engine-agnostic, config + secret re-entry) ───────────────
+do_restore_notes() {
+    echo "[NOTES] Writing RESTORE-NOTES.md..."
+    local status="complete" engine_command="${ENGINE_CLI:-docker}"
+    local cortex_container="cortex-pg" appdb_container="harness-appdb"
+    [ "$BACKUP_PARTIAL" = 1 ] && status="partial"
+    {
+        cat <<EOF
+# Cortex/KOS Restore Notes — ${TIMESTAMP}
+
+- **Mode:** ${MODE}$([ "$NO_SECRETS" = 1 ] && echo ' (no-secrets)')
+- **Status:** ${status}
+- **Engine at backup:** ${ENGINE_KIND:-none}
+- **Project:** $(basename "$PROJECT_ROOT")
+
+## Contents
+| Path | What |
+|---|---|
+EOF
+        [ -f "$STAGE/db/platform_agent_memory.dump" ] && \
+            echo '| db/platform_agent_memory.dump | Cortex brain (agent memory) — compressed pg_dump |'
+        [ -f "$STAGE/db/harness_app.dump" ] && \
+            echo '| db/harness_app.dump | Harness app-DB (settings, agent config, run state) |'
+        [ -d "$STAGE/config/agents-config" ] && \
+            echo '| config/agents-config/ | Non-generated runtime and workspace configuration |'
+        find "$STAGE/config" -maxdepth 1 -name 'run-kaidera-os-console*.sh' -print -quit 2>/dev/null | grep -q . && \
+            echo '| config/run-kaidera-os-console*.sh | Console launcher scripts |'
+        [ -f "$STAGE/config/ai.kaidera.kaidera-os.console.plist" ] && \
+            echo '| config/ai.kaidera.kaidera-os.console.plist | launchd service definition |'
+        [ -f "$STAGE/config/local-cortex.env" ] && \
+            echo '| config/local-cortex.env | Deployment secrets; keep this archive private |'
+        [ -f "$STAGE/config/SECRET-SLOTS.txt" ] && \
+            echo '| config/SECRET-SLOTS.txt | Secret slot names, never values |'
+        [ -d "$STAGE/project" ] && \
+            echo '| project/ | Cortex, console, Beat, identity, and root project files |'
+
+        cat <<EOF
+
+## Restore
+
+Extract into an empty staging directory and inspect this manifest before writing
+over an existing deployment.
+
+\`\`\`bash
+tar -xzf ${BACKUP_NAME}.tar.gz -C /path/to/restore
+\`\`\`
+EOF
+        if [ -f "$STAGE/db/platform_agent_memory.dump" ] || [ -f "$STAGE/db/harness_app.dump" ]; then
+            cat <<EOF
+
+Bring the target Cortex runtime up first. Container names are explicit so a
+renamed deployment restores without guesswork.
+
+\`\`\`bash
+ENGINE=${engine_command}
+CORTEX_DB_CONTAINER=${CORTEX_PG_CONTAINER:-$cortex_container}
+APP_DB_CONTAINER=${HARNESS_APPDB_CONTAINER:-$appdb_container}
+EOF
+            if [ -f "$STAGE/db/platform_agent_memory.dump" ]; then
+                cat <<'EOF'
+$ENGINE exec -i "$CORTEX_DB_CONTAINER" pg_restore --clean --if-exists --no-owner --no-acl --exit-on-error -U postgres -d platform_agent_memory < db/platform_agent_memory.dump
+EOF
+            fi
+            if [ -f "$STAGE/db/harness_app.dump" ]; then
+                cat <<'EOF'
+$ENGINE exec -i "$APP_DB_CONTAINER" pg_restore --clean --if-exists --no-owner --no-acl --exit-on-error -U harness -d harness_app < db/harness_app.dump
+EOF
+            fi
+            printf '%s\n' '```'
+        fi
+        if [ -d "$STAGE/project" ] || [ -d "$STAGE/config" ]; then
+            cat <<'EOF'
+
+Restore files and configuration only after taking a rollback snapshot of the
+target. Replace `<project-root>` with the intended install root.
+
+```bash
+EOF
+            [ -d "$STAGE/project" ] && echo 'cp -a project/. <project-root>/'
+            [ -d "$STAGE/config/agents-config" ] && \
+                echo 'cp -a config/agents-config/. <project-root>/.agents/config/'
+            find "$STAGE/config" -maxdepth 1 -name 'run-kaidera-os-console*.sh' -print -quit 2>/dev/null | grep -q . && \
+                echo 'cp config/run-kaidera-os-console*.sh <project-root>/'
+            [ -f "$STAGE/config/local-cortex.env" ] && \
+                echo 'cp config/local-cortex.env <project-root>/local-cortex/.env'
+            [ -f "$STAGE/config/ai.kaidera.kaidera-os.console.plist" ] && cat <<'EOF'
+cp config/ai.kaidera.kaidera-os.console.plist ~/Library/LaunchAgents/
+launchctl bootout gui/$(id -u)/ai.kaidera.kaidera-os.console 2>/dev/null || true
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.kaidera.kaidera-os.console.plist
+EOF
+            echo 'curl -fsS http://127.0.0.1:8765/healthz'
+            echo '```'
+        fi
+        if [ -f "$STAGE/config/SECRET-SLOTS.txt" ]; then
+            echo ''
+            echo '## Secret checklist'
+            if [ "$NO_SECRETS" = 1 ]; then
+                printf '%s\n' "This archive excludes environment files, key material, generated launchers, and the launchd plist. Re-enter the slots listed in \`config/SECRET-SLOTS.txt\` from the approved vault."
+            else
+                printf '%s\n' "This private archive includes deployment secrets. Rotate them if the archive left a trusted location and verify every slot in \`config/SECRET-SLOTS.txt\`."
+            fi
+        fi
+        if [ "$BACKUP_PARTIAL" = 1 ]; then
+            echo ''
+            echo '## Incomplete backup warning'
+            echo 'One or more required database dumps failed. This archive is not a complete recovery point; inspect the console output and create a successful replacement before relying on it.'
+        fi
+    } > "$STAGE/RESTORE-NOTES.md"
+    echo "  ✓ RESTORE-NOTES.md written"; echo ""
+}
+
+# ── Build Tarball ───────────────────────────────────────────────────────────
+do_package() {
+    echo "[PACKAGE] Building backup tarball..."
+    local archive="${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
+    PACKAGE_TMP="${archive}.tmp.$$"
+    local checksum="${archive}.sha256"
+    CHECKSUM_TMP="${checksum}.tmp.$$"
+    local size_bytes size_mb status="complete"
+    rm -f "$PACKAGE_TMP" "$CHECKSUM_TMP"
+    ( cd "$STAGE" && rm -f .dumperr; COPYFILE_DISABLE=1 tar -czf "$PACKAGE_TMP" . )
+    mv "$PACKAGE_TMP" "$archive"
+    PACKAGE_TMP=""
+    size_bytes=$(stat -f%z "$archive" 2>/dev/null || stat -c%s "$archive")
+    size_mb=$(awk "BEGIN { printf \"%.2f\", ${size_bytes} / 1024 / 1024 }")
+    if command -v shasum >/dev/null 2>&1; then
+        ( cd "$BACKUP_DIR" && shasum -a 256 "${BACKUP_NAME}.tar.gz" ) > "$CHECKSUM_TMP"
+    elif command -v sha256sum >/dev/null 2>&1; then
+        ( cd "$BACKUP_DIR" && sha256sum "${BACKUP_NAME}.tar.gz" ) > "$CHECKSUM_TMP"
+    else
+        echo "ERROR: shasum or sha256sum is required" >&2
+        rm -f "$archive" "$CHECKSUM_TMP"
+        CHECKSUM_TMP=""
+        return 1
+    fi
+    mv "$CHECKSUM_TMP" "$checksum"
+    CHECKSUM_TMP=""
+    [ "$BACKUP_PARTIAL" = 1 ] && status="partial"
+    echo "${TIMESTAMP} | ${BACKUP_NAME}.tar.gz | ${size_mb} MB | ${MODE}$([ "$NO_SECRETS" = 1 ] && echo ' no-secrets') | ${status}" >> "${BACKUP_DIR}/backup.log"
+    chmod 600 "$archive" "$checksum" "${BACKUP_DIR}/backup.log"
+    echo ""
+    if [ "$BACKUP_PARTIAL" = 1 ]; then
+        echo "═══ Backup Partial — not a complete recovery point ═══"
+    else
+        echo "═══ Backup Complete ═══"
+    fi
+    echo "  File:   ${archive}  (${size_mb} MB)"
+    echo "  SHA256: ${checksum}"
+    echo ""
+}
+
+# ── Main ────────────────────────────────────────────────────────────────────
+case "${MODE}" in
+    --full)       do_db_backup; do_config_backup; do_files_backup; do_engine_info; do_restore_notes; do_package ;;
+    --db-only)    do_db_backup; do_restore_notes; do_package ;;
+    --files-only) do_config_backup; do_files_backup; do_engine_info; do_restore_notes; do_package ;;
+esac
+
+[ "$BACKUP_PARTIAL" = 0 ] || exit 2

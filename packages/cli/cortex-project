@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# cortex-project — single-project registry admin (set the canonical working folder).
+#
+# Companion to the read-only `cortex-projects` listing. Currently exposes one
+# mutation: --set-repo-root, which updates a registered project's repo_root (its
+# canonical working folder) via the admin-gated PATCH /projects/{key}. The path
+# must be absolute but need NOT exist on disk — offline-cached Google-Drive /
+# network folders are allowed.
+#
+# Operator tooling: routes through cortex_api_call_admin (X-Cortex-Admin-Token
+# from local-cortex/.env), never direct SQL.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-project --set-repo-root <path> [--project KEY]
+
+Sets the canonical working folder (repo_root) for one registered project
+(defaults to the current CORTEX_PROJECT). <path> must be absolute; it does NOT
+need to exist on disk (offline-cached cloud paths are allowed). The project's
+primary path entry is moved to the new folder too.
+
+Use `cortex-projects` to list projects and see their current roots.
+EOF
+}
+
+if [ "$#" -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+REPO_ROOT=""
+PROJECT_KEY="${CORTEX_PROJECT:-}"
+SET_REPO_ROOT=0
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --set-repo-root) REPO_ROOT="$2"; SET_REPO_ROOT=1; shift 2 ;;
+        --project) PROJECT_KEY="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+if [ "${SET_REPO_ROOT}" -ne 1 ]; then
+    echo "ERROR: nothing to do — pass --set-repo-root <path>" >&2
+    usage >&2
+    exit 2
+fi
+if [ -z "${REPO_ROOT}" ]; then
+    echo "ERROR: --set-repo-root requires a non-empty path" >&2
+    exit 2
+fi
+
+PROJECT_KEY="$(printf '%s' "${PROJECT_KEY}" | tr '[:upper:]' '[:lower:]')"
+if [ -z "${PROJECT_KEY}" ]; then
+    echo "ERROR: no project — pass --project KEY or set CORTEX_PROJECT" >&2
+    exit 2
+fi
+
+payload="$(python3 - "${REPO_ROOT}" <<'PYEOF'
+import json
+import sys
+
+repo_root = sys.argv[1]
+print(json.dumps({"repo_root": repo_root}))  # fitness:allow-literal false-match: repo_root (field name, not agent 'root')
+PYEOF
+)"
+
+path="/projects/$(cortex_api_urlencode "${PROJECT_KEY}")"
+response="$(cortex_api_call_admin PATCH "${path}" "${payload}")"
+printf '%s\n' "${response}"

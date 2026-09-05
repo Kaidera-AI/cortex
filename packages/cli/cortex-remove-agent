@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# cortex-remove-agent — remove (deactivate) an agent from ONE project's roster.
+#
+# This is the inverse of cortex-add-agent. It is roster removal, NOT a memory
+# wipe: the agent's row is retained and marked history-only so it drops off the
+# live roster / writer set, while every decision, lesson, handoff, and message
+# the agent produced stays intact. Re-activate later with cortex-add-agent.
+#
+# Operator tooling: the underlying POST /admin/agents/remove is admin-gated, so
+# this routes through cortex_api_call_admin (X-Cortex-Admin-Token from
+# local-cortex/.env), not the ordinary writer path.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-remove-agent <agent> [--project KEY]
+
+Removes <agent> from the roster of one project (defaults to the current
+CORTEX_PROJECT). Roster removal only: the agent row + all of its history
+(decisions, lessons, handoffs, messages) are preserved. Single-project scoped —
+it never touches another project's copy of the same agent name. Idempotent:
+removing an absent or already-deactivated agent is a clean no-op.
+
+Re-activate an agent with: cortex-add-agent <agent> <role>
+EOF
+}
+
+if [ "$#" -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+AGENT_NAME="$(cortex_agent_base_name "$1" | tr '[:upper:]' '[:lower:]')"
+shift
+PROJECT_KEY="${CORTEX_PROJECT:-}"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --project) PROJECT_KEY="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+PROJECT_KEY="$(printf '%s' "${PROJECT_KEY}" | tr '[:upper:]' '[:lower:]')"
+if [ -z "${PROJECT_KEY}" ]; then
+    echo "ERROR: no project — pass --project KEY or set CORTEX_PROJECT" >&2
+    exit 2
+fi
+
+payload="$(python3 - "${PROJECT_KEY}" "${AGENT_NAME}" <<'PYEOF'
+import json
+import sys
+
+project, agent_name = sys.argv[1:]
+print(json.dumps({
+    "project": project,
+    "agent_name": agent_name,
+}))
+PYEOF
+)"
+
+response="$(cortex_api_call_admin POST "/admin/agents/remove" "${payload}")"
+printf '%s\n' "${response}"

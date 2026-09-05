@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# cortex-projects — show the registered Cortex workspace projects.
+#
+# REN-ARCH-01: routes through the typed GET /projects API instead of running
+# direct superuser SQL against the cortex_projects table. The endpoint applies
+# the same agent-visibility filter server-side, so output parity is preserved
+# while the command leaves the RLS-bypassed direct-SQL plane.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+if ! response="$(cortex_api_call GET "/projects" 2>&1)"; then
+    echo "ERROR: could not reach Cortex API at ${CORTEX_API}/projects" >&2
+    printf '%s\n' "${response}" >&2
+    exit 1
+fi
+
+CORTEX_PROJECTS_JSON="${response}" python3 <<'PY'
+import json
+import os
+
+data = json.loads(os.environ.get("CORTEX_PROJECTS_JSON", "{}"))
+projects = data.get("projects", [])
+if not projects:
+    print("(no registered projects)")
+    raise SystemExit(0)
+
+print("\n## Cortex Projects\n")
+print(
+    f'{"Key":<12} | {"Name":<28} | {"Parent":<12} | {"Status":<8} | '
+    f'{"Agents":<6} | {"Profiles":<8} | Root'
+)
+print(
+    "-" * 12 + "-+-" + "-" * 28 + "-+-" + "-" * 12 + "-+-" + "-" * 8 + "-+-"
+    + "-" * 6 + "-+-" + "-" * 8 + "-+-" + "-" * 40
+)
+for p in projects:
+    print(
+        f'{(p.get("project_key") or ""):<12} | '
+        f'{(p.get("display_name") or ""):<28} | '
+        f'{(p.get("parent_project_key") or "-"):<12} | '
+        f'{(p.get("status") or ""):<8} | '
+        f'{str(p.get("agent_count", 0)):<6} | '
+        f'{str(p.get("profile_count", 0)):<8} | '
+        f'{p.get("repo_root") or ""}'  # fitness:allow-literal false-match: repo_root (field name, not agent 'root')
+    )
+print()
+PY

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# cortex-bootstrap — fetch agent bootstrap context through the Cortex API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-bootstrap <agent> [--budget N] [--full]
+
+Fetches the current project's bootstrap context for an agent via cortex-api.
+EOF
+}
+
+if [ "$#" -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+AGENT_NAME="$(cortex_agent_base_name "$1" | tr '[:upper:]' '[:lower:]')"
+shift
+BUDGET="${CORTEX_BOOTSTRAP_BUDGET:-1200}"
+FULL=0
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --budget)
+            [ "$#" -ge 2 ] || { echo "ERROR: --budget requires a value" >&2; exit 2; }
+            BUDGET="$2"
+            shift 2
+            ;;
+        --full)
+            FULL=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+cat <<EOF
+## Cortex Project Discipline
+
+- Workspace project: ${CORTEX_WORKSPACE_PROJECT:-unknown}
+- Active Cortex project: ${CORTEX_PROJECT}
+- Rule: stay inside this project only; no cross-project reads/writes/agents/hex/handoffs.
+- CTO override: one command only with CORTEX_CTO_OVERRIDE=<decision-id>; never persistent.
+
+EOF
+
+encoded="$(cortex_api_urlencode "${AGENT_NAME}")"
+path="/bootstrap/${encoded}?budget=${BUDGET}"
+if [ "${FULL}" -eq 1 ]; then
+    path="${path}&full=true"
+fi
+
+cortex_api_call GET "${path}" "" "${AGENT_NAME}"

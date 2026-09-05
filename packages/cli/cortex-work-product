@@ -1,0 +1,387 @@
+#!/usr/bin/env bash
+# cortex-work-product — write/list Work Product Memory receipts through Cortex API
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage:\n'
+    printf '  cortex-work-product --write --agent <name> --title <text> --summary <text> [options]\n'
+    printf '      [--handoff <id>] [--activity <slug>] [--files <a,b>] [--symbols <a,b>]\n'
+    printf '      [--subjects <a,b>] [--artifacts <a,b>] [--behavior <text>] [--architecture <text>]\n'
+    printf '      [--tests <cmd=result; cmd=result>] [--risks <a;b>] [--followups <a;b>]\n\n'
+    printf '  cortex-work-product --list [--query <text>] [--file <path>] [--symbol <name>] [--status current|stale|superseded|all]\n'
+    printf '  cortex-work-product --show <id>\n'
+    printf '  cortex-work-product --brief <query>\n'
+    printf '  cortex-work-product --projection-status [--limit N]\n'
+    printf '  cortex-work-product --check-freshness [--limit N] [--apply]\n'
+    exit 1
+}
+
+print_items() {
+    python3 - "$1" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+items = data.get("work_products") or ([data] if data.get("id") else [])
+if not items:
+    print("\033[33mNo work products found.\033[0m")
+    raise SystemExit(0)
+for item in items:
+    print(f"{item.get('id')}  [{item.get('status')}] {item.get('title') or ''}")
+    if item.get("handoff_id"):
+        print(f"    handoff: {item.get('handoff_id')}")
+    if item.get("summary"):
+        print(f"    {item.get('summary')}")
+    files = item.get("files_changed") or []
+    if files:
+        print(f"    files: {', '.join(files[:8])}")
+PYEOF
+}
+
+write_work_product() {
+    local agent="" title="" summary="" handoff="" activity="task-completed"
+    local files="" symbols="" subjects="" artifacts="" behavior="" architecture=""
+    local tests="" risks="" followups="" approval=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --agent) agent="$2"; shift 2 ;;
+            --title) title="$2"; shift 2 ;;
+            --summary) summary="$2"; shift 2 ;;
+            --handoff|--handoff-id) handoff="$2"; shift 2 ;;
+            --activity|--activity-type) activity="$2"; shift 2 ;;
+            --files) files="$2"; shift 2 ;;
+            --symbols) symbols="$2"; shift 2 ;;
+            --subjects|--entities) subjects="$2"; shift 2 ;;
+            --artifacts) artifacts="$2"; shift 2 ;;
+            --behavior) behavior="$2"; shift 2 ;;
+            --architecture|--arch) architecture="$2"; shift 2 ;;
+            --tests|--verify) tests="$2"; shift 2 ;;
+            --risks) risks="$2"; shift 2 ;;
+            --followups|--next) followups="$2"; shift 2 ;;
+            --approval-status) approval="$2"; shift 2 ;;
+            --help|-h) usage ;;
+            *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+        esac
+    done
+
+    agent="${agent:-${CORTEX_AGENT_ID:-}}"
+    if [ -z "${agent}" ] || [ -z "${title}" ] || [ -z "${summary}" ]; then
+        printf 'ERROR: --write requires --agent, --title, and --summary\n' >&2
+        usage
+    fi
+    agent="$(cortex_normalize_agent_name "${agent}")"
+
+    local payload
+    payload="$(python3 - "${title}" "${summary}" "${handoff}" "${activity}" \
+        "${files}" "${symbols}" "${subjects}" "${artifacts}" "${behavior}" \
+        "${architecture}" "${tests}" "${risks}" "${followups}" "${approval}" <<'PYEOF'
+import json
+import hashlib
+import pathlib
+import subprocess
+import sys
+
+def split_csv(value):
+    return [p.strip() for p in (value or "").replace("\n", ",").split(",") if p.strip()]
+
+def split_semicolon(value):
+    return [p.strip() for p in (value or "").replace("\n", ";").split(";") if p.strip()]
+
+def parse_tests(value):
+    out = []
+    for item in split_semicolon(value):
+        if "=" in item:
+            command, result = item.split("=", 1)
+            out.append({"command": command.strip(), "result": result.strip()})
+        else:
+            out.append({"command": item})
+    return out
+
+def git_commit_sha():
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except Exception:
+        return None
+    sha = proc.stdout.strip()
+    return sha if proc.returncode == 0 and len(sha) == 40 else None
+
+def file_hashes(files):
+    base = pathlib.Path.cwd().resolve()
+    out = {}
+    for file_ref in files:
+        try:
+            path = pathlib.Path(file_ref).expanduser()
+            if not path.is_absolute():
+                path = base / path
+            path = path.resolve()
+            if base != path and base not in path.parents:
+                continue
+            if not path.is_file():
+                continue
+            digest = hashlib.sha256()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            out[file_ref] = digest.hexdigest()
+        except OSError:
+            continue
+    return out
+
+files_changed = split_csv(sys.argv[5])
+body = {
+    "title": sys.argv[1],
+    "summary": sys.argv[2],
+    "handoff_id": sys.argv[3] or None,
+    "activity_type": sys.argv[4] or "task-completed",
+    "files_changed": files_changed,
+    "symbols_changed": split_csv(sys.argv[6]),
+    "subject_entities": split_csv(sys.argv[7]),
+    "artifact_refs": split_csv(sys.argv[8]),
+    "behavior_summary": sys.argv[9] or None,
+    "architecture_notes": sys.argv[10] or None,
+    "tests_run": parse_tests(sys.argv[11]),
+    "risks": split_semicolon(sys.argv[12]),
+    "followups": split_semicolon(sys.argv[13]),
+    "approval_status": sys.argv[14] or None,
+    "commit_sha": git_commit_sha(),
+    "file_hashes": file_hashes(files_changed),
+}
+print(json.dumps({k: v for k, v in body.items() if v not in (None, [], {})}, separators=(",", ":")))
+PYEOF
+    )"
+
+    local response
+    if ! response="$(cortex_api_call_json POST "/work-products" "${payload}" "${agent}" 2>&1)"; then
+        status red "ERROR: Failed to write work product."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+wp = data.get("work_product") or {}
+print(f"\033[32mWork product recorded: {data.get('id')}\033[0m")
+print(f"  Status:   {data.get('status')}")
+print(f"  Embedded: {data.get('embedded')}")
+print(f"  Event:    {data.get('event_id')}")
+if wp.get("handoff_id"):
+    print(f"  Handoff:  {wp.get('handoff_id')}")
+warnings = data.get("warnings") or []
+for warning in warnings:
+    print(f"\033[33mWARNING: {warning}\033[0m")
+PYEOF
+}
+
+list_work_products() {
+    local query="" file="" symbol="" handoff="" status_filter="current" limit="20"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --query|-q) query="$2"; shift 2 ;;
+            --file) file="$2"; shift 2 ;;
+            --symbol) symbol="$2"; shift 2 ;;
+            --handoff|--handoff-id) handoff="$2"; shift 2 ;;
+            --status) status_filter="$2"; shift 2 ;;
+            --limit) limit="$2"; shift 2 ;;
+            --help|-h) usage ;;
+            *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+        esac
+    done
+    local path
+    path="$(python3 - "${query}" "${file}" "${symbol}" "${handoff}" "${status_filter}" "${limit}" <<'PYEOF'
+import sys
+import urllib.parse
+keys = ["q", "file", "symbol", "handoff_id", "status", "limit"]
+params = [(k, v) for k, v in zip(keys, sys.argv[1:]) if v]
+print("/work-products?" + urllib.parse.urlencode(params))
+PYEOF
+)"
+    local response
+    if ! response="$(cortex_api_call_json GET "${path}" "" "" 2>&1)"; then
+        status red "ERROR: Failed to list work products."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+    print_items "${response}"
+}
+
+show_work_product() {
+    local id="$1"
+    [ -n "${id}" ] || usage
+    local response
+    if ! response="$(cortex_api_call_json GET "/work-products/${id%%:*}" "" "" 2>&1)"; then
+        status red "ERROR: Failed to read work product ${id}."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+    print_items "${response}"
+}
+
+check_freshness() {
+    local limit="100" apply="false"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --limit) limit="$2"; shift 2 ;;
+            --apply) apply="true"; shift ;;
+            --dry-run) apply="false"; shift ;;
+            --help|-h) usage ;;
+            *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+        esac
+    done
+
+    local listing payload response
+    if ! listing="$(cortex_api_call_json GET "/work-products?status=all&limit=${limit}" "" "" 2>&1)"; then
+        status red "ERROR: Failed to list work products for freshness check."
+        printf '%s\n' "${listing}" >&2
+        exit 1
+    fi
+
+    payload="$(python3 - "${listing}" "${limit}" "${apply}" <<'PYEOF'
+import hashlib
+import json
+import pathlib
+import sys
+
+data = json.loads(sys.argv[1])
+limit = int(sys.argv[2] or 100)
+apply = sys.argv[3].lower() == "true"
+base = pathlib.Path.cwd().resolve()
+hashes: dict[str, str] = {}
+
+for item in data.get("work_products") or []:
+    for file_ref in (item.get("file_hashes") or {}).keys():
+        if file_ref in hashes:
+            continue
+        try:
+            path = pathlib.Path(file_ref).expanduser()
+            if not path.is_absolute():
+                path = base / path
+            path = path.resolve()
+            if base != path and base not in path.parents:
+                continue
+            if not path.is_file():
+                continue
+            digest = hashlib.sha256()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            hashes[file_ref] = digest.hexdigest()
+        except OSError:
+            continue
+
+print(json.dumps({
+    "limit": limit,
+    "dry_run": not apply,
+    "current_file_hashes": hashes,
+    "treat_missing_as_stale": True,
+}, separators=(",", ":")))
+PYEOF
+)"
+
+    if ! response="$(cortex_api_call_admin POST "/beat/work-products/check-freshness" "${payload}" 2>&1)"; then
+        status red "ERROR: Failed to check work product freshness."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+mode = "dry-run" if data.get("dry_run") else "applied"
+print(
+    "\033[32mFreshness check {mode}: checked={checked} current={current} stale={stale} unknown={unknown}\033[0m".format(
+        mode=mode,
+        checked=data.get("checked", 0),
+        current=data.get("current", 0),
+        stale=data.get("stale", 0),
+        unknown=data.get("unknown", 0),
+    )
+)
+for item in (data.get("work_products") or [])[:10]:
+    reason = item.get("reason") or ""
+    print(f"  {item.get('id')} [{item.get('status')}] {item.get('title') or ''} {reason}")
+PYEOF
+}
+
+projection_status() {
+    local limit="10"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --limit) limit="$2"; shift 2 ;;
+            --help|-h) usage ;;
+            *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+        esac
+    done
+
+    local response
+    if ! response="$(cortex_api_call_admin GET "/beat/projections/status?recent_limit=${limit}" 2>&1)"; then
+        status red "ERROR: Failed to read projection status."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+graph = data.get("graph") or {}
+work = data.get("work_products") or {}
+jobs = data.get("embedding_jobs") or {}
+
+print(f"\033[32mProjection status for {data.get('project')}\033[0m")
+print(
+    "  Graph: entities={entities} relationships={relationships} backlog={backlog}".format(
+        entities=graph.get("entity_count", 0),
+        relationships=graph.get("relationship_count", 0),
+        backlog=graph.get("total_backlog", 0),
+    )
+)
+print(f"  Work-product projection: {work.get('projection_status') or {}}")
+print(f"  Work-product freshness:  {work.get('freshness_status') or {}}")
+print(f"  Embedding jobs:          {jobs.get('status') or {}}")
+attention = work.get("attention") or []
+if attention:
+    print("  Attention:")
+    for item in attention[:10]:
+        print(
+            "    {id} [{projection}/{freshness}] {title}".format(
+                id=(item.get("id") or "")[:8],
+                projection=item.get("projection_status") or "unknown",
+                freshness=item.get("freshness_status") or "unknown",
+                title=item.get("title") or "",
+            )
+        )
+PYEOF
+}
+
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+case "$1" in
+    --write) shift; write_work_product "$@" ;;
+    --list) shift; list_work_products "$@" ;;
+    --show) shift; show_work_product "${1:-}" ;;
+    --brief) shift; exec "${SCRIPT_DIR}/cortex-brief" "$@" ;;
+    --projection-status) shift; projection_status "$@" ;;
+    --check-freshness) shift; check_freshness "$@" ;;
+    --help|-h) usage ;;
+    *) printf 'ERROR: Unknown action: %s\n' "$1" >&2; usage ;;
+esac

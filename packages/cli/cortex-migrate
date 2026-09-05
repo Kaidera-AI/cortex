@@ -1,0 +1,578 @@
+#!/usr/bin/env bash
+# cortex-migrate — one-time migration of file-based memory into PostgreSQL
+# Usage: cortex-migrate [--dry-run]
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Source shared library
+# ---------------------------------------------------------------------------
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+DRY_RUN=0
+
+for arg in "$@"; do
+    case "${arg}" in
+        --dry-run) DRY_RUN=1 ;;
+        --help|-h)
+            printf 'Usage: cortex-migrate [--dry-run]\n\n'
+            printf 'Migrates file-based memory into PostgreSQL.\n'
+            printf '  --dry-run  Preview what would be inserted without writing anything.\n'
+            exit 0
+            ;;
+        *)
+            printf 'ERROR: Unknown argument: %s\n' "${arg}" >&2
+            printf 'Usage: cortex-migrate [--dry-run]\n' >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ "${DRY_RUN}" -eq 1 ]; then
+    printf '(dry-run mode — no data will be written)\n\n'
+fi
+
+project_sql="$(sql_escape "${CORTEX_PROJECT}")"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+parse_frontmatter_field() {
+    local file="$1"
+    local field="$2"
+    awk 'BEGIN{in_fm=0} /^---$/{in_fm++; next} in_fm==1{print}' "${file}" \
+        | sed -n "s/^${field}:[[:space:]]*//p" \
+        | head -1
+}
+
+extract_body_summary() {
+    local file="$1"
+    awk '
+        BEGIN { fence=0; collecting=0 }
+        /^---$/ { fence++; next }
+        fence < 2 { next }
+        /^[[:space:]]*$/ {
+            if (collecting) exit
+            next
+        }
+        /^#+[[:space:]]*/ { next }
+        {
+            print
+            collecting=1
+        }
+    ' "${file}" | head -5
+}
+
+trim_value() {
+    local value="${1:-}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    if [ "${value#\"}" != "${value}" ] && [ "${value%\"}" != "${value}" ]; then
+        value="${value#\"}"
+        value="${value%\"}"
+    fi
+    if [ "${value#\'}" != "${value}" ] && [ "${value%\'}" != "${value}" ]; then
+        value="${value#\'}"
+        value="${value%\'}"
+    fi
+    printf '%s' "${value}"
+}
+
+normalize_sprint_status() {
+    local raw
+    raw="$(trim_value "${1:-active}")"
+    raw="$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]')"
+    case "${raw}" in
+        active|in-progress|in_progress|current) printf 'active' ;;
+        paused|on-hold|hold) printf 'paused' ;;
+        planned|todo) printf 'planned' ;;
+        done|complete|completed) printf 'completed' ;;
+        *) printf 'active' ;;
+    esac
+}
+
+normalize_task_status() {
+    local raw
+    raw="$(trim_value "${1:-todo}")"
+    raw="$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]')"
+    case "${raw}" in
+        todo|planned|open) printf 'todo' ;;
+        in-progress|in_progress|doing|active) printf 'in_progress' ;;
+        review|in-review|in_review|qa) printf 'review' ;;
+        done|complete|completed) printf 'done' ;;
+        blocked) printf 'blocked' ;;
+        *) printf 'todo' ;;
+    esac
+}
+
+priority_to_numeric() {
+    local raw
+    raw="$(trim_value "${1:-medium}")"
+    raw="$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]')"
+    case "${raw}" in
+        low) printf '25' ;;
+        medium) printf '50' ;;
+        high) printf '75' ;;
+        urgent) printf '100' ;;
+        *) printf '50' ;;
+    esac
+}
+
+numeric_sprint_from_label() {
+    local label
+    label="$(trim_value "${1:-}")"
+    if [[ "${label}" =~ ^[0-9]+$ ]]; then
+        printf '%s' "${label}"
+    fi
+}
+
+sql_text_or_null() {
+    local value
+    value="$(trim_value "${1:-}")"
+    if [ -n "${value}" ]; then
+        printf "'%s'" "$(sql_escape "${value}")"
+    else
+        printf 'NULL'
+    fi
+}
+
+ensure_sprint_record() {
+    local label goal status
+    local update_goal=0
+    local update_status=0
+    local sprint_number=""
+    local sprint_number_sql="NULL"
+    local sprint_id=""
+
+    label="$(trim_value "${1:-}")"
+    goal="$(trim_value "${2:-}")"
+    status="$(trim_value "${3:-}")"
+
+    [ -n "${label}" ] || return 0
+
+    if [ -n "${goal}" ]; then
+        update_goal=1
+    else
+        goal="Migrated sprint ${label}"
+    fi
+
+    if [ -n "${status}" ]; then
+        update_status=1
+    else
+        status="active"
+    fi
+
+    sprint_number="$(numeric_sprint_from_label "${label}")"
+    if [ -n "${sprint_number}" ]; then
+        sprint_number_sql="${sprint_number}"
+    fi
+
+    if [ "${DRY_RUN}" -eq 1 ]; then
+        return 0
+    fi
+
+    sprint_id="$(pg_query "
+        WITH existing AS (
+            SELECT id
+              FROM sprints
+             WHERE project = '${project_sql}'
+               AND sprint_label = '$(sql_escape "${label}")'
+             LIMIT 1
+        ),
+        updated AS (
+            UPDATE sprints
+               SET goal = CASE WHEN ${update_goal} = 1 THEN '$(sql_escape "${goal}")' ELSE goal END,
+                   status = CASE WHEN ${update_status} = 1 THEN '$(sql_escape "${status}")' ELSE status END
+             WHERE id IN (SELECT id FROM existing)
+         RETURNING id
+        ),
+        inserted AS (
+            INSERT INTO sprints (project, sprint_number, sprint_label, goal, status)
+            SELECT
+                '${project_sql}',
+                ${sprint_number_sql},
+                '$(sql_escape "${label}")',
+                '$(sql_escape "${goal}")',
+                '$(sql_escape "${status}")'
+            WHERE NOT EXISTS (SELECT 1 FROM existing)
+        RETURNING id
+        )
+        SELECT id FROM updated
+        UNION ALL
+        SELECT id FROM inserted
+        LIMIT 1;
+    " 2>/dev/null || true)"
+
+    sprint_id="$(printf '%s' "${sprint_id}" | tr -d '[:space:]')"
+    printf '%s' "${sprint_id}"
+}
+
+upsert_handoff_record() {
+    local from_agent="$1"
+    local from_role="$2"
+    local to_role="$3"
+    local priority="$4"
+    local branch="$5"
+    local summary="$6"
+    local sprint_label="$7"
+
+    local sprint_id=""
+    local sprint_id_sql="NULL"
+    local branch_sql
+
+    sprint_id="$(ensure_sprint_record "${sprint_label}")"
+    if [ -n "${sprint_id}" ]; then
+        sprint_id_sql="'$(sql_escape "${sprint_id}")'"
+    fi
+
+    branch_sql="$(sql_text_or_null "${branch}")"
+
+    if [ "${DRY_RUN}" -eq 1 ]; then
+        printf '[dry-run] UPSERT handoff: from=%s (%s) -> to_role=%s priority=%s sprint=%s\n' \
+            "${from_agent}" "${from_role}" "${to_role}" "${priority}" "${sprint_label:-none}"
+        printf '          summary: %s\n' "${summary:0:100}"
+        return
+    fi
+
+    pg_exec "
+        WITH existing AS (
+            SELECT id
+              FROM handoffs
+             WHERE project = '${project_sql}'
+               AND lower(from_agent) = lower('$(sql_escape "${from_agent}")')
+               AND to_role = '$(sql_escape "${to_role}")'
+               AND summary = '$(sql_escape "${summary}")'
+             LIMIT 1
+        ),
+        updated AS (
+            UPDATE handoffs
+               SET from_role = '$(sql_escape "${from_role}")',
+                   priority = '$(sql_escape "${priority}")',
+                   branch = COALESCE(${branch_sql}, branch),
+                   sprint_id = COALESCE(${sprint_id_sql}, sprint_id),
+                   status = 'pending'
+             WHERE id IN (SELECT id FROM existing)
+         RETURNING id
+        )
+        INSERT INTO handoffs (
+            project, from_agent, from_role, to_role,
+            priority, branch, summary, status, sprint_id
+        )
+        SELECT
+            '${project_sql}',
+            '$(sql_escape "${from_agent}")',
+            '$(sql_escape "${from_role}")',
+            '$(sql_escape "${to_role}")',
+            '$(sql_escape "${priority}")',
+            ${branch_sql},
+            '$(sql_escape "${summary}")',
+            'pending',
+            ${sprint_id_sql}
+        WHERE NOT EXISTS (SELECT 1 FROM updated)
+          AND NOT EXISTS (SELECT 1 FROM existing);
+    " 2>/dev/null || true
+}
+
+upsert_task_record() {
+    local title="$1"
+    local status="$2"
+    local role="$3"
+    local priority_label="$4"
+    local description="$5"
+    local sprint_label="$6"
+
+    local normalized_status
+    local numeric_priority
+    local sprint_id=""
+    local sprint_id_sql="NULL"
+    local role_sql
+    local description_sql
+
+    normalized_status="$(normalize_task_status "${status}")"
+    numeric_priority="$(priority_to_numeric "${priority_label}")"
+    sprint_id="$(ensure_sprint_record "${sprint_label}")"
+
+    if [ -n "${sprint_id}" ]; then
+        sprint_id_sql="'$(sql_escape "${sprint_id}")'"
+    fi
+
+    role_sql="$(sql_text_or_null "${role}")"
+    description_sql="$(sql_text_or_null "${description}")"
+
+    if [ "${DRY_RUN}" -eq 1 ]; then
+        printf '[dry-run] UPSERT task: title="%s" status=%s role=%s priority=%s sprint=%s\n' \
+            "${title}" "${normalized_status}" "${role:-unassigned}" "${numeric_priority}" "${sprint_label:-none}"
+        return
+    fi
+
+    pg_exec "
+        WITH existing AS (
+            SELECT id
+              FROM tasks
+             WHERE project = '${project_sql}'
+               AND title = '$(sql_escape "${title}")'
+             LIMIT 1
+        ),
+        updated AS (
+            UPDATE tasks
+               SET status = '$(sql_escape "${normalized_status}")',
+                   assigned_role = COALESCE(${role_sql}, assigned_role),
+                   priority = ${numeric_priority},
+                   description = COALESCE(${description_sql}, description),
+                   sprint_id = COALESCE(${sprint_id_sql}, sprint_id),
+                   updated_at = NOW()
+             WHERE id IN (SELECT id FROM existing)
+         RETURNING id
+        )
+        INSERT INTO tasks (
+            project, title, sprint_id, description,
+            assigned_role, status, priority
+        )
+        SELECT
+            '${project_sql}',
+            '$(sql_escape "${title}")',
+            ${sprint_id_sql},
+            ${description_sql},
+            ${role_sql},
+            '$(sql_escape "${normalized_status}")',
+            ${numeric_priority}
+        WHERE NOT EXISTS (SELECT 1 FROM updated)
+          AND NOT EXISTS (SELECT 1 FROM existing);
+    " 2>/dev/null || true
+}
+
+current_sprint_label=""
+current_sprint_goal=""
+current_sprint_status=""
+
+flush_sprint_record() {
+    [ -n "${current_sprint_label}" ] || return 0
+
+    if [ "${DRY_RUN}" -eq 1 ]; then
+        printf '[dry-run] UPSERT sprint: label=%s status=%s goal=%s\n' \
+            "${current_sprint_label}" "${current_sprint_status}" "${current_sprint_goal}"
+    else
+        ensure_sprint_record "${current_sprint_label}" "${current_sprint_goal}" "${current_sprint_status}" >/dev/null
+    fi
+
+    sprint_count=$(( sprint_count + 1 ))
+    current_sprint_label=""
+    current_sprint_goal=""
+    current_sprint_status=""
+}
+
+current_title=""
+current_status=""
+current_role=""
+current_priority="medium"
+current_description=""
+current_sprint=""
+collect_description=0
+
+flush_task_record() {
+    [ -n "${current_title}" ] || return 0
+
+    upsert_task_record \
+        "${current_title}" \
+        "${current_status:-todo}" \
+        "${current_role}" \
+        "${current_priority}" \
+        "${current_description}" \
+        "${current_sprint}"
+
+    task_count=$(( task_count + 1 ))
+    current_title=""
+    current_status=""
+    current_role=""
+    current_priority="medium"
+    current_description=""
+    current_sprint=""
+    collect_description=0
+}
+
+# ===========================================================================
+# Section 1: Migrate state/active-sprints.md -> sprints table
+# ===========================================================================
+
+printf '### Sprints\n\n'
+
+SPRINTS_FILE="${MEMORY_DIR}/state/active-sprints.md"
+sprint_count=0
+
+if [ ! -f "${SPRINTS_FILE}" ]; then
+    printf 'WARNING: Sprint state file not found: %s\n' "${SPRINTS_FILE}"
+else
+    while IFS= read -r line || [ -n "${line}" ]; do
+        if [[ "${line}" == "## Sprint "* ]]; then
+            flush_sprint_record
+
+            header="${line#"## Sprint "}"
+            current_sprint_label="$(trim_value "${header%% *}")"
+
+            if [ "${header#* — }" != "${header}" ]; then
+                current_sprint_goal="$(trim_value "${header#* — }")"
+            elif [ "${header#* - }" != "${header}" ]; then
+                current_sprint_goal="$(trim_value "${header#* - }")"
+            else
+                current_sprint_goal="Sprint ${current_sprint_label}"
+            fi
+
+            current_sprint_status="active"
+            continue
+        fi
+
+        if [[ "${line}" == "- Status:"* ]]; then
+            status_raw="${line#- Status:}"
+            status_raw="${status_raw//\`/}"
+            current_sprint_status="$(normalize_sprint_status "${status_raw}")"
+        fi
+    done < "${SPRINTS_FILE}"
+
+    flush_sprint_record
+fi
+
+printf 'Sprints migrated: %d\n\n' "${sprint_count}"
+
+# ===========================================================================
+# Section 2: Migrate handoffs/*.md -> handoffs table
+# ===========================================================================
+
+printf '### Handoffs\n\n'
+
+HANDOFFS_DIR="${MEMORY_DIR}/handoffs"
+handoff_count=0
+
+if [ ! -d "${HANDOFFS_DIR}" ]; then
+    printf 'WARNING: Handoffs directory not found: %s\n' "${HANDOFFS_DIR}"
+else
+    for md_file in "${HANDOFFS_DIR}"/*.md; do
+        [ -e "${md_file}" ] || continue
+
+        filename="$(basename "${md_file}")"
+        [[ "${filename}" == _* ]] && continue
+
+        from_agent="$(trim_value "$(parse_frontmatter_field "${md_file}" "from_agent")")"
+        from_role="$(trim_value "$(parse_frontmatter_field "${md_file}" "from_role")")"
+        to_role="$(trim_value "$(parse_frontmatter_field "${md_file}" "to_role")")"
+        priority="$(trim_value "$(parse_frontmatter_field "${md_file}" "priority")")"
+        branch="$(trim_value "$(parse_frontmatter_field "${md_file}" "branch")")"
+        sprint_label="$(trim_value "$(parse_frontmatter_field "${md_file}" "sprint")")"
+
+        from_agent="${from_agent:-unknown}"
+        from_role="${from_role:-unknown}"
+        to_role="${to_role:-any}"
+        priority="${priority:-medium}"
+
+        case "${priority}" in
+            low|medium|high|urgent) ;;
+            *) priority="medium" ;;
+        esac
+
+        summary_raw="$(extract_body_summary "${md_file}")"
+
+        if [ -z "${summary_raw}" ]; then
+            summary_raw="Migrated from ${filename}"
+        else
+            summary_raw="$(printf '%s\n' "${summary_raw}" \
+                | sed 's/^#\+[[:space:]]*//' \
+                | tr '\n' ' ' \
+                | sed 's/[[:space:]]\+/ /g; s/^[[:space:]]*//; s/[[:space:]]*$//')"
+            summary_raw="${summary_raw:0:500}"
+        fi
+
+        upsert_handoff_record \
+            "${from_agent}" \
+            "${from_role}" \
+            "${to_role}" \
+            "${priority}" \
+            "${branch}" \
+            "${summary_raw}" \
+            "${sprint_label}"
+
+        handoff_count=$(( handoff_count + 1 ))
+    done
+fi
+
+printf 'Handoffs migrated: %d\n\n' "${handoff_count}"
+
+# ===========================================================================
+# Section 3: Migrate tasks.yaml -> tasks table
+# ===========================================================================
+
+printf '### Tasks\n\n'
+
+TASKS_FILE="${MEMORY_DIR}/board/tasks.yaml"
+task_count=0
+
+if [ ! -f "${TASKS_FILE}" ]; then
+    printf 'WARNING: Tasks file not found: %s\n' "${TASKS_FILE}"
+else
+    while IFS= read -r line || [ -n "${line}" ]; do
+        if [ "${collect_description}" -eq 1 ]; then
+            if [[ "${line}" =~ ^[[:space:]]{6,}(.*)$ ]]; then
+                desc_line="$(trim_value "${BASH_REMATCH[1]}")"
+                if [ -n "${desc_line}" ]; then
+                    if [ -n "${current_description}" ]; then
+                        current_description="${current_description} ${desc_line}"
+                    else
+                        current_description="${desc_line}"
+                    fi
+                fi
+                continue
+            fi
+            collect_description=0
+        fi
+
+        if [[ "${line}" =~ ^[[:space:]]*-[[:space:]]+[^:]+:[[:space:]]*.*$ ]]; then
+            flush_task_record
+
+            if [[ "${line}" =~ ^[[:space:]]*-[[:space:]]+title:[[:space:]]*(.*)$ ]]; then
+                current_title="$(trim_value "${BASH_REMATCH[1]}")"
+            fi
+            continue
+        fi
+
+        if [[ "${line}" =~ ^[[:space:]]+title:[[:space:]]*(.*)$ ]]; then
+            current_title="$(trim_value "${BASH_REMATCH[1]}")"
+        elif [[ "${line}" =~ ^[[:space:]]+status:[[:space:]]*(.*)$ ]]; then
+            current_status="$(trim_value "${BASH_REMATCH[1]}")"
+        elif [[ "${line}" =~ ^[[:space:]]+role:[[:space:]]*(.*)$ ]]; then
+            current_role="$(trim_value "${BASH_REMATCH[1]}")"
+        elif [[ "${line}" =~ ^[[:space:]]+priority:[[:space:]]*(.*)$ ]]; then
+            current_priority="$(trim_value "${BASH_REMATCH[1]}")"
+        elif [[ "${line}" =~ ^[[:space:]]+sprint:[[:space:]]*(.*)$ ]]; then
+            current_sprint="$(trim_value "${BASH_REMATCH[1]}")"
+        elif [[ "${line}" == *"description: >"* ]]; then
+            current_description=""
+            collect_description=1
+        elif [[ "${line}" =~ ^[[:space:]]+description:[[:space:]]*(.*)$ ]]; then
+            current_description="$(trim_value "${BASH_REMATCH[1]}")"
+        fi
+    done < "${TASKS_FILE}"
+
+    flush_task_record
+fi
+
+printf 'Tasks migrated: %d\n\n' "${task_count}"
+
+# ===========================================================================
+# Section 4: Next steps
+# ===========================================================================
+
+printf '### Next Steps\n\n'
+printf '1. cortex-state\n'
+printf '2. cortex-roster\n'
+printf '3. cortex-board\n'
+printf "4. cortex-log <agent> decision 'Migration complete'\n"
+printf '5. cortex-bootstrap <agent>\n'
+printf '\n'
+
+status green "Migration complete."

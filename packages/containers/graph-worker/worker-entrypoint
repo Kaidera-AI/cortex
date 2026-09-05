@@ -1,0 +1,74 @@
+#!/bin/sh
+set -eu
+
+# Bracket ranges match in collation order: under en_US.UTF-8 [!0-9a-f] also accepts A-F, so
+# the revision gate below passed uppercase input. Containers run in the POSIX default locale
+# where this is already byte-wise, but the gate must not depend on that.
+unset LC_ALL
+LC_COLLATE=C
+export LC_COLLATE
+
+worker="cortex-graph-worker"
+
+fail() {
+    printf '%s: %s\n' "$worker" "$*" >&2
+    exit 70
+}
+
+validate_image_metadata() {
+    version="${1:-}"
+    revision="${2:-}"
+    [ -n "$version" ] \
+        || fail "KOS_VERSION is required and must be non-empty"
+    [ "${#revision}" -eq 40 ] \
+        || fail "KOS_SOURCE_REVISION must be exactly 40 lowercase hexadecimal characters"
+    case "$revision" in
+        *[!0-9a-f]*)
+            fail "KOS_SOURCE_REVISION must be exactly 40 lowercase hexadecimal characters"
+            ;;
+    esac
+}
+
+require_writable_dir() {
+    label="$1"
+    path="$2"
+    mkdir -p "$path" 2>/dev/null \
+        || fail "$label path $path cannot be created by uid $(id -u):$(id -g)"
+    probe="$(mktemp -d "${path%/}/.kaidera-write-check.XXXXXX" 2>/dev/null)" \
+        || fail "$label path $path is not writable by uid $(id -u):$(id -g); map the mount to 10001:10001"
+    rmdir "$probe" \
+        || fail "$label write probe at $probe could not be removed"
+}
+
+require_readable_dir() {
+    label="$1"
+    path="$2"
+    [ -d "$path" ] && [ -r "$path" ] && [ -x "$path" ] \
+        || fail "$label path $path is not a readable directory for uid $(id -u):$(id -g)"
+}
+
+verify_qwen_model() {
+    expected_cache="/opt/kaidera-qwen3/cache"
+    verifier="/usr/local/libexec/kaidera/verify-qwen3-model.py"
+    [ "${QWEN3_EMBED_CACHE_PATH:-}" = "$expected_cache" ] \
+        || fail "QWEN3_EMBED_CACHE_PATH must select the receipt-pinned immutable cache"
+    [ -r "$verifier" ] \
+        || fail "qwen3 runtime verifier is absent from the image"
+    /usr/local/bin/python -I "$verifier" \
+        || fail "qwen3 model cache or receipt verification failed"
+}
+
+if [ "${1:-}" = "--validate-image-metadata" ]; then
+    shift
+    validate_image_metadata "${1:-}" "${2:-}"
+    exit 0
+fi
+
+[ "$(id -u)" -ne 0 ] || fail "refusing to run as uid 0"
+verify_qwen_model
+require_writable_dir "worker home" "${HOME:-/home/kaidera}"
+require_writable_dir "temporary" "${TMPDIR:-/tmp}"
+require_writable_dir "graph cache" "${CORTEX_GRAPHS_DIR:-/var/lib/cortex/graphs}"
+require_readable_dir "projects" "${PROJECTS_DIR:-/projects}"
+
+exec "$@"

@@ -1,0 +1,1215 @@
+#!/usr/bin/env bash
+# cortex-handoff — API-backed handoff management
+# Usage:
+#   cortex-handoff                                                       List all pending handoffs
+#   cortex-handoff --mine <agent|role>                                   Show handoffs for your agent or role
+#   cortex-handoff --create [--confirm] --from <agent> --from-role <role> \
+#     --to <role> [--to-agent <agent>] --summary <text> [--priority <p>] [--branch <b>] \
+#     [--files <f1,f2>] [--verify <text>] [--next <text>] \
+#     [--context <text>] [--goal <goal-id>] [--acceptance <json>] \
+#     [--evidence <json>] [--retry <json>] [--escalation <json>] \
+#     [--target-project <project> --cto-override <decision-id>]           Create a handoff
+#   cortex-handoff --show <id>                                           Show full handoff details
+#   cortex-handoff --claim <id> --agent <name>                           Claim a handoff
+#   cortex-handoff --return <id> --agent <name> --summary <text> [...]   Return completed work to its delegator
+#   cortex-handoff --complete <id> [...]                                 Compatibility return through review
+#   cortex-handoff --admin-complete <id>                                 Administratively mark handoff complete
+#   cortex-handoff --release <id> [--agent <name>] [--reason <text>]      Requeue a claimed handoff
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    printf 'Usage:\n'
+    printf '  cortex-handoff\n'
+    printf '      List all pending handoffs\n\n'
+    printf '  cortex-handoff --mine <agent|role>\n'
+    printf '      Show pending, claimed, and returned handoffs addressed to your agent or role\n\n'
+    printf '  cortex-handoff --create [--confirm] --from <agent> --from-role <role> --to <role> [--to-agent <agent>] --summary <text>\n'
+    printf '      [--acceptance <json>] [--evidence <json>] [--retry <json>] [--escalation <json>]\n'
+    printf '      [--priority low|medium|high|urgent] [--branch <branch>]\n'
+    printf '      [--files <f1,f2,...>] [--verify <text>] [--next <text>] [--context <text>] [--goal <goal-id>]\n'
+    printf '      [--target-project <project> --cto-override <decision-id>]\n'
+    printf '      Create a new handoff record\n\n'
+    printf '  cortex-handoff --show <id>\n'
+    printf '      Show full handoff details without mutating it\n\n'
+    printf '  cortex-handoff --claim <id> --agent <name>\n'
+    printf '      Claim a pending handoff; Cortex handoff claims are not budget-gated\n\n'
+    printf '  cortex-handoff --claim <id> --agent <name> --deterministic-no-model\n'
+    printf '      Compatibility flag accepted; claims are not budget-gated\n\n'
+    printf '  cortex-handoff --return <id> --agent <name> --summary <text>\n'
+    printf '      [--outcome completed|partial|blocked] [--decision accept|rework]\n'
+    printf '      [--work-product <id>] [--tests <json-array>]\n'
+    printf '      [--artifacts <csv>] [--risks <csv>] [--followups <csv>]\n'
+    printf '      Atomically return work with a completion report and handback\n\n'
+    printf '  cortex-handoff --complete <id> [--agent <name>] [--summary <text>]\n'
+    printf '      [--decision accept|rework]\n'
+    printf '      Compatibility alias for --return; completion handbacks require an explicit decision\n\n'
+    printf '  cortex-handoff --admin-complete <id>\n'
+    printf '      Token-gated administrative terminal operation\n\n'
+    printf '  cortex-handoff --release <id> [--agent <name>] [--reason <text>]\n'
+    printf '      Release/requeue a claimed handoff back to pending\n\n'
+    printf '  cortex-handoff --requeue <id> [--agent <name>] [--reason <text>]\n'
+    printf '      Alias for --release\n\n'
+    exit 1
+}
+
+handoff_lookup_prefix() {
+    local handoff_id="$1"
+    printf '%s' "${handoff_id%%:*}"
+}
+
+print_handoff_details() {
+    local handoff_id="$1"
+    if [ -z "${handoff_id}" ]; then
+        printf 'ERROR: --show requires a handoff <id>\n' >&2
+        usage
+    fi
+    local prefix
+    prefix="$(handoff_lookup_prefix "${handoff_id}")"
+    
+    local response
+    if ! response="$(cortex_api_call_json GET "/handoffs/${prefix}" "" "" 2>&1)"; then
+        status red "ERROR: Handoff '${prefix}' not found or API error."
+        exit 1
+    fi
+    
+    python3 - "${response}" <<'PYEOF'
+import re
+import sys, json
+
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print(f"ERROR parsing response: {sys.argv[1]}")
+    sys.exit(1)
+
+if "id" not in data:
+    print("ERROR: Handoff not found.")
+    sys.exit(1)
+
+print(f"\n  ID:           {data.get('id')}")
+if data.get('kind'):
+    print(f"  Kind:         {data.get('kind')}")
+if data.get('reply_to_handoff_id'):
+    print(f"  Reply to:     {data.get('reply_to_handoff_id')}")
+print(f"  From:         {data.get('from_agent') or ''} ({data.get('from_role') or ''})")
+print(f"  To role:      {data.get('to_role') or ''}")
+print(f"  Status:       {data.get('status') or ''}")
+print(f"  Priority:     {data.get('priority') or ''}")
+print(f"  Created:      {data.get('created_at') or ''}")
+
+if data.get('to_agent'):
+    print(f"  To agent:     {data.get('to_agent')}")
+if data.get('parent_goal_id'):
+    print(f"  Goal:         {data.get('parent_goal_id')}")
+if data.get('claimed_by'):
+    print(f"  Claimed by:   {data.get('claimed_by')}")
+if data.get('claimed_at'):
+    print(f"  Claimed at:   {data.get('claimed_at')}")
+if data.get('retry_count') is not None:
+    print(f"  Retry count:  {data.get('retry_count')}")
+if data.get('completed_at'):
+    print(f"  Completed at: {data.get('completed_at')}")
+if data.get('returned_at'):
+    print(f"  Returned at:  {data.get('returned_at')}")
+
+def print_multiline(label, text):
+    if not text:
+        return
+    text_str = str(text)
+    print(f"  {label:<14}{text_str.replace(chr(10), chr(10) + '                ')}")
+
+print_multiline("Summary:", data.get('summary'))
+print_multiline("Branch:", data.get('branch'))
+
+files = data.get('files_changed')
+if files and isinstance(files, list):
+    print(f"  Files:        {', '.join(files)}")
+
+print_multiline("Verify:", data.get('verification'))
+print_multiline("Next steps:", data.get('next_steps'))
+print_multiline("Context:", data.get('context'))
+
+def print_policy(label, value):
+    if isinstance(value, dict) and value:
+        print_multiline(label + ":", json.dumps(value, sort_keys=True))
+
+print_policy("Acceptance", data.get("acceptance"))
+print_policy("Evidence", data.get("evidence"))
+print_policy("Retry", data.get("retry"))
+print_policy("Escalation", data.get("escalation"))
+
+completion_report = data.get("completion_report")
+if completion_report is not None:
+    # HOW the outcome was obtained, stated before the report itself.
+    #
+    # `evidence_quality` has had three writers since June (run_agent structured /
+    # auto_transcript, watchdog legacy_success_marker) and, until now, ZERO readers
+    # anywhere — not the API, not the SPA, not this CLI. It recorded whether a
+    # completion was REPORTED by the agent in a structured block or SCRAPED out of
+    # whatever text it happened to emit, and nobody was ever shown the difference.
+    #
+    # The distinction is deliberately "reported vs scraped", NOT "verified vs
+    # asserted". Nothing here verifies anything: completion_report is parsed from the
+    # agent's own output, so a "verified" badge would be a lie in a trust-bearing
+    # position. Reported-vs-scraped is what the data can actually support.
+    _EVIDENCE = {
+        "structured": ("REPORTED", "the agent emitted a structured handoff-result block"),
+        "auto_transcript": ("SCRAPED", "no result block — this was salvaged from loose output"),
+        "legacy_success_marker": ("LEGACY", "inferred from an old success marker, not a report"),
+    }
+    # The API hands this back as a JSON STRING, not a dict — parse before reading it.
+    # (Assuming dict was the first cut and the evidence line silently never printed,
+    # which is the same shape of bug as the field having no reader in the first place.)
+    _report = completion_report
+    if isinstance(_report, str):
+        try:
+            _report = json.loads(_report)
+        except (ValueError, TypeError):
+            _report = None
+    if isinstance(_report, dict):
+        _meta = _report.get("metadata")
+        _q = (_meta or {}).get("evidence_quality") if isinstance(_meta, dict) else None
+        _label, _why = _EVIDENCE.get(str(_q or ""), ("UNSTATED", "no evidence class recorded"))
+        print(f"  Evidence:     {_label} — {_why}")
+    if isinstance(completion_report, (dict, list)):
+        completion_report = json.dumps(completion_report, sort_keys=True)
+    print_multiline("Completion report:", completion_report)
+print("")
+PYEOF
+}
+
+show_handoff() {
+    print_handoff_details "$1"
+}
+
+list_handoffs() {
+    local response
+    if ! response="$(cortex_api_call_json GET "/handoffs?status=pending" "" "" 2>&1)"; then
+        status red "ERROR: API failed: ${response}"
+        exit 1
+    fi
+
+    python3 - 3< <(printf '%s' "${response}") <<'PYEOF'
+import json
+import os
+import sys
+
+try:
+    with os.fdopen(3, "r", encoding="utf-8") as stream:
+        data = json.load(stream)
+except Exception:
+    sys.exit(1)
+
+handoffs = data.get("handoffs", [])
+if not handoffs:
+    print("\n\033[33mNo pending handoffs.\033[0m\n")
+    sys.exit(0)
+
+print("\n%-36s  %-12s  %-12s  %-10s  %-8s  %-10s  %s" % ("ID", "FROM", "TO ROLE", "TO AGENT", "PRIORITY", "DATE", "SUMMARY"))
+print("-" * 110)
+
+for h in handoffs:
+    summary = (h.get("summary") or "")[:45]
+    if len(h.get("summary") or "") > 45:
+        summary += "..."
+    date_val = (h.get("created_at") or "")[:10]
+    print("%-36s  %-12s  %-12s  %-10s  %-8s  %-10s  %s" % (
+        h.get("id"), h.get("from_agent") or "", h.get("to_role") or "",
+        h.get("to_agent") or "", h.get("priority") or "", date_val, summary
+    ))
+print("")
+PYEOF
+}
+
+mine_handoffs() {
+    local agent="$1"
+    agent="$(cortex_normalize_agent_name "${agent}")"
+
+    local response_pending
+    local response_claimed
+    local response_returned
+    if ! response_pending="$(cortex_api_call_json GET "/handoffs?mine=True&agent=${agent}&status=pending" "" "" 2>&1)"; then
+        status red "ERROR: Pending handoff query failed: ${response_pending}"
+        exit 1
+    fi
+    if ! response_claimed="$(cortex_api_call_json GET "/handoffs?mine=True&agent=${agent}&status=claimed" "" "" 2>&1)"; then
+        status red "ERROR: Claimed handoff query failed: ${response_claimed}"
+        exit 1
+    fi
+    if ! response_returned="$(cortex_api_call_json GET "/handoffs?mine=True&agent=${agent}&status=returned" "" "" 2>&1)"; then
+        case "${response_returned}" in
+            *"Invalid handoff status"*)
+                # Downlevel API: the deployed cortex-api predates 'returned' handoffs.
+                # One optional status must never cost the agent its ENTIRE queue view --
+                # that exact hard-exit left an autonomous worker unable to see or claim
+                # pending work on 2026-09-01 (version-skew incident: workspace CLI newer
+                # than the deployed API). Degrade loudly, keep pending+claimed.
+                status yellow "WARN: live cortex-api predates 'returned' handoffs (version skew) -- showing pending+claimed only; upgrade the deployed cortex-api"
+                response_returned='{"handoffs":[]}'
+                ;;
+            *)
+                status red "ERROR: Returned handoff query failed: ${response_returned}"
+                exit 1
+                ;;
+        esac
+    fi
+
+    python3 - "${agent}" \
+        3< <(printf '%s\0%s\0%s\0' \
+            "${response_pending}" "${response_claimed}" "${response_returned}") <<'PYEOF'
+import json
+import os
+import re
+import sys
+
+agent = sys.argv[1]
+handoffs = []
+
+with os.fdopen(3, "rb") as stream:
+    responses = stream.read().split(b"\0")
+
+for raw in responses:
+    try:
+        if raw.startswith(b"{"):
+            data = json.loads(raw)
+            handoffs.extend(data.get("handoffs", []))
+    except Exception:
+        pass
+
+if not handoffs:
+    print(f"\n\033[33mNo pending, claimed, or returned handoffs for agent '{agent}'.\033[0m\n")
+    sys.exit(0)
+
+# Sort by priority then date
+priority_map = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
+handoffs.sort(key=lambda x: (priority_map.get(x.get("priority"), 4), x.get("created_at", "")), reverse=True)
+
+print(f"\nHandoffs for {agent} (pending + claimed + returned):\n")
+
+for h in handoffs:
+    summary = (h.get("summary") or "")[:100]
+    if len(h.get("summary") or "") > 100:
+        summary += "..."
+    date_val = (h.get("created_at") or "")[:10]
+    priority = h.get("priority") or "medium"
+    from_agent = h.get("from_agent") or ""
+    status = h.get("status") or "unknown"
+    h_id = h.get("id") or ""
+    to_role = h.get("to_role") or ""
+    to_agent = h.get("to_agent") or ""
+    claimed_by = h.get("claimed_by") or ""
+    claimed_at = h.get("claimed_at") or ""
+    retry_count = h.get("retry_count")
+
+    print(f"[{priority}] {from_agent} -> {summary} ({date_val})")
+    print(f"    ID: {h_id} ({status})")
+    print(f"    Status: {status}")
+    print(f"    To role: {to_role}")
+    if to_agent:
+        print(f"    To agent: {to_agent}")
+
+    if status == "claimed":
+        if claimed_by:
+            print(f"    Claimed by: {claimed_by}")
+        if claimed_at:
+            print(f"    Claimed at: {claimed_at}")
+        if retry_count is not None:
+            print(f"    Retry count: {retry_count}")
+        # State-aware hinting:
+        # If I am the one who claimed it (claimed_by starts with agent name)
+        claimed_agent = re.split(r'[:@]', claimed_by, maxsplit=1)[0].lower() if claimed_by else ""
+        current_agent = re.split(r'[:@]', agent, maxsplit=1)[0].lower()
+        if claimed_agent == current_agent:
+            print(f"    Execute: cortex-handoff --show {h_id}")
+            print(
+                f"    Return: cortex-handoff --return {h_id} --agent {agent} "
+                "--summary '<completion summary>'\n"
+            )
+            print(f"    Requeue: cortex-handoff --release {h_id} --agent {agent} --reason '<reason>'\n")
+        else:
+            print(f"    Continue: cortex-handoff --show {h_id}\n")
+    elif status == "returned":
+        print(f"    Review: cortex-handoff --show {h_id}\n")
+    else:
+        print(f"    Claim: cortex-handoff --claim {h_id} --agent {agent}\n")
+
+PYEOF
+}
+
+resolve_to_agent_shorthand() {
+    local candidate="$1"
+    local from_agent="$2"
+    local response
+    response="$(cortex_api_call_json GET "/roster" "" "${from_agent}" 2>/dev/null || true)"
+    [ -n "${response}" ] || return 1
+
+    python3 - "${candidate}" "${CORTEX_PROJECT}" "${response}" <<'PYEOF'
+import json
+import re
+import sys
+
+candidate_raw = str(sys.argv[1] or "").strip().lower()
+project = str(sys.argv[2] or "").strip().lower()
+try:
+    data = json.loads(sys.argv[3])
+except Exception:
+    raise SystemExit(1)
+
+candidate_base = re.split(r"[:@]", candidate_raw, maxsplit=1)[0]
+candidate_project = candidate_raw.split("@", 1)[1] if "@" in candidate_raw else ""
+if not candidate_base or (candidate_project and candidate_project != project):
+    raise SystemExit(1)
+
+for row in data.get("agents") or []:
+    name = str(row.get("name") or "").strip().lower()
+    role = str(row.get("role") or "").strip().lower()
+    if re.split(r"[:@]", name, maxsplit=1)[0] == candidate_base and role:
+        print(f"{candidate_raw}\t{role}")
+        raise SystemExit(0)
+
+raise SystemExit(1)
+PYEOF
+}
+
+require_ascii() {
+    local label="$1"
+    local value="$2"
+    python3 - "${label}" "${value}" <<'PYEOF'
+import sys
+
+label = sys.argv[1]
+value = sys.argv[2]
+try:
+    value.encode("ascii")
+except UnicodeEncodeError:
+    print(
+        f"ERROR: --{label} must be ASCII-only. Use straight hyphens/quotes and "
+        "avoid em dashes, curly quotes, ellipses, and bullets.",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+PYEOF
+}
+
+create_handoff() {
+    local from_agent="" from_role="" to_role="" to_agent="" summary=""
+    local priority="medium" branch="" files_raw="" verify="" next_steps="" context="" goal_id=""
+    local acceptance_json="" evidence_json="" retry_json="" escalation_json=""
+    local target_project="" cto_override="${CORTEX_CTO_OVERRIDE:-}"
+    local confirm="${CORTEX_WRITE_CONFIRM:-0}"
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --confirm)    confirm=1;        shift ;;
+            --no-confirm) confirm=0;        shift ;;
+            --from)       from_agent="$2";  shift 2 ;;
+            --from-role)  from_role="$2";   shift 2 ;;
+            --to)         to_role="$2";     shift 2 ;;
+            --to-agent)   to_agent="$2";    shift 2 ;;
+            --summary)    summary="$2";     shift 2 ;;
+            --priority)   priority="$2";    shift 2 ;;
+            --branch)     branch="$2";      shift 2 ;;
+            --files)      files_raw="$2";   shift 2 ;;
+            --verify)     verify="$2";      shift 2 ;;
+            --next)       next_steps="$2";  shift 2 ;;
+            --context)    context="$2";     shift 2 ;;
+            --acceptance)  acceptance_json="$2"; shift 2 ;;
+            --evidence)    evidence_json="$2";   shift 2 ;;
+            --retry)       retry_json="$2";      shift 2 ;;
+            --escalation)  escalation_json="$2"; shift 2 ;;
+            --target-project) target_project="$2"; shift 2 ;;
+            --cto-override) cto_override="$2"; shift 2 ;;
+            --goal|--goal-parent) goal_id="$2"; shift 2 ;;
+            *)
+                printf 'ERROR: Unknown flag: %s\n' "$1" >&2
+                usage
+                ;;
+        esac
+    done
+
+    local missing=""
+    [ -z "${from_agent}" ] && missing="${missing} --from"
+    [ -z "${from_role}" ]  && missing="${missing} --from-role"
+    [ -z "${to_role}" ]    && missing="${missing} --to"
+    [ -z "${summary}" ]    && missing="${missing} --summary"
+
+    if [ -n "${missing}" ]; then
+        printf 'ERROR: Missing required flags:%s\n' "${missing}" >&2
+        usage
+    fi
+    if [ -n "${target_project}" ] && [ -z "${to_agent}" ]; then
+        printf 'ERROR: --target-project requires an explicit --to-agent.\n' >&2
+        exit 1
+    fi
+    if [ -n "${target_project}" ] && [ -z "${cto_override}" ]; then
+        printf 'ERROR: --target-project requires --cto-override <decision-id> or CORTEX_CTO_OVERRIDE.\n' >&2
+        exit 1
+    fi
+
+    require_ascii "summary" "${summary}"
+
+    case "${priority}" in
+        low|medium|high|urgent) ;;
+        *)
+            printf 'ERROR: Invalid priority "%s". Must be: low, medium, high, urgent\n' "${priority}" >&2
+            exit 1
+            ;;
+    esac
+
+    from_agent="$(cortex_normalize_agent_name "${from_agent}")"
+    [ -n "${to_agent}" ] && to_agent="$(cortex_normalize_agent_name "${to_agent}")"
+    if [ -z "${to_agent}" ]; then
+        local shorthand=""
+        shorthand="$(resolve_to_agent_shorthand "${to_role}" "${from_agent}" || true)"
+        if [ -n "${shorthand}" ]; then
+            IFS=$'\t' read -r to_agent to_role <<< "${shorthand}"
+            to_agent="$(cortex_normalize_agent_name "${to_agent}")"
+        fi
+    fi
+
+    local effective_goal="${goal_id:-}"
+    if [ -z "${effective_goal}" ]; then
+        effective_goal="${CORTEX_PARENT_GOAL_ID:-}"
+    fi
+    if [ -z "${effective_goal}" ]; then
+        effective_goal="${CORTEX_EPIC_ID:-}"
+    fi
+
+    if [ -n "${effective_goal}" ] && [ -n "${context}" ]; then
+        context="Goal: ${effective_goal}
+${context}"
+    elif [ -n "${effective_goal}" ]; then
+        context="Goal: ${effective_goal}"
+    fi
+
+    local payload
+    payload="$(python3 - "${from_role}" "${to_role}" "${to_agent}" "${priority}" "${summary}" "${branch}" "${files_raw}" "${verify}" "${next_steps}" "${context}" "${effective_goal}" "${acceptance_json}" "${evidence_json}" "${retry_json}" "${escalation_json}" "${target_project}" <<'PYEOF'
+import json, sys
+
+def policy_arg(raw, label):
+    if not raw:
+        return None
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        print(f"ERROR: --{label} must be valid JSON: {exc}", file=sys.stderr)
+        raise SystemExit(2)
+    if not isinstance(value, dict):
+        print(f"ERROR: --{label} must be a JSON object", file=sys.stderr)
+        raise SystemExit(2)
+    return value
+
+body = {
+    "from_role": sys.argv[1] or None,
+    "to_role": sys.argv[2],
+    "to_agent": sys.argv[3] or None,
+    "priority": sys.argv[4],
+    "summary": sys.argv[5],
+    "branch": sys.argv[6] or None,
+    "verification": sys.argv[8] or None,
+    "next_steps": sys.argv[9] or None,
+    "context": sys.argv[10] or None,
+    "parent_goal_id": sys.argv[11] or None,
+}
+
+if sys.argv[7]:
+    body["files_changed"] = [f.strip() for f in sys.argv[7].split(",") if f.strip()]
+
+for label, raw in (
+    ("acceptance", sys.argv[12]),
+    ("evidence", sys.argv[13]),
+    ("retry", sys.argv[14]),
+    ("escalation", sys.argv[15]),
+):
+    value = policy_arg(raw, label)
+    if value is not None:
+        body[label] = value
+
+if sys.argv[16]:
+    body["target_project"] = sys.argv[16]
+
+print(json.dumps(body))
+PYEOF
+    )"
+
+    local endpoint="/handoffs"
+    local api_call=cortex_api_call_json
+    if [ -n "${target_project}" ]; then
+        endpoint="/handoffs/cross-project"
+        export CORTEX_CTO_OVERRIDE="${cto_override}"
+        # SEC-01: crossing a project boundary is an operator act - the ADMIN token
+        # authorises it (the decision receipt is the audit trail, not the authority,
+        # because the receipt check requires the caller's own authorship).
+        api_call=cortex_api_call_admin
+    fi
+
+    local response
+    if ! response="$("${api_call}" POST "${endpoint}" "${payload}" "${from_agent}" 2>&1)"; then
+        status red "ERROR: Failed to create handoff via API."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local new_id
+    new_id="$(python3 -c 'import sys, json; print(json.loads(sys.argv[1]).get("id", ""))' "${response}" 2>/dev/null || echo "")"
+    local deduped
+    deduped="$(python3 -c 'import sys, json; print("1" if json.loads(sys.argv[1]).get("deduped") else "0")' "${response}" 2>/dev/null || echo "0")"
+    
+    if [ -z "${new_id}" ]; then
+        status red "ERROR: Data truncation or validation failed on API write."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    if [ "${confirm}" = "1" ]; then
+        local confirm_response
+        if [ -n "${target_project}" ]; then
+            confirm_response="$(CORTEX_PROJECT="${target_project}" cortex_api_call_json GET "/verify/write?kind=handoff&id=$(cortex_api_urlencode "${new_id}")" "" "${from_agent}" 2>&1)" || {
+                local rc=$?
+                status red "ERROR: Cross-project handoff confirm read-back failed for ${new_id}."
+                printf '%s\n' "${confirm_response}" >&2
+                exit "${rc}"
+            }
+        elif ! confirm_response="$(cortex_api_call_json GET "/verify/write?kind=handoff&id=$(cortex_api_urlencode "${new_id}")" "" "${from_agent}" 2>&1)"; then
+            local rc=$?
+            status red "ERROR: Handoff confirm read-back failed for ${new_id}."
+            printf '%s\n' "${confirm_response}" >&2
+            exit "${rc}"
+        fi
+        python3 - "${confirm_response}" "${from_agent}" "${from_role}" "${to_role}" "${to_agent}" "${priority}" "${summary}" "${branch}" "${files_raw}" "${verify}" "${next_steps}" "${context}" "${effective_goal}" <<'PYEOF' || exit 1
+import json
+import re
+import sys
+
+data = json.loads(sys.argv[1])
+expected = {
+    "from_agent_prefix": sys.argv[2],
+    "from_role": sys.argv[3] or None,
+    "to_role": sys.argv[4],
+    "to_agent": sys.argv[5] or None,
+    "priority": sys.argv[6],
+    "summary": sys.argv[7],
+    "branch": sys.argv[8] or None,
+    "files_changed": [p.strip() for p in sys.argv[9].split(",") if p.strip()],
+    "verification": sys.argv[10] or None,
+    "next_steps": sys.argv[11] or None,
+    "context": sys.argv[12] or None,
+    "parent_goal_id": sys.argv[13] or None,
+}
+row = data.get("row") or {}
+checks = {
+    "from_role": expected["from_role"],
+    "to_role": expected["to_role"],
+    "to_agent": expected["to_agent"],
+    "priority": expected["priority"],
+    "summary": expected["summary"],
+    "branch": expected["branch"],
+    "files_changed": expected["files_changed"],
+    "verification": expected["verification"],
+    "next_steps": expected["next_steps"],
+    "context": expected["context"],
+    "parent_goal_id": expected["parent_goal_id"],
+}
+project = (row.get("project") or "").strip().lower()
+
+def identity_base(value):
+    return re.split(r"[:@]", str(value or "").strip().lower(), maxsplit=1)[0]
+
+def identity_project(value):
+    text = str(value or "").strip().lower()
+    if "@" not in text:
+        return ""
+    return text.split("@", 1)[1]
+
+def same_project_identity(actual, expected):
+    if not actual and not expected:
+        return True
+    if not actual or not expected:
+        return False
+    if identity_base(actual) != identity_base(expected):
+        return False
+    expected_project = identity_project(expected)
+    actual_project = identity_project(actual)
+    if expected_project and actual_project and expected_project != actual_project:
+        return False
+    if expected_project and not actual_project and project and expected_project != project:
+        return False
+    return True
+
+if identity_base(row.get("from_agent")) != identity_base(expected["from_agent_prefix"]):
+    print("ERROR: cortex-handoff confirm read-back from_agent mismatch", file=sys.stderr)
+    raise SystemExit(1)
+for field, value in checks.items():
+    actual = row.get(field)
+    if field == "files_changed":
+        actual = list(actual or [])
+    if field == "to_agent":
+        if not same_project_identity(actual, value):
+            print(
+                f"ERROR: cortex-handoff confirm read-back {field} mismatch "
+                f"(expected {value!r}, got {actual!r})",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        continue
+    if actual != value:
+        print(f"ERROR: cortex-handoff confirm read-back {field} mismatch", file=sys.stderr)
+        raise SystemExit(1)
+PYEOF
+    fi
+
+    if [ "${deduped}" != "1" ]; then
+        local event_detail
+        event_detail="$(python3 - "${new_id}" "${CORTEX_PROJECT}" "${from_agent}" "${from_role}" "${to_agent}" "${to_role}" "${priority}" "${summary}" "${files_raw}" "${effective_goal}" <<'PYEOF'
+import json, sys
+from datetime import datetime, timezone
+
+f_raw = sys.argv[9]
+files = [p.strip() for p in f_raw.split(",")] if f_raw else []
+
+print(json.dumps({
+    "type": "handoff_created",
+    "project": sys.argv[2],
+    "handoff_id": sys.argv[1],
+    "from_agent": sys.argv[3],
+    "from_role": sys.argv[4] or None,
+    "to_agent": sys.argv[5] or None,
+    "to_role": sys.argv[6],
+    "priority": sys.argv[7],
+    "summary": sys.argv[8],
+    "files_changed": files,
+    "parent_goal_id": sys.argv[10] or None,
+    "created_at": datetime.now(timezone.utc).isoformat(),
+}, sort_keys=True))
+PYEOF
+        )"
+
+
+        status green "Handoff created: ${new_id}"
+    else
+        status yellow "Handoff already exists: ${new_id}"
+    fi
+    printf '  From:     %s (%s)\n' "${from_agent}" "${from_role}"
+    printf '  To role:  %s\n' "${to_role}"
+    [ -n "${to_agent}" ] && printf '  To agent: %s\n' "${to_agent}"
+    [ -n "${target_project}" ] && printf '  Project:  %s (CTO approval %s)\n' "${target_project}" "${cto_override}"
+    printf '  Priority: %s\n' "${priority}"
+    printf '  Summary:  %s\n' "${summary}"
+}
+
+claim_handoff() {
+    local handoff_id="$1"
+    local agent_name="$2"
+    local deterministic_no_model="${3:-0}"
+    agent_name="$(cortex_normalize_agent_name "${agent_name}")"
+
+    if [ -z "${handoff_id}" ] || [ -z "${agent_name}" ]; then
+        printf 'ERROR: --claim requires both <id> and --agent <name>\n' >&2
+        usage
+    fi
+
+    local prefix
+    prefix="$(handoff_lookup_prefix "${handoff_id}")"
+
+    local claim_path="/handoffs/${prefix}/claim"
+    local payload="{}"
+    if [ "${deterministic_no_model}" = "1" ]; then
+        status yellow "Deterministic/no-model flag noted; Cortex handoff claims are not budget-gated."
+    fi
+
+    local response
+    if ! response="$(cortex_api_call_json POST "${claim_path}" "${payload}" "${agent_name}" 2>&1)"; then
+        status red "ERROR: Failed to claim handoff '${prefix}'."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local claimed_val
+    claimed_val="$(python3 -c 'import sys, json; print(str(json.loads(sys.argv[1]).get("claimed", "")).lower())' "${response}" 2>/dev/null || echo "")"
+    
+    if [ "${claimed_val}" != "true" ]; then
+        status red "ERROR: Handoff was not claimed correctly."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    status green "Handoff claimed: ${handoff_id} by ${agent_name}"
+    status yellow "EXECUTION MANDATE: Claim is start-of-work. Always complete, test, and handoff back to the requester or review owner."
+    print_handoff_details "${handoff_id}"
+}
+
+admin_complete_handoff() {
+    local handoff_id="$1"
+    if [ -z "${handoff_id}" ]; then
+        printf 'ERROR: --admin-complete requires a handoff <id>\n' >&2
+        usage
+    fi
+
+    local prefix
+    prefix="$(handoff_lookup_prefix "${handoff_id}")"
+    local response
+    if ! response="$(cortex_api_call_admin POST "/handoffs/${prefix}/complete" "{}" 2>&1)"; then
+        status red "ERROR: Failed to complete handoff '${prefix}'."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local completed_val
+    completed_val="$(python3 -c 'import sys, json; print(str(json.loads(sys.argv[1]).get("completed", "")).lower())' "${response}" 2>/dev/null || echo "")"
+    if [ "${completed_val}" != "true" ]; then
+        status red "ERROR: Handoff was not completed correctly."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    raise SystemExit(0)
+
+for warning in data.get("warnings") or []:
+    print(f"\033[33mWARNING: {warning}\033[0m")
+PYEOF
+
+    status green "Handoff completed: ${handoff_id}"
+}
+
+complete_handoff_compat() {
+    local handoff_id="$1"
+    shift
+
+    if [ -z "${handoff_id}" ]; then
+        printf 'ERROR: --complete requires a handoff <id>\n' >&2
+        usage
+    fi
+
+    local agent_name=""
+    local summary=""
+    local decision=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --agent|--summary|--decision)
+                if [ $# -lt 2 ]; then
+                    printf 'ERROR: %s requires a value\n' "$1" >&2
+                    exit 2
+                fi
+                case "$1" in
+                    --agent) agent_name="$2" ;;
+                    --summary) summary="$2" ;;
+                    --decision) decision="$2" ;;
+                esac
+                shift 2
+                ;;
+            *)
+                printf 'ERROR: Unknown flag: %s\n' "$1" >&2
+                exit 2
+                ;;
+        esac
+    done
+
+    case "${decision}" in
+        ""|accept|rework) ;;
+        *)
+            printf 'ERROR: Invalid decision "%s". Must be: accept, rework\n' "${decision}" >&2
+            exit 2
+            ;;
+    esac
+
+    local prefix
+    prefix="$(handoff_lookup_prefix "${handoff_id}")"
+    local response
+    if ! response="$(cortex_api_call_json GET "/handoffs/${prefix}" "" "" 2>&1)"; then
+        status red "ERROR: Handoff '${prefix}' not found or API error."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local handoff_fields
+    handoff_fields="$(python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+print(data.get("kind") or "task")
+print(data.get("status") or "")
+print(data.get("claimed_by") or "")
+PYEOF
+    )"
+    local handoff_kind handoff_status claimed_by
+    handoff_kind="$(printf '%s\n' "${handoff_fields}" | sed -n '1p')"
+    handoff_status="$(printf '%s\n' "${handoff_fields}" | sed -n '2p')"
+    claimed_by="$(printf '%s\n' "${handoff_fields}" | sed -n '3p')"
+
+    if [ -z "${agent_name}" ]; then
+        agent_name="${CORTEX_AGENT_ID:-${CORTEX_AGENT:-${BEAT_CORTEX_AGENT:-}}}"
+    fi
+    if [ -z "${agent_name}" ]; then
+        agent_name="${claimed_by}"
+    fi
+    if [ -z "${agent_name}" ]; then
+        printf 'ERROR: --complete could not resolve the actor. Claim the handoff or pass --agent <name>.\n' >&2
+        exit 2
+    fi
+    agent_name="$(cortex_normalize_agent_name "${agent_name}")"
+
+    if [ "${handoff_kind}" = "completion_handback" ] && [ -z "${decision}" ]; then
+        printf 'ERROR: Completion handback %s requires --decision accept|rework.\n' "${prefix}" >&2
+        printf 'Use: cortex-handoff --complete %s --agent %s --decision accept|rework\n' \
+            "${prefix}" "${agent_name}" >&2
+        exit 2
+    fi
+    if [ "${handoff_kind}" != "completion_handback" ] && [ -n "${decision}" ]; then
+        printf 'ERROR: --decision applies only to completion handbacks.\n' >&2
+        exit 2
+    fi
+
+    if [ -z "${summary}" ]; then
+        if [ "${handoff_kind}" = "completion_handback" ]; then
+            summary="Reviewed via cortex-handoff --complete compatibility command"
+        else
+            summary="Completed via cortex-handoff --complete compatibility command"
+        fi
+    fi
+
+    status yellow "Compatibility close: routing ${handoff_kind} (${handoff_status:-unknown}) through the reviewable return protocol."
+    local -a return_args=(
+        --agent "${agent_name}"
+        --summary "${summary}"
+    )
+    if [ -n "${decision}" ]; then
+        return_args+=(--decision "${decision}")
+    fi
+    return_handoff "${handoff_id}" "${return_args[@]}"
+}
+
+return_handoff() {
+    local handoff_id="$1"
+    shift
+
+    if [ -z "${handoff_id}" ]; then
+        printf 'ERROR: --return requires a handoff <id>\n' >&2
+        exit 2
+    fi
+
+    local agent_name=""
+    local summary=""
+    local outcome="completed"
+    local decision=""
+    local work_product_id=""
+    local tests_json="[]"
+    local artifacts_csv=""
+    local risks_csv=""
+    local followups_csv=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --agent|--summary|--outcome|--decision|--work-product|--tests|--artifacts|--risks|--followups)
+                if [ $# -lt 2 ]; then
+                    printf 'ERROR: %s requires a value\n' "$1" >&2
+                    exit 2
+                fi
+                case "$1" in
+                    --agent) agent_name="$2" ;;
+                    --summary) summary="$2" ;;
+                    --outcome) outcome="$2" ;;
+                    --decision) decision="$2" ;;
+                    --work-product) work_product_id="$2" ;;
+                    --tests) tests_json="$2" ;;
+                    --artifacts) artifacts_csv="$2" ;;
+                    --risks) risks_csv="$2" ;;
+                    --followups) followups_csv="$2" ;;
+                esac
+                shift 2
+                ;;
+            *)
+                printf 'ERROR: Unknown flag: %s\n' "$1" >&2
+                exit 2
+                ;;
+        esac
+    done
+
+    if [ -z "${agent_name}" ]; then
+        printf 'ERROR: --return requires --agent <name>\n' >&2
+        exit 2
+    fi
+    if [ -z "${summary}" ]; then
+        printf 'ERROR: --return requires --summary <text>\n' >&2
+        exit 2
+    fi
+
+    case "${outcome}" in
+        completed|partial|blocked) ;;
+        *)
+            printf 'ERROR: Invalid outcome "%s". Must be: completed, partial, blocked\n' "${outcome}" >&2
+            exit 2
+            ;;
+    esac
+    case "${decision}" in
+        ""|accept|rework) ;;
+        *)
+            printf 'ERROR: Invalid decision "%s". Must be: accept, rework\n' "${decision}" >&2
+            exit 2
+            ;;
+    esac
+
+    agent_name="$(cortex_normalize_agent_name "${agent_name}")"
+
+    local payload
+    local payload_status=0
+    payload="$(python3 - "${outcome}" "${summary}" "${decision}" "${work_product_id}" "${tests_json}" "${artifacts_csv}" "${risks_csv}" "${followups_csv}" <<'PYEOF'
+import json
+import sys
+
+outcome, summary, decision, work_product_id, tests_raw, artifacts_raw, risks_raw, followups_raw = sys.argv[1:]
+
+try:
+    tests_run = json.loads(tests_raw)
+except json.JSONDecodeError as exc:
+    print(f"ERROR: --tests must be a valid JSON array: {exc}", file=sys.stderr)
+    raise SystemExit(2)
+if not isinstance(tests_run, list):
+    print("ERROR: --tests must be a JSON array", file=sys.stderr)
+    raise SystemExit(2)
+
+def csv_items(raw):
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+body = {
+    "outcome": outcome,
+    "summary": summary,
+    "tests_run": tests_run,
+    "artifacts": csv_items(artifacts_raw),
+    "risks": csv_items(risks_raw),
+    "followups": csv_items(followups_raw),
+    "metadata": {},
+}
+if decision:
+    body["decision"] = decision
+if work_product_id:
+    body["work_product_id"] = work_product_id
+
+print(json.dumps(body))
+PYEOF
+    )" || payload_status=$?
+    if [ "${payload_status}" -ne 0 ]; then
+        exit "${payload_status}"
+    fi
+
+    local prefix
+    prefix="$(handoff_lookup_prefix "${handoff_id}")"
+
+    local response
+    if ! response="$(cortex_api_call_json POST "/handoffs/${prefix}/return" "${payload}" "${agent_name}" 2>&1)"; then
+        status red "ERROR: Failed to return handoff '${prefix}'."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local returned_val
+    returned_val="$(python3 -c 'import sys, json; print(str(json.loads(sys.argv[1]).get("returned", "")).lower())' "${response}" 2>/dev/null || echo "")"
+    if [ "${returned_val}" != "true" ]; then
+        status red "ERROR: Handoff was not returned correctly."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    status green "Handoff returned: ${handoff_id}"
+    python3 - "${response}" "${handoff_id}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+parent_handoff_id = data.get("parent_handoff_id") or sys.argv[2]
+handback_id = data.get("handback_id")
+status = data.get("status")
+
+print(f"  Parent handoff: {parent_handoff_id}")
+if handback_id:
+    print(f"  Handback:       {handback_id}")
+if status:
+    print(f"  Status:         {status}")
+
+decision = str(data.get("decision") or "").strip().lower()
+if data.get("auto_accepted"):
+    print("  Resolution:     auto-accepted")
+elif data.get("accepted") or decision in {"accept", "accepted"}:
+    print("  Resolution:     accepted")
+elif data.get("rework") or data.get("rework_requested") or decision == "rework":
+    print("  Resolution:     rework")
+
+for warning in data.get("warnings") or []:
+    print(f"\033[33mWARNING: {warning}\033[0m")
+PYEOF
+}
+
+release_handoff() {
+    local handoff_id="$1"
+    local agent_name="${2:-${CORTEX_AGENT_ID:-}}"
+    local reason="${3:-}"
+    if [ -z "${handoff_id}" ]; then
+        printf 'ERROR: --release requires a handoff <id>\n' >&2
+        usage
+    fi
+    [ -n "${agent_name}" ] && agent_name="$(cortex_normalize_agent_name "${agent_name}")"
+
+    local prefix
+    prefix="$(handoff_lookup_prefix "${handoff_id}")"
+
+    local payload
+    payload="$(python3 - "${reason}" <<'PYEOF'
+import json
+import sys
+
+reason = sys.argv[1].strip()
+print(json.dumps({"reason": reason} if reason else {}))
+PYEOF
+    )"
+
+    local response
+    if ! response="$(cortex_api_call_json POST "/handoffs/${prefix}/release" "${payload}" "${agent_name}" 2>&1)"; then
+        status red "ERROR: Failed to release handoff '${prefix}'."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local released_val
+    released_val="$(python3 -c 'import sys, json; print(str(json.loads(sys.argv[1]).get("released", "")).lower())' "${response}" 2>/dev/null || echo "")"
+    if [ "${released_val}" != "true" ]; then
+        status red "ERROR: Handoff was not released correctly."
+        printf '%s\n' "${response}" >&2
+        exit 1
+    fi
+
+    local retry_count
+    retry_count="$(python3 -c 'import sys, json; print(json.loads(sys.argv[1]).get("retry_count", ""))' "${response}" 2>/dev/null || echo "")"
+    status green "Handoff released/requeued: ${handoff_id}"
+    [ -n "${retry_count}" ] && printf '  Retry count: %s\n' "${retry_count}"
+}
+
+if [ $# -eq 0 ]; then
+    list_handoffs
+    exit 0
+fi
+
+ACTION="$1"
+shift
+
+case "${ACTION}" in
+    --mine)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: --mine requires an agent or role name\n' >&2
+            usage
+        fi
+        mine_handoffs "$1"
+        ;;
+    --create)
+        create_handoff "$@"
+        ;;
+    --show)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: --show requires a handoff ID\n' >&2
+            usage
+        fi
+        show_handoff "$1"
+        ;;
+    --claim)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: --claim requires a handoff ID\n' >&2
+            usage
+        fi
+        CLAIM_ID="$1"
+        shift
+        CLAIM_AGENT=""
+        CLAIM_DETERMINISTIC_NO_MODEL=0
+        CLAIM_BUDGET_INPUT_TOKENS="${CORTEX_HANDOFF_BUDGET_INPUT_TOKENS:-1200}"
+        CLAIM_BUDGET_OUTPUT_TOKENS="${CORTEX_HANDOFF_BUDGET_OUTPUT_TOKENS:-1200}"
+        CLAIM_BUDGET_LANE="${CORTEX_HANDOFF_BUDGET_LANE:-handoff}"
+        CLAIM_BUDGET_OVERRIDE_DECISION_ID="${CORTEX_HANDOFF_BUDGET_OVERRIDE_DECISION_ID:-${CORTEX_CTO_OVERRIDE:-}}"
+        CLAIM_BUDGET_OVERRIDE_REASON="${CORTEX_HANDOFF_BUDGET_OVERRIDE_REASON:-}"
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --agent) CLAIM_AGENT="$2"; shift 2 ;;
+                --deterministic-no-model) CLAIM_DETERMINISTIC_NO_MODEL=1; shift ;;
+                --budget-input-tokens) CLAIM_BUDGET_INPUT_TOKENS="$2"; shift 2 ;;
+                --budget-output-tokens) CLAIM_BUDGET_OUTPUT_TOKENS="$2"; shift 2 ;;
+                --budget-lane) CLAIM_BUDGET_LANE="$2"; shift 2 ;;
+                --budget-override-decision) CLAIM_BUDGET_OVERRIDE_DECISION_ID="$2"; shift 2 ;;
+                --budget-override-reason) CLAIM_BUDGET_OVERRIDE_REASON="$2"; shift 2 ;;
+                *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+            esac
+        done
+        if [ -z "${CLAIM_AGENT}" ]; then
+            printf 'ERROR: --claim requires --agent <name>\n' >&2
+            usage
+        fi
+        claim_handoff \
+            "${CLAIM_ID}" \
+            "${CLAIM_AGENT}" \
+            "${CLAIM_DETERMINISTIC_NO_MODEL}" \
+            "${CLAIM_BUDGET_INPUT_TOKENS}" \
+            "${CLAIM_BUDGET_OUTPUT_TOKENS}" \
+            "${CLAIM_BUDGET_LANE}" \
+            "${CLAIM_BUDGET_OVERRIDE_DECISION_ID}" \
+            "${CLAIM_BUDGET_OVERRIDE_REASON}"
+        ;;
+    --complete)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: --complete requires a handoff ID\n' >&2
+            usage
+        fi
+        COMPLETE_ID="$1"
+        shift
+        complete_handoff_compat "${COMPLETE_ID}" "$@"
+        ;;
+    --admin-complete)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: --admin-complete requires a handoff ID\n' >&2
+            usage
+        fi
+        admin_complete_handoff "$1"
+        ;;
+    --return)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: --return requires a handoff ID\n' >&2
+            usage
+        fi
+        RETURN_ID="$1"
+        shift
+        return_handoff "${RETURN_ID}" "$@"
+        ;;
+    --release|--requeue)
+        if [ $# -lt 1 ]; then
+            printf 'ERROR: %s requires a handoff ID\n' "${ACTION}" >&2
+            usage
+        fi
+        RELEASE_ID="$1"
+        shift
+        RELEASE_AGENT="${CORTEX_AGENT_ID:-}"
+        RELEASE_REASON=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --agent) RELEASE_AGENT="$2"; shift 2 ;;
+                --reason) RELEASE_REASON="$2"; shift 2 ;;
+                *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; usage ;;
+            esac
+        done
+        release_handoff "${RELEASE_ID}" "${RELEASE_AGENT}" "${RELEASE_REASON}"
+        ;;
+    --help|-h)
+        usage
+        ;;
+    *)
+        printf 'ERROR: Unknown action: %s\n' "${ACTION}" >&2
+        usage
+        ;;
+esac

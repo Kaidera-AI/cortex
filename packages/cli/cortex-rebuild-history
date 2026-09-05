@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# cortex-rebuild-history — replace project chat history from local source transcripts
+# Usage: cortex-rebuild-history [--dry-run] [--claude-dir <dir>] [--codex-dir <dir>]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/_cortex_lib.sh"
+
+DRY_RUN=false
+CLAUDE_DIR_OVERRIDE=""
+CODEX_DIR="${CODEX_DIR:-$HOME/.codex/sessions}"
+FALLBACK_AGENT="$(cortex_normalize_agent_name "${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${BEAT_CORTEX_AGENT:-}}}" 2>/dev/null || true)"
+
+usage() {
+    echo "Usage: cortex-rebuild-history [--dry-run] [--claude-dir <dir>] [--codex-dir <dir>]"
+    exit 1
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --claude-dir)
+            [ $# -ge 2 ] || usage
+            CLAUDE_DIR_OVERRIDE="$2"
+            shift 2
+            ;;
+        --codex-dir)
+            [ $# -ge 2 ] || usage
+            CODEX_DIR="$2"
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+get_codex_agent() {
+    local uuid="$1"
+    local map_file="$2"
+    local match
+    match=$(grep "^${uuid}=" "$map_file" 2>/dev/null | head -1 | cut -d= -f2)
+    if [ -n "${match}" ]; then
+        cortex_normalize_agent_name "${match}"
+        return 0
+    fi
+    [ -n "${FALLBACK_AGENT}" ] || return 1
+    printf '%s\n' "${FALLBACK_AGENT}"
+}
+
+CLAUDE_FILES=()
+while IFS= read -r claude_dir; do
+    [ -d "$claude_dir" ] || continue
+    while IFS= read -r session_file; do
+        [ -f "$session_file" ] || continue
+        CLAUDE_FILES+=("$session_file")
+    done < <(find "$claude_dir" -maxdepth 1 -type f -name "*.jsonl" | sort)
+done < <(discover_claude_dirs "$CLAUDE_DIR_OVERRIDE")
+
+CODEX_FILES=()
+while IFS= read -r session_file; do
+    [ -f "$session_file" ] || continue
+    CODEX_FILES+=("$session_file")
+done < <(discover_codex_sessions "$CODEX_DIR")
+
+echo "═══════════════════════════════════════════"
+echo "  Cortex — Rebuild Project History"
+echo "═══════════════════════════════════════════"
+echo ""
+echo "Project: ${CORTEX_PROJECT}"
+echo "Project Root: ${PROJECT_ROOT}"
+echo "Claude sessions discovered: ${#CLAUDE_FILES[@]}"
+echo "Codex sessions discovered: ${#CODEX_FILES[@]}"
+echo ""
+
+if [ "$DRY_RUN" = true ]; then
+    echo "Dry run only. No database changes made."
+    exit 0
+fi
+
+if [ -z "${FALLBACK_AGENT}" ]; then
+    echo "ERROR: cortex-rebuild-history needs a fallback agent for transcripts without explicit attribution." >&2
+    echo "Set CORTEX_AGENT/CORTEX_AGENT_ID/BEAT_CORTEX_AGENT or use cortex-sync-workspace for registry-aware attribution." >&2
+    exit 2
+fi
+
+PROJECT_SQL=$(sql_escape "${CORTEX_PROJECT}")
+read -r BEFORE_SESSIONS BEFORE_MESSAGES <<<"$(pg_query "
+  SELECT
+    (SELECT COUNT(*) FROM agent_sessions WHERE project = '${PROJECT_SQL}'),
+    (SELECT COUNT(*) FROM messages WHERE project = '${PROJECT_SQL}');
+" | tr '|' ' ')"
+
+echo "Purging existing project chat history..."
+SQL_FILE=$(mktemp /tmp/cortex-rebuild-XXXXXX.sql)
+cat >"$SQL_FILE" <<SQL
+BEGIN;
+DELETE FROM messages
+ WHERE session_id IN (
+   SELECT id FROM agent_sessions WHERE project = '${PROJECT_SQL}'
+ );
+DELETE FROM messages
+ WHERE project = '${PROJECT_SQL}';
+DELETE FROM agent_sessions
+ WHERE project = '${PROJECT_SQL}';
+COMMIT;
+SQL
+pg_exec_file "$SQL_FILE" -q >/dev/null
+rm -f "$SQL_FILE"
+
+echo "Re-ingesting Claude sessions..."
+for session_file in "${CLAUDE_FILES[@]}"; do
+    source_uuid=$(basename "$session_file" .jsonl)
+    echo "  Claude: ${source_uuid}"
+    "$SCRIPT_DIR/cortex-ingest-session" "$session_file" "${FALLBACK_AGENT}" >/dev/null
+done
+
+echo "Re-ingesting Codex sessions..."
+CODEX_MAP_FILE=$(mktemp -t codex-agent-map)
+build_codex_agent_map > "$CODEX_MAP_FILE" 2>/dev/null || true
+for session_file in "${CODEX_FILES[@]}"; do
+    source_uuid=$(basename "$session_file" .jsonl | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | tail -1)
+    [ -n "$source_uuid" ] || continue
+    agent_name=$(get_codex_agent "$source_uuid" "$CODEX_MAP_FILE")
+    echo "  Codex: ${source_uuid} (${agent_name})"
+    "$SCRIPT_DIR/cortex-ingest-codex" "$session_file" "$agent_name" >/dev/null
+done
+rm -f "$CODEX_MAP_FILE"
+
+echo "Scrubbing stray cross-project/orphaned messages..."
+SQL_FILE=$(mktemp /tmp/cortex-rebuild-scrub-XXXXXX.sql)
+cat >"$SQL_FILE" <<SQL
+BEGIN;
+DELETE FROM messages m
+ USING agent_sessions s
+ WHERE m.project = '${PROJECT_SQL}'
+   AND m.session_id = s.id
+   AND s.project <> '${PROJECT_SQL}';
+
+DELETE FROM messages m
+ WHERE m.project = '${PROJECT_SQL}'
+   AND m.session_id IS NOT NULL
+   AND NOT EXISTS (
+     SELECT 1
+       FROM agent_sessions s
+      WHERE s.id = m.session_id
+        AND s.project = '${PROJECT_SQL}'
+   );
+COMMIT;
+SQL
+pg_exec_file "$SQL_FILE" -q >/dev/null
+rm -f "$SQL_FILE"
+
+read -r AFTER_SESSIONS AFTER_MESSAGES <<<"$(pg_query "
+  SELECT
+    (SELECT COUNT(*) FROM agent_sessions WHERE project = '${PROJECT_SQL}'),
+    (SELECT COUNT(*) FROM messages WHERE project = '${PROJECT_SQL}');
+" | tr '|' ' ')"
+
+echo ""
+echo "Rebuild complete."
+echo "  Sessions: ${BEFORE_SESSIONS} -> ${AFTER_SESSIONS}"
+echo "  Messages: ${BEFORE_MESSAGES} -> ${AFTER_MESSAGES}"

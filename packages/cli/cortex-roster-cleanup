@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# cortex-roster-cleanup — demote phantom roster rows and inspect stale project mirrors.
+#
+# This is operator tooling, not an agent command. It preserves history: cleanup
+# delegates to cortex-maintain-agents, which marks non-canonical visible rows
+# history-only instead of deleting agent memory, handoffs, or messages.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-roster-cleanup [--project KEY | --all] [--dry-run]
+  cortex-roster-cleanup --workspace-root PATH [--expect-project KEY] [--dry-run]
+
+Demotes phantom/non-canonical roster rows through cortex-maintain-agents and,
+when --workspace-root is supplied, runs cortex-harness-doctor in advisory mode so
+stale copied .agents toolchains are visible before regeneration.
+EOF
+    exit 1
+}
+
+PROJECT_ARGS=()
+DOCTOR_ROOTS=()
+EXPECT_PROJECT=""
+DRY_RUN=0
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --project)
+            [ "$#" -ge 2 ] || usage
+            PROJECT_ARGS+=(--project "$2")
+            shift 2
+            ;;
+        --all)
+            PROJECT_ARGS+=(--all)
+            shift
+            ;;
+        --workspace-root)
+            [ "$#" -ge 2 ] || usage
+            DOCTOR_ROOTS+=("$2")
+            shift 2
+            ;;
+        --expect-project)
+            [ "$#" -ge 2 ] || usage
+            EXPECT_PROJECT="$2"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            usage
+            ;;
+    esac
+done
+
+if [ "${#PROJECT_ARGS[@]}" -eq 0 ]; then
+    PROJECT_ARGS=(--project "${CORTEX_PROJECT:-}")
+fi
+
+if [ "${DRY_RUN}" -eq 1 ]; then
+    PROJECT_ARGS+=(--dry-run)
+fi
+
+echo "Roster maintenance:"
+"${SCRIPT_DIR}/cortex-maintain-agents" "${PROJECT_ARGS[@]}"
+
+if [ "${#DOCTOR_ROOTS[@]}" -gt 0 ]; then
+    echo ""
+    echo "Workspace harness doctor:"
+    for root in "${DOCTOR_ROOTS[@]}"; do
+        doctor_args=(--root "$root" --mode project --advisory)
+        if [ -n "${EXPECT_PROJECT}" ]; then
+            doctor_args+=(--expect-project "${EXPECT_PROJECT}")
+        fi
+        "${SCRIPT_DIR}/cortex-harness-doctor" "${doctor_args[@]}"
+    done
+fi

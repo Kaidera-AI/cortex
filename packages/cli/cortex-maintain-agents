@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# cortex-maintain-agents — keep visible agent roster aligned with canonical profiles.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-maintain-agents [--project <key>] [--dry-run]
+  cortex-maintain-agents --all [--dry-run]
+EOF
+    exit 1
+}
+
+DRY_RUN=0
+MAINTAIN_ALL=0
+PROJECTS=()
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --project)
+            [ $# -ge 2 ] || usage
+            PROJECTS+=("$2")
+            shift 2
+            ;;
+        --all)
+            MAINTAIN_ALL=1
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            echo "ERROR: Unknown flag: $1" >&2
+            usage
+            ;;
+    esac
+done
+
+if ! pg_available; then
+    echo "ERROR: Cortex PostgreSQL is not reachable." >&2
+    exit 1
+fi
+
+if [ "${MAINTAIN_ALL}" -eq 1 ]; then
+    if [ -n "${WORKSPACE_CONFIG_FILE:-}" ] && [ -f "${WORKSPACE_CONFIG_FILE}" ]; then
+        while IFS= read -r project_key; do
+            [ -n "${project_key}" ] && PROJECTS+=("${project_key}")
+        done < <(
+            python3 - "${WORKSPACE_CONFIG_FILE}" <<'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1], "r") as handle:
+    config = json.load(handle)
+
+for project in config.get("projects", []):
+    key = str(project.get("key", "")).strip()
+    if key:
+        print(key)
+PYEOF
+        )
+    fi
+fi
+
+if [ "${#PROJECTS[@]}" -eq 0 ]; then
+    PROJECTS=("${CORTEX_PROJECT}")
+fi
+
+deduped_projects=()
+seen_projects=""
+for project_name in "${PROJECTS[@]}"; do
+    [ -n "${project_name}" ] || continue
+    if printf '%s\n' "${seen_projects}" | grep -Fqx "${project_name}"; then
+        continue
+    fi
+    deduped_projects+=("${project_name}")
+    if [ -n "${seen_projects}" ]; then
+        seen_projects="${seen_projects}
+${project_name}"
+    else
+        seen_projects="${project_name}"
+    fi
+done
+PROJECTS=("${deduped_projects[@]}")
+
+maintain_project() {
+    local project_name="$1"
+    local project_sql
+    local tmp_sql
+    local visible_count
+    local history_only_count
+
+    project_sql="$(sql_escape "${project_name}")"
+
+    if [ "${DRY_RUN}" -eq 0 ]; then
+        tmp_sql="$(mktemp /tmp/cortex-maintain-agents.XXXXXX)"
+        cat > "${tmp_sql}" <<EOF
+BEGIN;
+
+UPDATE agents a
+   SET capabilities = (
+           (COALESCE(a.capabilities, '{}'::jsonb) - 'transient' - 'keep_visible' - 'visibility')
+           || '{"keep_visible": true, "visibility": "active"}'::jsonb
+       )
+ WHERE a.project = '${project_sql}'
+   AND EXISTS (
+        SELECT 1
+          FROM agent_profiles ap
+         WHERE ap.project = a.project
+           AND ap.agent_name = a.name
+   );
+
+UPDATE agents a
+   SET capabilities = (
+           (COALESCE(a.capabilities, '{}'::jsonb) - 'keep_visible' - 'transient' - 'visibility')
+           || '{"transient": true, "visibility": "history-only"}'::jsonb
+       )
+ WHERE a.project = '${project_sql}'
+   AND (
+        a.name LIKE 'claude-subagent-%'
+        OR a.name LIKE 'codex-subagent-%'
+        OR a.name = 'codex-agent'
+   );
+
+UPDATE agents a
+   SET capabilities = (
+           (COALESCE(a.capabilities, '{}'::jsonb) - 'keep_visible' - 'visibility')
+           || '{"visibility": "history-only"}'::jsonb
+       )
+ WHERE a.project = '${project_sql}'
+   AND COALESCE(a.capabilities->>'keep_visible', 'false') <> 'true'
+   AND NOT EXISTS (
+        SELECT 1
+          FROM agent_profiles ap
+         WHERE ap.project = a.project
+           AND ap.agent_name = a.name
+   );
+
+COMMIT;
+EOF
+        pg_exec_file "${tmp_sql}" >/dev/null
+        rm -f "${tmp_sql}"
+    fi
+
+    visible_count="$(pg_query "
+        SELECT COUNT(*)
+          FROM agents a
+         WHERE a.project = '${project_sql}'
+           AND $(cortex_visible_agent_sql "a");
+    " 2>/dev/null | tr -d '[:space:]' || true)"
+
+    history_only_count="$(pg_query "
+        SELECT COUNT(*)
+          FROM agents a
+         WHERE a.project = '${project_sql}'
+           AND COALESCE(a.capabilities->>'visibility', 'active') = 'history-only';
+    " 2>/dev/null | tr -d '[:space:]' || true)"
+
+    printf '%s: visible=%s history-only=%s\n' \
+        "${project_name}" \
+        "${visible_count:-0}" \
+        "${history_only_count:-0}"
+}
+
+for project_name in "${PROJECTS[@]}"; do
+    maintain_project "${project_name}"
+done

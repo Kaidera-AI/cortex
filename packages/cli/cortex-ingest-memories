@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# cortex-ingest-memories — ingest markdown memory files through typed API endpoints.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+if ! declare -F cortex_api_call_json >/dev/null && [ -f "${SCRIPT_DIR}/_cortex_api.sh" ]; then
+    # shellcheck source=./_cortex_api.sh
+    source "${SCRIPT_DIR}/_cortex_api.sh"
+fi
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-ingest-memories [--path DIR] [--limit N] [--max-errors N] [--error-threshold N] [--on-conflict conflict|update]
+                              [--allow-repo-root] [--include-internal]
+
+Safety:
+  By default this refuses to ingest the repository root and prunes generated or
+  development-only folders such as .agents, .cortex, Program, docs, _adr, and
+  .git. Customer/project memory imports should point at an explicit corpus
+  directory, for example ./project-knowledge.
+EOF
+}
+
+IMPORT_PATH="${MEMORY_IMPORT_PATH:-${MEMORY_DIR:-.}}"
+LIMIT=0
+MAX_ERRORS=10
+ERROR_THRESHOLD=3
+ON_CONFLICT="conflict"
+ALLOW_REPO_ROOT=0
+INCLUDE_INTERNAL=0
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --path) IMPORT_PATH="$2"; shift 2 ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        --max-errors) MAX_ERRORS="$2"; shift 2 ;;
+        --error-threshold) ERROR_THRESHOLD="$2"; shift 2 ;;
+        --on-conflict) ON_CONFLICT="$2"; shift 2 ;;
+        --allow-repo-root) ALLOW_REPO_ROOT=1; shift ;;
+        --include-internal) INCLUDE_INTERNAL=1; shift ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: Unknown option: $1 (use --help for usage)" >&2; exit 1 ;;
+    esac
+done
+
+case "${ON_CONFLICT}" in
+    conflict|update) ;;
+    *) echo "ERROR: --on-conflict must be one of: conflict, update" >&2; exit 2 ;;
+esac
+
+[ -d "${IMPORT_PATH}" ] || { echo "ERROR: import path not found: ${IMPORT_PATH}" >&2; exit 1; }
+IMPORT_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${IMPORT_PATH}")"
+REPO_ROOT="$(cd "${AGENTS_DIR}/.." && pwd -P)"
+if [ "${IMPORT_PATH}" = "${REPO_ROOT}" ] && [ "${ALLOW_REPO_ROOT}" -ne 1 ]; then
+    cat >&2 <<EOF
+ERROR: refusing to ingest the repository root.
+  Path: ${IMPORT_PATH}
+
+Point --path at an explicit project/customer corpus directory. This prevents
+generated harness state, per-machine history, and other projects from
+being imported into the active Cortex project.
+
+If this is a deliberate operator audit, rerun with --allow-repo-root.
+EOF
+    exit 64
+fi
+if ! declare -F cortex_api_call_json >/dev/null; then
+    echo "ERROR: Cortex API helper is unavailable" >&2
+    exit 127
+fi
+
+# Project-agnostic ingest attribution: the active agent (CORTEX_AGENT), else a
+# generic, config-overridable fallback (CORTEX_DEFAULT_AGENT). No project key,
+# roster, or default agent name is baked in — keeps the harness drop-in.
+default_ingest_agent() {
+    local requested
+    requested="$(printf '%s' "${CORTEX_AGENT:-}" | tr '[:upper:]' '[:lower:]')"
+    printf '%s\n' "${requested:-${CORTEX_DEFAULT_AGENT:-importer}}"
+}
+
+DEFAULT_INGEST_AGENT="$(default_ingest_agent)"
+
+classify_endpoint() {
+    local path_lc
+    path_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    endpoint="/knowledge/ingest"
+    case "${path_lc}" in
+        *decision*|*adr*) endpoint="/decisions/ingest" ;;
+        *lesson*|*feedback*|*retro*) endpoint="/lessons/ingest" ;;
+    esac
+    printf '%s\n' "${endpoint}"
+}
+
+build_payload() {
+    local file="$1"
+    local endpoint="$2"
+    local on_conflict="$3"
+    local agent_name="$4"
+    python3 - "${file}" "${endpoint}" "${on_conflict}" "${agent_name}" <<'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1]).resolve()
+endpoint = sys.argv[2]
+on_conflict = sys.argv[3]
+agent_name = sys.argv[4]
+text = path.read_text(encoding="utf-8", errors="replace")
+heading = path.stem.replace("_", " ").replace("-", " ").strip().title()
+for line in text.splitlines():
+    stripped = line.strip()
+    if stripped.startswith("#"):
+        heading = stripped.lstrip("#").strip() or heading
+        break
+
+if endpoint == "/decisions/ingest":
+    body = {"summary": heading, "rationale": text, "category": "imported", "agent_name": agent_name}
+elif endpoint == "/lessons/ingest":
+    body = {"summary": heading, "detail": text, "category": "imported", "agent_name": agent_name}
+else:
+    body = {"content": text, "source_file": str(path), "category": "imported", "section": heading}
+body["on_conflict"] = on_conflict
+print(json.dumps(body))
+PYEOF
+}
+
+find_import_files() {
+    if [ "${INCLUDE_INTERNAL}" -eq 1 ]; then
+        find "${IMPORT_PATH}" -type f \( -name '*.md' -o -name '*.markdown' \) | sort
+        return
+    fi
+
+    find "${IMPORT_PATH}" \
+        \( \
+            -path "${REPO_ROOT}/.git" -o -path "${REPO_ROOT}/.git/*" -o \
+            -path "${REPO_ROOT}/.agents" -o -path "${REPO_ROOT}/.agents/*" -o \
+            -path "${REPO_ROOT}/.cortex" -o -path "${REPO_ROOT}/.cortex/*" -o \
+            -path "${REPO_ROOT}/Program" -o -path "${REPO_ROOT}/Program/*" -o \
+            -path "${REPO_ROOT}/docs" -o -path "${REPO_ROOT}/docs/*" -o \
+            -path "${REPO_ROOT}/_adr" -o -path "${REPO_ROOT}/_adr/*" -o \
+            -path "${REPO_ROOT}/_research" -o -path "${REPO_ROOT}/_research/*" -o \
+            -path "${REPO_ROOT}/_design_knowledge" -o -path "${REPO_ROOT}/_design_knowledge/*" -o \
+            -path "${REPO_ROOT}/_setup" -o -path "${REPO_ROOT}/_setup/*" -o \
+            -path "${REPO_ROOT}/plans" -o -path "${REPO_ROOT}/plans/*" -o \
+            -path "${REPO_ROOT}/.obsidian" -o -path "${REPO_ROOT}/.obsidian/*" -o \
+            -path "${REPO_ROOT}/output" -o -path "${REPO_ROOT}/output/*" -o \
+            -path "${REPO_ROOT}/scratch" -o -path "${REPO_ROOT}/scratch/*" -o \
+            -path "${REPO_ROOT}/.archive" -o -path "${REPO_ROOT}/.archive/*" -o \
+            -path "${REPO_ROOT}/.dogfood-backup" -o -path "${REPO_ROOT}/.dogfood-backup/*" \
+        \) -prune -o \
+        -type f \( -name '*.md' -o -name '*.markdown' \) \
+        ! -name 'AGENTS.md' \
+        ! -name 'CLAUDE.md' \
+        ! -name 'GEMINI.md' \
+        ! -name 'RACI.md' \
+        -print | sort
+}
+
+attempted=0
+imported=0
+skipped=0
+updated=0
+failed=0
+threshold_state="green"
+
+while IFS= read -r file; do
+    [ -f "${file}" ] || continue
+    if [ "${LIMIT}" -gt 0 ] && [ "${attempted}" -ge "${LIMIT}" ]; then
+        break
+    fi
+    attempted=$((attempted + 1))
+    endpoint="$(classify_endpoint "${file}")"
+    payload="$(build_payload "${file}" "${endpoint}" "${ON_CONFLICT}" "${DEFAULT_INGEST_AGENT}")"
+    response=""
+    if response="$(cortex_api_call_json POST "${endpoint}" "${payload}" 2>&1)"; then
+        status_value="$(python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("unknown")
+else:
+    print(data.get("status") or ("created" if data.get("created") else "unchanged"))
+PYEOF
+)"
+        case "${status_value}" in
+            created)
+                imported=$((imported + 1))
+                printf 'Imported: %s\n' "${file}"
+                ;;
+            updated)
+                updated=$((updated + 1))
+                printf 'Updated: %s\n' "${file}"
+                ;;
+            unchanged)
+                skipped=$((skipped + 1))
+                printf 'Unchanged: %s\n' "${file}"
+                ;;
+            *)
+                imported=$((imported + 1))
+                printf 'Imported: %s\n' "${file}"
+                ;;
+        esac
+    else
+        failed=$((failed + 1))
+        printf 'ERROR: failed memory file: %s\n' "${file}" >&2
+        printf '%s\n' "${response}" >&2
+        if [ "${failed}" -ge "${ERROR_THRESHOLD}" ] || [ "${failed}" -ge "${MAX_ERRORS}" ]; then
+            threshold_state="red"
+            break
+        fi
+    fi
+done < <(find_import_files)
+
+if [ "${failed}" -ge "${ERROR_THRESHOLD}" ]; then
+    threshold_state="red"
+fi
+
+printf 'Summary: attempted=%s imported=%s skipped=%s failed=%s threshold=%s updated=%s\n' \
+    "${attempted}" "${imported}" "${skipped}" "${failed}" "${threshold_state}" "${updated}"
+
+[ "${threshold_state}" = "green" ]

@@ -1,0 +1,6 @@
+# PDF-worker HTTP runtime (CPython 3.12/Linux).
+fastapi==0.141.1
+pydantic==2.11.4
+python-multipart==0.0.32
+starlette==1.6.0
+uvicorn[standard]==0.52.3

@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# cortex-embed — inspect and backfill embeddings through the Cortex API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-embed [--stats] [--table all|decisions|lessons|knowledge|messages|work_products]
+                    [--limit N] [--catchup-bulk] [--chunk-size N]
+                    [--max-errors N] [--error-threshold N] [--dry-run]
+                    [--async|--no-wait|--wait] [--wait-timeout SECONDS]
+                    [--job JOB_ID]
+EOF
+}
+
+TABLE="all"
+LIMIT=100
+MAX_ERRORS=10
+ERROR_THRESHOLD=3
+DRY_RUN=false
+MODE="backfill"
+CHUNK_SIZE=100
+ASYNC_JOB=false
+WAIT=true
+WAIT_TIMEOUT="${CORTEX_EMBED_WAIT_TIMEOUT:-900}"
+POLL_INTERVAL="${CORTEX_EMBED_POLL_INTERVAL:-2}"
+JOB_ID=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --stats|--backlog) MODE="stats"; shift ;;
+        --job|--status) MODE="job"; JOB_ID="$2"; shift 2 ;;
+        --table) TABLE="$2"; shift 2 ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        --catchup-bulk) MODE="backfill"; shift ;;
+        --chunk-size) CHUNK_SIZE="$2"; shift 2 ;;
+        --max-errors) MAX_ERRORS="$2"; shift 2 ;;
+        --error-threshold) ERROR_THRESHOLD="$2"; shift 2 ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --async) ASYNC_JOB=true; WAIT=false; shift ;;
+        --no-wait) WAIT=false; shift ;;
+        --wait) WAIT=true; shift ;;
+        --wait-timeout) WAIT_TIMEOUT="$2"; shift 2 ;;
+        --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+if [ "${MODE}" = "stats" ]; then
+    cortex_api_call_admin GET "/beat/embeddings/backlog"
+    exit 0
+fi
+
+if [ "${MODE}" = "job" ]; then
+    if [ -z "${JOB_ID}" ]; then
+        echo "ERROR: --job requires a job id" >&2
+        exit 2
+    fi
+    cortex_api_call_admin GET "/beat/embeddings/jobs/${JOB_ID%%:*}"
+    exit 0
+fi
+
+payload="$(python3 - "${TABLE}" "${LIMIT}" "${MAX_ERRORS}" "${ERROR_THRESHOLD}" "${DRY_RUN}" "${CHUNK_SIZE}" "${ASYNC_JOB}" <<'PYEOF'
+import json, sys
+print(json.dumps({
+    "table": sys.argv[1],
+    "limit": int(sys.argv[2] or 100),
+    "max_errors": int(sys.argv[3] or 10),
+    "error_threshold": int(sys.argv[4] or 3),
+    "dry_run": sys.argv[5].lower() == "true",
+    "chunk_size": int(sys.argv[6] or 100),
+    "async_job": sys.argv[7].lower() == "true",
+}))
+PYEOF
+)"
+
+response="$(CORTEX_API_MAX_TIME="${CORTEX_API_MAX_TIME:-900}" cortex_api_call_admin POST "/beat/embeddings/backfill" "${payload}")"
+
+job_id="$(python3 - "${response}" <<'PYEOF'
+import json, sys
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    raise SystemExit(0)
+print(data.get("job_id") or "")
+PYEOF
+)"
+
+if [ -z "${job_id}" ] || [ "${WAIT}" != "true" ]; then
+    printf '%s\n' "${response}"
+    exit 0
+fi
+
+printf '%s\n' "${response}" >&2
+deadline=$(( $(date +%s) + WAIT_TIMEOUT ))
+last_status=""
+while true; do
+    status_payload="$(cortex_api_call_admin GET "/beat/embeddings/jobs/${job_id}")"
+    status_line="$(python3 - "${status_payload}" <<'PYEOF'
+import json, sys
+data = json.loads(sys.argv[1])
+print(
+    "status={status} processed={processed} embedded={embedded} errors={errors} skipped={skipped}".format(
+        status=data.get("status"),
+        processed=data.get("processed", 0),
+        embedded=data.get("embedded", 0),
+        errors=data.get("errors", 0),
+        skipped=data.get("skipped", 0),
+    )
+)
+PYEOF
+)"
+    if [ "${status_line}" != "${last_status}" ]; then
+        printf '%s\n' "${status_line}" >&2
+        last_status="${status_line}"
+    fi
+    job_status="${status_line#status=}"
+    job_status="${job_status%% *}"
+    case "${job_status}" in
+        completed)
+            printf '%s\n' "${status_payload}"
+            exit 0
+            ;;
+        failed)
+            printf '%s\n' "${status_payload}"
+            exit 1
+            ;;
+    esac
+    if [ "$(date +%s)" -ge "${deadline}" ]; then
+        printf 'ERROR: embedding job %s still running after %ss; inspect with cortex-embed --job %s\n' "${job_id}" "${WAIT_TIMEOUT}" "${job_id}" >&2
+        printf '%s\n' "${status_payload}"
+        exit 124
+    fi
+    sleep "${POLL_INTERVAL}"
+done

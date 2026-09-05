@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Agent Cortex — Retention management
+# Moves aged data from Tier 2 (pgvector) to Tier 3 (archive tables)
+#
+# Usage:
+#   cortex-retain                    — Run retention for current project
+#   cortex-retain --dry-run          — Preview what would be archived
+#   cortex-retain --status           — Show retention stats
+#   cortex-retain --all-projects     — Run for all projects
+set -euo pipefail
+source "$(dirname "$0")/_cortex_lib.sh"
+
+ACTION="run"
+DRY_RUN=false
+ALL_PROJECTS=false
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --dry-run) DRY_RUN=true; shift ;;
+        --status) ACTION="status"; shift ;;
+        --all-projects) ALL_PROJECTS=true; shift ;;
+        --help|-h)
+            echo "Usage: cortex-retain [--status] [--dry-run] [--all-projects]"
+            echo ""
+            echo "Manage data retention across the 3-tier lifecycle."
+            echo ""
+            echo "  --status        Show data distribution across all tiers"
+            echo "  --dry-run       Preview what would be archived"
+            echo "  --all-projects  Run for all projects (not just current)"
+            echo "  --help          Show this help"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1 (use --help for usage)" >&2
+            exit 1
+            ;;
+    esac
+done
+
+
+if [ "${ACTION}" = "status" ]; then
+    echo "## Cortex Retention Status — ${CORTEX_PROJECT}"
+    echo ""
+
+    echo "### PostgreSQL (Tier 2 — Active)"
+    for tbl in messages team_events decisions lessons handoffs; do
+        count=$(pg_query "SELECT COUNT(*) FROM ${tbl} WHERE project = '$(sql_escape "${CORTEX_PROJECT}")';" 2>/dev/null || echo "?")
+        oldest=$(pg_query "SELECT to_char(MIN(COALESCE(ts, created_at)), 'YYYY-MM-DD') FROM ${tbl} WHERE project = '$(sql_escape "${CORTEX_PROJECT}")';" 2>/dev/null || echo "?")
+        retention=$(pg_query "SELECT tier2_days FROM retention_config WHERE table_name = '${tbl}';" 2>/dev/null || echo "90")
+        echo "  ${tbl}: ${count} rows (oldest: ${oldest}, retain: ${retention} days)"
+    done
+    echo ""
+
+    echo "### Archive (Tier 3 — Cold)"
+    for tbl in archive_messages archive_events archive_decisions archive_lessons archive_handoffs; do
+        count=$(pg_query "SELECT COUNT(*) FROM ${tbl} WHERE project = '$(sql_escape "${CORTEX_PROJECT}")';" 2>/dev/null || echo "0")
+        echo "  ${tbl}: ${count} rows"
+    done
+    exit 0
+fi
+
+echo "## Cortex Retention — ${CORTEX_PROJECT}"
+[ "${DRY_RUN}" = true ] && echo "(dry-run mode)"
+echo ""
+
+# --- Tier 2 → Tier 3: Archive aged data ---
+echo "### Archiving aged data"
+
+archive_table() {
+    local src="$1" dst="$2" ts_col="$3" cols="$4" days="$5"
+    local extra_where="${6:-}"
+
+    # Count what would be archived
+    local count
+    count=$(pg_query "SELECT COUNT(*) FROM ${src} WHERE ${ts_col} < now() - interval '${days} days' AND project = '$(sql_escape "${CORTEX_PROJECT}")' ${extra_where};" 2>/dev/null || echo "0")
+
+    if [ "${count}" = "0" ] || [ -z "${count}" ]; then
+        echo "  ${src} → ${dst}: nothing to archive"
+        return
+    fi
+
+    if [ "${DRY_RUN}" = true ]; then
+        echo "  ${src} → ${dst}: would archive ${count} rows (older than ${days} days)"
+    else
+        # MOVE, not copy-then-hope. One statement: rows are inserted, the ids that
+        # ACTUALLY landed come back via RETURNING, and only those are deleted.
+        #
+        # The previous form ran two independent statements — an INSERT ... ON CONFLICT
+        # DO NOTHING, then a DELETE keyed on the same WHERE clause. Any row the insert
+        # SKIPPED (a primary-key collision) was still deleted from the source. Nothing
+        # reported it, because DO NOTHING is silent by design and the DELETE never
+        # asked what had been inserted. Every conflict was therefore an unrecoverable
+        # message loss, and archive_messages.id is copied verbatim from messages.id
+        # with no shared sequence — so collisions were a matter of when, not whether.
+        #
+        # A row that conflicts now stays in the source. That is deliberate: a conflict
+        # means an archive row ALREADY holds that id, and we cannot tell from here
+        # whether it is the same row (safe to drop) or a different one (dropping it
+        # destroys history). Leaving it costs a little space and is visible on the next
+        # run; deleting it is irreversible. Fail toward keeping data.
+        local moved
+        moved=$(pg_query "WITH moved AS (
+            INSERT INTO ${dst} (${cols})
+            SELECT ${cols} FROM ${src}
+            WHERE ${ts_col} < now() - interval '${days} days'
+              AND project = '$(sql_escape "${CORTEX_PROJECT}")' ${extra_where}
+            ON CONFLICT DO NOTHING
+            RETURNING id
+        ), pruned AS (
+            DELETE FROM ${src} WHERE id IN (SELECT id FROM moved) RETURNING id
+        )
+        SELECT count(*) FROM pruned;" 2>/dev/null || echo "0")
+        moved="$(printf '%s' "${moved}" | tr -d '[:space:]')"
+        if [ "${moved}" = "${count}" ]; then
+            echo "  ${src} → ${dst}: archived ${moved} rows"
+        else
+            echo "  ${src} → ${dst}: archived ${moved:-0} of ${count} rows — $(( count - ${moved:-0} )) left in place (id already present in ${dst}); investigate before re-running"
+        fi
+    fi
+}
+
+# Get retention days from config (with defaults)
+msg_days=$(pg_query "SELECT tier2_days FROM retention_config WHERE table_name = 'messages';" 2>/dev/null || echo "90")
+evt_days=$(pg_query "SELECT tier2_days FROM retention_config WHERE table_name = 'team_events';" 2>/dev/null || echo "90")
+dec_days=$(pg_query "SELECT tier2_days FROM retention_config WHERE table_name = 'decisions';" 2>/dev/null || echo "365")
+les_days=$(pg_query "SELECT tier2_days FROM retention_config WHERE table_name = 'lessons';" 2>/dev/null || echo "365")
+hnd_days=$(pg_query "SELECT tier2_days FROM retention_config WHERE table_name = 'handoffs';" 2>/dev/null || echo "30")
+
+archive_table "messages" "archive_messages" "ts" "id, session_id, project, agent_name, role, content, metadata, ts" "${msg_days}"
+archive_table "team_events" "archive_events" "ts" "id, ts, agent_name, event_type, summary, detail, files, project, sprint_id" "${evt_days}"
+archive_table "decisions" "archive_decisions" "created_at" "id, sprint_id, agent_name, summary, rationale, outcome, category, files_affected, tags, project, created_at" "${dec_days}"
+archive_table "lessons" "archive_lessons" "created_at" "id, agent_name, category, summary, detail, code_right, code_wrong, project, created_at" "${les_days}"
+handoff_terminal_where="AND status IN ('completed','abandoned','failed','archived')
+  AND NOT EXISTS (
+    SELECT 1
+      FROM handoffs child
+     WHERE child.reply_to_handoff_id = handoffs.id
+       AND (
+         child.status NOT IN ('completed','abandoned','failed','archived')
+         OR child.created_at >= now() - interval '${hnd_days} days'
+       )
+  )"
+archive_table "handoffs" "archive_handoffs" "created_at" \
+  "id, kind, reply_to_handoff_id, project, from_agent, to_role, priority, summary, files_changed, acceptance, evidence, completion_report, retry, escalation, status, created_at, returned_at, completed_at" \
+  "${hnd_days}" "${handoff_terminal_where}"
+
+echo ""
+status green "Retention complete."

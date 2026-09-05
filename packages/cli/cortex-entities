@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+# cortex-entities — Query the Cortex knowledge graph
+# Part of the Cortex graph tooling.
+#
+# Usage:
+#   cortex-entities                          List all entities (grouped by type)
+#   cortex-entities --type <t>               List entities of one type
+#   cortex-entities --search <name>          Search entities by name
+#   cortex-entities --related <entity>       Show relationships for an entity
+#   cortex-entities --graph <entity>         Show 2-hop neighborhood
+#   cortex-entities --stats                  Entity graph statistics
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+PROJECT="${CORTEX_PROJECT}"
+project_sql=$(sql_escape "${PROJECT}")
+
+MODE="list"
+ENTITY_TYPE=""
+SEARCH=""
+ENTITY_NAME=""
+LIMIT=50
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --type)     MODE="list"; ENTITY_TYPE="$2"; shift 2 ;;
+        --search)   MODE="search"; SEARCH="$2"; shift 2 ;;
+        --related)  MODE="related"; ENTITY_NAME="$2"; shift 2 ;;
+        --graph)    MODE="graph"; ENTITY_NAME="$2"; shift 2 ;;
+        --stats)    MODE="stats"; shift ;;
+        --limit)    LIMIT="$2"; shift 2 ;;
+        --help|-h)
+            printf 'Usage:\n'
+            printf '  cortex-entities                          List all (grouped by type)\n'
+            printf '  cortex-entities --type <type>            Filter by type\n'
+            printf '  cortex-entities --search <name>          Search by name\n'
+            printf '  cortex-entities --related <entity>       Show relationships\n'
+            printf '  cortex-entities --graph <entity>         2-hop neighborhood\n'
+            printf '  cortex-entities --stats                  Statistics\n'
+            exit 0
+            ;;
+        *) printf 'ERROR: Unknown flag: %s\n' "$1" >&2; exit 1 ;;
+    esac
+done
+
+case "${MODE}" in
+
+    list)
+        type_filter=""
+        if [ -n "${ENTITY_TYPE}" ]; then
+            type_sql=$(sql_escape "${ENTITY_TYPE}")
+            type_filter="AND entity_type = '${type_sql}'"
+        fi
+
+        printf '\n## Cortex Entities'
+        [ -n "${ENTITY_TYPE}" ] && printf ' (type: %s)' "${ENTITY_TYPE}"
+        printf '\n\n'
+
+        pg_query "
+            SELECT entity_type || ' | ' || name || ' | ' || COALESCE(LEFT(properties->>'description', 80), '-')
+            FROM cortex_entities
+            WHERE project = '${project_sql}' ${type_filter}
+            ORDER BY entity_type, name
+            LIMIT ${LIMIT}
+        " 2>/dev/null | while IFS='|' read -r etype ename edesc; do
+            printf '  [%-8s] %-30s %s\n' "$(echo "${etype}" | tr -d ' ')" "$(echo "${ename}" | xargs)" "$(echo "${edesc}" | xargs)"
+        done
+        printf '\n'
+        ;;
+
+    search)
+        search_sql=$(sql_escape "${SEARCH}")
+        printf '\n## Entity Search: "%s"\n\n' "${SEARCH}"
+
+        pg_query "
+            SELECT entity_type || ' | ' || name || ' | ' || COALESCE(LEFT(properties->>'description', 100), '-')
+            FROM cortex_entities
+            WHERE project = '${project_sql}'
+              AND (name ILIKE '%${search_sql}%' OR (properties->>'description') ILIKE '%${search_sql}%')
+            ORDER BY entity_type, name
+            LIMIT ${LIMIT}
+        " 2>/dev/null | while IFS='|' read -r etype ename edesc; do
+            printf '  [%-8s] %-30s %s\n' "$(echo "${etype}" | tr -d ' ')" "$(echo "${ename}" | xargs)" "$(echo "${edesc}" | xargs)"
+        done
+        printf '\n'
+        ;;
+
+    related)
+        name_sql=$(sql_escape "${ENTITY_NAME}")
+        printf '\n## Relationships for: %s\n\n' "${ENTITY_NAME}"
+
+        printf '  Outgoing:\n'
+        pg_query "
+            SELECT r.relationship_type || ' -> ' || t.name || ' (' || t.entity_type || ')' ||
+                   CASE WHEN (r.properties->>'description') IS NOT NULL AND (r.properties->>'description') != '' THEN ' — ' || LEFT(r.properties->>'description', 80) ELSE '' END
+            FROM cortex_relationships r
+            JOIN cortex_entities s ON r.source_entity_id = s.id
+            JOIN cortex_entities t ON r.target_entity_id = t.id
+            WHERE r.project = '${project_sql}'
+              AND s.name ILIKE '%${name_sql}%'
+            LIMIT 20
+        " 2>/dev/null | while IFS= read -r line; do
+            [ -n "${line}" ] && printf '    %s\n' "${line}"
+        done
+
+        printf '\n  Incoming:\n'
+        pg_query "
+            SELECT s.name || ' (' || s.entity_type || ') ' || r.relationship_type || ' ->' ||
+                   CASE WHEN (r.properties->>'description') IS NOT NULL AND (r.properties->>'description') != '' THEN ' — ' || LEFT(r.properties->>'description', 80) ELSE '' END
+            FROM cortex_relationships r
+            JOIN cortex_entities s ON r.source_entity_id = s.id
+            JOIN cortex_entities t ON r.target_entity_id = t.id
+            WHERE r.project = '${project_sql}'
+              AND t.name ILIKE '%${name_sql}%'
+            LIMIT 20
+        " 2>/dev/null | while IFS= read -r line; do
+            [ -n "${line}" ] && printf '    %s\n' "${line}"
+        done
+        printf '\n'
+        ;;
+
+    graph)
+        name_sql=$(sql_escape "${ENTITY_NAME}")
+        printf '\n## 2-Hop Graph for: %s\n\n' "${ENTITY_NAME}"
+
+        pg_query "
+            WITH seed AS (
+                SELECT id, name, entity_type FROM cortex_entities
+                WHERE project = '${project_sql}' AND name ILIKE '%${name_sql}%' LIMIT 1
+            ),
+            hop1 AS (
+                SELECT DISTINCT t.id, t.name, t.entity_type, r.relationship_type, 1 as depth
+                FROM cortex_relationships r
+                JOIN seed s ON r.source_entity_id = s.id
+                JOIN cortex_entities t ON r.target_entity_id = t.id
+                WHERE r.project = '${project_sql}'
+                UNION
+                SELECT DISTINCT s2.id, s2.name, s2.entity_type, r2.relationship_type, 1
+                FROM cortex_relationships r2
+                JOIN seed s ON r2.target_entity_id = s.id
+                JOIN cortex_entities s2 ON r2.source_entity_id = s2.id
+                WHERE r2.project = '${project_sql}'
+            ),
+            hop2 AS (
+                SELECT DISTINCT t2.name, t2.entity_type, r3.relationship_type, 2 as depth
+                FROM cortex_relationships r3
+                JOIN hop1 h ON r3.source_entity_id = h.id
+                JOIN cortex_entities t2 ON r3.target_entity_id = t2.id
+                WHERE r3.project = '${project_sql}'
+                  AND t2.name NOT IN (SELECT name FROM seed)
+                  AND t2.name NOT IN (SELECT name FROM hop1)
+            )
+            SELECT '  [0] ' || name || ' (' || entity_type || ')' FROM seed
+            UNION ALL
+            SELECT '  [1] ' || name || ' (' || entity_type || ') via ' || relationship_type FROM hop1
+            UNION ALL
+            SELECT '  [2] ' || name || ' (' || entity_type || ') via ' || relationship_type FROM hop2
+            LIMIT 50
+        " 2>/dev/null
+        printf '\n'
+        ;;
+
+    stats)
+        printf '\n## Entity Graph Statistics\n\n'
+
+        entity_count=$(pg_query "SELECT COUNT(*) FROM cortex_entities WHERE project = '${project_sql}'" 2>/dev/null | tr -d '[:space:]')
+        rel_count=$(pg_query "SELECT COUNT(*) FROM cortex_relationships WHERE project = '${project_sql}'" 2>/dev/null | tr -d '[:space:]')
+        dec_processed=$(pg_query "SELECT COUNT(*) FROM decisions WHERE project = '${project_sql}' AND metadata->>'entities_extracted' = 'true'" 2>/dev/null | tr -d '[:space:]')
+        dec_total=$(pg_query "SELECT COUNT(*) FROM decisions WHERE project = '${project_sql}' AND invalidated_at IS NULL" 2>/dev/null | tr -d '[:space:]')
+
+        printf '  Entities:              %s\n' "${entity_count:-0}"
+        printf '  Relationships:         %s\n' "${rel_count:-0}"
+        printf '  Decisions processed:   %s / %s\n' "${dec_processed:-0}" "${dec_total:-0}"
+
+        printf '\n  By type:\n'
+        pg_query "
+            SELECT '    ' || entity_type || ': ' || COUNT(*)
+            FROM cortex_entities WHERE project = '${project_sql}'
+            GROUP BY entity_type ORDER BY COUNT(*) DESC
+        " 2>/dev/null
+
+        printf '\n  Top relationships:\n'
+        pg_query "
+            SELECT '    ' || relationship_type || ': ' || COUNT(*)
+            FROM cortex_relationships WHERE project = '${project_sql}'
+            GROUP BY relationship_type ORDER BY COUNT(*) DESC
+        " 2>/dev/null
+        printf '\n'
+        ;;
+
+esac

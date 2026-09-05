@@ -1,0 +1,693 @@
+#!/usr/bin/env bash
+# cortex-merge-projects — merge one or more Cortex projects into a target project.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-merge-projects [--dry-run] <target-project> <source-project> [source-project...]
+
+Examples:
+  cortex-merge-projects --dry-run kaidera admin draw insights platform website
+  cortex-merge-projects kaidera admin draw insights platform website
+EOF
+    exit 1
+}
+
+DRY_RUN=0
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+[ $# -ge 2 ] || usage
+
+TARGET_PROJECT="$1"
+shift
+SOURCE_PROJECTS=("$@")
+
+if ! pg_available; then
+    echo "ERROR: Cortex PostgreSQL is not reachable." >&2
+    exit 1
+fi
+
+TARGET_SQL="$(sql_escape "${TARGET_PROJECT}")"
+SOURCE_VALUES_SQL=""
+SOURCE_LIST_SQL=""
+SEEN_PROJECTS=""
+for project_name in "${SOURCE_PROJECTS[@]}"; do
+    [ -n "${project_name}" ] || continue
+    if [ "${project_name}" = "${TARGET_PROJECT}" ]; then
+        echo "ERROR: target project cannot also be a source: ${project_name}" >&2
+        exit 1
+    fi
+    if printf '%s\n' "${SEEN_PROJECTS}" | grep -Fqx "${project_name}"; then
+        continue
+    fi
+    if [ -n "${SEEN_PROJECTS}" ]; then
+        SEEN_PROJECTS="${SEEN_PROJECTS}
+${project_name}"
+    else
+        SEEN_PROJECTS="${project_name}"
+    fi
+    escaped_project="$(sql_escape "${project_name}")"
+    if [ -n "${SOURCE_VALUES_SQL}" ]; then
+        SOURCE_VALUES_SQL="${SOURCE_VALUES_SQL}, "
+        SOURCE_LIST_SQL="${SOURCE_LIST_SQL}, "
+    fi
+    SOURCE_VALUES_SQL="${SOURCE_VALUES_SQL}('${escaped_project}')"
+    SOURCE_LIST_SQL="${SOURCE_LIST_SQL}'${escaped_project}'"
+done
+
+[ -n "${SOURCE_VALUES_SQL}" ] || usage
+
+ALIAS_ROWS="$(
+python3 - "${WORKSPACE_CONFIG_FILE:-}" "${TARGET_PROJECT}" <<'PYEOF'
+import json
+import os
+import sys
+
+config_path, target_project = sys.argv[1:3]
+if not config_path or not os.path.isfile(config_path):
+    raise SystemExit(0)
+
+with open(config_path, "r") as handle:
+    config = json.load(handle)
+
+alias_map = config.get("agent_aliases", {}) or {}
+project_aliases = alias_map.get(target_project, {}) if isinstance(alias_map, dict) else {}
+global_aliases = alias_map.get("*", {}) if isinstance(alias_map, dict) else {}
+merged = {}
+for alias_name, canonical_name in global_aliases.items():
+    merged[str(alias_name).strip().lower()] = str(canonical_name).strip().lower()
+for alias_name, canonical_name in project_aliases.items():
+    merged[str(alias_name).strip().lower()] = str(canonical_name).strip().lower()
+
+for alias_name, canonical_name in sorted(merged.items()):
+    if alias_name and canonical_name:
+        print(f"{alias_name}\t{canonical_name}")
+PYEOF
+)"
+
+ALIAS_VALUES_SQL=""
+if [ -n "${ALIAS_ROWS}" ]; then
+    while IFS=$'\t' read -r alias_name canonical_name; do
+        [ -n "${alias_name}" ] || continue
+        escaped_alias="$(sql_escape "${alias_name}")"
+        escaped_canonical="$(sql_escape "${canonical_name}")"
+        if [ -n "${ALIAS_VALUES_SQL}" ]; then
+            ALIAS_VALUES_SQL="${ALIAS_VALUES_SQL}, "
+        fi
+        ALIAS_VALUES_SQL="${ALIAS_VALUES_SQL}('${escaped_alias}', '${escaped_canonical}')"
+    done <<< "${ALIAS_ROWS}"
+fi
+
+printf '\n## Cortex Project Merge\n\n'
+printf 'Target:   %s\n' "${TARGET_PROJECT}"
+printf 'Sources:  %s\n' "${SOURCE_PROJECTS[*]}"
+
+if [ -n "${ALIAS_ROWS}" ]; then
+    printf 'Aliases:\n'
+    while IFS=$'\t' read -r alias_name canonical_name; do
+        printf '  %s -> %s\n' "${alias_name}" "${canonical_name}"
+    done <<< "${ALIAS_ROWS}"
+fi
+
+COUNTS_SQL="
+WITH merge_sources(project) AS (VALUES ${SOURCE_VALUES_SQL})
+SELECT 'agent_profiles' AS table_name, COUNT(*)::text AS row_count FROM agent_profiles WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'agent_sessions', COUNT(*)::text FROM agent_sessions WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'agents', COUNT(*)::text FROM agents WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'archive_decisions', COUNT(*)::text FROM archive_decisions WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'archive_events', COUNT(*)::text FROM archive_events WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'archive_handoffs', COUNT(*)::text FROM archive_handoffs WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'archive_lessons', COUNT(*)::text FROM archive_lessons WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'archive_messages', COUNT(*)::text FROM archive_messages WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'decisions', COUNT(*)::text FROM decisions WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'handoffs', COUNT(*)::text FROM handoffs WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'knowledge', COUNT(*)::text FROM knowledge WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'lessons', COUNT(*)::text FROM lessons WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'messages', COUNT(*)::text FROM messages WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'session_sources', COUNT(*)::text FROM session_sources WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'sprints', COUNT(*)::text FROM sprints WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'tasks', COUNT(*)::text FROM tasks WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'team_events', COUNT(*)::text FROM team_events WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'artifacts', COUNT(*)::text FROM artifacts WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'agent_diaries', COUNT(*)::text FROM agent_diaries WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'work_products', COUNT(*)::text FROM work_products WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'cortex_entities', COUNT(*)::text FROM cortex_entities WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+UNION ALL
+SELECT 'cortex_relationships', COUNT(*)::text FROM cortex_relationships WHERE project = '${TARGET_SQL}' OR project IN (SELECT project FROM merge_sources)
+ORDER BY table_name;
+"
+
+COUNT_ROWS="$(pg_query "${COUNTS_SQL}" 2>/dev/null || true)"
+if [ -n "${COUNT_ROWS}" ]; then
+    printf '\nRows in scope:\n'
+    while IFS='|' read -r table_name row_count; do
+        printf '  %-16s %s\n' "${table_name}" "${row_count}"
+    done <<< "${COUNT_ROWS}"
+fi
+
+CONFLICT_SQL="
+WITH merge_sources(project) AS (VALUES ${SOURCE_VALUES_SQL})
+SELECT 'sprint_label' AS conflict_type, sprint_label AS conflict_value
+  FROM sprints
+ WHERE project = '${TARGET_SQL}'
+   AND sprint_label IS NOT NULL
+   AND sprint_label IN (
+         SELECT sprint_label
+           FROM sprints
+          WHERE project IN (SELECT project FROM merge_sources)
+            AND sprint_label IS NOT NULL
+   )
+UNION ALL
+SELECT 'sprint_number', sprint_number::text
+  FROM sprints
+ WHERE project = '${TARGET_SQL}'
+   AND sprint_number IS NOT NULL
+   AND sprint_number IN (
+         SELECT sprint_number
+           FROM sprints
+          WHERE project IN (SELECT project FROM merge_sources)
+            AND sprint_number IS NOT NULL
+   )
+ORDER BY conflict_type, conflict_value;
+"
+
+CONFLICT_ROWS="$(pg_query "${CONFLICT_SQL}" 2>/dev/null || true)"
+if [ -n "${CONFLICT_ROWS}" ]; then
+    printf '\nConflicts:\n'
+    while IFS='|' read -r conflict_type conflict_value; do
+        printf '  %-12s %s\n' "${conflict_type}" "${conflict_value}"
+    done <<< "${CONFLICT_ROWS}"
+    echo ""
+    echo "ERROR: sprint conflicts must be resolved before the merge can run." >&2
+    exit 1
+fi
+
+AGENT_MERGE_SQL="
+WITH merge_sources(project) AS (VALUES ${SOURCE_VALUES_SQL}),
+merge_agent_aliases(alias_name, canonical_name) AS (
+    $(if [ -n "${ALIAS_VALUES_SQL}" ]; then printf 'VALUES %s' "${ALIAS_VALUES_SQL}"; else printf "SELECT NULL::text, NULL::text WHERE FALSE"; fi)
+),
+relevant AS (
+    SELECT COALESCE(alias.canonical_name, lower(a.name)) AS canonical_name,
+           a.project,
+           a.name
+      FROM agents a
+ LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(a.name)
+     WHERE a.project = '${TARGET_SQL}'
+        OR a.project IN (SELECT project FROM merge_sources)
+)
+SELECT canonical_name,
+       string_agg(project || ':' || name, ', ' ORDER BY project, name),
+       COUNT(*)::text
+  FROM relevant
+ GROUP BY canonical_name
+HAVING COUNT(*) > 1
+ ORDER BY canonical_name;
+"
+
+AGENT_MERGE_ROWS="$(pg_query "${AGENT_MERGE_SQL}" 2>/dev/null || true)"
+if [ -n "${AGENT_MERGE_ROWS}" ]; then
+    printf '\nAgent identities that will collapse:\n'
+    while IFS='|' read -r canonical_name sources count; do
+        printf '  %-16s %s\n' "${canonical_name}" "${sources}"
+    done <<< "${AGENT_MERGE_ROWS}"
+fi
+
+if [ "${DRY_RUN}" -eq 1 ]; then
+    printf '\nDry run only. No changes applied.\n\n'
+    exit 0
+fi
+
+TMP_SQL="$(mktemp /tmp/cortex-merge-projects.XXXXXX)"
+
+cat > "${TMP_SQL}" <<EOF
+BEGIN;
+
+CREATE TEMP TABLE merge_sources (project TEXT PRIMARY KEY);
+INSERT INTO merge_sources (project) VALUES ${SOURCE_VALUES_SQL};
+
+CREATE TEMP TABLE merge_agent_aliases (
+    alias_name TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL
+);
+EOF
+
+if [ -n "${ALIAS_VALUES_SQL}" ]; then
+    cat >> "${TMP_SQL}" <<EOF
+INSERT INTO merge_agent_aliases (alias_name, canonical_name) VALUES ${ALIAS_VALUES_SQL};
+EOF
+fi
+
+cat >> "${TMP_SQL}" <<EOF
+
+CREATE TEMP TABLE merge_agent_resolution AS
+WITH relevant AS (
+    SELECT a.id,
+           a.name,
+           a.role,
+           a.model,
+           a.capabilities,
+           a.created_at,
+           COALESCE(alias.canonical_name, lower(a.name)) AS canonical_name,
+           CASE WHEN a.project = '${TARGET_SQL}' THEN 0 ELSE 1 END AS project_rank,
+           CASE WHEN lower(a.name) = COALESCE(alias.canonical_name, lower(a.name)) THEN 0 ELSE 1 END AS alias_rank,
+           CASE WHEN NULLIF(BTRIM(COALESCE(a.role, '')), '') IS NULL THEN 1 ELSE 0 END AS empty_role_rank,
+           CASE WHEN NULLIF(BTRIM(COALESCE(a.model, '')), '') IS NULL THEN 1 ELSE 0 END AS empty_model_rank
+      FROM agents a
+ LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(a.name)
+     WHERE a.project = '${TARGET_SQL}'
+        OR a.project IN (SELECT project FROM merge_sources)
+),
+ranked AS (
+    SELECT id AS agent_id,
+           first_value(id) OVER (
+               PARTITION BY canonical_name
+               ORDER BY project_rank, alias_rank, empty_role_rank, empty_model_rank, created_at, id
+           ) AS canonical_agent_id
+      FROM relevant
+)
+SELECT DISTINCT agent_id, canonical_agent_id FROM ranked;
+
+CREATE TEMP TABLE merge_agent_rollup AS
+WITH relevant AS (
+    SELECT a.id,
+           mar.canonical_agent_id,
+           COALESCE(alias.canonical_name, lower(a.name)) AS canonical_name,
+           NULLIF(BTRIM(COALESCE(a.role, '')), '') AS role,
+           NULLIF(BTRIM(COALESCE(a.model, '')), '') AS model,
+           a.capabilities,
+           a.created_at,
+           CASE WHEN a.project = '${TARGET_SQL}' THEN 0 ELSE 1 END AS project_rank,
+           CASE WHEN lower(a.name) = COALESCE(alias.canonical_name, lower(a.name)) THEN 0 ELSE 1 END AS alias_rank
+      FROM agents a
+      JOIN merge_agent_resolution mar ON mar.agent_id = a.id
+ LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(a.name)
+)
+SELECT canonical_agent_id,
+       canonical_name,
+       (ARRAY_AGG(role ORDER BY project_rank, alias_rank, created_at, id)
+            FILTER (WHERE role IS NOT NULL))[1] AS merged_role,
+       (ARRAY_AGG(model ORDER BY project_rank, alias_rank, created_at, id)
+            FILTER (WHERE model IS NOT NULL))[1] AS merged_model,
+       (ARRAY_AGG(capabilities ORDER BY project_rank, alias_rank, created_at, id)
+            FILTER (WHERE capabilities IS NOT NULL AND capabilities <> '{}'::jsonb))[1] AS merged_capabilities
+  FROM relevant
+ GROUP BY canonical_agent_id, canonical_name;
+
+UPDATE agent_sessions s
+   SET agent_id = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE s.agent_id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE agent_sessions s
+   SET handed_off_to = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE s.handed_off_to = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE decisions d
+   SET agent_id = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE d.agent_id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE lessons l
+   SET agent_id = mar.canonical_agent_id
+  FROM merge_agent_resolution mar
+ WHERE l.agent_id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+UPDATE agents a
+   SET name = rollup.canonical_name,
+       project = '${TARGET_SQL}',
+       role = COALESCE(rollup.merged_role, a.role),
+       model = COALESCE(rollup.merged_model, a.model),
+       capabilities = COALESCE(rollup.merged_capabilities, a.capabilities)
+  FROM merge_agent_rollup rollup
+ WHERE a.id = rollup.canonical_agent_id;
+
+DELETE FROM agents a
+ USING merge_agent_resolution mar
+ WHERE a.id = mar.agent_id
+   AND mar.agent_id <> mar.canonical_agent_id;
+
+INSERT INTO agent_profiles (project, agent_name, profile_kind, role, source_file, profile_text, metadata, updated_at)
+SELECT '${TARGET_SQL}',
+       COALESCE(alias.canonical_name, lower(ap.agent_name)),
+       ap.profile_kind,
+       ap.role,
+       ap.source_file,
+       ap.profile_text,
+       ap.metadata,
+       ap.updated_at
+  FROM agent_profiles ap
+  LEFT JOIN merge_agent_aliases alias ON alias.alias_name = lower(ap.agent_name)
+ WHERE ap.project IN (SELECT project FROM merge_sources)
+ON CONFLICT (project, agent_name, profile_kind, source_file) DO UPDATE SET
+    role = EXCLUDED.role,
+    profile_text = EXCLUDED.profile_text,
+    metadata = EXCLUDED.metadata,
+    updated_at = GREATEST(agent_profiles.updated_at, EXCLUDED.updated_at);
+
+DELETE FROM agent_profiles
+ WHERE project IN (SELECT project FROM merge_sources);
+
+UPDATE agent_sessions SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE archive_decisions SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE archive_events SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE archive_handoffs SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE archive_lessons SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE archive_messages SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE decisions SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE handoffs SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE knowledge SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE lessons SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE messages SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE session_sources SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE sprints SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE tasks SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE team_events SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+
+-- L5 artifacts (UNIQUE (project, source_file, content_hash)): drop the source rows the
+-- target ALREADY has (target wins), then re-point the survivors. Without this, every merge
+-- SILENTLY ORPHANED the source projects' artifacts (data loss) — they were not re-pointed.
+DELETE FROM artifacts s
+ WHERE s.project IN (SELECT project FROM merge_sources)
+   AND EXISTS (
+         SELECT 1 FROM artifacts t
+          WHERE t.project = '${TARGET_SQL}'
+            AND t.source_file = s.source_file
+            AND t.content_hash = s.content_hash
+   );
+UPDATE artifacts SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+
+-- agent_diaries + work_products carry a surrogate PK only (no natural-key collision on a
+-- project move), so a plain re-point is safe. These were also silently dropped before.
+UPDATE agent_diaries SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+UPDATE work_products SET project = '${TARGET_SQL}' WHERE project IN (SELECT project FROM merge_sources);
+
+-- L4 graph merge. Entities dedupe on (target project, name, entity_type), with target
+-- rows winning collisions. Relationships must resolve endpoint IDs before duplicate
+-- source entities are deleted, or the FK cascade would silently erase graph edges.
+CREATE TEMP TABLE merge_graph_entity_resolution AS
+WITH relevant AS (
+    SELECT e.id AS entity_id,
+           e.name,
+           e.entity_type,
+           e.created_at,
+           CASE WHEN e.project = '${TARGET_SQL}' THEN 0 ELSE 1 END AS project_rank
+      FROM cortex_entities e
+     WHERE e.project = '${TARGET_SQL}'
+        OR e.project IN (SELECT project FROM merge_sources)
+),
+ranked AS (
+    SELECT entity_id,
+           first_value(entity_id) OVER (
+               PARTITION BY name, entity_type
+               ORDER BY project_rank, created_at, entity_id
+           ) AS canonical_entity_id
+      FROM relevant
+)
+SELECT DISTINCT entity_id, canonical_entity_id FROM ranked;
+
+UPDATE cortex_entities canonical
+   SET properties = COALESCE(rollup.merged_properties, '{}'::jsonb) || COALESCE(canonical.properties, '{}'::jsonb),
+       updated_at = GREATEST(
+           COALESCE(canonical.updated_at, '-infinity'::timestamptz),
+           COALESCE(rollup.max_updated_at, '-infinity'::timestamptz)
+       )
+  FROM (
+        SELECT keyed.canonical_entity_id,
+               jsonb_object_agg(
+                   keyed.property_key,
+                   keyed.property_value
+                   ORDER BY keyed.project_rank DESC, keyed.updated_at, keyed.entity_id
+               ) AS merged_properties,
+               MAX(keyed.updated_at) AS max_updated_at
+          FROM (
+                SELECT ger.canonical_entity_id,
+                       e.id AS entity_id,
+                       CASE WHEN e.project = '${TARGET_SQL}' THEN 0 ELSE 1 END AS project_rank,
+                       e.updated_at,
+                       kv.key AS property_key,
+                       kv.value AS property_value
+                  FROM merge_graph_entity_resolution ger
+                  JOIN cortex_entities e ON e.id = ger.entity_id
+            CROSS JOIN LATERAL jsonb_each(COALESCE(e.properties, '{}'::jsonb)) AS kv(key, value)
+                 WHERE ger.entity_id <> ger.canonical_entity_id
+               ) keyed
+         GROUP BY keyed.canonical_entity_id
+       ) rollup
+ WHERE canonical.id = rollup.canonical_entity_id;
+
+CREATE TEMP TABLE merge_graph_relationship_resolution AS
+WITH relevant AS (
+    SELECT r.id AS relationship_id,
+           COALESCE(source_entity.canonical_entity_id, r.source_entity_id) AS canonical_source_entity_id,
+           COALESCE(target_entity.canonical_entity_id, r.target_entity_id) AS canonical_target_entity_id,
+           r.relationship_type,
+           r.created_at,
+           CASE WHEN r.project = '${TARGET_SQL}' THEN 0 ELSE 1 END AS project_rank
+      FROM cortex_relationships r
+ LEFT JOIN merge_graph_entity_resolution source_entity ON source_entity.entity_id = r.source_entity_id
+ LEFT JOIN merge_graph_entity_resolution target_entity ON target_entity.entity_id = r.target_entity_id
+     WHERE r.project = '${TARGET_SQL}'
+        OR r.project IN (SELECT project FROM merge_sources)
+),
+ranked AS (
+    SELECT relationship_id,
+           canonical_source_entity_id,
+           canonical_target_entity_id,
+           first_value(relationship_id) OVER (
+               PARTITION BY canonical_source_entity_id, canonical_target_entity_id, relationship_type
+               ORDER BY project_rank, created_at, relationship_id
+           ) AS canonical_relationship_id
+      FROM relevant
+)
+SELECT DISTINCT
+       relationship_id,
+       canonical_relationship_id,
+       canonical_source_entity_id,
+       canonical_target_entity_id
+  FROM ranked;
+
+UPDATE cortex_relationships canonical
+   SET properties = COALESCE(rollup.merged_properties, '{}'::jsonb) || COALESCE(canonical.properties, '{}'::jsonb)
+  FROM (
+        SELECT keyed.canonical_relationship_id,
+               jsonb_object_agg(
+                   keyed.property_key,
+                   keyed.property_value
+                   ORDER BY keyed.project_rank DESC, keyed.created_at, keyed.relationship_id
+               ) AS merged_properties
+          FROM (
+                SELECT grr.canonical_relationship_id,
+                       r.id AS relationship_id,
+                       CASE WHEN r.project = '${TARGET_SQL}' THEN 0 ELSE 1 END AS project_rank,
+                       r.created_at,
+                       kv.key AS property_key,
+                       kv.value AS property_value
+                  FROM merge_graph_relationship_resolution grr
+                  JOIN cortex_relationships r ON r.id = grr.relationship_id
+            CROSS JOIN LATERAL jsonb_each(COALESCE(r.properties, '{}'::jsonb)) AS kv(key, value)
+                 WHERE grr.relationship_id <> grr.canonical_relationship_id
+               ) keyed
+         GROUP BY keyed.canonical_relationship_id
+       ) rollup
+ WHERE canonical.id = rollup.canonical_relationship_id;
+
+DELETE FROM cortex_relationships r
+ USING merge_graph_relationship_resolution grr
+ WHERE r.id = grr.relationship_id
+   AND grr.relationship_id <> grr.canonical_relationship_id;
+
+UPDATE cortex_relationships r
+   SET source_entity_id = grr.canonical_source_entity_id,
+       target_entity_id = grr.canonical_target_entity_id,
+       project = '${TARGET_SQL}'
+  FROM merge_graph_relationship_resolution grr
+ WHERE r.id = grr.canonical_relationship_id;
+
+DELETE FROM cortex_entities e
+ USING merge_graph_entity_resolution ger
+ WHERE e.id = ger.entity_id
+   AND ger.entity_id <> ger.canonical_entity_id;
+
+UPDATE cortex_entities e
+   SET project = '${TARGET_SQL}'
+ WHERE e.project IN (SELECT project FROM merge_sources);
+
+UPDATE session_sources ss
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE ss.project = '${TARGET_SQL}'
+   AND lower(ss.agent_name) = alias.alias_name;
+
+UPDATE messages m
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE m.project = '${TARGET_SQL}'
+   AND lower(m.agent_name) = alias.alias_name;
+
+UPDATE decisions d
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE d.project = '${TARGET_SQL}'
+   AND lower(d.agent_name) = alias.alias_name;
+
+UPDATE lessons l
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE l.project = '${TARGET_SQL}'
+   AND lower(l.agent_name) = alias.alias_name;
+
+UPDATE team_events e
+   SET agent_name = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE e.project = '${TARGET_SQL}'
+   AND lower(e.agent_name) = alias.alias_name;
+
+UPDATE handoffs h
+   SET from_agent = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE h.project = '${TARGET_SQL}'
+   AND lower(h.from_agent) = alias.alias_name;
+
+UPDATE handoffs h
+   SET claimed_by = alias.canonical_name
+  FROM merge_agent_aliases alias
+ WHERE h.project = '${TARGET_SQL}'
+   AND lower(h.claimed_by) = alias.alias_name;
+
+UPDATE session_sources ss
+   SET agent_name = a.name
+  FROM agents a
+ WHERE ss.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(ss.agent_name) = a.name
+   AND ss.agent_name <> a.name;
+
+UPDATE messages m
+   SET agent_name = a.name
+  FROM agents a
+ WHERE m.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(m.agent_name) = a.name
+   AND m.agent_name <> a.name;
+
+UPDATE decisions d
+   SET agent_name = a.name
+  FROM agents a
+ WHERE d.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(d.agent_name) = a.name
+   AND d.agent_name <> a.name;
+
+UPDATE lessons l
+   SET agent_name = a.name
+  FROM agents a
+ WHERE l.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(l.agent_name) = a.name
+   AND l.agent_name <> a.name;
+
+UPDATE team_events e
+   SET agent_name = a.name
+  FROM agents a
+ WHERE e.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(e.agent_name) = a.name
+   AND e.agent_name <> a.name;
+
+UPDATE handoffs h
+   SET from_agent = a.name
+  FROM agents a
+ WHERE h.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(h.from_agent) = a.name
+   AND h.from_agent <> a.name;
+
+UPDATE handoffs h
+   SET claimed_by = a.name
+  FROM agents a
+ WHERE h.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND lower(h.claimed_by) = a.name
+   AND h.claimed_by <> a.name;
+
+UPDATE agent_sessions s
+   SET agent_id = a.id
+  FROM session_sources src
+  JOIN agents a
+    ON a.project = '${TARGET_SQL}'
+   AND a.name = lower(src.agent_name)
+ WHERE s.id = src.session_id
+   AND s.project = '${TARGET_SQL}'
+   AND s.project = a.project
+   AND (s.agent_id IS NULL OR s.agent_id <> a.id);
+
+UPDATE decisions d
+   SET agent_id = a.id
+  FROM agents a
+ WHERE d.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND d.agent_name IS NOT NULL
+   AND lower(d.agent_name) = a.name
+   AND (d.agent_id IS NULL OR d.agent_id <> a.id);
+
+UPDATE lessons l
+   SET agent_id = a.id
+  FROM agents a
+ WHERE l.project = '${TARGET_SQL}'
+   AND a.project = '${TARGET_SQL}'
+   AND l.agent_name IS NOT NULL
+   AND lower(l.agent_name) = a.name
+   AND (l.agent_id IS NULL OR l.agent_id <> a.id);
+
+COMMIT;
+EOF
+
+pg_exec_file "${TMP_SQL}" >/dev/null
+rm -f "${TMP_SQL}"
+
+printf '\nMerge complete.\n\n'

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# cortex-graph-extract - Alias for Cortex Layer 4 entity extraction.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${SCRIPT_DIR}/cortex-extract-entities" "$@"

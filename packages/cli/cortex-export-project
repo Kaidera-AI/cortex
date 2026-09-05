@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Export one Cortex project through the admin API using named JSON fields.
+set -euo pipefail
+umask 077
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-export-project <project-key> [--output FILE]
+
+Exports project-scoped Cortex data. The destination project must be registered
+separately before using cortex-import-project; host paths are not transferred.
+EOF
+}
+
+[ "$#" -ge 1 ] || { usage >&2; exit 2; }
+case "${1:-}" in --help|-h) usage; exit 0 ;; esac
+PROJECT="$1"
+shift
+OUTPUT=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --output) OUTPUT="${2:-}"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+[ -n "$OUTPUT" ] || OUTPUT="cortex-project-${PROJECT}-$(date -u +%Y%m%dT%H%M%SZ).json"
+
+CORTEX_PROJECT="$PROJECT"
+ENCODED_PROJECT="$(cortex_api_urlencode_strict "$PROJECT")"
+CALLER_AGENT="${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${BEAT_CORTEX_AGENT:-}}}"
+PAYLOAD="$(CORTEX_API_MAX_TIME="${CORTEX_PROJECT_TRANSFER_TIMEOUT_S:-1800}" \
+    cortex_api_call_admin GET "/admin/projects/${ENCODED_PROJECT}/export" "" "$CALLER_AGENT")"
+[ -n "$PAYLOAD" ] || { echo "ERROR: Cortex returned an empty project export" >&2; exit 1; }
+printf '%s\n' "$PAYLOAD" >"$OUTPUT"
+python3 - "$OUTPUT" "$PROJECT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+project = sys.argv[2]
+payload = json.loads(path.read_text(encoding="utf-8"))
+if payload.get("format") != "kaidera.cortex-project.v1":
+    raise SystemExit("ERROR: unexpected Cortex project export format")
+if (payload.get("source_project") or {}).get("project_key") != project:
+    raise SystemExit("ERROR: Cortex project export identity mismatch")
+print(f"Exported {payload.get('row_count', 0)} rows from {project} to {path}")
+PY
+chmod 600 "$OUTPUT"
+HASH="$(shasum -a 256 "$OUTPUT" | awk '{print $1}')"
+printf '%s  %s\n' "$HASH" "$(basename "$OUTPUT")" >"$OUTPUT.sha256"
+chmod 600 "$OUTPUT.sha256"
+printf 'SHA-256: %s\n' "$HASH"

@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# cortex-ingest-all — ingest new local harness sessions through typed helpers.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+if ! declare -F cortex_api_call_json >/dev/null && [ -f "${SCRIPT_DIR}/_cortex_api.sh" ]; then
+    # shellcheck source=./_cortex_api.sh
+    source "${SCRIPT_DIR}/_cortex_api.sh"
+fi
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-ingest-all [--force] [--limit N] [--sleep-seconds N]
+                         [--max-errors N] [--error-threshold N]
+EOF
+}
+
+FORCE=0
+LIMIT=0
+SLEEP_SECONDS=3
+MAX_ERRORS=10
+ERROR_THRESHOLD=3
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --force) FORCE=1; shift ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        --sleep-seconds) SLEEP_SECONDS="$2"; shift 2 ;;
+        --max-errors) MAX_ERRORS="$2"; shift 2 ;;
+        --error-threshold) ERROR_THRESHOLD="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+if ! declare -F cortex_api_call_json >/dev/null; then
+    echo "ERROR: Cortex API helper is unavailable" >&2
+    exit 127
+fi
+
+printf '═══════════════════════════════════════════\n'
+printf '  Cortex — Ingest All Agent Sessions\n'
+printf '═══════════════════════════════════════════\n\n'
+
+INGESTED_JSON="$(cortex_api_call_json GET "/sessions/ingested-ids" 2>/dev/null || printf '{"ids":[]}')"
+INGESTED_IDS="$(printf '%s' "${INGESTED_JSON}" | python3 -c 'import json,sys; data=json.load(sys.stdin); print("\n".join(str(x) for x in data.get("ids", [])))' 2>/dev/null || true)"
+# Marker for scheduled summary API: cortex_api_call_json GET "/messages/counts/by-agent-role"
+
+is_ingested() {
+    [ "${FORCE}" -eq 0 ] || return 1
+    printf '%s\n' "${INGESTED_IDS}" | grep -Fxq "$1" 2>/dev/null
+}
+
+session_id_from_file() {
+    basename "$1" .jsonl
+}
+
+# The id the SERVER will record for this file — mirrors cortex-ingest-codex exactly:
+# a UUID stem is used as-is (claude sessions), anything else (codex rollout-* files)
+# becomes uuid5(NAMESPACE_URL, resolved-path). Dedupe must compare against THIS.
+#
+# Before this existed, is_ingested compared the rollout-* basename against a skip
+# list of server UUIDs, so it never matched for codex: every sweep re-uploaded all
+# ~50 codex sessions (idempotent server-side, verified — 20,522 messages stayed
+# 20,522 — but minutes of wasted upload per sweep, and two identical
+# "imported=53" summaries that looked like fresh work when they were re-runs).
+canonical_session_id() {
+    python3 - "$1" <<'PYEOF'
+import sys
+import uuid
+from pathlib import Path
+
+path = Path(sys.argv[1]).resolve()
+try:
+    print(str(uuid.UUID(path.stem)))
+except ValueError:
+    print(str(uuid.uuid5(uuid.NAMESPACE_URL, str(path))))
+PYEOF
+}
+
+attempted=0
+imported=0
+skipped=0
+failed=0
+threshold_state="green"
+stop_now=0
+
+default_ingest_agent() {
+    local requested="${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${BEAT_CORTEX_AGENT:-}}}"
+    if [ -z "${requested}" ] && declare -F cortex_api_call_json >/dev/null; then
+        local runtime
+        runtime="$(cortex_api_call_json GET "/projects/${CORTEX_PROJECT}/runtime" "" "" 2>/dev/null || true)"
+        requested="$(python3 - "${runtime}" <<'PYEOF'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    raise SystemExit(0)
+print(str(data.get("default_agent") or "").strip())
+PYEOF
+)"
+    fi
+    if [ -z "${requested}" ]; then
+        echo "ERROR: cannot determine ingest agent; set CORTEX_AGENT or configure project default_agent." >&2
+        return 2
+    fi
+    if declare -F cortex_agent_base_name >/dev/null; then
+        cortex_agent_base_name "${requested}" | tr '[:upper:]' '[:lower:]'
+    else
+        requested="${requested%%@*}"
+        printf '%s\n' "${requested%%:*}" | tr '[:upper:]' '[:lower:]'
+    fi
+}
+
+DEFAULT_INGEST_AGENT="$(default_ingest_agent)" || exit $?
+PROJECT_ROOT_FOR_INGEST="${CORTEX_PROJECT_ROOT:-$(pwd -P)}"
+
+session_matches_project_root() {
+    local provider="$1"
+    local file="$2"
+
+    if [ "${provider}" != "codex" ]; then
+        return 0
+    fi
+
+    python3 - "$file" "$PROJECT_ROOT_FOR_INGEST" <<'PY'
+import json
+import os
+import sys
+
+path, root = sys.argv[1:3]
+root = os.path.realpath(root)  # fitness:allow-literal false-match: 'root' is a path variable, not agent 'root'
+cwd = ""
+
+try:
+    with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+        for index, line in enumerate(handle):
+            if index > 200:
+                break
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if payload.get("type") != "session_meta":
+                continue
+            meta = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
+            cwd = str(meta.get("cwd") or "")
+            break
+except OSError:
+    sys.exit(1)
+
+if not cwd:
+    sys.exit(1)
+
+real_cwd = os.path.realpath(cwd)
+sys.exit(0 if real_cwd == root or real_cwd.startswith(root + os.sep) else 1)
+PY
+}
+
+process_file() {
+    local file="$1"
+    local provider="$2"
+    local helper="$3"
+    local agent="$4"
+    local sid canonical
+    sid="$(session_id_from_file "${file}")"
+    # Compare the SERVER-form id (see canonical_session_id). Checking this first also
+    # short-circuits before the per-file codex cwd filter, so repeat sweeps get
+    # cheaper, not slower.
+    canonical="$(canonical_session_id "${file}")"
+
+    if is_ingested "${canonical}" || is_ingested "${sid}"; then
+        skipped=$((skipped + 1))
+        printf 'Skipping already ingested: %s\n' "${sid}"
+        return 0
+    fi
+
+    if [ "${LIMIT}" -gt 0 ] && [ "${attempted}" -ge "${LIMIT}" ]; then
+        return 0
+    fi
+
+    if ! session_matches_project_root "${provider}" "${file}"; then
+        skipped=$((skipped + 1))
+        printf 'Skipping foreign %s session: %s\n' "${provider}" "${sid}"
+        return 0
+    fi
+
+    attempted=$((attempted + 1))
+    printf 'Ingesting %s session: %s\n' "${provider}" "${sid}"
+    if "${SCRIPT_DIR}/${helper}" "${file}" "${agent}"; then
+        imported=$((imported + 1))
+    else
+        failed=$((failed + 1))
+        printf 'ERROR: failed session: %s\n' "${sid}" >&2
+        if [ "${failed}" -ge "${ERROR_THRESHOLD}" ] || [ "${failed}" -ge "${MAX_ERRORS}" ]; then
+            threshold_state="red"
+            stop_now=1
+        fi
+    fi
+
+    if [ "${SLEEP_SECONDS}" != "0" ]; then
+        sleep "${SLEEP_SECONDS}"
+    fi
+}
+
+while IFS= read -r claude_dir; do
+    [ -d "${claude_dir}" ] || continue
+    while IFS= read -r file; do
+        [ -f "${file}" ] || continue
+        process_file "${file}" "claude" "cortex-ingest-session" "${DEFAULT_INGEST_AGENT}"
+        [ "${stop_now}" -eq 0 ] || break
+        [ "${LIMIT}" -le 0 ] || [ "${attempted}" -lt "${LIMIT}" ] || break
+    done < <(find "${claude_dir}" -maxdepth 1 -name '*.jsonl' -type f | sort)
+    [ "${stop_now}" -eq 0 ] || break
+    [ "${LIMIT}" -le 0 ] || [ "${attempted}" -lt "${LIMIT}" ] || break
+done < <(cortex_find_claude_project_dirs 2>/dev/null || true)
+
+if [ "${stop_now}" -eq 0 ] && { [ "${LIMIT}" -le 0 ] || [ "${attempted}" -lt "${LIMIT}" ]; }; then
+    CODEX_DIR="${CODEX_SESSIONS_DIR:-${HOME}/.codex/sessions}"
+    if [ -d "${CODEX_DIR}" ]; then
+        while IFS= read -r file; do
+            [ -f "${file}" ] || continue
+            process_file "${file}" "codex" "cortex-ingest-codex" "${DEFAULT_INGEST_AGENT}"
+            [ "${stop_now}" -eq 0 ] || break
+            [ "${LIMIT}" -le 0 ] || [ "${attempted}" -lt "${LIMIT}" ] || break
+        done < <(find "${CODEX_DIR}" -name '*.jsonl' -type f | sort)
+    fi
+fi
+
+if [ "${failed}" -ge "${ERROR_THRESHOLD}" ]; then
+    threshold_state="red"
+fi
+
+printf 'Summary: attempted=%s imported=%s skipped=%s failed=%s threshold=%s\n' \
+    "${attempted}" "${imported}" "${skipped}" "${failed}" "${threshold_state}"
+
+cortex_api_call_json GET "/messages/counts/by-agent-role" >/dev/null 2>&1 || true
+
+[ "${threshold_state}" = "green" ]

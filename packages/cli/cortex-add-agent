@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# cortex-add-agent — register an agent through the Cortex API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-add-agent <name> <role> [--model MODEL] [--display-name TEXT] [--writer-scope SCOPE] [--caller AGENT]
+
+Registers <name> as data. The API gates the caller (X-Agent-Name), not the new
+agent being registered, so an existing project writer can add a new writer
+without editing cortex-api.
+EOF
+}
+
+workspace_default_agent() {
+    [ -f "${WORKSPACE_CONFIG_FILE}" ] || return 0
+    python3 - "${WORKSPACE_CONFIG_FILE}" "${CORTEX_PROJECT}" <<'PYEOF'
+import json
+import sys
+
+config_path, project_key = sys.argv[1], sys.argv[2]
+try:
+    with open(config_path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+except Exception:
+    sys.exit(0)
+for project in data.get("projects", []):
+    if project.get("key") == project_key and project.get("default_agent"):
+        print(project["default_agent"])
+        break
+PYEOF
+}
+
+if [ "$#" -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+NEW_AGENT_NAME="$(cortex_agent_base_name "$1" | tr '[:upper:]' '[:lower:]')"
+shift
+ROLE="${1:-generalist}"
+[ "$#" -gt 0 ] && shift
+MODEL=""
+DISPLAY_NAME=""
+WRITER_SCOPE="work"
+CALLER_AGENT="${CORTEX_AGENT:-${CORTEX_AGENT_ID:-}}"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --model) MODEL="$2"; shift 2 ;;
+        --display-name) DISPLAY_NAME="$2"; shift 2 ;;
+        --writer-scope) WRITER_SCOPE="$2"; shift 2 ;;
+        --caller) CALLER_AGENT="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+if [ -z "${CALLER_AGENT}" ]; then
+    CALLER_AGENT="$(workspace_default_agent | tr '[:upper:]' '[:lower:]')"
+fi
+if [ -z "${CALLER_AGENT}" ]; then
+    echo "ERROR: cannot determine caller agent; set --caller or configure project default_agent." >&2
+    exit 67
+fi
+CALLER_AGENT="$(cortex_agent_base_name "${CALLER_AGENT}" | tr '[:upper:]' '[:lower:]')"
+
+payload="$(python3 - "${NEW_AGENT_NAME}" "${ROLE}" "${MODEL}" "${DISPLAY_NAME}" "${WRITER_SCOPE}" <<'PYEOF'
+import json
+import sys
+
+import re
+
+name, role, model, display_name, writer_scope = sys.argv[1:]
+# The Cortex registry role is a slug ([a-z0-9-]+). Accept a human-readable role here
+# and auto-slugify it, so turnkey packs and the one-gesture onboarding need not pre-slug
+# roles; the human label (e.g. a CMO title) is preserved in capabilities.role_label.
+role_label = role.strip()
+role_slug = re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", role_label.lower())).strip("-") or "generalist"
+capabilities = {}
+if model:
+    capabilities["model"] = model
+if display_name:
+    capabilities["display_name"] = display_name
+if role_label and role_label != role_slug:
+    capabilities["role_label"] = role_label
+print(json.dumps({
+    "name": name,
+    "role": role_slug,
+    "writer_scope": writer_scope,
+    "capabilities": capabilities,
+}))
+PYEOF
+)"
+
+response="$(cortex_api_call_json POST "/agents" "${payload}" "${CALLER_AGENT}")"
+printf '%s\n' "${response}"

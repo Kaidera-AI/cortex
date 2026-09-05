@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# Agent Cortex — Environment Diagnostic
+# Run this to check if your environment can reach the Cortex data layer.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/_cortex_lib.sh"
+
+echo "=== Agent Cortex Diagnostic ==="
+echo "Date: $(date)"
+echo "Shell: $SHELL"
+echo "PATH: $PATH"
+echo ""
+
+echo "--- Tool Availability ---"
+for cmd in podman psql python3 ollama whisper whisper-cli whisper.cpp mineru magic-pdf pdftotext pdfinfo; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        echo "  $cmd: $(which $cmd)"
+    else
+        echo "  $cmd: NOT FOUND"
+    fi
+done
+echo ""
+
+echo "--- Rich PDF Stack ---"
+WORKSPACE_ROOT="$(cortex_workspace_root)"
+VENDOR_ROOT="$(cortex_vendor_root)"
+MAGIC_PDF_BIN="${VENDOR_ROOT}/magic-pdf-env/bin/magic-pdf"
+MAGIC_PDF_PY="${VENDOR_ROOT}/magic-pdf-env/bin/python"
+MAGIC_PDF_CFG="${VENDOR_ROOT}/magic-pdf.json"
+MAGIC_PDF_MODELS="${VENDOR_ROOT}/magic-pdf-models"
+LAYOUT_YOLO_MODEL="${MAGIC_PDF_MODELS}/Layout/YOLO/doclayout_yolo_docstructbench_imgsz1280_2501.pt"
+OCR_DET_MODEL="${MAGIC_PDF_MODELS}/OCR/paddleocr_torch/ch_PP-OCRv5_det_infer.pth"
+OCR_REC_MODEL="${MAGIC_PDF_MODELS}/OCR/paddleocr_torch/ch_PP-OCRv5_rec_infer.pth"
+LAYOUTREADER_DIR="${MAGIC_PDF_MODELS}/LayoutReader/hantian-layoutreader"
+
+echo "  vendor root: ${VENDOR_ROOT}"
+if [ -x "${MAGIC_PDF_BIN}" ] && [ -f "${MAGIC_PDF_CFG}" ]; then
+    echo "  magic-pdf config: ${MAGIC_PDF_CFG}"
+else
+    echo "  magic-pdf config: NOT READY"
+fi
+
+MISSING_COMPONENTS=()
+[ -x "${MAGIC_PDF_BIN}" ] || MISSING_COMPONENTS+=("binary")
+[ -f "${MAGIC_PDF_CFG}" ] || MISSING_COMPONENTS+=("config")
+[ -e "${LAYOUT_YOLO_MODEL}" ] || MISSING_COMPONENTS+=("layout-yolo-weight")
+[ -f "${OCR_DET_MODEL}" ] || MISSING_COMPONENTS+=("ocr-det-weight")
+[ -f "${OCR_REC_MODEL}" ] || MISSING_COMPONENTS+=("ocr-rec-weight")
+[ -e "${LAYOUTREADER_DIR}" ] || MISSING_COMPONENTS+=("layoutreader-cache")
+
+if [ -x "${MAGIC_PDF_PY}" ]; then
+    PY_IMPORT_STATUS="$("${MAGIC_PDF_PY}" - <<'PY'
+mods = ["openai", "cv2", "ultralytics", "doclayout_yolo", "rapid_table", "pycocotools", "shapely", "pyclipper"]
+missing = []
+for mod in mods:
+    try:
+        __import__(mod)
+    except Exception:
+        missing.append(mod)
+if missing:
+    print("missing:" + ",".join(missing))
+else:
+    print("ok")
+PY
+)"
+    echo "  magic-pdf imports: ${PY_IMPORT_STATUS}"
+else
+    echo "  magic-pdf imports: SKIPPED"
+fi
+
+if [ ${#MISSING_COMPONENTS[@]} -eq 0 ] && [ "${PY_IMPORT_STATUS:-missing:python}" = "ok" ]; then
+    echo "  Rich PDF status: READY"
+else
+    echo "  Rich PDF status: PARTIAL (${MISSING_COMPONENTS[*]:-imports})"
+fi
+echo ""
+
+echo "--- Vision Stack ---"
+VISION_MODEL="${CORTEX_VLM_MODEL:-}"
+if [ -z "${VISION_MODEL}" ] && command -v ollama >/dev/null 2>&1; then
+    for candidate in qwen3-vl:4b qwen3-vl qwen2.5vl:7b qwen2.5vl:3b gemma3 gemma3:4b; do
+        if ollama show "${candidate}" >/dev/null 2>&1; then
+            VISION_MODEL="${candidate}"
+            break
+        fi
+    done
+fi
+
+if command -v ollama >/dev/null 2>&1; then
+    if ollama list >/dev/null 2>&1; then
+        echo "  ollama service: reachable"
+    else
+        echo "  ollama service: unreachable"
+    fi
+else
+    echo "  ollama service: NOT FOUND"
+fi
+
+if [ -n "${VISION_MODEL}" ]; then
+    echo "  vision model: ${VISION_MODEL}"
+    echo "  Vision status: READY"
+else
+    echo "  vision model: NOT READY"
+    echo "  Vision status: PARTIAL (install a local Ollama VLM such as qwen3-vl:4b)"
+fi
+echo ""
+
+echo "--- Network Reachability ---"
+echo "  Runtime detected: ${RUNTIME}"
+# PostgreSQL
+if command -v psql >/dev/null 2>&1; then
+    if pg_host_available; then
+        echo "  PostgreSQL (host localhost:${PG_PORT}): CONNECTED"
+    else
+        echo "  PostgreSQL (host localhost:${PG_PORT}): UNREACHABLE"
+    fi
+else
+    echo "  PostgreSQL (host localhost:${PG_PORT}): CANNOT TEST (no psql)"
+fi
+
+if [ "${RUNTIME}" != "none" ]; then
+    PG=$("${RUNTIME}" exec "${PG_CONTAINER}" pg_isready -U "${PG_USER}" -d "${PG_DB}" 2>/dev/null || true)
+    echo "  PostgreSQL (${PG_CONTAINER} via ${RUNTIME}): ${PG:-UNREACHABLE}"
+else
+    echo "  PostgreSQL (${PG_CONTAINER} via runtime): SKIPPED (no runtime)"
+fi
+echo ""
+echo "=== End Diagnostic ==="

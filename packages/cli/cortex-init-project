@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# cortex-init-project — register a Cortex project through the typed API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-init-project <project-key> [--display-name NAME] [--root PATH] [--agent NAME:ROLE]
+EOF
+}
+
+if [ "$#" -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+PROJECT="$1"
+shift
+DISPLAY_NAME=""
+ROOT_PATH="$(pwd)"
+AGENTS=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --display-name) DISPLAY_NAME="$2"; shift 2 ;;
+        --root) ROOT_PATH="$2"; shift 2 ;;
+        --agent) AGENTS+=("$2"); shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+payload="$(python3 - "${PROJECT}" "${DISPLAY_NAME}" "${ROOT_PATH}" "${AGENTS[@]}" <<'PYEOF'
+import json, sys
+project, display_name, root_path, *agent_specs = sys.argv[1:]
+agents = []
+for spec in agent_specs:
+    if not spec:
+        continue
+    if ":" in spec:
+        name, role = spec.split(":", 1)
+    else:
+        name, role = spec, "generalist"
+    agents.append({"name": name.strip().lower(), "role": role.strip() or "generalist"})
+print(json.dumps({
+    "project_key": project,
+    "display_name": display_name or project,
+    "repo_root": root_path,  # fitness:allow-literal false-match: repo_root (field name, not agent 'root')
+    "roots": [{"path": root_path, "kind": "primary"}],  # fitness:allow-literal false-match: roots (field name, not agent 'root')
+    "agents": agents,
+}))
+PYEOF
+)"
+
+CALLER_AGENT="${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${BEAT_CORTEX_AGENT:-}}}"
+# POST /projects is admin-gated (403 without the token). On a FRESH Cortex with no
+# projects yet, a non-admin call can never register the FIRST project (redist dogfood
+# GAP #3), so send the admin token — cortex_api_call_admin auto-loads CORTEX_ADMIN_TOKEN
+# from local-cortex/.env (mirroring the other cortex-* admin scripts).
+# A project-key migration can rewrite large embedded-message tables. Keep this
+# bounded, but do not let the generic 30-second API timeout cancel the transaction.
+CORTEX_API_MAX_TIME="${CORTEX_PROJECT_REGISTER_TIMEOUT_S:-1800}" \
+    cortex_api_call_admin POST "/projects" "${payload}" "${CALLER_AGENT}"
+cortex_api_call_json GET "/projects/${PROJECT}/runtime" "" "${CALLER_AGENT}" >/dev/null 2>&1 || true

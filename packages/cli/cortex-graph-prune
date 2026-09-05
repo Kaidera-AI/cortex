@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# cortex-graph-prune — dry-run/apply stale graph volume cleanup through cortex-api.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-graph-prune [--apply] [--keep PROJECT]...
+
+Dry-run by default. Compares graph-worker volume project dirs against active
+Cortex projects and reports stale graph.db directories. Use --apply to delete
+reported stale dirs. Use --keep for local-only graph dirs that must be retained.
+EOF
+}
+
+DRY_RUN=true
+KEEP_PROJECTS=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --apply) DRY_RUN=false; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --keep) KEEP_PROJECTS+=("$2"); shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+if [ "${#KEEP_PROJECTS[@]}" -gt 0 ]; then
+    payload="$(python3 - "${DRY_RUN}" "${KEEP_PROJECTS[@]}" <<'PYEOF'
+import json
+import sys
+
+print(json.dumps({
+    "dry_run": sys.argv[1].lower() == "true",
+    "keep_projects": sys.argv[2:],
+}))
+PYEOF
+)"
+else
+    payload="$(python3 - "${DRY_RUN}" <<'PYEOF'
+import json
+import sys
+
+print(json.dumps({
+    "dry_run": sys.argv[1].lower() == "true",
+    "keep_projects": [],
+}))
+PYEOF
+)"
+fi
+
+cortex_api_call_admin POST "/graph/prune" "${payload}"

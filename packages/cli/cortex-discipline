@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# cortex-discipline — project-isolation discipline banner + daily injection.
+# Usage:
+#   cortex-discipline [--agent <name>] [--daily-inject] [--bootstrap] [--print-only]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+
+AGENT_NAME="${CORTEX_DISCIPLINE_AGENT:-system}"
+DAILY_INJECT=false
+BOOTSTRAP_MODE=false
+PRINT_ONLY=false
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-discipline [--agent <name>] [--daily-inject] [--bootstrap] [--print-only]
+
+Prints the Cortex project-isolation protocol. With --daily-inject, records one
+project-local decision per day so bootstrap context carries the rule continuously.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --agent)
+            [ "$#" -ge 2 ] || { echo "ERROR: --agent requires a value" >&2; exit 1; }
+            AGENT_NAME="$(cortex_normalize_agent_name "$2")"
+            shift 2
+            ;;
+        --daily-inject)
+            DAILY_INJECT=true
+            shift
+            ;;
+        --bootstrap)
+            BOOTSTRAP_MODE=true
+            shift
+            ;;
+        --print-only)
+            PRINT_ONLY=true
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown flag: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+repo_root="$(cd "${AGENTS_DIR}/.." && pwd)"
+protocol_path="${repo_root}/Program/Release_v0.1.0/E002_HARNESS_PAPERCLIP_AND_LOCAL_CORTEX_CONTINUATION/CORTEX_PROJECT_DISCIPLINE_PROTOCOL.md"
+workspace_project="${CORTEX_WORKSPACE_PROJECT:-${WORKSPACE_PROJECT_NAME:-}}"
+today="$(date '+%Y-%m-%d')"
+marker="[CORTEX-DISCIPLINE-DAILY:${CORTEX_PROJECT}:${today}]"
+
+injection_status="not-requested"
+if "${DAILY_INJECT}" && ! "${PRINT_ONLY}"; then
+    injection_status="skipped-offline"
+    if pg_available; then
+        project_sql="$(sql_escape "${CORTEX_PROJECT}")"
+        agent_sql="$(sql_escape "${AGENT_NAME}")"
+        marker_sql="$(sql_escape "${marker}")"
+        exists="$(pg_query "
+            SELECT 1
+              FROM decisions
+             WHERE project = '${project_sql}'
+               AND summary LIKE '${marker_sql}%'
+             LIMIT 1
+        " 2>/dev/null || true)"
+        if [ -n "${exists}" ]; then
+            injection_status="already-present"
+        else
+            summary="${marker} Project isolation active: work only in project=${CORTEX_PROJECT}; cross-project read/write requires one-off CORTEX_CTO_OVERRIDE; no borrowed agents/hex/handoffs."
+            summary_sql="$(sql_escape "${summary}")"
+            protocol_sql="$(sql_escape "${protocol_path}")"
+            pg_exec "
+                INSERT INTO decisions (agent_name, project, category, summary, metadata)
+                VALUES (
+                    '${agent_sql}',
+                    '${project_sql}',
+                    'discipline',
+                    '${summary_sql}',
+                    jsonb_build_object(
+                        'protocol', 'CORTEX_PROJECT_DISCIPLINE_PROTOCOL',
+                        'protocol_path', '${protocol_sql}',
+                        'workspace_project', '$(sql_escape "${workspace_project}")',
+                        'daily_injection', true
+                    )
+                )
+            " >/dev/null 2>&1 || true
+            injection_status="inserted"
+        fi
+    fi
+fi
+
+if "${BOOTSTRAP_MODE}"; then
+    cat <<EOF
+## Cortex Project Discipline
+
+- Workspace project: ${workspace_project:-unknown}
+- Active Cortex project: ${CORTEX_PROJECT}
+- Rule: stay inside this project only; no cross-project reads/writes/agents/hex/handoffs.
+- CTO override: one command only with CORTEX_CTO_OVERRIDE=<decision-id>; never persistent.
+- Daily marker: ${injection_status} (${marker})
+- Protocol: ${protocol_path}
+
+EOF
+else
+    cat <<EOF
+# Cortex Project Discipline
+
+Workspace project: ${workspace_project:-unknown}
+Active Cortex project: ${CORTEX_PROJECT}
+Agent: ${AGENT_NAME}
+Daily marker: ${injection_status} (${marker})
+Protocol: ${protocol_path}
+
+Rules:
+1. Work only in the project shown by cortex-bootstrap.
+2. Do not query or mutate another project's Cortex rows by default.
+3. Do not borrow another project's agent names, roles, project hex, handoffs, launchers, or heartbeat rows.
+4. Cross-project access requires CORTEX_CTO_OVERRIDE=<decision-id> for one command only.
+5. If leakage appears, stop, patch the leak, log evidence, and ask CTO if a cross-project action is truly needed.
+
+EOF
+fi

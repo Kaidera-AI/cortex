@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# cortex-tail — inspect Cortex team events through the typed API boundary.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_lib.sh
+source "${SCRIPT_DIR}/_cortex_lib.sh"
+# /beat/events is admin-gated (LCX-UR-014): we need cortex_api_call_admin, which
+# lives in _cortex_api.sh, so ensure it is sourced even if cortex_api_call_json
+# was already provided elsewhere.
+if ! declare -F cortex_api_call_admin >/dev/null; then
+    # shellcheck source=./_cortex_api.sh
+    source "${SCRIPT_DIR}/_cortex_api.sh"
+fi
+
+COUNT=20
+FOLLOW=0
+ONCE=0
+SLEEP_SECONDS=2
+LAST_ID="${CORTEX_TAIL_LAST_ID:-}"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-tail [--once] [--follow] [--count N] [--last-id ID]
+
+Options:
+  --once        Print recent team events and exit. Default when --follow is absent.
+  --follow, -f Poll for new events until interrupted.
+  --count N    Number of events per request (1-200, default 20).
+  --last-id ID Start after a known team_events.id cursor.
+EOF
+}
+
+urlencode() {
+    python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$1"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --once)
+            ONCE=1
+            ;;
+        --follow|-f)
+            FOLLOW=1
+            ;;
+        --count)
+            shift
+            COUNT="${1:-}"
+            ;;
+        --last-id)
+            shift
+            LAST_ID="${1:-}"
+            ;;
+        --sleep)
+            shift
+            SLEEP_SECONDS="${1:-}"
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            printf 'ERROR: unknown option: %s\n\n' "$1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+if ! [[ "${COUNT}" =~ ^[0-9]+$ ]] || [ "${COUNT}" -lt 1 ] || [ "${COUNT}" -gt 200 ]; then
+    echo "ERROR: --count must be between 1 and 200" >&2
+    exit 1
+fi
+
+if [ "${FOLLOW}" -eq 0 ]; then
+    ONCE=1
+fi
+
+fetch_events() {
+    local recent="$1"
+    local cursor="$2"
+    local path="/beat/events?count=${COUNT}&team_events=true"
+    if [ "${recent}" = "1" ]; then
+        path="${path}&recent=true"
+    fi
+    if [ -n "${cursor}" ]; then
+        path="${path}&last_id=$(urlencode "${cursor}")"
+    fi
+    cortex_api_call_admin GET "${path}"
+}
+
+render_events() {
+    local response_json="$1"
+    shift
+    CORTEX_TAIL_RESPONSE="${response_json}" \
+    python3 - "$@" <<'PYEOF'
+import json
+import os
+import sys
+
+show_empty = "--show-empty" in sys.argv
+data = json.loads(os.environ.get("CORTEX_TAIL_RESPONSE", "{}"))
+if data.get("error"):
+    print(f"ERROR: {data['error']}", file=sys.stderr)
+    raise SystemExit(1)
+
+events = data.get("events") or []
+for event in events:
+    fields = event.get("fields") or {}
+    event_id = event.get("id") or ""
+    event_type = fields.get("type") or "event"
+    agent = fields.get("agent") or "?"
+    summary = (fields.get("summary") or "").replace("\n", " ")
+    print(f"{event_id}\t{event_type}\t{agent}\t{summary}")
+
+if show_empty and not events:
+    print(f"(no events; cursor={data.get('last_id') or ''})")
+PYEOF
+}
+
+extract_cursor() {
+    local response_json="$1"
+    CORTEX_TAIL_RESPONSE="${response_json}" \
+    python3 - <<'PYEOF'
+import json
+import os
+import sys
+
+data = json.loads(os.environ.get("CORTEX_TAIL_RESPONSE", "{}"))
+print(data.get("last_id") or "")
+PYEOF
+}
+
+if [ "${ONCE}" -eq 1 ] && [ "${FOLLOW}" -eq 0 ]; then
+    response="$(fetch_events 1 "${LAST_ID}")"
+    render_events "${response}" --show-empty
+    exit 0
+fi
+
+cursor="${LAST_ID}"
+while true; do
+    response="$(fetch_events 0 "${cursor}")"
+    render_events "${response}"
+    next_cursor="$(extract_cursor "${response}")"
+    if [ -n "${next_cursor}" ]; then
+        cursor="${next_cursor}"
+    fi
+    sleep "${SLEEP_SECONDS}"
+done
