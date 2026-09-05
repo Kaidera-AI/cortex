@@ -10,7 +10,7 @@ LABEL org.opencontainers.image.source="$KOS_IMAGE_SOURCE" \
       io.kaidera.kos.edition="$KOS_EDITION" \
       io.kaidera.kos.python.lock.sha256="3c2701e46fa2b4db1a72092b35ebda9ed3f25d45cc09c85a8fef86db43043f5a"
 RUN test -n "$KOS_VERSION" \
- && case "$KOS_EDITION:$KOS_IMAGE_SOURCE" in open-source:https://github.com/Kaidera-AI/kaidera-os|commercial:https://github.com/Kaidera-AI/kaideraos|dev:https://github.com/Kaidera-AI/kaideraos) ;; *) exit 1 ;; esac \
+ && case "$KOS_EDITION:$KOS_IMAGE_SOURCE" in open-source:https://github.com/Kaidera-AI/kaidera-os|open-source:https://github.com/Kaidera-AI/cortex|commercial:https://github.com/Kaidera-AI/kaideraos|dev:https://github.com/Kaidera-AI/kaideraos) ;; *) exit 1 ;; esac \
  && test "${#KOS_SOURCE_REVISION}" -eq 40 \
  && case "$KOS_SOURCE_REVISION" in *[!0-9a-f]*) exit 1 ;; esac
 
@@ -34,7 +34,7 @@ RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
 # Keep the Apple/Compose image to the same explicit importable API allowlist as the
 # source-free appliance image. Tests, caches and the source Dockerfile are not runtime.
 COPY main.py \
-     .agents/api/mcp_server.py \
+     mcp_server.py \
      observability.py \
      openkai_provider_env.py \
      ./

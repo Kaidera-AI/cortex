@@ -1,21 +1,16 @@
-# The API image builds from the repository root to consume the one canonical,
-# hash-complete dependency lock. Deny everything else by default.
+# Standalone projection: build context is packages/api itself. Deny everything by
+# default and re-include only the runtime allowlist.
 **
 
-!.agents/
-!.agents/api/
-!.agents/api/main.py
-!.agents/api/mcp_server.py
-!.agents/api/observability.py
-!.agents/api/openkai_provider_env.py
-!.agents/api/ingest/
-!.agents/api/ingest/**
-!.agents/api/models/
-!.agents/api/models/**
-
-!appliance/
-!appliance/requirements/
-!appliance/requirements/cortex-py312.lock
+!main.py
+!mcp_server.py
+!observability.py
+!openkai_provider_env.py
+!ingest/
+!ingest/**
+!models/
+!models/**
+!requirements.lock
 
 # These exclusions must remain last. Broad source re-includes above must never
 # admit ignored secrets, generated artifacts, or host build state that is not

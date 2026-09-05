@@ -64,7 +64,7 @@ ARG KOS_IMAGE_SOURCE
 ARG KOS_EDITION
 RUN /usr/local/bin/worker-entrypoint \
       --validate-image-metadata "$KOS_VERSION" "$KOS_SOURCE_REVISION" \
- && case "$KOS_EDITION:$KOS_IMAGE_SOURCE" in open-source:https://github.com/Kaidera-AI/kaidera-os|commercial:https://github.com/Kaidera-AI/kaideraos|dev:https://github.com/Kaidera-AI/kaideraos) ;; *) exit 1 ;; esac
+ && case "$KOS_EDITION:$KOS_IMAGE_SOURCE" in open-source:https://github.com/Kaidera-AI/kaidera-os|open-source:https://github.com/Kaidera-AI/cortex|commercial:https://github.com/Kaidera-AI/kaideraos|dev:https://github.com/Kaidera-AI/kaideraos) ;; *) exit 1 ;; esac
 
 LABEL org.opencontainers.image.title="Kaidera OS Cortex PDF worker" \
       org.opencontainers.image.description="Internal PDF extraction worker for Kaidera OS" \
