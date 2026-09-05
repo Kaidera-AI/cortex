@@ -1,0 +1,51 @@
+# Standalone projection: build context is packages/api itself. Deny everything by
+# default and re-include only the runtime allowlist.
+**
+
+!main.py
+!mcp_server.py
+!observability.py
+!openkai_provider_env.py
+!ingest/
+!ingest/**
+!models/
+!models/**
+!requirements.lock
+
+# These exclusions must remain last. Broad source re-includes above must never
+# admit ignored secrets, generated artifacts, or host build state that is not
+# represented by the source SHA.
+node_modules
+node_modules/**
+**/.git
+**/.git/**
+**/.env
+**/.env.*
+**/node_modules
+**/node_modules/**
+**/dist
+**/dist/**
+**/.venv
+**/.venv/**
+**/venv
+**/venv/**
+**/__pycache__
+**/__pycache__/**
+**/.pytest_cache
+**/.pytest_cache/**
+**/tests
+**/tests/**
+**/.ruff_cache
+**/.ruff_cache/**
+**/.mypy_cache
+**/.mypy_cache/**
+**/.coverage
+**/coverage.xml
+**/*.pyc
+**/*.pyo
+**/*.log
+**/*.pem
+**/*.key
+**/*.dump
+**/*.sql.gz
+**/.DS_Store

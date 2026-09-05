@@ -33,6 +33,8 @@ node_modules/**
 **/__pycache__/**
 **/.pytest_cache
 **/.pytest_cache/**
+**/tests
+**/tests/**
 **/.ruff_cache
 **/.ruff_cache/**
 **/.mypy_cache
