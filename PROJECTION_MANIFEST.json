@@ -18,12 +18,12 @@
     "deploy": {
       "files": 30,
       "path": "packages/deploy",
-      "tree_sha256": "a25163ccf82520a57955b897bfe9d309aa180bd4113848c782bf00ac212b5b87"
+      "tree_sha256": "221062fa0d8467f60f103ba89d052e3a6a3e725c7875a14890749fe9a301d4e7"
     },
     "installer": {
       "files": 5,
       "path": "packages/installer",
-      "tree_sha256": "0608edeea283f73e0dd7ece9191f6d3289796819c1e388ffc23824ab2fe637dd"
+      "tree_sha256": "91059092801a54b0a7abff7a7f12236874a54839d72cc66fdd92988e56449322"
     },
     "schema": {
       "files": 90,
@@ -41,5 +41,5 @@
   "schema": "cortex.projection_manifest.v1",
   "source_provenance": "pristine git archive of committed HEAD",
   "source_repo": "Kaidera-AI/kaideraos",
-  "source_revision": "0ce2f34528dbbf3ce63198923f52890680df7a15"
+  "source_revision": "3a26319c1114756bee9332961989dcbc3336721d"
 }
