@@ -1,13 +1,16 @@
 # Quickstart
 
-> **v0.1.0 target.** These commands run in production inside Kaidera OS today; the
-> standalone packaging (compose + wheel) lands with the extraction. This page is the
-> contract it lands under — if v0.1.0 cannot do this, v0.1.0 is not done.
+> **v0.1.001 (partial).** These commands run in production inside Kaidera OS today. The
+> standalone stack is built from source by the lifecycle launcher (see
+> [Run from source](../README.md#run-from-source)); it has not been qualified on a fresh host
+> yet. This page is the contract the complete release lands under.
 
 ## 1. Bring up the stack
 
 ```bash
-podman compose up -d        # db → migrations → api → workers
+python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project prepare-images
+python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project up
+python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project check
 cortex-doctor               # verifies effects: schema receipt, search answers, queues drain
 ```
 

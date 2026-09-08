@@ -2,7 +2,7 @@
 
 > **v0.1.0 extraction status:** this is the measured command-file surface in Kaidera OS
 > today. Extraction into this standalone repository is in progress. The names and
-> invocations below describe the v0.1.0 target contract; they do **not** claim that these
+> invocations below describe the v0.1.001 (partial) release contract; they do **not** claim that these
 > files are already installed from this repository.
 
 ## Scope and counting

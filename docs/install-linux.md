@@ -1,6 +1,6 @@
 # Install on Linux (rootless podman)
 
-> v0.1.0 target contract. This mirrors the hardened Linux appliance path Cortex ships
+> v0.1.001 (partial). This mirrors the hardened Linux appliance path Cortex ships
 > inside today.
 
 One containerisation technology per machine: on Linux that is **rootless podman**,
@@ -22,7 +22,11 @@ target — install current stable).
 ## What the installer does
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Kaidera-AI/cortex/main/install.sh | sh
+# v0.1.001 ships no installer channel yet; build from source with the lifecycle launcher:
+git clone https://github.com/Kaidera-AI/cortex.git && cd cortex
+python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project prepare-images
+python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project up
+python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project check
 ```
 
 1. Verifies every requirement above and **names the missing piece exactly** on failure.

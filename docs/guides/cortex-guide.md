@@ -642,7 +642,7 @@ operator act.
 - **Enrichment is eventually consistent.** Writes return immediately; embeddings and
   graph edges land in workers after. Search right after a write may miss the row
   until the queue drains — `cortex-doctor` shows the backlog.
-- **The standalone packaging is the v0.1.0 target.** The commands and routes here run
+- **The standalone packaging is the v0.1.001 (partial) release.** The commands and routes here run
   in production inside Kaidera OS today; the standalone compose + wheel land with the
   extraction. This guide describes the contract they land under.
 - **Cortex does not spawn agents.** It is the memory and coordination plane; the

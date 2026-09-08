@@ -1,6 +1,43 @@
 # Changelog
 
-## Unreleased
+## v0.1.001 — 2026-09-08 (partial release)
+
+The first tag. The actual codebase, projected from the Kaidera OS production lineage at the
+revision in `PROJECTION_MANIFEST.json`. Not qualified on a fresh host; the known gaps are
+listed in the [README](README.md#known-gaps-v01001).
+
+### Added
+- Standalone deployment in `packages/deploy`: compose file, the receipt-driven `cortex-runtime`
+  lifecycle launcher (`prepare-images`, `up`, `check`, `schema-status`, `rotate-leaves`,
+  `backup`, `restore`, owner pairing, provider labels), DB/TLS/provider images, `release.json`.
+- Node installer in `packages/installer` (`preflight`, `install --payload`, `backup`,
+  `restore`; npm identity 0.1.1); 28 offline tests.
+- Bounded export CLI; restore evaluator runner with a pre-restore backup.
+- Artifact embedding ledger (migration `2026-09-07-01`) and handoff status reconciliation:
+  eight-state handoff lifecycle, UUID-safe returns, history-only personas.
+- Search degradation reporting: provider outcomes are carried into the degradation status
+  instead of a silent fallback; query-embedding cache.
+- Exactly-once handoff returns: every row update in the return path is one row or a 409
+  inside the transaction; unclaimed handbacks and missing completion receipts are refused.
+- TLS custody helpers (`api_tls.py`, `db_tls.py`), service-auth schema (present, inert) and
+  the MCP server ported to the SDK-2 protocol.
+
+### Changed
+- Release identity: `v0.1.001` / npm `0.1.1` for this partial release; the `v0.1.003`
+  programme continues.
+- The key-format regex in `api_tls.py` is assembled from two literals so no PEM header
+  exists at rest in source (secret scanners stay enabled).
+- Python 3.14 stack for the API image, with the lock label bound to the copied lock.
+
+### Removed from the projection
+- `cortex-backup` (CLI) — harness-coupled; use the launcher's `backup`/`restore`.
+
+### Docs
+- README, roadmap and install guides rewritten for the partial release: rootless Podman on
+  Linux and a Podman machine on macOS (Apple Container removed 2026-09-01), run-from-source
+  instructions, the gap list.
+
+### Docs carried from the pre-release main
 
 - Docs: Apple Container → rootless Podman migration runbook
   (`docs/guides/migration-apple-to-podman.md`) from the measured 2026-09-01 production

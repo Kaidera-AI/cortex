@@ -6,7 +6,7 @@ Cortex ships fully containerised, exactly as it runs in production today: `db` �
 → `cortex-api` → three workers, health-gated in order, accessible only via the API.
 
 - **Linux:** rootless podman >= 5.0, cgroup manager `systemd` — [install guide](install-linux.md).
-- **macOS:** Apple Container (the installer installs it if missing) — [install guide](install-macos.md).
+- **macOS:** a rootless Podman machine (`applehv`) — [install guide](install-macos.md). Apple Container was removed on 2026-09-01.
 - One containerisation technology per machine — never mix engines on a host.
 - Health endpoints gate readiness; a service is up when its probe answers, not when its
   container starts.
@@ -16,7 +16,7 @@ Cortex ships fully containerised, exactly as it runs in production today: `db` �
 - Backups are the host's job (Cortex documents its dump contract: `pg_dump` of the single
   database + the receipts table); Cortex never touches volumes.
 
-The compose file and image builds land with v0.1.0.
+Since v0.1.001 the compose file, the image builds and the receipt-driven lifecycle launcher live in `packages/deploy`; images are built locally from source (none are published yet).
 
 ## As a module inside Kaidera OS
 

@@ -4,7 +4,7 @@
 to rootless Podman without losing data — and what did the first real migration teach us?"*
 
 **Status:** performed once, in production, 2026-09-01 (kaidera-os local Cortex,
-`amadmalik@MacBook-Air.local`). Full data fidelity verified: 10 projects / 1,133 agents /
+a developer MacBook). Full data fidelity verified: 10 projects / 1,133 agents /
 147,397 decisions / 9,558 handoffs / 1,779,465 messages — an exact match against the
 pre-migration baseline — plus 22 GiB of graphs and 418 MiB of models seeded into Podman
 named volumes. All six services healthy; `/health` OK; API serving migrated data
