@@ -1,0 +1,4 @@
+
+# Python bytecode never belongs in the projection
+__pycache__/
+*.pyc

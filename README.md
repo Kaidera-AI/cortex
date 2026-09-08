@@ -39,39 +39,29 @@ One containerisation technology per machine, latest stable:
   [install guide](docs/install-macos.md). Apple Container was removed on 2026-09-01 and is
   not supported.
 
-## Run from source
+## Running it — not yet from this checkout
 
-No release payload, container images, Homebrew formula or npm package is published for
-v0.1.001. The stack is built locally from these sources by the lifecycle launcher, which is
-receipt-driven and refuses on missing prerequisites rather than degrading.
+**There is no supported way to start the stack from a fresh clone of v0.1.001.** An earlier
+version of this README (tag `v0.1.001`, 2026-09-08) gave a `cortex-runtime` recipe; it was
+wrong and is withdrawn. The lifecycle launcher is a *prebuilt-runtime* launcher: it acquires
+verified images from an image lock and reads an install manifest, and it refuses to build
+source images by design (`packages/deploy/cortex-runtime`: "prebuilt runtime never builds
+source images"). v0.1.001 ships neither the image lock nor the install manifest, and no
+container images, release payload, Homebrew formula or npm package are published.
 
-Prerequisites: Podman `>= 5.0` (rootless), `podman-compose`, Python `>= 3.10`.
+What you can do with this checkout today:
 
-```bash
-git clone https://github.com/Kaidera-AI/cortex.git
-cd cortex
+- read the code, the schema and the migrations;
+- run the API unit tests (`packages/api/tests`, needs `mcp >= 2.1.1`; see gap 9 below);
+- run the installer's offline tests (`cd packages/installer && npm test`);
+- inspect the deployment contract: `packages/deploy/docker-compose.yml`, the Containerfiles
+  under `packages/api`, `packages/containers/*` and `packages/deploy`, and
+  `python3 packages/deploy/cortex-runtime --help`.
 
-# builds the images from packages/ and records their identity
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . \
-    --project my-project prepare-images
-
-# db -> migrate -> api -> workers, health-gated in order; prints one receipt on stdout
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . \
-    --project my-project up
-
-# verifies effects (schema receipt, API health) rather than declarations
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . \
-    --project my-project check
-```
-
-The launcher's full contract: `python3 packages/deploy/cortex-runtime --help`
-(`prepare-images`, `up`, `check`, `schema-status`, `rotate-leaves`, `backup`, `restore`,
-owner pairing and provider-label commands). The Node installer in `packages/installer`
-wraps the same lifecycle; `cortex preflight` works today, and `cortex install` requires an
-explicit `--payload` release manifest, which v0.1.001 does not ship — it refuses by design.
-
-The release author did not exercise this path on a fresh host for v0.1.001. Reports of
-what breaks are welcome as issues; see [SECURITY.md](SECURITY.md) for anything sensitive.
+A runnable payload (release archive, image lock, install manifest, published images) is
+v0.1.002 item 3 in [ROADMAP.md](ROADMAP.md). Until it exists, `cortex install` refuses by
+design and nothing here claims otherwise. Reports are welcome as issues; see
+[SECURITY.md](SECURITY.md) for anything sensitive.
 
 ## What it does
 
@@ -148,7 +138,7 @@ one owner per fact.
 ## Docs
 
 **Start here**
-- [Install on Linux](docs/install-linux.md) (rootless Podman) · [Install on macOS](docs/install-macos.md) (rootless Podman machine)
+- [Install on Linux](docs/install-linux.md) (rootless Podman) · [Install on macOS](docs/install-macos.md) (rootless Podman machine) — engine requirements; no start from this checkout yet
 - [Quickstart](docs/quickstart.md)
 - [Discovery — how a project finds Cortex and learns what it can do](docs/discovery.md)
 

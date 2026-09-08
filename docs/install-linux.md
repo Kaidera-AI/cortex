@@ -22,11 +22,10 @@ target — install current stable).
 ## What the installer does
 
 ```bash
-# v0.1.001 ships no installer channel yet; build from source with the lifecycle launcher:
-git clone https://github.com/Kaidera-AI/cortex.git && cd cortex
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project prepare-images
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project up
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project check
+# v0.1.001 ships no installer channel, no images and no install manifest: there is no supported
+# way to start the stack from this checkout yet (the launcher only acquires prebuilt images).
+# The runnable payload is v0.1.002 item 3 in ROADMAP.md. Until then, read the code, run the
+# unit tests, and inspect packages/deploy/docker-compose.yml and the Containerfiles.
 ```
 
 1. Verifies every requirement above and **names the missing piece exactly** on failure.

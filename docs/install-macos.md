@@ -25,16 +25,15 @@ Rootless Podman on macOS was proven by the production Apple Container → Podman
   path is user-owned. A repair loop that needs root is a design bug here.
 - `podman-compose` and Python `>= 3.10` on the host, for the launcher.
 
-## What the launcher does
+## What the launcher will do (not available in v0.1.001)
 
-```bash
-git clone https://github.com/Kaidera-AI/cortex.git && cd cortex
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project prepare-images
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project up
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project check
-```
+`packages/deploy/cortex-runtime` is a prebuilt-runtime launcher: it acquires verified images
+from an image lock, reads an install manifest, and refuses to build source images by design.
+v0.1.001 ships neither the lock nor the manifest and publishes no images, so **there is no
+supported way to start the stack from this checkout yet** — an earlier recipe on this page
+was wrong and is withdrawn (see the README). When the payload ships (v0.1.002), the launcher:
 
-1. **Builds the images** from `packages/` and records their identity against
+1. **Acquires the images** named by the image lock and verifies them against
    `packages/deploy/release.json`.
 2. **Deploys the appliance**: TLS init → `db` → `migrate` → `cortex-api` → `provider` →
    `embed-worker` · `graph-worker` · `pdf-worker`, health-gated in order.
@@ -44,7 +43,7 @@ python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir 
 
 The Node launcher in `packages/installer` (`cortex preflight`, `cortex install --payload …`)
 wraps the same lifecycle; `install` needs a published release manifest, which v0.1.001 does
-not ship.
+not ship — it refuses by design.
 
 ## After install
 

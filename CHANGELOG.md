@@ -2,6 +2,14 @@
 
 ## v0.1.001 — 2026-09-08 (partial release)
 
+### Corrections after the tag (main, 2026-09-08, found by the Cortex lane's publication audit)
+- The README's "Run from source" recipe was wrong and is withdrawn: the lifecycle launcher only
+  acquires prebuilt images from an image lock and reads an install manifest, neither of which
+  v0.1.001 ships, so there is no supported way to start the stack from this checkout yet. The
+  install guides and the quickstart say the same now.
+- The Node launcher reported `0.1.003`; it now reports `0.1.1`, matching the installer package
+  identity. The tag `v0.1.001` itself is unchanged; main carries the corrections.
+
 The first tag. The actual codebase, projected from the Kaidera OS production lineage at the
 revision in `PROJECTION_MANIFEST.json`. Not qualified on a fresh host; the known gaps are
 listed in the [README](README.md#known-gaps-v01001).

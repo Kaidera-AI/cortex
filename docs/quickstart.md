@@ -1,16 +1,15 @@
 # Quickstart
 
 > **v0.1.001 (partial).** These commands run in production inside Kaidera OS today. The
-> standalone stack is built from source by the lifecycle launcher (see
-> [Run from source](../README.md#run-from-source)); it has not been qualified on a fresh host
-> yet. This page is the contract the complete release lands under.
+> standalone stack cannot be started from this checkout yet — see
+> [Running it](../README.md#running-it--not-yet-from-this-checkout). This page is the contract
+> the complete release lands under.
 
 ## 1. Bring up the stack
 
 ```bash
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project prepare-images
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project up
-python3 packages/deploy/cortex-runtime --state-dir ~/cortex-state --payload-dir . --project my-project check
+# v0.1.001: no supported start from this checkout yet (no images, no install manifest);
+# the runnable payload is v0.1.002 item 3. This step becomes real with that release.
 cortex-doctor               # verifies effects: schema receipt, search answers, queues drain
 ```
 
