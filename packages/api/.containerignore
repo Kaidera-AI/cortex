@@ -6,6 +6,13 @@
 !mcp_server.py
 !observability.py
 !openkai_provider_env.py
+!db_tls.py
+!service_auth.py
+!service_auth_owner.py
+!service_auth_owner_client.py
+!service_auth_owner_lifespan.py
+!standalone/
+!standalone/**
 !ingest/
 !ingest/**
 !models/

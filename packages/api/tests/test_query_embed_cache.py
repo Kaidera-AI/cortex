@@ -40,10 +40,10 @@ def _stub_provider(api, config=None, vector=(0.1, 0.2, 0.3)):
 
     async def fake_embed(text, _config):
         calls.append(text)
-        return list(vector) if vector else None
+        return api.SearchProviderOutcome("success", list(vector)) if vector else api.SearchProviderOutcome("failed")
 
     api.load_cortex_platform_config_cached = fake_config
-    api._embed_text_with_config = fake_embed
+    api._embed_text_outcome = fake_embed
     return calls
 
 
@@ -72,10 +72,10 @@ async def test_concurrent_identical_queries_are_single_flight():
         calls.append(text)
         started.set()
         await release.wait()
-        return [0.1, 0.2, 0.3]
+        return api.SearchProviderOutcome("success", [0.1, 0.2, 0.3])
 
     api.load_cortex_platform_config_cached = fake_config
-    api._embed_text_with_config = slow_embed
+    api._embed_text_outcome = slow_embed
     tasks = [
         asyncio.create_task(api.embed_query_cached("the same burst query", "project-a"))
         for _ in range(20)

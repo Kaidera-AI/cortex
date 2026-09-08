@@ -1,0 +1,15 @@
+# Build context is packages/deploy, used only by Containerfile.provider.
+**
+!provider_service.py
+!provider_authority/
+!provider_authority/openkai_provider_config.py
+!provider_authority/source_root.py
+!provider_registry/
+!provider_registry/openkai-providers.json
+!provider_registry/openkai-provider-registry-pin.json
+**/__pycache__
+**/*.pyc
+**/*.env
+**/.env*
+**/*.key
+**/*.pem

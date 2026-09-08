@@ -1,0 +1,6 @@
+{
+  "schema": "cortex.payload.v1",
+  "version": "0.1.001",
+  "source_revision": "0ce2f34528dbbf3ce63198923f52890680df7a15",
+  "schema_revision": "8cf7e8f0f8b817a352e4e5292107309199464d049cbd008da464b238568c1966"
+}

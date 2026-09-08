@@ -55,6 +55,7 @@ except ImportError:
 
 import asyncpg
 import httpx
+from db_tls import connection_kwargs as database_connection_kwargs
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
@@ -100,7 +101,7 @@ from observability import (
 
 PG_DSN = os.getenv(
     "CORTEX_PG_DSN",
-    "postgresql://postgres:postgres@cortex-pg:5432/platform_agent_memory",
+    "postgresql://postgres@cortex-pg:5432/platform_agent_memory",
 )
 # Phase C cutover (handoff 1f5746f2): two-pool architecture
 # - PG_DSN_APP: cortex_app non-superuser role; RLS-enforced; used by handlers
@@ -174,8 +175,6 @@ TRGM_PREFIX_CHARS = 1000
 # bounded candidate set first, then rank it. This is an explicit fuzzy-ranking
 # recall cap; exact/BM25/vector stages still contribute independently.
 TRGM_CANDIDATE_LIMIT = int(os.getenv("CORTEX_TRGM_CANDIDATE_LIMIT", "100"))
-HARNESS_APPDB_DSN_DEFAULT = "postgresql://harness:harness@localhost:5500/harness_app"
-HARNESS_APPDB_CONNECT_TIMEOUT = float(os.getenv("HARNESS_APPDB_MIGRATION_TIMEOUT", "1.0"))
 VALID_EVENT_BACKENDS = {"postgres"}
 
 
@@ -414,7 +413,9 @@ async def listen_for_team_events() -> None:
     while True:
         conn: asyncpg.Connection | None = None
         try:
-            conn = await asyncpg.connect(PG_DSN_ADMIN)
+            conn = await asyncpg.connect(
+                PG_DSN_ADMIN, **database_connection_kwargs(PG_DSN_ADMIN, "admin")
+            )
             event_listener_conn = conn
             await conn.add_listener(EVENT_WAKE_CHANNEL, event_notification_callback)
             event_listener_ready = True
@@ -660,8 +661,12 @@ async def lifespan(app: FastAPI):
         # Every app-pool connection carries the deadline, so a handler cannot opt
         # out of it by forgetting to set one. Admin pool is deliberately exempt.
         server_settings={"statement_timeout": str(APP_STATEMENT_TIMEOUT_MS)},
+        **database_connection_kwargs(PG_DSN_APP, "app"),
     )
-    pool_admin = await asyncpg.create_pool(PG_DSN_ADMIN, min_size=1, max_size=4)
+    pool_admin = await asyncpg.create_pool(
+        PG_DSN_ADMIN, min_size=1, max_size=4,
+        **database_connection_kwargs(PG_DSN_ADMIN, "admin"),
+    )
     await ensure_roles_schema()
     await recover_interrupted_graph_build_jobs()
     # REN-ARCH-02: verify the app pool actually enforces RLS; warn loudly (or
@@ -2864,6 +2869,16 @@ def visible_agent_sql(alias: str = "a") -> str:
     )
 
 
+def require_startup_persona_eligible(agent_row) -> None:
+    """A retained registry/profile row is history, not runtime admission."""
+    capabilities = json_object(agent_row.get("capabilities")) if agent_row else {}
+    if (
+        capabilities.get("visibility") == "history-only"
+        or str(capabilities.get("transient", False)).strip().lower() == "true"
+    ):
+        raise HTTPException(403, "History-only or transient agents cannot start a runtime persona")
+
+
 async def upsert_role_record(
     conn: asyncpg.Connection,
     project: str,
@@ -3160,14 +3175,16 @@ async def ensure_schema_migrations_table(conn: asyncpg.Connection) -> None:
 
 
 async def fetch_applied_schema_migrations(conn: asyncpg.Connection) -> dict[str, dict[str, Any]]:
-    await ensure_schema_migrations_table(conn)
-    rows = await conn.fetch(
-        """
-        SELECT migration_id, checksum_sha256, source_path, applied_by,
-               applied_at, statement_status, surface_version
-          FROM cortex_schema_migrations
-        """
-    )
+    try:
+        rows = await conn.fetch(
+            """
+            SELECT migration_id, checksum_sha256, source_path, applied_by,
+                   applied_at, statement_status, surface_version
+              FROM cortex_schema_migrations
+            """
+        )
+    except asyncpg.UndefinedTableError as exc:
+        raise HTTPException(503, "Schema migration ledger is not initialized") from exc
     return {row["migration_id"]: dict(row) for row in rows}
 
 
@@ -3492,6 +3509,10 @@ async def apply_schema_migrations(
     max_count: int | None = None,
     applied_by: str = "admin-api",
 ) -> dict[str, Any]:
+    if not dry_run:
+        # Preserve source validation before DDL; inspection must never initialize.
+        schema_migration_files(migration_dir)
+        await ensure_schema_migrations_table(conn)
     plan = await schema_migration_plan(
         conn,
         migration_dir=migration_dir,
@@ -3697,11 +3718,19 @@ async def find_invalidation_target(conn: asyncpg.Connection, project: str, item_
 #
 # ponytail: OrderedDict LRU, no TTL. The key already carries the only thing that
 # invalidates a vector; add a TTL when something other than model config can.
+@dataclass(frozen=True)
+class SearchProviderOutcome:
+    """Internal stage result; never retain provider errors or credentials."""
+
+    status: Literal["success", "skipped", "failed"]
+    value: Any = None
+
+
 _QueryEmbedKey = tuple[str, str, str, int, bytes]
 _QUERY_EMBED_CACHE: "collections.OrderedDict[_QueryEmbedKey, list[float]]" = (
     collections.OrderedDict()
 )
-_QUERY_EMBED_INFLIGHT: dict[_QueryEmbedKey, "asyncio.Task[list[float] | None]"] = {}
+_QUERY_EMBED_INFLIGHT: dict[_QueryEmbedKey, "asyncio.Task[SearchProviderOutcome]"] = {}
 _QUERY_EMBED_CACHE_MAX = 512
 
 
@@ -3713,6 +3742,11 @@ def _query_embed_cache_put(key: _QueryEmbedKey, vector: list[float]) -> None:
 
 
 async def embed_query_cached(query: str, project: str = "") -> list[float] | None:
+    """Compatibility wrapper for callers that only need an optional vector."""
+    return (await _embed_query_outcome(query, project)).value
+
+
+async def _embed_query_outcome(query: str, project: str = "") -> SearchProviderOutcome:
     """`embed_text` for SEARCH, memoised and single-flight per project/config/query.
 
     Search only. Ingestion embeds unique content, so caching it would spend memory to
@@ -3720,7 +3754,7 @@ async def embed_query_cached(query: str, project: str = "") -> list[float] | Non
     """
     text = (query or "").strip()
     if len(text) < 10:
-        return None
+        return SearchProviderOutcome("skipped")
     config = await load_cortex_platform_config_cached()
     provider = str(config.get("embedding_provider") or EMBED_PROVIDER).strip().lower()
     model = str(config.get("embedding_model") or EMBED_MODEL).strip()
@@ -3740,24 +3774,24 @@ async def embed_query_cached(query: str, project: str = "") -> list[float] | Non
     cached = _QUERY_EMBED_CACHE.get(ck)
     if cached is not None:
         _QUERY_EMBED_CACHE.move_to_end(ck)
-        return cached
+        return SearchProviderOutcome("success", cached)
 
     task = _QUERY_EMBED_INFLIGHT.get(ck)
     if task is None:
-        task = asyncio.create_task(_embed_text_with_config(provider_text, config))
+        task = asyncio.create_task(_embed_text_outcome(provider_text, config))
         _QUERY_EMBED_INFLIGHT[ck] = task
 
-        def finish(done: "asyncio.Task[list[float] | None]") -> None:
+        def finish(done: "asyncio.Task[SearchProviderOutcome]") -> None:
             if _QUERY_EMBED_INFLIGHT.get(ck) is done:
                 _QUERY_EMBED_INFLIGHT.pop(ck, None)
             if done.cancelled():
                 return
             try:
-                vector = done.result()
+                outcome = done.result()
             except Exception:
                 return
-            if vector:  # never cache a failure
-                _query_embed_cache_put(ck, vector)
+            if outcome.status == "success" and outcome.value:
+                _query_embed_cache_put(ck, outcome.value)
 
         task.add_done_callback(finish)
 
@@ -3878,6 +3912,13 @@ def _extract_local_rerank_results(
 async def _embed_text_with_config(
     text: str, config: dict[str, Any]
 ) -> list[float] | None:
+    """Preserve ingestion's optional-vector contract on provider failure."""
+    return (await _embed_text_outcome(text, config)).value
+
+
+async def _embed_text_outcome(
+    text: str, config: dict[str, Any]
+) -> SearchProviderOutcome:
     """Embed with one immutable config snapshot.
 
     The cache key and provider request must use the same snapshot; loading config a
@@ -3893,21 +3934,21 @@ async def _embed_text_with_config(
     if provider != LOCAL_SEARCH_PROVIDER:
         key = await resolve_provider_key(provider)
         if not key or not model:
-            return None
+            return SearchProviderOutcome("skipped")
     elif not model:
-        return None
+        return SearchProviderOutcome("skipped")
     truncated = text[:_provider_input_limit(config, "embedding")]
     try:
         if provider == LOCAL_SEARCH_PROVIDER:
             if model != LOCAL_EMBED_MODEL or dims != LOCAL_EMBED_DIMS:
                 EMBEDDING_CALLS.labels(model=model, status="config_mismatch").inc()
-                return None
+                return SearchProviderOutcome("skipped")
             truncated = _truncate_utf8_bytes(
                 truncated,
                 LOCAL_SEARCH_MAX_TEXT_BYTES,
             )
             if not truncated:
-                return None
+                return SearchProviderOutcome("skipped")
             data = await _post_local_search_worker(
                 "/embed",
                 {"model": model, "texts": [truncated]},
@@ -3916,12 +3957,12 @@ async def _embed_text_with_config(
             emb = _extract_local_embedding(data, model=model, dims=dims)
             if emb:
                 EMBEDDING_CALLS.labels(model=model, status="success").inc()
-                return emb
+                return SearchProviderOutcome("success", emb)
             EMBEDDING_CALLS.labels(model=model, status="invalid_response").inc()
-            return None
+            return SearchProviderOutcome("failed")
 
         if key is None:  # defensive: external providers are resolved above
-            return None
+            return SearchProviderOutcome("skipped")
         async with httpx.AsyncClient(timeout=_provider_timeout(config, "embedding")) as client:
             resp = await client.post(
                 _embedding_endpoint(provider),
@@ -3931,48 +3972,56 @@ async def _embed_text_with_config(
                 },
                 json={"model": model, "input": truncated, "dimensions": dims},
             )
+            resp.raise_for_status()
             data = resp.json()
             emb = _extract_embedding(data)
             if emb and len(emb) == dims:
                 EMBEDDING_CALLS.labels(model=model, status="success").inc()
-                return emb
+                return SearchProviderOutcome("success", emb)
             if emb:
                 EMBEDDING_CALLS.labels(model=model, status="dimension_mismatch").inc()
-                return None
+                return SearchProviderOutcome("failed")
             EMBEDDING_CALLS.labels(model=model, status="empty").inc()
-            return None
+            return SearchProviderOutcome("failed")
     except httpx.TimeoutException:
         EMBEDDING_CALLS.labels(model=model, status="timeout").inc()
-        return None
+        return SearchProviderOutcome("failed")
     except Exception:
         EMBEDDING_CALLS.labels(model=model, status="error").inc()
-        return None
+        return SearchProviderOutcome("failed")
 
 
 async def rerank_results(
     query: str, documents: list[str], top_n: int = 8
 ) -> list[dict] | None:
+    """Compatibility wrapper retaining optional ranked results."""
+    return (await _rerank_outcome(query, documents, top_n)).value
+
+
+async def _rerank_outcome(
+    query: str, documents: list[str], top_n: int = 8
+) -> SearchProviderOutcome:
     config = await load_cortex_platform_config_cached()
     if not bool(config.get("rerank_enabled", True)) or len(documents) < 2:
-        return None
+        return SearchProviderOutcome("skipped")
     provider = str(config.get("rerank_provider") or RERANK_PROVIDER).strip().lower()
     model = str(config.get("rerank_model") or RERANK_MODEL).strip()
     key: str | None = None
     if provider != LOCAL_SEARCH_PROVIDER:
         key = await resolve_provider_key(provider)
         if not key or not model:
-            return None
+            return SearchProviderOutcome("skipped")
     elif not model:
-        return None
+        return SearchProviderOutcome("skipped")
     limit = _provider_input_limit(config, "rerank")
     query_text = query[:limit]
     docs = [d[:limit] for d in documents]
     if provider == LOCAL_SEARCH_PROVIDER:
         if model != LOCAL_RERANK_MODEL:
             RERANK_CALLS.labels(model=model, status="config_mismatch").inc()
-            return None
+            return SearchProviderOutcome("skipped")
         if isinstance(top_n, bool) or not isinstance(top_n, int) or top_n < 1:
-            return None
+            return SearchProviderOutcome("skipped")
         query_text = _truncate_utf8_bytes(query_text, LOCAL_SEARCH_MAX_TEXT_BYTES)
         docs = [
             _truncate_utf8_bytes(document, LOCAL_SEARCH_MAX_TEXT_BYTES)
@@ -3985,7 +4034,7 @@ async def rerank_results(
             + sum(len(document.encode("utf-8")) for document in docs)
             > LOCAL_SEARCH_MAX_BATCH_TEXT_BYTES
         ):
-            return None
+            return SearchProviderOutcome("skipped")
         local_top_n = min(top_n, len(docs), LOCAL_RERANK_MAX_DOCUMENTS)
         try:
             data = await _post_local_search_worker(
@@ -4006,18 +4055,19 @@ async def rerank_results(
             )
             if results:
                 RERANK_CALLS.labels(model=model, status="success").inc()
+                return SearchProviderOutcome("success", results)
             else:
                 RERANK_CALLS.labels(model=model, status="invalid_response").inc()
-            return results
+            return SearchProviderOutcome("failed")
         except httpx.TimeoutException:
             RERANK_CALLS.labels(model=model, status="timeout").inc()
-            return None
+            return SearchProviderOutcome("failed")
         except Exception:
             RERANK_CALLS.labels(model=model, status="error").inc()
-            return None
+            return SearchProviderOutcome("failed")
 
     if key is None:  # defensive: external providers are resolved above
-        return None
+        return SearchProviderOutcome("skipped")
     if provider == "nvidia":
         url = "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking"
         body = {
@@ -4042,7 +4092,7 @@ async def rerank_results(
             "top_n": top_n,
         }
     else:
-        return None
+        return SearchProviderOutcome("skipped")
     try:
         async with httpx.AsyncClient(timeout=_provider_timeout(config, "rerank")) as client:
             resp = await client.post(
@@ -4053,19 +4103,21 @@ async def rerank_results(
                 },
                 json=body,
             )
+            resp.raise_for_status()
             data = resp.json()
             results = _extract_rerank_results(data)
             if results:
                 RERANK_CALLS.labels(model=model, status="success").inc()
+                return SearchProviderOutcome("success", results)
             else:
                 RERANK_CALLS.labels(model=model, status="empty").inc()
-            return results
+            return SearchProviderOutcome("failed")
     except httpx.TimeoutException:
         RERANK_CALLS.labels(model=model, status="timeout").inc()
-        return None
+        return SearchProviderOutcome("failed")
     except Exception:
         RERANK_CALLS.labels(model=model, status="error").inc()
-        return None
+        return SearchProviderOutcome("failed")
 
 
 def prioritise_messages(messages: list[dict], budget_chars: int = 32000) -> str:
@@ -6368,7 +6420,7 @@ async def execute_search(
         tables = {key: value for key, value in tables.items() if key == search_type}
 
     results: list[dict[str, Any]] = []
-    # Stages that hit the database deadline and returned nothing. A non-empty list
+    # Stages that failed an attempted provider call or exhausted a deadline. A non-empty list
     # means these results are partial — surfaced to the caller as `degraded` rather
     # than silently passed off as a complete answer.
     degraded_stages: list[str] = []
@@ -6443,10 +6495,14 @@ async def execute_search(
             degraded_stages.append(label)
             return fallback
         try:
-            return await asyncio.wait_for(operation(), timeout=remaining)
+            outcome = await asyncio.wait_for(operation(), timeout=remaining)
         except (TimeoutError, asyncio.TimeoutError):
             degraded_stages.append(label)
             return fallback
+        if outcome.status == "failed":
+            degraded_stages.append(label)
+            return fallback
+        return outcome.value
 
     def row_value(row: Any, key_or_index: str | int, default: Any = None) -> Any:
         if isinstance(key_or_index, str):
@@ -6922,7 +6978,7 @@ async def execute_search(
     # The embedding provider's own ceiling is 15s — more than three times the whole
     # request budget — so it must answer to the deadline, not to itself.
     query_embedding = await within_budget(
-        "embedding", lambda: embed_query_cached(query, project), None
+        "embedding", lambda: _embed_query_outcome(query, project), None
     )
     if query_embedding:
         vec_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
@@ -7196,7 +7252,7 @@ async def execute_search(
         # Rerank is the last thing that runs and improves ORDER, not correctness, so
         # it is the right thing to drop when the budget is nearly spent.
         reranked = await within_budget(
-            "rerank", lambda: rerank_results(query, docs), None
+            "rerank", lambda: _rerank_outcome(query, docs), None
         )
         if reranked:
             rerank_output = []
@@ -7828,23 +7884,6 @@ PROJECT_KEY_RENAME_PROJECT_KEY_TABLES: tuple[str, ...] = (
     "cortex_legacy_identity_archive",
 )
 
-CONSOLE_APPDB_PROJECT_TABLE_CONFLICT_KEYS: dict[str, tuple[str, ...] | None] = {
-    "agent_settings": ("agent",),
-    "project_autonomy": (),
-    "project_propose_mode": (),
-    "pending_approval": ("handoff_id",),
-    "handoff_orchestration": None,
-    "run_state": None,
-    "usage_events": None,
-    "scheduled_jobs": ("id",),
-    "mailbox_feeders": ("id",),
-}
-
-CONSOLE_APPDB_PROJECT_JSON_COLUMNS: dict[str, tuple[str, ...]] = {
-    "scheduled_jobs": ("payload",),
-    "mailbox_feeders": ("config", "state"),
-}
-
 
 def sql_identifier(name: str) -> str:
     if not re.fullmatch(r"[a-z_][a-z0-9_]*", name):
@@ -7915,192 +7954,11 @@ async def ensure_project_key_update_cascade(conn: Any) -> list[str]:
     return ensured
 
 
-def harness_appdb_dsn() -> str:
-    """Resolve the separate console app-DB DSN without importing console code."""
-    override = os.getenv("HARNESS_APPDB_DSN_HOST", "").strip()
-    if override:
-        return override
-    raw = os.getenv("HARNESS_APPDB_DSN", "").strip()
-    return raw or HARNESS_APPDB_DSN_DEFAULT
-
-
-async def update_console_appdb_project_table(
-    conn: Any,
-    *,
-    table: str,
-    conflict_columns: tuple[str, ...] | None,
-    old_key: str,
-    new_key: str,
-) -> dict[str, int]:
-    if not await public_table_has_column(conn, table, "project"):
-        return {}
-    ident = sql_identifier(table)
-
-    if conflict_columns is not None:
-        for column in conflict_columns:
-            if not await public_table_has_column(conn, table, column):
-                return {}
-        if conflict_columns:
-            match = " AND ".join(
-                f"source.{sql_identifier(column)} = target.{sql_identifier(column)}"
-                for column in conflict_columns
-            )
-        else:
-            match = "TRUE"
-        status = await conn.execute(
-            f"""DELETE FROM {ident} target
-                  WHERE target.project = $2
-                    AND EXISTS (
-                        SELECT 1
-                          FROM {ident} source
-                         WHERE source.project = $1
-                           AND {match}
-                    )""",
-            old_key,
-            new_key,
-        )
-        deleted = affected_count(status)
-    else:
-        deleted = 0
-
-    status = await conn.execute(
-        f"UPDATE {ident} SET project = $2 WHERE project = $1",
-        old_key,
-        new_key,
-    )
-    counts = {f"appdb.{table}.project": affected_count(status)}
-    if deleted:
-        counts[f"appdb.{table}.project_conflicts_deleted"] = deleted
-    return counts
-
-
-async def update_console_appdb_default_project(
-    conn: Any,
-    *,
-    old_key: str,
-    new_key: str,
-) -> dict[str, int]:
-    required_columns = ("key", "value")
-    for column in required_columns:
-        if not await public_table_has_column(conn, "app_settings", column):
-            return {}
-    set_clause = "value = to_jsonb($2::text)"
-    if await public_table_has_column(conn, "app_settings", "updated_at"):
-        set_clause += ", updated_at = NOW()"
-    status = await conn.execute(
-        f"""UPDATE app_settings
-               SET {set_clause}
-             WHERE key = 'cortex_default_project'
-               AND value = to_jsonb($1::text)""",
-        old_key,
-        new_key,
-    )
-    return {"appdb.app_settings.cortex_default_project": affected_count(status)}
-
-
-async def update_console_appdb_project_json(
-    conn: Any,
-    *,
-    table: str,
-    column: str,
-    old_key: str,
-    new_key: str,
-) -> dict[str, int]:
-    for required in ("project", column):
-        if not await public_table_has_column(conn, table, required):
-            return {}
-    table_ident = sql_identifier(table)
-    column_ident = sql_identifier(column)
-    status = await conn.execute(
-        f"""UPDATE {table_ident}
-               SET {column_ident} = replace({column_ident}::text, $1, $2)::jsonb
-             WHERE project = $2
-               AND {column_ident}::text LIKE ('%' || $1 || '%')""",
-        old_key,
-        new_key,
-    )
-    return {f"appdb.{table}.{column}": affected_count(status)}
-
-
-async def migrate_console_appdb_project_key(
-    *,
-    old_key: str,
-    new_key: str,
-    conn: Any | None = None,
-) -> dict[str, Any]:
-    """Best-effort migration of console operational state in harness_app."""
-    owns_conn = conn is None
-    if conn is None:
-        try:
-            conn = await asyncpg.connect(
-                dsn=harness_appdb_dsn(),
-                timeout=HARNESS_APPDB_CONNECT_TIMEOUT,
-                command_timeout=HARNESS_APPDB_CONNECT_TIMEOUT,
-            )
-        except Exception as exc:
-            return {
-                "attempted": True,
-                "available": False,
-                "counts": {},
-                "error": str(exc),
-            }
-
-    counts: dict[str, int] = {}
-    try:
-        async with conn.transaction():
-            for table, conflict_columns in CONSOLE_APPDB_PROJECT_TABLE_CONFLICT_KEYS.items():
-                counts.update(
-                    await update_console_appdb_project_table(
-                        conn,
-                        table=table,
-                        conflict_columns=conflict_columns,
-                        old_key=old_key,
-                        new_key=new_key,
-                    )
-                )
-            counts.update(
-                await update_console_appdb_default_project(
-                    conn,
-                    old_key=old_key,
-                    new_key=new_key,
-                )
-            )
-            for table, columns in CONSOLE_APPDB_PROJECT_JSON_COLUMNS.items():
-                for column in columns:
-                    counts.update(
-                        await update_console_appdb_project_json(
-                            conn,
-                            table=table,
-                            column=column,
-                            old_key=old_key,
-                            new_key=new_key,
-                        )
-                    )
-        return {
-            "attempted": True,
-            "available": True,
-            "counts": counts,
-        }
-    except Exception as exc:
-        return {
-            "attempted": True,
-            "available": False,
-            "counts": counts,
-            "error": str(exc),
-        }
-    finally:
-        if owns_conn and conn is not None:
-            with suppress(Exception):
-                await conn.close()
-
-
 async def migrate_project_key(
     conn: Any,
     *,
     old_key: str,
     new_key: str,
-    appdb_conn: Any | None = None,
-    migrate_appdb: bool = True,
 ) -> dict[str, Any]:
     """Move a registered project key without creating a split identity.
 
@@ -8108,6 +7966,8 @@ async def migrate_project_key(
     project/project_key columns are touched. The underlying cortex_projects.id
     remains stable, so actor aliases and project_id foreign keys stay attached
     to the same project while text-scoped rows move to the new key.
+    External application settings are outside Cortex ownership. The retained
+    appdb result field explicitly reports that no external migration was attempted.
     """
     old_key = validate_project_key(old_key)
     new_key = validate_project_key(new_key)
@@ -8187,23 +8047,13 @@ async def migrate_project_key(
         )
         counts[f"{table}.project_key"] = affected_count(status)
 
-    appdb_result = (
-        await migrate_console_appdb_project_key(
-            old_key=old_key,
-            new_key=new_key,
-            conn=appdb_conn,
-        )
-        if migrate_appdb
-        else {"attempted": False, "available": False, "counts": {}}
-    )
-
     return {
         "migrated": True,
         "old_key": old_key,
         "new_key": new_key,
         "project_id": source["id"],
         "fk_constraints": fk_constraints,
-        "appdb": appdb_result,
+        "appdb": {"attempted": False, "available": False, "counts": {}},
         "counts": counts,
     }
 
@@ -8940,13 +8790,14 @@ async def boot(
         # role over a filesystem-derived agent_profiles row, which may lag after a
         # role rename (for example gem -> graphics or saul -> creative-director).
         profile = await conn.fetchrow(
-            """SELECT name as agent_name, role
+            """SELECT name as agent_name, role, capabilities
                FROM agents
                WHERE project = $1 AND lower(name) = $2
                LIMIT 1""",
             project,
             agent,
         )
+        require_startup_persona_eligible(profile)
         if not profile:
             # A profile-only legacy identity can still boot before registry import.
             profile = await conn.fetchrow(
@@ -9380,6 +9231,15 @@ async def bootstrap(
     agent = agent.lower().strip()
 
     async with acquire_scoped(project) as conn:
+        agent_row = await conn.fetchrow(
+            """SELECT name AS agent_name, role, capabilities
+               FROM agents
+               WHERE project = $1 AND lower(name) = $2
+               LIMIT 1""",
+            project,
+            agent,
+        )
+        require_startup_persona_eligible(agent_row)
         profile = await conn.fetchrow(
             """SELECT agent_name, role
                FROM agent_profiles
@@ -9389,14 +9249,7 @@ async def bootstrap(
             agent,
         )
         if not profile:
-            profile = await conn.fetchrow(
-                """SELECT name AS agent_name, role
-                   FROM agents
-                   WHERE project = $1 AND lower(name) = $2
-                   LIMIT 1""",
-                project,
-                agent,
-            )
+            profile = agent_row
         roles = await resolve_agent_roles(conn, project, agent)
         role_filter = roles or [agent]
 
@@ -9644,20 +9497,21 @@ async def get_agent_persona(
         )
 
     async with acquire_scoped(project) as conn:
+        agent_row = await conn.fetchrow(
+            """SELECT name, role, model, capabilities
+               FROM agents
+               WHERE project = $1 AND lower(name) = $2
+               LIMIT 1""",
+            project,
+            agent,
+        )
+        require_startup_persona_eligible(agent_row)
         profile_row = await conn.fetchrow(
             """SELECT agent_name, role, profile_kind, profile_text, metadata, updated_at
                FROM agent_profiles
                WHERE project = $1 AND lower(agent_name) = $2
                ORDER BY CASE WHEN profile_kind = 'identity' THEN 0 ELSE 1 END,
                         updated_at DESC
-               LIMIT 1""",
-            project,
-            agent,
-        )
-        agent_row = await conn.fetchrow(
-            """SELECT name, role, model, capabilities
-               FROM agents
-               WHERE project = $1 AND lower(name) = $2
                LIMIT 1""",
             project,
             agent,
@@ -14260,6 +14114,12 @@ async def return_handoff(
                 return completed_handoff_return_receipt(handoff_row)
 
             if handoff_row.get("kind") == "completion_handback":
+                if handoff_row.get("status") != "claimed":
+                    raise HTTPException(
+                        409,
+                        f"Completion handback {handoff_id} is {handoff_row.get('status')}, "
+                        "not claimed; claim the review before returning a decision",
+                    )
                 parent_id = handoff_row.get("reply_to_handoff_id")
                 if not parent_id:
                     raise HTTPException(
@@ -14304,7 +14164,7 @@ async def return_handoff(
                                 "this return",
                             )
 
-                await conn.execute(
+                child_update = await conn.execute(
                     """UPDATE handoffs
                           SET status = 'completed',
                               completed_at = NOW(),
@@ -14315,13 +14175,19 @@ async def return_handoff(
                     handoff_row["id"],
                     project,
                 )
+                if child_update != "UPDATE 1":
+                    raise HTTPException(
+                        409,
+                        f"Completion handback {handoff_id} was not updated exactly once; "
+                        "no return committed; re-read its claim and status",
+                    )
                 if decision == "rework":
                     if parent.get("status") != "returned":
                         raise HTTPException(
                             409,
                             f"Parent handoff {parent_id} is {parent.get('status')}, not returned",
                         )
-                    await conn.execute(
+                    parent_update = await conn.execute(
                         """UPDATE handoffs
                               SET status = 'pending',
                                   claimed_by = NULL,
@@ -14333,6 +14199,12 @@ async def return_handoff(
                         parent_id,
                         project,
                     )
+                    if parent_update != "UPDATE 1":
+                        raise HTTPException(
+                            409,
+                            f"Parent handoff {parent_id} was not requeued exactly once; "
+                            "no return committed; re-read its status",
+                        )
                     updated_parent = {
                         **parent,
                         "status": "pending",
@@ -14374,7 +14246,7 @@ async def return_handoff(
                         f"Parent handoff {parent_id} is {parent.get('status')}, not returned",
                     )
                 if parent.get("status") == "returned":
-                    await conn.execute(
+                    parent_update = await conn.execute(
                         """UPDATE handoffs
                               SET status = 'completed', completed_at = NOW()
                             WHERE id = $1::uuid AND project = $2
@@ -14382,6 +14254,12 @@ async def return_handoff(
                         parent_id,
                         project,
                     )
+                    if parent_update != "UPDATE 1":
+                        raise HTTPException(
+                            409,
+                            f"Parent handoff {parent_id} was not accepted exactly once; "
+                            "no return committed; re-read its status",
+                        )
                 await emit_handoff_lifecycle_event(
                     conn,
                     project=project,
@@ -14422,11 +14300,17 @@ async def return_handoff(
                     project,
                     handoff_row["id"],
                 )
+                if existing is None:
+                    raise HTTPException(
+                        409,
+                        f"Returned handoff {handoff_id} has no active completion handback; "
+                        "review delivery is unconfirmed; request operator reconciliation",
+                    )
                 return {
                     "returned": True,
                     "status": "returned",
                     "parent_handoff_id": handoff_row["id"],
-                    "handback_id": existing["id"] if existing else None,
+                    "handback_id": existing["id"],
                     "deduped": True,
                 }
             if handoff_row.get("status") != "claimed":
@@ -14454,7 +14338,7 @@ async def return_handoff(
                         409,
                         f"Work product {work_product_id} is not linked to this handoff",
                     )
-                report["work_product_id"] = work_product["id"]
+                report["work_product_id"] = str(work_product["id"])
             elif normalize_text_list(handoff_row.get("files_changed")):
                 warnings.append(
                     "work_product_missing: file-changing handoff returned without a Work Product Memory receipt"
@@ -14503,7 +14387,7 @@ async def return_handoff(
                     "cannot be addressed to the returning agent",
                 )
             if same_recipient and actor_kind == "human":
-                await conn.execute(
+                human_update = await conn.execute(
                     """UPDATE handoffs
                           SET status = 'completed',
                               returned_at = NOW(),
@@ -14515,6 +14399,12 @@ async def return_handoff(
                     handoff_row["id"],
                     project,
                 )
+                if human_update != "UPDATE 1":
+                    raise HTTPException(
+                        409,
+                        f"Handoff {handoff_id} was not completed exactly once; "
+                        "no return committed; re-read its claim and status",
+                    )
                 await emit_handoff_lifecycle_event(
                     conn,
                     project=project,
@@ -14536,7 +14426,7 @@ async def return_handoff(
                     "warnings": warnings,
                 }
 
-            await conn.execute(
+            task_update = await conn.execute(
                 """UPDATE handoffs
                       SET status = 'returned',
                           returned_at = NOW(),
@@ -14547,6 +14437,12 @@ async def return_handoff(
                 handoff_row["id"],
                 project,
             )
+            if task_update != "UPDATE 1":
+                raise HTTPException(
+                    409,
+                    f"Handoff {handoff_id} was not returned exactly once; "
+                    "no return committed; re-read its claim and status",
+                )
             handback_summary = (
                 f"Review completion: {compact_text(handoff_row.get('summary'), limit=300)}"
             )
@@ -14600,6 +14496,12 @@ async def return_handoff(
                 handoff_policy_db(handoff_row.get("retry")),
                 handoff_policy_db(handoff_row.get("escalation")),
             )
+            if handback_id is None:
+                raise HTTPException(
+                    409,
+                    f"Handoff {handoff_id} produced no completion handback receipt; "
+                    "no return committed; re-read its status before retrying",
+                )
             await emit_handoff_lifecycle_event(
                 conn,
                 project=project,
@@ -17384,7 +17286,6 @@ async def register_project(
             root_lookup_paths.append(os.path.realpath(path_value))
     root_lookup_paths = list(dict.fromkeys(root_lookup_paths))
 
-    migration_result: dict[str, Any] | None = None
     project_id: str | None = None
     async with pool_admin.acquire() as conn:
         async with conn.transaction():
@@ -17662,12 +17563,6 @@ async def register_project(
                         json.dumps(capabilities),
                     )
 
-        if migration_result:
-            migration_result["appdb"] = await migrate_console_appdb_project_key(
-                old_key=migration_result["old_key"],
-                new_key=migration_result["new_key"],
-            )
-
         await emit_team_event(
             conn,
             project=project_key,
@@ -17697,9 +17592,7 @@ async def register_project(
         "agents": registered_agents,
         "status": status,
         "registration_status": "created" if registration_mode == "create-only" else "upserted",
-        "migrated_from_project_key": (
-            migration_result.get("old_key") if migration_result else None
-        ),
+        "migrated_from_project_key": None,
     }
 
 

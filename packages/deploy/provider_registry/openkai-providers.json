@@ -1,0 +1,186 @@
+{
+  "schema_version": "openkai.providers.snapshot.v1",
+  "source_commit": "f3660f3c19939d2a6ff3b95be9aab3f85fb8312a",
+  "source_path": "packages/cli/src/providers.ts",
+  "default_provider": "openrouter",
+  "appliance_projection": {
+    "relationship": "ordered-exact-subset",
+    "runtime_version": "0.1.9-uat.0",
+    "runtime_release_tag": "unpublished-uat-candidate",
+    "runtime_release_commit": "f3660f3c19939d2a6ff3b95be9aab3f85fb8312a",
+    "runtime_source_path": "packages/cli/src/providers.ts",
+    "runtime_source_sha256": "e5186b427385a77df6ae1a43b7930b71a9f6c3633211543f82621517fe1fe05c",
+    "runtime_package_catalogue_path": "dist/providers.js",
+    "runtime_package_catalogue_sha256": "5245947e38a124ddf1740781bcf5873b29f910da6aa12fe1d320f76802066d7b",
+    "runtime_provider_count": 40,
+    "projection_provider_count": 21
+  },
+  "providers": [
+    {
+      "id": "openrouter",
+      "label": "OpenRouter (aggregator)",
+      "env_keys": [
+        "OPENROUTER_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "anthropic",
+      "label": "Anthropic (Claude)",
+      "env_keys": [
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_OAUTH_TOKEN",
+        "ANTHROPIC_AUTH_TOKEN"
+      ],
+      "oauth": true
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI",
+      "env_keys": [
+        "OPENAI_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "openai-codex",
+      "label": "OpenAI Codex (subscription)",
+      "env_keys": [],
+      "oauth": true
+    },
+    {
+      "id": "google",
+      "label": "Google (Gemini)",
+      "env_keys": [
+        "GEMINI_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "github-copilot",
+      "label": "GitHub Copilot (subscription)",
+      "env_keys": [],
+      "oauth": true
+    },
+    {
+      "id": "deepseek",
+      "label": "DeepSeek",
+      "env_keys": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "kimi-coding",
+      "label": "Kimi Code",
+      "env_keys": [
+        "KIMI_API_KEY"
+      ],
+      "oauth": true
+    },
+    {
+      "id": "moonshotai",
+      "label": "Moonshot AI",
+      "env_keys": [
+        "MOONSHOT_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "qwen-token-plan",
+      "label": "Alibaba Qwen (subscription)",
+      "env_keys": [
+        "QWEN_TOKEN_PLAN_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "xai",
+      "label": "xAI (Grok)",
+      "env_keys": [
+        "XAI_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "mistral",
+      "label": "Mistral",
+      "env_keys": [
+        "MISTRAL_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "groq",
+      "label": "Groq",
+      "env_keys": [
+        "GROQ_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "cerebras",
+      "label": "Cerebras",
+      "env_keys": [
+        "CEREBRAS_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "together",
+      "label": "Together",
+      "env_keys": [
+        "TOGETHER_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "fireworks",
+      "label": "Fireworks",
+      "env_keys": [
+        "FIREWORKS_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "nvidia",
+      "label": "NVIDIA",
+      "env_keys": [
+        "NVIDIA_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "minimax",
+      "label": "MiniMax",
+      "env_keys": [
+        "MINIMAX_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "zai",
+      "label": "Z.ai",
+      "env_keys": [
+        "ZAI_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "vercel-ai-gateway",
+      "label": "Vercel AI Gateway",
+      "env_keys": [
+        "AI_GATEWAY_API_KEY"
+      ],
+      "oauth": false
+    },
+    {
+      "id": "kaidera-manifold",
+      "label": "Kaidera Manifold (aggregator)",
+      "env_keys": [
+        "KAIDERA_MANIFOLD_API_KEY"
+      ],
+      "oauth": false
+    }
+  ]
+}

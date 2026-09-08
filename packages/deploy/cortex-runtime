@@ -1,0 +1,790 @@
+#!/usr/bin/env python3
+"""Finite standalone lifecycle. Stdout is one receipt; diagnostics go to stderr."""
+from __future__ import annotations
+
+import argparse
+import contextlib
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import shutil
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import types
+import urllib.request
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import image_manifest as images
+
+
+PKI_FILES = tuple(['ca/ca.crt', 'ca/ca.key'] + [
+    role + '/' + name for role in ('server', 'app', 'admin')
+    for name in ('ca.crt', 'tls.crt', 'tls.key')
+])
+BACKUP_REQUIRED = {'database.dump', 'certificates.tar.gz', 'runtime.env', 'manifest.json'}
+BACKUP_ALLOWED = BACKUP_REQUIRED | {'provider.env'}
+WRITERS = ('cortex-api', 'cortex-embed-worker', 'cortex-graph-worker', 'cortex-pdf-worker')
+
+
+def private_regular(path):
+    path = Path(path)
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_uid != os.getuid():
+        raise ValueError(str(path) + ' must be an owned private regular file')
+    return path
+
+
+def write_private(path, data):
+    path = Path(path)
+    if path.is_symlink():
+        raise ValueError('private configuration must not be a symlink')
+    fd, temporary = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def extract_pki(archive_path, destination):
+    """Extract only the fixed certificate files; never honor archive links or owners."""
+    destination = Path(destination)
+    if destination.exists():
+        raise ValueError('PKI restore staging already exists')
+    with tarfile.open(archive_path, 'r:gz') as archive:
+        members = archive.getmembers()
+        names = [member.name.rstrip('/') for member in members]
+        files = [member for member in members if member.isfile()]
+        if (len(names) != len(set(names)) or {member.name for member in files} != set(PKI_FILES)
+                or any((not member.isfile() and not (member.isdir() and member.name.rstrip('/') in
+                            {'ca', 'server', 'app', 'admin'})) or member.size > 1024 * 1024
+                       for member in members)):
+            raise ValueError('invalid certificate archive inventory')
+        destination.mkdir(mode=0o700)
+        for role in ('ca', 'server', 'app', 'admin'):
+            (destination / role).mkdir(mode=0o700)
+        for member in files:
+            with archive.extractfile(member) as source:
+                write_private(destination / member.name, source.read())
+
+
+def clear_restore_stage(stage):
+    """Remove only this workflow's enumerated temporary files, never a recursive target."""
+    pki = stage / 'pki'
+    if pki.exists():
+        if pki.is_symlink() or not pki.is_dir():
+            raise ValueError('invalid PKI staging directory')
+        for name in PKI_FILES:
+            (pki / name).unlink(missing_ok=True)
+        for role in ('ca', 'server', 'app', 'admin'):
+            (pki / role).rmdir()
+        pki.rmdir()
+    for name in BACKUP_ALLOWED:
+        (stage / name).unlink(missing_ok=True)
+
+
+def digest(path):
+    result = hashlib.sha256()
+    with Path(path).open('rb') as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b''):
+            result.update(block)
+    return result.hexdigest()
+
+
+def write_json(path, value):
+    path = Path(path)
+    fd, temporary = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w') as handle:
+            json.dump(value, handle, sort_keys=True, indent=2)
+            handle.write('\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+class Runtime:
+    def __init__(self, args):
+        self.args = args
+        if not re.fullmatch(r'[a-z][a-z0-9-]{1,62}', args.project):
+            raise ValueError('invalid project name')
+        self.state = Path(args.state_dir).expanduser().resolve()
+        if self.state in (Path('/'), Path.home()) or len(self.state.parts) < 3:
+            raise ValueError('state directory must be a dedicated application directory')
+        self.payload = Path(args.payload_dir).resolve()
+        self.compose_file = self.payload / images.COMPOSE_FILE
+        self.identity = json.loads((self.payload / 'packages/deploy/release.json').read_text())
+        if self.identity.get('schema') != 'cortex.payload.v1':
+            raise ValueError('invalid payload identity')
+        if not re.fullmatch(r'[a-zA-Z0-9_.-]+', self.identity.get('version', '')):
+            raise ValueError('invalid payload version')
+        if not re.fullmatch(r'[a-f0-9]{40}', self.identity.get('source_revision', '')):
+            raise ValueError('invalid payload source revision')
+        if not re.fullmatch(r'[a-f0-9]{64}', self.identity.get('schema_revision', '')):
+            raise ValueError('invalid payload schema revision')
+        # Every lifecycle entry point, including restore/rotation/schema-status,
+        # validates the install contract before running any helper or engine.
+        self.installation, self.image_inventory = images.load_installation(self.payload, self.identity)
+        self.images_verified = False
+        self.port = args.api_port
+        if not 1024 <= self.port <= 65535:
+            raise ValueError('API port must be between 1024 and 65535')
+        self.env_file = self.state / 'runtime.env'
+        self.stage = self.state / 'backup-stage'
+
+    def owner_action(self, action, *, selector=None, volume=None, request_file=None, response_file=None):
+        # This private path must never prepare state, use ambient Compose, or
+        # import an unbound host module. Execute the verified bytes, not a second
+        # filesystem read through an import loader.
+        member = 'packages/deploy/owner_helper.py'
+        path = self.payload / member
+        expected = self.installation['files'].get(member)
+        if not expected or not path.is_file() or path.is_symlink():
+            raise ValueError('owner helper is missing from the installation inventory')
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 262144:
+            raise ValueError('owner helper file is unsafe')
+        source = path.read_bytes()
+        if hashlib.sha256(source).hexdigest() != expected:
+            raise ValueError('owner helper checksum differs')
+        if (action == 'owner-pair' and (not selector or not volume)
+                or action == 'owner-request' and (not request_file or not response_file)
+                or action not in {'owner-pair', 'owner-request'}):
+            raise ValueError('owner helper requires explicit action inputs')
+        try:
+            module = types.ModuleType('cortex_owner_helper')
+            module.__file__ = str(path)
+            exec(compile(source, str(path), 'exec'), module.__dict__)
+            helper = module.OwnerHelper(self, selector=selector)
+            if action == 'owner-pair': return helper.pair(volume)
+            return helper.request(request_file, response_file)
+        except BaseException:
+            raise RuntimeError('owner operation unavailable; outcome unknown, do not retry automatically') from None
+
+    def prepare(self):
+        if Path(self.args.state_dir).expanduser().is_symlink():
+            raise ValueError('state directory must not be a symlink')
+        self.state.mkdir(parents=True, mode=0o700, exist_ok=True)
+        if not self.state.is_dir() or self.state.stat().st_uid != os.getuid():
+            raise ValueError('state directory must be owned by the current operator')
+        os.chmod(self.state, 0o700)
+        owner = self.state / 'runtime-owner.json'
+        if owner.exists() or owner.is_symlink():
+            previous = json.loads(private_regular(owner).read_text())
+            if previous != {'schema': 'cortex.runtime-owner.v1', 'project': self.args.project}:
+                raise ValueError('state directory belongs to another runtime')
+        else:
+            # Adopt no pre-existing resource through a newly invented state marker.
+            found = subprocess.run(['podman', 'ps', '-a', '--filter',
+                                    'label=com.docker.compose.project=' + self.args.project,
+                                    '--format', '{{.ID}}'], capture_output=True, text=True, check=True)
+            if found.stdout.strip():
+                raise ValueError('project already exists without this state directory receipt')
+            for label in ('com.docker.compose.project', 'io.podman.compose.project'):
+                volumes = subprocess.run(['podman', 'volume', 'ls', '--filter',
+                                          'label=' + label + '=' + self.args.project,
+                                          '--format', '{{.Name}}'], capture_output=True, text=True, check=True)
+                if volumes.stdout.strip():
+                    raise ValueError('project volumes already exist without this state directory receipt')
+            volumes = subprocess.run(['podman', 'volume', 'ls', '--format', '{{.Name}}'],
+                                     capture_output=True, text=True, check=True)
+            if any(name.startswith(self.args.project + '_') for name in volumes.stdout.splitlines()):
+                raise ValueError('named project volumes already exist without this state directory receipt')
+            write_json(owner, {'schema': 'cortex.runtime-owner.v1', 'project': self.args.project})
+        if self.stage.is_symlink():
+            raise ValueError('backup staging must not be a symlink')
+        self.stage.mkdir(mode=0o700, exist_ok=True)
+        if not self.stage.is_dir() or self.stage.stat().st_uid != os.getuid():
+            raise ValueError('backup staging must be an owned private directory')
+        os.chmod(self.stage, 0o700)
+        if not self.env_file.exists():
+            fd = os.open(self.env_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as handle:
+                handle.write('CORTEX_ADMIN_TOKEN=' + secrets.token_urlsafe(48) + '\n')
+        private_regular(self.env_file)
+
+    def _provider_authority(self):
+        # Validate custody before opening authority or calling its materializer.
+        # These maintenance reads must never create/repair instance state.
+        try:
+            original = Path(self.args.state_dir).expanduser()
+            if not original.is_absolute() or original != self.state:
+                raise ValueError
+            for path in [*reversed(self.state.parents), self.state]:
+                info = path.lstat()
+                if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in {0, os.geteuid()}
+                        or info.st_mode & 0o022 and not (info.st_uid == 0 and info.st_mode & stat.S_ISVTX)):
+                    raise ValueError
+            info = self.state.lstat()
+            if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                raise ValueError
+
+            def receipt(name):
+                path = self.state / name
+                fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                try:
+                    info = os.fstat(fd)
+                    if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                            or info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o600
+                            or info.st_size > 8192):
+                        raise ValueError
+                    data = os.read(fd, 8193)
+                    current = path.lstat()
+                    if len(data) > 8192 or (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+                        raise ValueError
+                    return json.loads(data)
+                finally:
+                    os.close(fd)
+
+            if receipt('runtime-owner.json') != {'schema': 'cortex.runtime-owner.v1', 'project': self.args.project}:
+                raise ValueError
+            provider = receipt('provider-settings.json')
+            if (not isinstance(provider, dict) or set(provider) != {'schema', 'path'}
+                    or provider['schema'] != 'cortex.provider-settings.v1'
+                    or not isinstance(provider['path'], str)
+                    or any(ord(c) < 32 for c in provider['path'])):
+                raise ValueError
+            authority = Path(provider['path'])
+            if not authority.is_absolute() or authority.name != '.env' or '..' in authority.parts:
+                raise ValueError
+            for path in [*reversed(authority.parent.parents), authority.parent]:
+                info = path.lstat()
+                if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in {0, os.geteuid()}
+                        or info.st_mode & 0o022 and not (info.st_uid == 0 and info.st_mode & stat.S_ISVTX)):
+                    raise ValueError
+            info = authority.parent.lstat()
+            if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                raise ValueError
+        except (ValueError, TypeError, OSError):
+            raise ValueError('provider custody receipts are unavailable or invalid') from None
+        return private_regular(authority)
+
+    def provider_label_action(self, action, *, expected_authority=None):
+        if action not in {'inventory', 'apply', 'check'}:
+            raise ValueError('unknown provider label action')
+        approved = getattr(self.args, 'label_inventory_sha256', None)
+        if action == 'apply' and (not isinstance(approved, str) or not re.fullmatch('[a-f0-9]{64}', approved)):
+            raise ValueError('provider label apply requires an explicit inventory SHA-256')
+        authority = self._provider_authority()
+        if expected_authority is not None and authority != expected_authority:
+            raise ValueError('provider authority changed during preparation')
+        member = 'packages/deploy/provider_labels.py'
+        expected = self.installation['files'].get(member)
+        try:
+            source = images.read_member(self.payload, member)
+            if len(source) > 262144 or not expected or hashlib.sha256(source).hexdigest() != expected:
+                raise ValueError
+            module = types.ModuleType('cortex_provider_labels')
+            module.__file__ = str(self.payload / member)
+            # Execute the checked bytes, not a later filesystem import/read.
+            exec(compile(source, module.__file__, 'exec'), module.__dict__)
+            if action == 'apply':
+                result = module.apply(authority, state_dir=self.state, expected_inventory_sha256=approved)
+            else:
+                result = getattr(module, action)(authority)
+            if self._provider_authority() != authority:
+                raise ValueError('provider authority changed during label operation')
+            return result
+        except Exception:
+            # An apply may have changed some metadata. Never expose arbitrary
+            # exception text, retry, or claim an automatic rollback happened.
+            raise RuntimeError('provider label operation refused; inspect private journal before retrying apply') from None
+
+    def prepare_provider(self):
+        authority = self._provider_authority()
+        helper = self.payload / 'packages/deploy/provider_service.py'
+        result = subprocess.run(
+            [sys.executable, str(helper), 'prepare', '--env-file', str(authority),
+             '--token-file', str(self.state / 'provider-status.token')],
+            check=True, capture_output=True, text=True)
+        prepared = json.loads(result.stdout)
+        if prepared.get('schema') != 'cortex.provider-service.v1':
+            raise RuntimeError('provider preparation returned no validated receipt')
+        self.provider_label_action('check', expected_authority=authority)
+        prepared['authority_dir'] = str(authority.parent)
+        write_json(self.state / 'provider-runtime.json', prepared)
+
+    def environment(self):
+        env = dict(os.environ)
+        env.update(CORTEX_VERSION=self.identity['version'],
+                   CORTEX_SOURCE_REVISION=self.identity['source_revision'],
+                   CORTEX_API_PORT=str(self.port), CORTEX_BACKUP_STAGE=str(self.stage))
+        # Deployment state, not a shell expansion, owns the generated API secret.
+        for line in self.env_file.read_text().splitlines():
+            key, sep, value = line.partition('=')
+            if sep and key == 'CORTEX_ADMIN_TOKEN':
+                env[key] = value
+        provider_receipt = self.state / 'provider-runtime.json'
+        if provider_receipt.exists():
+            provider = json.loads(private_regular(provider_receipt).read_text())
+            env.update(
+                CORTEX_PROVIDER_AUTHORITY_DIR=provider['authority_dir'],
+                CORTEX_PROVIDER_PROJECTION_DIR=provider['projection_dir'],
+                CORTEX_PROVIDER_REGISTRY_FILE=provider['registry_file'],
+                CORTEX_PROVIDER_TOKEN_FILE=provider['token_file'],
+                HARNESS_SERVICE_TOKEN=private_regular(Path(provider['token_file'])).read_text().strip())
+        return env
+
+    def compose(self, *args, capture=False, check=True):
+        if args and args[0] == 'build':
+            raise ValueError('prebuilt runtime never builds source images')
+        if not self.images_verified and args and args[0] in {'run', 'up'}:
+            # Maintenance and recovery may use cached images, but cannot silently
+            # acquire/build a helper. Unrelated absent workers must not block a
+            # certified schema read or database backup. Up verifies all in advance.
+            roles = {images.SERVICE_ROLES[arg] for arg in args if arg in images.SERVICE_ROLES}
+            if not roles:
+                raise ValueError('prebuilt Compose requires explicit known services')
+            self.acquire_images(allow_pull=False, roles=roles)
+        result = subprocess.run(['podman-compose', '--in-pod', 'false', '-p', self.args.project,
+                                 '--env-file', str(self.env_file), '-f', str(self.compose_file),
+                                 *args], env=self.environment(), text=True,
+                                stdout=subprocess.PIPE if capture else sys.stderr,
+                                stderr=sys.stderr, check=check)
+        return result.stdout if capture else result.returncode
+
+    def acquire_images(self, *, allow_pull=True, roles=None):
+        owner = self.state / 'runtime-owner.json'
+        if owner.exists() or owner.is_symlink():
+            if json.loads(private_regular(owner).read_text()) != {'schema': 'cortex.runtime-owner.v1', 'project': self.args.project}:
+                raise ValueError('state directory belongs to another runtime')
+        raw = subprocess.check_output(['podman', 'info', '--format', 'json'], text=True)
+        info = json.loads(raw)
+        host = info.get('host', info.get('Host', {}))
+        platform = str(host.get('os', host.get('Os'))) + '/' + str(host.get('arch', host.get('Arch')))
+        if platform != self.installation['platform']:
+            raise ValueError('prebuilt payload does not match the Podman Linux backend platform')
+        selected = set(images.SERVICE_ROLES.values()) if roles is None else set(roles)
+        if not selected or not selected <= set(images.SERVICE_ROLES.values()):
+            raise ValueError('image verification requires known runtime roles')
+        for role in sorted(selected):
+            lock = self.image_inventory['platforms'][platform][role]
+            reference = images.image_ref(lock)
+            result = subprocess.run(['podman', 'image', 'inspect', reference], capture_output=True, text=True)
+            if result.returncode:
+                if not allow_pull:
+                    raise RuntimeError('verified prebuilt helper image is unavailable; run install recovery first')
+                subprocess.run(['podman', 'pull', '--platform', platform, reference],
+                               check=True, stdout=sys.stderr, stderr=sys.stderr, timeout=900)
+                result = subprocess.run(['podman', 'image', 'inspect', reference],
+                                        check=True, capture_output=True, text=True)
+            records = json.loads(result.stdout)
+            if not isinstance(records, list) or len(records) != 1:
+                raise ValueError('image inspection did not return exactly one platform manifest')
+            images.verify_image(records[0], lock, platform, self.identity)
+        if selected == set(images.SERVICE_ROLES.values()):
+            self.images_verified = True
+
+    def verify_running_image(self, service, image_id):
+        # A config ID locates the running image; only its platform manifest and
+        # repository digest establish identity. Matching labels alone are not proof.
+        records = json.loads(subprocess.check_output(['podman', 'image', 'inspect', image_id], text=True))
+        if not isinstance(records, list) or len(records) != 1:
+            raise ValueError('running image inspection did not return exactly one image')
+        platform = self.installation['platform']
+        lock = self.image_inventory['platforms'][platform][images.SERVICE_ROLES[service]]
+        images.verify_image(records[0], lock, platform, self.identity)
+
+    def container(self, service, *, optional=False):
+        out = subprocess.check_output(['podman', 'ps', '-a', '--filter',
+                                       'label=com.docker.compose.project=' + self.args.project,
+                                       '--filter', 'label=com.docker.compose.service=' + service,
+                                       '--format', '{{.ID}}'], text=True).split()
+        if optional and not out:
+            return None
+        if len(out) != 1:
+            raise RuntimeError('expected exactly one owned container for ' + service)
+        return out[0]
+
+    def inspect_owned(self, service, container, *, exact_identity=False):
+        info = json.loads(subprocess.check_output(['podman', 'inspect', container], text=True))[0]
+        labels = info.get('Config', {}).get('Labels', {})
+        if (labels.get('org.opencontainers.image.source') != 'https://github.com/Kaidera-AI/cortex'
+                or labels.get('com.docker.compose.project') != self.args.project
+                or labels.get('com.docker.compose.service') != service):
+            raise RuntimeError('container does not belong to this Cortex runtime: ' + service)
+        if exact_identity and (
+                labels.get('org.opencontainers.image.version') != self.identity['version']
+                or labels.get('org.opencontainers.image.revision') != self.identity['source_revision']):
+            raise RuntimeError('container source does not match this payload: ' + service)
+        return info
+
+    def stop_writers(self, *, exact_identity=False):
+        existing = {}
+        for service in WRITERS:
+            container = self.container(service, optional=True)
+            if container is not None:
+                self.inspect_owned(service, container, exact_identity=exact_identity)
+                existing[service] = container
+        # Missing writers are normal only on the first boot; stop failures are not.
+        if existing:
+            self.compose('stop', *existing)
+        for service, container in existing.items():
+            info = self.inspect_owned(service, container, exact_identity=exact_identity)
+            if info.get('State', {}).get('Running') is not False:
+                raise RuntimeError('writer is not proven stopped: ' + service)
+
+    def wait(self, service, finite=False, timeout=600):
+        deadline = time.monotonic() + timeout
+        container = self.container(service)
+        while time.monotonic() < deadline:
+            info = json.loads(subprocess.check_output(['podman', 'inspect', container], text=True))[0]['State']
+            status = info.get('Status')
+            if finite and status == 'exited':
+                if info.get('ExitCode') != 0:
+                    subprocess.run(['podman', 'logs', '--tail', '40', container], stdout=sys.stderr)
+                    raise RuntimeError(service + ' failed')
+                return
+            if not finite and info.get('Health', {}).get('Status') == 'healthy':
+                return
+            if status in ('dead', 'exited') and not finite:
+                subprocess.run(['podman', 'logs', '--tail', '40', container], stdout=sys.stderr)
+                raise RuntimeError(service + ' exited before readiness')
+            time.sleep(1)
+        raise RuntimeError(service + ' readiness timeout')
+
+    def migration_status(self):
+        raw = self.compose('run', '--rm', '--no-deps', 'cortex-migrate',
+                           'python', '/app/standalone/migrate.py', '--status', capture=True)
+        for line in reversed(raw.splitlines()):
+            try:
+                value = json.loads(line)
+                if isinstance(value, dict) and 'schema_revision' in value:
+                    return value
+            except ValueError:
+                pass
+        raise RuntimeError('migrator returned no schema receipt')
+
+    def check(self):
+        images = {}
+        for service in ('cortex-pg', 'cortex-provider', 'cortex-api', 'cortex-embed-worker',
+                        'cortex-graph-worker', 'cortex-pdf-worker'):
+            running = json.loads(subprocess.check_output(
+                ['podman', 'inspect', self.container(service)], text=True))[0]
+            labels = running.get('Config', {}).get('Labels', {})
+            if (labels.get('org.opencontainers.image.source') != 'https://github.com/Kaidera-AI/cortex'
+                    or labels.get('org.opencontainers.image.version') != self.identity['version']
+                    or labels.get('org.opencontainers.image.revision') != self.identity['source_revision']
+                    or running.get('State', {}).get('Status') != 'running'
+                    or running.get('State', {}).get('Health', {}).get('Status') != 'healthy'):
+                raise RuntimeError('runtime service is unhealthy or its image identity does not match payload: ' + service)
+            images[service] = running['Image']
+            self.verify_running_image(service, running['Image'])
+        with urllib.request.urlopen(f'http://127.0.0.1:{self.port}/health', timeout=10) as response:
+            health = json.load(response)
+        if health.get('status') != 'healthy' or health.get('postgres') != 'connected':
+            raise RuntimeError('Cortex health effect check failed')
+        if health.get('surface_version') != 'cortex-standalone-' + self.identity['version']:
+            raise RuntimeError('API health does not identify the expected release')
+        for route in ('/search?q=standalone-canary&limit=1', '/handoffs?status=pending'):
+            request = urllib.request.Request(f'http://127.0.0.1:{self.port}' + route,
+                                             headers={'X-Project': 'cortex-standalone-canary'})
+            with urllib.request.urlopen(request, timeout=20) as response:
+                json.load(response)
+        schema = self.migration_status()['schema_revision']
+        if self.args.schema_revision and schema != self.args.schema_revision:
+            raise RuntimeError('deployed schema does not match the requested inventory')
+        return {'healthy': True, 'schema_revision': schema,
+                'discovery_url': f'http://127.0.0.1:{self.port}/health',
+                'version': self.identity['version'], 'source_revision': self.identity['source_revision'],
+                'images': images}
+
+    def up(self):
+        # Nothing stops or migrates until every image has been acquired and its
+        # manifest, platform and source labels verified. Compose cannot build or pull.
+        self.acquire_images()
+        self.prepare()
+        self.prepare_provider()
+        if self.args.rollback:
+            actual = self.migration_status()['schema_revision']
+            if not self.args.schema_revision or actual != self.args.schema_revision:
+                raise RuntimeError('rollback requires the retained schema inventory')
+        elif self.args.schema_revision and self.args.schema_revision != self.identity['schema_revision']:
+            raise RuntimeError('requested schema differs from payload identity')
+        # Stop writers before touching migration state, including on a retry.
+        self.stop_writers()
+        self.compose('up', '-d', '--no-deps', '--force-recreate', 'cortex-tls-init')
+        self.wait('cortex-tls-init', finite=True)
+        self.compose('up', '-d', '--no-deps', 'cortex-pg')
+        self.wait('cortex-pg')
+        self.compose('up', '-d', '--no-deps', '--force-recreate', 'cortex-provider')
+        self.wait('cortex-provider')
+        if not self.args.rollback:
+            self.compose('up', '-d', '--no-deps', '--force-recreate', 'cortex-migrate')
+            self.wait('cortex-migrate', finite=True)
+        self.compose('up', '-d', '--no-deps', '--force-recreate', 'cortex-api')
+        self.wait('cortex-api')
+        for worker in ('cortex-embed-worker', 'cortex-graph-worker', 'cortex-pdf-worker'):
+            self.compose('up', '-d', '--no-deps', worker)
+            self.wait(worker, timeout=900)
+        return self.check()
+
+    def rotate_leaves(self):
+        owner = json.loads(private_regular(self.state / 'runtime-owner.json').read_text())
+        if owner != {'schema': 'cortex.runtime-owner.v1', 'project': self.args.project}:
+            raise ValueError('state directory belongs to another runtime')
+        private_regular(self.env_file)
+        database = self.container('cortex-pg')
+        info = self.inspect_owned('cortex-pg', database, exact_identity=True)
+        if info.get('State', {}).get('Running') is not True:
+            raise RuntimeError('leaf rotation requires this owned PostgreSQL process to be running')
+        # Do not require API health or currently usable leaf certificates here:
+        # an interrupted publication and expired leaves must remain repairable.
+        self.stop_writers(exact_identity=True)
+        # Readers are stopped while the initializer replaces leaf files. CA
+        # custody is unchanged; only PostgreSQL reload and pool recycle follow.
+        self.compose('run', '--rm', '--no-deps', 'cortex-tls-init', 'rotate-leaves')
+        subprocess.run(['podman', 'kill', '--signal', 'HUP', database],
+                       stdout=sys.stderr, check=True)
+        # A fresh certified connection proves PostgreSQL loaded the renewed leaf.
+        self.migration_status()
+        self.compose('up', '-d', '--no-deps', '--force-recreate', 'cortex-api')
+        self.wait('cortex-api')
+        for worker in ('cortex-embed-worker', 'cortex-graph-worker', 'cortex-pdf-worker'):
+            self.compose('up', '-d', '--no-deps', worker)
+            self.wait(worker, timeout=900)
+        return {**self.check(), 'leaf_rotation': 'verified'}
+
+    def backup(self, destination):
+        self.prepare()
+        target = Path(destination).expanduser().resolve()
+        if target == self.stage or self.stage in target.parents:
+            raise ValueError('backup destination must be outside backup staging')
+        if target.exists():
+            raise ValueError('backup target already exists')
+        if not target.parent.is_dir():
+            raise ValueError('backup parent directory does not exist')
+        self.check()
+        # The staging path is owned by this state receipt; refuse stale output.
+        if any(self.stage.iterdir()):
+            raise ValueError('backup staging is not empty; preserve or move the prior attempt')
+        self.compose('run', '--rm', '--no-deps', 'cortex-backup', 'create')
+        shutil.copyfile(self.env_file, self.stage / 'runtime.env')
+        os.chmod(self.stage / 'runtime.env', 0o600)
+        config = self.state / 'provider-settings.json'
+        if config.exists():
+            provider = Path(json.loads(private_regular(config).read_text())['path']).expanduser()
+            if not provider.is_absolute():
+                raise ValueError('provider authority must be an absolute file path')
+            shutil.copyfile(private_regular(provider), self.stage / 'provider.env')
+            os.chmod(self.stage / 'provider.env', 0o600)
+        if any(item.is_symlink() or not item.is_file() for item in self.stage.iterdir()):
+            raise ValueError('unexpected backup staging member')
+        files = {p.name: digest(p) for p in self.stage.iterdir() if p.is_file()}
+        receipt = {'schema': 'cortex.backup.v1', 'project': self.args.project,
+                   'payload': self.identity, 'database_schema_revision': self.migration_status()['schema_revision'],
+                   'files': files}
+        write_json(self.stage / 'manifest.json', receipt)
+        fd, temporary = tempfile.mkstemp(prefix='.' + target.name, dir=target.parent)
+        os.close(fd)
+        try:
+            with tarfile.open(temporary, 'w:gz', format=tarfile.USTAR_FORMAT) as archive:
+                for item in sorted(self.stage.iterdir()):
+                    archive.add(item, arcname=item.name, recursive=False)
+            os.link(temporary, target)
+        finally:
+            os.unlink(temporary)
+        for item in self.stage.iterdir():
+            item.unlink()
+        return {'backup': str(target), 'sha256': digest(target), 'schema': receipt['database_schema_revision']}
+
+    def restore(self, source):
+        self.prepare()
+        if not self.args.confirm_restore:
+            raise ValueError('restore requires --confirm-restore and replaces only this owned database')
+        source = Path(source).expanduser().resolve()
+        if self.stage == source or self.stage in source.parents:
+            raise ValueError('restore source must be outside staging')
+        backup_hash = digest(source)
+        journal_path = self.state / 'restore-journal.json'
+        journal = json.loads(private_regular(journal_path).read_text()) if journal_path.exists() else None
+        if journal and (journal.get('schema') != 'cortex.restore.v1'
+                        or journal.get('backup_sha256') != backup_hash
+                        or journal.get('project') != self.args.project):
+            raise ValueError('an unfinished restore belongs to another backup; preserve its recovery journal')
+        if any(self.stage.iterdir()):
+            if not journal:
+                raise ValueError('restore staging is not empty')
+            clear_restore_stage(self.stage)
+            if any(self.stage.iterdir()):
+                raise ValueError('unexpected files in pending restore staging')
+        # Validate every source byte before stopping any writer or changing the DB.
+        try:
+            with tarfile.open(source, 'r:gz') as archive:
+                members = archive.getmembers()
+                names = {member.name for member in members}
+                if len(members) != len(names) or any(
+                        member.name not in BACKUP_ALLOWED or not member.isfile()
+                        or member.size > (32 * 1024**3 if member.name == 'database.dump' else 2 * 1024**2)
+                        for member in members):
+                    raise ValueError('invalid backup members')
+                if not BACKUP_REQUIRED.issubset(names):
+                    raise ValueError('backup inventory is missing required database or configuration files')
+                for member in members:
+                    with archive.extractfile(member) as src, (self.stage / member.name).open('xb') as dst:
+                        shutil.copyfileobj(src, dst)
+                    os.chmod(self.stage / member.name, 0o600)
+            receipt = json.loads((self.stage / 'manifest.json').read_text())
+            if not isinstance(receipt, dict) or receipt.get('schema') != 'cortex.backup.v1':
+                raise ValueError('invalid backup manifest')
+            files = receipt.get('files')
+            actual_names = {item.name for item in self.stage.iterdir()} - {'manifest.json'}
+            if not isinstance(files, dict) or actual_names != set(files):
+                raise ValueError('backup file inventory differs from manifest')
+            for name, expected in files.items():
+                if not re.fullmatch('[a-f0-9]{64}', str(expected)) or digest(self.stage / name) != expected:
+                    raise ValueError('backup checksum mismatch')
+            if receipt.get('database_schema_revision') != self.identity['schema_revision']:
+                raise ValueError('restore payload must match the backup schema inventory')
+            with (self.stage / 'database.dump').open('rb') as database:
+                if database.read(5) != b'PGDMP':
+                    raise ValueError('backup database is not a PostgreSQL custom archive')
+            env_bytes = (self.stage / 'runtime.env').read_bytes()
+            if not re.fullmatch(rb'CORTEX_ADMIN_TOKEN=[A-Za-z0-9_-]{32,256}\n?', env_bytes):
+                raise ValueError('backup runtime.env has an invalid token-only contract')
+            extract_pki(self.stage / 'certificates.tar.gz', self.stage / 'pki')
+            self.compose('run', '--rm', '--no-deps', 'cortex-backup', 'verify-pki')
+        except Exception:
+            clear_restore_stage(self.stage)
+            raise
+
+        provider = None
+        provider_receipt = self.state / 'provider-settings.json'
+        if 'provider.env' in files:
+            if provider_receipt.exists():
+                provider = Path(json.loads(private_regular(provider_receipt).read_text())['path']).expanduser()
+            else:
+                provider = Path(os.environ.get('OPENKAI_HOME', str(Path.home() / '.openkai'))) / '.env'
+            if not provider.is_absolute() or provider.is_symlink():
+                raise ValueError('provider authority must be an absolute regular file path')
+            if provider.exists():
+                private_regular(provider)
+
+        if journal is None:
+            recovered = Path(tempfile.mkdtemp(prefix='recovered-config-', dir=self.state))
+            shutil.copyfile(self.env_file, recovered / 'previous-runtime.env')
+            os.chmod(recovered / 'previous-runtime.env', 0o600)
+            if provider is not None and provider.exists():
+                shutil.copyfile(provider, recovered / 'previous-provider.env')
+                os.chmod(recovered / 'previous-provider.env', 0o600)
+            self.compose('run', '--rm', '--no-deps', 'cortex-backup', 'capture-pki')
+            shutil.move(str(self.stage / 'previous-certificates.tar.gz'), recovered / 'previous-certificates.tar.gz')
+            journal = {'schema': 'cortex.restore.v1', 'project': self.args.project,
+                       'backup_sha256': backup_hash, 'phase': 'prepared',
+                       'recovery_dir': str(recovered),
+                       'provider_path': str(provider) if provider is not None else None}
+            write_json(journal_path, journal)
+        else:
+            recovered = Path(journal['recovery_dir'])
+            if (recovered.parent != self.state or not recovered.name.startswith('recovered-config-')
+                    or recovered.is_symlink() or not recovered.is_dir()):
+                raise ValueError('invalid restore recovery directory')
+            if journal.get('provider_path') != (str(provider) if provider is not None else None):
+                raise ValueError('provider authority changed during pending restore')
+
+        self.compose('stop', 'cortex-api', 'cortex-embed-worker', 'cortex-graph-worker', 'cortex-pdf-worker')
+        if journal['phase'] == 'prepared':
+            # Authentication still uses the current CA and client key at this point.
+            self.compose('run', '--rm', '--no-deps', 'cortex-backup', 'restore')
+            journal['phase'] = 'database-restored'
+            write_json(journal_path, journal)
+        self.compose('stop', 'cortex-pg')
+        if journal['phase'] == 'database-restored':
+            self.compose('run', '--rm', '--no-deps', 'cortex-pki-restore', 'restore-pki')
+            journal['phase'] = 'pki-restored'
+            write_json(journal_path, journal)
+        if journal['phase'] == 'pki-restored':
+            write_private(self.env_file, env_bytes)
+            if provider is not None:
+                provider.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+                new_settings = (self.stage / 'provider.env').read_bytes()
+                if provider.exists() and provider.read_bytes() != new_settings:
+                    print('Restoring shared provider settings at ' + str(provider)
+                          + '; previous bytes retained in ' + str(recovered), file=sys.stderr)
+                write_private(provider, new_settings)
+                if not provider_receipt.exists():
+                    write_json(provider_receipt, {'schema': 'cortex.provider-settings.v1', 'path': str(provider)})
+            journal['phase'] = 'configuration-restored'
+            write_json(journal_path, journal)
+        if journal['phase'] != 'configuration-restored':
+            raise ValueError('invalid restore journal phase')
+        shutil.copyfile(self.stage / 'manifest.json', recovered / 'restored-manifest.json')
+        os.chmod(recovered / 'restored-manifest.json', 0o600)
+        clear_restore_stage(self.stage)
+        result = self.up()
+        write_json(recovered / 'restore-receipt.json', {**journal, 'phase': 'complete'})
+        journal_path.unlink()
+        return {**result, 'restored': True, 'recovery_dir': str(recovered)}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['prepare-images', 'up', 'check', 'schema-status', 'rotate-leaves', 'backup', 'restore', 'owner-pair', 'owner-request', 'provider-labels-inventory', 'provider-labels-apply'])
+    parser.add_argument('--project', default='cortex')
+    parser.add_argument('--state-dir', required=True)
+    parser.add_argument('--payload-dir', required=True)
+    parser.add_argument('--schema-revision')
+    parser.add_argument('--api-port', type=int, default=8501)
+    parser.add_argument('--rollback', action='store_true')
+    parser.add_argument('--backup-file')
+    parser.add_argument('--confirm-restore', action='store_true')
+    parser.add_argument('--owner-engine')
+    parser.add_argument('--owner-volume')
+    parser.add_argument('--owner-request-file')
+    parser.add_argument('--owner-response-file')
+    parser.add_argument('--label-inventory-sha256')
+    args = parser.parse_args()
+    runtime = Runtime(args)
+    if args.action in {'owner-pair', 'owner-request'}:
+        result = runtime.owner_action(args.action, selector=args.owner_engine, volume=args.owner_volume,
+            request_file=args.owner_request_file, response_file=args.owner_response_file)
+    elif args.action in {'provider-labels-inventory', 'provider-labels-apply'}:
+        result = runtime.provider_label_action(args.action.removeprefix('provider-labels-'))
+    elif args.action == 'prepare-images':
+        runtime.acquire_images()
+        result = {'images_prepared': True, 'platform': runtime.installation['platform'],
+                  'source_revision': runtime.identity['source_revision']}
+    elif args.action == 'up':
+        result = runtime.up()
+    elif args.action == 'check':
+        result = runtime.check()
+    elif args.action == 'schema-status':
+        # This recovery read must not require a healthy API or matching code.
+        # The owned project's database and certified migrator are authoritative.
+        runtime.container('cortex-pg')
+        result = runtime.migration_status()
+    elif args.action == 'rotate-leaves':
+        result = runtime.rotate_leaves()
+    elif args.action == 'backup':
+        if not args.backup_file:
+            parser.error('backup requires --backup-file')
+        result = runtime.backup(args.backup_file)
+    else:
+        if not args.backup_file:
+            parser.error('restore requires --backup-file')
+        result = runtime.restore(args.backup_file)
+    print(json.dumps(result, sort_keys=True))
+
+
+if __name__ == '__main__':
+    os.umask(0o077)
+    try:
+        main()
+    except (ValueError, OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+        print('cortex-runtime: ' + str(exc), file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,11 @@
+# CPython 3.14; Whisper's official release is source-only, all other packages wheel-only.
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn[standard]==0.52.4
+openai-whisper==20250625
+pydantic==2.13.5
+python-multipart==0.0.32
+setuptools==84.0.0
+wheel==0.48.0
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.14.0%2Bcpu-cp314-cp314-manylinux_2_28_aarch64.whl#sha256=27b34640fea7268862961b734c723873e15b1c2657b1eb84bcfac053e5841527 ; platform_machine == 'aarch64'
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.14.0%2Bcpu-cp314-cp314-manylinux_2_28_x86_64.whl#sha256=f152f41dc5dc462afe0de780e451ebb47ea8b4451f8f919f9537aa8e2cbe1d7e ; platform_machine == 'x86_64'

@@ -1,0 +1,24 @@
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS baseline
+WORKDIR /build
+COPY schema/cortex-schema-full.sql schema/cortex-schema-full.sql
+COPY schema/migrations/ schema/migrations/
+COPY deploy/baseline.py deploy/baseline.json deploy/
+RUN python deploy/baseline.py --render-sql --schema schema/cortex-schema-full.sql --migrations schema/migrations --manifest deploy/baseline.json > baseline.sql
+
+FROM pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+COPY schema/initdb/00-cortex-bootstrap.sh /docker-entrypoint-initdb.d/00-cortex-bootstrap.sh
+COPY schema/cortex-schema-full.sql /cortex-bootstrap/cortex-schema-full.sql
+COPY deploy/initdb/ /docker-entrypoint-initdb.d/
+COPY --from=baseline /build/baseline.sql /schema-baseline/baseline.sql
+COPY deploy/baseline.json /schema-baseline/baseline.json
+COPY deploy/db-entrypoint.sh /usr/local/bin/cortex-db-entrypoint
+COPY deploy/pg_hba.conf deploy/pg_ident.conf /etc/cortex/
+RUN chmod 0755 /usr/local/bin/cortex-db-entrypoint /docker-entrypoint-initdb.d/*.sh
+ARG KOS_VERSION
+ARG KOS_SOURCE_REVISION
+ARG KOS_IMAGE_SOURCE
+LABEL org.opencontainers.image.source="$KOS_IMAGE_SOURCE" \
+      org.opencontainers.image.version="$KOS_VERSION" \
+      org.opencontainers.image.revision="$KOS_SOURCE_REVISION"
+ENTRYPOINT ["cortex-db-entrypoint"]
+CMD ["postgres"]

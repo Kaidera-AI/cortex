@@ -1,4 +1,4 @@
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
 ARG KOS_VERSION
 ARG KOS_SOURCE_REVISION
@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.source="$KOS_IMAGE_SOURCE" \
       org.opencontainers.image.version="$KOS_VERSION" \
       org.opencontainers.image.revision="$KOS_SOURCE_REVISION" \
       io.kaidera.kos.edition="$KOS_EDITION" \
-      io.kaidera.kos.python.lock.sha256="3c2701e46fa2b4db1a72092b35ebda9ed3f25d45cc09c85a8fef86db43043f5a"
+      io.kaidera.kos.python.lock.sha256="7b4ef32e848a05d673054453345d63006209d33e5d295a84ec73ec95033da354"
 RUN test -n "$KOS_VERSION" \
  && case "$KOS_EDITION:$KOS_IMAGE_SOURCE" in open-source:https://github.com/Kaidera-AI/kaidera-os|open-source:https://github.com/Kaidera-AI/cortex|commercial:https://github.com/Kaidera-AI/kaideraos|dev:https://github.com/Kaidera-AI/kaideraos) ;; *) exit 1 ;; esac \
  && test "${#KOS_SOURCE_REVISION}" -eq 40 \
@@ -37,15 +37,26 @@ COPY main.py \
      mcp_server.py \
      observability.py \
      openkai_provider_env.py \
+     db_tls.py \
+     service_auth.py \
+     service_auth_owner.py \
+     service_auth_owner_client.py \
+     service_auth_owner_lifespan.py \
      ./
 COPY ingest/ ./ingest/
 COPY models/ ./models/
 
 RUN test -s ./main.py \
  && test -s ./openkai_provider_env.py \
+ && test -s ./service_auth.py \
+ && test -s ./service_auth_owner.py \
+ && test -s ./service_auth_owner_client.py \
+ && test -s ./service_auth_owner_lifespan.py \
  && test -s ./ingest/__init__.py \
  && test -s ./models/__init__.py
 
 EXPOSE 8501
 USER 10001:10001
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8501"]
+
+COPY standalone/ ./standalone/

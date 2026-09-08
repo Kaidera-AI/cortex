@@ -5,7 +5,7 @@
 # poppler/pdftotext only (the lightweight path). magic-pdf/MinerU is a
 # Phase 1.5 add-on once the lightweight path is verified.
 
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -28,6 +28,12 @@ RUN set -eux; \
     printf '%s  %s\n' \
       '98b25b5cd185c59d34aa6e4c3e9b5b8f01bbe9d104fe2dcfbcd30dc0a14a59ed' \
       "$1" | sha256sum -c -; \
+    set -- /var/lib/apt/lists/*_dists_trixie-security_InRelease; \
+    [ "$#" -eq 1 ]; \
+    printf '%s  %s\n' '19a20e3818e39ae271b114aa048a20d961b3f4604c013bed46c2e6c991d08dbb' "$1" | sha256sum -c -; \
+    set -- /var/lib/apt/lists/*_dists_trixie-updates_InRelease; \
+    [ "$#" -eq 1 ]; \
+    printf '%s  %s\n' 'f02d96f99db560df6328eeb584f034ca1d9fc4f25eb644144b042a0193165def' "$1" | sha256sum -c -; \
     apt-get install -y --download-only --no-install-recommends \
       'poppler-utils=25.03.0-5+deb13u4'; \
     architecture="$(dpkg --print-architecture)"; \
@@ -73,13 +79,15 @@ LABEL org.opencontainers.image.title="Kaidera OS Cortex PDF worker" \
       org.opencontainers.image.version="${KOS_VERSION}" \
       org.opencontainers.image.revision="${KOS_SOURCE_REVISION}" \
       io.kaidera.kos.edition="${KOS_EDITION}" \
-      io.kaidera.kos.apt.snapshot="20260821T082113Z" \
-      io.kaidera.kos.apt.sources.sha256="872e887c5c502fbdae0262884e9f1ccad0011bd44c973220fbb690ba20e2659d" \
+      io.kaidera.kos.apt.snapshot="20260905T000000Z" \
+      io.kaidera.kos.apt.security-inrelease.sha256="19a20e3818e39ae271b114aa048a20d961b3f4604c013bed46c2e6c991d08dbb" \
+      io.kaidera.kos.apt.updates-inrelease.sha256="f02d96f99db560df6328eeb584f034ca1d9fc4f25eb644144b042a0193165def" \
+      io.kaidera.kos.apt.sources.sha256="92bb8050b6c14816344007be399de0cba4b0f173ba700c08937d3540b88fbecf" \
       io.kaidera.kos.apt.inrelease.sha256="98b25b5cd185c59d34aa6e4c3e9b5b8f01bbe9d104fe2dcfbcd30dc0a14a59ed" \
       io.kaidera.kos.apt.package="poppler-utils=25.03.0-5+deb13u4" \
       io.kaidera.kos.apt.package.amd64.sha256="7b5bb3607e7fa078e002420d4e5129d7b83c5684ca6f88d229a40af3e76a7b02" \
       io.kaidera.kos.apt.package.arm64.sha256="f7d122283d16ccbe06a922c09bacfc0b0af46b09580ae0511fb2815aed770c6a" \
-      io.kaidera.kos.python.lock.sha256="52543e9d21590b905c660bde5c7ca866a55bfcd2e305514f1bb7eb3e164866e5" \
+      io.kaidera.kos.python.lock.sha256="a69c669996801ce1241890dc777ec66d137465b4f031e0a3213bc7eee7cd2ffa" \
       io.kaidera.kos.worker="pdf"
 
 USER 10001:10001

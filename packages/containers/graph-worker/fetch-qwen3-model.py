@@ -3,7 +3,7 @@
 
 This runs only in the networked image builder. The runtime image receives the
 standard Hugging Face cache layout at one immutable commit, without downloader
-locks or a branch ref, and forces qwen3-embed to consume it offline.
+locks or a branch ref, and forces fastretrieval to consume it offline.
 """
 
 from __future__ import annotations
@@ -218,12 +218,14 @@ def _verify_snapshot(pin: dict[str, Any]) -> list[dict[str, int | str]]:
 
 def _functional_probe(pin: dict[str, Any]) -> None:
     """Prove the exact cached model loads and infers without network fallback."""
-    from qwen3_embed import TextEmbedding
+    from fastretrieval import TextEmbedding
 
     model = TextEmbedding(
         model_name=pin["repo_id"],
         cache_dir=str(CACHE_ROOT),
+        specific_model_path=str(_snapshot_dir(pin)),
         local_files_only=True,
+        cuda=False,
     )
     vectors = list(model.embed(["Kaidera graph image build probe"], dim=768))
     if len(vectors) != 1 or tuple(vectors[0].shape) != (768,):

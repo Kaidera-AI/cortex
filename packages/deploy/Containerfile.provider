@@ -1,0 +1,26 @@
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+
+ARG KOS_VERSION
+ARG KOS_SOURCE_REVISION
+ARG KOS_IMAGE_SOURCE
+LABEL org.opencontainers.image.source="$KOS_IMAGE_SOURCE" \
+      org.opencontainers.image.version="$KOS_VERSION" \
+      org.opencontainers.image.revision="$KOS_SOURCE_REVISION"
+RUN test -n "$KOS_VERSION" \
+ && test "$KOS_IMAGE_SOURCE" = https://github.com/Kaidera-AI/cortex \
+ && test "${#KOS_SOURCE_REVISION}" -eq 40 \
+ && case "$KOS_SOURCE_REVISION" in *[!0-9a-f]*) exit 1 ;; esac \
+ && groupadd --system --gid 10001 cortex \
+ && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin cortex \
+ && install -d -o 10001 -g 10001 -m 0700 /run/cortex-provider
+
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY provider_service.py ./
+# Byte-identical copies supplied by the canonical projector, never a fork.
+COPY provider_authority/ ./provider_authority/
+COPY provider_registry/ ./provider_registry/
+USER 10001:10001
+EXPOSE 8767
+ENTRYPOINT ["python", "/app/provider_service.py"]
+CMD ["serve", "--env-file", "/authority/.env", "--token-file", "/run/cortex-provider/token", "--listen", "0.0.0.0", "--port", "8767"]

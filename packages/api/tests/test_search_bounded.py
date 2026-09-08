@@ -72,12 +72,12 @@ def offline_search(api_module, monkeypatch):
     """Neutralise the embedding + graph stages so tests isolate the lexical path."""
 
     async def no_embedding(_query, _project=""):
-        return None
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_query_cached", no_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", no_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
     return api_module
 
@@ -533,12 +533,12 @@ def vector_search(api_module, monkeypatch):
     """Enable the pgvector stage — offline_search disables it by returning no embedding."""
 
     async def fake_embedding(_query, _project=""):
-        return [0.0] * 768
+        return api_module.SearchProviderOutcome("success", [0.0] * 768)
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_query_cached", fake_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", fake_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
     return api_module
 
@@ -779,12 +779,12 @@ def test_search_executes_the_project_scoped_cached_embedding_path(api_module, mo
 
     async def cached_embedding(query, project=""):
         calls.append((query, project))
-        return None
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_query_cached", cached_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", cached_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
     _run_search(api_module, RecordingConn(), "cached path probe")
 
@@ -801,12 +801,12 @@ def test_a_slow_provider_cannot_outlive_the_request_budget(api_module, monkeypat
 
     async def glacial_embedding(_query, _project=""):
         await asyncio.sleep(30)  # a provider having a bad day
-        return [0.1] * 8
+        return api_module.SearchProviderOutcome("success", [0.1] * 8)
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_query_cached", glacial_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", glacial_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
     conn = RecordingConn()
 
@@ -827,7 +827,7 @@ def test_external_search_cancellation_is_never_swallowed(api_module, monkeypatch
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_query_cached", cancelled_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", cancelled_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
 
     with pytest.raises(asyncio.CancelledError):
@@ -846,18 +846,18 @@ def test_a_slow_reranker_is_dropped_rather_than_waited_on(api_module, monkeypatc
     monkeypatch.setattr(api_module, "SEARCH_TOTAL_BUDGET_MS", 300)
 
     async def no_embedding(_query, _project=""):
-        return None
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
     async def glacial_rerank(_query, _docs):
         await asyncio.sleep(30)
-        return []
+        return api_module.SearchProviderOutcome("success", [])
 
-    monkeypatch.setattr(api_module, "embed_query_cached", no_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", no_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
-    monkeypatch.setattr(api_module, "rerank_results", glacial_rerank)
+    monkeypatch.setattr(api_module, "_rerank_outcome", glacial_rerank)
     conn = RecordingConn(rows_for=lambda _sql: [])
 
     # _run_search pins rerank=False, so call through directly to exercise that stage.

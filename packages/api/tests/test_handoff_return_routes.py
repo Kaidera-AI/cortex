@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import uuid
 from pathlib import Path
 
 import pytest
@@ -333,6 +334,52 @@ async def test_return_creates_one_handback_and_is_idempotent(api_module, monkeyp
         "handoff_returned",
         "handoff_created",
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("worker,delegator", [("kai", "ren"), ("ren", "kai")])
+async def test_return_serializes_linked_work_product_uuid(
+    api_module, monkeypatch, worker, delegator
+):
+    work_product_id = "dddddddd-4444-4444-8444-dddddddddddd"
+    conn = FakeReturnConn(parent=task_row(
+        from_agent=f"{delegator}@kaidera-os",
+        to_agent=f"{worker}@kaidera-os",
+        claimed_by=f"{worker}@kaidera-os",
+    ))
+    monkeypatch.setattr(api_module, "acquire_scoped", lambda _project: FakeAcquire(conn))
+
+    async def ensure_schema(checked_conn):
+        assert checked_conn is conn
+
+    async def resolve_work_product(checked_conn, *, project, work_product_id):
+        assert checked_conn is conn
+        assert project == "kaidera-os"
+        assert work_product_id == "dddddddd-4444-4444-8444-dddddddddddd"
+        return {
+            "id": uuid.UUID(work_product_id),
+            "handoff_id": PARENT_ID,
+            "invalidated_at": None,
+        }
+
+    monkeypatch.setattr(api_module, "ensure_work_products_schema", ensure_schema)
+    monkeypatch.setattr(api_module, "resolve_unique_work_product", resolve_work_product)
+    result = await api_module.return_handoff(
+        PARENT_ID,
+        api_module.HandoffReturn(
+            outcome="completed",
+            summary="Implementation and tests complete",
+            work_product_id=work_product_id,
+        ),
+        request=http_request(jwt_agent=worker),
+        x_agent=worker,
+        x_project="kaidera-os",
+    )
+
+    assert result["status"] == "returned"
+    assert conn.rows[PARENT_ID]["completion_report"]["work_product_id"] == work_product_id
+    assert conn.rows[HANDBACK_ID]["to_agent"] == f"{delegator}@kaidera-os"
+    assert conn.handback_insert_count == 1
 
 
 @pytest.mark.asyncio

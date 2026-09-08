@@ -1,32 +1,24 @@
 # cortex-audio-worker — openai-whisper transcription
 # Internal only on :9003.
 
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+COPY debian-snapshot.sources /build/debian-snapshot.sources
+COPY install-os.sh /build/install-os.sh
+RUN sh /build/install-os.sh
 
-# Whisper 20240930 imports pkg_resources from setup.py. Setuptools 82 removed it;
-# pin the last compatible major and disable an unconstrained isolated build env.
-RUN pip install --no-cache-dir \
-    setuptools==81.0.0 \
-    wheel==0.45.1
+# Latest Whisper is source-only. Hash-lock both runtime and build frontend/backend;
+# disable the implicit, otherwise unconstrained isolated build environment.
+COPY requirements.build.lock requirements.lock /build/
+RUN pip install --no-cache-dir --only-binary=:all: --require-hashes -r /build/requirements.build.lock \
+ && pip install --no-cache-dir --no-build-isolation --only-binary=:all: \
+      --no-binary=openai-whisper --require-hashes -r /build/requirements.lock \
+ && python -c "import torch, whisper; assert torch.__version__ == '2.14.0+cpu'; assert torch.version.cuda is None" \
+ && rm -rf /build
 
-# PyPI's Linux arm64 torch wheel pulls the CUDA 13 runtime into a CPU-only worker.
-# Use the pinned upstream CPU index so local macOS/Linux builds stay operationally bounded.
-RUN pip install --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.13.0
-
-RUN pip install --no-cache-dir --no-build-isolation \
-    fastapi==0.141.1 \
-    starlette==1.6.0 \
-    uvicorn[standard]==0.52.3 \
-    openai-whisper==20240930 \
-    pydantic==2.11.4 \
-    python-multipart==0.0.32
+LABEL io.kaidera.kos.python.lock.sha256="36001deed95c085e9562bdd0c9b0a2ed67b6f754e97fd9682efda715185d6d73" \
+      io.kaidera.kos.apt.snapshot="20260905T000000Z" \
+      io.kaidera.kos.apt.sources.sha256="92bb8050b6c14816344007be399de0cba4b0f173ba700c08937d3540b88fbecf"
 
 ENV WHISPER_MODEL=base \
     WHISPER_CACHE_DIR=/var/lib/cortex/models/whisper \

@@ -478,7 +478,7 @@ async def test_boot_filters_lib_guard_recent_decisions(cortex_api):
 @pytest.mark.asyncio
 async def test_search_supports_local_hall(cortex_api):
     result = await cortex_api.search(
-        "amadmalik",
+        "alice",
         x_project="kaidera",
         type="all",
         rerank=False,

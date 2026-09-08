@@ -1,7 +1,7 @@
 # cortex-local-search-worker — pinned local embeddings and reranking.
 # Internal only on :9005. cortex-api is the sole caller.
 
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS model-fetch
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS model-fetch
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -16,7 +16,7 @@ RUN groupadd --gid 10001 kaidera \
 COPY requirements.lock /build/requirements.lock
 RUN pip install --no-cache-dir --only-binary=:all: --require-hashes \
       -r /build/requirements.lock \
-    && python -c "import torch; assert torch.__version__ == '2.13.0+cpu'; assert torch.version.cuda is None" \
+    && python -c "import torch; assert torch.__version__ == '2.14.0+cpu'; assert torch.version.cuda is None" \
     && rm -rf /build
 
 
@@ -29,7 +29,7 @@ RUN python /build/fetch-models.py \
  && test ! -e /opt/kaidera-models/rerank/pytorch_model.bin
 
 
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
+FROM python:3.14.7-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -44,7 +44,7 @@ RUN groupadd --gid 10001 kaidera \
 COPY requirements.lock /build/requirements.lock
 RUN pip install --no-cache-dir --only-binary=:all: --require-hashes \
       -r /build/requirements.lock \
-    && python -c "import torch; assert torch.__version__ == '2.13.0+cpu'; assert torch.version.cuda is None" \
+    && python -c "import torch; assert torch.__version__ == '2.14.0+cpu'; assert torch.version.cuda is None" \
     && rm -rf /build
 
 # These caches are writable runtime scratch only.  Both selected models live in
@@ -97,14 +97,14 @@ LABEL org.opencontainers.image.title="Kaidera OS Cortex local-search worker" \
       io.kaidera.kos.rerank.model.source="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2" \
       io.kaidera.kos.rerank.model.revision="233902d25c440f23af6f7d6e94d2946bac0bee0a" \
       io.kaidera.kos.rerank.model.license="Apache-2.0" \
-      io.kaidera.kos.python.lock.sha256="03cb23ec5fc4ab946fca5fcc5ab5d1c8f3ce9b8efd6a249381e23e7925f20923" \
+      io.kaidera.kos.python.lock.sha256="613368c76dba0bd1522528c25c03bedc1a846135fea06339b51238e274c395af" \
       io.kaidera.kos.worker="embed"
 
 USER 10001:10001
 
 # Prove the dependency stack and immutable artifact inventory as the final user.
 RUN python -c \
-      "from pathlib import Path; import sentence_transformers, torch; assert torch.__version__ == '2.13.0+cpu'; assert torch.version.cuda is None; root=Path('/opt/kaidera-models'); assert all((root/p).is_file() for p in ('embedding/model.safetensors','rerank/model.safetensors','model-pins.json','kaidera-model-receipt.json'))"
+      "from pathlib import Path; import sentence_transformers, torch; assert torch.__version__ == '2.14.0+cpu'; assert torch.version.cuda is None; root=Path('/opt/kaidera-models'); assert all((root/p).is_file() for p in ('embedding/model.safetensors','rerank/model.safetensors','model-pins.json','kaidera-model-receipt.json'))"
 RUN ! command -v curl && ! command -v uv && ! command -v cc && ! command -v gcc
 
 EXPOSE 9005

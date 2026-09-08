@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "source_revision": "e931cb8f53b4155398cf51dceaaacba4b44a9572",
+  "cutoff_exclusive": "2026-08-18-02-normalize-scalar-metadata.sql",
+  "migration_count": 78,
+  "inventory_sha256": "1ddfc7267ad55010aba72bb3cbcb904c3082aae065e103ab39c59bba6378295a",
+  "schema_source_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783"
+}

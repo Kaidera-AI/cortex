@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
+import types
 
 import pytest
 
@@ -28,6 +30,37 @@ def _load_fetcher(name: str):
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.mark.parametrize("shape", [(768,), (1024,)])
+def test_fastretrieval_probe_pins_exact_snapshot_and_checks_768_dimensions(
+    monkeypatch, shape
+):
+    module = _load_fetcher("graph_fastretrieval_probe_test")
+    calls = []
+
+    class TextEmbedding:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+        def embed(self, texts, *, dim):
+            assert len(texts) == 1 and dim == 768
+            return [types.SimpleNamespace(shape=shape)]
+
+    monkeypatch.setitem(sys.modules, "fastretrieval", types.SimpleNamespace(TextEmbedding=TextEmbedding))
+    pin = _pins()["model"]
+    if shape == (768,):
+        module._functional_probe(pin)
+    else:
+        with pytest.raises(RuntimeError, match="unexpected embedding shape"):
+            module._functional_probe(pin)
+    assert calls == [{
+        "model_name": REPO_ID,
+        "cache_dir": str(module.CACHE_ROOT),
+        "specific_model_path": str(module._snapshot_dir(pin)),
+        "local_files_only": True,
+        "cuda": False,
+    }]
 
 
 def _load_verifier(name: str):

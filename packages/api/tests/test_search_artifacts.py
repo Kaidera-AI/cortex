@@ -42,13 +42,13 @@ class FakeSearchConn:
 
 
 def test_execute_search_includes_artifact_rows(api_module, monkeypatch):
-    async def no_embedding(_query):
-        return None
+    async def no_embedding(_query, _project=""):
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_text", no_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", no_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
 
     conn = FakeSearchConn()
@@ -102,12 +102,12 @@ class FakeArtifactVectorConn:
 
 def test_artifact_search_returns_semantic_vector_hits(api_module, monkeypatch):
     async def query_embedding(_query, _project):
-        return [0.1, 0.2]
+        return api_module.SearchProviderOutcome("success", [0.1, 0.2])
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_query_cached", query_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", query_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
 
     conn = FakeArtifactVectorConn()
@@ -158,10 +158,10 @@ def test_type_specific_search_returns_lexical_hits_without_embedding(api_module,
         async def execute(self, *_args, **_kwargs):
             return "UPDATE 0"
 
-    async def fail_if_embedding_called(_query):
+    async def fail_if_embedding_called(_query, _project=""):
         raise AssertionError("type-specific lexical hit should not call embed_text")
 
-    monkeypatch.setattr(api_module, "embed_text", fail_if_embedding_called)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", fail_if_embedding_called)
 
     result = asyncio.run(
         api_module.execute_search(
@@ -212,13 +212,13 @@ def test_exact_id_query_fast_paths_and_skips_the_sweep(api_module, monkeypatch):
     OOM-killed the CLI on large projects. cortex.md routes exact IDs here, so this is
     the documented behaviour, not a heuristic guess."""
 
-    async def no_embedding(_query):
-        return None
+    async def no_embedding(_query, _project=""):
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_text", no_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", no_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
 
     conn = FakeIdLookupConn()
@@ -236,13 +236,13 @@ def test_non_matching_hex_query_still_falls_through(api_module, monkeypatch):
     """A hex-shaped query that matches NO row id must NOT short-circuit — it falls
     through to the normal sweep so real content/semantic results are still found."""
 
-    async def no_embedding(_query):
-        return None
+    async def no_embedding(_query, _project=""):
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_text", no_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", no_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
 
     class NoIdMatchConn(FakeIdLookupConn):
@@ -316,13 +316,13 @@ def test_retrieval_quality_fixture_prefers_canonical_work_product_memory(api_mod
     fixture_path = Path(__file__).resolve().parent / "fixtures" / "retrieval_quality.json"
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))["cases"][0]
 
-    async def no_embedding(_query):
-        return None
+    async def no_embedding(_query, _project=""):
+        return api_module.SearchProviderOutcome("skipped")
 
     async def no_graph(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(api_module, "embed_text", no_embedding)
+    monkeypatch.setattr(api_module, "_embed_query_outcome", no_embedding)
     monkeypatch.setattr(api_module, "search_graph", no_graph)
 
     result = asyncio.run(

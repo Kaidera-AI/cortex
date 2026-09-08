@@ -109,6 +109,20 @@ cortex-search "<artifact-text>" --type artifacts --limit 10
 An artifact write is not accepted until this read path returns it. A blank or missing
 result is a search/embedding defect, not an ingestion success.
 
+Search can retain useful lexical matches when a provider attempt fails. Read the
+response's `degraded` list as well as `results`: `embedding` or `rerank` identifies
+the affected stage without exposing provider errors, credentials or request text.
+Existing deadline labels remain in use. A deliberately disabled or unconfigured
+provider, too-short embedding query or insufficient reranking input is an optional
+skip, not evidence of a provider outage. Failed query embeddings are not cached;
+a later request retries, and successful recovery clears that failure indication.
+Concurrent identical queries share the same embedding outcome; cancelling one
+waiter does not cancel the other waiters' provider request.
+
+This status is stage reporting, not a provider-health or payload-integrity guarantee.
+External payload validation and pre-attempt deadline attribution have separate
+review findings; see `SEARCH_DEGRADATION_GREEN.md` in the Cortex defect evidence.
+
 ### Read runtime profile
 ```bash
 curl -s http://localhost:8501/projects/<project-key>/runtime | python3 -m json.tool

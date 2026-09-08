@@ -2,6 +2,7 @@ import importlib.util
 import hashlib
 import re
 import shutil
+import asyncpg
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -728,3 +729,169 @@ def test_e2e4_upgrade_convergence_supplies_runtime_columns_and_online_index():
     assert "raw_session_id uuid" in columns
     assert "decisions" in columns and "compacted boolean" in columns
     assert "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_archive_messages_raw_session" in index
+
+
+class ReadOnlyMigrationConn(MigrationConn):
+    """Every write/lock is a regression, including initialization DDL."""
+
+    def __init__(self, *, read_error=None, applied=None):
+        super().__init__(applied)
+        self.read_error = read_error
+        self.reads = []
+
+    async def execute(self, sql, *args):
+        raise AssertionError(f"migration inspection attempted execute: {sql}")
+
+    async def fetchval(self, sql, *args):
+        raise AssertionError(f"migration inspection attempted lock/scalar query: {sql}")
+
+    async def fetch(self, sql, *args):
+        self.reads.append(sql)
+        if self.read_error is not None:
+            raise self.read_error
+        return await super().fetch(sql, *args)
+
+
+async def inspect_migrations(api, conn, root, surface, monkeypatch):
+    if surface == "fetch":
+        return await api.fetch_applied_schema_migrations(conn)
+    if surface == "plan":
+        return await api.schema_migration_plan(conn, migration_dir=root)
+    if surface == "dry-run":
+        return await api.apply_schema_migrations(conn, dry_run=True, migration_dir=root)
+
+    class Acquire:
+        async def __aenter__(self):
+            return conn
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class Pool:
+        def acquire(self):
+            return Acquire()
+
+    # Exercise the real route handlers without lifespan, network or a DB pool.
+    # The existing admin guard must still be invoked before the read.
+    request = object()
+    checked = []
+    monkeypatch.setattr(api, "pool_admin", Pool())
+    monkeypatch.setattr(api, "configured_schema_migrations_dir", lambda: root)
+    monkeypatch.setattr(api, "require_admin_access", lambda value: checked.append(value))
+    if surface == "get-handler":
+        result = await api.admin_migrations(request)
+    else:
+        assert surface == "post-dry-run-handler"
+        result = await api.admin_migrations_apply(api.MigrationApplyRequest(), request)
+    assert checked == [request]
+    return result
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("surface", ["fetch", "plan", "dry-run", "get-handler", "post-dry-run-handler"])
+async def test_migration_inspection_never_initializes_or_locks(tmp_path, monkeypatch, surface):
+    api = load_api_module()
+    write_migration(tmp_path, "2026-06-01-read-only.sql")
+    conn = ReadOnlyMigrationConn()
+
+    result = await inspect_migrations(api, conn, tmp_path, surface, monkeypatch)
+
+    assert len(conn.reads) == 1
+    if surface == "fetch":
+        assert result == {}
+    else:
+        assert result["migrations"][0]["status"] == "pending"
+        if surface in {"dry-run", "post-dry-run-handler"}:
+            assert result["dry_run"] is True and result["applied_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_populated_migration_inspection_preserves_ledger_without_writes(tmp_path):
+    api = load_api_module()
+    migration = write_migration(tmp_path, "2026-06-01-existing.sql")
+    checksum = hashlib.sha256(migration.read_bytes()).hexdigest()
+    row = applied_row(migration.name, migration, checksum)
+    conn = ReadOnlyMigrationConn(applied={migration.name: row})
+
+    result = await api.schema_migration_plan(conn, migration_dir=tmp_path)
+
+    assert result["migrations"][0]["status"] == "applied"
+    assert conn.applied == {migration.name: row}
+    assert len(conn.reads) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("surface", ["fetch", "plan", "dry-run", "get-handler", "post-dry-run-handler"])
+async def test_missing_ledger_is_explicit_unavailable_not_empty(tmp_path, monkeypatch, surface):
+    api = load_api_module()
+    write_migration(tmp_path, "2026-06-01-read-only.sql")
+    conn = ReadOnlyMigrationConn(read_error=asyncpg.UndefinedTableError("synthetic missing ledger"))
+
+    with pytest.raises(HTTPException) as caught:
+        await inspect_migrations(api, conn, tmp_path, surface, monkeypatch)
+
+    assert caught.value.status_code == 503
+    assert "ledger" in caught.value.detail.lower()
+    assert "not initialized" in caught.value.detail.lower()
+    assert "synthetic" not in caught.value.detail
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error_type", [asyncpg.InsufficientPrivilegeError, asyncpg.UndefinedColumnError, ConnectionError])
+async def test_migration_read_does_not_hide_other_database_errors(error_type):
+    api = load_api_module()
+    failure = error_type("synthetic database failure")
+    conn = ReadOnlyMigrationConn(read_error=failure)
+
+    with pytest.raises(error_type) as caught:
+        await api.fetch_applied_schema_migrations(conn)
+
+    assert caught.value is failure
+
+
+@pytest.mark.asyncio
+async def test_real_apply_initializes_before_read_and_preserves_atomic_apply(tmp_path):
+    api = load_api_module()
+    migration = write_migration(tmp_path, "2026-06-01-real-apply.sql")
+
+    class UninitializedConn(MigrationConn):
+        initialized = False
+
+        async def execute(self, sql, *args):
+            if "CREATE TABLE IF NOT EXISTS cortex_schema_migrations" in sql:
+                self.initialized = True
+            return await super().execute(sql, *args)
+
+        async def fetch(self, sql, *args):
+            if not self.initialized:
+                raise asyncpg.UndefinedTableError("synthetic missing ledger")
+            return await super().fetch(sql, *args)
+
+    conn = UninitializedConn()
+    result = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=tmp_path)
+
+    assert conn.initialized
+    assert result["applied_count"] == 1
+    assert conn.executed_migration_sql == [migration.read_text()]
+    assert migration.name in conn.applied
+    rerun = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=tmp_path)
+    assert rerun["applied_count"] == 0
+    assert conn.executed_migration_sql == [migration.read_text()]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", ["directory", "filename"])
+async def test_invalid_migration_source_still_fails_before_initialization(tmp_path, invalid):
+    api = load_api_module()
+    if invalid == "directory":
+        root = tmp_path / "missing"
+    else:
+        root = tmp_path
+        write_migration(root, "unsafe.sql")
+    conn = ReadOnlyMigrationConn()
+
+    with pytest.raises(HTTPException) as caught:
+        await api.apply_schema_migrations(conn, dry_run=False, migration_dir=root)
+
+    assert caught.value.status_code == 500
+    assert conn.reads == []

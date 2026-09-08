@@ -309,7 +309,7 @@ cortex_api_call() {
     elif [ -n "${payload}" ]; then
         curl_args+=(-H "Content-Type: application/json")
         if [ "${#payload}" -gt 100000 ]; then
-            payload_file="$(mktemp "${TMPDIR:-/tmp}/cortex-api-payload.XXXXXX.json")"
+            payload_file="$(mktemp "${TMPDIR:-/tmp}/cortex-api-payload.XXXXXX")"
             payload_file_owned=1
             printf '%s' "${payload}" >"${payload_file}"
             curl_args+=(--data-binary "@${payload_file}")
@@ -390,4 +390,30 @@ cortex_api() {
             cortex_api_call "$method" "$path" "${1:-}" "${agent}"
             ;;
     esac
+}
+
+# Bounded admin export download; OUTPUT must be an already-owned staged file.
+# Existing body-returning helpers deliberately retain their original behavior.
+cortex_api_download_admin() {
+    local path="$1" output="$2" agent_name="${3:-}" http_code
+    cortex_load_admin_token
+    if [ -z "${CORTEX_ADMIN_TOKEN:-}" ] || [ -z "${CORTEX_PROJECT:-}" ]; then
+        echo "ERROR: Cortex export authority is unavailable" >&2
+        return 1
+    fi
+    local -a args=(--disable --silent --max-time 180 --connect-timeout 15
+        --max-filesize 268435456 --request GET --output "$output"
+        --write-out '%{http_code}' --url "${CORTEX_API}${path}"
+        --header "X-Project: ${CORTEX_PROJECT}"
+        --header "X-Cortex-Admin-Token: ${CORTEX_ADMIN_TOKEN}")
+    [ -z "$agent_name" ] || args+=(--header "X-Agent-Name: ${agent_name}")
+    [ -z "${CORTEX_CTO_OVERRIDE:-}" ] || args+=(--header "X-Cortex-CTO-Override: ${CORTEX_CTO_OVERRIDE}")
+    if ! http_code="$(/usr/bin/curl "${args[@]}")"; then
+        echo "ERROR: Cortex export transport failed" >&2
+        return 1
+    fi
+    if ! [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+        echo "ERROR: Cortex export HTTP request failed" >&2
+        return 1
+    fi
 }

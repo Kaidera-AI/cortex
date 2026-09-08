@@ -26,13 +26,13 @@ from contextlib import asynccontextmanager
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 # ── Dependencies ─────────────────────────────────────────────────────────────
-# pip install "mcp[cli]>=1.27" httpx
-# (mcp ships FastMCP under mcp.server.fastmcp; do not also install standalone fastmcp.)
+# pip install "mcp[cli]==2.1.1" httpx
+# MCPServer is the SDK 2 name; standalone fastmcp is a different package.
 try:
-    from mcp.server.fastmcp import FastMCP, Context
+    from mcp.server.mcpserver import MCPServer, Context
 except ImportError as exc:  # pragma: no cover — surface a clear setup error
     sys.stderr.write(
-        "ERROR: mcp SDK not installed. Run: pip install 'mcp[cli]>=1.27' httpx\n"
+        "ERROR: mcp SDK 2 is required. Run: pip install 'mcp[cli]==2.1.1' httpx\n"
     )
     raise SystemExit(1) from exc
 
@@ -207,7 +207,7 @@ def _setup_pgroup() -> None:
 # ── Lifespan: shared httpx client + watchdog task ────────────────────────────
 
 @asynccontextmanager
-async def lifespan(_server: FastMCP):
+async def lifespan(_server: MCPServer):
     """Module-scope httpx client + stdin watchdog."""
     if not CORTEX_PROJECT:
         raise RuntimeError("CORTEX_PROJECT is required; Cortex MCP will not guess a project key")
@@ -229,7 +229,7 @@ async def lifespan(_server: FastMCP):
             watchdog_task.cancel()
 
 
-mcp = FastMCP(SERVER_NAME, lifespan=lifespan)
+mcp = MCPServer(SERVER_NAME, version=SERVER_VERSION, lifespan=lifespan)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1238,7 +1238,7 @@ def main() -> None:
         except ImportError as exc:
             sys.stderr.write(
                 "ERROR: uvicorn not installed. "
-                "Run: pip install 'mcp[cli]>=1.27' 'uvicorn[standard]'\n"
+                "Run: pip install 'mcp[cli]==2.1.1' 'uvicorn[standard]'\n"
             )
             raise SystemExit(1) from exc
 

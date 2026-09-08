@@ -54,6 +54,12 @@ REGISTERED_PROJECTS_ROOT = (
 )
 BCRG_PYTHON = os.environ.get("BCRG_PYTHON", "/opt/bcrg/bin/python")
 QWEN_CACHE_DIR = "/opt/kaidera-qwen3/cache"
+QWEN_MODEL_ID = "n24q02m/Qwen3-Embedding-0.6B-ONNX"
+QWEN_SNAPSHOT_DIR = (
+    QWEN_CACHE_DIR
+    + "/models--n24q02m--Qwen3-Embedding-0.6B-ONNX/snapshots/"
+    + "dc873d64d6143f27ad68dadbd1f0d9a4371b994e"
+)
 
 MAX_REPO_INPUT_CHARS = 4096
 MAX_PROJECT_NAME_CHARS = 255
@@ -558,6 +564,8 @@ def _tool_preamble(
         f"Path({json.dumps(str(git_dir))})" if git_dir is not None else "None"
     )
     qwen_cache_json = json.dumps(QWEN_CACHE_DIR)
+    qwen_model_json = json.dumps(QWEN_MODEL_ID)
+    qwen_snapshot_json = json.dumps(QWEN_SNAPSHOT_DIR)
     expected_db_identity_expr = repr(expected_db_identity)
     materialize_expr = "True" if materialize else "False"
     return f"""
@@ -636,16 +644,23 @@ def _cortex_offline_qwen_model(self):
     cache_dir = os.environ.get("QWEN3_EMBED_CACHE_PATH")
     if cache_dir != {qwen_cache_json}:
         raise RuntimeError("graph embedding requires the receipt-pinned immutable Qwen cache")
+    if self._model_name not in (None, {qwen_model_json}):
+        raise RuntimeError("graph embedding requires the receipt-pinned Qwen model identity")
+    if getattr(self, "_model_path", None) not in (None, {qwen_snapshot_json}):
+        raise RuntimeError("graph embedding requires the receipt-pinned Qwen snapshot path")
     if self._model is None:
-        from qwen3_embed import TextEmbedding
+        from fastretrieval import TextEmbedding
+        self._model_name = {qwen_model_json}
         self._model = TextEmbedding(
             model_name=self._model_name,
             cache_dir=cache_dir,
+            specific_model_path={qwen_snapshot_json},
             local_files_only=True,
+            cuda=False,
         )
     return self._model
 
-embeddings.Qwen3EmbedBackend._get_model = _cortex_offline_qwen_model
+embeddings.LocalEmbeddingBackend._get_model = _cortex_offline_qwen_model
 
 def _cortex_bound_json(value, depth=0):
     global _CORTEX_BOUND_TRUNCATED

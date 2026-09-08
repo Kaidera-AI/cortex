@@ -1,10 +1,10 @@
 # cortex-graph-worker — L3 code graph (DuckDB + SQLite + sqlite-vec + better-code-review-graph)
 # Internal only on :9001. cortex-api proxies /graph/* requests here.
 
-# better-code-review-graph 3.21.0 declares Python ==3.13.*.  Keep the
+# better-code-review-graph 3.24.0 declares Python ==3.13.*. Keep the
 # interpreter contract explicit in both stages; a 3.12 venv is unsatisfiable and
 # used to make this image fail only when the resolver ran during a real build.
-FROM python:3.13.15-slim-bookworm@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1 AS bcrg-builder
+FROM python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e AS bcrg-builder
 
 # Install only reviewed wheels into a relocatable, pip-free venv.  The copied
 # interpreter is the worker's sole BCRG execution path in the runtime stage.
@@ -25,7 +25,7 @@ RUN HF_HUB_DISABLE_TELEMETRY=1 \
  && rm -rf /build
 
 
-FROM python:3.13.15-slim-bookworm@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1
+FROM python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -52,6 +52,12 @@ RUN set -eux; \
     printf '%s  %s\n' \
       '77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa' \
       "$1" | sha256sum -c -; \
+    set -- /var/lib/apt/lists/*_dists_bookworm-security_InRelease; \
+    [ "$#" -eq 1 ]; \
+    printf '%s  %s\n' 'dc7305b9a84595905108bce64535538cd5fca256f9aa793d84e1f7df1fb99a4a' "$1" | sha256sum -c -; \
+    set -- /var/lib/apt/lists/*_dists_bookworm-updates_InRelease; \
+    [ "$#" -eq 1 ]; \
+    printf '%s  %s\n' 'dc8c96907091267bb9f3a321e7eee3a6f3c3dc28e70881c6e69eced16a7e2cb9' "$1" | sha256sum -c -; \
     apt-get install -y --download-only --no-install-recommends \
       'git=1:2.39.5-0+deb12u3'; \
     architecture="$(dpkg --print-architecture)"; \
@@ -113,8 +119,10 @@ LABEL org.opencontainers.image.title="Kaidera OS Cortex graph worker" \
       org.opencontainers.image.version="${KOS_VERSION}" \
       org.opencontainers.image.revision="${KOS_SOURCE_REVISION}" \
       io.kaidera.kos.edition="${KOS_EDITION}" \
-      io.kaidera.kos.apt.snapshot="20260821T082113Z" \
-      io.kaidera.kos.apt.sources.sha256="6577a69eb4910f1685aa0f5b96b81dfd65a1ce4eca132773cda7fe0ec75b5cda" \
+      io.kaidera.kos.apt.snapshot="20260905T000000Z" \
+      io.kaidera.kos.apt.security-inrelease.sha256="dc7305b9a84595905108bce64535538cd5fca256f9aa793d84e1f7df1fb99a4a" \
+      io.kaidera.kos.apt.updates-inrelease.sha256="dc8c96907091267bb9f3a321e7eee3a6f3c3dc28e70881c6e69eced16a7e2cb9" \
+      io.kaidera.kos.apt.sources.sha256="34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017" \
       io.kaidera.kos.apt.inrelease.sha256="77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa" \
       io.kaidera.kos.apt.package="git=1:2.39.5-0+deb12u3" \
       io.kaidera.kos.apt.package.amd64.sha256="637a85ddd6247fab13bdd0592f2f39aff04ce4dbf0655d3ab553ac359a38ce6f" \
@@ -124,8 +132,8 @@ LABEL org.opencontainers.image.title="Kaidera OS Cortex graph worker" \
       io.kaidera.kos.model.revision="dc873d64d6143f27ad68dadbd1f0d9a4371b994e" \
       io.kaidera.kos.model.license="Apache-2.0" \
       io.kaidera.kos.model.pins.sha256="84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea" \
-      io.kaidera.kos.python.bcrg-lock.sha256="efa8348ead260fc8bea1f81fba229d9e654dd513f858bdb7e97823f5544c36b5" \
-      io.kaidera.kos.python.runtime-lock.sha256="5e61178fa0f47853b5393f84f263ae02ad7aed520693e05ce4b1a19c79d4dcea" \
+      io.kaidera.kos.python.bcrg-lock.sha256="e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018" \
+      io.kaidera.kos.python.runtime-lock.sha256="bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9" \
       io.kaidera.kos.worker="graph"
 
 USER 10001:10001
@@ -134,7 +142,7 @@ USER 10001:10001
 # entrypoint repeats the receipt/hash check before Uvicorn can expose a healthy endpoint.
 RUN "$BCRG_PYTHON" -I -c "import better_code_review_graph"
 RUN /usr/local/bin/python -I /usr/local/libexec/kaidera/verify-qwen3-model.py \
- && "$BCRG_PYTHON" -I -c "import os; import better_code_review_graph; from qwen3_embed import TextEmbedding; model=TextEmbedding(model_name='n24q02m/Qwen3-Embedding-0.6B-ONNX', cache_dir=os.environ['QWEN3_EMBED_CACHE_PATH'], local_files_only=True); vector=next(model.embed(['Kaidera offline runtime probe'], dim=768)); assert tuple(vector.shape) == (768,)"
+ && "$BCRG_PYTHON" -I -c "import os; import better_code_review_graph; from fastretrieval import TextEmbedding; cache=os.environ['QWEN3_EMBED_CACHE_PATH']; snapshot=cache+'/models--n24q02m--Qwen3-Embedding-0.6B-ONNX/snapshots/dc873d64d6143f27ad68dadbd1f0d9a4371b994e'; model=TextEmbedding(model_name='n24q02m/Qwen3-Embedding-0.6B-ONNX', cache_dir=cache, specific_model_path=snapshot, local_files_only=True, cuda=False); vector=next(model.embed(['Kaidera offline runtime probe'], dim=768)); assert tuple(vector.shape) == (768,)"
 RUN ! command -v curl && ! command -v uv && ! command -v cc && ! command -v gcc
 
 EXPOSE 9001

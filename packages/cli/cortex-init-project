@@ -34,7 +34,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-payload="$(python3 - "${PROJECT}" "${DISPLAY_NAME}" "${ROOT_PATH}" "${AGENTS[@]}" <<'PYEOF'
+payload="$(python3 - "${PROJECT}" "${DISPLAY_NAME}" "${ROOT_PATH}" ${AGENTS[@]+"${AGENTS[@]}"} <<'PYEOF'
 import json, sys
 project, display_name, root_path, *agent_specs = sys.argv[1:]
 agents = []

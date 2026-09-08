@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import uuid
 from pathlib import Path
 
@@ -164,148 +165,6 @@ class FakeProjectMoveConn:
         return "UPDATE 1"
 
 
-class FakeConsoleAppDbConn:
-    def __init__(self):
-        self.tables = {
-            "agent_settings": [
-                {"project": "doha-dt-bid", "agent": "kai", "model": "old-model"},
-                {"project": "doha-dt", "agent": "kai", "model": "partial-new-model"},
-            ],
-            "project_autonomy": [
-                {"project": "doha-dt-bid", "enabled": True},
-                {"project": "doha-dt", "enabled": False},
-            ],
-            "project_propose_mode": [
-                {"project": "doha-dt-bid", "enabled": True},
-            ],
-            "pending_approval": [
-                {"project": "doha-dt-bid", "handoff_id": "handoff-1"},
-                {"project": "doha-dt", "handoff_id": "handoff-1"},
-            ],
-            "handoff_orchestration": [
-                {"project": "doha-dt-bid", "handoff_id": "handoff-2"},
-            ],
-            "run_state": [
-                {"project": "doha-dt-bid", "run_id": "run-1"},
-            ],
-            "usage_events": [
-                {"project": "doha-dt-bid", "id": 1},
-            ],
-            "scheduled_jobs": [
-                {
-                    "project": "doha-dt-bid",
-                    "id": "planning",
-                    "payload": {"project": "doha-dt-bid", "summary": "Plan doha-dt-bid"},
-                },
-            ],
-            "mailbox_feeders": [
-                {
-                    "project": "doha-dt-bid",
-                    "id": "inbox",
-                    "config": {"project": "doha-dt-bid"},
-                    "state": {"cursor": "doha-dt-bid:1"},
-                },
-            ],
-            "app_settings": [
-                {"key": "cortex_default_project", "value": "doha-dt-bid"},
-            ],
-        }
-        self.columns = {
-            "agent_settings": {"project", "agent", "model"},
-            "project_autonomy": {"project", "enabled"},
-            "project_propose_mode": {"project", "enabled"},
-            "pending_approval": {"project", "handoff_id"},
-            "handoff_orchestration": {"project", "handoff_id"},
-            "run_state": {"project", "run_id"},
-            "usage_events": {"project", "id"},
-            "scheduled_jobs": {"project", "id", "payload"},
-            "mailbox_feeders": {"project", "id", "config", "state"},
-            "app_settings": {"key", "value"},
-        }
-        self.executed: list[tuple[str, tuple]] = []
-        self.transactions_started = 0
-
-    def transaction(self):
-        self.transactions_started += 1
-        return FakeTransaction()
-
-    async def fetchval(self, sql, *args):
-        if "information_schema.columns" in sql:
-            table, column = args
-            return column in self.columns.get(table, set())
-        raise AssertionError(f"Unexpected appdb fetchval SQL: {sql}")
-
-    async def execute(self, sql, *args):
-        self.executed.append((sql, args))
-        if sql.startswith('DELETE FROM "'):
-            table = sql.split('"', 2)[1]
-            old_key, new_key = args
-            rows = self.tables[table]
-            if table == "agent_settings":
-                keys = {
-                    row["agent"] for row in rows
-                    if row.get("project") == old_key
-                }
-                keep = [
-                    row for row in rows
-                    if not (row.get("project") == new_key and row.get("agent") in keys)
-                ]
-            elif table == "pending_approval":
-                keys = {
-                    row["handoff_id"] for row in rows
-                    if row.get("project") == old_key
-                }
-                keep = [
-                    row for row in rows
-                    if not (
-                        row.get("project") == new_key
-                        and row.get("handoff_id") in keys
-                    )
-                ]
-            else:
-                has_source = any(row.get("project") == old_key for row in rows)
-                keep = [
-                    row for row in rows
-                    if not (has_source and row.get("project") == new_key)
-                ]
-            deleted = len(rows) - len(keep)
-            self.tables[table] = keep
-            return f"DELETE {deleted}"
-        if sql.startswith('UPDATE "') and " SET project = $2 WHERE project = $1" in sql:
-            table = sql.split('"', 2)[1]
-            old_key, new_key = args
-            count = 0
-            for row in self.tables[table]:
-                if row.get("project") == old_key:
-                    row["project"] = new_key
-                    count += 1
-            return f"UPDATE {count}"
-        if sql.startswith("UPDATE app_settings"):
-            old_key, new_key = args
-            count = 0
-            for row in self.tables["app_settings"]:
-                if (
-                    row.get("key") == "cortex_default_project"
-                    and row.get("value") == old_key
-                ):
-                    row["value"] = new_key
-                    count += 1
-            return f"UPDATE {count}"
-        if sql.startswith('UPDATE "') and "replace(" in sql and "::jsonb" in sql:
-            table = sql.split('"', 2)[1]
-            column = sql.split('SET "', 1)[1].split('"', 1)[0]
-            old_key, new_key = args
-            count = 0
-            for row in self.tables[table]:
-                if row.get("project") != new_key:
-                    continue
-                raw = json.dumps(row[column])
-                if old_key not in raw:
-                    continue
-                row[column] = json.loads(raw.replace(old_key, new_key))
-                count += 1
-            return f"UPDATE {count}"
-        raise AssertionError(f"Unexpected appdb execute SQL: {sql}")
 
 
 @pytest.fixture
@@ -473,15 +332,29 @@ async def test_v02002_startup_refuses_held_memory_transforms(
 
 
 @pytest.mark.asyncio
-async def test_project_key_migration_moves_known_project_scoped_tables(cortex_api):
+async def test_project_key_migration_moves_known_project_scoped_tables(cortex_api, monkeypatch):
     conn = FakeProjectMoveConn()
-    appdb = FakeConsoleAppDbConn()
+    extra_connections = []
+
+    async def unexpected_connection(*args, **kwargs):
+        extra_connections.append(True)
+        raise AssertionError("Cortex primitive must not open another database")
+
+    monkeypatch.setattr(cortex_api.asyncpg, "connect", unexpected_connection)
+    monkeypatch.setenv("HARNESS_APPDB_DSN", "appdb-test-value-must-never-be-read")
+    original_getenv = os.getenv
+
+    def no_appdb_configuration(key, *args):
+        if key.startswith("HARNESS_APPDB"):
+            raise AssertionError("Cortex primitive must not read KOS configuration")
+        return original_getenv(key, *args)
+
+    monkeypatch.setattr(os, "getenv", no_appdb_configuration)
 
     result = await cortex_api.migrate_project_key(
         conn,
         old_key="doha-dt-bid",
         new_key="doha-dt",
-        appdb_conn=appdb,
     )
 
     assert result["migrated"] is True
@@ -497,32 +370,17 @@ async def test_project_key_migration_moves_known_project_scoped_tables(cortex_ap
     ]
     assert any("UPDATE \"agents\" SET project = $2" in sql for sql, _ in conn.executed)
     assert any("UPDATE \"decisions\" SET project = $2" in sql for sql, _ in conn.executed)
-    assert result["appdb"]["available"] is True
-    assert appdb.transactions_started == 1
+    assert result["project_id"] == "11111111-1111-4111-8111-111111111111"
+    assert conn.projects["doha-dt"]["id"] == result["project_id"]
+    assert result["appdb"] == {"attempted": False, "available": False, "counts": {}}
+    assert extra_connections == []
     assert all(
-        row["project"] == "doha-dt"
-        for table, rows in appdb.tables.items()
-        if table != "app_settings"
-        for row in rows
+        table not in sql
+        for sql, _ in conn.executed
+        for table in ("agent_settings", "project_autonomy", "project_propose_mode",
+                      "pending_approval", "handoff_orchestration", "run_state",
+                      "usage_events", "scheduled_jobs", "mailbox_feeders", "app_settings")
     )
-    assert appdb.tables["agent_settings"] == [
-        {"project": "doha-dt", "agent": "kai", "model": "old-model"},
-    ]
-    assert appdb.tables["project_autonomy"] == [
-        {"project": "doha-dt", "enabled": True},
-    ]
-    assert appdb.tables["pending_approval"] == [
-        {"project": "doha-dt", "handoff_id": "handoff-1"},
-    ]
-    assert appdb.tables["scheduled_jobs"][0]["payload"] == {
-        "project": "doha-dt",
-        "summary": "Plan doha-dt",
-    }
-    assert appdb.tables["mailbox_feeders"][0]["config"] == {"project": "doha-dt"}
-    assert appdb.tables["mailbox_feeders"][0]["state"] == {"cursor": "doha-dt:1"}
-    assert appdb.tables["app_settings"] == [
-        {"key": "cortex_default_project", "value": "doha-dt"},
-    ]
 
 
 @pytest.mark.asyncio

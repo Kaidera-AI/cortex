@@ -1,0 +1,18 @@
+# Finite setup reuses the database's verified glibc/OpenSSL base. No package
+# manager or network call is needed to build or run the initializer.
+FROM docker.io/pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+COPY init.sh /usr/local/bin/cortex-tls-init
+RUN chmod 0555 /usr/local/bin/cortex-tls-init \
+ && test "$(id -u postgres)" = 999 \
+ && openssl version
+# Root is confined to this finite ownership setup; CHOWN, DAC_OVERRIDE and
+# FOWNER are the only required capabilities. API/DB never mount the CA volume.
+USER 0:0
+ARG KOS_VERSION
+ARG KOS_SOURCE_REVISION
+ARG KOS_IMAGE_SOURCE
+LABEL org.opencontainers.image.source="$KOS_IMAGE_SOURCE" \
+      org.opencontainers.image.version="$KOS_VERSION" \
+      org.opencontainers.image.revision="$KOS_SOURCE_REVISION"
+ENTRYPOINT ["/usr/local/bin/cortex-tls-init"]
+CMD ["init"]

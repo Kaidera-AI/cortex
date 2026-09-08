@@ -1,0 +1,7 @@
+# CPython 3.14; wrapper keeps explicit httpx 0.28 API compatibility.
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn[standard]==0.52.4
+httpx==0.28.1
+pydantic==2.13.5
+python-multipart==0.0.32

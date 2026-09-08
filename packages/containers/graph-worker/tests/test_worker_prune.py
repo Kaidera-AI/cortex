@@ -379,7 +379,7 @@ def test_bcrg_preamble_forces_the_receipt_pinned_qwen_cache_offline(
             self._model = None
             self._model_name = "n24q02m/Qwen3-Embedding-0.6B-ONNX"
 
-    embeddings.Qwen3EmbedBackend = Backend
+    embeddings.LocalEmbeddingBackend = Backend
     package.tools = tools
     package.embeddings = embeddings
     monkeypatch.setitem(sys.modules, "better_code_review_graph", package)
@@ -387,14 +387,14 @@ def test_bcrg_preamble_forces_the_receipt_pinned_qwen_cache_offline(
     monkeypatch.setitem(sys.modules, "better_code_review_graph.embeddings", embeddings)
 
     calls = []
-    qwen = types.ModuleType("qwen3_embed")
+    qwen = types.ModuleType("fastretrieval")
 
     class TextEmbedding:
         def __init__(self, **kwargs):
             calls.append(kwargs)
 
     qwen.TextEmbedding = TextEmbedding
-    monkeypatch.setitem(sys.modules, "qwen3_embed", qwen)
+    monkeypatch.setitem(sys.modules, "fastretrieval", qwen)
 
     preamble = module._tool_preamble("fixture", repo, materialize=True)
     exec(preamble, {})
@@ -412,9 +412,25 @@ def test_bcrg_preamble_forces_the_receipt_pinned_qwen_cache_offline(
         {
             "model_name": "n24q02m/Qwen3-Embedding-0.6B-ONNX",
             "cache_dir": module.QWEN_CACHE_DIR,
+            "specific_model_path": module.QWEN_SNAPSHOT_DIR,
             "local_files_only": True,
+            "cuda": False,
         }
     ]
+    # BCRG3.24 defaults to a registry entry: pin it explicitly, never moving order.
+    default_backend = Backend()
+    default_backend._model_name = None
+    default_backend._get_model()
+    assert default_backend._model_name == module.QWEN_MODEL_ID
+    assert calls[-1]["specific_model_path"] == module.QWEN_SNAPSHOT_DIR
+    drifted = Backend()
+    drifted._model_name = "unreviewed/model"
+    with pytest.raises(RuntimeError, match="model identity"):
+        drifted._get_model()
+    drifted._model_name = module.QWEN_MODEL_ID
+    drifted._model_path = "/tmp/unreviewed-model"
+    with pytest.raises(RuntimeError, match="snapshot path"):
+        drifted._get_model()
     assert tools.get_db_path(repo) == module.GRAPHS_DIR / "fixture" / "graph.db"
 
 
