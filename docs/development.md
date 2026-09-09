@@ -11,8 +11,10 @@ pytest -q                    # unit tier
 ```
 
 The block describes the packaged v0.1.0 layout. The tree at v0.1.002 carries neither a
-root `pyproject.toml` nor `scripts/`; its executable equivalents are the
-`packages/installer` channels (`preflight`, `install`) and the `packages/api` test suite.
+root `pyproject.toml` nor `scripts/`. Its runnable equivalents are the `packages/installer`
+`preflight` and `version` channels plus the `packages/api` test suite; the `install`
+channel is an expected-refusal check until the payload is published, not a runnable
+installer at this revision.
 
 ## The two test tiers
 
