@@ -6,9 +6,9 @@ extracted from: **what it is, why it exists** (the incident or need that forced 
 up**, and **honest limits**.
 
 The measured surface being documented: **81 command/support files (72 executable commands)
-and 128 API routes in the source inventory; the v0.1.002 standalone projection ships 72 of
-those files, including 63 executable commands.** The workstream is done when that inventory
-and this index agree — zero undocumented commands.
+in the source census; 128 API routes measured on the v0.1.002 release revision (`c427d5a`).
+The standalone projection ships 72 of those files, including 63 executable commands.** The
+workstream is done when that inventory and this index agree — zero undocumented commands.
 
 `shipped` below is the **reference document's** status, not a claim that every capability
 is installed from this standalone checkout. The production lineage is shipped; v0.1.0 OSS

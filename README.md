@@ -129,7 +129,8 @@ programme; none is waived.
    [Installing the launcher](#installing-the-launcher)), but no release archive, image lock
    or container images exist yet.
 3. **API authentication and TLS are incomplete.** The API is meant to be reached on
-   loopback only; the admin token is compared with a constant-time digest, but issuance,
+   loopback only; the admin token is compared in constant time as raw bytes
+   (`hmac.compare_digest`), but issuance,
    rotation and the TLS custody helpers (`api_tls.py`, `db_tls.py`) and the `cortex_auth`
    schema are not wired end to end. Do not expose the API beyond `127.0.0.1`.
 4. **MCP over HTTP is now refused.** `CORTEX_MCP_TRANSPORT=streamable-http` exits non-zero
