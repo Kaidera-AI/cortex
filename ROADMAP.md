@@ -57,9 +57,10 @@ Still open, in priority order, each with a test that fails before the fix:
 The public documentation was re-measured against release revision `c427d5a` and corrected
 where the text had outrun the tree: the CLI inventory now separates the projected surface
 (63 executable commands, 7 support libraries, 2 verified fail-closed shims) from the 72-command
-source inventory; migration count corrected 90 → 87; worker count corrected three → five
-(compose default plus opt-in vision/audio); the admin-token comparison is documented as
-constant-time with issuance/rotation still unwired. No code, payload or release changed;
+source inventory; migration count corrected 90 → 87; worker count distinguishes the three
+workers the shipped compose deploys from two opt-in vision/audio source trees; the
+admin-token comparison is documented as a constant-time comparison of the raw secret bytes
+with issuance/rotation still unwired. No code, payload or release changed;
 v0.1.003 remains unreleased and the roadmap above is unchanged.
 
 ## v0.1.003 — first complete release

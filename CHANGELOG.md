@@ -6,11 +6,13 @@ Docs-only; no code, payload or release is attached to this entry. Re-measured on
 revision `c427d5a` on 2026-09-09: the CLI reference separates the projected command surface
 (63 executable `cortex-*`, 7 support libraries, 2 fail-closed shims — each shim verified to
 exit 2 naming its replacement) from the 72-command source inventory and lists the nine
-harness-coupled commands this projection omits; migration count corrected 90 → 87; worker
-count corrected three → five (compose default plus opt-in vision/audio); the admin-token
-comparison is documented as constant-time (`hmac.compare_digest`) with issuance/rotation
-still unwired. The private `docs/cortex-public` mirror was retired as a publication source;
-public docs are authored in this repository.
+source-only commands this projection omits (harness-coupled or KOS-local ingest); migration
+count corrected 90 → 87; worker count distinguishes the three enrichment workers the shipped
+compose lifecycle deploys from two additional opt-in vision/audio source trees; admin-token
+comparison is a constant-time (`hmac.compare_digest`) comparison of the raw shared-secret
+bytes, with issuance/rotation unwired so the secret remains stored and carried in plaintext
+where that custody is absent. The private `docs/cortex-public` mirror was retired as a
+publication source; public docs are authored in this repository.
 
 ## v0.1.002 — 2026-09-09 (partial release)
 

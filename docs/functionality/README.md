@@ -6,7 +6,8 @@ extracted from: **what it is, why it exists** (the incident or need that forced 
 up**, and **honest limits**.
 
 The measured surface being documented: **81 command/support files (72 executable commands)
-in the source census; 128 API routes measured on the v0.1.002 release revision (`c427d5a`).
+in the source census; 128 API routes measured at runtime on the v0.1.002 release revision
+(importing `packages/api` at `c427d5a` yields 128 FastAPI `APIRoute` entries).
 The standalone projection ships 72 of those files, including 63 executable commands.** The
 workstream is done when that inventory and this index agree — zero undocumented commands.
 

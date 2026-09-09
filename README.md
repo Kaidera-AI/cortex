@@ -22,7 +22,7 @@ product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
 | API | `packages/api` | `cortex-api` (FastAPI, ~21k lines): memory, handoffs, registry, search, ingest, MCP server, TLS/auth custody helpers |
 | CLI | `packages/cli` | 63 executable `cortex-*` commands in this projection (72 in the measured source; harness-coupled commands are not projected) plus 7 support libraries and 2 retired shims |
 | Schema | `packages/schema` | Postgres schema baseline + 87 forward-only migrations |
-| Workers | `packages/containers` | `embed-worker`, `graph-worker`, `pdf-worker` in the default compose (enrichment runs outside the request path); opt-in `vision-worker` and `audio-worker` for image/audio ingest |
+| Workers | `packages/containers` | `embed-worker`, `graph-worker`, `pdf-worker` — the three the shipped compose lifecycle deploys (enrichment runs outside the request path); `vision-worker` and `audio-worker` are opt-in source trees the image/audio ingest proxies expect, not deployed by the shipped compose |
 | Deploy | `packages/deploy` | compose file, `cortex-runtime` lifecycle launcher, DB/TLS/provider images, backup/restore, `release.json` |
 | Installer | `packages/installer` | dependency-free Node launcher (`preflight`, `install`, `backup`, `restore`); published as `@kaidera/cortex` 0.1.2 on npm and as `cortex` in the `kaidera-ai/kaidera` Homebrew tap |
 
@@ -132,7 +132,8 @@ programme; none is waived.
    loopback only; the admin token is compared in constant time as raw bytes
    (`hmac.compare_digest`), but issuance,
    rotation and the TLS custody helpers (`api_tls.py`, `db_tls.py`) and the `cortex_auth`
-   schema are not wired end to end. Do not expose the API beyond `127.0.0.1`.
+   schema are not wired end to end, so the secret is stored and carried in plaintext
+   wherever that custody is absent. Do not expose the API beyond `127.0.0.1`.
 4. **MCP over HTTP is now refused.** `CORTEX_MCP_TRANSPORT=streamable-http` exits non-zero
    ("unavailable in this v0.1.002 candidate pending SEC-06 qualification. Use stdio.")
    instead of starting an unqualified listener, closing v0.1.001 gap 4.

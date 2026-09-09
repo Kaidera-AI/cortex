@@ -10,6 +10,10 @@ pytest -q                    # unit tier
 ./scripts/deploy-smoke.sh    # real-engine tier: fresh compose host, full verb cycle
 ```
 
+The block describes the packaged v0.1.0 layout. The tree at v0.1.002 carries neither a
+root `pyproject.toml` nor `scripts/`; its executable equivalents are the
+`packages/installer` channels (`preflight`, `install`) and the `packages/api` test suite.
+
 ## The two test tiers
 
 **Unit/structural** proves shape. **The deploy smoke proves behaviour** — on a real engine,

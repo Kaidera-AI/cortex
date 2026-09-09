@@ -10,9 +10,10 @@ Cortex is **persistent memory and coordination for AI agent teams**, backed by a
 Postgres database. It was extracted from the battle-tested
 [Kaidera OS](https://kaidera.ai) production lineage. The current extraction, as measured on
 the v0.1.002 release revision (`c427d5a`, 2026-09-09), is ≈21.4k lines of FastAPI, 128 API
-routes, 63 executable CLI commands in this standalone projection (72 in the source
-inventory) and five enrichment workers; standalone availability remains governed by the
-payload and discovery gates.
+routes (the FastAPI route table measured at runtime on that revision), 63 executable CLI
+commands in this standalone projection (72 in the source inventory), three enrichment
+workers deployed by the shipped compose lifecycle plus two opt-in vision/audio source
+trees; standalone availability remains governed by the payload and discovery gates.
 
 This guide is organised as:
 
