@@ -20,9 +20,9 @@ product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
 | Component | Path | Contents |
 |---|---|---|
 | API | `packages/api` | `cortex-api` (FastAPI, ~21k lines): memory, handoffs, registry, search, ingest, MCP server, TLS/auth custody helpers |
-| CLI | `packages/cli` | 72 executable `cortex-*` commands (API-only; harness-coupled commands are not projected) |
-| Schema | `packages/schema` | Postgres schema baseline + 90 forward-only migrations |
-| Workers | `packages/containers` | `embed-worker`, `graph-worker`, `pdf-worker` (enrichment runs outside the request path) |
+| CLI | `packages/cli` | 63 executable `cortex-*` commands in this projection (72 in the measured source; harness-coupled commands are not projected) plus 7 support libraries and 2 retired shims |
+| Schema | `packages/schema` | Postgres schema baseline + 87 forward-only migrations |
+| Workers | `packages/containers` | `embed-worker`, `graph-worker`, `pdf-worker` in the default compose (enrichment runs outside the request path); opt-in `vision-worker` and `audio-worker` for image/audio ingest |
 | Deploy | `packages/deploy` | compose file, `cortex-runtime` lifecycle launcher, DB/TLS/provider images, backup/restore, `release.json` |
 | Installer | `packages/installer` | dependency-free Node launcher (`preflight`, `install`, `backup`, `restore`); published as `@kaidera/cortex` 0.1.2 on npm and as `cortex` in the `kaidera-ai/kaidera` Homebrew tap |
 
@@ -129,9 +129,9 @@ programme; none is waived.
    [Installing the launcher](#installing-the-launcher)), but no release archive, image lock
    or container images exist yet.
 3. **API authentication and TLS are incomplete.** The API is meant to be reached on
-   loopback only; the admin token is compared in plaintext; the TLS custody helpers
-   (`api_tls.py`, `db_tls.py`) and the `cortex_auth` schema are present but not wired end to
-   end. Do not expose the API beyond `127.0.0.1`.
+   loopback only; the admin token is compared with a constant-time digest, but issuance,
+   rotation and the TLS custody helpers (`api_tls.py`, `db_tls.py`) and the `cortex_auth`
+   schema are not wired end to end. Do not expose the API beyond `127.0.0.1`.
 4. **MCP over HTTP is now refused.** `CORTEX_MCP_TRANSPORT=streamable-http` exits non-zero
    ("unavailable in this v0.1.002 candidate pending SEC-06 qualification. Use stdio.")
    instead of starting an unqualified listener, closing v0.1.001 gap 4.
@@ -177,7 +177,7 @@ one owner per fact.
 - [Providers on a standalone Cortex](docs/providers-standalone.md) — subscriptions for your agents, API providers for enrichment
 
 **Reference**
-- [CLI reference](docs/cli-reference.md) — all 72 executable commands plus the internal and retired support surface
+- [CLI reference](docs/cli-reference.md) — the measured command inventory, projected and source counts plus the internal and retired support surface
 - [Functionality reference](docs/functionality/README.md) — one doc per functionality, built from real history
 - [Architecture](docs/architecture.md) — the six-layer appliance
 - [Deployment](docs/deployment.md)

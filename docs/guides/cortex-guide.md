@@ -8,9 +8,11 @@ source?"*
 
 Cortex is **persistent memory and coordination for AI agent teams**, backed by a single
 Postgres database. It was extracted from the battle-tested
-[Kaidera OS](https://kaidera.ai) production lineage. The current extraction target is
-≈20.7k lines of FastAPI, 72 executable CLI commands, 123 API routes, and five enrichment
-workers; standalone availability remains governed by the payload and discovery gates.
+[Kaidera OS](https://kaidera.ai) production lineage. The current extraction, as measured on
+the v0.1.002 release revision (`c427d5a`, 2026-09-09), is ≈21.4k lines of FastAPI, 128 API
+routes, 63 executable CLI commands in this standalone projection (72 in the source
+inventory) and five enrichment workers; standalone availability remains governed by the
+payload and discovery gates.
 
 This guide is organised as:
 
@@ -88,7 +90,8 @@ never blocked on an embedding call.
 
 ### The CLI
 
-The 72 `cortex-*` commands are thin HTTP clients of `cortex-api` — if you cannot do
+The `cortex-*` commands — 72 in the source inventory, 63 in this projection — are thin HTTP
+clients of `cortex-api` — if you cannot do
 something through the API, that is a tooling gap to file, not a reason to touch
 Postgres. The commands you will use daily:
 
@@ -111,7 +114,7 @@ Postgres. The commands you will use daily:
 ```mermaid
 flowchart TB
     subgraph clients["Clients (any harness)"]
-        CLI["cortex-* CLI<br/>(72 commands)"]
+        CLI["cortex-* CLI<br/>(63 projected commands)"]
         AGT["Agents: Claude Code, Codex,<br/>OpenKai, KOS console"]
         MCP["MCP server"]
     end
@@ -457,8 +460,8 @@ OpenKai is the terminal-first agent harness, and the provider authority:
    `cortex-boot`, act as `worker@project`, and their skills manifest rides the
    `cortex.persona.v2` boot contract — the skill registry (`cortex-skill`,
    `POST /skills`, `/skills/{slug}/bind`) is served by Cortex and selected on demand.
-3. **The CLI is the integration.** OpenKai calls the same 72 `cortex-*` commands over
-   `CORTEX_URL` + `CORTEX_TOKEN`; there is no private channel.
+3. **The CLI is the integration.** OpenKai calls the same `cortex-*` commands (72 in source,
+   63 projected here) over `CORTEX_URL` + `CORTEX_TOKEN`; there is no private channel.
 
 The seam is designed so readers never care who wrote the settings — OpenKai present
 or absent, the file at the path is byte-schema-identical.

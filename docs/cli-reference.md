@@ -7,7 +7,7 @@
 
 ## Scope and counting
 
-The measured inventory is **81 files**:
+The measured **source** inventory is **81 files**:
 
 - **72 executable `cortex-*` commands** intended as the supported user, agent or operator
   surface;
@@ -21,10 +21,23 @@ that snapshot to 79; multimodal productionisation then added `cortex-ingest-imag
 commands share the container-backed media dispatcher and do not add another extraction
 implementation.
 
+The **v0.1.002 projection** (`packages/cli`, re-measured 2026-09-09 on `c427d5a` with
+`find packages/cli -type f`) ships **72 of those 81 files**: 63 executable `cortex-*`
+commands, the same seven support libraries and both retired shims (verified fail-closed:
+each exits 2 naming its replacement). Nine source commands are not projected because they
+are harness-coupled or ingest KOS-local state: `cortex-backup`, `cortex-harness-cutover`,
+`cortex-harness-doctor`, `cortex-harness-rollback`, `cortex-sync-generate-harness`,
+`cortex-sync-workspace`, `cortex-ingest-beat-sessions`, `cortex-ingest-claude-local-state`,
+`cortex-ingest-codex`. Commands absent from this checkout must not be claimed present by
+standalone installers or packages.
+
 Core invocations show the shortest useful form, not every option. Run `--help` after the
 v0.1.0 extraction lands for the complete parser contract.
 
-## Public executable commands (72)
+## Public executable commands (63 in this projection; 72 in source)
+
+Rows marked *(not in this projection)* exist in the measured source inventory but are
+absent from the v0.1.002 standalone checkout; do not invoke them there.
 
 ### Handoffs and work-product lookup
 
@@ -92,9 +105,9 @@ v0.1.0 extraction lands for the complete parser contract.
 |---|---|---|
 | `cortex-ingest-all` | Sweep new local harness sessions through typed ingest helpers with bounded error handling. | `cortex-ingest-all [--limit <n>]` |
 | `cortex-ingest-session` | Ingest one Claude-style JSONL session. | `cortex-ingest-session <jsonl-file> [agent] [project]` |
-| `cortex-ingest-codex` | Ingest one Codex JSONL session. | `cortex-ingest-codex <jsonl-file> [agent] [project]` |
-| `cortex-ingest-beat-sessions` | Ingest Beat PI and harness session logs through the sessions API. | `cortex-ingest-beat-sessions` |
-| `cortex-ingest-claude-local-state` | Import Claude plans, todos and IndexedDB cache state into global knowledge. | `cortex-ingest-claude-local-state [--dry-run]` |
+| `cortex-ingest-codex` | Ingest one Codex JSONL session. *(not in this projection)* | `cortex-ingest-codex <jsonl-file> [agent] [project]` |
+| `cortex-ingest-beat-sessions` | Ingest Beat PI and harness session logs through the sessions API. *(not in this projection)* | `cortex-ingest-beat-sessions` |
+| `cortex-ingest-claude-local-state` | Import Claude plans, todos and IndexedDB cache state into global knowledge. *(not in this projection)* | `cortex-ingest-claude-local-state [--dry-run]` |
 | `cortex-ingest-memories` | Ingest a bounded Markdown memory corpus through typed endpoints. | `cortex-ingest-memories [--path <dir>] [--limit <n>]` |
 | `cortex-ingest-artifact` | Persist a non-chat artifact with explicit source type and optional tenancy metadata. | `cortex-ingest-artifact <path> [agent] [project]` |
 | `cortex-ingest-audio` | Transcribe audio, or import a supplied transcript, as a durable artifact. | `cortex-ingest-audio <audio-path> [agent] [project]` |
@@ -161,18 +174,18 @@ v0.1.0 extraction lands for the complete parser contract.
 
 | File | Purpose | Core invocation |
 |---|---|---|
-| `cortex-sync-generate-harness` | Deterministically generate a project’s `.agents/` mirror from Cortex; diff is the safe default. | `cortex-sync-generate-harness <project-key> --diff` |
-| `cortex-sync-workspace` | Ingest on-disk workspace projects, profiles and sessions into Cortex. | `cortex-sync-workspace [--profiles-only|--sessions-only]` |
-| `cortex-harness-cutover` | Drive foundation or full preflight → backup → generate → apply → verify cutover. | `cortex-harness-cutover foundation`; `cortex-harness-cutover <project-key>` |
-| `cortex-harness-doctor` | Detect stale or mismatched generated harness mirrors. | `cortex-harness-doctor [--root <path>] [--expect-project <key>]` |
-| `cortex-harness-rollback` | Restore a timestamped harness backup created by apply. | `cortex-harness-rollback <project-key> [<backup-timestamp>]` |
+| `cortex-sync-generate-harness` | Deterministically generate a project’s `.agents/` mirror from Cortex; diff is the safe default. *(not in this projection)* | `cortex-sync-generate-harness <project-key> --diff` |
+| `cortex-sync-workspace` | Ingest on-disk workspace projects, profiles and sessions into Cortex. *(not in this projection)* | `cortex-sync-workspace [--profiles-only|--sessions-only]` |
+| `cortex-harness-cutover` | Drive foundation or full preflight → backup → generate → apply → verify cutover. *(not in this projection)* | `cortex-harness-cutover foundation`; `cortex-harness-cutover <project-key>` |
+| `cortex-harness-doctor` | Detect stale or mismatched generated harness mirrors. *(not in this projection)* | `cortex-harness-doctor [--root <path>] [--expect-project <key>]` |
+| `cortex-harness-rollback` | Restore a timestamped harness backup created by apply. *(not in this projection)* | `cortex-harness-rollback <project-key> [<backup-timestamp>]` |
 
 ### Operations, migrations, backup and retention
 
 | File | Purpose | Core invocation |
 |---|---|---|
 | `cortex-diagnose` | Inspect whether the local environment can reach the configured Cortex data layer. | `cortex-diagnose` |
-| `cortex-backup` | Create an engine-agnostic deployment backup of databases, files and configuration, or a selected subset. | `cortex-backup [--full|--db-only|--files-only]` |
+| `cortex-backup` | Create an engine-agnostic deployment backup of databases, files and configuration, or a selected subset. *(not in this projection)* | `cortex-backup [--full|--db-only|--files-only]` |
 | `cortex-retain` | Run, preview or inspect project retention and safe archival. | `cortex-retain --dry-run`; `cortex-retain --status` |
 | `cortex-maintain` | Run daily ingest, embedding, entity extraction and freshness maintenance, or one selected phase. | `cortex-maintain`; `cortex-maintain --stats` |
 | `cortex-migrate` | Perform the one-time migration of file-based memory into Postgres. | `cortex-migrate [--dry-run]` |
@@ -205,13 +218,15 @@ replacement and exit 2; neither calls a provider or database.
 
 ## Boundaries and honest limitations
 
-- The 72 executables mix agent-facing, user-facing and operator/admin commands. “Public”
-  means supported command surface, not that every command is safe without the role and
-  confirmation documented by its parser.
+- The 63 projected executables mix agent-facing, user-facing and operator/admin commands.
+  “Public” means supported command surface, not that every command is safe without the role
+  and confirmation documented by its parser. The source inventory carries nine further
+  harness-coupled commands that this projection omits (see Scope and counting).
 - The seven support files are discoverable here so packagers can account for the complete
   payload. They are not a second command surface and must not be placed on a user’s PATH as
   documented entry points.
-- The two retired shims are part of the measured file count but not capabilities.
+- The two retired shims are part of the measured file count but not capabilities; running
+  either exits 2 and names the supported replacement.
 - Several mutating commands are dry-run by default or require `--confirm`, `--apply` or an
   admin token. The concise examples above do not weaken those fail-closed controls.
 - This reference inventories the measured production source. Until v0.1.0 extraction is

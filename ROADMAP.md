@@ -6,7 +6,8 @@ first complete release. Each entry names what is measured, not what is hoped.
 
 ## v0.1.001 — shipped 2026-09-08 (partial)
 
-The actual codebase in the open: API, CLI, schema + 90 migrations, three enrichment workers,
+The actual codebase in the open: API, CLI, schema + 87 migrations, five enrichment workers
+(three in the default compose; vision and audio opt-in),
 the compose deployment with its receipt-driven lifecycle launcher, and the Node installer.
 Handoff lifecycle repairs, the bounded export CLI, the restore evaluator, the artifact
 embedding ledger, search degradation reporting and exactly-once handoff returns are in.
@@ -50,6 +51,16 @@ Still open, in priority order, each with a test that fails before the fix:
    machine. A first data point: on a clean Rocky Linux 10 / Podman 5.8.2 host, the
    published launcher's `preflight` passes all six checks and `install` refuses correctly
    (exit 2, no payload) — expected behaviour, not qualification.
+
+## Documentation pass — 2026-09-09 (no release attached)
+
+The public documentation was re-measured against release revision `c427d5a` and corrected
+where the text had outrun the tree: the CLI inventory now separates the projected surface
+(63 executable commands, 7 support libraries, 2 verified fail-closed shims) from the 72-command
+source inventory; migration count corrected 90 → 87; worker count corrected three → five
+(compose default plus opt-in vision/audio); the admin-token comparison is documented as
+constant-time with issuance/rotation still unwired. No code, payload or release changed;
+v0.1.003 remains unreleased and the roadmap above is unchanged.
 
 ## v0.1.003 — first complete release
 
