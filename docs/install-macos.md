@@ -1,8 +1,8 @@
 # Install on macOS (rootless Podman machine)
 
-> v0.1.001 (partial). There is no one-command installer channel yet: the stack is built
-> from source by the lifecycle launcher — see [Run from source](../README.md#run-from-source).
-> Apple Container was removed on 2026-09-01 and is not supported.
+> v0.1.002 (partial). The launcher installs through npm, bun and Homebrew — see below.
+> The stack itself has no supported start yet; that needs a published payload (v0.1.003
+> delivery work). Apple Container was removed on 2026-09-01 and is not supported.
 
 One containerisation technology per machine: on macOS that is **rootless Podman** running
 in a Podman machine, at the **latest stable version**. The `>= 5.0` floor from
@@ -25,13 +25,24 @@ Rootless Podman on macOS was proven by the production Apple Container → Podman
   path is user-owned. A repair loop that needs root is a design bug here.
 - `podman-compose` and Python `>= 3.10` on the host, for the launcher.
 
-## What the launcher will do (not available in v0.1.001)
+## Install the launcher
+
+```bash
+npx  @kaidera/cortex preflight --json          # npm (Node >= 18)
+bunx @kaidera/cortex preflight --json          # bun
+brew install kaidera-ai/kaidera/cortex && cortex preflight --json
+```
+
+`preflight` and `version` work today. `cortex install` refuses (exit 2) until a
+digest-pinned release payload is published.
+
+## What the launcher will do, once a payload is published
 
 `packages/deploy/cortex-runtime` is a prebuilt-runtime launcher: it acquires verified images
 from an image lock, reads an install manifest, and refuses to build source images by design.
-v0.1.001 ships neither the lock nor the manifest and publishes no images, so **there is no
-supported way to start the stack from this checkout yet** — an earlier recipe on this page
-was wrong and is withdrawn (see the README). When the payload ships (v0.1.002), the launcher:
+v0.1.002 ships neither the lock nor the manifest and publishes no images, so **there is
+still no supported way to start the stack** — an earlier recipe on this page (v0.1.001) was
+wrong and was withdrawn (see the README). When the payload ships, the launcher:
 
 1. **Acquires the images** named by the image lock and verifies them against
    `packages/deploy/release.json`.
@@ -42,7 +53,7 @@ was wrong and is withdrawn (see the README). When the payload ships (v0.1.002), 
 4. **Refuses rather than degrades** when a prerequisite is missing.
 
 The Node launcher in `packages/installer` (`cortex preflight`, `cortex install --payload …`)
-wraps the same lifecycle; `install` needs a published release manifest, which v0.1.001 does
+wraps the same lifecycle; `install` needs a published release manifest, which v0.1.002 does
 not ship — it refuses by design.
 
 ## After install

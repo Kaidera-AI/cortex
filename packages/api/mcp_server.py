@@ -1219,8 +1219,7 @@ def main() -> None:
 
     - 'stdio' (default) — Phase 1, harness spawns server as child process.
       No auth (process boundary is the trust boundary).
-    - 'streamable-http' — Phase E70, shared service per customer pod.
-      Bearer-token auth via BearerAuthMiddleware mounted on the Starlette app.
+    - 'streamable-http' — unavailable in this v0.1.002 candidate pending SEC-06.
 
     SSE is deprecated by spec 2025-03-26; do not use.
     """
@@ -1230,36 +1229,15 @@ def main() -> None:
     if transport == "stdio":
         mcp.run(transport="stdio")
     elif transport == "streamable-http":
-        # Build the Starlette app, add bearer auth middleware, run via uvicorn.
-        # This is the lower-level path vs mcp.run(transport="streamable-http"),
-        # required to inject middleware before tool dispatch.
-        try:
-            import uvicorn
-        except ImportError as exc:
-            sys.stderr.write(
-                "ERROR: uvicorn not installed. "
-                "Run: pip install 'mcp[cli]==2.1.1' 'uvicorn[standard]'\n"
-            )
-            raise SystemExit(1) from exc
-
-        host = os.environ.get("CORTEX_MCP_HOST", "127.0.0.1")
-        port = int(os.environ.get("CORTEX_MCP_PORT", "8502"))
-
-        app = mcp.streamable_http_app()
-        # Wrap with bearer-auth middleware (ASGI middleware pattern)
-        app = BearerAuthMiddleware(app)
-
-        if not _BEARER_TOKEN:
-            sys.stderr.write(
-                "WARN: CORTEX_MCP_BEARER_TOKEN not set; auth disabled. "
-                "Production deployments MUST set the env var.\n"
-            )
-
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        sys.stderr.write(
+            "ERROR: MCP over HTTP is unavailable in this v0.1.002 candidate; "
+            "SEC-06 qualification is required before enabling HTTP. Use stdio.\n"
+        )
+        raise SystemExit(2)
     else:
         sys.stderr.write(
             f"ERROR: unsupported CORTEX_MCP_TRANSPORT={transport!r}\n"
-            "Supported: 'stdio' (default) | 'streamable-http'\n"
+            "Supported: 'stdio' (default); v0.1.002 HTTP awaits SEC-06 qualification\n"
         )
         sys.exit(2)
 

@@ -125,6 +125,7 @@ def snapshot(projection: Path) -> tuple[dict, dict[str, tuple[bytes, int]], set[
             member = target.relative_to(projection).as_posix()
             parts = PurePosixPath(member).parts
             if (set(parts) & FORBIDDEN_PARTS or name == ".env"
+                    or name.startswith(".env.") or name.endswith(".env")
                     or name.endswith((".pyc", ".pyo", ".key", ".pem"))
                     or "\\" in member or re.search(r"[\x00-\x1f\x7f]", member)):
                 raise ValueError("projection contains unsafe or generated private/cache material")

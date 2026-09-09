@@ -1,6 +1,6 @@
 {
   "schema": "cortex.payload.v1",
-  "version": "0.1.001",
-  "source_revision": "3a26319c1114756bee9332961989dcbc3336721d",
+  "version": "0.1.002",
+  "source_revision": "e95f7ebc9458861f99ac9d8dbbede5dd0fb87922",
   "schema_revision": "8cf7e8f0f8b817a352e4e5292107309199464d049cbd008da464b238568c1966"
 }

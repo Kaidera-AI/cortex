@@ -13,8 +13,8 @@ behaviour difference between channels is an install-stream bug by definition.
 | Channel | Command | Status |
 |---|---|---|
 | **brew** | `brew install kaidera-ai/kaidera/cortex` | Formula follows the shipping `kaidera-os.rb` tap pattern; lands with v0.1.0 |
-| **npm** | `npx @kaidera-ai/cortex preflight` | Package scaffolded and pushed to the repo; **publish gated on v0.1.0** |
-| **bun** | `bunx @kaidera-ai/cortex preflight` | Same artifact as npm; verified running under bun locally |
+| **npm** | `npx @kaidera/cortex preflight` | Package scaffolded and pushed to the repo; **publish gated on v0.1.0** |
+| **bun** | `bunx @kaidera/cortex preflight` | Same artifact as npm; verified running under bun locally |
 
 The launcher today exposes three commands:
 
@@ -160,13 +160,13 @@ stands for the standalone installer and the runbook applies to kaidera-os hosts.
 ## How to use it
 
 ```bash
-# any channel — same launcher, same behaviour
-brew install kaidera-ai/kaidera/cortex   # (lands with v0.1.0)
-npx  @kaidera-ai/cortex preflight        # (publishes with v0.1.0)
-bunx @kaidera-ai/cortex preflight        # same artifact
+# any channel — same launcher, same behaviour; all three live since v0.1.002
+brew install kaidera-ai/kaidera/cortex
+npx  @kaidera/cortex preflight
+bunx @kaidera/cortex preflight        # same artifact
 
-cortex preflight          # PASS/FAIL with named remedies; nothing changed
-cortex install            # deploys the six-layer appliance, or refuses naming why
+cortex preflight          # PASS/FAIL with named remedies; works today
+cortex install             # refuses (exit 2) until a release payload is published
 cortex-doctor             # re-verify effects any time after install
 ```
 
@@ -186,17 +186,17 @@ Two rollback paths, both explicit operator acts — nothing rolls back silently:
 
 ## What to set up
 
-### Publish gating
+### Publish gating (superseded — channels live since v0.1.002, 2026-09-09)
 
-- **npm publish is gated on v0.1.0.** The `@kaidera-ai/cortex` package is scaffolded and
-  pushed to the repo; it publishes only with the release, after maintainer go.
-- **First publish creates the `@kaidera-ai` npm org.** A one-time outward act — it names
-  the organisation publicly. **Operator go was given 2026-09-01** ("publish all the
-  packages on our open-source repo, after full review"); the act itself still executes
-  only as part of the reviewed v0.1.0 publish flow, never from CI.
-- The **brew formula** lands with the same release, following the shipping
-  `kaidera-os.rb` tap pattern, so all three channels appear together and resolve to the
-  same digest.
+- **npm**: `@kaidera/cortex` published under the existing, owned `@kaidera` npm scope
+  (this doc originally named the never-owned `@kaidera-ai` scope; corrected). Operator go
+  was given 2026-09-01 ("publish all the packages on our open-source repo, after full
+  review"); the publish executed as a reviewed release act, not from CI.
+- The **brew formula** (`Formula/cortex.rb`) lands in `kaidera-ai/kaidera`, the same tap
+  `kaidera-os.rb` already ships from — all three channels resolve to the same
+  `bin/cortex.js`.
+- Still gated: the **release payload** itself (images, install manifest). `cortex install`
+  refuses on every channel until it exists — see [ROADMAP.md](../../ROADMAP.md).
 
 ### UAT runbook
 

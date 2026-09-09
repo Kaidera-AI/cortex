@@ -1,14 +1,14 @@
 {
   "components": {
     "api": {
-      "files": 111,
+      "files": 113,
       "path": "packages/api",
-      "tree_sha256": "78ae8152a3afc23defd7dbbbe24c0de2693e4f58fb7749f192018939f8d4ca41"
+      "tree_sha256": "614ff27bbca539364323bba88ebeeeaa6dda83464ea2a6d584800f32daecbae7"
     },
     "cli": {
       "files": 72,
       "path": "packages/cli",
-      "tree_sha256": "39fc93a4e0f0c1c2eca03438f9562f50d192aa5478a239fe254668d073d6d220"
+      "tree_sha256": "584b4bb30785ba61b0f8477557488bded24f6624a464282e17d9af01caf9f3b0"
     },
     "containers": {
       "files": 51,
@@ -18,12 +18,12 @@
     "deploy": {
       "files": 30,
       "path": "packages/deploy",
-      "tree_sha256": "221062fa0d8467f60f103ba89d052e3a6a3e725c7875a14890749fe9a301d4e7"
+      "tree_sha256": "376a4d236c37f7f78aae2262f314fcc62689564dab417c7a74e777d5adccbc81"
     },
     "installer": {
       "files": 5,
       "path": "packages/installer",
-      "tree_sha256": "91059092801a54b0a7abff7a7f12236874a54839d72cc66fdd92988e56449322"
+      "tree_sha256": "31c39950c23eda3513783207be7af59d12039b23b39a156cf883911ad0f65cda"
     },
     "schema": {
       "files": 90,
@@ -41,5 +41,5 @@
   "schema": "cortex.projection_manifest.v1",
   "source_provenance": "pristine git archive of committed HEAD",
   "source_repo": "Kaidera-AI/kaideraos",
-  "source_revision": "3a26319c1114756bee9332961989dcbc3336721d"
+  "source_revision": "e95f7ebc9458861f99ac9d8dbbede5dd0fb87922"
 }

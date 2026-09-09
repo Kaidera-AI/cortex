@@ -6,6 +6,23 @@ Node >= 18 and Bun use the same implementation. Linux and macOS use Podman >= 5.
 Linux requires rootless systemd cgroups and linger, macOS a running rootless
 Podman machine. `podman-compose` and Python >= 3.10 are runtime prerequisites.
 
+## Install the launcher (npm, bun, Homebrew)
+
+The launcher is published as `@kaidera/cortex` on npm and as `cortex` in the public
+`kaidera-ai/kaidera` Homebrew tap. Every channel runs this same `bin/cortex.js`; there is
+no per-channel build.
+
+```sh
+npx  @kaidera/cortex preflight --json                 # npm  (Node >= 18)
+bunx @kaidera/cortex preflight --json                 # bun  (the same package)
+brew install kaidera-ai/kaidera/cortex && cortex preflight --json
+```
+
+`preflight` and `version` work today. `cortex install` without `--payload` exits 2 with
+`cortex install: REFUSED — no published digest-pinned release payload exists.` — no
+release payload has been published yet (the v0.1.002 → v0.1.003 gap), and a channel that
+cannot prove a payload digest refuses rather than pretends.
+
 The default release payload remains unset. `cortex install` without an explicit
 qualification manifest refuses with exit 2 until publication supplies a verified
 release. Merely changing that default does not publish a release. This W1 source
@@ -40,7 +57,7 @@ the runtime returned the required effect receipt; 1 means preflight failure;
 ```json
 {
   "schema": "cortex.release.v1",
-  "version": "0.1.003",
+  "version": "0.1.002",
   "source_revision": "<40 lowercase hex source commit>",
   "schema_revision": "<64 lowercase hex migration inventory identity>",
   "compatible_schema_revisions": ["<own identity>", "<other supported identities>"],

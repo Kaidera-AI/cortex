@@ -1,7 +1,7 @@
 # Install on Linux (rootless podman)
 
-> v0.1.001 (partial). This mirrors the hardened Linux appliance path Cortex ships
-> inside today.
+> v0.1.002 (partial). This mirrors the hardened Linux appliance path Cortex ships
+> inside today. The launcher installs; the stack itself does not start yet — see below.
 
 One containerisation technology per machine: on Linux that is **rootless podman**,
 at the **latest stable version** (the `>= 5.0` floor below is a refusal line, not a
@@ -19,14 +19,22 @@ target — install current stable).
 - Rootless, with **linger enabled** and `podman-restart.service` enabled, so the stack
   survives reboot without a login.
 
-## What the installer does
+## Install the launcher
 
 ```bash
-# v0.1.001 ships no installer channel, no images and no install manifest: there is no supported
-# way to start the stack from this checkout yet (the launcher only acquires prebuilt images).
-# The runnable payload is v0.1.002 item 3 in ROADMAP.md. Until then, read the code, run the
-# unit tests, and inspect packages/deploy/docker-compose.yml and the Containerfiles.
+npx  @kaidera/cortex preflight --json          # npm (Node >= 18)
+bunx @kaidera/cortex preflight --json          # bun
+brew install kaidera-ai/kaidera/cortex && cortex preflight --json
 ```
+
+`preflight` checks every requirement above against this host and names the missing piece
+exactly on failure. `cortex install` does not run the stack yet: it refuses (exit 2) until
+a digest-pinned release payload is published — no images, install manifest or archive
+exist for v0.1.002. That is v0.1.003 delivery work (roadmap item 3). Confirmed on a clean
+Rocky Linux 10 host (Podman 5.8.2): all six `preflight` checks pass, `install` refuses
+exactly as designed.
+
+## What the installer will do, once a payload is published
 
 1. Verifies every requirement above and **names the missing piece exactly** on failure.
 2. Deploys the six layers: `db` → `migrate` → `cortex-api` → `embed-worker` ·

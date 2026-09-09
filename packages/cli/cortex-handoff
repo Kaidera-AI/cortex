@@ -576,11 +576,13 @@ PYEOF
                 printf '%s\n' "${confirm_response}" >&2
                 exit "${rc}"
             }
-        elif ! confirm_response="$(cortex_api_call_json GET "/verify/write?kind=handoff&id=$(cortex_api_urlencode "${new_id}")" "" "${from_agent}" 2>&1)"; then
-            local rc=$?
-            status red "ERROR: Handoff confirm read-back failed for ${new_id}."
-            printf '%s\n' "${confirm_response}" >&2
-            exit "${rc}"
+        else
+            confirm_response="$(cortex_api_call_json GET "/verify/write?kind=handoff&id=$(cortex_api_urlencode "${new_id}")" "" "${from_agent}" 2>&1)" || {
+                local rc=$?
+                status red "ERROR: Handoff confirm read-back failed for ${new_id}."
+                printf '%s\n' "${confirm_response}" >&2
+                exit "${rc}"
+            }
         fi
         python3 - "${confirm_response}" "${from_agent}" "${from_role}" "${to_role}" "${to_agent}" "${priority}" "${summary}" "${branch}" "${files_raw}" "${verify}" "${next_steps}" "${context}" "${effective_goal}" <<'PYEOF' || exit 1
 import json

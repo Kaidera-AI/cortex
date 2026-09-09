@@ -78,11 +78,22 @@ def validate_compose(value, inventory, platform):
         elif isinstance(node, list):
             for item in node: no_build(item)
     no_build(value)
+    if value.get('networks') != {'cortex-net': {}}:
+        raise ValueError('loopback installation requires the isolated Cortex network')
     for service, role in SERVICE_ROLES.items():
         config = value['services'][service]
         if (not isinstance(config, dict) or config.get('image') != image_ref(inventory['platforms'][platform][role])
                 or config.get('platform') != platform or config.get('pull_policy') != 'never'):
             raise ValueError('installation Compose image differs from its locked platform role: ' + service)
+        expected_ports = ['127.0.0.1:${CORTEX_API_PORT:-8501}:8501'] if service == 'cortex-api' else []
+        if config.get('ports', []) != expected_ports:
+            raise ValueError('loopback installation forbids altered or extra host publication: ' + service)
+        if service in {'cortex-tls-init', 'cortex-pki-restore'}:
+            valid_network = config.get('network_mode') == 'none' and 'networks' not in config
+        else:
+            valid_network = 'network_mode' not in config and config.get('networks') == ['cortex-net']
+        if not valid_network:
+            raise ValueError('loopback installation forbids alternate network namespaces: ' + service)
     return value
 
 

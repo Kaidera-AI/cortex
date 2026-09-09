@@ -6,13 +6,14 @@
 battle-tested inside [Kaidera OS](https://kaidera.ai), now an independent open-source
 product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
 
-> **Status: v0.1.001 — a partial release (2026-09-08).** This is the actual codebase,
+> **Status: v0.1.002 — a partial release (2026-09-09).** This is the actual codebase,
 > projected from the Kaidera OS production lineage at the revision recorded in
-> [`PROJECTION_MANIFEST.json`](PROJECTION_MANIFEST.json). It is published so the code
-> exists in the open and can be read, built and fixed. It has **not** been qualified on a
-> fresh host by the release author: expect to fix things. What is known to work and what is
-> known to be missing is listed under [Known gaps](#known-gaps-v01001). The full programme
-> continues as v0.1.002 (next partial) and v0.1.003 (complete) — see [ROADMAP.md](ROADMAP.md).
+> [`PROJECTION_MANIFEST.json`](PROJECTION_MANIFEST.json). The launcher (`cortex`) now
+> installs through npm, bun and Homebrew — see [Installing the launcher](#installing-the-launcher).
+> It has **not** been qualified on a fresh host by the release author: expect to fix things.
+> What is known to work and what is known to be missing is listed under
+> [Known gaps](#known-gaps-v01002). The full programme continues as v0.1.003 (complete) —
+> see [ROADMAP.md](ROADMAP.md).
 
 ## What is in this repository
 
@@ -23,7 +24,7 @@ product — the same path [OpenKai](https://github.com/Kaidera-AI/openkai) took.
 | Schema | `packages/schema` | Postgres schema baseline + 90 forward-only migrations |
 | Workers | `packages/containers` | `embed-worker`, `graph-worker`, `pdf-worker` (enrichment runs outside the request path) |
 | Deploy | `packages/deploy` | compose file, `cortex-runtime` lifecycle launcher, DB/TLS/provider images, backup/restore, `release.json` |
-| Installer | `packages/installer` | dependency-free Node launcher (`preflight`, `install`, `backup`, `restore`); npm identity `@kaidera-ai/cortex` 0.1.1 |
+| Installer | `packages/installer` | dependency-free Node launcher (`preflight`, `install`, `backup`, `restore`); published as `@kaidera/cortex` 0.1.2 on npm and as `cortex` in the `kaidera-ai/kaidera` Homebrew tap |
 
 Every byte under `packages/` is produced by the committed projector in the source repository
 from a pristine git archive of one revision; nothing is edited in place here. The manifest
@@ -39,29 +40,44 @@ One containerisation technology per machine, latest stable:
   [install guide](docs/install-macos.md). Apple Container was removed on 2026-09-01 and is
   not supported.
 
-## Running it — not yet from this checkout
+## Installing the launcher
 
-**There is no supported way to start the stack from a fresh clone of v0.1.001.** An earlier
-version of this README (tag `v0.1.001`, 2026-09-08) gave a `cortex-runtime` recipe; it was
-wrong and is withdrawn. The lifecycle launcher is a *prebuilt-runtime* launcher: it acquires
-verified images from an image lock and reads an install manifest, and it refuses to build
-source images by design (`packages/deploy/cortex-runtime`: "prebuilt runtime never builds
-source images"). v0.1.001 ships neither the image lock nor the install manifest, and no
-container images, release payload, Homebrew formula or npm package are published.
+The `cortex` launcher — the CLI that will deploy and manage the stack — installs today
+through three channels, all wrapping the identical `bin/cortex.js`:
 
-What you can do with this checkout today:
+```sh
+npx  @kaidera/cortex preflight --json      # npm (Node >= 18)
+bunx @kaidera/cortex preflight --json      # bun (same package; CI-gated)
+brew install kaidera-ai/kaidera/cortex && cortex preflight --json
+```
+
+`preflight` and `version` work now: `preflight` checks the host's container engine
+(rootless Podman `>= 5.0`) and reports what is missing. `cortex install` does not yet —
+see the next section.
+
+## Running the stack — not yet from a published release
+
+**There is still no published payload, so `cortex install` refuses.** The lifecycle
+launcher is a *prebuilt-runtime* launcher: it acquires verified images from an image lock
+and reads an install manifest, and refuses to build source images by design
+(`packages/deploy/cortex-runtime`: "prebuilt runtime never builds source images"). Running
+`cortex install` without `--payload` exits 2 with `cortex install: REFUSED — no published
+digest-pinned release payload exists.` v0.1.002 ships the launcher and the release
+*contract* (`packages/installer/README.md#release-contract`) that a payload must satisfy;
+it does not yet ship a release archive, image lock, container images or a `--payload` you
+can point at. That is v0.1.003 delivery work — see [ROADMAP.md](ROADMAP.md).
+
+What you can do with this checkout (or the published launcher) today:
 
 - read the code, the schema and the migrations;
-- run the API unit tests (`packages/api/tests`, needs `mcp >= 2.1.1`; see gap 9 below);
+- run the API unit tests (`packages/api/tests`, needs `mcp >= 2.1.1`; see gap 3 below);
 - run the installer's offline tests (`cd packages/installer && npm test`);
+- run `cortex preflight` against a real Podman host and see the real check results;
 - inspect the deployment contract: `packages/deploy/docker-compose.yml`, the Containerfiles
   under `packages/api`, `packages/containers/*` and `packages/deploy`, and
   `python3 packages/deploy/cortex-runtime --help`.
 
-A runnable payload (release archive, image lock, install manifest, published images) is
-v0.1.002 item 3 in [ROADMAP.md](ROADMAP.md). Until it exists, `cortex install` refuses by
-design and nothing here claims otherwise. Reports are welcome as issues; see
-[SECURITY.md](SECURITY.md) for anything sensitive.
+Reports are welcome as issues; see [SECURITY.md](SECURITY.md) for anything sensitive.
 
 ## What it does
 
@@ -98,33 +114,38 @@ Principles (each one paid for in production, not aspirational):
    password prompts, no OS-global state in the data path.
 5. **Fail loud** — fresh deploys bootstrap their schema explicitly and receipt it.
 
-## Known gaps (v0.1.001)
+## Known gaps (v0.1.002)
 
 Measured on the release revision, not inferred. Each item has an owner in the source
 programme; none is waived.
 
 1. **Not qualified on a fresh host.** Fresh boot, seeded upgrade, DB/config/PKI restore and
-   launcher upgrade/rollback have not been demonstrated on this revision.
-2. **No published payload or images.** The installer refuses `install` without an explicit
-   `--payload`; Homebrew and npm channels are not live.
+   launcher upgrade/rollback have not been demonstrated on this revision. A first external
+   data point exists: on a clean Rocky Linux 10 host with Podman 5.8.2, the published
+   launcher's `preflight` passes all six checks and `install` refuses correctly (exit 2, no
+   payload) — that is the expected v0.1.002 behaviour, not a release-acceptance run.
+2. **No published payload or images.** `cortex install` refuses without an explicit
+   `--payload`; the launcher itself is now live on npm, bun and the Homebrew tap (see
+   [Installing the launcher](#installing-the-launcher)), but no release archive, image lock
+   or container images exist yet.
 3. **API authentication and TLS are incomplete.** The API is meant to be reached on
    loopback only; the admin token is compared in plaintext; the TLS custody helpers
    (`api_tls.py`, `db_tls.py`) and the `cortex_auth` schema are present but not wired end to
    end. Do not expose the API beyond `127.0.0.1`.
-4. **MCP over HTTP is selectable but unqualified.** `CORTEX_MCP_TRANSPORT=streamable-http`
-   still starts a listener; the next cut refuses it until the bearer requirement lands.
-   Use stdio.
+4. **MCP over HTTP is now refused.** `CORTEX_MCP_TRANSPORT=streamable-http` exits non-zero
+   ("unavailable in this v0.1.002 candidate pending SEC-06 qualification. Use stdio.")
+   instead of starting an unqualified listener, closing v0.1.001 gap 4.
 5. **Backup restore does not yet invalidate restored token generations.**
 6. **Rollback after a pending build fails before its migrator image exists is not covered.**
 7. **Optional vision models are not reproducible yet.**
 8. **Python 3.14 stack.** The API image, its hash-pinned lock and the lock label agree on
-   CPython 3.14; the embedded-in-Kaidera-OS build pins 3.12, so the base may change in
-   v0.1.002.
-9. **The test suite is authored against the Kaidera OS layout.** In this projection two
-   files do not collect (`tests/test_db_tls.py` expects a repository-relative path;
-   `tests/test_mcp_sdk2_protocol.py` needs `mcp >= 2.1.1`, which the image installs) and a
-   share of the remaining tests fail on layout-relative paths. Exact numbers are in the
-   release notes; v0.1.002 makes the projected suite self-contained.
+   CPython 3.14; the embedded-in-Kaidera-OS build pins 3.12, so the base may still change.
+9. **The test suite is not fully self-contained yet.** `tests/test_mcp_sdk2_protocol.py`
+   now passes under the declared `mcp >= 2.1.1` dependency (closing half of v0.1.001 gap 9);
+   `tests/test_db_tls.py` still assumes the source repository's relative path and does not
+   collect in this projection. Every other test in `packages/api/tests` and
+   `packages/installer/tests` collects and passes on the release revision; exact counts are
+   in [CHANGELOG.md](CHANGELOG.md).
 10. **`cortex-backup` (CLI) is not projected** — it is harness-coupled; use the launcher's
     `backup` and `restore`.
 
@@ -138,7 +159,7 @@ one owner per fact.
 ## Docs
 
 **Start here**
-- [Install on Linux](docs/install-linux.md) (rootless Podman) · [Install on macOS](docs/install-macos.md) (rootless Podman machine) — engine requirements; no start from this checkout yet
+- [Install on Linux](docs/install-linux.md) (rootless Podman) · [Install on macOS](docs/install-macos.md) (rootless Podman machine) — launcher channels + engine requirements; the stack itself has no supported start yet
 - [Quickstart](docs/quickstart.md)
 - [Discovery — how a project finds Cortex and learns what it can do](docs/discovery.md)
 
@@ -165,9 +186,11 @@ one owner per fact.
 
 ## Versions
 
-`v0.1.001` is the first tag. The three-digit patch is deliberate: `v0.1.001` and
-`v0.1.002` are partial releases on the way to `v0.1.003`, the first complete one. The
-installer's npm identity follows as `0.1.1`, `0.1.2`, `0.1.3`.
+`v0.1.001` (2026-09-08) and `v0.1.002` (2026-09-09) are partial releases on the way to
+`v0.1.003`, the first complete one — the three-digit patch is deliberate. The installer's
+npm identity pairs with the tag: `@kaidera/cortex` `0.1.1` → `0.1.2` → `0.1.3`. The package
+was briefly documented (never published) as `@kaidera-ai/cortex`; that scope is not owned
+by the maintainer. `@kaidera` is the real, owned scope and the only one ever published.
 
 ## Contributing
 

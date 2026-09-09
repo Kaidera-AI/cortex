@@ -1,6 +1,6 @@
 {
-  "name": "@kaidera-ai/cortex",
-  "version": "0.1.1",
+  "name": "@kaidera/cortex",
+  "version": "0.1.2",
   "description": "Digest-pinned standalone Cortex installer and launcher",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/Kaidera-AI/cortex.git", "directory": "packages/installer" },

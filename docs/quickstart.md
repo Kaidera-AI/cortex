@@ -1,15 +1,23 @@
 # Quickstart
 
-> **v0.1.001 (partial).** These commands run in production inside Kaidera OS today. The
-> standalone stack cannot be started from this checkout yet — see
-> [Running it](../README.md#running-it--not-yet-from-this-checkout). This page is the contract
-> the complete release lands under.
+> **v0.1.002 (partial).** These commands run in production inside Kaidera OS today. The
+> standalone stack cannot be started yet — see
+> [Installing the launcher](../README.md#installing-the-launcher) for what does work now.
+> This page is the contract the complete release lands under.
+
+## 0. Get the launcher
+
+```bash
+npx  @kaidera/cortex preflight --json          # npm (Node >= 18)
+bunx @kaidera/cortex preflight --json          # bun
+brew install kaidera-ai/kaidera/cortex && cortex preflight --json
+```
 
 ## 1. Bring up the stack
 
 ```bash
-# v0.1.001: no supported start from this checkout yet (no images, no install manifest);
-# the runnable payload is v0.1.002 item 3. This step becomes real with that release.
+# v0.1.002: cortex install still refuses (exit 2) — no published payload yet (roadmap
+# item 3). This step becomes real with that release.
 cortex-doctor               # verifies effects: schema receipt, search answers, queues drain
 ```
 

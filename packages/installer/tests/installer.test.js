@@ -75,10 +75,17 @@ if (args[0] === 'prepare-images') {
 `;
 function payload(dir, version = "0.1.003", schema = A, compatible = [A, B], extra = []) {
   const archive = path.join(dir, `${version}.tar.gz`);
+  const compose = { networks: { 'cortex-net': {} }, services: Object.fromEntries([
+    'cortex-tls-init', 'cortex-pg', 'cortex-migrate', 'cortex-provider', 'cortex-api',
+    'cortex-embed-worker', 'cortex-graph-worker', 'cortex-pdf-worker', 'cortex-backup', 'cortex-pki-restore',
+  ].map(name => [name, ['cortex-tls-init', 'cortex-pki-restore'].includes(name)
+    ? { network_mode: 'none' } : { networks: ['cortex-net'] }])) };
+  compose.services['cortex-api'].ports = ['127.0.0.1:${CORTEX_API_PORT:-8501}:8501'];
   const files = [
     { name: "packages/deploy/cortex-runtime", mode: 0o700, data: RUNTIME },
     { name: "packages/deploy/release.json", data: JSON.stringify({ schema: "cortex.payload.v1", version, source_revision: SOURCE, schema_revision: schema }) },
-    ...['PROJECTION_MANIFEST.json', 'packages/deploy/image_manifest.py', 'packages/deploy/install-compose.json', 'packages/deploy/image-lock.json'].map(name => ({ name, data: '{}' })),
+    { name: 'packages/deploy/install-compose.json', data: JSON.stringify(compose) },
+    ...['PROJECTION_MANIFEST.json', 'packages/deploy/image_manifest.py', 'packages/deploy/image-lock.json'].map(name => ({ name, data: '{}' })),
     ...extra,
   ];
   const install = JSON.stringify({ schema: 'cortex.install.v1', delivery_kind: 'prebuilt', version, source_revision: SOURCE, schema_revision: schema, platform: 'linux/arm64', files: Object.fromEntries(files.map(file => [file.name, cli.digest(Buffer.from(file.data || ''))])) });

@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.1.002 — 2026-09-09 (partial release)
+
+Source revision `e95f7ebc9458861f99ac9d8dbbede5dd0fb87922`; schema revision
+`8cf7e8f0f8b817a352e4e5292107309199464d049cbd008da464b238568c1966`. Projected by the same
+committed projector, verified with a clean dry-run (no secrets, no personal paths, no
+`__pycache__`, no stray files outside `packages/` and the manifest).
+
+### Added
+- **Launcher channels**: `@kaidera/cortex` published on npm; the same package serves bun;
+  `Formula/cortex.rb` added to the `kaidera-ai/kaidera` Homebrew tap. All three run the
+  identical `bin/cortex.js` — see [Installing the launcher](README.md#installing-the-launcher).
+- MCP-over-HTTP refusal: `CORTEX_MCP_TRANSPORT=streamable-http` now exits non-zero naming
+  SEC-06 as the blocker, instead of starting an unqualified listener (was v0.1.001 gap 4).
+- `tests/test_mcp_sdk2_protocol.py` collects and passes under the declared `mcp >= 2.1.1`
+  test dependency (was half of v0.1.001 gap 9).
+
+### Fixed
+- Handoff confirmation: a plain confirmation failure (the ordinary "not yet confirmed"
+  case) no longer gets overwritten by a later read-back; the CLI now distinguishes it from
+  a real error.
+- Two multimodal/graph-worker CLI tests asserted stale dependency pins
+  (`setuptools==81.0.0`, `torch==2.13.0`, an older Ollama digest, and the pre-rename
+  `Qwen3EmbedBackend` symbol) left over from before the source's own dependency upgrade;
+  they now assert the pins the shipped Dockerfiles/locks actually carry. No runtime
+  behaviour changed — this is test-fixture drift, not a product defect.
+
+### Changed
+- The installer package was named `@kaidera-ai/cortex`; that npm scope is not owned by the
+  maintainer (confirmed 403 on publish) and nothing was ever published under it. Renamed to
+  `@kaidera/cortex`, the scope this and every other Kaidera package publish under.
+- Release identity: `v0.1.002` / npm `0.1.2` for this partial release.
+
+### Verified on this revision
+- API suite: 1451 passed, 57 skipped (offline-only tests deselected); the SDK-2 protocol
+  test needs `mcp >= 2.1.1`, which the image installs (not the bare interpreter).
+- CLI tests: 355 passed, 40 skipped. Standalone tests: 1206 passed, 2 skipped. Installer:
+  28/28, `npm publish --dry-run` clean (15.5 kB, 4 files).
+- `MCP over HTTP` refusal exits non-zero as designed.
+- Projected suite: every file collects and passes except `tests/test_db_tls.py`
+  (repository-relative path; unresolved, tracked in [ROADMAP.md](ROADMAP.md) item 4).
+
+### Known gaps
+Unchanged from v0.1.001 except where noted above — see
+[README.md#known-gaps-v01002](README.md#known-gaps-v01002) for the current list.
+
 ## v0.1.001 — 2026-09-08 (partial release)
 
 ### Corrections after the tag (main, 2026-09-08, found by the Cortex lane's publication audit)

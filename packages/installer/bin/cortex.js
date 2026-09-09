@@ -13,7 +13,7 @@ const { Transform } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
 const { fileURLToPath } = require("node:url");
 const { spawnSync } = require("node:child_process");
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 const PAYLOAD = null;
 const MAX_ARCHIVE = 256 * 1024 * 1024;
 const HEX = /^[a-f0-9]{64}$/;
@@ -194,6 +194,29 @@ function verifyExtracted(archive, directory) {
   }
   walk(directory);
 }
+function validateLoopbackCompose(value) {
+  // Mirror the runtime admission boundary without executing untrusted payload code.
+  const object = item => item !== null && typeof item === 'object' && !Array.isArray(item);
+  function noExternalSource(node) {
+    if (Array.isArray(node)) node.forEach(noExternalSource);
+    else if (object(node)) {
+      if (Object.keys(node).some(key => ['build', 'include', 'extends'].includes(key) || key.startsWith('x-'))) refuse('loopback installation forbids external source extensions');
+      Object.values(node).forEach(noExternalSource);
+    }
+  }
+  noExternalSource(value);
+  if (!object(value) || !object(value.services) || !Object.hasOwn(value.services, 'cortex-api') || JSON.stringify(value.networks) !== '{"cortex-net":{}}') refuse('loopback installation requires the API and isolated Cortex network');
+  for (const [service, config] of Object.entries(value.services)) {
+    if (!object(config)) refuse('loopback installation requires service network configuration');
+    const expectedPorts = service === 'cortex-api' ? ['127.0.0.1:${CORTEX_API_PORT:-8501}:8501'] : [];
+    const ports = Object.hasOwn(config, 'ports') ? config.ports : [];
+    if (JSON.stringify(ports) !== JSON.stringify(expectedPorts)) refuse('loopback installation forbids altered or extra host publication: ' + service);
+    const offline = ['cortex-tls-init', 'cortex-pki-restore'].includes(service);
+    const validNetwork = offline ? config.network_mode === 'none' && !Object.hasOwn(config, 'networks')
+      : !Object.hasOwn(config, 'network_mode') && JSON.stringify(config.networks) === '["cortex-net"]';
+    if (!validNetwork) refuse('loopback installation forbids alternate network namespaces: ' + service);
+  }
+}
 function payloadIdentity(release, directory) {
   let identity;
   try { identity = JSON.parse(regular(path.join(directory, "packages/deploy/release.json"), 64 * 1024)); }
@@ -209,6 +232,7 @@ function payloadIdentity(release, directory) {
     if (member.startsWith('/') || member.includes('\\') || member.split('/').some(part => !part || part === '.' || part === '..') || !HEX.test(expected || '')) refuse('invalid prebuilt installation file inventory');
     if (digest(regular(path.join(directory, member))) !== expected) refuse('prebuilt installation file checksum mismatch');
   }
+  validateLoopbackCompose(JSON.parse(regular(path.join(directory, 'packages/deploy/install-compose.json'))));
 }
 
 function materialiseProvider(home = process.env.OPENKAI_HOME || path.join(os.homedir(), ".openkai")) {
