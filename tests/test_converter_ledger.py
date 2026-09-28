@@ -91,3 +91,33 @@ def test_secret_namespace_never_returns_canonical_body() -> None:
 def test_policy_rejects_claimed_mapping_without_expiring_lease() -> None:
     with pytest.raises(ValueError, match="unsafe handoff mapping"):
         ConversionPolicy.from_bytes(policy_bytes(handoff_status={"claimed": "claimed"}))
+
+
+def test_legacy_message_and_diary_become_typed_content_without_fake_authors() -> None:
+    policy = ConversionPolicy.from_bytes(policy_bytes())
+    message = classify_row("public.messages", {
+        "id": 17, "project": "fixture-project", "role": "human",
+        "content": "Synthetic message",
+    }, policy)
+    diary = classify_row("public.agent_diaries", {
+        "id": uuid.uuid4(), "project": "fixture-project",
+        "agent_name": "synthetic-agent", "summary": "Synthetic diary",
+    }, policy)
+    assert (message.outcome, message.content_class, message.payload["role"]) == (
+        "migrated", "message", "user",
+    )
+    assert (diary.outcome, diary.content_class, diary.payload["entry"]) == (
+        "migrated", "diary", "Synthetic diary",
+    )
+
+
+def test_artifact_without_original_is_quarantined_not_hashed_from_path() -> None:
+    policy = ConversionPolicy.from_bytes(policy_bytes())
+    artifact = classify_row("public.artifacts", {
+        "id": uuid.uuid4(), "project": "fixture-project",
+        "source_file": "a-fixture-file", "raw_content": None,
+        "content_hash": "legacy-unverified-file-hash",
+    }, policy)
+    assert (artifact.outcome, artifact.reason) == (
+        "quarantined", "missing_original",
+    )

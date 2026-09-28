@@ -28,8 +28,10 @@ _MEMORY_CLASSES = {
 }
 _CONTENT_CLASSES = {
     "public.agent_diaries": ("diary", "summary", "entry"),
+    "cortex.agent_diaries": ("diary", "summary", "entry"),
     "public.messages": ("message", "content", "text"),
     "cortex.messages": ("message", "content", "text"),
+    "public.agent_sessions": ("session", "task", "source"),
     "public.work_products": ("work_product", "summary", "summary"),
 }
 _UUID_NAMESPACE = uuid.UUID("dcabdf23-4048-484e-b6bb-8a650484d7f6")
@@ -135,16 +137,20 @@ def classify_row(
     """Classify a source row before writing anything; never log the input row."""
     if namespace.startswith("cortex_auth."):
         return _reject("retained_legacy_credentials", skipped=True)
-    if namespace not in {*_MEMORY_CLASSES, *_CONTENT_CLASSES, "public.handoffs"}:
+    if namespace in {"public.artifacts", "cortex.artifacts"}:
+        return _reject("missing_original")
+    if namespace not in {
+        *_MEMORY_CLASSES, *_CONTENT_CLASSES, "public.handoffs", "cortex.handoffs"
+    }:
         return _reject("unsupported_entity")
-    project = row.get("project") or row.get("project_id")
+    project = row.get("project") or row.get("project_id") or row.get("customer_id")
     mapping = policy.projects.get(str(project)) if project is not None else None
     if mapping is None:
         return _reject("unmapped_scope")
     target_id = _source_id(namespace, row)
     if target_id is None:
         return _reject("invalid_source_id")
-    if namespace == "public.handoffs":
+    if namespace in {"public.handoffs", "cortex.handoffs"}:
         status = row.get("status")
         mapped = policy.handoff_status.get(status)
         if mapped is None:
@@ -175,6 +181,15 @@ def classify_row(
         if role is None:
             return _reject("unsupported_message_role")
         payload["role"] = role
+    elif content_class == "session":
+        message_count = row.get("message_count")
+        if (
+            not isinstance(message_count, int)
+            or isinstance(message_count, bool)
+            or message_count < 0
+        ):
+            return _reject("unverifiable_session_count")
+        payload["message_count"] = message_count
     elif content_class == "work_product":
         payload["kind"] = row.get("activity_type") or "legacy-work-product"
         payload["references"] = row.get("artifact_refs") or []

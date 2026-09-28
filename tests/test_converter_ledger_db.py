@@ -119,6 +119,18 @@ async def prepare_synthetic_databases() -> dict[str, object]:
             exists = await source.fetchval("SELECT to_regclass($1)", f"public.{name}")
             if exists is None:
                 await source.execute(ddl)
+            has_primary_key = await source.fetchval(
+                """SELECT EXISTS (
+                     SELECT 1 FROM pg_index
+                      WHERE indrelid = to_regclass($1) AND indisprimary
+                   )""",
+                f"public.{name}",
+            )
+            if not has_primary_key:
+                await source.execute(
+                    f"ALTER TABLE ONLY public.{name} ADD CONSTRAINT "
+                    f"{name}_pkey PRIMARY KEY (id)"
+                )
     finally:
         await source.close()
     return fixture
