@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import io
 import json
 import secrets
@@ -140,6 +141,78 @@ def test_explicit_file_backend_denied_on_non_linux(tmp_path, monkeypatch):
     with pytest.raises(key_store.KeyStoreError):
         key_store.KeyStore("installation-1", root=tmp_path / "keys", backend="file")
     assert not (tmp_path / "keys").exists()
+
+
+def test_due_status_uses_database_expiry_at_thirty_day_boundary(tmp_path):
+    from cortex_v2.clients.key_store import KeyStore
+
+    now = datetime.datetime(2026, 9, 28, 12, tzinfo=datetime.timezone.utc)
+    due_at = (now + datetime.timedelta(days=30)).isoformat()
+    later_at = (now + datetime.timedelta(days=30, microseconds=1)).isoformat()
+    expired_at = (now - datetime.timedelta(seconds=1)).isoformat()
+    store = KeyStore("installation-1", root=tmp_path / "keys", backend="file")
+    store.put("alpha", "due", secrets.token_urlsafe(32), managed_by="kos", expires_at=due_at)
+    store.put("alpha", "later", secrets.token_urlsafe(32), managed_by="user", expires_at=later_at)
+    store.put("beta", "expired", secrets.token_urlsafe(32), managed_by="openkai", expires_at=expired_at)
+
+    assert [
+        (key.project, key.name, key.managed_by, key.expires_at, key.state)
+        for key in store.due(now=now)
+    ] == [
+        ("alpha", "due", "kos", due_at, "due"),
+        ("beta", "expired", "openkai", expired_at, "expired"),
+    ]
+
+
+def test_status_fails_closed_on_symlinked_key_without_partial_output(tmp_path):
+    from cortex_v2.cli.keys import human_main
+    from cortex_v2.clients.key_store import KeyStore, KeyStoreError
+
+    now = datetime.datetime(2026, 9, 28, 12, tzinfo=datetime.timezone.utc)
+    issued_key = secrets.token_urlsafe(32)
+    store = KeyStore("installation-1", root=tmp_path / "keys", backend="file")
+    store.put("alpha", "lead", issued_key, managed_by="user", expires_at=now.isoformat())
+    (tmp_path / "outside").write_text("not a credential")
+    (tmp_path / "keys" / "installation-1" / "alpha" / "other.key").symlink_to(tmp_path / "outside")
+
+    with pytest.raises(KeyStoreError):
+        store.due(now=now)
+    out, err = io.StringIO(), io.StringIO()
+    code = human_main(
+        ["status", "--installation", "installation-1"], store=store,
+        out=out, err=err, now=now,
+    )
+    assert code == 2 and not out.getvalue()
+    if issued_key in err.getvalue():
+        pytest.fail("status error disclosed a credential")
+
+
+def test_status_lists_only_due_local_keys_without_api_access(tmp_path):
+    from cortex_v2.cli.keys import human_main
+    from cortex_v2.clients.key_store import KeyStore
+
+    now = datetime.datetime(2026, 9, 28, 12, tzinfo=datetime.timezone.utc)
+    issued_key = secrets.token_urlsafe(32)
+    later_key = secrets.token_urlsafe(32)
+    expiry = (now + datetime.timedelta(days=30)).isoformat()
+    store = KeyStore("installation-1", root=tmp_path / "keys", backend="file")
+    store.put("alpha", "lead", issued_key, managed_by="user", expires_at=expiry)
+    store.put(
+        "alpha", "later", later_key, managed_by="kos",
+        expires_at=(now + datetime.timedelta(days=31)).isoformat(),
+    )
+    out, err = io.StringIO(), io.StringIO()
+    code = human_main(
+        ["status", "--installation", "installation-1"], store=store,
+        out=out, err=err, now=now,
+    )
+    assert code == 0 and not err.getvalue()
+    assert json.loads(out.getvalue()) == {
+        "project": "alpha", "name": "lead", "managed_by": "user",
+        "expires_at": expiry, "state": "due",
+    }
+    if issued_key in out.getvalue() or later_key in out.getvalue():
+        pytest.fail("status disclosed a credential")
 
 
 def test_profile_uses_store_or_explicit_ci_key_only(tmp_path):
@@ -337,3 +410,50 @@ def test_whoami_rejects_invalid_bearer_without_retry(tmp_path):
     assert not out.getvalue()
     if issued_key in err.getvalue():
         pytest.fail("invalid-credential error disclosed its bearer")
+
+
+def test_whoami_warns_once_for_due_or_expired_stored_key_not_ci(tmp_path):
+    from cortex_v2.cli.keys import human_main
+    from cortex_v2.clients.key_store import KeyStore
+
+    now = datetime.datetime(2026, 9, 28, 12, tzinfo=datetime.timezone.utc)
+    issued_key = secrets.token_urlsafe(32)
+    store = KeyStore("installation-1", root=tmp_path / "keys", backend="file")
+    identity = {
+        "installation_id": "installation-1", "project": "alpha", "name": "lead",
+        "role": "lead", "principal_id": "principal-1", "scopes": [],
+        "rights": {"read": True, "write": True, "manage_keys": True, "create_projects": False},
+    }
+    transport = lambda *args, **kwargs: response(identity)
+    local = CortexClient(
+        profile(issued_key, credential_store=store, credential_project="alpha", credential_name="lead"),
+        transport=transport,
+    )
+    for remaining, classification in (
+        (datetime.timedelta(days=31), None),
+        (datetime.timedelta(days=30), "due"),
+        (datetime.timedelta(0), "expired"),
+    ):
+        expiry = (now + remaining).isoformat()
+        store.put("alpha", "lead", issued_key, managed_by="user", expires_at=expiry)
+        out, err = io.StringIO(), io.StringIO()
+        code = human_main(
+            ["whoami", "--project", "alpha", "--name", "lead"],
+            client=local, out=out, err=err, now=now,
+        )
+        assert code == 0
+        if classification is None:
+            assert not err.getvalue()
+        else:
+            assert err.getvalue().count("Warning:") == 1
+            assert classification in err.getvalue() and expiry in err.getvalue()
+        if issued_key in out.getvalue() + err.getvalue():
+            pytest.fail("whoami warning disclosed a credential")
+
+    ci = CortexClient(profile(issued_key), transport=transport)
+    out, err = io.StringIO(), io.StringIO()
+    assert human_main(
+        ["whoami", "--project", "alpha", "--name", "lead"],
+        client=ci, out=out, err=err, now=now,
+    ) == 0
+    assert not err.getvalue()
