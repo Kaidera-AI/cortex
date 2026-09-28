@@ -322,3 +322,74 @@ def test_0001_only_sandbox_authenticates_without_full_auth_detail(
         assert response.json()["data"]["principal_id"] == str(principal_id)
         assert response.json()["data"]["installation_id"] == str(installation_id)
         assert "cortex-key-expires" not in response.headers
+
+
+@pytest.mark.skipif(
+    not os.getenv("CORTEX_V2_D53_MIGRATOR_DATABASE_URL"),
+    reason="disposable pgvector database required",
+)
+def test_full_auth_catalog_exposes_only_non_expiry_public_signatures() -> None:
+    expected = {
+        "authenticate": (("p_token_hash", "bytea"),),
+        "bootstrap_installation": (
+            ("p_installation_id", "uuid"),
+            ("p_installation_name", "text"),
+            ("p_owner_name", "text"),
+            ("p_owner_hash", "bytea"),
+            ("p_recovery_hash", "bytea"),
+        ),
+        "enroll_principal": (
+            ("p_caller_principal_id", "uuid"),
+            ("p_principal_name", "text"),
+            ("p_actor_kind", "text"),
+            ("p_token_hash", "bytea"),
+        ),
+        "recover_owner": (
+            ("p_recovery_token_hash", "bytea"),
+            ("p_new_token_hash", "bytea"),
+            ("p_new_recovery_token_hash", "bytea"),
+        ),
+        "rotate_credential": (
+            ("p_caller_principal_id", "uuid"),
+            ("p_principal_id", "uuid"),
+            ("p_new_token_hash", "bytea"),
+        ),
+    }
+
+    async def inspect() -> tuple[asyncpg.Record, list[asyncpg.Record]]:
+        conn = await asyncpg.connect(_url("MIGRATOR"))
+        try:
+            type_oids = await conn.fetchrow(
+                "SELECT 'uuid'::regtype::oid AS uuid, "
+                "'text'::regtype::oid AS text, "
+                "'bytea'::regtype::oid AS bytea, "
+                "'timestamptz'::regtype::oid AS expiry"
+            )
+            rows = await conn.fetch(
+                "SELECT p.proname, p.proargtypes::oid[] AS input_type_oids, "
+                "pg_get_function_identity_arguments(p.oid) AS identity_args, "
+                "has_function_privilege('cortex_v2_app',p.oid,'EXECUTE') "
+                "AS app_can_execute "
+                "FROM pg_proc AS p "
+                "JOIN pg_namespace AS n ON n.oid=p.pronamespace "
+                "WHERE n.nspname='cortex_auth' "
+                "AND (p.proname=ANY($1::text[]) OR p.proname ~ '_internal$')",
+                list(expected),
+            )
+            return type_oids, rows
+        finally:
+            await conn.close()
+
+    type_oids, rows = asyncio.run(inspect())
+    assert len(rows) == len(expected)
+    assert {row["proname"] for row in rows} == set(expected)
+    for row in rows:
+        arguments = expected[row["proname"]]
+        assert tuple(row["input_type_oids"]) == tuple(
+            type_oids[type_name] for _, type_name in arguments
+        )
+        assert type_oids["expiry"] not in row["input_type_oids"]
+        assert row["identity_args"] == ", ".join(
+            f"{name} {type_name}" for name, type_name in arguments
+        )
+        assert row["app_can_execute"] is True
