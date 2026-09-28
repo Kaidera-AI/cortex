@@ -144,11 +144,11 @@ def test_due_notice_starts_at_day_150_and_deduplicates_per_credential_utc_day(
             assert len(notices) == 2
             assert all(
                 f"principal_id={registry.owner}" in notice.getMessage()
-                and "digest_fingerprint=" in notice.getMessage()
+                and "token_fingerprint=" in notice.getMessage()
                 for notice in notices
             )
             assert len({
-                notice.getMessage().split("digest_fingerprint=", 1)[1].split()[0]
+                notice.getMessage().split("token_fingerprint=", 1)[1].split()[0]
                 for notice in notices
             }) == 2
             clock[0] += timedelta(days=1)
@@ -198,3 +198,61 @@ def test_sql_key_manager_denial_translates_to_actionable_forbidden() -> None:
     assert problem.status == 403
     assert problem.code == "project_key_manager_required"
     assert "project" in problem.message and "lead" in problem.message
+
+
+def test_issued_credential_due_notice_matches_issuance_receipt_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pepper = secrets.token_bytes(32)
+    owner_token = secrets.token_urlsafe(32)
+    registry = asyncio.run(_seed())
+    asyncio.run(_issue_credentials(pepper, [
+        (registry.owner, owner_token, 1, datetime.now(timezone.utc) + timedelta(days=180)),
+    ]))
+    _settings(monkeypatch, pepper)
+
+    with caplog.at_level(logging.WARNING, logger="cortex_v2.api"):
+        with TestClient(create_app()) as client:
+            issued = client.post(
+                "/v1/auth/principals:enroll",
+                json={
+                    "principal_name": f"due-{uuid.uuid4().hex}",
+                    "actor_kind": "agent",
+                },
+                headers={
+                    "Authorization": f"Bearer {owner_token}",
+                    "Idempotency-Key": uuid.uuid4().hex,
+                },
+            )
+            assert issued.status_code == 201
+            data = issued.json()["data"]
+
+            frozen_due_time = datetime.fromisoformat(data["expires_at"]) - timedelta(days=29)
+
+            class FixedClock(datetime):
+                @classmethod
+                def now(cls, tz: timezone | None = None) -> datetime:
+                    assert tz is timezone.utc
+                    return frozen_due_time
+
+            monkeypatch.setattr(app_module, "datetime", FixedClock)
+            authenticated = client.get(
+                "/v1/auth/principal",
+                headers={"Authorization": f"Bearer {data['token']}"},
+            )
+            assert authenticated.status_code == 200
+
+    notices = [
+        record.getMessage() for record in caplog.records
+        if record.name == "cortex_v2.api"
+        and record.getMessage().startswith("observed_due_key ")
+    ]
+    assert len(notices) == 1
+    assert f"principal_id={data['principal_id']}" in notices[0]
+    assert f"token_fingerprint={data['token_fingerprint']}" in notices[0]
+    assert not any(
+        data["token"] in record.getMessage()
+        or token_digest(data["token"], pepper).hex() in record.getMessage()
+        for record in caplog.records
+    )

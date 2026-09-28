@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import importlib
 import logging
 import re
@@ -68,6 +67,7 @@ from .models import (
     RotateCredentialRequest,
     SearchRequest,
 )
+from .receipts import token_fingerprint
 from .store import (
     ApiProblem,
     Principal,
@@ -505,7 +505,7 @@ def create_app() -> FastAPI:
         settings: Settings = request.app.state.settings
         return token_digest(match.group(1), settings.token_pepper)
 
-    def warn_if_key_due(principal: Principal, digest: bytes) -> None:
+    def warn_if_key_due(request: Request, principal: Principal, digest: bytes) -> None:
         nonlocal due_day
         expires_at = principal.expires_at
         if expires_at is None:
@@ -523,9 +523,11 @@ def create_app() -> FastAPI:
                 return
             due_seen.add(digest)
             logger.warning(
-                "observed_due_key principal_id=%s digest_fingerprint=%s expires_at=%s",
+                "observed_due_key principal_id=%s token_fingerprint=%s expires_at=%s",
                 principal.principal_id,
-                hashlib.sha256(digest).hexdigest()[:16],
+                token_fingerprint(
+                    request.headers["authorization"][len("Bearer "):]
+                ),
                 expires_at.isoformat(),
             )
 
@@ -539,7 +541,7 @@ def create_app() -> FastAPI:
             legacy_schema=application.state.profile.instance_id == SANDBOX_INSTANCE,
         )
         request.state.credential_expires_at = principal.expires_at
-        warn_if_key_due(principal, digest)
+        warn_if_key_due(request, principal, digest)
         return principal
 
     @application.post("/v1/memory/records")
