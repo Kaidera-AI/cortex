@@ -13,12 +13,13 @@ import uuid
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import asyncpg
 
+from .content import content_hash
 from .converter import (
     ConversionDecision,
     ConversionPolicy,
@@ -34,7 +35,10 @@ _SOURCE_SCHEMAS = ("public", "cortex", "cortex_auth")
 _CANONICAL_FIELDS = (
     "id", "project", "project_id", "customer_id", "summary", "content", "body",
     "status", "to_role", "role", "from_agent", "agent_name", "activity_type",
-    "artifact_refs", "created_at", "ts", "task",
+    "artifact_refs", "created_at", "ts", "started_at", "task", "kind",
+    "reply_to_handoff_id", "parent_goal_id", "claimed_by", "claimed_at",
+    "next_steps", "context", "handoff_id", "session_id", "notes",
+    "rationale", "detail", "code_right", "code_wrong", "title",
 )
 _CANONICAL_TABLES = frozenset({
     "public.handoffs", "cortex.handoffs", "public.decisions", "public.lessons",
@@ -217,14 +221,18 @@ async def _check_policy_target(
             )
 
 
-def _original_time(row: Mapping[str, Any] | None) -> datetime:
-    if row is not None:
-        value = row.get("created_at") or row.get("ts")
-        if isinstance(value, str):
+def _original_time(row: Mapping[str, Any] | None) -> datetime | None:
+    if row is None:
+        return None
+    value = row.get("created_at") or row.get("ts") or row.get("started_at")
+    if isinstance(value, str):
+        try:
             timestamp = datetime.fromisoformat(value)
-            if timestamp.tzinfo is not None:
-                return timestamp
-    return datetime.now(UTC)
+        except ValueError:
+            return None
+        if timestamp.tzinfo is not None:
+            return timestamp
+    return None
 
 
 async def _declare_writer(
@@ -250,13 +258,12 @@ async def _write_canonical(
     decision: ConversionDecision,
     namespace: str,
     source_pk: str,
-    source_row: Mapping[str, Any] | None,
+    timestamp: datetime,
     connector_id: uuid.UUID,
 ) -> None:
     assert decision.target_id is not None and decision.body is not None
     assert decision.scope_id is not None and decision.principal_id is not None
     await _declare_writer(connection, decision)
-    timestamp = _original_time(source_row)
     if decision.target_relation == "cortex_coord.handoffs":
         assert decision.payload is not None
         await connection.execute(
@@ -352,17 +359,21 @@ async def _write_row(
     quarantine_id = None
     body_hash = None
     if decision.outcome == "migrated":
-        assert decision.body is not None
-        body_hash = hashlib.sha256(decision.body.encode()).digest()
-        if decision.target_relation == "cortex_core.content_items":
-            if len(f"{namespace}:{source_pk}:r1") > 256:
-                decision = ConversionDecision("quarantined", "oversized_source_key")
-                body_hash = None
-        if decision.outcome == "migrated":
+        timestamp = _original_time(data)
+        if timestamp is None:
+            decision = ConversionDecision("quarantined", "missing_source_time")
+        elif decision.target_relation == "cortex_core.content_items" and (
+            len(f"{namespace}:{source_pk}:r1") > 256
+        ):
+            decision = ConversionDecision("quarantined", "oversized_source_key")
+        else:
+            assert decision.body is not None
+            body_hash = hashlib.sha256(decision.body.encode()).digest()
             try:
                 async with connection.transaction():
                     await _write_canonical(
-                        connection, decision, namespace, source_pk, data, connector_id
+                        connection, decision, namespace, source_pk,
+                        timestamp, connector_id,
                     )
             except asyncpg.UniqueViolationError:
                 decision = ConversionDecision(
@@ -395,16 +406,19 @@ async def _verified_target(
     target_id = outcome["target_id"]
     if outcome["target_relation"] == "cortex_coord.handoffs":
         row = await connection.fetchrow(
-            """SELECT sha256(convert_to(brief,'UTF8')) AS body_hash
+            """SELECT sha256(convert_to(brief,'UTF8')) AS body_hash, status
                  FROM cortex_coord.handoffs
                 WHERE scope_id=$1 AND handoff_id=$2""",
             scope, target_id,
         )
-        return bool(row and row["body_hash"] == outcome["body_sha256"]), False
+        return bool(
+            row and row["body_hash"] == outcome["body_sha256"]
+            and row["status"] == "open"
+        ), False
     if outcome["target_relation"] == "cortex_core.content_items":
         row = await connection.fetchrow(
             """SELECT sha256(convert_to(r.body_text,'UTF8')) AS body_hash,
-                      i.content_class, r.content_hash,
+                      i.content_class, r.content_hash, r.payload, r.body_text,
                       (lex.content_id IS NOT NULL) AS has_lexical
                  FROM cortex_core.content_items i
                  JOIN cortex_core.content_revisions r
@@ -420,6 +434,9 @@ async def _verified_target(
             not row
             or row["body_hash"] != outcome["body_sha256"]
             or not row["has_lexical"]
+            or row["content_hash"] != content_hash(
+                row["content_class"], json.loads(row["payload"]), row["body_text"]
+            )
         ):
             return False, False
         if row["content_class"] not in {"decision", "lesson", "knowledge"}:
@@ -438,6 +455,118 @@ async def _verified_target(
         return bool(memory and memory["has_lexical"] and
                     memory["body_hash"] == outcome["body_sha256"]), True
     raise RuntimeError("unknown converter target relation")
+
+
+async def _verify_previous_row(
+    connection: asyncpg.Connection,
+    previous: asyncpg.Record,
+    row: asyncpg.Record,
+) -> None:
+    if (
+        previous["source_hash"] != row["source_hash"]
+        or previous["source_scope"] != row["source_scope"]
+    ):
+        raise RuntimeError("source row diverged from recorded converter outcome")
+    if previous["outcome"] == "migrated":
+        valid, _ = await _verified_target(connection, previous)
+        if not valid:
+            raise RuntimeError("converted canonical target or projection diverged")
+    elif previous["outcome"] == "quarantined":
+        quarantine = await connection.fetchrow(
+            """SELECT source_namespace, source_reference, original_payload,
+                      payload_sha256, reason
+                 FROM cortex_core.conversion_quarantine
+                WHERE quarantine_id=$1 AND run_id=$2""",
+            previous["quarantine_id"], previous["run_id"],
+        )
+        expected_ref = hashlib.sha256(
+            f"{previous['source_schema']}.{previous['source_table']}:"
+            f"{previous['source_pk']}".encode()
+        ).hexdigest()
+        if (
+            not quarantine
+            or quarantine["source_namespace"] != (
+                f"{previous['source_schema']}.{previous['source_table']}"
+            )
+            or quarantine["source_reference"] != expected_ref
+            or json.loads(quarantine["original_payload"]) != {
+                "source_reference_sha256": expected_ref
+            }
+            or quarantine["payload_sha256"] != row["source_hash"]
+            or quarantine["reason"] != previous["reason"]
+        ):
+            raise RuntimeError("converter quarantine reference diverged")
+
+
+async def _process_batch(
+    connection: asyncpg.Connection,
+    run_id: uuid.UUID,
+    policy: ConversionPolicy,
+    schema: str,
+    table: str,
+    rows: list[asyncpg.Record],
+    connector_id: uuid.UUID,
+    *,
+    complete: bool,
+) -> None:
+    previous = {
+        outcome["source_pk"]: outcome for outcome in await connection.fetch(
+            """SELECT * FROM cortex_conversion.outcomes
+                WHERE run_id=$1 AND source_schema=$2 AND source_table=$3
+                  AND source_pk=ANY($4::text[])""",
+            run_id, schema, table, [row["source_pk"] for row in rows],
+        )
+    }
+    for row in rows:
+        outcome = previous.get(row["source_pk"])
+        if outcome is not None:
+            await _verify_previous_row(connection, outcome, row)
+        elif complete:
+            raise RuntimeError("completed run missing recorded source outcome")
+        else:
+            await _write_row(
+                connection, run_id, policy, schema, table, row, connector_id
+            )
+
+
+async def _completed_result(
+    connection: asyncpg.Connection,
+    run_id: uuid.UUID,
+    source_counts: Mapping[tuple[str, str, str], tuple[int, bytes]],
+) -> RunResult:
+    stored = await connection.fetch(
+        """SELECT source_schema, source_table, source_scope, source_count,
+                  source_rowset_sha256
+             FROM cortex_conversion.source_counts WHERE run_id=$1""",
+        run_id,
+    )
+    actual = {
+        (row["source_schema"], row["source_table"], row["source_scope"]):
+        (row["source_count"], bytes(row["source_rowset_sha256"]))
+        for row in stored
+    }
+    if actual != source_counts:
+        raise RuntimeError("source rowset diverged from completed converter run")
+    source_total = sum(row[0] for row in source_counts.values())
+    outcome_total = await connection.fetchval(
+        "SELECT count(*) FROM cortex_conversion.outcomes WHERE run_id=$1", run_id
+    )
+    if outcome_total != source_total:
+        raise RuntimeError("completed converter outcome inventory diverged")
+    totals = await connection.fetchrow(
+        """SELECT coalesce(sum(target_count),0)::bigint AS targets,
+                  coalesce(sum(quarantined_count),0)::bigint AS quarantined,
+                  coalesce(sum(skipped_count),0)::bigint AS skipped,
+                  coalesce(sum(source_count),0)::bigint AS sources
+             FROM cortex_conversion.reconciliation WHERE run_id=$1""",
+        run_id,
+    )
+    if totals["sources"] != source_total:
+        raise RuntimeError("completed converter reconciliation diverged")
+    return RunResult(
+        run_id, source_total, totals["targets"],
+        totals["quarantined"], totals["skipped"],
+    )
 
 
 async def _reconcile(
@@ -521,42 +650,64 @@ async def convert_snapshot(
         raise ValueError("converter revision must identify this build")
     if source is target:
         raise ValueError("source and target connections must be distinct")
-    await ensure_ledger_schema(target)
-    await ensure_reconciliation_schema(target)
     await _check_policy_target(target, policy)
-    source_hash = await _catalog_hash(source)
-    target_hash = await _target_schema_hash(target)
-    run_id = uuid.uuid5(_RUN_NAMESPACE, ":".join((
-        snapshot_sha256, source_hash, target_hash, policy.sha256,
-        converter_revision, str(policy.installation_id),
-    )))
-    if await target.fetchval(
-        "SELECT 1 FROM cortex_conversion.runs WHERE run_id=$1", run_id
-    ):
-        raise RuntimeError("this converter run already exists; restart must be checked")
-    connector_id = uuid.uuid5(_RUN_NAMESPACE, f"connector:{policy.installation_id}")
-    async with target.transaction():
-        await target.execute(
-            """INSERT INTO cortex_core.source_connectors
-               (connector_id,namespace,connector_kind,installation_id)
-               VALUES ($1,$2,'manual',$3) ON CONFLICT (connector_id) DO NOTHING""",
-            connector_id, f"legacy-converter-{policy.installation_id.hex[:16]}",
-            policy.installation_id,
-        )
-        await target.execute(
-            """INSERT INTO cortex_conversion.runs
-               (run_id,snapshot_sha256,source_schema_hash,target_schema_hash,
-                converter_revision,policy_sha256,policy_version,installation_id)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)""",
-            run_id, snapshot_sha256, source_hash, target_hash,
-            converter_revision, policy.sha256, policy.version,
-            policy.installation_id,
-        )
-    counts: dict[tuple[str, str, str], tuple[int, Any]] = {}
     async with source.transaction(isolation="repeatable_read", readonly=True):
+        source_hash = await _catalog_hash(source)
         tables = await _source_tables(source)
+        if {f"{schema}.{table}" for schema, table in tables} != set(
+            policy.entities
+        ):
+            raise ValueError("mapping policy missing or extra source entity")
         if ("public", "handoffs") not in tables:
             raise RuntimeError("restored source has no legacy handoffs table")
+        await ensure_ledger_schema(target)
+        await ensure_reconciliation_schema(target)
+        target_hash = await _target_schema_hash(target)
+        run_id = uuid.uuid5(_RUN_NAMESPACE, ":".join((
+            snapshot_sha256, source_hash, target_hash, policy.sha256,
+            converter_revision, str(policy.installation_id),
+        )))
+        previous_run = await target.fetchrow(
+            "SELECT * FROM cortex_conversion.runs WHERE run_id=$1", run_id
+        )
+        if previous_run is not None and (
+            previous_run["snapshot_sha256"] != snapshot_sha256
+            or previous_run["source_schema_hash"] != source_hash
+            or previous_run["target_schema_hash"] != target_hash
+            or previous_run["converter_revision"] != converter_revision
+            or previous_run["policy_sha256"] != policy.sha256
+            or previous_run["policy_version"] != policy.version
+            or previous_run["installation_id"] != policy.installation_id
+        ):
+            raise RuntimeError("converter run manifest diverged")
+        complete = previous_run is not None and previous_run["status"] == "complete"
+        connector_id = uuid.uuid5(
+            _RUN_NAMESPACE, f"connector:{policy.installation_id}"
+        )
+        if previous_run is None:
+            async with target.transaction():
+                await target.execute(
+                    """INSERT INTO cortex_core.source_connectors
+                       (connector_id,namespace,connector_kind,installation_id)
+                       VALUES ($1,$2,'manual',$3)
+                       ON CONFLICT (connector_id) DO NOTHING""",
+                    connector_id,
+                    f"legacy-converter-{policy.installation_id.hex[:16]}",
+                    policy.installation_id,
+                )
+                await target.execute(
+                    """INSERT INTO cortex_conversion.runs
+                       (run_id,snapshot_sha256,source_schema_hash,
+                        target_schema_hash,converter_revision,policy_sha256,
+                        policy_version,installation_id)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)""",
+                    run_id, snapshot_sha256, source_hash, target_hash,
+                    converter_revision, policy.sha256, policy.version,
+                    policy.installation_id,
+                )
+        elif previous_run["status"] != "running" and not complete:
+            raise RuntimeError("converter run has an unknown lifecycle")
+        counts: dict[tuple[str, str, str], tuple[int, Any]] = {}
         for schema, table in tables:
             fields = await _columns(source, schema, table)
             primary_key = await _primary_key(source, schema, table)
@@ -581,24 +732,38 @@ async def convert_snapshot(
                 counts[key] = (total + 1, digest)
                 rows.append(row)
                 if len(rows) == 128:
-                    async with target.transaction():
-                        for item in rows:
-                            await _write_row(
+                    if complete:
+                        await _process_batch(
+                            target, run_id, policy, schema, table,
+                            rows, connector_id, complete=True,
+                        )
+                    else:
+                        async with target.transaction():
+                            await _process_batch(
                                 target, run_id, policy, schema, table,
-                                item, connector_id,
+                                rows, connector_id, complete=False,
                             )
                     rows.clear()
             if rows:
-                async with target.transaction():
-                    for item in rows:
-                        await _write_row(
-                            target, run_id, policy, schema, table, item, connector_id
+                if complete:
+                    await _process_batch(
+                        target, run_id, policy, schema, table,
+                        rows, connector_id, complete=True,
+                    )
+                else:
+                    async with target.transaction():
+                        await _process_batch(
+                            target, run_id, policy, schema, table,
+                            rows, connector_id, complete=False,
                         )
             actual = await source.fetchval(f"SELECT count(*) FROM {table_ref}")
             if actual != seen:
                 raise RuntimeError("legacy source changed during consistent inventory")
             if not seen:
                 counts[(schema, table, "<empty>")] = (0, hashlib.sha256())
-    return await _reconcile(target, run_id, {
+    final_counts = {
         key: (value[0], value[1].digest()) for key, value in counts.items()
-    })
+    }
+    if complete:
+        return await _completed_result(target, run_id, final_counts)
+    return await _reconcile(target, run_id, final_counts)

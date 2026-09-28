@@ -13,7 +13,9 @@ from typing import Any
 
 from .content import content_hash
 
-_POLICY_KEYS = {"version", "installation_id", "projects", "handoff_status"}
+_POLICY_KEYS = {
+    "version", "installation_id", "projects", "handoff_status", "entities",
+}
 _ALLOWED_HANDOFF_STATUSES = {
     "pending": "open",
     "released": "open",
@@ -34,6 +36,20 @@ _CONTENT_CLASSES = {
     "public.agent_sessions": ("session", "task", "source"),
     "public.work_products": ("work_product", "summary", "summary"),
 }
+_MEMORY_DETAIL_FIELDS = {
+    "decision": (("rationale", "Rationale"),),
+    "lesson": (
+        ("detail", "Detail"),
+        ("code_right", "Code right"),
+        ("code_wrong", "Code wrong"),
+    ),
+    "knowledge": (),
+}
+_CONVERTIBLE_TABLES = frozenset({
+    *_MEMORY_CLASSES, *_CONTENT_CLASSES, "public.handoffs", "cortex.handoffs",
+})
+_ENTITY_NAME = re.compile(r"(?:public|cortex|cortex_auth)\.[a-z_][a-z0-9_]*\Z")
+_REASON_NAME = re.compile(r"[a-z][a-z0-9_]{2,63}\Z")
 _UUID_NAMESPACE = uuid.UUID("dcabdf23-4048-484e-b6bb-8a650484d7f6")
 _HEX_SHA = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -50,6 +66,7 @@ class ConversionPolicy:
     installation_id: uuid.UUID
     projects: Mapping[str, ProjectMapping]
     handoff_status: Mapping[str, str]
+    entities: Mapping[str, str]
     sha256: str
 
     @classmethod
@@ -81,6 +98,31 @@ class ConversionPolicy:
                 raise ValueError("handoff mapping is required")
             if any(_ALLOWED_HANDOFF_STATUSES.get(k) != v for k, v in statuses.items()):
                 raise ValueError("unsafe handoff mapping")
+            entity_values = value["entities"]
+            if not isinstance(entity_values, dict) or not entity_values:
+                raise ValueError("mapping policy requires source entity dispositions")
+            for namespace, disposition in entity_values.items():
+                if (
+                    not isinstance(namespace, str)
+                    or not _ENTITY_NAME.fullmatch(namespace)
+                    or not isinstance(disposition, str)
+                ):
+                    raise ValueError("source entity disposition is malformed")
+                if disposition == "convert":
+                    if namespace not in _CONVERTIBLE_TABLES:
+                        raise ValueError("source entity has no safe converter")
+                    continue
+                category, separator, reason = disposition.partition(":")
+                if (
+                    not separator
+                    or category not in {"skip", "quarantine"}
+                    or not _REASON_NAME.fullmatch(reason)
+                ):
+                    raise ValueError("source entity disposition is invalid")
+                if namespace.startswith("cortex_auth.") and disposition != (
+                    "skip:retained_legacy_credentials"
+                ):
+                    raise ValueError("legacy credentials cannot enter target")
             installation = uuid.UUID(value["installation_id"])
         except (TypeError, KeyError, json.JSONDecodeError) as exc:
             raise ValueError("mapping policy is malformed") from exc
@@ -89,6 +131,7 @@ class ConversionPolicy:
             installation,
             projects,
             statuses,
+            entity_values,
             hashlib.sha256(raw).hexdigest(),
         )
 
@@ -111,7 +154,10 @@ def _reject(reason: str, *, skipped: bool = False) -> ConversionDecision:
     return ConversionDecision("skipped" if skipped else "quarantined", reason)
 
 
-def _source_id(namespace: str, row: Mapping[str, Any]) -> uuid.UUID | None:
+def _source_id(
+    namespace: str, row: Mapping[str, Any],
+    installation_id: uuid.UUID, scope_id: uuid.UUID,
+) -> uuid.UUID | None:
     value = row.get("id")
     if isinstance(value, uuid.UUID):
         return value
@@ -121,7 +167,8 @@ def _source_id(namespace: str, row: Mapping[str, Any]) -> uuid.UUID | None:
         except ValueError:
             return None
     if isinstance(value, int) and not isinstance(value, bool):
-        return uuid.uuid5(_UUID_NAMESPACE, f"{namespace}:{value}")
+        source = f"{installation_id}:{scope_id}:{namespace}:{value}"
+        return uuid.uuid5(_UUID_NAMESPACE, source)
     return None
 
 
@@ -135,37 +182,61 @@ def classify_row(
     namespace: str, row: Mapping[str, Any], policy: ConversionPolicy
 ) -> ConversionDecision:
     """Classify a source row before writing anything; never log the input row."""
-    if namespace.startswith("cortex_auth."):
-        return _reject("retained_legacy_credentials", skipped=True)
-    if namespace in {"public.artifacts", "cortex.artifacts"}:
-        return _reject("missing_original")
-    if namespace not in {
-        *_MEMORY_CLASSES, *_CONTENT_CLASSES, "public.handoffs", "cortex.handoffs"
-    }:
-        return _reject("unsupported_entity")
+    disposition = policy.entities.get(namespace)
+    if disposition is None:
+        raise ValueError("mapping policy missing source entity disposition")
+    if disposition != "convert":
+        category, _, reason = disposition.partition(":")
+        return _reject(reason, skipped=category == "skip")
     project = row.get("project") or row.get("project_id") or row.get("customer_id")
     mapping = policy.projects.get(str(project)) if project is not None else None
     if mapping is None:
         return _reject("unmapped_scope")
-    target_id = _source_id(namespace, row)
+    target_id = _source_id(
+        namespace, row, policy.installation_id, mapping.scope_id
+    )
     if target_id is None:
         return _reject("invalid_source_id")
     if namespace in {"public.handoffs", "cortex.handoffs"}:
+        if row.get("kind") not in (None, "handoff"):
+            return _reject("unsupported_handoff_kind")
+        if row.get("reply_to_handoff_id") is not None:
+            return _reject("unmapped_handoff_link")
+        if row.get("parent_goal_id") is not None:
+            return _reject("unmapped_parent_goal")
+        if row.get("claimed_by") is not None or row.get("claimed_at") is not None:
+            return _reject("ambiguous_lifecycle")
         status = row.get("status")
         mapped = policy.handoff_status.get(status)
         if mapped is None:
             return _reject("ambiguous_lifecycle")
-        body = _body(row.get("summary"))
+        summary = _body(row.get("summary"))
+        if summary is None:
+            return _reject("missing_or_oversized_original")
+        pieces = [summary]
+        for field_name, label in (("next_steps", "Next steps"), ("context", "Context")):
+            extra = row.get(field_name)
+            if isinstance(extra, str) and not extra.strip():
+                continue
+            if extra is not None:
+                text = _body(extra)
+                if text is None:
+                    return _reject("missing_or_oversized_original")
+                pieces.append(f"{label}:\n{text}")
+        body = _body("\n\n".join(pieces))
         if body is None:
             return _reject("missing_or_oversized_original")
         addressed_role = row.get("to_role")
-        if not isinstance(addressed_role, str) or len(addressed_role) > 64:
+        if not isinstance(addressed_role, str) or not addressed_role.strip():
             return _reject("unsupported_addressee")
+        if len(addressed_role) > 64:
+            return _reject("unsupported_addressee")
+        title = next(line.strip() for line in summary.splitlines() if line.strip())
         return ConversionDecision(
             "migrated", target_relation="cortex_coord.handoffs",
             target_id=target_id, scope_id=mapping.scope_id,
             principal_id=mapping.principal_id, status=mapped, body=body,
-            payload={"title": body.splitlines()[0][:256], "to_role": addressed_role},
+            payload={"title": title[:256], "to_role": addressed_role},
         )
     content_class, source_field, payload_field = (
         _MEMORY_CLASSES.get(namespace) or _CONTENT_CLASSES[namespace]
@@ -173,7 +244,23 @@ def classify_row(
     body = _body(row.get(source_field))
     if body is None:
         return _reject("missing_or_oversized_original")
+    if namespace in _MEMORY_CLASSES:
+        for field_name, label in _MEMORY_DETAIL_FIELDS[content_class]:
+            extra = row.get(field_name)
+            if isinstance(extra, str) and not extra.strip():
+                continue
+            if extra is not None:
+                text = _body(extra)
+                if text is None:
+                    return _reject("missing_or_oversized_original")
+                body = _body(f"{body}\n\n{label}:\n{text}")
+                if body is None:
+                    return _reject("missing_or_oversized_original")
     payload: dict[str, Any] = {payload_field: body}
+    if row.get("agent_name") is not None:
+        payload["unverified_legacy_agent_name"] = row["agent_name"]
+    if row.get("session_id") is not None:
+        payload["legacy_session_id"] = str(row["session_id"])
     if content_class == "message":
         role = {"human": "user", "agent": "assistant", "system": "system"}.get(
             row.get("role")
@@ -182,6 +269,8 @@ def classify_row(
             return _reject("unsupported_message_role")
         payload["role"] = role
     elif content_class == "session":
+        if row.get("notes") not in (None, {}, []):
+            return _reject("unreviewed_session_notes")
         message_count = row.get("message_count")
         if (
             not isinstance(message_count, int)
@@ -191,6 +280,8 @@ def classify_row(
             return _reject("unverifiable_session_count")
         payload["message_count"] = message_count
     elif content_class == "work_product":
+        if row.get("handoff_id") is not None:
+            return _reject("unmapped_handoff_dependency")
         payload["kind"] = row.get("activity_type") or "legacy-work-product"
         payload["references"] = row.get("artifact_refs") or []
     payload["legacy_source"] = namespace
