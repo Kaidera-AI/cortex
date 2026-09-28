@@ -11,7 +11,7 @@ import sys
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Literal
 
 
 class KeyStoreError(Exception):
@@ -21,6 +21,25 @@ class KeyStoreError(Exception):
 class KeyMetadata:
     managed_by: str
     expires_at: str
+
+    def due_state(self, now: datetime.datetime) -> Literal["due", "expired"] | None:
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise KeyStoreError("credential status clock must include a timezone")
+        expiry = datetime.datetime.fromisoformat(self.expires_at)
+        if expiry <= now:
+            return "expired"
+        if expiry - now <= datetime.timedelta(days=30):
+            return "due"
+        return None
+
+
+@dataclass(frozen=True, slots=True)
+class DueKey:
+    project: str
+    name: str
+    managed_by: str
+    expires_at: str
+    state: Literal["due", "expired"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +106,21 @@ def _check_file(directory: int, name: str) -> bool:
     return True
 
 
+def _read_file(directory: int, filename: str) -> _KeyRecord | None:
+    if not _check_file(directory, filename):
+        return None
+    fd = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o600
+                or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1):
+            raise KeyStoreError("credential file changed during read")
+        raw = handle.read(4097)
+        if len(raw) > 4096:
+            raise KeyStoreError("credential record exceeds the safe size limit")
+        return _record(raw)
+
+
 class _FileStore:
     def __init__(self, installation: str, root: Path | None) -> None:
         base = root if root is not None else Path(
@@ -96,10 +130,9 @@ class _FileStore:
         self.installation = _label(installation)
 
     @contextmanager
-    def _dir(self, project: str) -> Iterator[int]:
+    def _installation_dir(self) -> Iterator[int]:
         _private_directory(self.root)
         _private_directory(self.root / self.installation)
-        _private_directory(self.root / self.installation / _label(project))
         rootfd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         try:
             installationfd = os.open(
@@ -107,41 +140,66 @@ class _FileStore:
                 dir_fd=rootfd,
             )
             try:
-                projectfd = os.open(
-                    project, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                    dir_fd=installationfd,
-                )
-                try:
-                    for fd in (rootfd, installationfd, projectfd):
-                        info = os.fstat(fd)
-                        if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
-                            raise KeyStoreError("credential directory must be owner-only mode 0700")
-                    yield projectfd
-                finally:
-                    os.close(projectfd)
+                for fd in (rootfd, installationfd):
+                    info = os.fstat(fd)
+                    if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                        raise KeyStoreError("credential directory must be owner-only mode 0700")
+                yield installationfd
             finally:
                 os.close(installationfd)
         finally:
             os.close(rootfd)
 
+    @contextmanager
+    def _dir(self, project: str) -> Iterator[int]:
+        with self._installation_dir() as installationfd:
+            _private_directory(self.root / self.installation / _label(project))
+            projectfd = os.open(
+                project, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=installationfd,
+            )
+            try:
+                info = os.fstat(projectfd)
+                if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                    raise KeyStoreError("credential directory must be owner-only mode 0700")
+                yield projectfd
+            finally:
+                os.close(projectfd)
+
     def get(self, project: str, name: str) -> _KeyRecord | None:
         filename = f"{_label(name)}.key"
         try:
             with self._dir(project) as directory:
-                if not _check_file(directory, filename):
-                    return None
-                fd = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
-                with os.fdopen(fd, "rb") as handle:
-                    info = os.fstat(handle.fileno())
-                    if (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o600
-                            or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1):
-                        raise KeyStoreError("credential file changed during read")
-                    raw = handle.read(4097)
-                    if len(raw) > 4096:
-                        raise KeyStoreError("credential record exceeds the safe size limit")
-                    return _record(raw)
+                return _read_file(directory, filename)
         except (OSError, UnicodeError) as exc:
             raise KeyStoreError("cannot safely read credential file") from exc
+
+    def metadata_entries(self) -> list[tuple[str, str, KeyMetadata]]:
+        entries: list[tuple[str, str, KeyMetadata]] = []
+        try:
+            with self._installation_dir() as installation:
+                for project in sorted(os.listdir(installation)):
+                    _label(project)
+                    with self._dir(project) as directory:
+                        for filename in sorted(os.listdir(directory)):
+                            if filename.startswith("."):
+                                temporary = (
+                                    len(filename) == 33
+                                    and all(char in "0123456789abcdef" for char in filename[1:])
+                                )
+                                if temporary and _check_file(directory, filename):
+                                    continue
+                                raise KeyStoreError("unexpected private credential directory entry")
+                            if not filename.endswith(".key"):
+                                raise KeyStoreError("unexpected private credential directory entry")
+                            name = _label(filename[:-4])
+                            record = _read_file(directory, filename)
+                            if record is None:
+                                raise KeyStoreError("credential disappeared during status")
+                            entries.append((project, name, record.metadata))
+        except OSError as exc:
+            raise KeyStoreError("cannot safely enumerate credentials") from exc
+        return entries
 
     def put(self, project: str, name: str, record: _KeyRecord) -> None:
         filename = f"{_label(name)}.key"
@@ -208,6 +266,21 @@ class KeyStore:
     def metadata(self, project: str, name: str) -> KeyMetadata | None:
         record = self._native.get(_label(project), _label(name))
         return record.metadata if record is not None else None
+
+    def due(self, *, now: datetime.datetime | None = None) -> list[DueKey]:
+        if not _is_linux() or self.backend != "file":
+            raise KeyStoreError("local credential status requires Linux private file storage")
+        clock = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
+        if clock.tzinfo is None or clock.utcoffset() is None:
+            raise KeyStoreError("credential status clock must include a timezone")
+        due_keys: list[DueKey] = []
+        for project, name, metadata in self._native.metadata_entries():
+            state = metadata.due_state(clock)
+            if state is not None:
+                due_keys.append(DueKey(
+                    project, name, metadata.managed_by, metadata.expires_at, state,
+                ))
+        return due_keys
 
     def put(
         self, project: str, name: str, token: str, *,
