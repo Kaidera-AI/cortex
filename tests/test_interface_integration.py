@@ -26,10 +26,10 @@ Fixture needs (candidate secret mounts plus migrations through 0009):
     provisions a separate run-scoped project with worker and owner grants,
     so append-only context rules from older runs cannot skew its budget.
 
-The suite registers a run-scoped connector namespace via an owner bearer
-credential. If the one-shot owner/recovery seed credentials are spent,
-test-only candidate migrator break-glass calls the existing recovery SQL
-function and verifies the resulting bearer over HTTP.
+The suite registers a run-scoped connector namespace only with a live seeded
+owner bearer. Recovery requires separate written approval and is never an
+implicit fixture fallback.
+
 """
 
 from __future__ import annotations
@@ -37,9 +37,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import secrets
 import uuid
-import warnings
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -48,7 +46,6 @@ import pytest
 
 from cortex_v2.config import EXPECTED_DATABASE, KAI_TEST_INSTANCE, active_profile
 from cortex_v2.interface.context import CAPABILITY_OPERATIONS
-from cortex_v2.store import token_digest
 
 API_URL = os.environ.get("CORTEX_V2_TEST_API_URL")
 SECRETS_DIR = os.environ.get("CORTEX_V2_SANDBOX_SECRETS_DIR")
@@ -84,7 +81,6 @@ class _RedactedToken(str):
 
 
 OWNER_TOKEN = _RedactedToken(_secret("*owner-token*"))
-RECOVERY_TOKEN = _RedactedToken(_secret("*recovery-token*"))
 WORKER_TOKEN = _RedactedToken(_secret("*worker-token*"))
 MIGRATOR_DATABASE_URL = _secret("*database-url-migrator*")
 # A fresh project prevents append-only mandatory rules and persona revisions
@@ -190,48 +186,6 @@ async def _attest_candidate_installation(connection) -> None:
     )
 
 
-async def _recover_candidate_owner_through_sql() -> _RedactedToken:
-    import asyncpg
-
-    if not _is_candidate_database():
-        raise RuntimeError("candidate recovery identity mismatch")
-    connection = await asyncpg.connect(MIGRATOR_DATABASE_URL, timeout=20)
-    try:
-        async with connection.transaction():
-            await _attest_candidate_installation(connection)
-            owner = _RedactedToken(secrets.token_urlsafe(32))
-            recovery = _RedactedToken(secrets.token_urlsafe(32))
-            row = await connection.fetchrow(
-                """
-                SELECT installation_id, principal_id
-                  FROM cortex_auth.recover_owner(
-                    (SELECT recovery_token_hash
-                       FROM cortex_auth.installation_recovery
-                      WHERE installation_id = $1),
-                    $2, $3, NULL::timestamptz)
-                """,
-                uuid.UUID(FIXTURE["installation_id"]),
-                token_digest(owner, bytes.fromhex(_secret("*token-pepper*"))),
-                token_digest(recovery, bytes.fromhex(_secret("*token-pepper*"))),
-            )
-            if (
-                row["installation_id"] != uuid.UUID(FIXTURE["installation_id"])
-                or row["principal_id"] != uuid.UUID(FIXTURE["owner_principal_id"])
-            ):
-                raise RuntimeError("candidate recovery identity mismatch")
-    finally:
-        await connection.close()
-    return owner
-
-
-def _recover_candidate_owner_break_glass() -> _RedactedToken:
-    if not _is_candidate_database():
-        raise RuntimeError("candidate-only owner recovery refused: profile mismatch")
-    try:
-        return asyncio.run(_recover_candidate_owner_through_sql())
-    except Exception:
-        raise RuntimeError("candidate-only owner recovery failed") from None
-
 
 @pytest.fixture(scope="module")
 def run_scope():
@@ -277,33 +231,11 @@ def owner_token(api: httpx.Client) -> _RedactedToken:
     current = api.get("/v1/auth/principal", headers=headers(OWNER_TOKEN))
     if current.status_code == 200:
         return OWNER_TOKEN
-    if current.status_code != 401:
-        raise RuntimeError("candidate owner liveness check failed")
-
-    recovered = api.post(
-        "/v1/auth/owner:recover",
-        headers={"Idempotency-Key": str(uuid.uuid4())},
-        json={"recovery_token": RECOVERY_TOKEN, "expires_in_seconds": 3600},
-    )
-    if recovered.status_code == 201:
-        return _RedactedToken(recovered.json()["data"]["owner_token"])
-    if (
-        recovered.status_code != 401
-        or recovered.json().get("error", {}).get("code")
-        != "recovery_credential_invalid"
-    ):
-        raise RuntimeError("candidate owner recovery returned an unexpected response")
-
-    issued = _recover_candidate_owner_break_glass()
-    verified = api.get("/v1/auth/principal", headers=headers(issued))
-    if verified.status_code != 200:
-        raise RuntimeError("candidate owner recovery did not authenticate")
-    warnings.warn(
-        "owner recovered via candidate migrator break-glass",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-    return issued
+    if current.status_code == 401:
+        pytest.skip(
+            "T19: seeded owner credential unavailable; recovery requires Kai written approval"
+        )
+    raise RuntimeError("candidate owner liveness check failed")
 
 
 @pytest.fixture(scope="module")

@@ -14,7 +14,7 @@ import hmac
 import json
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 import asyncpg
@@ -86,12 +86,6 @@ def _issue_token() -> str:
     return secrets.token_urlsafe(TOKEN_BYTES)
 
 
-def _expiry(expires_in_seconds: int | None) -> datetime | None:
-    if expires_in_seconds is None:
-        return None
-    return datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
-
-
 def verify_bootstrap_code(setup_code: str, installation_id: uuid.UUID) -> None:
     denied = ApiProblem(
         403, "bootstrap_denied", "Use a current setup code on the local bootstrap socket."
@@ -143,6 +137,7 @@ async def bootstrap_installation(
         "owner_principal_id": str(row["owner_principal_id"]),
         "credential_id": str(row["credential_id"]),
         "recovery_generation": row["recovery_generation"],
+        "expires_at": row["expires_at"].isoformat(),
         "owner_token": owner_token,
         "recovery_token": recovery_token,
     }
@@ -223,7 +218,6 @@ async def enroll_principal(
             "operation": operation,
             "principal_name": payload.principal_name,
             "actor_kind": payload.actor_kind,
-            "expires_in_seconds": payload.expires_in_seconds,
             "scopes": [scope.model_dump(mode="json") for scope in payload.scopes],
         }
     )
@@ -239,18 +233,16 @@ async def enroll_principal(
         return 200, previous, True
 
     token = _issue_token()
-    expires_at = _expiry(payload.expires_in_seconds)
     try:
         row = await connection.fetchrow(
             """
-            SELECT principal_id, actor_id, credential_id, generation
-              FROM cortex_auth.enroll_principal($1, $2, $3, $4, $5)
+            SELECT principal_id, actor_id, credential_id, generation, expires_at
+              FROM cortex_auth.enroll_principal($1, $2, $3, $4)
             """,
             principal.principal_id,
             payload.principal_name,
             payload.actor_kind,
             token_digest(token, pepper),
-            expires_at,
         )
         bound_scopes = []
         for scope_request in payload.scopes:
@@ -278,7 +270,7 @@ async def enroll_principal(
         "actor_id": str(row["actor_id"]),
         "credential_id": str(row["credential_id"]),
         "generation": row["generation"],
-        "expires_at": expires_at.isoformat() if expires_at else None,
+        "expires_at": row["expires_at"].isoformat(),
         "token_fingerprint": token_fingerprint(token),
         "scopes": bound_scopes,
     }
@@ -308,7 +300,6 @@ async def rotate_credential(
         {
             "operation": operation,
             "principal_id": str(target),
-            "expires_in_seconds": payload.expires_in_seconds,
         }
     )
     previous, replayed = await begin_command(
@@ -323,17 +314,15 @@ async def rotate_credential(
         return 200, previous, True
 
     token = _issue_token()
-    expires_at = _expiry(payload.expires_in_seconds)
     try:
         row = await connection.fetchrow(
             """
-            SELECT credential_id, generation, revoked_count
-              FROM cortex_auth.rotate_credential($1, $2, $3, $4)
+            SELECT credential_id, generation, revoked_count, expires_at
+              FROM cortex_auth.rotate_credential($1, $2, $3)
             """,
             principal.principal_id,
             target,
             token_digest(token, pepper),
-            expires_at,
         )
     except asyncpg.PostgresError as exc:
         problem = _translate(exc)
@@ -348,7 +337,7 @@ async def rotate_credential(
         "credential_id": str(row["credential_id"]),
         "generation": row["generation"],
         "revoked_count": row["revoked_count"],
-        "expires_at": expires_at.isoformat() if expires_at else None,
+        "expires_at": row["expires_at"].isoformat(),
         "token_fingerprint": token_fingerprint(token),
     }
     await commit_receipt(
@@ -540,18 +529,16 @@ async def recover_owner(
     operation = "auth.recover_owner"
     owner_token = _issue_token()
     recovery_token = _issue_token()
-    expires_at = _expiry(payload.expires_in_seconds)
     try:
         row = await connection.fetchrow(
             """
             SELECT installation_id, principal_id, credential_id, generation,
-                   recovery_generation
-              FROM cortex_auth.recover_owner($1, $2, $3, $4)
+                   recovery_generation, expires_at
+              FROM cortex_auth.recover_owner($1, $2, $3)
             """,
             token_digest(payload.recovery_token, pepper),
             token_digest(owner_token, pepper),
             token_digest(recovery_token, pepper),
-            expires_at,
         )
     except asyncpg.PostgresError as exc:
         problem = _translate(exc, {"42501": (401, "recovery_credential_invalid")})
@@ -568,7 +555,6 @@ async def recover_owner(
     digest = request_digest(
         {
             "operation": operation,
-            "expires_in_seconds": payload.expires_in_seconds,
             "recovery_fingerprint": token_fingerprint(payload.recovery_token),
         }
     )
@@ -580,7 +566,7 @@ async def recover_owner(
         "credential_id": str(row["credential_id"]),
         "generation": row["generation"],
         "recovery_generation": row["recovery_generation"],
-        "expires_at": expires_at.isoformat() if expires_at else None,
+        "expires_at": row["expires_at"].isoformat(),
         "owner_token_fingerprint": token_fingerprint(owner_token),
         "recovery_token_fingerprint": token_fingerprint(recovery_token),
     }

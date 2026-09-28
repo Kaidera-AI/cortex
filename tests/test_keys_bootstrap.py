@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import time
 import uuid
+from datetime import datetime, timedelta
 
 import asyncpg
 import pytest
@@ -52,13 +54,31 @@ def test_expired_or_misbound_setup_code_is_denied(monkeypatch: pytest.MonkeyPatc
 
 
 @pytest.mark.skipif(
-    not os.getenv("CORTEX_V2_D53_TEST_DATABASE_URL"),
+    not os.getenv("CORTEX_V2_D53_TEST_DATABASE_URL")
+    or not os.getenv("CORTEX_V2_D53_MIGRATOR_DATABASE_URL"),
     reason="requires a fresh, disposable, unseeded Cortex database",
 )
-def test_private_bootstrap_issues_authentic_owner_once() -> None:
-    code, _, configured_id = config.read_secret_path(
-        "CORTEX_V2_BOOTSTRAP_CODE_FILE"
-    ).decode().splitlines()
+def test_private_bootstrap_issues_authentic_owner_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    code, installation_id, pepper = (
+        secrets.token_urlsafe(32), uuid.uuid4(), secrets.token_bytes(32)
+    )
+    configured_id = str(installation_id)
+    monkeypatch.setenv("CORTEX_V2_SANDBOX_INSTANCE", config.PRODUCTION_INSTANCE)
+    monkeypatch.setattr(
+        config.Settings, "from_env",
+        classmethod(
+            lambda cls: cls(
+                os.environ["CORTEX_V2_D53_TEST_DATABASE_URL"],
+                pepper, config.PRODUCTION_INSTANCE, installation_id,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        identity, "read_secret_path",
+        lambda name: f"{code}\n{int(time.time())}\n{configured_id}\n".encode(),
+    )
     request = {
         "setup_code": code,
         "installation_name": "First installation",
@@ -75,6 +95,7 @@ def test_private_bootstrap_issues_authentic_owner_once() -> None:
         assert data["recovery_generation"] == 1
         assert data["owner_token"] != data["recovery_token"]
         assert data["owner_principal_id"] != data["installation_id"]
+        assert data["expires_at"] is not None
         second = private.post("/v1/auth/bootstrap", json=request)
         assert second.status_code == 403
         assert second.json()["error"]["code"] == "bootstrap_denied"
@@ -99,5 +120,19 @@ def test_private_bootstrap_issues_authentic_owner_once() -> None:
             assert rejected.value.sqlstate == "42501"
         finally:
             await conn.close()
+        migrator = await asyncpg.connect(
+            os.environ["CORTEX_V2_D53_MIGRATOR_DATABASE_URL"]
+        )
+        try:
+            stored = await migrator.fetchrow(
+                "SELECT expires_at,created_at FROM cortex_auth.credentials "
+                "WHERE credential_id=$1",
+                uuid.UUID(data["credential_id"]),
+            )
+            assert stored is not None
+            assert datetime.fromisoformat(data["expires_at"]) == stored["expires_at"]
+            assert stored["expires_at"] - stored["created_at"] == timedelta(days=180)
+        finally:
+            await migrator.close()
 
     asyncio.run(assert_database_guard())

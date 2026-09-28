@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from . import __version__
-from .config import PRODUCTION_INSTANCE, Settings, active_profile
+from .config import PRODUCTION_INSTANCE, SANDBOX_INSTANCE, Settings, active_profile
 from .content import (
     change_status,
     create_content,
@@ -499,7 +499,10 @@ def create_app() -> FastAPI:
         connection: asyncpg.Connection,
         digest: bytes,
     ):
-        return await authenticate(connection, digest)
+        return await authenticate(
+            connection, digest,
+            legacy_schema=application.state.profile.instance_id == SANDBOX_INSTANCE,
+        )
 
     @application.post("/v1/memory/records")
     async def record_memory(

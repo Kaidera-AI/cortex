@@ -68,6 +68,7 @@ FULL_V2_MIGRATIONS: tuple[str, ...] = (
     "0010_keys_bootstrap.sql",
     "0011_keys_lead_sponsor.sql",
     "0012_keys_create_right.sql",
+    "0013_keys_issuance_t21.sql",
 )
 FULL_V2_OPERATION_MODULES: tuple[str, ...] = (
     "cortex_v2.coordination.operations",

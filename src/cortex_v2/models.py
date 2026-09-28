@@ -87,7 +87,6 @@ class ScopeGrantRequest(StrictInput):
 class EnrollPrincipalRequest(StrictInput):
     principal_name: StrictStr = Field(min_length=1, max_length=128)
     actor_kind: ActorKind
-    expires_in_seconds: StrictInt | None = Field(default=None, ge=1, le=31_536_000)
     scopes: list[ScopeGrantRequest] = Field(default_factory=list, max_length=8)
 
     @field_validator("principal_name")
@@ -98,7 +97,6 @@ class EnrollPrincipalRequest(StrictInput):
 
 class RotateCredentialRequest(StrictInput):
     principal_id: uuid.UUID | None = None
-    expires_in_seconds: StrictInt | None = Field(default=None, ge=1, le=31_536_000)
 
 
 class RevokeCredentialRequest(StrictInput):
@@ -124,7 +122,6 @@ class RevokeGrantRequest(StrictInput):
 
 class RecoverOwnerRequest(StrictInput):
     recovery_token: StrictStr = Field(min_length=43, max_length=128)
-    expires_in_seconds: StrictInt | None = Field(default=None, ge=1, le=31_536_000)
 
 
 class RenameScopeRequest(StrictInput):
