@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlsplit
 
 import asyncpg
 
-from .config import active_profile, read_secret_path
+from .config import PRODUCTION_INSTANCE, active_profile, read_secret_path
 
 MIGRATION_DIRECTORY = Path(__file__).resolve().parents[2] / "migrations"
 SHARED_SEED_BODY = "Synthetic shared-scope fixture for Cortex v2 isolation tests."
@@ -235,10 +235,12 @@ async def _assert_role_contract(connection: asyncpg.Connection) -> None:
 
 async def apply() -> None:
     profile = active_profile()
-    if "0002_w1_identity_memory.sql" in profile.migrations:
-        fixture = _w1_fixture(profile)
-    else:
-        fixture = _sandbox_fixture(profile)
+    fixture = None
+    if profile.instance_id != PRODUCTION_INSTANCE:
+        if "0002_w1_identity_memory.sql" in profile.migrations:
+            fixture = _w1_fixture(profile)
+        else:
+            fixture = _sandbox_fixture(profile)
     migrations = []
     for migration_id in profile.migrations:
         migration_path = MIGRATION_DIRECTORY / migration_id
@@ -291,10 +293,11 @@ async def apply() -> None:
                         checksum,
                     )
         await _assert_role_contract(connection)
-        if "0002_w1_identity_memory.sql" in profile.migrations:
-            await _seed_w1(connection, fixture)
-        else:
-            await _seed_sandbox(connection, fixture)
+        if fixture is not None:
+            if "0002_w1_identity_memory.sql" in profile.migrations:
+                await _seed_w1(connection, fixture)
+            else:
+                await _seed_sandbox(connection, fixture)
         print(
             json.dumps(
                 {
@@ -304,7 +307,7 @@ async def apply() -> None:
                         for migration_id, checksum, _ in migrations
                     ],
                     "status": status,
-                    "fixture": "verified",
+                    "fixture": "none" if fixture is None else "verified",
                 }
             )
         )

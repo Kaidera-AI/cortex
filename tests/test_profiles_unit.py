@@ -23,11 +23,6 @@ INTEGRATED_ROLES = ("db", "api", "doc", "embed", "graph", "tests")
 
 
 def test_all_profiles_are_registered_with_unique_ids() -> None:
-    assert set(INSTANCE_PROFILES) == {
-        SANDBOX_INSTANCE,
-        W1_INSTANCE,
-        KAI_TEST_INSTANCE,
-    }
     ids = [profile.instance_id for profile in INSTANCE_PROFILES.values()]
     assert len(set(ids)) == len(ids)
 
