@@ -621,6 +621,25 @@ async def _seed_w1(
                 alias,
                 scope_id,
             )
+        # Only these fixture IDs carry verified installation provenance. An
+        # arbitrary converted project is deliberately left unbound.
+        for project_id in (fixture["project_scope_id"], fixture["ungranted_scope_id"]):
+            await connection.execute(
+                """
+                INSERT INTO cortex_auth.project_installations(scope_id, installation_id)
+                VALUES ($1, $2)
+                ON CONFLICT (scope_id) DO NOTHING
+                """,
+                project_id,
+                fixture["installation_id"],
+            )
+            bound_installation = await connection.fetchval(
+                "SELECT installation_id FROM cortex_auth.project_installations WHERE scope_id = $1",
+                project_id,
+            )
+            if bound_installation != uuid.UUID(str(fixture["installation_id"])):
+                raise RuntimeError("candidate project provenance mismatch")
+
         owner_grants = (
             (fixture["project_scope_id"], True, True, True),
             (fixture["shared_scope_id"], True, True, True),
