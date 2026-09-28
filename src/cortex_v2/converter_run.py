@@ -198,6 +198,33 @@ async def ensure_reconciliation_schema(connection: asyncpg.Connection) -> None:
         )
 
 
+async def _check_policy_source(
+    connection: asyncpg.Connection, policy: ConversionPolicy
+) -> None:
+    for name, mapping in policy.projects.items():
+        evidence = mapping.source_provenance
+        if evidence is None:
+            continue
+        verified = await connection.fetchval(
+            """SELECT EXISTS(
+                   SELECT 1 FROM public.cortex_projects p
+                   JOIN cortex_auth.principals owner
+                     ON owner.project_id=p.id
+                   JOIN cortex_auth.grants g
+                     ON g.principal_id=owner.id
+                  WHERE p.id=$1 AND p.project_key=$2
+                    AND owner.id=$3 AND owner.installation_id=$4
+                    AND owner.disabled_at IS NULL
+                    AND g.disabled_at IS NULL
+                    AND g.scopes @> ARRAY['instance:admin']::text[]
+                )""",
+            evidence.project_id, name, evidence.owner_id,
+            evidence.installation_id,
+        )
+        if not verified:
+            raise RuntimeError("policy source project ownership is unverified")
+
+
 async def _check_policy_target(
     connection: asyncpg.Connection, policy: ConversionPolicy
 ) -> None:
@@ -662,6 +689,7 @@ async def convert_snapshot(
             raise ValueError("mapping policy missing or extra source entity")
         if ("public", "handoffs") not in tables:
             raise RuntimeError("restored source has no legacy handoffs table")
+        await _check_policy_source(source, policy)
         await ensure_ledger_schema(target)
         await ensure_reconciliation_schema(target)
         target_hash = await _target_schema_hash(target)

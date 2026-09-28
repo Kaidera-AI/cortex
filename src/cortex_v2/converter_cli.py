@@ -39,7 +39,9 @@ def _private_file(path: Path, private_root: Path) -> bytes:
         os.close(handle)
 
 
-def _socket_dsn(raw: bytes, database: str, private_root: Path) -> str:
+def _socket_dsn(
+    raw: bytes, database: str, private_root: Path,
+) -> dict[str, str | int]:
     dsn = raw.decode("utf-8").strip()
     parsed = urlsplit(dsn)
     params = parse_qs(parsed.query, strict_parsing=True)
@@ -56,7 +58,12 @@ def _socket_dsn(raw: bytes, database: str, private_root: Path) -> str:
     socket = Path(params["host"][0]).resolve(strict=True)
     if not socket.is_dir() or not socket.is_relative_to(private_root):
         raise ValueError("converter DSN socket must reside in private image")
-    return dsn
+    return {
+        "host": str(socket),
+        "port": int(params["port"][0]),
+        "user": params["user"][0],
+        "database": database,
+    }
 
 
 async def _run(args: argparse.Namespace) -> dict[str, str | int]:
@@ -81,9 +88,9 @@ async def _run(args: argparse.Namespace) -> dict[str, str | int]:
     )
     if source_dsn == target_dsn:
         raise ValueError("source and target DSNs must differ")
-    source = await asyncpg.connect(source_dsn)
+    source = await asyncpg.connect(**source_dsn)
     try:
-        target = await asyncpg.connect(target_dsn)
+        target = await asyncpg.connect(**target_dsn)
         try:
             source_role = await source.fetchrow(
                 """SELECT current_user AS role, inet_server_addr() AS tcp,

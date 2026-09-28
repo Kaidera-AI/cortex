@@ -55,9 +55,17 @@ _HEX_SHA = re.compile(r"[0-9a-f]{64}\Z")
 
 
 @dataclass(frozen=True, slots=True)
+class SourceProjectProvenance:
+    project_id: uuid.UUID
+    owner_id: uuid.UUID
+    installation_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectMapping:
     scope_id: uuid.UUID
     principal_id: uuid.UUID
+    source_provenance: SourceProjectProvenance | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,11 +95,32 @@ class ConversionPolicy:
                     not isinstance(name, str)
                     or not name
                     or not isinstance(mapping, dict)
-                    or set(mapping) != {"scope_id", "principal_id"}
+                    or set(mapping) != {
+                        "scope_id", "principal_id", "source_provenance",
+                    }
                 ):
                     raise ValueError("project mapping is invalid")
+                evidence = mapping["source_provenance"]
+                provenance = None
+                if evidence is not None:
+                    if (
+                        not isinstance(evidence, dict)
+                        or set(evidence) != {
+                            "project_id", "owner_id", "installation_id",
+                        }
+                        or not isinstance(evidence["installation_id"], str)
+                        or not 1 <= len(evidence["installation_id"]) <= 128
+                    ):
+                        raise ValueError("source project provenance is invalid")
+                    provenance = SourceProjectProvenance(
+                        uuid.UUID(evidence["project_id"]),
+                        uuid.UUID(evidence["owner_id"]),
+                        evidence["installation_id"],
+                    )
                 projects[name] = ProjectMapping(
-                    uuid.UUID(mapping["scope_id"]), uuid.UUID(mapping["principal_id"])
+                    uuid.UUID(mapping["scope_id"]),
+                    uuid.UUID(mapping["principal_id"]),
+                    provenance,
                 )
             statuses = value["handoff_status"]
             if not isinstance(statuses, dict) or not statuses:
@@ -192,6 +221,9 @@ def classify_row(
     mapping = policy.projects.get(str(project)) if project is not None else None
     if mapping is None:
         return _reject("unmapped_scope")
+    evidence = mapping.source_provenance
+    if evidence is None or str(row.get("project_id")) != str(evidence.project_id):
+        return _reject("unverified_scope_provenance")
     target_id = _source_id(
         namespace, row, policy.installation_id, mapping.scope_id
     )

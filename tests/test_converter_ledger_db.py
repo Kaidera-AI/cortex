@@ -31,6 +31,10 @@ pytestmark = pytest.mark.skipif(
 HOST = "127.0.0.1"
 TARGET_URL = f"postgresql://cortex_v2_migrator@{HOST}:5432/cortex_v2"
 SOURCE_URL = f"postgresql://postgres@{HOST}:5432/legacy_restore"
+SOURCE_PROJECT_ID = uuid.UUID("fb9fa792-5fd0-4a39-8e27-0eb4de7e844d")
+SOURCE_OWNER_ID = uuid.UUID("cad15a18-b3a9-49c9-8130-2d81e9d21d0c")
+SOURCE_INSTALLATION_ID = "synthetic-source-installation"
+
 
 # Relevant statements from the real v1 public.decisions/handoffs CREATE TABLE DDL.
 V1_TABLES = (
@@ -70,6 +74,17 @@ V1_TABLES = (
                              'abandoned','failed','archived']))
 )""",
 )
+V1_PROVENANCE_TABLES = (
+    "CREATE TABLE public.cortex_projects "
+    "(id uuid PRIMARY KEY, project_key text NOT NULL)",
+    "CREATE TABLE cortex_auth.principals "
+    "(id uuid PRIMARY KEY, project_id uuid NOT NULL, "
+    "installation_id text NOT NULL, disabled_at timestamptz)",
+    "CREATE TABLE cortex_auth.grants "
+    "(principal_id uuid PRIMARY KEY, scopes text[] NOT NULL, "
+    "disabled_at timestamptz)",
+)
+
 
 
 def _fixture() -> dict[str, object]:
@@ -114,6 +129,31 @@ async def prepare_synthetic_databases() -> dict[str, object]:
         await migrate.apply()
     source = await asyncpg.connect(SOURCE_URL)
     try:
+        await source.execute("CREATE SCHEMA IF NOT EXISTS cortex_auth")
+        for name, ddl in zip(
+            ("public.cortex_projects", "cortex_auth.principals",
+             "cortex_auth.grants"),
+            V1_PROVENANCE_TABLES, strict=True,
+        ):
+            if await source.fetchval("SELECT to_regclass($1)", name) is None:
+                await source.execute(ddl)
+        await source.execute(
+            "INSERT INTO public.cortex_projects(id, project_key) "
+            "VALUES ($1,'fixture-project') ON CONFLICT (id) DO NOTHING",
+            SOURCE_PROJECT_ID,
+        )
+        await source.execute(
+            "INSERT INTO cortex_auth.principals"
+            "(id,project_id,installation_id) VALUES ($1,$2,$3) "
+            "ON CONFLICT (id) DO NOTHING",
+            SOURCE_OWNER_ID, SOURCE_PROJECT_ID, SOURCE_INSTALLATION_ID,
+        )
+        await source.execute(
+            "INSERT INTO cortex_auth.grants(principal_id,scopes) "
+            "VALUES ($1,ARRAY['instance:admin']::text[]) "
+            "ON CONFLICT (principal_id) DO NOTHING",
+            SOURCE_OWNER_ID,
+        )
         await source.execute("CREATE EXTENSION IF NOT EXISTS vector SCHEMA public")
         for name, ddl in zip(("decisions", "handoffs"), V1_TABLES, strict=True):
             exists = await source.fetchval("SELECT to_regclass($1)", f"public.{name}")

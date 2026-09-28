@@ -11,6 +11,9 @@ import uuid
 import asyncpg
 import pytest
 from test_converter_ledger_db import (
+    SOURCE_INSTALLATION_ID,
+    SOURCE_OWNER_ID,
+    SOURCE_PROJECT_ID,
     SOURCE_URL,
     TARGET_URL,
     prepare_synthetic_databases,
@@ -25,16 +28,26 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def synthetic_policy(fixture: dict[str, object]) -> ConversionPolicy:
+def synthetic_policy(
+    fixture: dict[str, object], *, owner_id: uuid.UUID = SOURCE_OWNER_ID,
+) -> ConversionPolicy:
     return ConversionPolicy.from_bytes(json.dumps({
         "version": "synthetic-v1-policy",
         "installation_id": fixture["installation_id"],
         "projects": {"fixture-project": {
             "scope_id": fixture["project_scope_id"],
             "principal_id": fixture["worker_principal_id"],
+            "source_provenance": {
+                "project_id": str(SOURCE_PROJECT_ID),
+                "owner_id": str(owner_id),
+                "installation_id": SOURCE_INSTALLATION_ID,
+            },
         }},
         "handoff_status": {"pending": "open"},
         "entities": {
+            "public.cortex_projects": "quarantine:unmapped_identity",
+            "cortex_auth.principals": "skip:retained_legacy_credentials",
+            "cortex_auth.grants": "skip:retained_legacy_credentials",
             "public.decisions": "convert",
             "public.handoffs": "convert",
         },
@@ -52,17 +65,18 @@ def test_source_rows_reconcile_to_real_target_rows_and_reasoned_quarantine() -> 
             for status in ("pending", "claimed"):
                 handoff_ids.append(await source.fetchval(
                     """INSERT INTO public.handoffs
-                       (project, from_agent, to_role, summary, status)
-                       VALUES ('fixture-project','synthetic-agent','implementer',
-                               'Synthetic handoff', $1) RETURNING id""",
-                    status,
+                       (project, project_id, from_agent, to_role, summary, status)
+                       VALUES ('fixture-project',$1,'synthetic-agent','implementer',
+                               'Synthetic handoff', $2) RETURNING id""",
+                    SOURCE_PROJECT_ID, status,
                 ))
             for project in ("fixture-project", "unmapped-fixture"):
                 decision_ids.append(await source.fetchval(
-                    """INSERT INTO public.decisions(project, summary, agent_name)
-                       VALUES ($1,'Synthetic decision','synthetic-agent')
+                    """INSERT INTO public.decisions
+                       (project, project_id, summary, agent_name)
+                       VALUES ($1,$2,'Synthetic decision','synthetic-agent')
                        RETURNING id""",
-                    project,
+                    project, SOURCE_PROJECT_ID,
                 ))
             result = await convert_snapshot(
                 source, target, synthetic_policy(fixture),
@@ -103,6 +117,9 @@ def test_source_rows_reconcile_to_real_target_rows_and_reasoned_quarantine() -> 
                 ("decisions", "fixture-project"): (1, 1, 0, 0),
                 ("decisions", "unmapped-fixture"): (1, 0, 1, 0),
                 ("handoffs", "fixture-project"): (2, 1, 1, 0),
+                ("cortex_projects", "<unmapped>"): (1, 0, 1, 0),
+                ("principals", str(SOURCE_PROJECT_ID)): (1, 0, 0, 1),
+                ("grants", "<unmapped>"): (1, 0, 0, 1),
             }
             reasons = await target.fetch(
                 """SELECT reason, count(*)::int AS total
@@ -113,6 +130,7 @@ def test_source_rows_reconcile_to_real_target_rows_and_reasoned_quarantine() -> 
             )
             assert {row["reason"]: row["total"] for row in reasons} == {
                 "ambiguous_lifecycle": 1, "unmapped_scope": 1,
+                "unmapped_identity": 1,
             }
         finally:
             if handoff_ids:
@@ -144,17 +162,19 @@ def test_partial_run_resumes_without_duplicate_canonical_rows() -> None:
         handoff_ids: list[uuid.UUID] = []
         try:
             decision_id = await source.fetchval(
-                """INSERT INTO public.decisions(project, summary, agent_name)
-                   VALUES ('fixture-project','Synthetic resume decision',
-                           'synthetic-agent') RETURNING id"""
+                """INSERT INTO public.decisions
+                   (project,project_id,summary,agent_name)
+                   VALUES ('fixture-project',$1,'Synthetic resume decision',
+                           'synthetic-agent') RETURNING id""",
+                SOURCE_PROJECT_ID,
             )
             for suffix in ("A", "B"):
                 handoff_ids.append(await source.fetchval(
                     """INSERT INTO public.handoffs
-                       (project, from_agent, to_role, summary, status)
-                       VALUES ('fixture-project','synthetic-agent','implementer',
-                               $1,'pending') RETURNING id""",
-                    f"Synthetic resume handoff {suffix}",
+                       (project,project_id,from_agent,to_role,summary,status)
+                       VALUES ('fixture-project',$1,'synthetic-agent','implementer',
+                               $2,'pending') RETURNING id""",
+                    SOURCE_PROJECT_ID, f"Synthetic resume handoff {suffix}",
                 ))
             snapshot = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
             policy = synthetic_policy(fixture)
@@ -164,7 +184,7 @@ def test_partial_run_resumes_without_duplicate_canonical_rows() -> None:
             async def interrupt_after_first_table(*args: object) -> None:
                 nonlocal calls
                 calls += 1
-                if calls == 3:
+                if calls == 6:
                     raise RuntimeError("synthetic interruption")
                 await original_write(*args)
 
@@ -187,7 +207,7 @@ def test_partial_run_resumes_without_duplicate_canonical_rows() -> None:
                 source, target, policy, snapshot_sha256=snapshot,
                 converter_revision="synthetic-restart-r4",
             )
-            assert (result.source_count, result.target_count) == (3, 3)
+            assert (result.source_count, result.target_count) == (6, 3)
             assert await target.fetchval(
                 "SELECT count(*) FROM cortex_core.memory_records "
                 "WHERE record_id=$1", decision_id,
@@ -229,15 +249,18 @@ def test_completed_second_run_is_write_free_and_rejects_source_drift() -> None:
         decision_id = handoff_id = None
         try:
             decision_id = await source.fetchval(
-                """INSERT INTO public.decisions(project, summary, agent_name)
-                   VALUES ('fixture-project','Synthetic stable decision',
-                           'synthetic-agent') RETURNING id"""
+                """INSERT INTO public.decisions
+                   (project,project_id,summary,agent_name)
+                   VALUES ('fixture-project',$1,'Synthetic stable decision',
+                           'synthetic-agent') RETURNING id""",
+                SOURCE_PROJECT_ID,
             )
             handoff_id = await source.fetchval(
                 """INSERT INTO public.handoffs
-                   (project, from_agent, to_role, summary, status)
-                   VALUES ('fixture-project','synthetic-agent','implementer',
-                           'Synthetic quarantined handoff','claimed') RETURNING id"""
+                   (project,project_id,from_agent,to_role,summary,status)
+                   VALUES ('fixture-project',$1,'synthetic-agent','implementer',
+                           'Synthetic quarantined handoff','claimed') RETURNING id""",
+                SOURCE_PROJECT_ID,
             )
             policy = synthetic_policy(fixture)
             snapshot = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
@@ -353,6 +376,62 @@ def test_new_source_table_requires_policy_before_manifest_write() -> None:
             ) == 0
         finally:
             await source.execute("DROP TABLE public.synthetic_unapproved_source")
+            await source.close()
+            await target.close()
+
+    asyncio.run(check())
+
+
+def test_unverified_source_owner_fails_before_target_manifest_write() -> None:
+    async def check() -> None:
+        fixture = await prepare_synthetic_databases()
+        source = await asyncpg.connect(SOURCE_URL)
+        target = await asyncpg.connect(TARGET_URL)
+        snapshot = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
+        try:
+            with pytest.raises(RuntimeError, match="ownership is unverified"):
+                await convert_snapshot(
+                    source, target, synthetic_policy(fixture, owner_id=uuid.uuid4()),
+                    snapshot_sha256=snapshot,
+                    converter_revision="synthetic-source-proof-r5",
+                )
+            assert await target.fetchval(
+                "SELECT count(*) FROM cortex_conversion.runs "
+                "WHERE snapshot_sha256=$1", snapshot,
+            ) == 0
+        finally:
+            await source.close()
+            await target.close()
+
+    asyncio.run(check())
+
+
+def test_source_principal_without_admin_grant_cannot_verify_project() -> None:
+    async def check() -> None:
+        fixture = await prepare_synthetic_databases()
+        source = await asyncpg.connect(SOURCE_URL)
+        target = await asyncpg.connect(TARGET_URL)
+        transaction = source.transaction(isolation="repeatable_read")
+        await transaction.start()
+        snapshot = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
+        try:
+            await source.execute(
+                "UPDATE cortex_auth.grants SET scopes=ARRAY['memory:read']::text[] "
+                "WHERE principal_id=$1",
+                SOURCE_OWNER_ID,
+            )
+            with pytest.raises(RuntimeError, match="ownership is unverified"):
+                await convert_snapshot(
+                    source, target, synthetic_policy(fixture),
+                    snapshot_sha256=snapshot,
+                    converter_revision="synthetic-source-no-admin-r5",
+                )
+            assert await target.fetchval(
+                "SELECT count(*) FROM cortex_conversion.runs "
+                "WHERE snapshot_sha256=$1", snapshot,
+            ) == 0
+        finally:
+            await transaction.rollback()
             await source.close()
             await target.close()
 
