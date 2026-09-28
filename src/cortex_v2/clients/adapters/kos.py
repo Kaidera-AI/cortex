@@ -2,11 +2,10 @@
 
 KOS maps its scheduler, worktree and return-outbox surfaces onto the same
 versioned Cortex v2 operations. Cortex never queries or migrates the KOS
-app DB: this adapter accepts a client and nothing else — there is no DSN
-parameter to pass. Feed consumption is cursor-based with explicit resync;
+app DB: this adapter accepts an injected client or a selected private key,
+never a DSN. Feed consumption is cursor-based with explicit resync;
 an expired cursor raises ``FeedResyncRequired`` instead of silently losing
-or replaying events. Operations that are not deployed yet surface as typed
-``OperationUnavailable`` errors, never as empty success.
+or replaying events. Unavailable operations raise ``OperationUnavailable``.
 """
 
 from __future__ import annotations
@@ -14,7 +13,9 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from ..client import CallResult, CortexClient
-from ..errors import ClientError, CortexApiError
+from ..config import load_client_profile
+from ..errors import ClientConfigError, ClientError, CortexApiError
+from ..key_store import KeyStore
 
 DEFAULT_CLAIM_OPERATION = "coordination.claim_next"
 DEFAULT_RETURN_OPERATION = "coordination.return"
@@ -46,22 +47,30 @@ class FeedResyncRequired(KosAdapterError):
 
 
 class KosAdapter:
-    """Scheduler/worktree/return-outbox mapping over the v2 profile.
-
-    The constructor deliberately accepts only a v2 client and operation-id
-    overrides; passing any database connection parameter is a TypeError.
-    """
+    """Scheduler/worktree/return-outbox mapping over a selected v2 identity."""
 
     def __init__(
         self,
-        client: CortexClient,
+        client: CortexClient | None = None,
         *,
+        store: KeyStore | None = None,
+        installation: str | None = None,
+        project: str | None = None,
+        name: str | None = None,
+        config: str | None = None,
         registry: Any = None,
         claim_operation: str = DEFAULT_CLAIM_OPERATION,
         return_operation: str = DEFAULT_RETURN_OPERATION,
         feed_poll_operation: str = DEFAULT_FEED_POLL_OPERATION,
         feed_snapshot_operation: str = DEFAULT_FEED_SNAPSHOT_OPERATION,
     ) -> None:
+        if client is None:
+            if not project or not name:
+                raise ClientConfigError("KOS must select a project and its own named key")
+            client = CortexClient(load_client_profile(
+                config, store=store, installation=installation,
+                project=project, name=name,
+            ))
         self._client = client
         self._registry = registry if registry is not None else client.registry
         self._operations = {

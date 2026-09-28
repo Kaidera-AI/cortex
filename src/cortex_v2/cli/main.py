@@ -27,6 +27,23 @@ EXIT_USAGE = 2
 EXIT_API = 3
 EXIT_TRANSPORT = 4
 
+ISSUING_OPERATIONS = frozenset({
+    "auth.enroll_principal", "auth.rotate_credential",
+    "auth.recover_owner", "projects.create",
+})
+
+
+def _contains_secret(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(
+            isinstance(key, str) and (key == "token" or key.endswith("_token"))
+            or _contains_secret(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_secret(item) for item in value)
+    return False
+
 
 def _emit(stream: TextIO, payload: Any) -> None:
     stream.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
@@ -48,8 +65,7 @@ def build_parser(registry: OperationRegistry) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--config", default=None,
-        help="path to a per-installation v2 client profile JSON file "
-        "(default: $CORTEX_V2_CLIENT_CONFIG or environment variables)",
+        help="non-secret v2 connection profile; no bearer or token file",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -117,7 +133,7 @@ def _pairs(values: list[str]) -> dict[str, str]:
     for value in values:
         name, separator, rest = value.partition("=")
         if not separator or not name:
-            raise ValueError(f"expected NAME=VALUE, got {value!r}")
+            raise ValueError("expected NAME=VALUE")
         result[name] = rest
     return result
 
@@ -176,14 +192,27 @@ def main(
             result = active.call(
                 "capability.discover", scope=namespace.scope
             )
+            if _contains_secret(result.data):
+                _emit_text(err, "server returned a credential; stdout suppressed")
+                return EXIT_API
             _emit(out, result.data)
             return EXIT_OK
         if namespace.command == "protocol":
             active = client or _make_client(namespace.config)
             result = active.call("protocol.descriptor")
+            if _contains_secret(result.data):
+                _emit_text(err, "server returned a credential; stdout suppressed")
+                return EXIT_API
             _emit(out, result.data)
             return EXIT_OK
         operation = registry.get(namespace.command)
+        if operation.operation_id in ISSUING_OPERATIONS:
+            _emit_text(
+                err,
+                "credential issuance cannot use cortex2 JSON/argv/stdout; "
+                "use the approved private enrollment flow",
+            )
+            return EXIT_USAGE
         payload = _load_payload(namespace)
         if operation.requires_idempotency_key and not (
             namespace.idempotency_key
@@ -208,6 +237,13 @@ def main(
             idempotency_key=namespace.idempotency_key,
             query=_pairs(namespace.query),
         )
+        if _contains_secret(result.data):
+            _emit_text(
+                err,
+                "server returned a one-time credential; stdout suppressed. "
+                "Ask the lead/owner for safe recovery; replay cannot restore plaintext",
+            )
+            return EXIT_API
         _emit(
             out,
             {
@@ -231,9 +267,8 @@ def main(
     except ClientConfigError as exc:
         _emit_text(
             err,
-            f"client configuration error: {exc}\nProvide a per-installation "
-            "credential file ($CORTEX_V2_CLIENT_CONFIG) or "
-            "$CORTEX_V2_BASE_URL + $CORTEX_V2_TOKEN/$CORTEX_V2_TOKEN_FILE.",
+            f"client configuration error: {exc}\nSelect a private key-store identity "
+            "with a non-secret connection profile and CORTEX_URL.",
         )
         return EXIT_USAGE
     except CortexApiError as exc:
@@ -242,17 +277,16 @@ def main(
             {
                 "error": {
                     "code": exc.code,
-                    "message": exc.message,
+                    "message": "request denied; consult the error code",
                     "retryable": exc.retryable,
                     "request_id": exc.request_id,
                     "operation_id": exc.operation_id,
-                    "fields": exc.fields,
                 }
             },
         )
         return EXIT_API
-    except CortexTransportError as exc:
-        _emit_text(err, f"transport error: {exc}")
+    except CortexTransportError:
+        _emit_text(err, "transport error: Cortex is unreachable")
         return EXIT_TRANSPORT
     except ClientError as exc:
         _emit_text(err, f"client error: {exc}")

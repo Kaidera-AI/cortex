@@ -1,8 +1,8 @@
 """``python -m cortex_v2.mcp`` entrypoint: stdio (default) or streamable HTTP.
 
-Stdio mode inherits one installation-bound identity from the explicit
-per-installation client profile. HTTP mode authenticates every request from
-its own bearer header and never uses an ambient credential.
+Stdio reads one named key from the private credential store at startup.
+HTTP authenticates every request with its own bearer; it never loads a
+process-wide credential.
 """
 
 from __future__ import annotations
@@ -26,17 +26,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8610)
     parser.add_argument(
         "--config", default=None,
-        help="per-installation v2 client profile JSON (stdio identity / "
-        "http base URL)",
+        help="non-secret installation URL/identity profile (no bearer fields)",
     )
+    parser.add_argument("--installation", help="stdio key-store installation")
+    parser.add_argument("--project", help="stdio key-store project")
+    parser.add_argument("--name", help="stdio key-store identity name")
     namespace = parser.parse_args(argv)
+    if namespace.http and (namespace.installation or namespace.project or namespace.name):
+        parser.error("HTTP MCP accepts only caller credentials; identity options are stdio-only")
     from .server import run_http, run_stdio
 
     if namespace.http:
         run_http(host=namespace.host, port=namespace.port,
                  config=namespace.config)
         return 0
-    run_stdio(config=namespace.config)
+    run_stdio(
+        config=namespace.config, installation=namespace.installation,
+        project=namespace.project, name=namespace.name,
+    )
     return 0
 
 

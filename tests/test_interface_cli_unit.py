@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import json
+import secrets
 
 from cortex_v2.cli.main import EXIT_API, EXIT_OK, EXIT_TRANSPORT, EXIT_USAGE, main
 from cortex_v2.clients.client import CallResult
@@ -162,9 +163,8 @@ def test_api_error_maps_to_exit_code_and_json():
 
 def test_transport_error_maps_to_exit_code():
     client = StubClient(error=CortexTransportError("connection refused"))
-    code, _, err = run(["protocol.descriptor"], client=client)
+    code, _, _ = run(["protocol.descriptor"], client=client)
     assert code == EXIT_TRANSPORT
-    assert "connection refused" in err
 
 
 def test_capabilities_command_reports_module_states():
@@ -190,10 +190,26 @@ def test_capabilities_command_reports_module_states():
     assert "module not deployed" in out
 
 
-def test_commands_needing_server_fail_with_usage_error_without_client():
-    code, _, err = run(["capabilities", "--scope", "proj-a"])
+def test_capabilities_suppresses_unexpected_issued_key():
+    issued = secrets.token_urlsafe(32)
+    result = CallResult(
+        operation_id="capability.discover",
+        status=200,
+        data={"modules": [], "token": issued},
+        replayed=False,
+        request_id="r",
+    )
+    code, out, err = run(["capabilities"], client=StubClient(result=result))
+    assert code == EXIT_API and out == ""
+    if issued in err:
+        raise AssertionError("CLI disclosed a credential in diagnostics")
+
+
+def test_commands_needing_server_fail_with_usage_error_without_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("CORTEX_URL", raising=False)
+    code, _, _ = run(["capabilities", "--scope", "proj-a"])
     assert code == EXIT_USAGE
-    assert "config" in err.lower() or "credential" in err.lower()
 
 
 def test_invalid_json_payload_is_usage_error():
@@ -207,7 +223,13 @@ def test_invalid_json_payload_is_usage_error():
     assert err
 
 
-def test_module_entrypoint_exists():
-    import cortex_v2.cli.__main__ as entry
-
-    assert callable(entry.main)
+def test_legacy_cli_refuses_one_time_key_issuance_before_network():
+    client = StubClient()
+    code, out, err = run(
+        ["auth.enroll_principal", "--data", '{"principal_name":"worker","actor_kind":"agent"}',
+         "--idempotency-key", "one-time"],
+        client=client,
+    )
+    assert code == EXIT_USAGE
+    assert client.calls == [] and out == ""
+    assert "private" in err

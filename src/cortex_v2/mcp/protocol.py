@@ -11,7 +11,7 @@ through one administrator credential.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ..clients.client import CortexClient
@@ -34,7 +34,7 @@ INVALID_PARAMS = -32602
 
 @dataclass(frozen=True, slots=True)
 class McpCredentials:
-    token: str | None
+    token: str | None = field(repr=False)
     scope: str | None
     read_scopes: tuple[str, ...] = ()
 
