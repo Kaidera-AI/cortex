@@ -9,6 +9,10 @@ dependencies = [
   "uvicorn==0.53.0",
 ]
 
+[project.scripts]
+cortex = "cortex_v2.cli.keys:human_main"
+cortex2 = "cortex_v2.cli.main:main"
+
 [dependency-groups]
 test = [
   "httpx==0.28.1",

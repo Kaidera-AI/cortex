@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from typing import Any, Callable, TextIO
 
 from fastapi import FastAPI, Request
@@ -20,6 +21,7 @@ from ..clients.client import CortexClient
 from ..clients.config import (
     ClientProfile,
     load_client_profile,
+    load_connection_url,
     profile_from_credentials,
 )
 from .protocol import (
@@ -163,16 +165,10 @@ def _rejecting_factory(credentials: McpCredentials) -> CortexClient:
 def stdio_client_factory(profile: ClientProfile
                          ) -> Callable[[McpCredentials], CortexClient]:
     def factory(credentials: McpCredentials) -> CortexClient:
-        bound = ClientProfile(
-            base_url=profile.base_url,
-            token=credentials.token or profile.token,
+        bound = replace(
+            profile,
             default_scope=credentials.scope or profile.default_scope,
-            default_read_scopes=tuple(
-                credentials.read_scopes or profile.default_read_scopes
-            ),
-            installation_label=profile.installation_label,
-            principal_label=profile.principal_label,
-            source=profile.source,
+            default_read_scopes=tuple(credentials.read_scopes or profile.default_read_scopes),
         )
         return CortexClient(bound)
 
@@ -209,10 +205,13 @@ def run_stdio_session(
             outbound.flush()
 
 
-def run_stdio(*, config: str | None = None) -> None:
+def run_stdio(
+    *, config: str | None = None, installation: str | None = None,
+    project: str | None = None, name: str | None = None,
+) -> None:
     import sys
 
-    profile = load_client_profile(config)
+    profile = load_client_profile(config, installation=installation, project=project, name=name)
     server = McpServer(client_factory=stdio_client_factory(profile))
     credentials = McpCredentials(
         token=profile.token,
@@ -225,16 +224,13 @@ def run_stdio(*, config: str | None = None) -> None:
 def run_http(*, host: str, port: int, config: str | None = None) -> None:
     import uvicorn
 
-    profile: ClientProfile | None = None
-    if config:
-        profile = load_client_profile(config)
+    base_url = load_connection_url(config)
 
     def factory(credentials: McpCredentials) -> CortexClient:
-        # Per-caller credentials only; a configured profile may supply the
-        # base URL of this installation but never its token to other callers.
+        # HTTP callers supply their own bearer; only a non-secret API URL
+        # comes from this process's connection profile.
         if not credentials.token:
             raise RuntimeError("per-request credential is required")
-        base_url = profile.base_url if profile else _base_url_from_env()
         return CortexClient(
             profile_from_credentials(
                 base_url,
@@ -246,16 +242,3 @@ def run_http(*, host: str, port: int, config: str | None = None) -> None:
 
     application = create_mcp_app(client_factory=factory)
     uvicorn.run(application, host=host, port=port, log_level="warning")
-
-
-def _base_url_from_env() -> str:
-    import os
-
-    base_url = os.environ.get("CORTEX_V2_BASE_URL", "")
-    if not base_url:
-        raise RuntimeError(
-            "streamable-HTTP MCP needs CORTEX_V2_BASE_URL (or --config) to "
-            "identify this installation's API; caller tokens come from the "
-            "requests themselves"
-        )
-    return base_url

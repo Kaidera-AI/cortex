@@ -15,7 +15,9 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from ..client import CortexClient
+from ..config import load_client_profile
 from ..errors import ClientConfigError, ClientError, CortexApiError
+from ..key_store import KeyStore
 
 MemoryBackend = Literal["off", "cortex"]
 
@@ -46,6 +48,10 @@ class OpenKaiMemoryAdapter:
         *,
         client: CortexClient | None = None,
         scope: str | None = None,
+        store: KeyStore | None = None,
+        installation: str | None = None,
+        name: str | None = None,
+        config: str | None = None,
         ingest_consent: bool = False,
     ) -> None:
         if backend not in ("off", "cortex"):
@@ -53,10 +59,12 @@ class OpenKaiMemoryAdapter:
                 f"memory.backend must be 'off' or 'cortex'; got {backend!r}"
             )
         if backend == "cortex" and client is None:
-            raise ClientConfigError(
-                "memory.backend=cortex requires a v2 client profile; there "
-                "is no OMP or other fallback backend"
-            )
+            if not scope or not name:
+                raise ClientConfigError("OpenKai must select a project and its own named key")
+            client = CortexClient(load_client_profile(
+                config, store=store, installation=installation,
+                project=scope, name=name,
+            ))
         self.backend = backend
         self._client = client
         self._scope = scope

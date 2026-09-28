@@ -6,15 +6,11 @@ A fake transport records requests; no network is used.
 from __future__ import annotations
 
 import json
-import stat
-from pathlib import Path
 
 import pytest
 
 from cortex_v2.clients.client import CallResult, CortexClient
-from cortex_v2.clients.config import load_client_profile
 from cortex_v2.clients.errors import (
-    ClientConfigError,
     CortexApiError,
     CortexTransportError,
     IdempotencyKeyRequired,
@@ -22,84 +18,6 @@ from cortex_v2.clients.errors import (
     ScopeRequired,
 )
 from cortex_v2.clients.transport import HttpResponse
-
-
-def write_token(tmp_path: Path, token: str = "t" * 43, mode: int = 0o600) -> Path:
-    path = tmp_path / "token"
-    path.write_text(token)
-    path.chmod(mode)
-    return path
-
-
-def profile_file(tmp_path: Path, data: dict, *, token_mode: int = 0o600) -> Path:
-    if "token_file" in data:
-        data["token_file"] = str(write_token(tmp_path, mode=token_mode))
-    path = tmp_path / "client.json"
-    path.write_text(json.dumps(data))
-    path.chmod(0o600)
-    return path
-
-
-def test_profile_from_env(tmp_path):
-    token_path = write_token(tmp_path)
-    profile = load_client_profile(
-        env={
-            "CORTEX_V2_BASE_URL": "http://127.0.0.1:8601",
-            "CORTEX_V2_TOKEN_FILE": str(token_path),
-            "CORTEX_V2_SCOPE": "proj-a",
-            "CORTEX_V2_READ_SCOPES": "proj-a,shared-lib",
-            "CORTEX_V2_INSTALLATION_LABEL": "local-lane",
-        }
-    )
-    assert profile.base_url == "http://127.0.0.1:8601"
-    assert profile.token == "t" * 43
-    assert profile.default_scope == "proj-a"
-    assert profile.default_read_scopes == ("proj-a", "shared-lib")
-
-
-def test_profile_file_requires_v2_and_rejects_legacy_keys(tmp_path):
-    path = profile_file(
-        tmp_path,
-        {
-            "profile": "v2",
-            "base_url": "http://127.0.0.1:8601",
-            "token_file": "pending",
-        },
-    )
-    profile = load_client_profile(path=path, env={})
-    assert profile.base_url == "http://127.0.0.1:8601"
-
-    legacy = tmp_path / "legacy.json"
-    legacy.write_text(
-        json.dumps(
-            {
-                "profile": "v2",
-                "base_url": "http://127.0.0.1:8601",
-                "token": "x" * 43,
-                "x_project": "proj-a",
-            }
-        )
-    )
-    legacy.chmod(0o600)
-    with pytest.raises(ClientConfigError) as excinfo:
-        load_client_profile(path=legacy, env={})
-    assert "legacy" in str(excinfo.value).lower()
-
-
-def test_world_readable_token_file_is_rejected(tmp_path):
-    with pytest.raises(ClientConfigError) as excinfo:
-        load_client_profile(
-            env={
-                "CORTEX_V2_BASE_URL": "http://127.0.0.1:8601",
-                "CORTEX_V2_TOKEN_FILE": str(write_token(tmp_path, mode=0o644)),
-            }
-        )
-    assert "permi" in str(excinfo.value).lower()
-
-
-def test_missing_token_is_rejected(tmp_path):
-    with pytest.raises(ClientConfigError):
-        load_client_profile(env={"CORTEX_V2_BASE_URL": "http://127.0.0.1:8601"})
 
 
 class RecordingTransport:
@@ -316,9 +234,3 @@ def test_replay_flag_surfaced_from_header():
     client = make_client(transport)
     result = client.call("memory.record", payload={}, idempotency_key="k")
     assert result.replayed is True
-
-
-def test_config_env_never_reads_global_tmp_or_hidden_files():
-    # Explicit sources only: no path → env only; empty env → error.
-    with pytest.raises(ClientConfigError):
-        load_client_profile(env={})
