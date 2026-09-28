@@ -574,22 +574,24 @@ async def _reconcile(
     run_id: uuid.UUID,
     source_counts: Mapping[tuple[str, str, str], tuple[int, bytes]],
 ) -> RunResult:
-    outcomes = await connection.fetch(
-        "SELECT * FROM cortex_conversion.outcomes WHERE run_id=$1 "
-        "ORDER BY source_schema,source_table,source_pk",
-        run_id,
-    )
     classified: dict[tuple[str, str, str], Counter[str]] = defaultdict(Counter)
-    for row in outcomes:
-        key = (row["source_schema"], row["source_table"], row["source_scope"])
-        classified[key][row["outcome"]] += 1
-        if row["outcome"] == "migrated":
-            verified, memory = await _verified_target(connection, row)
-            if not verified:
-                raise RuntimeError("converted canonical target or projection diverged")
-            classified[key]["verified"] += 1
-            if memory:
-                classified[key]["memory"] += 1
+    async with connection.transaction():
+        async for row in connection.cursor(
+            "SELECT * FROM cortex_conversion.outcomes WHERE run_id=$1 "
+            "ORDER BY source_schema,source_table,source_pk",
+            run_id, prefetch=128,
+        ):
+            key = (row["source_schema"], row["source_table"], row["source_scope"])
+            classified[key][row["outcome"]] += 1
+            if row["outcome"] == "migrated":
+                verified, memory = await _verified_target(connection, row)
+                if not verified:
+                    raise RuntimeError(
+                        "converted canonical target or projection diverged"
+                    )
+                classified[key]["verified"] += 1
+                if memory:
+                    classified[key]["memory"] += 1
     if set(classified) - set(source_counts):
         raise RuntimeError("ledger contains a source not present in the snapshot")
     totals: Counter[str] = Counter()
