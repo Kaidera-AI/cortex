@@ -86,6 +86,8 @@ OPERATIONS: list[dict[str, Any]] = [
         "method": "POST",
         "path": "/v1/ops/retention-policies",
         "kind": "scoped_write",
+        "authority": "installation_owner",
+        "requires_scope": True,
         "request_model": RetentionEnactRequest,
         "handler": enact_retention,
         "summary": (

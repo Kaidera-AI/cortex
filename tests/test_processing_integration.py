@@ -68,8 +68,8 @@ if not DATABASE_URL or not MIGRATOR_URL:
 
 RUN = uuid.uuid4().hex[:12]
 PEPPER = hashlib.sha256(b"processing integration pepper").digest()
-OWNER_TOKEN = f"proc-owner-token-{RUN}"
-WORKER_TOKEN = f"proc-worker-token-{RUN}"
+OWNER_TOKEN = f"proc-owner-token-{RUN}-" + "o" * 20
+WORKER_TOKEN = f"proc-worker-token-{RUN}-" + "w" * 20
 
 PROJECT_ALIAS = f"proc-project-{RUN}"
 FOREIGN_ALIAS = f"proc-foreign-{RUN}"
@@ -2425,3 +2425,195 @@ def test_code_publish_index_enqueues_full_length_pins_without_collision():
             assert json.loads(row["intent"])["payload"]["files"][0]["path"] == path
 
     owner_call(scenario)
+
+
+def test_owner_only_http_routes_deny_scope_writer_and_accept_owner(monkeypatch):
+    import httpx
+
+    from cortex_v2.app import create_app
+    from cortex_v2.config import INSTANCE_PROFILES, W1_INSTANCE, Settings
+    from cortex_v2.interface.registry import (
+        clear_mounted_marks,
+        mark_modules_mounted,
+        mounted_modules,
+    )
+
+    monkeypatch.setenv("CORTEX_V2_SANDBOX_INSTANCE", W1_INSTANCE)
+    prior_marks = mounted_modules({})
+    application = create_app()
+    application.state.settings = Settings(DATABASE_URL, PEPPER, W1_INSTANCE)
+    application.state.profile = INSTANCE_PROFILES[W1_INSTANCE]
+    space_payload = {
+        "space_name": f"it-http-owner-{RUN}",
+        "provider": "hash-local",
+        "model_id": "hash-local-1",
+        "dimensions": SPACE_DIMENSIONS,
+        "chunking": {
+            "policy_id": "chunk.paragraph",
+            "version": 1,
+            "kind": "structural",
+            "target_chars": 1200,
+            "max_chars": 2000,
+            "overlap_chars": 0,
+        },
+    }
+
+    def headers(token):
+        return {
+            "Authorization": f"Bearer {token}",
+            "X-Cortex-Scope": PROJECT_ALIAS,
+            "Idempotency-Key": str(uuid.uuid4()),
+        }
+
+    async def scenario():
+        application.state.pool = await asyncpg.create_pool(
+            DATABASE_URL, min_size=0, max_size=3
+        )
+        try:
+            credential_connection = await asyncpg.connect(MIGRATOR_URL)
+            try:
+                owner_credential_id = await credential_connection.fetchval(
+                    "SELECT credential_id FROM cortex_auth.credentials "
+                    "WHERE principal_id = $1",
+                    FIXTURE["owner"],
+                )
+            finally:
+                await credential_connection.close()
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=application),
+                base_url="http://cx-r3.local",
+            ) as client:
+                created = await client.post(
+                    "/v1/processing/embedding-spaces",
+                    headers=headers(OWNER_TOKEN),
+                    json=space_payload,
+                )
+                assert created.status_code == 201, created.json()
+                space = created.json()["data"]
+                activate_path = (
+                    f"/v1/processing/embedding-spaces/{space['space_id']}"
+                    f"/generations/{space['generation_id']}:activate"
+                )
+                owner_actions = (
+                    (
+                        "POST",
+                        "/v1/processing/embedding-spaces",
+                        space_payload,
+                        "installation_owner_required",
+                    ),
+                    ("POST", activate_path, {}, "installation_owner_required"),
+                    (
+                        "POST",
+                        "/v1/ops/retention-policies",
+                        {
+                            "content_class": "knowledge",
+                            "min_age_days": 1,
+                            "action": "archive",
+                            "expected_revision": 0,
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/principals:enroll",
+                        {"principal_name": f"r3-worker-{RUN}", "actor_kind": "service"},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/credentials:rotate",
+                        {"principal_id": str(FIXTURE["owner"])},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/credentials:revoke",
+                        {"credential_id": str(owner_credential_id)},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/principals:revoke",
+                        {"principal_id": str(FIXTURE["owner"])},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/scopes:bind",
+                        {
+                            "principal_id": str(FIXTURE["worker"]),
+                            "alias": PROJECT_ALIAS,
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/scopes:revoke",
+                        {
+                            "principal_id": str(FIXTURE["worker"]),
+                            "alias": PROJECT_ALIAS,
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "GET",
+                        "/v1/auth/privileged-actions",
+                        None,
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        f"/v1/scopes/{PROJECT_ALIAS}:rename",
+                        {"new_alias": f"r3-renamed-{RUN}"},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        f"/v1/scopes/{PROJECT_ALIAS}/roster",
+                        {
+                            "entries": [
+                                {
+                                    "principal_id": str(FIXTURE["worker"]),
+                                    "role": "member",
+                                }
+                            ]
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        f"/v1/scopes/{PROJECT_ALIAS}/writer-policy",
+                        {"allowed_roles": ["owner"], "expected_revision": 0},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/connectors",
+                        {"namespace": f"r3-{RUN}", "connector_kind": "api"},
+                        "owner_authority_required",
+                    ),
+                )
+                for method, path, payload, expected_code in owner_actions:
+                    response = await client.request(
+                        method, path, headers=headers(WORKER_TOKEN), json=payload
+                    )
+                    assert response.status_code == 403, (path, response.json())
+                    assert response.json()["error"]["code"] == expected_code, path
+                    assert response.json()["error"]["retryable"] is False
+
+                activated = await client.post(
+                    activate_path, headers=headers(OWNER_TOKEN), json={}
+                )
+                assert activated.status_code == 200, activated.json()
+                audit = await client.get(
+                    "/v1/auth/privileged-actions", headers=headers(OWNER_TOKEN)
+                )
+                assert audit.status_code == 200, audit.json()
+        finally:
+            await application.state.pool.close()
+
+    try:
+        run(scenario())
+    finally:
+        clear_mounted_marks()
+        mark_modules_mounted(prior_marks)

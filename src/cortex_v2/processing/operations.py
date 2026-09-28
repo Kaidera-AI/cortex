@@ -111,6 +111,8 @@ OPERATIONS: list[dict[str, Any]] = [
         "method": "POST",
         "path": "/v1/processing/embedding-spaces",
         "kind": "scoped_write",
+        "authority": "installation_owner",
+        "requires_scope": True,
         "request_model": CreateEmbeddingSpaceRequest,
         "handler": commands.create_embedding_space,
         "summary": (
@@ -149,6 +151,8 @@ OPERATIONS: list[dict[str, Any]] = [
         "method": "POST",
         "path": "/v1/processing/embedding-spaces/{space_id}/generations/{generation_id}:activate",
         "kind": "scoped_write",
+        "authority": "installation_owner",
+        "requires_scope": True,
         "request_model": ActivateGenerationRequest,
         "handler": commands.activate_generation,
         "summary": "Atomically switch retrieval routing to one built generation.",

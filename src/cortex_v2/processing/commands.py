@@ -73,7 +73,15 @@ def problem(code: str, status: int = 422, retryable: bool = False) -> ApiProblem
     return ApiProblem(status, code, FAILURE_MESSAGES[code], retryable=retryable)
 
 
-def translate(exc: asyncpg.PostgresError) -> ApiProblem | None:
+def translate(
+    exc: asyncpg.PostgresError, *, owner_required: bool = False
+) -> ApiProblem | None:
+    if (
+        owner_required
+        and exc.sqlstate == "42501"
+        and exc.message == "operation requires installation owner authority"
+    ):
+        return problem("installation_owner_required", 403)
     entry = FAILURE_SQLSTATES.get(exc.sqlstate or "")
     if entry is None:
         return None
@@ -471,7 +479,7 @@ async def create_embedding_space(
             chunking=request.chunking_block(),
         )
     except asyncpg.PostgresError as exc:
-        translated = translate(exc)
+        translated = translate(exc, owner_required=True)
         if translated is not None:
             raise translated from exc
         raise
@@ -571,7 +579,7 @@ async def activate_generation(
             generation_id=generation_id,
         )
     except asyncpg.PostgresError as exc:
-        translated = translate(exc)
+        translated = translate(exc, owner_required=True)
         if translated is not None:
             raise translated from exc
         raise

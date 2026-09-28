@@ -245,7 +245,7 @@ def w1_descriptors() -> list[dict[str, Any]]:
             "/v1/auth/credentials:revoke",
             kind="scoped_write",
             request_model=RevokeCredentialRequest,
-            authority="installation_owner",
+            authority="authenticated",
             requires_scope=False,
             summary="Revoke one credential of a principal.",
             usage={
