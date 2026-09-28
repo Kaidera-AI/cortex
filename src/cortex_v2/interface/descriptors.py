@@ -171,8 +171,11 @@ def w1_descriptors() -> list[dict[str, Any]]:
                 "freshness": "live",
                 "evidence_contract": "Grants listed here are the authority "
                 "for scope selection.",
-                "failure_codes": ("invalid_credential",),
-                "recovery_actions": ("rotate or re-enroll the credential",),
+                "failure_codes": ("invalid_credential", "key_expired"),
+                "recovery_actions": (
+                    "replace an unknown or revoked credential",
+                    "ask the installation owner to re-enroll an expired key",
+                ),
                 "examples": ({"headers": {"Authorization": "Bearer <token>"}},),
                 "counterexamples": (
                     "Assuming a project name from the alias alone grants "
@@ -204,10 +207,11 @@ def w1_descriptors() -> list[dict[str, Any]]:
                 "an audited no-op; a missing right returns registry_target_not_found.",
                 "failure_codes": (
                     "project_create_not_allowed", "registry_target_not_found",
-                    "invalid_credential",
+                    "invalid_credential", "key_expired",
                 ),
                 "recovery_actions": (
                     "ask the installation owner to run cortex project allow-create P",
+                    "ask the installation owner to re-enroll an expired key",
                 ),
                 "examples": (
                     {"body": {
@@ -273,9 +277,13 @@ def w1_descriptors() -> list[dict[str, Any]]:
                 "evidence_contract": "The replacement receipt includes its "
                 "stored DB expiry 180 days after issuance; "
                 + _IDEMPOTENCY_NOTE,
-                "failure_codes": ("owner_authority_required",
-                                  "invalid_credential"),
-                "recovery_actions": ("self-rotate with the current token",),
+                "failure_codes": (
+                    "owner_authority_required", "invalid_credential", "key_expired",
+                ),
+                "recovery_actions": (
+                    "self-rotate with a current key",
+                    "ask the installation owner to re-enroll an expired key",
+                ),
                 "examples": ({"payload": {"principal_id": None}},),
                 "counterexamples": (),
             },

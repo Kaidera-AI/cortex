@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import importlib
 import logging
 import re
+import threading
 import uuid
 from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Annotated, Any, get_origin
 
@@ -230,7 +233,7 @@ def build_operation_endpoint(operation: dict[str, Any], helpers: SimpleNamespace
             raise ApiProblem(400, "scope_required", "Select a primary Cortex scope.")
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await helpers.authenticate(connection, digest)
+                principal = await helpers.authenticate(request, connection, digest)
                 if kind == "scoped_write":
                     key = helpers.required_idempotency_key(
                         request.headers.get("idempotency-key")
@@ -382,11 +385,18 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    due_day: date | None = None
+    due_seen: set[bytes] = set()
+    due_lock = threading.Lock()
+
     @application.middleware("http")
     async def attach_request_id(request: Request, call_next: Any):
         request.state.request_id = str(uuid.uuid4())
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
+        expires_at = getattr(request.state, "credential_expires_at", None)
+        if expires_at is not None:
+            response.headers["Cortex-Key-Expires"] = expires_at.isoformat()
         return response
 
     def envelope(request: Request, data: dict[str, Any]) -> dict[str, Any]:
@@ -495,14 +505,42 @@ def create_app() -> FastAPI:
         settings: Settings = request.app.state.settings
         return token_digest(match.group(1), settings.token_pepper)
 
+    def warn_if_key_due(principal: Principal, digest: bytes) -> None:
+        nonlocal due_day
+        expires_at = principal.expires_at
+        if expires_at is None:
+            return
+        now = datetime.now(timezone.utc)
+        remaining = expires_at - now
+        if not timedelta(0) < remaining <= timedelta(days=30):
+            return
+        with due_lock:
+            day = now.date()
+            if due_day != day:
+                due_seen.clear()
+                due_day = day
+            if digest in due_seen:
+                return
+            due_seen.add(digest)
+            logger.warning(
+                "observed_due_key principal_id=%s digest_fingerprint=%s expires_at=%s",
+                principal.principal_id,
+                hashlib.sha256(digest).hexdigest()[:16],
+                expires_at.isoformat(),
+            )
+
     async def authenticated_principal(
+        request: Request,
         connection: asyncpg.Connection,
         digest: bytes,
-    ):
-        return await authenticate(
+    ) -> Principal:
+        principal = await authenticate(
             connection, digest,
             legacy_schema=application.state.profile.instance_id == SANDBOX_INSTANCE,
         )
+        request.state.credential_expires_at = principal.expires_at
+        warn_if_key_due(principal, digest)
+        return principal
 
     @application.post("/v1/memory/records")
     async def record_memory(
@@ -524,7 +562,7 @@ def create_app() -> FastAPI:
 
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 context = await resolve_scopes(
                     connection,
                     principal,
@@ -563,7 +601,7 @@ def create_app() -> FastAPI:
         ]
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 await resolve_scopes(
                     connection, principal, selected_alias, aliases, write=False
                 )
@@ -603,7 +641,7 @@ def create_app() -> FastAPI:
             raise ApiProblem(400, "scope_required", "Select a primary Cortex scope.")
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 context = await resolve_scopes(
                     connection,
                     principal,
@@ -649,7 +687,7 @@ def create_app() -> FastAPI:
         settings: Settings = request.app.state.settings
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 status, data, replayed = await runner(
                     connection, principal, payload, key, settings
                 )
@@ -667,7 +705,7 @@ def create_app() -> FastAPI:
         key = required_idempotency_key(idempotency_key)
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 status, data, replayed = await command(connection, principal, key)
         return replay_headers(
             JSONResponse(status_code=status, content=envelope(request, data)), replayed
@@ -686,7 +724,7 @@ def create_app() -> FastAPI:
             raise ApiProblem(400, "scope_required", "Select a primary Cortex scope.")
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 context = await resolve_scopes(
                     connection, principal, selected_alias, [selected_alias], write=True
                 )
@@ -720,7 +758,7 @@ def create_app() -> FastAPI:
         digest = await token_hash(request, authorization)
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 data = await self_profile(connection, principal)
         return envelope(request, data)
 
@@ -816,7 +854,7 @@ def create_app() -> FastAPI:
         digest = await token_hash(request, authorization)
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 actions = await list_privileged_actions(connection, principal, limit)
         return envelope(request, {"actions": actions, "limit": limit})
 
@@ -880,7 +918,7 @@ def create_app() -> FastAPI:
         digest = await token_hash(request, authorization)
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 await resolve_scopes(
                     connection, principal, alias, [alias], write=False
                 )
@@ -952,7 +990,7 @@ def create_app() -> FastAPI:
             raise ApiProblem(400, "scope_required", "Select a primary Cortex scope.")
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 context = await resolve_scopes(
                     connection, principal, selected_alias, [selected_alias], write=True
                 )
@@ -1062,7 +1100,7 @@ def create_app() -> FastAPI:
         ]
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 await resolve_scopes(
                     connection, principal, selected_alias, aliases, write=False
                 )
@@ -1081,7 +1119,7 @@ def create_app() -> FastAPI:
             raise ApiProblem(400, "scope_required", "Select a primary Cortex scope.")
         async with request.app.state.pool.acquire() as connection:
             async with connection.transaction():
-                principal = await authenticated_principal(connection, digest)
+                principal = await authenticated_principal(request, connection, digest)
                 context = await resolve_scopes(
                     connection,
                     principal,

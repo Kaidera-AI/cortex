@@ -42,6 +42,7 @@ TOKEN_BYTES = 32
 COMMON_FAILURES: dict[str, tuple[int, str]] = {
     "42501": (403, "owner_authority_required"),
     "PZC01": (403, "project_create_not_allowed"),
+    "PZK01": (403, "project_key_manager_required"),
     "P0002": (404, "registry_target_not_found"),
     "23514": (422, "invalid_registry_request"),
     "23505": (409, "registry_conflict"),
@@ -49,6 +50,7 @@ COMMON_FAILURES: dict[str, tuple[int, str]] = {
 FAILURE_MESSAGES = {
     "owner_authority_required": "This operation requires installation owner authority.",
     "project_create_not_allowed": "Ask the installation owner to run cortex project allow-create P.",
+    "project_key_manager_required": "Ask this project's active lead, eligible sponsor, or installation owner to perform the key operation; restore the lead's project membership and scope grant if missing.",
     "registry_target_not_found": "The registry target is unavailable.",
     "invalid_registry_request": "The registry request is invalid.",
     "registry_conflict": "The registry change conflicts with reserved state.",
