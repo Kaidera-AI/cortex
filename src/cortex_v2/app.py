@@ -26,6 +26,7 @@ from .content import (
     search_content,
 )
 from .identity import (
+    allow_project_create,
     bootstrap_installation,
     bind_scope,
     enact_roster,
@@ -43,6 +44,7 @@ from .identity import (
     self_profile,
 )
 from .models import (
+    AllowCreateRequest,
     BootstrapRequest,
     BindScopeRequest,
     ContentSearchRequest,
@@ -688,6 +690,23 @@ def create_app() -> FastAPI:
                 status, data, replayed = await command(connection, context, key)
         return replay_headers(
             JSONResponse(status_code=status, content=envelope(request, data)), replayed
+        )
+
+    @application.post("/v1/projects/{project}:allow-create")
+    async def project_allow_create(
+        request: Request,
+        project: str,
+        payload: AllowCreateRequest,
+        authorization: Annotated[str | None, Header()] = None,
+        idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+    ) -> JSONResponse:
+        return await registry_command(
+            request,
+            authorization,
+            idempotency_key,
+            lambda connection, principal, key: allow_project_create(
+                connection, principal, project, payload, key
+            ),
         )
 
     @application.get("/v1/auth/principal")
