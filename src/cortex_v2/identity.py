@@ -10,6 +10,7 @@ HMAC-SHA256 digests.
 
 from __future__ import annotations
 
+import hmac
 import json
 import secrets
 import uuid
@@ -17,8 +18,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import asyncpg
+from .config import ConfigurationError, Settings, read_secret_path
 
 from .models import (
+    BootstrapRequest,
     BindScopeRequest,
     EnactRosterRequest,
     EnactWriterPolicyRequest,
@@ -84,6 +87,62 @@ def _expiry(expires_in_seconds: int | None) -> datetime | None:
     if expires_in_seconds is None:
         return None
     return datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+
+
+def verify_bootstrap_code(setup_code: str, installation_id: uuid.UUID) -> None:
+    denied = ApiProblem(
+        403, "bootstrap_denied", "Use a current setup code on the local bootstrap socket."
+    )
+    try:
+        code, issued, bound_installation = read_secret_path(
+            "CORTEX_V2_BOOTSTRAP_CODE_FILE"
+        ).decode("ascii").splitlines()
+        age = datetime.now(timezone.utc).timestamp() - int(issued)
+        valid = (
+            uuid.UUID(bound_installation) == installation_id
+            and 0 <= age <= 1800
+            and hmac.compare_digest(setup_code, code)
+        )
+    except (ConfigurationError, UnicodeError, ValueError):
+        valid = False
+    if not valid:
+        raise denied
+
+
+async def bootstrap_installation(
+    connection: asyncpg.Connection, settings: Settings, payload: BootstrapRequest
+) -> dict[str, Any]:
+    installation_id = settings.installation_id
+    if installation_id is None:
+        raise ApiProblem(403, "bootstrap_denied", "First install requires a private installation.")
+    verify_bootstrap_code(payload.setup_code, installation_id)
+    owner_token, recovery_token = _issue_token(), _issue_token()
+    try:
+        row = await connection.fetchrow(
+            "SELECT * FROM cortex_auth.bootstrap_installation($1, $2, $3, $4, $5)",
+            installation_id,
+            payload.installation_name,
+            payload.owner_name,
+            token_digest(owner_token, settings.token_pepper),
+            token_digest(recovery_token, settings.token_pepper),
+        )
+    except asyncpg.PostgresError as exc:
+        if exc.sqlstate in ("42501", "23505"):
+            raise ApiProblem(
+                403, "bootstrap_denied", "First install is no longer available."
+            ) from exc
+        problem = _translate(exc)
+        if problem is not None:
+            raise problem from exc
+        raise
+    return {
+        "installation_id": str(row["installation_id"]),
+        "owner_principal_id": str(row["owner_principal_id"]),
+        "credential_id": str(row["credential_id"]),
+        "recovery_generation": row["recovery_generation"],
+        "owner_token": owner_token,
+        "recovery_token": recovery_token,
+    }
 
 
 async def resolve_alias(connection: asyncpg.Connection, alias: str) -> uuid.UUID:

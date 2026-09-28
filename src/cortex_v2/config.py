@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -9,6 +10,7 @@ from urllib.parse import unquote, urlsplit
 SANDBOX_INSTANCE = "cortex-v2-v0-02-001-sandbox"
 W1_INSTANCE = "cortex-v2-w1-candidate"
 KAI_TEST_INSTANCE = "cortex_kai_test"
+PRODUCTION_INSTANCE = "cortex_production"
 EXPECTED_DATABASE = "cortex_v2"
 EXPECTED_DATABASE_ROLE = "cortex_v2_app"
 SECRET_DIRECTORY = Path("/run/secrets")
@@ -63,6 +65,7 @@ FULL_V2_MIGRATIONS: tuple[str, ...] = (
     "0007_feed_verification.sql",
     "0008_ops.sql",
     "0009_coordination_withdraw_and_target_fk.sql",
+    "0010_keys_bootstrap.sql",
 )
 FULL_V2_OPERATION_MODULES: tuple[str, ...] = (
     "cortex_v2.coordination.operations",
@@ -113,6 +116,19 @@ INSTANCE_PROFILES: dict[str, InstanceProfile] = {
         container_prefix="Cortex_kai_test",
         resource_prefix="cortex_kai_test",
     ),
+    PRODUCTION_INSTANCE: InstanceProfile(
+        instance_id=PRODUCTION_INSTANCE,
+        deployment_class="production",
+        database_host="db",
+        api_host="api",
+        api_port=8601,
+        contract_version="cortex.api.v2-integrated",
+        state_directory="cortex-production",
+        migrations=FULL_V2_MIGRATIONS,
+        operation_modules=INTEGRATED_OPERATION_MODULES,
+        container_prefix="Cortex_production",
+        resource_prefix="cortex_production",
+    ),
 }
 
 
@@ -124,7 +140,7 @@ def active_profile() -> InstanceProfile:
     instance_id = os.environ.get("CORTEX_V2_SANDBOX_INSTANCE", "")
     profile = INSTANCE_PROFILES.get(instance_id)
     if profile is None:
-        raise ConfigurationError("this build only serves its named v2 candidates")
+        raise ConfigurationError("unknown Cortex v2 instance profile")
     return profile
 
 
@@ -155,6 +171,7 @@ class Settings:
     database_url: str
     token_pepper: bytes
     instance_id: str
+    installation_id: uuid.UUID | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -179,8 +196,17 @@ class Settings:
             raise ConfigurationError(
                 "candidate token pepper must contain at least 32 bytes"
             )
+        installation_id = None
+        if profile.instance_id == PRODUCTION_INSTANCE:
+            try:
+                installation_id = uuid.UUID(
+                    read_secret_path("CORTEX_V2_INSTALLATION_ID_FILE").decode()
+                )
+            except (UnicodeError, ValueError) as exc:
+                raise ConfigurationError("installation identity is invalid") from exc
         return cls(
             database_url=database_url,
             token_pepper=pepper,
             instance_id=profile.instance_id,
+            installation_id=installation_id,
         )

@@ -1,0 +1,115 @@
+# Fresh installation only. The bootstrap ASGI app is never bound to TCP.
+# Only an installer with Podman control access may enter the bootstrap container
+# and reach /tmp/cortex-control/bootstrap.sock; no other service mounts setup code.
+name: cortex_production
+
+services:
+  db:
+    image: docker.io/pgvector/pgvector:0.8.6-pg18@sha256:46481fb03d04f9160a2373d305f769eb34040fc866e7bd74b8f5b84a50cc2952
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cortex_v2_owner
+      POSTGRES_DB: cortex_v2
+      POSTGRES_PASSWORD_FILE: /run/secrets/cortex_production-db-owner-password
+      CORTEX_V2_APP_PASSWORD_FILE: /run/secrets/cortex_production-db-app-password
+      CORTEX_V2_MIGRATOR_PASSWORD_FILE: /run/secrets/cortex_production-db-migrator-password
+    secrets:
+      - {source: cortex_production-db-owner-password, uid: "999", gid: "999", mode: 0400}
+      - {source: cortex_production-db-app-password, uid: "999", gid: "999", mode: 0400}
+      - {source: cortex_production-db-migrator-password, uid: "999", gid: "999", mode: 0400}
+    volumes:
+      - cortex_production_pgdata:/var/lib/postgresql
+      - ./postgres-init/10-create-v2-roles-env.sh:/docker-entrypoint-initdb.d/10-create-v2-roles.sh:ro,z
+    networks: [cortex_production_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U cortex_v2_owner -d cortex_v2"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  migrate:
+    image: localhost/cortex-production-api:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    entrypoint: ["python", "-m", "cortex_v2.migrate"]
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_production
+      CORTEX_V2_MIGRATOR_DATABASE_URL_FILE: /run/secrets/cortex_production-database-url-migrator
+    secrets:
+      - {source: cortex_production-database-url-migrator, uid: "10001", gid: "10001", mode: 0440}
+    networks: [cortex_production_net]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: localhost/cortex-production-api:0.02.001
+    restart: unless-stopped
+    read_only: true
+    user: "10001:10001"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,mode=1777"]
+    ports: ["127.0.0.1:8601:8601"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_production
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex_production-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex_production-token-pepper
+      CORTEX_V2_INSTALLATION_ID_FILE: /run/secrets/cortex_production-installation-id
+      CORTEX_V2_MOUNTED_MODULES: identity_memory,interface,ingest,coordination,processing,retrieval,feed,verification,ops
+    secrets:
+      - {source: cortex_production-database-url-app, uid: "10001", gid: "10001", mode: 0440}
+      - {source: cortex_production-token-pepper, uid: "10001", gid: "10001", mode: 0440}
+      - {source: cortex_production-installation-id, uid: "10001", gid: "10001", mode: 0440}
+    networks: [cortex_production_net]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  bootstrap:
+    image: localhost/cortex-production-api:0.02.001
+    # No ports or shared socket mounts: only Podman control reaches the UDS.
+    entrypoint: ["python", "-m", "cortex_v2.bootstrap_server"]
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=1m,mode=1777"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_production
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex_production-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex_production-token-pepper
+      CORTEX_V2_INSTALLATION_ID_FILE: /run/secrets/cortex_production-installation-id
+      CORTEX_V2_BOOTSTRAP_CODE_FILE: /run/secrets/cortex_production-setup-code
+    secrets:
+      - {source: cortex_production-database-url-app, uid: "10001", gid: "10001", mode: 0440}
+      - {source: cortex_production-token-pepper, uid: "10001", gid: "10001", mode: 0440}
+      - {source: cortex_production-installation-id, uid: "10001", gid: "10001", mode: 0440}
+      - {source: cortex_production-setup-code, uid: "10001", gid: "10001", mode: 0440}
+    networks: [cortex_production_net]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+networks:
+  cortex_production_net:
+    internal: true
+
+volumes:
+  cortex_production_pgdata:
+
+secrets:
+  cortex_production-db-owner-password: {external: true}
+  cortex_production-db-app-password: {external: true}
+  cortex_production-db-migrator-password: {external: true}
+  cortex_production-database-url-app: {external: true}
+  cortex_production-database-url-migrator: {external: true}
+  cortex_production-token-pepper: {external: true}
+  cortex_production-installation-id: {external: true}
+  cortex_production-setup-code: {external: true}

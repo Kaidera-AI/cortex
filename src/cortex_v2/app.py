@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from . import __version__
-from .config import Settings, active_profile
+from .config import PRODUCTION_INSTANCE, Settings, active_profile
 from .content import (
     change_status,
     create_content,
@@ -26,6 +26,7 @@ from .content import (
     search_content,
 )
 from .identity import (
+    bootstrap_installation,
     bind_scope,
     enact_roster,
     enact_writer_policy,
@@ -42,6 +43,7 @@ from .identity import (
     self_profile,
 )
 from .models import (
+    BootstrapRequest,
     BindScopeRequest,
     ContentSearchRequest,
     ContentStatusRequest,
@@ -1104,6 +1106,81 @@ def create_app() -> FastAPI:
     application.state.mounted_operations = mount_operations(
         application, active_profile(), operation_helpers
     )
+
+    return application
+
+
+def create_bootstrap_app() -> FastAPI:
+    """Serve only on a private Unix socket, never on the public API listener."""
+    application = FastAPI(
+        title="Cortex first-install control socket",
+        version=__version__,
+        openapi_url=None,
+        docs_url=None,
+        redoc_url=None,
+        lifespan=lifespan,
+    )
+
+    @application.middleware("http")
+    async def attach_request_id(request: Request, call_next: Any):
+        request.state.request_id = str(uuid.uuid4())
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request.state.request_id
+        return response
+
+    @application.exception_handler(ApiProblem)
+    async def api_problem_handler(request: Request, exc: ApiProblem) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "retryable": exc.retryable,
+                },
+                "request_id": request.state.request_id,
+            },
+        )
+
+    @application.exception_handler(RequestValidationError)
+    async def validation_problem_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "invalid_request",
+                    "message": "The request does not match the operation contract.",
+                    "retryable": False,
+                    "fields": [
+                        {
+                            "path": ".".join(str(part) for part in error["loc"]),
+                            "type": error["type"],
+                        }
+                        for error in exc.errors()
+                    ],
+                },
+                "request_id": request.state.request_id,
+            },
+        )
+
+    @application.post("/v1/auth/bootstrap")
+    async def bootstrap(request: Request, payload: BootstrapRequest) -> JSONResponse:
+        if request.app.state.profile.instance_id != PRODUCTION_INSTANCE:
+            raise ApiProblem(403, "bootstrap_denied", "First install is unavailable.")
+        settings: Settings = request.app.state.settings
+        async with request.app.state.pool.acquire() as connection:
+            async with connection.transaction():
+                data = await bootstrap_installation(connection, settings, payload)
+        return JSONResponse(
+            status_code=201,
+            content={
+                "data": data,
+                "request_id": request.state.request_id,
+                "contract_version": request.app.state.profile.contract_version,
+            },
+        )
 
     return application
 

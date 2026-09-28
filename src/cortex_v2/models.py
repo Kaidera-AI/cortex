@@ -62,6 +62,17 @@ class SearchRequest(StrictInput):
         return values
 
 
+class BootstrapRequest(StrictInput):
+    setup_code: StrictStr = Field(min_length=43, max_length=128)
+    installation_name: StrictStr = Field(min_length=1, max_length=128)
+    owner_name: StrictStr = Field(min_length=1, max_length=128)
+
+    @field_validator("installation_name", "owner_name")
+    @classmethod
+    def names_are_postgres_text(cls, value: str) -> str:
+        return _reject_nul(value, "name")
+
+
 class ScopeGrantRequest(StrictInput):
     alias: ScopeAlias
     can_read: StrictBool = True
