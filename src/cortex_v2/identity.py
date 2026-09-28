@@ -21,6 +21,7 @@ import asyncpg
 from .config import ConfigurationError, Settings, read_secret_path
 
 from .models import (
+    AllowCreateRequest,
     BootstrapRequest,
     BindScopeRequest,
     EnactRosterRequest,
@@ -40,12 +41,14 @@ from .store import ApiProblem, Principal, token_digest
 TOKEN_BYTES = 32
 COMMON_FAILURES: dict[str, tuple[int, str]] = {
     "42501": (403, "owner_authority_required"),
+    "PZC01": (403, "project_create_not_allowed"),
     "P0002": (404, "registry_target_not_found"),
     "23514": (422, "invalid_registry_request"),
     "23505": (409, "registry_conflict"),
 }
 FAILURE_MESSAGES = {
     "owner_authority_required": "This operation requires installation owner authority.",
+    "project_create_not_allowed": "Ask the installation owner to run cortex project allow-create P.",
     "registry_target_not_found": "The registry target is unavailable.",
     "invalid_registry_request": "The registry request is invalid.",
     "registry_conflict": "The registry change conflicts with reserved state.",
@@ -499,6 +502,33 @@ async def _void_registry_command(
         installation_id=principal.installation_id,
     )
     return 200, receipt, False
+
+
+async def allow_project_create(
+    connection: asyncpg.Connection,
+    principal: Principal,
+    project: str,
+    payload: AllowCreateRequest,
+    idempotency_key: str,
+) -> tuple[int, dict[str, Any], bool]:
+    return await _void_registry_command(
+        connection,
+        principal,
+        operation="project.allow_create",
+        idempotency_key=idempotency_key,
+        digest_payload={
+            "project": project,
+            "principal_id": str(payload.principal_id),
+            "allowed": payload.allowed,
+        },
+        sql="SELECT cortex_auth.allow_project_create($1, $2, $3, $4)",
+        args=(principal.principal_id, project, payload.principal_id, payload.allowed),
+        receipt_fields={
+            "project": project,
+            "principal_id": str(payload.principal_id),
+            "allowed": payload.allowed,
+        },
+    )
 
 
 async def recover_owner(

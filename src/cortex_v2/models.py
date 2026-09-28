@@ -73,6 +73,10 @@ class BootstrapRequest(StrictInput):
         return _reject_nul(value, "name")
 
 
+class AllowCreateRequest(StrictInput):
+    principal_id: uuid.UUID
+    allowed: StrictBool
+
 class ScopeGrantRequest(StrictInput):
     alias: ScopeAlias
     can_read: StrictBool = True

@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..models import (
+    AllowCreateRequest,
     BindScopeRequest,
     ContentSearchRequest,
     ContentStatusRequest,
@@ -177,6 +178,44 @@ def w1_descriptors() -> list[dict[str, Any]]:
                     "Assuming a project name from the alias alone grants "
                     "write access.",
                 ),
+            },
+        ),
+        _descriptor(
+            "project.allow_create",
+            "POST",
+            "/v1/projects/{project}:allow-create",
+            kind="scoped_write",
+            request_model=AllowCreateRequest,
+            authority="installation_owner",
+            requires_scope=False,
+            summary="Allow or revoke project creation for one named principal.",
+            usage={
+                "purpose": "Grant or revoke one lead's independent project-create right.",
+                "use_when": "The installation owner grants a live agent lead or "
+                "revokes an existing right after demotion or deactivation.",
+                "avoid_when": "Granting to anyone other than a live agent lead "
+                "with read/write access.",
+                "effects": "Updates only the specified principal's right and "
+                "records a privileged action.",
+                "cost_class": "cheap",
+                "freshness": "live",
+                "evidence_contract": "The receipt confirms project, principal_id "
+                "and allowed state; repeat revocation of an existing right is "
+                "an audited no-op; a missing right returns registry_target_not_found.",
+                "failure_codes": (
+                    "project_create_not_allowed", "registry_target_not_found",
+                    "invalid_credential",
+                ),
+                "recovery_actions": (
+                    "ask the installation owner to run cortex project allow-create P",
+                ),
+                "examples": (
+                    {"body": {
+                        "principal_id": "00000000-0000-4000-8000-000000000001",
+                        "allowed": True,
+                    }},
+                ),
+                "counterexamples": ("A console member cannot grant its own create right.",),
             },
         ),
         _descriptor(
