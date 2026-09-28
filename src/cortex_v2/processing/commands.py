@@ -49,7 +49,6 @@ FAILURE_MESSAGES = {
     "installation_owner_required": "Only an installation owner may change space routing.",
     "job_not_found": "The job is unavailable in the selected scope.",
     "job_terminal": "The job already reached a terminal state.",
-    "invalid_cursor": "The pagination cursor is not valid for this listing.",
     "budget_exhausted": "Processing capacity is reserved; retry later.",
     "queue_admission_full": "The durable queue for this scope is at its bound.",
     "unsupported_job_kind": "That job kind is not part of the versioned contract.",
@@ -175,7 +174,7 @@ async def backfill_jobs(
     policy = profile["coverage"]
     content_classes = [str(item) for item in policy.get("content_classes") or ()]
     min_text_length = int(policy.get("min_text_length") or 0)
-    cursor = _parse_revision_cursor(request.cursor)
+    cursor = queue.parse_cursor(request.cursor)
     revisions = await repository.intended_revisions(
         connection,
         scope_id=context.selected.scope_id,
@@ -353,18 +352,6 @@ def _backfill_intent(
         required_role=required_role,
         priority=request.priority,
     )
-
-
-def _parse_revision_cursor(cursor: str | None) -> tuple[str, uuid.UUID] | None:
-    if not cursor:
-        return None
-    created_at, _, content_id = cursor.rpartition(":")
-    if not created_at:
-        raise problem("invalid_cursor", 422)
-    try:
-        return created_at, uuid.UUID(content_id)
-    except ValueError as exc:
-        raise problem("invalid_cursor", 422) from exc
 
 
 async def cancel_job(
@@ -702,9 +689,7 @@ async def list_jobs(
 ) -> dict[str, Any]:
     """Keyset-paginated jobs across the caller's readable scopes."""
     request = _coerce(payload, ListJobsRequest)
-    cursor = queue.parse_cursor(request.cursor) if request.cursor else None
-    if request.cursor and cursor is None:
-        raise problem("invalid_cursor", 422)
+    cursor = queue.parse_cursor(request.cursor)
     scope_ids = [scope.scope_id for scope in context.read_scopes]
     jobs, next_cursor = await queue.list_jobs(
         connection,

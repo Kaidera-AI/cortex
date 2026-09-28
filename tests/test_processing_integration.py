@@ -2617,3 +2617,130 @@ def test_owner_only_http_routes_deny_scope_writer_and_accept_owner(monkeypatch):
     finally:
         clear_mounted_marks()
         mark_modules_mounted(prior_marks)
+
+
+def test_backfill_and_job_listing_cursors_page_every_revision_once():
+    from datetime import datetime, timedelta, timezone
+
+    alias = f"r3-cursor-{uuid.uuid4().hex[:12]}"
+    scope_id = uuid.uuid4()
+    content_ids = [uuid.uuid4() for _ in range(3)]
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    async def seed(connection):
+        await connection.execute(
+            "INSERT INTO cortex_core.scopes "
+            "(scope_id, scope_kind, display_name) VALUES ($1, 'project', $2)",
+            scope_id,
+            alias,
+        )
+        await connection.execute(
+            "INSERT INTO cortex_core.scope_aliases "
+            "(alias, scope_id, is_primary) VALUES ($1, $2, true)",
+            alias,
+            scope_id,
+        )
+        await connection.execute(
+            "INSERT INTO cortex_auth.scope_grants "
+            "(principal_id, scope_id, can_read, can_write, can_publish) "
+            "VALUES ($1, $2, true, true, true)",
+            FIXTURE["owner"],
+            scope_id,
+        )
+        await connection.execute(
+            "SELECT set_config('cortex.policy_revision', '0', true)"
+        )
+        for index, content_id in enumerate(content_ids):
+            body = f"Cursor page {index}: " + "x" * 200
+            await connection.execute(
+                "INSERT INTO cortex_core.content_items "
+                "(scope_id, content_id, content_class, created_by_principal, "
+                "created_at) VALUES ($1, $2, 'knowledge', $3, $4)",
+                scope_id,
+                content_id,
+                FIXTURE["owner"],
+                base_time + timedelta(seconds=index),
+            )
+            await connection.execute(
+                "INSERT INTO cortex_core.content_revisions "
+                "(scope_id, content_id, revision, payload, body_text, "
+                "content_hash, author_principal_id) "
+                "VALUES ($1, $2, 1, $3::jsonb, $4, $5, $6)",
+                scope_id,
+                content_id,
+                json.dumps({"content": body}),
+                body,
+                hashlib.sha256(body.encode()).digest(),
+                FIXTURE["owner"],
+            )
+
+    as_migrator(seed)
+    space = create_space()
+    payload = {
+        "profile_id": str(PROFILE_TEXT),
+        "space_id": space["space_id"],
+        "generation": "active",
+        "stage": "embed.chunks",
+        "limit": 2,
+    }
+
+    async def backfill(connection, context, request):
+        return await commands.backfill_jobs(
+            connection, context, str(uuid.uuid4()), request, None
+        )
+
+    first_status, first, _ = owner_call(
+        lambda connection, context: backfill(connection, context, payload), alias
+    )
+    assert (first_status, first["scanned"], first["accepted"]) == (202, 2, 2)
+    assert first["next_cursor"]
+    second_status, second, _ = owner_call(
+        lambda connection, context: backfill(
+            connection, context, {**payload, "cursor": first["next_cursor"]}
+        ),
+        alias,
+    )
+    assert (second_status, second["scanned"], second["accepted"]) == (202, 1, 1)
+    assert second["next_cursor"] is None
+
+    async def pages(connection, context):
+        first_page = await commands.list_jobs(connection, context, {"limit": 2}, None)
+        second_page = await commands.list_jobs(
+            connection, context, {"limit": 2, "cursor": first_page["next_cursor"]}, None
+        )
+        rows = await connection.fetch(
+            "SELECT job_id, content_id FROM cortex_processing.jobs "
+            "WHERE scope_id = $1 AND job_kind = 'embed.chunks'",
+            scope_id,
+        )
+        return first_page, second_page, rows
+
+    jobs_first, jobs_second, rows = owner_call(pages, alias)
+    listed_ids = [job["job_id"] for job in jobs_first["jobs"] + jobs_second["jobs"]]
+    assert len(listed_ids) == len(set(listed_ids)) == 3
+    assert set(listed_ids) == {str(row["job_id"]) for row in rows}
+    assert {row["content_id"] for row in rows} == set(content_ids)
+    assert {job["job_id"] for page in (first, second) for job in page["jobs"]} == set(
+        listed_ids
+    )
+
+    malformed = f"not-a-timestamp:{content_ids[0]}"
+    with pytest.raises(ApiProblem) as backfill_error:
+        owner_call(
+            lambda connection, context: backfill(
+                connection, context, {**payload, "cursor": malformed}
+            ),
+            alias,
+        )
+    assert (backfill_error.value.status, backfill_error.value.code) == (
+        422,
+        "invalid_cursor",
+    )
+    with pytest.raises(ApiProblem) as list_error:
+        owner_call(
+            lambda connection, context: commands.list_jobs(
+                connection, context, {"limit": 2, "cursor": malformed}, None
+            ),
+            alias,
+        )
+    assert (list_error.value.status, list_error.value.code) == (422, "invalid_cursor")

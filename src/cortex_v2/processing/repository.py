@@ -535,7 +535,7 @@ async def intended_revisions(
     scope_id: uuid.UUID,
     content_classes: Sequence[str],
     min_text_length: int,
-    cursor: tuple[str, uuid.UUID] | None = None,
+    cursor: tuple[datetime, uuid.UUID] | None = None,
     limit: int,
 ) -> list[dict[str, Any]]:
     """Current revisions the profile's coverage policy intends to process (R13).
