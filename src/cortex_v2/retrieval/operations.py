@@ -457,10 +457,7 @@ async def code_publish_index(
                 {"path": item.path, "source": item.source} for item in payload.files
             ],
         },
-        dedupe_key=(
-            f"{KIND_CODE_EXTRACT}:{context.selected.scope_id}:"
-            f"{payload.repository_key}:{payload.commit_sha}:{snapshot_id}"
-        ),
+        dedupe_key=f"{KIND_CODE_EXTRACT}:{context.selected.scope_id}:{digest.hex()}",
     )
     receipt = {
         "state": "pending_processing",

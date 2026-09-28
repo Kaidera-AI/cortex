@@ -2357,3 +2357,71 @@ def _default_space() -> dict[str, Any]:
     if not _DEFAULT_SPACE:
         _DEFAULT_SPACE.update(create_space(name=f"it-queue-space-{RUN}"))
     return _DEFAULT_SPACE
+
+
+def test_code_publish_index_enqueues_full_length_pins_without_collision():
+    from cortex_v2.retrieval.models import CodeFileInput, CodePublishIndexRequest
+    from cortex_v2.retrieval.operations import code_publish_index
+
+    repository_key = f"r3-{RUN}-" + "r" * (128 - len(RUN) - 4)
+    full_path = "src/" + "f" * 508
+
+    async def publish(connection, context, commit_sha, source, path):
+        request = CodePublishIndexRequest(
+            repository_key=repository_key,
+            commit_sha=commit_sha,
+            files=[CodeFileInput(path=path, source=source)],
+        )
+        return await code_publish_index(
+            connection, context, str(uuid.uuid4()), request, {}
+        )
+
+    async def scenario(connection, context):
+        first_status, first, first_replayed = await publish(
+            connection, context, "a" * 40, "def first():\n    pass\n", "src/first.py"
+        )
+        assert (first_status, first_replayed, first["job_created"]) == (
+            202,
+            False,
+            True,
+        )
+        same_status, same, same_replayed = await publish(
+            connection, context, "a" * 40, "def first():\n    pass\n", "src/first.py"
+        )
+        assert (same_status, same_replayed, same["job_created"]) == (202, False, False)
+        assert (same["job_id"], same["dedupe_key"]) == (
+            first["job_id"],
+            first["dedupe_key"],
+        )
+
+        _, second, _ = await publish(
+            connection, context, "b" * 64, "def second():\n    pass\n", full_path
+        )
+        _, third, _ = await publish(
+            connection, context, "a" * 40, "def changed():\n    pass\n", "src/first.py"
+        )
+        assert (
+            len({first["dedupe_key"], second["dedupe_key"], third["dedupe_key"]}) == 3
+        )
+        for receipt, commit_sha, path in (
+            (first, "a" * 40, "src/first.py"),
+            (second, "b" * 64, full_path),
+            (third, "a" * 40, "src/first.py"),
+        ):
+            assert len(receipt["dedupe_key"]) <= 128
+            row = await connection.fetchrow(
+                "SELECT dedupe_key, intent FROM cortex_processing.jobs "
+                "WHERE job_id = $1 AND scope_id = $2 "
+                "AND job_kind = 'graph.code.extract'",
+                uuid.UUID(receipt["job_id"]),
+                context.selected.scope_id,
+            )
+            assert row["dedupe_key"] == receipt["dedupe_key"]
+            assert json.loads(row["intent"])["payload"]["pin"] == {
+                "repository_key": repository_key,
+                "commit_sha": commit_sha,
+                "snapshot_id": receipt["snapshot_id"],
+            }
+            assert json.loads(row["intent"])["payload"]["files"][0]["path"] == path
+
+    owner_call(scenario)
