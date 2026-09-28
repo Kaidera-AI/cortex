@@ -5,6 +5,7 @@ import hmac
 import json
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import asyncpg
@@ -23,6 +24,7 @@ class ApiProblem(Exception):
 class Principal:
     principal_id: uuid.UUID
     installation_id: uuid.UUID
+    expires_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,17 +48,25 @@ def token_digest(token: str, pepper: bytes) -> bytes:
     return hmac.new(pepper, token.encode("utf-8"), hashlib.sha256).digest()
 
 
-async def authenticate(connection: asyncpg.Connection, digest: bytes) -> Principal:
-    row = await connection.fetchrow(
-        "SELECT principal_id, installation_id "
-        "FROM cortex_auth.authenticate($1)",
-        digest,
+async def authenticate(
+    connection: asyncpg.Connection, digest: bytes, *, legacy_schema: bool = False
+) -> Principal:
+    query = (
+        "SELECT principal_id, installation_id FROM cortex_auth.authenticate($1)"
+        if legacy_schema
+        else "SELECT principal_id, installation_id, expires_at, is_expired "
+             "FROM cortex_auth.authenticate($1)"
     )
-    if row is None:
+    row = await connection.fetchrow(query, digest)
+    if row is None or (not legacy_schema and row["is_expired"]):
         raise ApiProblem(
             401, "invalid_credential", "A valid bearer credential is required."
         )
-    principal = Principal(row["principal_id"], row["installation_id"])
+    principal = Principal(
+        row["principal_id"],
+        row["installation_id"],
+        None if legacy_schema else row["expires_at"],
+    )
     await connection.execute(
         "SELECT set_config('cortex.principal_id', $1, true)",
         str(principal.principal_id),

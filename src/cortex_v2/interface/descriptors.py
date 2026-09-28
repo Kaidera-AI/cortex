@@ -237,7 +237,8 @@ def w1_descriptors() -> list[dict[str, Any]]:
                 "effects": "writes identity state",
                 "cost_class": "cheap",
                 "freshness": "committed",
-                "evidence_contract": "Typed receipt with token fingerprint; "
+                "evidence_contract": "The receipt includes the stored DB expiry "
+                "180 days after issuance and the token fingerprint; "
                 + _IDEMPOTENCY_NOTE,
                 "failure_codes": ("owner_authority_required",
                                   "idempotency_key_reused"),
@@ -269,7 +270,8 @@ def w1_descriptors() -> list[dict[str, Any]]:
                 "effects": "writes identity state",
                 "cost_class": "cheap",
                 "freshness": "committed",
-                "evidence_contract": "Old credential stops working at commit; "
+                "evidence_contract": "The replacement receipt includes its "
+                "stored DB expiry 180 days after issuance; "
                 + _IDEMPOTENCY_NOTE,
                 "failure_codes": ("owner_authority_required",
                                   "invalid_credential"),

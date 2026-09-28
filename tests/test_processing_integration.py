@@ -356,7 +356,9 @@ def seeded() -> dict[str, Any]:
 
 async def _open(token: str, alias: str, *, write: bool):
     connection = await asyncpg.connect(DATABASE_URL)
-    principal = await authenticate(connection, token_digest(token, PEPPER))
+    principal = await authenticate(
+        connection, token_digest(token, PEPPER), legacy_schema=True
+    )
     async with connection.transaction():
         context = await resolve_scopes(connection, principal, alias, [alias], write=write)
         yield connection, context
@@ -378,7 +380,7 @@ class Session:
         self._transaction = self.connection.transaction()
         await self._transaction.start()
         principal = await authenticate(
-            self.connection, token_digest(self.token, PEPPER)
+            self.connection, token_digest(self.token, PEPPER), legacy_schema=True
         )
         self.context = await resolve_scopes(
             self.connection, principal, self.alias, [self.alias], write=self.write
@@ -1291,7 +1293,7 @@ def _claim_once_raw(*, worker_id: str = "it-claimer-1", role: str = "embed",
         try:
             async with connection.transaction():
                 principal = await authenticate(
-                    connection, token_digest(WORKER_TOKEN, PEPPER)
+                    connection, token_digest(WORKER_TOKEN, PEPPER), legacy_schema=True
                 )
                 context = await resolve_scopes(
                     connection, principal, alias, [alias], write=True
