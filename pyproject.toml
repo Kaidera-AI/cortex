@@ -1,0 +1,33 @@
+[project]
+name = "cortex-v2-sandbox"
+version = "0.2.1"
+description = "Isolated Cortex v2 architecture qualification candidate"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "asyncpg==0.31.0",
+  "fastapi==0.141.1",
+  "uvicorn==0.53.0",
+]
+
+[dependency-groups]
+test = [
+  "httpx==0.28.1",
+  "pytest==9.1.1",
+]
+doc = [
+  "PyYAML==6.0.3",
+  "defusedxml==0.7.1",
+  "pypdf==6.19.0",
+  "striprtf==0.0.33",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

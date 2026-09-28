@@ -1,0 +1,258 @@
+name: cortex-v2-w1-candidate
+
+services:
+  w1-db:
+    image: docker.io/pgvector/pgvector:0.8.6-pg18@sha256:46481fb03d04f9160a2373d305f769eb34040fc866e7bd74b8f5b84a50cc2952
+    container_name: cortex-v2-w1-candidate-pg
+    restart: "no"
+    environment:
+      POSTGRES_USER: cortex_v2_owner
+      POSTGRES_DB: cortex_v2
+      POSTGRES_PASSWORD_FILE: /run/secrets/cortex-v2-w1-candidate-db-owner-password
+      CORTEX_V2_APP_PASSWORD_FILE: /run/secrets/cortex-v2-w1-candidate-db-app-password
+      CORTEX_V2_MIGRATOR_PASSWORD_FILE: /run/secrets/cortex-v2-w1-candidate-db-migrator-password
+    secrets:
+      - source: cortex-v2-w1-candidate-db-owner-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+      - source: cortex-v2-w1-candidate-db-app-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+      - source: cortex-v2-w1-candidate-db-migrator-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+    volumes:
+      - cortex-v2-w1-candidate-pgdata:/var/lib/postgresql
+      - ./postgres-init/10-create-v2-roles-env.sh:/docker-entrypoint-initdb.d/10-create-v2-roles.sh:ro
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-w1-candidate-net
+    mem_limit: 384m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cortex_v2_owner -d cortex_v2"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-w1-candidate
+      com.kaidera.role: database
+
+  w1-migrate:
+    image: localhost/cortex-v2-w1-candidate-api:0.02.001-w1
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: cortex-v2-w1-candidate-migrate
+    restart: "no"
+    entrypoint: ["python", "-m", "cortex_v2.migrate"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-w1-candidate
+      CORTEX_V2_MIGRATOR_DATABASE_URL_FILE: /run/secrets/cortex-v2-w1-candidate-database-url-migrator
+      CORTEX_V2_FIXTURE_FILE: /run/secrets/cortex-v2-w1-candidate-fixture
+    secrets:
+      - source: cortex-v2-w1-candidate-database-url-migrator
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-fixture
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-w1-candidate-net
+    mem_limit: 192m
+    cpus: 0.5
+    depends_on:
+      w1-db:
+        condition: service_healthy
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-w1-candidate
+      com.kaidera.role: migration
+
+  w1-api:
+    image: localhost/cortex-v2-w1-candidate-api:0.02.001-w1
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: cortex-v2-w1-candidate-api
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    ports:
+      - "127.0.0.1:8602:8601"
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-w1-candidate
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex-v2-w1-candidate-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex-v2-w1-candidate-token-pepper
+    secrets:
+      - source: cortex-v2-w1-candidate-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    networks:
+      - cortex-v2-w1-candidate-net
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8601/health/ready', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      w1-db:
+        condition: service_healthy
+      w1-migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-w1-candidate
+      com.kaidera.role: api
+
+  w1-tests:
+    image: localhost/cortex-v2-w1-candidate-tests:0.02.001-w1
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: test
+    container_name: cortex-v2-w1-candidate-tests
+    restart: "no"
+    profiles: ["test"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-w1-candidate
+      CORTEX_V2_SANDBOX_SECRETS_DIR: /run/secrets
+      CORTEX_V2_TEST_API_URL: http://w1-api:8601
+    secrets:
+      - source: cortex-v2-w1-candidate-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-database-url-migrator
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-fixture
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-owner-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-worker-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-recovery-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-w1-candidate-net
+    mem_limit: 256m
+    cpus: 0.5
+    depends_on:
+      w1-api:
+        condition: service_healthy
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-w1-candidate
+      com.kaidera.role: test
+
+  w1-worker:
+    image: localhost/cortex-v2-w1-candidate-api:0.02.001-w1
+    container_name: cortex-v2-w1-candidate-worker
+    restart: "no"
+    profiles: ["worker"]
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["python", "-m", "cortex_v2.worker"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-w1-candidate
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex-v2-w1-candidate-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex-v2-w1-candidate-token-pepper
+    secrets:
+      - source: cortex-v2-w1-candidate-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-w1-candidate-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-w1-candidate-net
+    mem_limit: 256m
+    cpus: 0.5
+    depends_on:
+      w1-db:
+        condition: service_healthy
+      w1-migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-w1-candidate
+      com.kaidera.role: worker
+
+networks:
+  cortex-v2-w1-candidate-net:
+    name: cortex-v2-w1-candidate-net
+    internal: true
+
+volumes:
+  cortex-v2-w1-candidate-pgdata:
+    name: cortex-v2-w1-candidate-pgdata
+
+secrets:
+  cortex-v2-w1-candidate-db-owner-password:
+    external: true
+  cortex-v2-w1-candidate-db-app-password:
+    external: true
+  cortex-v2-w1-candidate-db-migrator-password:
+    external: true
+  cortex-v2-w1-candidate-database-url-app:
+    external: true
+  cortex-v2-w1-candidate-database-url-migrator:
+    external: true
+  cortex-v2-w1-candidate-token-pepper:
+    external: true
+  cortex-v2-w1-candidate-fixture:
+    external: true
+  cortex-v2-w1-candidate-owner-token:
+    external: true
+  cortex-v2-w1-candidate-worker-token:
+    external: true
+  cortex-v2-w1-candidate-recovery-token:
+    external: true

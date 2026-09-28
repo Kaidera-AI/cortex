@@ -1,0 +1,200 @@
+name: cortex-v2-v0-02-001-sandbox
+
+services:
+  db:
+    image: docker.io/pgvector/pgvector:0.8.6-pg18@sha256:46481fb03d04f9160a2373d305f769eb34040fc866e7bd74b8f5b84a50cc2952
+    container_name: cortex-v2-v0-02-001-sandbox-pg
+    restart: "no"
+    environment:
+      POSTGRES_USER: cortex_v2_owner
+      POSTGRES_DB: cortex_v2
+      POSTGRES_PASSWORD_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-db-owner-password
+      CORTEX_V2_APP_PASSWORD_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-db-app-password
+      CORTEX_V2_MIGRATOR_PASSWORD_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-db-migrator-password
+    secrets:
+      - source: cortex-v2-v0-02-001-sandbox-db-owner-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+      - source: cortex-v2-v0-02-001-sandbox-db-app-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+      - source: cortex-v2-v0-02-001-sandbox-db-migrator-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+    volumes:
+      - cortex-v2-v0-02-001-sandbox-pgdata:/var/lib/postgresql
+      - ./postgres-init/10-create-v2-roles.sh:/docker-entrypoint-initdb.d/10-create-v2-roles.sh:ro
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-v0-02-001-sandbox-net
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cortex_v2_owner -d cortex_v2"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-v0-02-001-sandbox
+      com.kaidera.role: database
+
+  migrate:
+    image: localhost/cortex-v2-sandbox-api:0.02.001-sandbox
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: cortex-v2-v0-02-001-sandbox-migrate
+    restart: "no"
+    entrypoint: ["python", "-m", "cortex_v2.migrate"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-v0-02-001-sandbox
+      CORTEX_V2_MIGRATOR_DATABASE_URL_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-database-url-migrator
+      CORTEX_V2_FIXTURE_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-fixture
+    secrets:
+      - source: cortex-v2-v0-02-001-sandbox-database-url-migrator
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-v0-02-001-sandbox-fixture
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-v0-02-001-sandbox-net
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-v0-02-001-sandbox
+      com.kaidera.role: migration
+
+  api:
+    image: localhost/cortex-v2-sandbox-api:0.02.001-sandbox
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: cortex-v2-v0-02-001-sandbox-api
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    ports:
+      - "127.0.0.1:8601:8601"
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-v0-02-001-sandbox
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex-v2-v0-02-001-sandbox-token-pepper
+    secrets:
+      - source: cortex-v2-v0-02-001-sandbox-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-v0-02-001-sandbox-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    networks:
+      - cortex-v2-v0-02-001-sandbox-net
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8601/health/ready', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-v0-02-001-sandbox
+      com.kaidera.role: api
+
+  tests:
+    image: localhost/cortex-v2-sandbox-tests:0.02.001-sandbox
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: test
+    container_name: cortex-v2-v0-02-001-sandbox-tests
+    restart: "no"
+    profiles: ["test"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex-v2-v0-02-001-sandbox
+      CORTEX_V2_SANDBOX_SECRETS_DIR: /run/secrets
+      CORTEX_V2_TEST_API_URL: http://api:8601
+    secrets:
+      - source: cortex-v2-v0-02-001-sandbox-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-v0-02-001-sandbox-database-url-migrator
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-v0-02-001-sandbox-fixture
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex-v2-v0-02-001-sandbox-worker-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex-v2-v0-02-001-sandbox-net
+    depends_on:
+      api:
+        condition: service_healthy
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex-v2-v0-02-001-sandbox
+      com.kaidera.role: test
+
+networks:
+  cortex-v2-v0-02-001-sandbox-net:
+    name: cortex-v2-v0-02-001-sandbox-net
+    internal: true
+
+volumes:
+  cortex-v2-v0-02-001-sandbox-pgdata:
+    name: cortex-v2-v0-02-001-sandbox-pgdata
+
+secrets:
+  cortex-v2-v0-02-001-sandbox-db-owner-password:
+    external: true
+  cortex-v2-v0-02-001-sandbox-db-app-password:
+    external: true
+  cortex-v2-v0-02-001-sandbox-db-migrator-password:
+    external: true
+  cortex-v2-v0-02-001-sandbox-database-url-app:
+    external: true
+  cortex-v2-v0-02-001-sandbox-database-url-migrator:
+    external: true
+  cortex-v2-v0-02-001-sandbox-token-pepper:
+    external: true
+  cortex-v2-v0-02-001-sandbox-fixture:
+    external: true
+  cortex-v2-v0-02-001-sandbox-worker-token:
+    external: true

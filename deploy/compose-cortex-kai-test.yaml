@@ -1,0 +1,445 @@
+# Integrated cortex_kai_test stack (test deployment; naming per
+# Program/Cortex/Release_v0.1.003/CORTEX-001_STANDALONE_DELIVERY/CONTAINER_NAMING_PLAN.md).
+#
+# Invocation contract:
+#   1. MIGRATE_RUN_ID=$(openssl rand -hex 4)   # lowercase hex, per invocation
+#   2. python3 cortex/v2/scripts/preflight_cortex_kai_test.py --migrate-run-id "$MIGRATE_RUN_ID"
+#      must exit 0 (no exact-name collisions) before any create/up.
+#   3. The loopback 8602 handoff: the interim cortex-v2-w1-candidate API holds
+#      127.0.0.1:8602 until this stack is ready; the start procedure stops only
+#      the W1 api container immediately before starting this api, rechecks the
+#      port, and removes the W1 set only after this stack is healthy.
+#
+# Resource ceilings are sized for the 9.67 GiB kos-e020-uat VM alongside old
+# production (never modified): db 768m/1.5cpu, api 512m/1.0cpu, doc 768m/1.0cpu,
+# embed 512m/1.0cpu, graph 512m/1.0cpu, migrate 192m/0.5cpu (finite),
+# tests 384m/0.5cpu (finite). Heavy doc/embed/graph loads run serially.
+
+name: cortex_kai_test
+
+services:
+  db:
+    image: docker.io/pgvector/pgvector:0.8.6-pg18@sha256:46481fb03d04f9160a2373d305f769eb34040fc866e7bd74b8f5b84a50cc2952
+    container_name: Cortex_kai_test_db
+    restart: "no"
+    environment:
+      POSTGRES_USER: cortex_v2_owner
+      POSTGRES_DB: cortex_v2
+      POSTGRES_PASSWORD_FILE: /run/secrets/cortex_kai_test-db-owner-password
+      CORTEX_V2_APP_PASSWORD_FILE: /run/secrets/cortex_kai_test-db-app-password
+      CORTEX_V2_MIGRATOR_PASSWORD_FILE: /run/secrets/cortex_kai_test-db-migrator-password
+    secrets:
+      - source: cortex_kai_test-db-owner-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+      - source: cortex_kai_test-db-app-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+      - source: cortex_kai_test-db-migrator-password
+        uid: "999"
+        gid: "999"
+        mode: "0400"
+    volumes:
+      - cortex_kai_test_pgdata:/var/lib/postgresql
+      - ./postgres-init/10-create-v2-roles-env.sh:/docker-entrypoint-initdb.d/10-create-v2-roles.sh:ro
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 768m
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U cortex_v2_owner -d cortex_v2"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: database
+
+  migrate:
+    image: localhost/cortex-kai-test-api:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    container_name: Cortex_kai_test_migrate_${MIGRATE_RUN_ID:?set MIGRATE_RUN_ID to a lowercase hex run id}
+    restart: "no"
+    entrypoint: ["python", "-m", "cortex_v2.migrate"]
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_kai_test
+      CORTEX_V2_MIGRATOR_DATABASE_URL_FILE: /run/secrets/cortex_kai_test-database-url-migrator
+      CORTEX_V2_FIXTURE_FILE: /run/secrets/cortex_kai_test-fixture
+    secrets:
+      - source: cortex_kai_test-database-url-migrator
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-fixture
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 192m
+    cpus: 0.5
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: migration
+
+  api:
+    image: localhost/cortex-kai-test-api:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    container_name: Cortex_kai_test_api
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    ports:
+      - "127.0.0.1:8602:8601"
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_kai_test
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex_kai_test-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex_kai_test-token-pepper
+      # Composition root marks these modules mounted in-process; the env
+      # declaration keeps API-service state and deployment config in agreement.
+      CORTEX_V2_MOUNTED_MODULES: identity_memory,interface,ingest,coordination,processing,retrieval,feed,verification,ops
+    secrets:
+      - source: cortex_kai_test-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8601/health/ready', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: api
+
+  doc:
+    image: localhost/cortex-kai-test-worker-doc:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: worker-doc
+    container_name: Cortex_kai_test_doc
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["python", "-m", "cortex_v2.worker", "--role", "doc"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_kai_test
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex_kai_test-database-url-app
+      # Converged Processing runtime contract: every *_FILE env value is a
+      # /run/secrets path; the credential path (token+pepper) is preferred.
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex_kai_test-token-pepper
+      CORTEX_V2_WORKER_TOKEN_FILE: /run/secrets/cortex_kai_test-worker-token
+      CORTEX_V2_WORKER_PRINCIPAL_ID_FILE: /run/secrets/cortex_kai_test-worker-principal-id
+      CORTEX_V2_WORKER_ID: cortex-kai-test-doc
+      CORTEX_V2_INFERENCE_ROUTING_POLICY: disabled
+      CORTEX_V2_WORKER_EXECUTOR_ROLES: core,doc
+    secrets:
+      - source: cortex_kai_test-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-principal-id
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 768m
+    cpus: 1.0
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: doc-worker
+
+  embed:
+    image: localhost/cortex-kai-test-worker-embed:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: worker-embed
+    container_name: Cortex_kai_test_embed
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["python", "-m", "cortex_v2.worker", "--role", "embed"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_kai_test
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex_kai_test-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex_kai_test-token-pepper
+      CORTEX_V2_WORKER_TOKEN_FILE: /run/secrets/cortex_kai_test-worker-token
+      CORTEX_V2_WORKER_PRINCIPAL_ID_FILE: /run/secrets/cortex_kai_test-worker-principal-id
+      CORTEX_V2_WORKER_ID: cortex-kai-test-embed
+      CORTEX_V2_INFERENCE_ROUTING_POLICY: disabled
+    secrets:
+      - source: cortex_kai_test-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-principal-id
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 512m
+    cpus: 1.0
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: embed-worker
+
+  graph:
+    image: localhost/cortex-kai-test-worker-graph:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: worker-graph
+    container_name: Cortex_kai_test_graph
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["python", "-m", "cortex_v2.worker", "--role", "graph"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_kai_test
+      CORTEX_V2_DATABASE_URL_FILE: /run/secrets/cortex_kai_test-database-url-app
+      CORTEX_V2_TOKEN_PEPPER_FILE: /run/secrets/cortex_kai_test-token-pepper
+      CORTEX_V2_WORKER_TOKEN_FILE: /run/secrets/cortex_kai_test-worker-token
+      CORTEX_V2_WORKER_PRINCIPAL_ID_FILE: /run/secrets/cortex_kai_test-worker-principal-id
+      CORTEX_V2_WORKER_ID: cortex-kai-test-graph
+      CORTEX_V2_INFERENCE_ROUTING_POLICY: disabled
+      CORTEX_V2_WORKER_HANDLER_MODULES: cortex_v2.retrieval.jobs
+    secrets:
+      - source: cortex_kai_test-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-principal-id
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 512m
+    cpus: 1.0
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: graph-worker
+
+  tests:
+    image: localhost/cortex-kai-test-tests:0.02.001
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: tests
+    container_name: Cortex_kai_test_tests
+    restart: "no"
+    profiles: ["test"]
+    read_only: true
+    user: "10001:10001"
+    init: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      CORTEX_V2_SANDBOX_INSTANCE: cortex_kai_test
+      CORTEX_V2_SANDBOX_SECRETS_DIR: /run/secrets
+      CORTEX_V2_TEST_API_URL: http://api:8601
+      # Deployment-side mounted-module declaration for the TEST process (the
+      # API process marks modules in-process at startup; module integration
+      # suites gate on this env when they run outside the API process).
+      CORTEX_V2_MOUNTED_MODULES: identity_memory,interface,ingest,coordination,processing,retrieval,feed,verification,ops
+      # Retrieval HTTP-operation tests gate on this explicit deployment flag.
+      CORTEX_V2_TEST_RETRIEVAL_MOUNTED: "1"
+    # Module integration suites (coordination/feed/verification) gate on these
+    # env URLs; export them from the mounted secret files at exec time so
+    # secret bytes stay file-based and never enter the compose environment.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        CORTEX_V2_TEST_DATABASE_URL="$(cat /run/secrets/cortex_kai_test-database-url-app)" \
+        CORTEX_V2_TEST_MIGRATOR_DATABASE_URL="$(cat /run/secrets/cortex_kai_test-database-url-migrator)" \
+        CORTEX_V2_PROCESSING_DATABASE_URL="$(cat /run/secrets/cortex_kai_test-database-url-app)" \
+        CORTEX_V2_PROCESSING_MIGRATOR_URL="$(cat /run/secrets/cortex_kai_test-database-url-migrator)" \
+        exec /opt/venv/bin/pytest -q -p no:cacheprovider tests "$@"
+      - --
+    secrets:
+      - source: cortex_kai_test-database-url-app
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-database-url-migrator
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-fixture
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-owner-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-worker-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      - source: cortex_kai_test-recovery-token
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+      # Only the tests container may use the pepper for a disposable
+      # candidate owner-recovery break-glass when both seed tokens are spent.
+      - source: cortex_kai_test-token-pepper
+        uid: "10001"
+        gid: "10001"
+        mode: "0440"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
+    networks:
+      - cortex_kai_test_net
+    mem_limit: 384m
+    cpus: 0.5
+    depends_on:
+      api:
+        condition: service_healthy
+    labels:
+      com.kaidera.product: cortex
+      com.kaidera.instance: cortex_kai_test
+      com.kaidera.role: test
+
+networks:
+  cortex_kai_test_net:
+    name: cortex_kai_test_net
+    internal: true
+
+volumes:
+  cortex_kai_test_pgdata:
+    name: cortex_kai_test_pgdata
+
+secrets:
+  cortex_kai_test-db-owner-password:
+    external: true
+  cortex_kai_test-db-app-password:
+    external: true
+  cortex_kai_test-db-migrator-password:
+    external: true
+  cortex_kai_test-database-url-app:
+    external: true
+  cortex_kai_test-database-url-migrator:
+    external: true
+  cortex_kai_test-token-pepper:
+    external: true
+  cortex_kai_test-fixture:
+    external: true
+  cortex_kai_test-owner-token:
+    external: true
+  cortex_kai_test-worker-token:
+    external: true
+  cortex_kai_test-recovery-token:
+    external: true
+  cortex_kai_test-worker-principal-id:
+    external: true
