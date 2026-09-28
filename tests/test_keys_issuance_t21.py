@@ -256,13 +256,22 @@ def test_single_query_auth_detail_classifies_expiry_without_exposing_revoked_key
             "/v1/auth/principal",
             headers={"Authorization": f"Bearer {owner_token}"},
         ).status_code == 200
+        legacy = client.get(
+            "/v1/auth/principal",
+            headers={"Authorization": f"Bearer {issued['legacy']}"},
+        )
+        assert legacy.status_code == 200
+        assert "cortex-key-expires" not in legacy.headers
         for name in ("expired", "revoked", "unknown"):
             response = client.get(
                 "/v1/auth/principal",
                 headers={"Authorization": f"Bearer {issued[name]}"},
             )
             assert response.status_code == 401
-            assert response.json()["error"]["code"] == "invalid_credential"
+            assert response.json()["error"]["code"] == (
+                "key_expired" if name == "expired" else "invalid_credential"
+            )
+            assert "cortex-key-expires" not in response.headers
 
 
 @pytest.mark.skipif(
@@ -312,3 +321,4 @@ def test_0001_only_sandbox_authenticates_without_full_auth_detail(
         assert response.status_code == 200
         assert response.json()["data"]["principal_id"] == str(principal_id)
         assert response.json()["data"]["installation_id"] == str(installation_id)
+        assert "cortex-key-expires" not in response.headers

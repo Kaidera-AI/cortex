@@ -58,9 +58,14 @@ async def authenticate(
              "FROM cortex_auth.authenticate($1)"
     )
     row = await connection.fetchrow(query, digest)
-    if row is None or (not legacy_schema and row["is_expired"]):
+    if row is None:
         raise ApiProblem(
             401, "invalid_credential", "A valid bearer credential is required."
+        )
+    if not legacy_schema and row["is_expired"]:
+        raise ApiProblem(
+            401, "key_expired",
+            "This credential has expired; ask the installation owner for a replacement.",
         )
     principal = Principal(
         row["principal_id"],
