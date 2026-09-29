@@ -7,7 +7,7 @@ import re
 import threading
 import uuid
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated, Any, get_origin
 
@@ -45,6 +45,7 @@ from .identity import (
     rotate_credential,
     self_profile,
 )
+from .key_lifetime import due_state
 from .models import (
     AllowCreateRequest,
     BootstrapRequest,
@@ -511,8 +512,7 @@ def create_app() -> FastAPI:
         if expires_at is None:
             return
         now = datetime.now(timezone.utc)
-        remaining = expires_at - now
-        if not timedelta(0) < remaining <= timedelta(days=30):
+        if due_state(expires_at, now) != "due":
             return
         with due_lock:
             day = now.date()

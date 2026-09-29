@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Literal
 
+from ..key_lifetime import due_state
+
 
 class KeyStoreError(Exception):
     """A credential could not be stored or read safely."""
@@ -26,11 +28,10 @@ class KeyMetadata:
         if now.tzinfo is None or now.utcoffset() is None:
             raise KeyStoreError("credential status clock must include a timezone")
         expiry = datetime.datetime.fromisoformat(self.expires_at)
-        if expiry <= now:
-            return "expired"
-        if expiry - now <= datetime.timedelta(days=30):
-            return "due"
-        return None
+        try:
+            return due_state(expiry, now)
+        except ValueError as exc:
+            raise KeyStoreError("credential expiry must include a timezone") from exc
 
 
 @dataclass(frozen=True, slots=True)
