@@ -5,8 +5,10 @@ from __future__ import annotations
 import datetime
 import io
 import json
+import os
 import secrets
 import stat
+import sys
 
 import pytest
 
@@ -43,7 +45,10 @@ def problem(code: str, status: int = 401) -> HttpResponse:
 
 @pytest.fixture(autouse=True)
 def _select_linux_for_file_store_tests(monkeypatch, request):
-    if request.node.name != "test_explicit_file_backend_denied_on_non_linux":
+    if (
+        sys.platform != "linux"
+        and request.node.name != "test_explicit_file_backend_denied_on_non_linux"
+    ):
         from cortex_v2.clients import key_store
         monkeypatch.setattr(key_store, "_is_linux", lambda: True, raising=False)
 
@@ -141,6 +146,61 @@ def test_explicit_file_backend_denied_on_non_linux(tmp_path, monkeypatch):
     with pytest.raises(key_store.KeyStoreError):
         key_store.KeyStore("installation-1", root=tmp_path / "keys", backend="file")
     assert not (tmp_path / "keys").exists()
+
+
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires real Linux, never APFS simulation",
+)
+def test_real_linux_file_store_uses_private_modes_uid_and_secure_open_flags(
+    tmp_path, monkeypatch,
+):
+    from cortex_v2.clients import key_store
+
+    assert os.geteuid() != 0 and key_store._is_linux()
+    original_open = os.open
+    opened = []
+
+    def tracked_open(path, flags, mode=0o777, *, dir_fd=None):
+        opened.append((os.fspath(path), flags, dir_fd))
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    root = tmp_path / "keys"
+    token = secrets.token_urlsafe(32)
+    with monkeypatch.context() as scope:
+        scope.setattr(key_store.os, "open", tracked_open)
+        store = key_store.KeyStore("installation-1", root=root, backend="file")
+        store.put(
+            "alpha", "lead", token, managed_by="user",
+            expires_at="2027-03-27T00:00:00+00:00",
+        )
+        actual = store.get("alpha", "lead")
+    if actual != token:
+        pytest.fail("Linux private file store returned a different credential")
+    path = root / "installation-1" / "alpha" / "lead.key"
+    info = path.stat()
+    assert stat.S_IMODE(info.st_mode) == 0o600 and info.st_uid == os.geteuid()
+    directories = (root, root / "installation-1", root / "installation-1" / "alpha")
+    assert all(
+        stat.S_IMODE(directory.stat().st_mode) == 0o700
+        and directory.stat().st_uid == os.geteuid()
+        for directory in directories
+    )
+    create_flags = os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    directory_flags = os.O_DIRECTORY | os.O_NOFOLLOW
+    assert any(
+        name.startswith(".") and fd is not None
+        and flags & create_flags == create_flags
+        for name, flags, fd in opened
+    )
+    assert any(
+        name == "lead.key" and fd is not None and flags & os.O_NOFOLLOW
+        for name, flags, fd in opened
+    )
+    assert any(
+        name == "alpha" and fd is not None
+        and flags & directory_flags == directory_flags
+        for name, flags, fd in opened
+    )
 
 
 def test_due_status_uses_database_expiry_at_thirty_day_boundary(tmp_path):
