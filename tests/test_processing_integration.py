@@ -2619,6 +2619,87 @@ def test_owner_only_http_routes_deny_scope_writer_and_accept_owner(monkeypatch):
         mark_modules_mounted(prior_marks)
 
 
+@pytest.mark.parametrize("operation", ("backfill", "jobs"))
+def test_empty_cursor_starts_first_page_over_http(monkeypatch, operation):
+    import httpx
+
+    from cortex_v2.app import create_app
+    from cortex_v2.config import INSTANCE_PROFILES, W1_INSTANCE, Settings
+    from cortex_v2.interface.registry import (
+        clear_mounted_marks,
+        mark_modules_mounted,
+        mounted_modules,
+    )
+
+    space = create_space() if operation == "backfill" else None
+    monkeypatch.setenv("CORTEX_V2_SANDBOX_INSTANCE", W1_INSTANCE)
+    prior_marks = mounted_modules({})
+    application = create_app()
+    application.state.settings = Settings(DATABASE_URL, PEPPER, W1_INSTANCE)
+    application.state.profile = INSTANCE_PROFILES[W1_INSTANCE]
+
+    async def scenario():
+        application.state.pool = await asyncpg.create_pool(
+            DATABASE_URL, min_size=0, max_size=3
+        )
+        try:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=application),
+                base_url="http://cx-r3.local",
+            ) as client:
+                path = (
+                    "/v1/processing/backfill"
+                    if operation == "backfill"
+                    else "/v1/processing/jobs:list"
+                )
+                payload = (
+                    {
+                        "profile_id": str(PROFILE_TEXT),
+                        "space_id": space["space_id"],
+                        "generation": "active",
+                        "stage": "embed.chunks",
+                        "limit": 2,
+                    }
+                    if space
+                    else {"limit": 2}
+                )
+
+                async def page(request):
+                    return await client.post(
+                        path,
+                        headers={
+                            "Authorization": f"Bearer {OWNER_TOKEN}",
+                            "X-Cortex-Scope": PROJECT_ALIAS,
+                            "Idempotency-Key": str(uuid.uuid4()),
+                        },
+                        json=request,
+                    )
+
+                with_empty = await page({**payload, "cursor": ""})
+                expected_status = 202 if space else 200
+                assert with_empty.status_code == expected_status, with_empty.json()
+                omitted = await page(payload)
+                assert omitted.status_code == expected_status, omitted.json()
+                actual = with_empty.json()["data"]
+                first_page = omitted.json()["data"]
+                assert actual["next_cursor"] == first_page["next_cursor"]
+                if space:
+                    assert actual["scanned"] == first_page["scanned"] == 2
+                    assert {job["job_id"] for job in actual["jobs"]} == {
+                        job["job_id"] for job in first_page["jobs"]
+                    }
+                else:
+                    assert actual["jobs"] == first_page["jobs"]
+        finally:
+            await application.state.pool.close()
+
+    try:
+        run(scenario())
+    finally:
+        clear_mounted_marks()
+        mark_modules_mounted(prior_marks)
+
+
 def test_backfill_and_job_listing_cursors_page_every_revision_once():
     from datetime import datetime, timedelta, timezone
 

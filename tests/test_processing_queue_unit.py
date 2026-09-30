@@ -259,9 +259,10 @@ def test_cursor_parsing_binds_aware_time_and_rejects_malformed_tokens():
     assert isinstance(created_at, datetime)
     assert created_at.utcoffset() == timedelta(hours=5, minutes=30)
     assert job_id == CONTENT
+    assert queue.parse_cursor("") is None
+    assert queue.parse_cursor(None) is None
 
     for invalid in (
-        "",
         "not-a-cursor",
         f"not-a-timestamp:{CONTENT}",
         f"2026-09-25T10:00:00:{CONTENT}",

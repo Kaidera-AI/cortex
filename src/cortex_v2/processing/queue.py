@@ -1684,7 +1684,7 @@ async def queue_summary(
 
 def parse_cursor(value: str | None) -> tuple[datetime, uuid.UUID] | None:
     """Decode a keyset cursor to an aware timestamp and a UUID."""
-    if value is None:
+    if not value:
         return None
     created_at, separator, job_id = value.rpartition(":")
     if not separator or not created_at:
