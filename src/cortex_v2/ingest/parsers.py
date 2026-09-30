@@ -320,7 +320,11 @@ def _project(value: Any, shape: str, path: str, depth: int = 0) -> Any:
         output_key = key if key in allowed else safe_key
         if opaque or key not in allowed:
             projected[output_key] = _marker(
-                field, field_path, key, value, typed_data_uri,
+                field,
+                field_path,
+                key,
+                value,
+                typed_data_uri,
                 image_source=shape == "image.source",
             )
         else:

@@ -521,18 +521,24 @@ def test_tool_argument_data_is_hashed_as_literal_text(
     format_name, argument, byte_length
 ):
     if format_name == "claude_jsonl":
-        row = {"type": "assistant", "message": {
-            "role": "assistant",
-            "content": [{"type": "tool_use", "name": "inspect",
-                         "input": argument}],
-        }}
+        row = {
+            "type": "assistant",
+            "message": {
+                "role": "assistant",
+                "content": [{"type": "tool_use", "name": "inspect", "input": argument}],
+            },
+        }
         field = "input"
         path = "row.message.content[0].input.data"
     else:
-        row = {"type": "response_item", "payload": {
-            "type": "function_call", "name": "inspect",
-            "arguments": json.dumps(argument),
-        }}
+        row = {
+            "type": "response_item",
+            "payload": {
+                "type": "function_call",
+                "name": "inspect",
+                "arguments": json.dumps(argument),
+            },
+        }
         field = "arguments"
         path = "row.payload.arguments.data"
 
@@ -546,17 +552,25 @@ def test_tool_argument_data_is_hashed_as_literal_text(
 
 
 def test_typed_image_source_rejects_malformed_base64_data():
-    row = {"type": "assistant", "message": {
-        "role": "assistant",
-        "content": [{"type": "image", "source": {
-            "type": "base64", "media_type": "image/png", "data": "not-base64!",
-        }}],
-    }}
+    row = {
+        "type": "assistant",
+        "message": {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": "not-base64!",
+                    },
+                }
+            ],
+        },
+    }
     with pytest.raises(TranscriptParseError) as excinfo:
         parse_transcript("claude_jsonl", jsonl(row))
-    assert excinfo.value.failures == [
-        {"line": 1, "code": "unsupported_content_shape"}
-    ]
+    assert excinfo.value.failures == [{"line": 1, "code": "unsupported_content_shape"}]
 
 
 def test_replacement_plan_pairs_by_ordinal():
