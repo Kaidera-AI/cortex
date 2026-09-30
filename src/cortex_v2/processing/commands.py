@@ -47,6 +47,7 @@ FAILURE_MESSAGES = {
     "space_name_exists": "An embedding space with that name already exists.",
     "invalid_space_definition": "The embedding space definition was rejected.",
     "installation_owner_required": "Only an installation owner may change space routing.",
+    "owner_authority_required": "This operation requires installation owner authority.",
     "job_not_found": "The job is unavailable in the selected scope.",
     "job_terminal": "The job already reached a terminal state.",
     "budget_exhausted": "Processing capacity is reserved; retry later.",
@@ -80,7 +81,7 @@ def translate(
         and exc.sqlstate == "42501"
         and exc.message == "operation requires installation owner authority"
     ):
-        return problem("installation_owner_required", 403)
+        return problem("owner_authority_required", 403)
     entry = FAILURE_SQLSTATES.get(exc.sqlstate or "")
     if entry is None:
         return None

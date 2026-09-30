@@ -2499,9 +2499,9 @@ def test_owner_only_http_routes_deny_scope_writer_and_accept_owner(monkeypatch):
                         "POST",
                         "/v1/processing/embedding-spaces",
                         space_payload,
-                        "installation_owner_required",
+                        "owner_authority_required",
                     ),
-                    ("POST", activate_path, {}, "installation_owner_required"),
+                    ("POST", activate_path, {}, "owner_authority_required"),
                     (
                         "POST",
                         "/v1/ops/retention-policies",
@@ -2617,6 +2617,24 @@ def test_owner_only_http_routes_deny_scope_writer_and_accept_owner(monkeypatch):
     finally:
         clear_mounted_marks()
         mark_modules_mounted(prior_marks)
+
+
+def test_processing_owner_sql_denial_message_is_stable():
+    async def scenario(connection):
+        with pytest.raises(asyncpg.PostgresError) as raised:
+            async with connection.transaction():
+                await connection.fetchval(
+                    "SELECT cortex_auth.require_installation_owner($1, $2)",
+                    FIXTURE["worker"],
+                    FIXTURE["installation"],
+                )
+        assert raised.value.sqlstate == "42501"
+        assert raised.value.message == "operation requires installation owner authority"
+        problem = commands.translate(raised.value, owner_required=True)
+        assert problem is not None
+        assert (problem.status, problem.code) == (403, "owner_authority_required")
+
+    as_migrator(scenario)
 
 
 @pytest.mark.parametrize("operation", ("backfill", "jobs"))

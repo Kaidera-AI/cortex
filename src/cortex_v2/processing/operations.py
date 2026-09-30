@@ -137,7 +137,7 @@ OPERATIONS: list[dict[str, Any]] = [
             "receipt": "committed (201)",
             "idempotency": "Same key and payload replays the stored receipt.",
             "errors": {
-                "403 installation_owner_required": "ask an installation owner",
+                "403 owner_authority_required": "ask an installation owner",
                 "409 space_name_exists": "choose another name or reuse the space",
                 "422 invalid_space_definition": "the definition violates space invariants",
             },
@@ -175,7 +175,7 @@ OPERATIONS: list[dict[str, Any]] = [
             "receipt": "committed (200)",
             "idempotency": "Same key and payload replays the stored receipt.",
             "errors": {
-                "403 installation_owner_required": "ask an installation owner",
+                "403 owner_authority_required": "ask an installation owner",
                 "404 generation_not_found": "the generation is not in this space",
                 "409 generation_state_conflict": "pass expected_state to make the intent explicit",
             },
