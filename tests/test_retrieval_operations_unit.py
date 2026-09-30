@@ -107,6 +107,69 @@ def test_graph_and_index_maintenance_operations_are_writes():
     assert by_id["code.annotate"]["kind"] == "scoped_write"
 
 
+def test_graph_extract_revision_accepts_int32_max_through_queue():
+    import uuid
+    from contextlib import asynccontextmanager
+
+    from cortex_v2.retrieval.operations import graph_extract
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    connection = FakeConnection()
+    connection.transaction = transaction
+    connection.add("pg_advisory_xact_lock", [])
+    connection.add("FROM cortex_core.command_receipts", [])
+    connection.add("SELECT count(*)", [0])
+    connection.add(
+        "INSERT INTO cortex_processing.jobs",
+        lambda job_id, *_: [{"job_id": job_id, "status": "queued"}],
+    )
+    connection.add("INSERT INTO cortex_processing.budget_reservations", [])
+    connection.add("INSERT INTO cortex_processing.outbox_events", [])
+    connection.add("INSERT INTO cortex_core.command_receipts", [])
+    request = operations_by_id()["graph.extract"]["request_model"].model_validate(
+        {"content_id": str(uuid.uuid4()), "revision": 2_147_483_647}
+    )
+
+    status, receipt, replayed = asyncio.run(
+        graph_extract(connection, make_context(), "max-revision", request, {})
+    )
+
+    assert (status, replayed) == (202, False)
+    assert receipt["state"] == "pending_processing"
+    assert receipt["revision"] == 2_147_483_647
+    assert receipt["job_status"] == "queued"
+    assert len(receipt["dedupe_key"]) <= 128
+
+
+def test_graph_extract_revision_above_int32_returns_typed_http_422(monkeypatch):
+    import uuid
+    from types import SimpleNamespace
+
+    from fastapi.testclient import TestClient
+
+    from cortex_v2.config import KAI_TEST_INSTANCE
+
+    monkeypatch.setenv("CORTEX_V2_SANDBOX_INSTANCE", KAI_TEST_INSTANCE)
+    from cortex_v2.app import create_app
+
+    app = create_app()
+    app.state.settings = SimpleNamespace(token_pepper=b"p" * 32)
+    response = TestClient(app).post(
+        "/v1/graphs/memory:extract",
+        json={"content_id": str(uuid.uuid4()), "revision": 2_147_483_648},
+        headers={"Authorization": "Bearer " + "t" * 43},
+    )
+
+    assert response.status_code == 422, response.json()
+    assert response.json()["error"]["code"] == "invalid_request"
+    assert response.json()["error"]["fields"] == [
+        {"path": "revision", "type": "less_than_equal"}
+    ]
+
+
 def test_domain_layer_imports_no_transport_packages():
     import cortex_v2.retrieval.code_graph as code_graph
     import cortex_v2.retrieval.jobs as jobs
