@@ -131,7 +131,8 @@ OPERATIONS: list[dict[str, Any]] = [
             ],
             "effects": (
                 "One immutable space row plus generation 1 in state active, and a "
-                "privileged-action audit entry. Requires the installation owner."
+                "privileged-action audit entry. Installation-owner-only until design "
+                "53 S7 enforces the S2 project-lead predicate."
             ),
             "receipt": "committed (201)",
             "idempotency": "Same key and payload replays the stored receipt.",
@@ -167,7 +168,9 @@ OPERATIONS: list[dict[str, Any]] = [
             ],
             "effects": (
                 "The previous active generation is retired and the space pointer moves "
-                "in one transaction; retrieval reads only the newly active generation."
+                "in one transaction; retrieval reads only the newly active generation. "
+                "Installation-owner-only until design 53 S7 enforces the S2 "
+                "project-lead predicate."
             ),
             "receipt": "committed (200)",
             "idempotency": "Same key and payload replays the stored receipt.",
