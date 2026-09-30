@@ -232,7 +232,7 @@ class ProjectionError(Exception):
 
 def _marker(
     value: Any, path: str, key: str, parent: dict[str, Any],
-    typed_data_uri: bool = False,
+    typed_data_uri: bool = False, image_source: bool = False,
 ) -> dict[str, Any]:
     media_type = None
     if value is None:
@@ -241,7 +241,7 @@ def _marker(
         json_type, raw = "boolean", _canonical_json(value).encode()
     elif isinstance(value, str):
         json_type, raw = "string", value.encode("utf-8")
-        if key == "data" and parent.get("type") == "base64":
+        if image_source and key == "data" and parent.get("type") == "base64":
             try:
                 raw = base64.b64decode(value, validate=True)
             except (binascii.Error, ValueError) as exc:
@@ -320,7 +320,8 @@ def _project(value: Any, shape: str, path: str, depth: int = 0) -> Any:
         output_key = key if key in allowed else safe_key
         if opaque or key not in allowed:
             projected[output_key] = _marker(
-                field, field_path, key, value, typed_data_uri
+                field, field_path, key, value, typed_data_uri,
+                image_source=shape == "image.source",
             )
         else:
             child_shape = CHILD_SHAPES.get((shape, key), "scalar")
