@@ -67,6 +67,9 @@ OPERATIONS: list[dict[str, Any]] = [
             ],
             "limits": "at most 200 revisions scanned per call; queue admission and budget bounds may defer the rest",
             "errors": {
+                "403 processing_access_denied": (
+                    "check the caller and space installation"
+                ),
                 "404 profile_not_found": "pin an active profile",
                 "404 space_not_found": "pin an existing space",
                 "409 no_active_generation": "build or activate a generation, or pass generation='new'",
@@ -176,6 +179,9 @@ OPERATIONS: list[dict[str, Any]] = [
             "idempotency": "Same key and payload replays the stored receipt.",
             "errors": {
                 "403 owner_authority_required": "ask an installation owner",
+                "403 processing_access_denied": (
+                    "check the caller and space installation"
+                ),
                 "404 generation_not_found": "the generation is not in this space",
                 "409 generation_state_conflict": "pass expected_state to make the intent explicit",
             },

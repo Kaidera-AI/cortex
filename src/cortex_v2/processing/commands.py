@@ -46,7 +46,9 @@ FAILURE_MESSAGES = {
     ),
     "space_name_exists": "An embedding space with that name already exists.",
     "invalid_space_definition": "The embedding space definition was rejected.",
-    "installation_owner_required": "Only an installation owner may change space routing.",
+    "processing_access_denied": (
+        "The caller or embedding space is unavailable in this installation."
+    ),
     "owner_authority_required": "This operation requires installation owner authority.",
     "job_not_found": "The job is unavailable in the selected scope.",
     "job_terminal": "The job already reached a terminal state.",
@@ -63,7 +65,7 @@ FAILURE_SQLSTATES: dict[str, tuple[int, str]] = {
     "23505": (409, "space_name_exists"),
     "23503": (409, "storage_conflict"),
     "22023": (404, "generation_not_found"),
-    "28000": (403, "installation_owner_required"),
+    "28000": (403, "processing_access_denied"),
     "55000": (409, "storage_conflict"),
     "53400": (429, "budget_exhausted"),
 }

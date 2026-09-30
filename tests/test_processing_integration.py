@@ -2637,6 +2637,27 @@ def test_processing_owner_sql_denial_message_is_stable():
     as_migrator(scenario)
 
 
+def test_inactive_processing_caller_is_not_reported_as_owner_denial():
+    async def scenario(connection):
+        with pytest.raises(asyncpg.PostgresError) as raised:
+            async with connection.transaction():
+                await connection.fetchval(
+                    "SELECT * FROM cortex_processing."
+                    "begin_index_generation($1, $2, $3)",
+                    uuid.uuid4(),
+                    uuid.uuid4(),
+                    PROFILE_TEXT,
+                )
+        assert raised.value.sqlstate == "28000"
+        assert raised.value.message == "caller principal is not active"
+        problem = commands.translate(raised.value)
+        assert problem is not None
+        assert (problem.status, problem.code) == (403, "processing_access_denied")
+        assert "owner" not in problem.message.lower()
+
+    as_migrator(scenario)
+
+
 @pytest.mark.parametrize("operation", ("backfill", "jobs"))
 def test_empty_cursor_starts_first_page_over_http(monkeypatch, operation):
     import httpx
