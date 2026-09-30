@@ -68,8 +68,8 @@ if not DATABASE_URL or not MIGRATOR_URL:
 
 RUN = uuid.uuid4().hex[:12]
 PEPPER = hashlib.sha256(b"processing integration pepper").digest()
-OWNER_TOKEN = f"proc-owner-token-{RUN}"
-WORKER_TOKEN = f"proc-worker-token-{RUN}"
+OWNER_TOKEN = f"proc-owner-token-{RUN}-" + "o" * 20
+WORKER_TOKEN = f"proc-worker-token-{RUN}-" + "w" * 20
 
 PROJECT_ALIAS = f"proc-project-{RUN}"
 FOREIGN_ALIAS = f"proc-foreign-{RUN}"
@@ -2357,3 +2357,510 @@ def _default_space() -> dict[str, Any]:
     if not _DEFAULT_SPACE:
         _DEFAULT_SPACE.update(create_space(name=f"it-queue-space-{RUN}"))
     return _DEFAULT_SPACE
+
+
+def test_code_publish_index_enqueues_full_length_pins_without_collision():
+    from cortex_v2.retrieval.models import CodeFileInput, CodePublishIndexRequest
+    from cortex_v2.retrieval.operations import code_publish_index
+
+    repository_key = f"r3-{RUN}-" + "r" * (128 - len(RUN) - 4)
+    full_path = "src/" + "f" * 508
+
+    async def publish(connection, context, commit_sha, source, path):
+        request = CodePublishIndexRequest(
+            repository_key=repository_key,
+            commit_sha=commit_sha,
+            files=[CodeFileInput(path=path, source=source)],
+        )
+        return await code_publish_index(
+            connection, context, str(uuid.uuid4()), request, {}
+        )
+
+    async def scenario(connection, context):
+        first_status, first, first_replayed = await publish(
+            connection, context, "a" * 40, "def first():\n    pass\n", "src/first.py"
+        )
+        assert (first_status, first_replayed, first["job_created"]) == (
+            202,
+            False,
+            True,
+        )
+        same_status, same, same_replayed = await publish(
+            connection, context, "a" * 40, "def first():\n    pass\n", "src/first.py"
+        )
+        assert (same_status, same_replayed, same["job_created"]) == (202, False, False)
+        assert (same["job_id"], same["dedupe_key"]) == (
+            first["job_id"],
+            first["dedupe_key"],
+        )
+
+        _, second, _ = await publish(
+            connection, context, "b" * 64, "def second():\n    pass\n", full_path
+        )
+        _, third, _ = await publish(
+            connection, context, "a" * 40, "def changed():\n    pass\n", "src/first.py"
+        )
+        assert (
+            len({first["dedupe_key"], second["dedupe_key"], third["dedupe_key"]}) == 3
+        )
+        for receipt, commit_sha, path in (
+            (first, "a" * 40, "src/first.py"),
+            (second, "b" * 64, full_path),
+            (third, "a" * 40, "src/first.py"),
+        ):
+            assert len(receipt["dedupe_key"]) <= 128
+            row = await connection.fetchrow(
+                "SELECT dedupe_key, intent FROM cortex_processing.jobs "
+                "WHERE job_id = $1 AND scope_id = $2 "
+                "AND job_kind = 'graph.code.extract'",
+                uuid.UUID(receipt["job_id"]),
+                context.selected.scope_id,
+            )
+            assert row["dedupe_key"] == receipt["dedupe_key"]
+            assert json.loads(row["intent"])["payload"]["pin"] == {
+                "repository_key": repository_key,
+                "commit_sha": commit_sha,
+                "snapshot_id": receipt["snapshot_id"],
+            }
+            assert json.loads(row["intent"])["payload"]["files"][0]["path"] == path
+
+    owner_call(scenario)
+
+
+def test_owner_only_http_routes_deny_scope_writer_and_accept_owner(monkeypatch):
+    import httpx
+
+    from cortex_v2.app import create_app
+    from cortex_v2.config import INSTANCE_PROFILES, W1_INSTANCE, Settings
+    from cortex_v2.interface.registry import (
+        clear_mounted_marks,
+        mark_modules_mounted,
+        mounted_modules,
+    )
+
+    monkeypatch.setenv("CORTEX_V2_SANDBOX_INSTANCE", W1_INSTANCE)
+    prior_marks = mounted_modules({})
+    application = create_app()
+    application.state.settings = Settings(DATABASE_URL, PEPPER, W1_INSTANCE)
+    application.state.profile = INSTANCE_PROFILES[W1_INSTANCE]
+    space_payload = {
+        "space_name": f"it-http-owner-{RUN}",
+        "provider": "hash-local",
+        "model_id": "hash-local-1",
+        "dimensions": SPACE_DIMENSIONS,
+        "chunking": {
+            "policy_id": "chunk.paragraph",
+            "version": 1,
+            "kind": "structural",
+            "target_chars": 1200,
+            "max_chars": 2000,
+            "overlap_chars": 0,
+        },
+    }
+
+    def headers(token):
+        return {
+            "Authorization": f"Bearer {token}",
+            "X-Cortex-Scope": PROJECT_ALIAS,
+            "Idempotency-Key": str(uuid.uuid4()),
+        }
+
+    async def scenario():
+        application.state.pool = await asyncpg.create_pool(
+            DATABASE_URL, min_size=0, max_size=3
+        )
+        try:
+            credential_connection = await asyncpg.connect(MIGRATOR_URL)
+            try:
+                owner_credential_id = await credential_connection.fetchval(
+                    "SELECT credential_id FROM cortex_auth.credentials "
+                    "WHERE principal_id = $1",
+                    FIXTURE["owner"],
+                )
+            finally:
+                await credential_connection.close()
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=application),
+                base_url="http://cx-r3.local",
+            ) as client:
+                created = await client.post(
+                    "/v1/processing/embedding-spaces",
+                    headers=headers(OWNER_TOKEN),
+                    json=space_payload,
+                )
+                assert created.status_code == 201, created.json()
+                space = created.json()["data"]
+                activate_path = (
+                    f"/v1/processing/embedding-spaces/{space['space_id']}"
+                    f"/generations/{space['generation_id']}:activate"
+                )
+                owner_actions = (
+                    (
+                        "POST",
+                        "/v1/processing/embedding-spaces",
+                        space_payload,
+                        "owner_authority_required",
+                    ),
+                    ("POST", activate_path, {}, "owner_authority_required"),
+                    (
+                        "POST",
+                        "/v1/ops/retention-policies",
+                        {
+                            "content_class": "knowledge",
+                            "min_age_days": 1,
+                            "action": "archive",
+                            "expected_revision": 0,
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/principals:enroll",
+                        {"principal_name": f"r3-worker-{RUN}", "actor_kind": "service"},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/credentials:rotate",
+                        {"principal_id": str(FIXTURE["owner"])},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/credentials:revoke",
+                        {"credential_id": str(owner_credential_id)},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/principals:revoke",
+                        {"principal_id": str(FIXTURE["owner"])},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/scopes:bind",
+                        {
+                            "principal_id": str(FIXTURE["worker"]),
+                            "alias": PROJECT_ALIAS,
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/auth/scopes:revoke",
+                        {
+                            "principal_id": str(FIXTURE["worker"]),
+                            "alias": PROJECT_ALIAS,
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "GET",
+                        "/v1/auth/privileged-actions",
+                        None,
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        f"/v1/scopes/{PROJECT_ALIAS}:rename",
+                        {"new_alias": f"r3-renamed-{RUN}"},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        f"/v1/scopes/{PROJECT_ALIAS}/roster",
+                        {
+                            "entries": [
+                                {
+                                    "principal_id": str(FIXTURE["worker"]),
+                                    "role": "member",
+                                }
+                            ]
+                        },
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        f"/v1/scopes/{PROJECT_ALIAS}/writer-policy",
+                        {"allowed_roles": ["owner"], "expected_revision": 0},
+                        "owner_authority_required",
+                    ),
+                    (
+                        "POST",
+                        "/v1/connectors",
+                        {"namespace": f"r3-{RUN}", "connector_kind": "api"},
+                        "owner_authority_required",
+                    ),
+                )
+                for method, path, payload, expected_code in owner_actions:
+                    response = await client.request(
+                        method, path, headers=headers(WORKER_TOKEN), json=payload
+                    )
+                    assert response.status_code == 403, (path, response.json())
+                    assert response.json()["error"]["code"] == expected_code, path
+                    assert response.json()["error"]["retryable"] is False
+
+                activated = await client.post(
+                    activate_path, headers=headers(OWNER_TOKEN), json={}
+                )
+                assert activated.status_code == 200, activated.json()
+                audit = await client.get(
+                    "/v1/auth/privileged-actions", headers=headers(OWNER_TOKEN)
+                )
+                assert audit.status_code == 200, audit.json()
+        finally:
+            await application.state.pool.close()
+
+    try:
+        run(scenario())
+    finally:
+        clear_mounted_marks()
+        mark_modules_mounted(prior_marks)
+
+
+def test_processing_owner_sql_denial_message_is_stable():
+    async def scenario(connection):
+        with pytest.raises(asyncpg.PostgresError) as raised:
+            async with connection.transaction():
+                await connection.fetchval(
+                    "SELECT cortex_auth.require_installation_owner($1, $2)",
+                    FIXTURE["worker"],
+                    FIXTURE["installation"],
+                )
+        assert raised.value.sqlstate == "42501"
+        assert raised.value.message == "operation requires installation owner authority"
+        problem = commands.translate(raised.value, owner_required=True)
+        assert problem is not None
+        assert (problem.status, problem.code) == (403, "owner_authority_required")
+
+    as_migrator(scenario)
+
+
+def test_inactive_processing_caller_is_not_reported_as_owner_denial():
+    async def scenario(connection):
+        with pytest.raises(asyncpg.PostgresError) as raised:
+            async with connection.transaction():
+                await connection.fetchval(
+                    "SELECT * FROM cortex_processing."
+                    "begin_index_generation($1, $2, $3)",
+                    uuid.uuid4(),
+                    uuid.uuid4(),
+                    PROFILE_TEXT,
+                )
+        assert raised.value.sqlstate == "28000"
+        assert raised.value.message == "caller principal is not active"
+        problem = commands.translate(raised.value)
+        assert problem is not None
+        assert (problem.status, problem.code) == (403, "processing_access_denied")
+        assert "owner" not in problem.message.lower()
+
+    as_migrator(scenario)
+
+
+@pytest.mark.parametrize("operation", ("backfill", "jobs"))
+def test_empty_cursor_starts_first_page_over_http(monkeypatch, operation):
+    import httpx
+
+    from cortex_v2.app import create_app
+    from cortex_v2.config import INSTANCE_PROFILES, W1_INSTANCE, Settings
+    from cortex_v2.interface.registry import (
+        clear_mounted_marks,
+        mark_modules_mounted,
+        mounted_modules,
+    )
+
+    space = create_space() if operation == "backfill" else None
+    monkeypatch.setenv("CORTEX_V2_SANDBOX_INSTANCE", W1_INSTANCE)
+    prior_marks = mounted_modules({})
+    application = create_app()
+    application.state.settings = Settings(DATABASE_URL, PEPPER, W1_INSTANCE)
+    application.state.profile = INSTANCE_PROFILES[W1_INSTANCE]
+
+    async def scenario():
+        application.state.pool = await asyncpg.create_pool(
+            DATABASE_URL, min_size=0, max_size=3
+        )
+        try:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=application),
+                base_url="http://cx-r3.local",
+            ) as client:
+                path = (
+                    "/v1/processing/backfill"
+                    if operation == "backfill"
+                    else "/v1/processing/jobs:list"
+                )
+                payload = (
+                    {
+                        "profile_id": str(PROFILE_TEXT),
+                        "space_id": space["space_id"],
+                        "generation": "active",
+                        "stage": "embed.chunks",
+                        "limit": 2,
+                    }
+                    if space
+                    else {"limit": 2}
+                )
+
+                async def page(request):
+                    return await client.post(
+                        path,
+                        headers={
+                            "Authorization": f"Bearer {OWNER_TOKEN}",
+                            "X-Cortex-Scope": PROJECT_ALIAS,
+                            "Idempotency-Key": str(uuid.uuid4()),
+                        },
+                        json=request,
+                    )
+
+                with_empty = await page({**payload, "cursor": ""})
+                expected_status = 202 if space else 200
+                assert with_empty.status_code == expected_status, with_empty.json()
+                omitted = await page(payload)
+                assert omitted.status_code == expected_status, omitted.json()
+                actual = with_empty.json()["data"]
+                first_page = omitted.json()["data"]
+                assert actual["next_cursor"] == first_page["next_cursor"]
+                if space:
+                    assert actual["scanned"] == first_page["scanned"] == 2
+                    assert {job["job_id"] for job in actual["jobs"]} == {
+                        job["job_id"] for job in first_page["jobs"]
+                    }
+                else:
+                    assert actual["jobs"] == first_page["jobs"]
+        finally:
+            await application.state.pool.close()
+
+    try:
+        run(scenario())
+    finally:
+        clear_mounted_marks()
+        mark_modules_mounted(prior_marks)
+
+
+def test_backfill_and_job_listing_cursors_page_every_revision_once():
+    from datetime import datetime, timedelta, timezone
+
+    alias = f"r3-cursor-{uuid.uuid4().hex[:12]}"
+    scope_id = uuid.uuid4()
+    content_ids = [uuid.uuid4() for _ in range(3)]
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    async def seed(connection):
+        await connection.execute(
+            "INSERT INTO cortex_core.scopes "
+            "(scope_id, scope_kind, display_name) VALUES ($1, 'project', $2)",
+            scope_id,
+            alias,
+        )
+        await connection.execute(
+            "INSERT INTO cortex_core.scope_aliases "
+            "(alias, scope_id, is_primary) VALUES ($1, $2, true)",
+            alias,
+            scope_id,
+        )
+        await connection.execute(
+            "INSERT INTO cortex_auth.scope_grants "
+            "(principal_id, scope_id, can_read, can_write, can_publish) "
+            "VALUES ($1, $2, true, true, true)",
+            FIXTURE["owner"],
+            scope_id,
+        )
+        await connection.execute(
+            "SELECT set_config('cortex.policy_revision', '0', true)"
+        )
+        for index, content_id in enumerate(content_ids):
+            body = f"Cursor page {index}: " + "x" * 200
+            await connection.execute(
+                "INSERT INTO cortex_core.content_items "
+                "(scope_id, content_id, content_class, created_by_principal, "
+                "created_at) VALUES ($1, $2, 'knowledge', $3, $4)",
+                scope_id,
+                content_id,
+                FIXTURE["owner"],
+                base_time + timedelta(seconds=index),
+            )
+            await connection.execute(
+                "INSERT INTO cortex_core.content_revisions "
+                "(scope_id, content_id, revision, payload, body_text, "
+                "content_hash, author_principal_id) "
+                "VALUES ($1, $2, 1, $3::jsonb, $4, $5, $6)",
+                scope_id,
+                content_id,
+                json.dumps({"content": body}),
+                body,
+                hashlib.sha256(body.encode()).digest(),
+                FIXTURE["owner"],
+            )
+
+    as_migrator(seed)
+    space = create_space()
+    payload = {
+        "profile_id": str(PROFILE_TEXT),
+        "space_id": space["space_id"],
+        "generation": "active",
+        "stage": "embed.chunks",
+        "limit": 2,
+    }
+
+    async def backfill(connection, context, request):
+        return await commands.backfill_jobs(
+            connection, context, str(uuid.uuid4()), request, None
+        )
+
+    first_status, first, _ = owner_call(
+        lambda connection, context: backfill(connection, context, payload), alias
+    )
+    assert (first_status, first["scanned"], first["accepted"]) == (202, 2, 2)
+    assert first["next_cursor"]
+    second_status, second, _ = owner_call(
+        lambda connection, context: backfill(
+            connection, context, {**payload, "cursor": first["next_cursor"]}
+        ),
+        alias,
+    )
+    assert (second_status, second["scanned"], second["accepted"]) == (202, 1, 1)
+    assert second["next_cursor"] is None
+
+    async def pages(connection, context):
+        first_page = await commands.list_jobs(connection, context, {"limit": 2}, None)
+        second_page = await commands.list_jobs(
+            connection, context, {"limit": 2, "cursor": first_page["next_cursor"]}, None
+        )
+        rows = await connection.fetch(
+            "SELECT job_id, content_id FROM cortex_processing.jobs "
+            "WHERE scope_id = $1 AND job_kind = 'embed.chunks'",
+            scope_id,
+        )
+        return first_page, second_page, rows
+
+    jobs_first, jobs_second, rows = owner_call(pages, alias)
+    listed_ids = [job["job_id"] for job in jobs_first["jobs"] + jobs_second["jobs"]]
+    assert len(listed_ids) == len(set(listed_ids)) == 3
+    assert set(listed_ids) == {str(row["job_id"]) for row in rows}
+    assert {row["content_id"] for row in rows} == set(content_ids)
+    assert {job["job_id"] for page in (first, second) for job in page["jobs"]} == set(
+        listed_ids
+    )
+
+    malformed = f"not-a-timestamp:{content_ids[0]}"
+    with pytest.raises(ApiProblem) as backfill_error:
+        owner_call(
+            lambda connection, context: backfill(
+                connection, context, {**payload, "cursor": malformed}
+            ),
+            alias,
+        )
+    assert (backfill_error.value.status, backfill_error.value.code) == (
+        422,
+        "invalid_cursor",
+    )
+    with pytest.raises(ApiProblem) as list_error:
+        owner_call(
+            lambda connection, context: commands.list_jobs(
+                connection, context, {"limit": 2, "cursor": malformed}, None
+            ),
+            alias,
+        )
+    assert (list_error.value.status, list_error.value.code) == (422, "invalid_cursor")

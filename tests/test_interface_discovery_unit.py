@@ -191,3 +191,32 @@ def test_activated_media_roles_env_parsing():
         assert "doc" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("core role must not be activatable as media role")
+
+
+def test_real_owner_only_routes_are_hidden_from_scope_writers():
+    registry = build_registry()
+    owner = {
+        item["operation_id"]
+        for item in visible_operations(registry, can_write=True, is_owner=True)
+    }
+    writer = {
+        item["operation_id"]
+        for item in visible_operations(registry, can_write=True, is_owner=False)
+    }
+    owner_only = {
+        "auth.enroll_principal",
+        "auth.revoke_principal",
+        "auth.bind_scope",
+        "auth.revoke_scope_grant",
+        "auth.privileged_actions",
+        "registry.rename_scope",
+        "registry.enact_roster",
+        "registry.enact_writer_policy",
+        "registry.register_connector",
+        "processing.embedding-spaces.create",
+        "processing.embedding-spaces.activate-generation",
+        "ops.retention_enact",
+    }
+    assert owner_only <= owner
+    assert not owner_only & writer
+    assert {"auth.rotate_credential", "auth.revoke_credential"} <= writer

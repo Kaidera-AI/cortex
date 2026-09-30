@@ -153,7 +153,7 @@ class GraphExploreRequest(_ReadScopesMixin):
 
 class GraphExtractRequest(StrictInput):
     content_id: uuid.UUID
-    revision: StrictInt | None = Field(default=None, ge=1)
+    revision: StrictInt | None = Field(default=None, ge=1, le=2_147_483_647)
 
 
 class GraphRetractRequest(StrictInput):

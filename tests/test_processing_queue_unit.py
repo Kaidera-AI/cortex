@@ -12,6 +12,7 @@ import inspect
 import os
 import re
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 from pydantic import BaseModel
@@ -252,15 +253,24 @@ def test_attempt_status_mirrors_the_job_state_it_produced():
     assert queue._attempt_status("quarantined") == "quarantined"
 
 
-def test_cursor_parsing_round_trips_and_rejects_garbage():
-    cursor = "2026-09-25T10:00:00+00:00:22222222-2222-4222-8222-222222222222"
-    created_at, job_id = queue.parse_cursor(cursor)
+def test_cursor_parsing_binds_aware_time_and_rejects_malformed_tokens():
+    timestamp = "2026-09-25T10:00:00+05:30"
+    created_at, job_id = queue.parse_cursor(f"{timestamp}:{CONTENT}")
+    assert isinstance(created_at, datetime)
+    assert created_at.utcoffset() == timedelta(hours=5, minutes=30)
     assert job_id == CONTENT
-    assert created_at.startswith("2026-09-25T10:00:00")
+    assert queue.parse_cursor("") is None
     assert queue.parse_cursor(None) is None
-    with pytest.raises(ApiProblem) as excinfo:
-        queue.parse_cursor("not-a-cursor")
-    assert excinfo.value.status == 404
+
+    for invalid in (
+        "not-a-cursor",
+        f"not-a-timestamp:{CONTENT}",
+        f"2026-09-25T10:00:00:{CONTENT}",
+        f"{timestamp}:invalid-uuid",
+    ):
+        with pytest.raises(ApiProblem) as excinfo:
+            queue.parse_cursor(invalid)
+        assert (excinfo.value.status, excinfo.value.code) == (422, "invalid_cursor")
 
 
 # ---------------------------------------------------------------------------

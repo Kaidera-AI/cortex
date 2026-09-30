@@ -26,7 +26,7 @@ services:
         mode: "0400"
     volumes:
       - cortex-v2-v0-02-001-sandbox-pgdata:/var/lib/postgresql
-      - ./postgres-init/10-create-v2-roles.sh:/docker-entrypoint-initdb.d/10-create-v2-roles.sh:ro
+      - ./postgres-init/10-create-v2-roles.sh:/docker-entrypoint-initdb.d/10-create-v2-roles.sh:ro,z
     tmpfs:
       - /run/secrets:rw,noexec,nosuid,size=1m,mode=0755
     networks:

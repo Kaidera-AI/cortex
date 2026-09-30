@@ -83,6 +83,7 @@ FAILURE_MESSAGES = {
     "job_intent_invalid": "The job intent does not pin what its kind requires.",
     "job_not_found": "The job is unavailable in the selected scope.",
     "job_terminal": "The job already reached a terminal state.",
+    "invalid_cursor": "The pagination cursor is not valid for this listing.",
     "scope_write_denied": "Write access is not granted for this scope.",
     "profile_not_found": "The processing profile is unavailable.",
     "space_not_found": "The embedding space is unavailable.",
@@ -1565,7 +1566,7 @@ async def list_jobs(
     job_kind: str | None = None,
     required_role: str | None = None,
     batch_id: uuid.UUID | None = None,
-    cursor: tuple[str, uuid.UUID] | None = None,
+    cursor: tuple[datetime, uuid.UUID] | None = None,
     limit: int = 25,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Keyset-paginated job listing with deterministic ordering."""
@@ -1681,14 +1682,17 @@ async def queue_summary(
     }
 
 
-def parse_cursor(value: str | None) -> tuple[str, uuid.UUID] | None:
-    """Decode a listing cursor into its keyset parts."""
+def parse_cursor(value: str | None) -> tuple[datetime, uuid.UUID] | None:
+    """Decode a keyset cursor to an aware timestamp and a UUID."""
     if not value:
         return None
-    created_at, _, job_id = value.rpartition(":")
-    if not created_at:
-        raise _problem("job_not_found", 404)
+    created_at, separator, job_id = value.rpartition(":")
+    if not separator or not created_at:
+        raise _problem("invalid_cursor")
     try:
-        return created_at, uuid.UUID(job_id)
+        timestamp = datetime.fromisoformat(created_at)
+        if timestamp.utcoffset() is None:
+            raise ValueError("cursor timestamp requires a timezone")
+        return timestamp, uuid.UUID(job_id)
     except ValueError as exc:
-        raise _problem("job_not_found", 404) from exc
+        raise _problem("invalid_cursor") from exc

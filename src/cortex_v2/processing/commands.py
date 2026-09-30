@@ -46,10 +46,12 @@ FAILURE_MESSAGES = {
     ),
     "space_name_exists": "An embedding space with that name already exists.",
     "invalid_space_definition": "The embedding space definition was rejected.",
-    "installation_owner_required": "Only an installation owner may change space routing.",
+    "processing_access_denied": (
+        "The caller or embedding space is unavailable in this installation."
+    ),
+    "owner_authority_required": "This operation requires installation owner authority.",
     "job_not_found": "The job is unavailable in the selected scope.",
     "job_terminal": "The job already reached a terminal state.",
-    "invalid_cursor": "The pagination cursor is not valid for this listing.",
     "budget_exhausted": "Processing capacity is reserved; retry later.",
     "queue_admission_full": "The durable queue for this scope is at its bound.",
     "unsupported_job_kind": "That job kind is not part of the versioned contract.",
@@ -63,7 +65,7 @@ FAILURE_SQLSTATES: dict[str, tuple[int, str]] = {
     "23505": (409, "space_name_exists"),
     "23503": (409, "storage_conflict"),
     "22023": (404, "generation_not_found"),
-    "28000": (403, "installation_owner_required"),
+    "28000": (403, "processing_access_denied"),
     "55000": (409, "storage_conflict"),
     "53400": (429, "budget_exhausted"),
 }
@@ -73,7 +75,15 @@ def problem(code: str, status: int = 422, retryable: bool = False) -> ApiProblem
     return ApiProblem(status, code, FAILURE_MESSAGES[code], retryable=retryable)
 
 
-def translate(exc: asyncpg.PostgresError) -> ApiProblem | None:
+def translate(
+    exc: asyncpg.PostgresError, *, owner_required: bool = False
+) -> ApiProblem | None:
+    if (
+        owner_required
+        and exc.sqlstate == "42501"
+        and exc.message == "operation requires installation owner authority"
+    ):
+        return problem("owner_authority_required", 403)
     entry = FAILURE_SQLSTATES.get(exc.sqlstate or "")
     if entry is None:
         return None
@@ -167,7 +177,7 @@ async def backfill_jobs(
     policy = profile["coverage"]
     content_classes = [str(item) for item in policy.get("content_classes") or ()]
     min_text_length = int(policy.get("min_text_length") or 0)
-    cursor = _parse_revision_cursor(request.cursor)
+    cursor = queue.parse_cursor(request.cursor)
     revisions = await repository.intended_revisions(
         connection,
         scope_id=context.selected.scope_id,
@@ -347,18 +357,6 @@ def _backfill_intent(
     )
 
 
-def _parse_revision_cursor(cursor: str | None) -> tuple[str, uuid.UUID] | None:
-    if not cursor:
-        return None
-    created_at, _, content_id = cursor.rpartition(":")
-    if not created_at:
-        raise problem("invalid_cursor", 422)
-    try:
-        return created_at, uuid.UUID(content_id)
-    except ValueError as exc:
-        raise problem("invalid_cursor", 422) from exc
-
-
 async def cancel_job(
     connection: asyncpg.Connection,
     context: ScopeContext,
@@ -471,7 +469,7 @@ async def create_embedding_space(
             chunking=request.chunking_block(),
         )
     except asyncpg.PostgresError as exc:
-        translated = translate(exc)
+        translated = translate(exc, owner_required=True)
         if translated is not None:
             raise translated from exc
         raise
@@ -571,7 +569,7 @@ async def activate_generation(
             generation_id=generation_id,
         )
     except asyncpg.PostgresError as exc:
-        translated = translate(exc)
+        translated = translate(exc, owner_required=True)
         if translated is not None:
             raise translated from exc
         raise
@@ -694,9 +692,7 @@ async def list_jobs(
 ) -> dict[str, Any]:
     """Keyset-paginated jobs across the caller's readable scopes."""
     request = _coerce(payload, ListJobsRequest)
-    cursor = queue.parse_cursor(request.cursor) if request.cursor else None
-    if request.cursor and cursor is None:
-        raise problem("invalid_cursor", 422)
+    cursor = queue.parse_cursor(request.cursor)
     scope_ids = [scope.scope_id for scope in context.read_scopes]
     jobs, next_cursor = await queue.list_jobs(
         connection,

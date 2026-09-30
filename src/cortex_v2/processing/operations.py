@@ -67,6 +67,9 @@ OPERATIONS: list[dict[str, Any]] = [
             ],
             "limits": "at most 200 revisions scanned per call; queue admission and budget bounds may defer the rest",
             "errors": {
+                "403 processing_access_denied": (
+                    "check the caller and space installation"
+                ),
                 "404 profile_not_found": "pin an active profile",
                 "404 space_not_found": "pin an existing space",
                 "409 no_active_generation": "build or activate a generation, or pass generation='new'",
@@ -111,6 +114,8 @@ OPERATIONS: list[dict[str, Any]] = [
         "method": "POST",
         "path": "/v1/processing/embedding-spaces",
         "kind": "scoped_write",
+        "authority": "installation_owner",
+        "requires_scope": True,
         "request_model": CreateEmbeddingSpaceRequest,
         "handler": commands.create_embedding_space,
         "summary": (
@@ -129,12 +134,13 @@ OPERATIONS: list[dict[str, Any]] = [
             ],
             "effects": (
                 "One immutable space row plus generation 1 in state active, and a "
-                "privileged-action audit entry. Requires the installation owner."
+                "privileged-action audit entry. Installation-owner-only until design "
+                "53 S7 enforces the S2 project-lead predicate."
             ),
             "receipt": "committed (201)",
             "idempotency": "Same key and payload replays the stored receipt.",
             "errors": {
-                "403 installation_owner_required": "ask an installation owner",
+                "403 owner_authority_required": "ask an installation owner",
                 "409 space_name_exists": "choose another name or reuse the space",
                 "422 invalid_space_definition": "the definition violates space invariants",
             },
@@ -149,6 +155,8 @@ OPERATIONS: list[dict[str, Any]] = [
         "method": "POST",
         "path": "/v1/processing/embedding-spaces/{space_id}/generations/{generation_id}:activate",
         "kind": "scoped_write",
+        "authority": "installation_owner",
+        "requires_scope": True,
         "request_model": ActivateGenerationRequest,
         "handler": commands.activate_generation,
         "summary": "Atomically switch retrieval routing to one built generation.",
@@ -163,12 +171,17 @@ OPERATIONS: list[dict[str, Any]] = [
             ],
             "effects": (
                 "The previous active generation is retired and the space pointer moves "
-                "in one transaction; retrieval reads only the newly active generation."
+                "in one transaction; retrieval reads only the newly active generation. "
+                "Installation-owner-only until design 53 S7 enforces the S2 "
+                "project-lead predicate."
             ),
             "receipt": "committed (200)",
             "idempotency": "Same key and payload replays the stored receipt.",
             "errors": {
-                "403 installation_owner_required": "ask an installation owner",
+                "403 owner_authority_required": "ask an installation owner",
+                "403 processing_access_denied": (
+                    "check the caller and space installation"
+                ),
                 "404 generation_not_found": "the generation is not in this space",
                 "409 generation_state_conflict": "pass expected_state to make the intent explicit",
             },
