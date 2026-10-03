@@ -35,6 +35,7 @@ class CallResult:
     replayed: bool
     request_id: str | None
     contract_version: str | None = None
+    key_expires_at: str | None = None
 
 
 def _encode_query_value(value: Any) -> str:
@@ -151,6 +152,11 @@ class CortexClient:
         return self._result(operation_id, response)
 
     def _result(self, operation_id: str, response: HttpResponse) -> CallResult:
+        key_expires_at = next(
+            (value for name, value in response.headers.items()
+             if name.lower() == "cortex-key-expires"),
+            None,
+        )
         request_id = response.headers.get("x-request-id")
         replayed = (
             response.headers.get("idempotent-replay", "").lower() == "true"
@@ -167,6 +173,7 @@ class CortexClient:
                 replayed=replayed,
                 request_id=envelope.get("request_id", request_id),
                 contract_version=envelope.get("contract_version"),
+                key_expires_at=key_expires_at,
             )
         try:
             problem = json.loads(response.body.decode("utf-8"))
@@ -182,6 +189,7 @@ class CortexClient:
                 request_id=problem.get("request_id", request_id),
                 operation_id=operation_id,
                 fields=error.get("fields"),
+                key_expires_at=key_expires_at,
             )
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError,
                 AttributeError):
@@ -195,6 +203,7 @@ class CortexClient:
                 retryable=False,
                 request_id=request_id,
                 operation_id=operation_id,
+                key_expires_at=key_expires_at,
             ) from None
 
     def protocol(self) -> dict[str, Any]:

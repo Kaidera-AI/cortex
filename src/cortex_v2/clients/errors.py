@@ -26,6 +26,7 @@ class CortexApiError(ClientError):
         request_id: str | None,
         operation_id: str | None = None,
         fields: list[dict[str, Any]] | None = None,
+        key_expires_at: str | None = None,
     ) -> None:
         self.status = status
         self.code = code
@@ -34,6 +35,7 @@ class CortexApiError(ClientError):
         self.request_id = request_id
         self.operation_id = operation_id
         self.fields = fields or []
+        self.key_expires_at = key_expires_at
         super().__init__(f"{code} (HTTP {status}): {message}")
 
     def as_dict(self) -> dict[str, Any]:
@@ -45,6 +47,7 @@ class CortexApiError(ClientError):
             "request_id": self.request_id,
             "operation_id": self.operation_id,
             "fields": self.fields,
+            "key_expires_at": self.key_expires_at,
         }
 
 
