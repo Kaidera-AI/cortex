@@ -106,7 +106,7 @@ def test_authenticated_responses_include_stored_expiry_even_on_denied_and_dynami
         assert "cortex-key-expires" not in invalid.headers
 
 
-def test_due_notice_starts_at_day_150_and_deduplicates_per_credential_utc_day(
+def test_due_notice_uses_last_30_days_and_deduplicates_per_credential_utc_day(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -168,6 +168,87 @@ def test_due_notice_starts_at_day_150_and_deduplicates_per_credential_utc_day(
         or token_digest(token, pepper).hex() in record.getMessage()
         for token in tokens.values() for record in caplog.records
     )
+
+
+def test_new_key_due_at_day_335_and_expired_at_day_365(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pepper = secrets.token_bytes(32)
+    owner_token = secrets.token_urlsafe(32)
+    registry = asyncio.run(_seed())
+    asyncio.run(_issue_credentials(pepper, [
+        (registry.owner, owner_token, 1, datetime.now(timezone.utc) + timedelta(days=180)),
+    ]))
+    _settings(monkeypatch, pepper)
+
+    with caplog.at_level(logging.WARNING, logger="cortex_v2.api"):
+        with TestClient(create_app()) as client:
+            response = client.post(
+                "/v1/auth/principals:enroll",
+                json={"principal_name": "T34 clock agent", "actor_kind": "agent"},
+                headers={
+                    "Authorization": f"Bearer {owner_token}",
+                    "Idempotency-Key": uuid.uuid4().hex,
+                },
+            )
+            assert response.status_code == 201
+            issued = response.json()["data"]
+
+            async def stored_created_at() -> datetime:
+                conn = await asyncpg.connect(_url("MIGRATOR"))
+                try:
+                    return await conn.fetchval(
+                        "SELECT created_at FROM cortex_auth.credentials "
+                        "WHERE credential_id=$1", uuid.UUID(issued["credential_id"]),
+                    )
+                finally:
+                    await conn.close()
+
+            created_at = asyncio.run(stored_created_at())
+            expiry = datetime.fromisoformat(issued["expires_at"])
+            assert expiry - created_at == timedelta(days=365)
+            clock = [created_at + timedelta(days=334)]
+
+            class FixedClock(datetime):
+                @classmethod
+                def now(cls, tz: timezone | None = None) -> datetime:
+                    assert tz is timezone.utc
+                    return clock[0]
+
+            monkeypatch.setattr(app_module, "datetime", FixedClock)
+            headers = {"Authorization": f"Bearer {issued['token']}"}
+            for day, expected_notices in ((334, 0), (335, 1)):
+                clock[0] = created_at + timedelta(days=day)
+                authenticated = client.get("/v1/auth/principal", headers=headers)
+                assert authenticated.status_code == 200
+                assert authenticated.headers["cortex-key-expires"] == expiry.isoformat()
+                notices = [
+                    record for record in caplog.records
+                    if record.name == "cortex_v2.api"
+                    and record.getMessage().startswith("observed_due_key ")
+                ]
+                assert len(notices) == expected_notices
+
+            async def advance_database_fixture_to_day_365() -> None:
+                conn = await asyncpg.connect(_url("MIGRATOR"))
+                try:
+                    # PostgreSQL uses its own clock for authentication. Move
+                    # this synthetic row's issue time back exactly 365 days;
+                    # retain its 365-day lifetime and cross the exact boundary.
+                    await conn.execute(
+                        "UPDATE cortex_auth.credentials SET "
+                        "created_at=now()-interval '365 days',expires_at=now() "
+                        "WHERE credential_id=$1", uuid.UUID(issued["credential_id"]),
+                    )
+                finally:
+                    await conn.close()
+
+            asyncio.run(advance_database_fixture_to_day_365())
+            expired = client.get("/v1/auth/principal", headers=headers)
+            assert expired.status_code == 401
+            assert expired.json()["error"]["code"] == "key_expired"
+            assert "cortex-key-expires" not in expired.headers
 
 
 def test_sql_key_manager_denial_translates_to_actionable_forbidden() -> None:

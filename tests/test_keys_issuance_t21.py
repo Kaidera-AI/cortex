@@ -56,7 +56,7 @@ async def _stored_credential(credential_id: str) -> asyncpg.Record:
     not os.getenv("CORTEX_V2_D53_APP_DATABASE_URL"),
     reason="disposable pgvector database required",
 )
-def test_owner_enrollment_receipt_matches_database_180_day_expiry(
+def test_owner_enrollment_receipt_matches_database_365_day_expiry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     pepper = secrets.token_bytes(32)
@@ -122,14 +122,14 @@ def test_owner_enrollment_receipt_matches_database_180_day_expiry(
     assert stored is not None
     assert stored["principal_id"] != owner_id
     assert datetime.fromisoformat(data["expires_at"]) == stored["expires_at"]
-    assert stored["expires_at"] - stored["created_at"] == timedelta(days=180)
+    assert stored["expires_at"] - stored["created_at"] == timedelta(days=365)
 
 
 @pytest.mark.skipif(
     not os.getenv("CORTEX_V2_D53_APP_DATABASE_URL"),
     reason="disposable pgvector database required",
 )
-def test_rotated_replacement_receipt_matches_database_180_day_expiry(
+def test_rotated_replacement_receipt_matches_database_365_day_expiry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     pepper = secrets.token_bytes(32)
@@ -187,7 +187,7 @@ def test_rotated_replacement_receipt_matches_database_180_day_expiry(
     assert stored is not None
     assert stored["principal_id"] == owner_id
     assert datetime.fromisoformat(data["expires_at"]) == stored["expires_at"]
-    assert stored["expires_at"] - stored["created_at"] == timedelta(days=180)
+    assert stored["expires_at"] - stored["created_at"] == timedelta(days=365)
 
 
 @pytest.mark.skipif(

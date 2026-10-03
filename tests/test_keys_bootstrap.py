@@ -131,7 +131,7 @@ def test_private_bootstrap_issues_authentic_owner_once(
             )
             assert stored is not None
             assert datetime.fromisoformat(data["expires_at"]) == stored["expires_at"]
-            assert stored["expires_at"] - stored["created_at"] == timedelta(days=180)
+            assert stored["expires_at"] - stored["created_at"] == timedelta(days=365)
         finally:
             await migrator.close()
 
