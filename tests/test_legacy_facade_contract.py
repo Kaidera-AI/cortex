@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import json
+import uuid
+
+import asyncpg
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -17,7 +21,7 @@ from fastapi.testclient import TestClient
 from cortex_v2.app import create_app
 from test_keys_api_expiry import _issue_credentials
 from test_keys_issuance_t21 import _settings
-from test_keys_project_authority import _seed
+from test_keys_project_authority import _seed, _url
 
 PROJECT_FIELDS = frozenset({
     "project_key", "project_id", "display_name", "default_agent", "status",
@@ -29,6 +33,34 @@ pytestmark = pytest.mark.skipif(
     or not os.getenv("CORTEX_V2_D53_MIGRATOR_DATABASE_URL"),
     reason="disposable pgvector database required",
 )
+
+
+async def _preserve_fixture_project(registry) -> None:
+    """Explicit complete native-project fixture; no defaults invented by the API.
+
+    The authority-only fixture predates the canonical registry. These roots and
+    metadata are the synthetic project's actual input, not a legacy conversion.
+    All original L2 assertions stay unchanged.
+    """
+    connection = await asyncpg.connect(_url("MIGRATOR"))
+    try:
+        created = await connection.fetchval(
+            "SELECT created_at FROM cortex_core.scopes WHERE scope_id=$1", registry.project)
+        roots = [{"path": "/fixtures/one", "kind": "primary", "repo_type": "git"}]
+        await connection.execute(
+            "INSERT INTO cortex_core.project_registry(project_scope_id,original_project_id,"
+            "display_name,default_agent,status,parent_project_key,repo_root,roots,created_at,updated_at) "
+            "VALUES($1,$2,'one','lead','active',NULL,'/fixtures/one',$3::jsonb,$4,$4)",
+            registry.project, str(registry.project), json.dumps(roots), created)
+        record = {"id": str(registry.lead), "name": "lead", "status": "active",
+                  "capabilities": {"keep_visible": True}}
+        await connection.execute(
+            "INSERT INTO cortex_core.project_identities(identity_id,project_scope_id,"
+            "original_identity_id,identity_name,identity_kind,original_record) "
+            "VALUES($1,$2,$3,'lead','agent',$4::jsonb)", uuid.uuid4(), registry.project,
+            str(registry.lead), json.dumps(record))
+    finally:
+        await connection.close()
 
 
 @pytest.mark.parametrize("token", (
@@ -47,6 +79,7 @@ def test_projects_requires_new_valid_v2_credential(monkeypatch, token) -> None:
 
 def test_projects_returns_real_legacy_fields_with_member_scope_only(monkeypatch) -> None:
     registry = asyncio.run(_seed())
+    asyncio.run(_preserve_fixture_project(registry))
     pepper, token = secrets.token_bytes(32), secrets.token_urlsafe(32)
     asyncio.run(_issue_credentials(pepper, [
         (registry.member, token, 1, datetime.now(timezone.utc) + timedelta(days=365)),
