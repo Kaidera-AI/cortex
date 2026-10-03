@@ -139,7 +139,11 @@ def test_0014_upgrade_preserves_historical_180_and_null_rows() -> None:
             )
             assert new["expires_at"] == stored["expires_at"]
             assert stored["expires_at"] - stored["created_at"] == timedelta(days=365)
-            assert config.FULL_V2_MIGRATIONS[-1] == T34_MIGRATION
+            # S5 appends0015. Keep T34 registered exactly once and ordered after
+            # its immutable predecessor; it need not remain the last migration.
+            assert config.FULL_V2_MIGRATIONS.count(T34_MIGRATION) == 1
+            index = config.FULL_V2_MIGRATIONS.index(T34_MIGRATION)
+            assert config.FULL_V2_MIGRATIONS[index - 1] == "0013_keys_issuance_t21.sql"
         finally:
             await transaction.rollback()
             await conn.close()
