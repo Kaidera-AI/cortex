@@ -230,22 +230,29 @@ def test_new_key_due_at_day_335_and_expired_at_day_365(
                 ]
                 assert len(notices) == expected_notices
 
-            async def advance_database_fixture_to_day_365() -> None:
+            expired_fixture_token = secrets.token_urlsafe(32)
+
+            async def insert_database_fixture_at_day_365() -> None:
                 conn = await asyncpg.connect(_url("MIGRATOR"))
                 try:
-                    # PostgreSQL uses its own clock for authentication. Move
-                    # this synthetic row's issue time back exactly 365 days;
-                    # retain its 365-day lifetime and cross the exact boundary.
+                    # PostgreSQL authenticates with its own clock, and issued
+                    # credentials are immutable. Append a separate synthetic
+                    # boundary row; preserve the actual newly issued row.
                     await conn.execute(
-                        "UPDATE cortex_auth.credentials SET "
-                        "created_at=now()-interval '365 days',expires_at=now() "
-                        "WHERE credential_id=$1", uuid.UUID(issued["credential_id"]),
+                        "INSERT INTO cortex_auth.credentials(credential_id,"
+                        "principal_id,token_hash,generation,created_at,expires_at) "
+                        "VALUES($1,$2,$3,2,now()-interval '365 days',now())",
+                        uuid.uuid4(), uuid.UUID(issued["principal_id"]),
+                        token_digest(expired_fixture_token, pepper),
                     )
                 finally:
                     await conn.close()
 
-            asyncio.run(advance_database_fixture_to_day_365())
-            expired = client.get("/v1/auth/principal", headers=headers)
+            asyncio.run(insert_database_fixture_at_day_365())
+            expired = client.get(
+                "/v1/auth/principal",
+                headers={"Authorization": f"Bearer {expired_fixture_token}"},
+            )
             assert expired.status_code == 401
             assert expired.json()["error"]["code"] == "key_expired"
             assert "cortex-key-expires" not in expired.headers
