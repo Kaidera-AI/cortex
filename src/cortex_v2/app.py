@@ -30,6 +30,8 @@ from .content import (
 from .identity import (
     allow_project_create,
     bootstrap_installation,
+    create_project,
+    reissue_project_creation_keys,
     bind_scope,
     enact_roster,
     enact_writer_policy,
@@ -45,6 +47,7 @@ from .identity import (
     rotate_credential,
     self_profile,
 )
+from .project_registry import list_projects
 from .key_lifetime import due_state
 from .models import (
     AllowCreateRequest,
@@ -53,6 +56,8 @@ from .models import (
     ContentSearchRequest,
     ContentStatusRequest,
     CreateContentRequest,
+    CreateProjectRequest,
+    ReissueProjectKeysRequest,
     CreateMemoryRecord,
     EnactRosterRequest,
     EnactWriterPolicyRequest,
@@ -543,6 +548,15 @@ def create_app() -> FastAPI:
         request.state.credential_expires_at = principal.expires_at
         warn_if_key_due(request, principal, digest)
         return principal
+
+    @application.get("/projects")
+    async def legacy_project_reader(request: Request) -> JSONResponse:
+        digest = await token_hash(request, request.headers.get("authorization"))
+        async with request.app.state.pool.acquire() as connection:
+            async with connection.transaction():
+                principal = await authenticated_principal(request, connection, digest)
+                projects = await list_projects(connection, principal)
+        return JSONResponse(content={"projects": projects})
 
     @application.post("/v1/memory/records")
     async def record_memory(
@@ -1186,8 +1200,15 @@ def create_bootstrap_app() -> FastAPI:
     @application.middleware("http")
     async def attach_request_id(request: Request, call_next: Any):
         request.state.request_id = str(uuid.uuid4())
+        if request.method == "POST" and len(await request.body()) > 65_536:
+            return JSONResponse(status_code=413, content={"error": {"code": "request_too_large",
+                "message": "The private control request exceeds 65536 bytes.", "retryable": False},
+                "request_id": request.state.request_id})
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
+        expiry = getattr(request.state, "credential_expires_at", None)
+        if expiry is not None:
+            response.headers["Cortex-Key-Expires"] = expiry.isoformat()
         return response
 
     @application.exception_handler(ApiProblem)
@@ -1226,6 +1247,51 @@ def create_bootstrap_app() -> FastAPI:
                 "request_id": request.state.request_id,
             },
         )
+
+    async def private_project_command(request: Request, payload: Any,
+                                      operation_id: uuid.UUID | None = None) -> JSONResponse:
+        if request.app.state.profile.instance_id != PRODUCTION_INSTANCE:
+            raise ApiProblem(403, "project_create_not_allowed", "Use the private project helper.")
+        match = BEARER_PATTERN.fullmatch(request.headers.get("authorization", ""))
+        if match is None:
+            raise ApiProblem(401, "invalid_credential", "A valid bearer credential is required.")
+        key = request.headers.get("idempotency-key")
+        if not key or len(key) > 128:
+            raise ApiProblem(400, "idempotency_key_required", "Provide an Idempotency-Key of at most 128 characters.")
+        settings: Settings = request.app.state.settings
+        async with request.app.state.pool.acquire() as connection:
+            async with connection.transaction():
+                principal = await authenticate(connection, token_digest(match.group(1), settings.token_pepper))
+                request.state.credential_expires_at = principal.expires_at
+                if operation_id is None:
+                    status, data, replayed = await create_project(connection, principal, settings.token_pepper, payload, key)
+                else:
+                    status, data, replayed = await reissue_project_creation_keys(
+                        connection, principal, settings.token_pepper, operation_id, payload, key)
+        response = JSONResponse(status_code=status, content={"data": data,
+            "request_id": request.state.request_id, "contract_version": request.app.state.profile.contract_version})
+        response.headers["Cache-Control"] = "no-store"
+        if replayed:
+            response.headers["Idempotent-Replay"] = "true"
+        return response
+
+    @application.post("/v1/projects")
+    async def private_create_project(request: Request, payload: CreateProjectRequest) -> JSONResponse:
+        return await private_project_command(request, payload)
+
+    @application.post("/v1/projects/{operation_id}:reissue-keys")
+    async def private_reissue_project_keys(request: Request, operation_id: uuid.UUID,
+                                          payload: ReissueProjectKeysRequest) -> JSONResponse:
+        return await private_project_command(request, payload, operation_id)
+
+    async def private_database_failure(request: Request, exc: Exception) -> JSONResponse:
+        logger.error("private database request failed request_id=%s failure=%s sqlstate=%s",
+                     request.state.request_id, type(exc).__name__, getattr(exc, "sqlstate", None))
+        return await api_problem_handler(request, ApiProblem(503, "storage_unavailable",
+            "The result is uncertain; retry with the same idempotency key.", retryable=True))
+
+    for failure in DATABASE_FAILURES:
+        application.add_exception_handler(failure, private_database_failure)
 
     @application.post("/v1/auth/bootstrap")
     async def bootstrap(request: Request, payload: BootstrapRequest) -> JSONResponse:

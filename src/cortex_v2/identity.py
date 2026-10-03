@@ -22,6 +22,8 @@ from .config import ConfigurationError, Settings, read_secret_path
 
 from .models import (
     AllowCreateRequest,
+    CreateProjectRequest,
+    ReissueProjectKeysRequest,
     BootstrapRequest,
     BindScopeRequest,
     EnactRosterRequest,
@@ -928,3 +930,97 @@ async def register_connector(
         installation_id=principal.installation_id,
     )
     return 201, receipt, False
+
+
+async def create_project(
+    connection: asyncpg.Connection, principal: Principal, pepper: bytes,
+    payload: CreateProjectRequest, idempotency_key: str,
+) -> tuple[int, dict[str, Any], bool]:
+    """Private recipient-helper command. Caller must already be authenticated.
+
+    Receipt and operation IDs are stable; a replay cannot attest key custody.
+    Tokens exist only for the initial private response, never in durable JSON.
+    """
+    operation = "project.create"
+    body = payload.model_dump(mode="json")
+    digest = request_digest({"operation": operation, **body})
+    previous, replayed = await begin_command(
+        connection, principal_id=principal.principal_id, operation=operation,
+        idempotency_key=idempotency_key, digest=digest,
+        installation_id=principal.installation_id,
+    )
+    if replayed and previous is not None:
+        return 200, previous, True
+    lead_token = _issue_token()
+    console_token = _issue_token() if payload.with_console else None
+    try:
+        value = await connection.fetchval(
+            "SELECT cortex_auth.create_project($1,$2,$3::jsonb,$4,$5)",
+            principal.principal_id, uuid.uuid4(), json.dumps(body, ensure_ascii=False),
+            token_digest(lead_token, pepper),
+            token_digest(console_token, pepper) if console_token is not None else None,
+        )
+    except asyncpg.PostgresError as exc:
+        problem = _translate(exc)
+        if problem is not None:
+            raise problem from exc
+        raise
+    receipt = json.loads(value)
+    await commit_receipt(
+        connection, principal_id=principal.principal_id, operation=operation,
+        idempotency_key=idempotency_key, digest=digest,
+        receipt_kind="committed", receipt=receipt,
+        installation_id=principal.installation_id,
+    )
+    data = {**receipt, "delivery_state": "issued_once", "lead_token": lead_token}
+    if console_token is not None:
+        data["console_token"] = console_token
+    return 201, data, False
+
+
+async def reissue_project_creation_keys(
+    connection: asyncpg.Connection, principal: Principal, pepper: bytes,
+    operation_id: uuid.UUID, payload: ReissueProjectKeysRequest, idempotency_key: str,
+) -> tuple[int, dict[str, Any], bool]:
+    operation = "project.reissue_creation_keys"
+    digest = request_digest({"operation": operation, "operation_id": str(operation_id),
+                             **payload.model_dump(mode="json")})
+    previous, replayed = await begin_command(
+        connection, principal_id=principal.principal_id, operation=operation,
+        idempotency_key=idempotency_key, digest=digest,
+        installation_id=principal.installation_id,
+    )
+    if replayed and previous is not None:
+        return 200, previous, True
+    original = await connection.fetchval(
+        "SELECT receipt FROM cortex_core.command_receipts WHERE principal_id=$1 "
+        "AND operation='project.create' AND receipt->>'operation_id'=$2",
+        principal.principal_id, str(operation_id),
+    )
+    if original is None:
+        raise _problem("project_create_not_allowed")
+    original = json.loads(original)
+    lead_token = _issue_token()
+    console_token = _issue_token() if original["console"] is not None else None
+    try:
+        value = await connection.fetchval(
+            "SELECT cortex_auth.reissue_project_creation_keys($1,$2,$3,$4)",
+            principal.principal_id, operation_id, token_digest(lead_token, pepper),
+            token_digest(console_token, pepper) if console_token is not None else None,
+        )
+    except asyncpg.PostgresError as exc:
+        problem = _translate(exc)
+        if problem is not None:
+            raise problem from exc
+        raise
+    receipt = json.loads(value)
+    await commit_receipt(
+        connection, principal_id=principal.principal_id, operation=operation,
+        idempotency_key=idempotency_key, digest=digest,
+        receipt_kind="committed", receipt=receipt,
+        installation_id=principal.installation_id,
+    )
+    data = {**receipt, "delivery_state": "issued_once", "lead_token": lead_token}
+    if console_token is not None:
+        data["console_token"] = console_token
+    return 201, data, False

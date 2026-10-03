@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
 
 class StrictInput(BaseModel):
@@ -218,3 +218,47 @@ class ContentSearchRequest(StrictInput):
         if any("\x00" in value for value in values):
             raise ValueError("read scopes must not contain a NUL character")
         return values
+
+
+class ProjectRoot(BaseModel):
+    # Root metadata is preserved; bound the JSON request at the control listener.
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=False)
+    path: StrictStr = Field(min_length=1, max_length=4096)
+    kind: Literal["primary", "reference"]
+
+    @field_validator("path")
+    @classmethod
+    def path_is_postgres_text(cls, value: str) -> str:
+        return _reject_nul(value, "path")
+
+
+class CreateProjectRequest(StrictInput):
+    source_project: ScopeAlias | None
+    project_key: ScopeAlias
+    display_name: StrictStr = Field(min_length=1, max_length=128)
+    lead_name: StrictStr = Field(min_length=1, max_length=128)
+    lead_responsibility: StrictStr = Field(min_length=1, max_length=128)
+    lead_key_manager: Literal["kos", "openkai", "user"]
+    with_console: StrictBool
+    parent_project_key: ScopeAlias | None
+    repo_root: StrictStr = Field(min_length=1, max_length=4096)
+    roots: list[ProjectRoot] = Field(min_length=1, max_length=64)
+
+    @field_validator("source_project", "project_key", "display_name", "lead_name",
+                     "lead_responsibility", "parent_project_key", "repo_root")
+    @classmethod
+    def metadata_is_postgres_text(cls, value: str | None) -> str | None:
+        return None if value is None else _reject_nul(value, "project metadata")
+
+    @model_validator(mode="after")
+    def complete_roots_and_lead(self):
+        primary = [root for root in self.roots if root.kind == "primary"]
+        if len(primary) != 1 or primary[0].path != self.repo_root:
+            raise ValueError("Exactly one primary root must match repo_root")
+        if self.lead_name == "console":
+            raise ValueError("The Console is a member, not the project lead")
+        return self
+
+
+class ReissueProjectKeysRequest(StrictInput):
+    reason: Literal["recipient_store_failed"]
