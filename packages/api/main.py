@@ -12,6 +12,7 @@ import difflib
 import hashlib
 import hmac
 import json
+import ipaddress
 import math
 import os
 import re
@@ -94,6 +95,11 @@ from observability import (
     SEARCH_STAGE_DURATION,
     render_metrics,
 )
+
+from service_auth import AuthForbidden, LOCAL_OWNER, ServiceAuthStore
+from service_auth_http import ServiceAuthMiddleware, ServiceAuthStreamingResponse
+from service_auth_owner import OwnerServer
+from release_identity import load_release_identity
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -277,6 +283,45 @@ ADMIN_TOKEN = os.getenv("CORTEX_ADMIN_TOKEN", "")
 LEGACY_WEAK_ADMIN_TOKENS = frozenset({"cortex-local-admin"})
 CORTEX_JWT_SECRET = os.getenv("CORTEX_JWT_SECRET", "")
 CORTEX_AUTH_REQUIRE_JWT = os.getenv("CORTEX_AUTH_REQUIRE_JWT", "false").lower() == "true"
+CORTEX_SERVICE_AUTH_ENABLED = os.getenv(
+    "CORTEX_SERVICE_AUTH_ENABLED", "false"
+).strip().lower() in {"1", "true", "yes", "on"}
+CORTEX_SERVICE_AUTH_OWNER_DIR = Path(
+    os.getenv("CORTEX_SERVICE_AUTH_OWNER_DIR", "/run/cortex-owner")
+)
+
+def parse_service_auth_trusted_networks(
+    value: str,
+) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for item in value.split(","):
+        try:
+            network = ipaddress.ip_network(item.strip(), strict=True)
+        except ValueError as exc:
+            raise RuntimeError("Invalid CORTEX_SERVICE_AUTH_TRUSTED_NETWORKS") from exc
+        if not network.is_loopback:
+            minimum = 24 if network.version == 4 else 64
+            if network.prefixlen < minimum:
+                raise RuntimeError(
+                    "CORTEX_SERVICE_AUTH_TRUSTED_NETWORKS must use an exact "
+                    "deployment subnet, not a broad private range"
+                )
+        networks.append(network)
+    if not networks:
+        raise RuntimeError("CORTEX_SERVICE_AUTH_TRUSTED_NETWORKS is empty")
+    return tuple(networks)
+
+
+CORTEX_SERVICE_AUTH_TRUSTED_NETWORKS = parse_service_auth_trusted_networks(
+    os.getenv(
+        "CORTEX_SERVICE_AUTH_TRUSTED_NETWORKS",
+        "127.0.0.0/8,::1/128",
+    )
+)
+if CORTEX_SERVICE_AUTH_ENABLED and CORTEX_AUTH_REQUIRE_JWT:
+    raise RuntimeError(
+        "CORTEX_SERVICE_AUTH_ENABLED and CORTEX_AUTH_REQUIRE_JWT are mutually exclusive"
+    )
 LOCAL_STATE_PROJECT = os.getenv("CORTEX_LOCAL_STATE_PROJECT", "_local_state")
 SHARED_KNOWLEDGE_PROJECT = os.getenv("CORTEX_SHARED_KNOWLEDGE_PROJECT", "_global")
 
@@ -287,6 +332,9 @@ SHARED_KNOWLEDGE_PROJECT = os.getenv("CORTEX_SHARED_KNOWLEDGE_PROJECT", "_global
 pool: asyncpg.Pool | None = None  # Alias for pool_app — back-compat for raw `pool.acquire()` callers (admin/global handlers); cleanly resolves to pool_admin where appropriate.
 pool_app: asyncpg.Pool | None = None
 pool_admin: asyncpg.Pool | None = None
+service_auth_store = ServiceAuthStore(lambda: pool_admin)
+service_auth_owner: OwnerServer | None = None
+RELEASE_IDENTITY = load_release_identity()
 # REN-ARCH-02: whether the app pool's role actually enforces RLS (i.e. is NOT a
 # superuser and does NOT bypass RLS). Computed once at startup; surfaced in
 # /health. None until lifespan runs.
@@ -298,6 +346,52 @@ event_listener_conn: asyncpg.Connection | None = None
 event_listener_ready = False
 event_listener_last_id: int | None = None
 event_listener_error: str | None = None
+
+
+async def resolve_service_auth_identity(
+    conn: asyncpg.Connection, identity: dict[str, str]
+) -> tuple[UUID, UUID]:
+    """Resolve one active canonical project/agent pair in the owner transaction."""
+    row = await conn.fetchrow(
+        """
+        SELECT p.id AS project_id, a.id AS agent_id
+          FROM cortex_projects p
+          JOIN agents a
+            ON a.project_id = p.id
+           AND a.project = p.project_key
+          JOIN cortex_actors actor
+            ON actor.id = a.actor_id
+           AND actor.project_id = p.id
+         WHERE p.project_key = $1
+           AND a.name = $2
+           AND p.status = 'active'
+           AND a.status NOT IN ('disabled', 'deleted', 'archived', 'retired')
+           AND COALESCE(a.capabilities->>'visibility', 'active') <> 'history-only'
+           AND COALESCE(a.capabilities->>'keep_visible', 'false') = 'true'
+           AND actor.status IN ('active', 'system')
+        """,
+        identity["project_key"],
+        identity["agent_name"],
+    )
+    if row is None:
+        raise AuthForbidden("Canonical active identity is required")
+    return row["project_id"], row["agent_id"]
+
+
+def service_auth_transport_is_verified(scope: dict) -> bool:
+    """Accept only peers in the server-owned deployment network allowlist."""
+    client = scope.get("client")
+    if not isinstance(client, (tuple, list)) or len(client) != 2:
+        return False
+    try:
+        address = ipaddress.ip_address(client[0])
+    except (TypeError, ValueError):
+        return False
+    return any(
+        address.version == network.version and address in network
+        for network in CORTEX_SERVICE_AUTH_TRUSTED_NETWORKS
+    )
+
 
 
 async def ensure_roles_schema() -> None:
@@ -651,7 +745,7 @@ def enforce_memory_transform_release_hold() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global pool, pool_app, pool_admin, event_listener_task, RLS_ENFORCED
+    global pool, pool_app, pool_admin, event_listener_task, RLS_ENFORCED, service_auth_owner
     enforce_memory_transform_release_hold()
     # Two-pool Phase C architecture
     pool_app = await asyncpg.create_pool(
@@ -686,6 +780,16 @@ async def lifespan(app: FastAPI):
     # didn't go through acquire_scoped). The 51 acquire_scoped() callers use
     # pool_app via the helper.
     pool = pool_admin
+    if CORTEX_SERVICE_AUTH_ENABLED:
+        # This authoritative read is the startup gate: an enabled deployment
+        # cannot come up against an absent or incompatible auth schema.
+        await service_auth_store.instance_identity(authority=LOCAL_OWNER)
+        service_auth_owner = OwnerServer(
+            CORTEX_SERVICE_AUTH_OWNER_DIR,
+            service_auth_store,
+            resolve_service_auth_identity,
+        )
+        await service_auth_owner.start()
     if event_backend_uses_postgres():
         ensure_event_condition()
         event_listener_task = asyncio.create_task(listen_for_team_events())
@@ -693,6 +797,9 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if service_auth_owner is not None:
+            await service_auth_owner.close()
+            service_auth_owner = None
         retention_task.cancel()
         with suppress(asyncio.CancelledError):
             await retention_task
@@ -1672,6 +1779,17 @@ def decode_local_jwt(token: str) -> dict[str, Any]:
 
 @app.middleware("http")
 async def local_jwt_middleware(request: Request, call_next):
+    if CORTEX_SERVICE_AUTH_ENABLED:
+        if request.url.path == "/health/live":
+            return await call_next(request)
+        if getattr(request.state, "service_auth", None) is None:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "ServiceAuth admission context is missing"},
+            )
+        # The outer ServiceAuth adapter already authenticated the opaque bearer,
+        # stripped it, and injected canonical project/agent headers.
+        return await call_next(request)
     auth = request.headers.get("authorization", "").strip()
     claims: dict[str, Any] = {}
 
@@ -2943,6 +3061,9 @@ def validate_search_hall(hall: str) -> str:
 
 
 def has_admin_access(request: Request) -> bool:
+    context = getattr(request.state, "service_auth", None)
+    if CORTEX_SERVICE_AUTH_ENABLED:
+        return context is not None and "instance:admin" in context.scopes
     token = request.headers.get("X-Cortex-Admin-Token", "").strip()
     return bool(
         ADMIN_TOKEN
@@ -8662,8 +8783,16 @@ def _extract_rerank_results(data: Any) -> list[dict] | None:
 # ---------------------------------------------------------------------------
 
 
+@app.get("/health/live")
+async def health_live():
+    """Process liveness only; intentionally public and independent of storage."""
+    return {"status": "ok"}
+
+
+
 @app.get("/health")
 async def health():
+    installation_id = None
     pg_ok = False
     schema_version = "unknown"
     notification_queue_usage: float | None = None
@@ -8671,6 +8800,10 @@ async def health():
     try:
         async with pool_admin.acquire() as conn:
             await conn.fetchval("SELECT 1")
+            if CORTEX_SERVICE_AUTH_ENABLED:
+                installation_id = str(UUID(str(await conn.fetchval(
+                    "SELECT instance_id FROM cortex_auth.state WHERE singleton"
+                ))))
             schema_version = (
                 await conn.fetchval(
                     "SELECT value FROM cortex_meta WHERE key = 'schema_version'"
@@ -8717,6 +8850,8 @@ async def health():
     event_bus = "postgres" if pg_ok else "postgres-disconnected"
 
     return {
+        **RELEASE_IDENTITY,
+        "installation_id": installation_id,
         "status": status,
         "postgres": "connected" if pg_ok else "disconnected",
         "event_store": "postgres" if pg_ok else "postgres-disconnected",
@@ -16379,10 +16514,6 @@ async def stream_team_events(
         request, project, int(cursor_value), count, float(ping_seconds)
     )
 
-    if EventSourceResponse is not None:
-        return EventSourceResponse(generator, ping=int(ping_seconds))
-
-    # Fallback: hand-roll the SSE wire format over a StreamingResponse.
     async def raw_event_stream():
         try:
             async for item in generator:
@@ -16404,6 +16535,14 @@ async def stream_team_events(
             # is closed when the response stream ends or the client disconnects.
             await generator.aclose()
 
+    if CORTEX_SERVICE_AUTH_ENABLED:
+        return ServiceAuthStreamingResponse(
+            raw_event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    if EventSourceResponse is not None:
+        return EventSourceResponse(generator, ping=int(ping_seconds))
     return StreamingResponse(
         raw_event_stream(),
         media_type="text/event-stream",
@@ -17597,7 +17736,15 @@ async def register_project(
 
 
 @app.get("/projects")
-async def list_projects():
+async def list_projects(request: Request = None):
+    context = getattr(request.state, "service_auth", None) if request is not None else None
+    if CORTEX_SERVICE_AUTH_ENABLED and context is None:
+        raise HTTPException(403, "Verified service identity required")
+    project_filter = (
+        context.project_key
+        if context is not None and "instance:admin" not in context.scopes
+        else None
+    )
     async with pool_admin.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT p.project_key,
@@ -17622,16 +17769,20 @@ async def list_projects():
                             WHERE ap.project = p.project_key
                        ), 0) AS profile_count
                   FROM cortex_projects p
+                 WHERE ($1::text IS NULL OR p.project_key = $1)
                  ORDER BY CASE WHEN p.parent_project_key IS NULL THEN 0 ELSE 1 END,
                           p.created_at NULLS LAST,
-                          p.project_key"""
+                          p.project_key""",
+            project_filter,
         )
         root_rows = await conn.fetch(
             """SELECT project_key, root_path, path_kind, metadata
                  FROM cortex_project_paths
+                WHERE ($1::text IS NULL OR project_key = $1)
                 ORDER BY project_key,
                          CASE WHEN path_kind = 'primary' THEN 0 ELSE 1 END,
-                         root_path"""
+                         root_path""",
+            project_filter,
         )
     roots_by_project: dict[str, list[Any]] = {}
     for root in root_rows:
@@ -21353,4 +21504,15 @@ async def admin_redis(request: Request):
             "/admin/redis has been removed for local Cortex. Use typed Cortex API "
             "routes backed by Postgres team_events."
         ),
+    )
+
+
+# Register last so ServiceAuth is the outermost admission boundary and sees the
+# complete router before any FastAPI middleware, dependency, or body parser runs.
+if CORTEX_SERVICE_AUTH_ENABLED:
+    app.add_middleware(
+        ServiceAuthMiddleware,
+        router=app.router,
+        store_provider=lambda: service_auth_store,
+        transport_is_verified=service_auth_transport_is_verified,
     )

@@ -1,9 +1,9 @@
-"""Inactive authorization foundation; not an HTTP authentication adapter.
+"""Fail-closed route authorization for the Cortex ServiceAuth boundary.
 
-Each exact route template has an explicit required permission or a temporary
-authorization hold (None). These checks grant neither object ownership nor
-cross-project visibility, and do not replace existing handler authorization.
-No running application imports this module yet. Owner issuance stays separate.
+Every exact route template has an explicit required permission, a public
+classification, or an authorization hold (``None``). These checks grant neither
+object ownership nor cross-project visibility, and do not replace existing
+handler authorization.
 """
 
 import re
@@ -66,10 +66,13 @@ ROUTE_POLICIES = {
     ("POST", "/media/transcribe"): frozenset({"ingest:write"}),
     ("POST", "/media/describe-image"): frozenset({"ingest:write"}),
     ("POST", "/analysis/session/{session_id}"): frozenset({"ingest:write"}),
+    ("GET", "/artifacts/document-formats"): frozenset({"ingest:write"}),
+    ("POST", "/artifacts/parse-document"): frozenset({"ingest:write"}),
     ("GET", "/projects/{project_key}"): frozenset({"registry:read"}),
     ("GET", "/roster"): frozenset({"registry:read"}),
     ("GET", "/skills"): frozenset({"registry:read"}),
     ("POST", "/agents"): frozenset({"registry:write"}),
+    ("GET", "/projects"): frozenset({"registry:read"}),
     ("GET", "/handoffs"): frozenset({"coordination:read"}),
     ("GET", "/handoffs/{handoff_id}"): frozenset({"coordination:read"}),
     ("GET", "/events"): frozenset({"coordination:read"}),
@@ -141,15 +144,21 @@ ROUTE_POLICIES = {
     ("PATCH", "/projects/{project_key}/roster-policy"): frozenset({"instance:admin"}),
     ("PATCH", "/projects/{project_key}"): frozenset({"instance:admin"}),
     ("DELETE", "/skills/{slug}"): frozenset({"instance:admin"}),
-    # Temporary holds, not removed capabilities. Each requires a separate
-    # accepted authorization/handler change before ordinary bearer admission.
-    ("GET", "/projects"): None,
-    ("POST", "/admin/sql/query"): None,
-    ("POST", "/admin/sql/exec"): None,
+    ("POST", "/admin/sql/query"): frozenset({"instance:admin"}),
+    ("POST", "/admin/sql/exec"): frozenset({"instance:admin"}),
+    ("POST", "/handoffs/cross-project"): frozenset({"instance:admin"}),
+    ("POST", "/project-local-sync"): frozenset({"instance:admin"}),
+    # Removed compatibility route and generated framework surfaces remain
+    # explicit holds rather than becoming accidental public documentation.
     ("POST", "/admin/redis"): None,
-    ("POST", "/handoffs/cross-project"): None,
-    ("POST", "/project-local-sync"): None,
-    # Planned liveness contract only; this module does not create the endpoint.
+    ("GET", "/docs"): None,
+    ("HEAD", "/docs"): None,
+    ("GET", "/docs/oauth2-redirect"): None,
+    ("HEAD", "/docs/oauth2-redirect"): None,
+    ("GET", "/openapi.json"): None,
+    ("HEAD", "/openapi.json"): None,
+    ("GET", "/redoc"): None,
+    ("HEAD", "/redoc"): None,
     ("GET", "/health/live"): frozenset(),
 }
 

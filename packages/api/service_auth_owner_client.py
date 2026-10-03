@@ -55,8 +55,22 @@ async def request(path, value, *, timeout=TIMEOUT):
                             or value['instance_id'] is not None and result['instance_id'] != value['instance_id']):
                         raise OwnerError('owner response identity mismatch')
                     instance = result['instance_id']
-                    if (not isinstance(instance, str) or str(UUID(instance)) != instance
-                            or value['operation'] == 'identity' and result['result'] != {'instance_id': instance}):
+                    operation_result = result['result']
+                    invalid_status = (
+                        value['operation'] == 'status'
+                        and (
+                            set(operation_result) != {'instance_id', 'initialized'}
+                            or operation_result.get('instance_id') != instance
+                            or type(operation_result.get('initialized')) is not bool
+                        )
+                    )
+                    if (
+                        not isinstance(instance, str)
+                        or str(UUID(instance)) != instance
+                        or value['operation'] == 'identity'
+                        and operation_result != {'instance_id': instance}
+                        or invalid_status
+                    ):
                         raise OwnerError('owner response identity mismatch')
                     return result
                 else: raise OwnerError('owner response unavailable')

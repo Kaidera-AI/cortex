@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Cortex API helper for agent-facing CLI scripts.
 # Source this file from cortex-* commands that should talk only to the Cortex API.
-# No direct DB access. Admin credentials are loaded only for explicit
-# cortex_api_call_admin callers and are never sent by ordinary API calls.
+# No direct DB access. Exact per-identity ServiceAuth files are used.
+# Operator wrappers select an explicitly enrolled operator; no legacy admin fallback.
 
 set -euo pipefail
 
@@ -127,26 +127,37 @@ cortex_valid_uuid() {
     [[ "${1:-}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]
 }
 
+cortex_service_auth_token() {
+    local project="$1" agent="$2"
+    python3 -S - "${SCRIPT_DIR}" "${project}" "${agent}" <<'PYAUTH'
+import sys
+sys.path.insert(0, sys.argv[1])
+from cortex_auth_tokens import CortexCredentialUnavailable, read_token
+try:
+    sys.stdout.write(read_token(sys.argv[2], sys.argv[3]))
+except CortexCredentialUnavailable:
+    raise SystemExit("ERROR: exact private Cortex credential unavailable")
+PYAUTH
+}
+
 cortex_api_project_id() {
-    local project="$1"
+    local project="$1" encoded raw token agent="${CORTEX_SERVICE_AGENT:-console}"
     [ -n "${project}" ] || return 0
-    local encoded raw
     encoded="$(cortex_api_urlencode_strict "${project}")"
-    raw="$(curl -sS --max-time "${CORTEX_API_PROJECT_MAX_TIME:-3}" \
-        -H "X-Project: ${project}" \
+    token="$(cortex_service_auth_token "${project}" "${agent}" 2>/dev/null)" || return 0
+    raw="$(printf 'header = "Authorization: Bearer %s"\n' "${token}" |
+        /usr/bin/curl -q --config - --noproxy '*' -sS --max-time "${CORTEX_API_PROJECT_MAX_TIME:-3}" \
+        -H "X-Project: ${project}" -H "X-Agent-Name: ${agent}" \
         "${CORTEX_API%/}/projects/${encoded}" 2>/dev/null || true)"
     [ -n "${raw}" ] || return 0
     printf '%s' "${raw}" | python3 -S -c '
-import json
-import sys
-
+import json, sys
 try:
     data = json.load(sys.stdin)
-except Exception:
-    raise SystemExit(0)
-value = str(data.get("project_id") or "").strip()
-if value:
-    print(value)
+    value = str(data.get("project_id") or "").strip()
+    if value: print(value)
+except (ValueError, AttributeError):
+    pass
 '
 }
 
@@ -174,51 +185,6 @@ EOF
     exit 67
 fi
 
-RESOLVED_CORTEX_PROJECT_ID="$(cortex_resolve_project_id || true)"
-if cortex_valid_uuid "${RESOLVED_CORTEX_PROJECT_ID}"; then
-    export CORTEX_PROJECT_ID="${RESOLVED_CORTEX_PROJECT_ID}"
-fi
-unset RESOLVED_CORTEX_PROJECT_ID
-
-cortex_legacy_admin_token() {
-    case "${1:-}" in
-        cortex-local-admin)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-cortex_load_admin_token() {
-    if [ -n "${CORTEX_ADMIN_TOKEN:-}" ] && ! cortex_legacy_admin_token "${CORTEX_ADMIN_TOKEN}"; then
-        return 0
-    fi
-
-    local repo_root
-    repo_root="$(cd "${AGENTS_DIR}/.." && pwd)"
-    local candidate line key value
-    for candidate in "${repo_root}/local-cortex/.env" "$(cd "${repo_root}/.." && pwd)/local-cortex/.env"; do
-        [ -f "${candidate}" ] || continue
-        while IFS= read -r line || [ -n "${line}" ]; do
-            case "${line}" in
-                ""|\#*) continue ;;
-                export\ *) line="${line#export }" ;;
-            esac
-            key="${line%%=*}"
-            value="${line#*=}"
-            [ "${key}" = "CORTEX_ADMIN_TOKEN" ] || continue
-            case "${value}" in
-                \"*\") value="${value#\"}"; value="${value%\"}" ;;
-                \'*\') value="${value#\'}"; value="${value%\'}" ;;
-            esac
-            [ -n "${value}" ] || continue
-            export CORTEX_ADMIN_TOKEN="${value}"
-            return 0
-        done <"${candidate}"
-    done
-}
 
 cortex_agent_display_name() {
     local base="${1%%@*}"
@@ -279,6 +245,11 @@ cortex_api_call() {
         return 1
     fi
 
+    agent_name="${agent_name:-${CORTEX_AGENT:-${CORTEX_AGENT_ID:-${CORTEX_SERVICE_AGENT:-console}}}}"
+    agent_name="$(cortex_agent_base_name "${agent_name}")"
+    local auth_token
+    auth_token="$(cortex_service_auth_token "${CORTEX_PROJECT}" "${agent_name}")" || return 1
+
     # No -f: we capture the body + HTTP status ourselves so the server's JSON
     # error detail (e.g. a "did you mean?" agent-name suggestion, validation
     # messages) is surfaced instead of being swallowed by curl --fail. -sS keeps
@@ -293,12 +264,6 @@ cortex_api_call() {
     [ -n "${agent_name}" ] && curl_args+=(-H "X-Agent-Name: ${agent_name}")
     if [ -n "${CORTEX_CTO_OVERRIDE:-}" ]; then
         curl_args+=(-H "X-Cortex-CTO-Override: ${CORTEX_CTO_OVERRIDE}")
-    fi
-    # LCX-UR-014: opt-in admin token for admin-gated endpoints (e.g. /beat/events).
-    # Only sent when a caller explicitly requests it via cortex_api_call_admin so
-    # ordinary calls never leak operator credentials.
-    if [ "${CORTEX_API_WITH_ADMIN:-0}" = "1" ] && [ -n "${CORTEX_ADMIN_TOKEN:-}" ]; then
-        curl_args+=(-H "X-Cortex-Admin-Token: ${CORTEX_ADMIN_TOKEN}")
     fi
     if [ -n "${payload_file}" ]; then
         [ -f "${payload_file}" ] || {
@@ -322,7 +287,7 @@ cortex_api_call() {
     fi
 
     local raw status=0
-    raw="$(/usr/bin/curl "${curl_args[@]}")" || status=$?
+    raw="$(printf 'header = "Authorization: Bearer %s"\n' "${auth_token}" | /usr/bin/curl -q --config - --noproxy '*' "${curl_args[@]}")" || status=$?
     [ "${payload_file_owned}" -eq 0 ] || rm -f "${payload_file}"
 
     # Transport-level failure (connection refused, timeout): no usable HTTP body.
@@ -365,16 +330,9 @@ cortex_api_call_json() {
     cortex_api_call "$@"
 }
 
-# Admin-scoped API call for operator/admin-gated endpoints (e.g. /beat/events).
-# Sends X-Cortex-Admin-Token from CORTEX_ADMIN_TOKEN. LCX-UR-014: readers of
-# admin-gated endpoints must send the token or the API returns 403 silently.
+# Operator-scoped call: the API verifies instance:admin; no automatic issuance.
 cortex_api_call_admin() {
-    cortex_load_admin_token
-    if [ -z "${CORTEX_ADMIN_TOKEN:-}" ]; then
-        echo "ERROR: CORTEX_ADMIN_TOKEN is not set; required for admin-gated endpoint ${2:-}" >&2
-        return 1
-    fi
-    CORTEX_API_WITH_ADMIN=1 cortex_api_call "$@"
+    CORTEX_SERVICE_AGENT="${CORTEX_OPERATOR_AGENT:-admin}" cortex_api_call "$@"
 }
 
 # Simple wrapper matching old cortex_api signature: cortex_api GET /path [k=v ...]
@@ -396,8 +354,9 @@ cortex_api() {
 # Existing body-returning helpers deliberately retain their original behavior.
 cortex_api_download_admin() {
     local path="$1" output="$2" agent_name="${3:-}" http_code
-    cortex_load_admin_token
-    if [ -z "${CORTEX_ADMIN_TOKEN:-}" ] || [ -z "${CORTEX_PROJECT:-}" ]; then
+    agent_name="${agent_name:-${CORTEX_OPERATOR_AGENT:-admin}}"
+    local auth_token
+    if [ -z "${CORTEX_PROJECT:-}" ] || ! auth_token="$(cortex_service_auth_token "${CORTEX_PROJECT}" "${agent_name}")"; then
         echo "ERROR: Cortex export authority is unavailable" >&2
         return 1
     fi
@@ -405,10 +364,10 @@ cortex_api_download_admin() {
         --max-filesize 268435456 --request GET --output "$output"
         --write-out '%{http_code}' --url "${CORTEX_API}${path}"
         --header "X-Project: ${CORTEX_PROJECT}"
-        --header "X-Cortex-Admin-Token: ${CORTEX_ADMIN_TOKEN}")
+        )
     [ -z "$agent_name" ] || args+=(--header "X-Agent-Name: ${agent_name}")
     [ -z "${CORTEX_CTO_OVERRIDE:-}" ] || args+=(--header "X-Cortex-CTO-Override: ${CORTEX_CTO_OVERRIDE}")
-    if ! http_code="$(/usr/bin/curl "${args[@]}")"; then
+    if ! http_code="$(printf 'header = "Authorization: Bearer %s"\n' "${auth_token}" | /usr/bin/curl -q --config - --noproxy '*' "${args[@]}")"; then
         echo "ERROR: Cortex export transport failed" >&2
         return 1
     fi
@@ -417,3 +376,10 @@ cortex_api_download_admin() {
         return 1
     fi
 }
+
+# Resolve after every helper exists; no unauthenticated metadata probe.
+RESOLVED_CORTEX_PROJECT_ID="$(cortex_resolve_project_id || true)"
+if cortex_valid_uuid "${RESOLVED_CORTEX_PROJECT_ID}"; then
+    export CORTEX_PROJECT_ID="${RESOLVED_CORTEX_PROJECT_ID}"
+fi
+unset RESOLVED_CORTEX_PROJECT_ID

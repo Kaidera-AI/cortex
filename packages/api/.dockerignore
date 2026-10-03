@@ -8,6 +8,10 @@
 !openkai_provider_env.py
 !db_tls.py
 !service_auth.py
+!service_auth_http.py
+!service_auth_policy.py
+!cortex_auth_tokens.py
+!release_identity.py
 !service_auth_owner.py
 !service_auth_owner_client.py
 !service_auth_owner_lifespan.py

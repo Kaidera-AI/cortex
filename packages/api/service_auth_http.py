@@ -1,9 +1,8 @@
-"""Inactive, fail-closed Cortex HTTP admission boundary.
+"""Fail-closed Cortex HTTP admission boundary.
 
-Not installed by main. A future integration must supply a server-owned transport
-verifier and migrate every legacy auth consumer before selecting this adapter.
-Empty/JSON bodies only; this is not multipart or object-ownership authorization.
-The store is read-only here: authentication never acknowledges consumer reload.
+The integration supplies a server-owned transport verifier. JSON requests are
+validated before dispatch; the five explicit multipart routes are authenticated
+and authorized before their bounded bodies stream to FastAPI.
 """
 
 import asyncio
@@ -36,6 +35,17 @@ _DETAILS = {400: "Invalid request", 401: "Valid bearer credential required",
             403: "Credential does not permit this operation", 408: "Request body timed out",
             413: "Request body is too large", 415: "Unsupported request representation",
             503: "Authentication is unavailable"}
+
+# Request-body ceilings include bounded multipart framing overhead. The endpoint
+# handlers retain their stricter per-file limits.
+MULTIPART_LIMITS = {
+    ("POST", "/artifacts/transcribe"): 201 * 1024 * 1024,
+    ("POST", "/artifacts/describe-image"): 65 * 1024 * 1024,
+    ("POST", "/artifacts/parse-document"): 26 * 1024 * 1024,
+    ("POST", "/media/transcribe"): 201 * 1024 * 1024,
+    ("POST", "/media/describe-image"): 65 * 1024 * 1024,
+}
+_MULTIPART_BOUNDARY = re.compile(rb"[0-9A-Za-z'()+_,./:=?-]{1,70}")
 
 
 class _Denied(Exception):
@@ -73,11 +83,32 @@ def _headers(scope):
         raise _Denied(400)
     if b"content-encoding" in headers and headers[b"content-encoding"].lower() != b"identity":
         raise _Denied(415)
-    if b"content-type" in headers:
-        parts = [part.strip().lower() for part in headers[b"content-type"].split(b";")]
-        if parts[0] != b"application/json" or any(p not in {b"charset=utf-8", b'charset="utf-8"'} for p in parts[1:]):
-            raise _Denied(415)
     return headers
+
+
+def _representation(headers):
+    value = headers.get(b"content-type")
+    if value is None:
+        return "empty"
+    parts = [part.strip() for part in value.split(b";")]
+    media_type = parts[0].lower()
+    if media_type == b"application/json":
+        if any(part.lower() not in {b"charset=utf-8", b'charset="utf-8"'} for part in parts[1:]):
+            raise _Denied(415)
+        return "json"
+    if media_type == b"multipart/form-data":
+        if len(parts) != 2:
+            raise _Denied(415)
+        name, separator, boundary = parts[1].partition(b"=")
+        if separator != b"=" or name.strip().lower() != b"boundary":
+            raise _Denied(415)
+        boundary = boundary.strip()
+        if len(boundary) >= 2 and boundary[:1] == boundary[-1:] == b'"':
+            boundary = boundary[1:-1]
+        if not _MULTIPART_BOUNDARY.fullmatch(boundary):
+            raise _Denied(415)
+        return "multipart"
+    raise _Denied(415)
 
 
 def _query(scope):
@@ -123,13 +154,18 @@ def _nonfinite(_):
 
 def _selectors(method, template, context, headers, path, query, body):
     try:
-        require_policy(method, template, context)
+        required = require_policy(method, template, context)
+        cross_project_admin = (
+            required == frozenset({"instance:admin"})
+            and "instance:admin" in context.scopes
+        )
         for mapping in (path, query, body):
-            for key in _PROJECT_FIELDS & mapping.keys():
-                require_project_selector(mapping[key], context)
+            if not cross_project_admin:
+                for key in _PROJECT_FIELDS & mapping.keys():
+                    require_project_selector(mapping[key], context)
             if "hall" in mapping and mapping["hall"] not in ("project", "local"):
                 raise _Denied(403)
-        if b"x-project" in headers:
+        if b"x-project" in headers and not cross_project_admin:
             require_project_selector(headers[b"x-project"].decode("utf-8"), context)
         if b"x-agent-name" in headers:
             require_actor_selector(headers[b"x-agent-name"].decode("utf-8"), context)
@@ -209,17 +245,19 @@ class ServiceAuthStreamingResponse(StreamingResponse):
 
 
 class ServiceAuthMiddleware:
-    """Unselected ASGI adapter with internal, bounded protocol limits."""
+    """ASGI admission adapter with bounded JSON and multipart protocols."""
 
     def __init__(self, app, router, store_provider, *, transport_is_verified=None,
                  max_body_bytes=16 * 1024 * 1024, body_timeout=5,
-                 auth_timeout=1, recheck_interval=1, close_timeout=1):
+                 multipart_body_timeout=300, auth_timeout=1,
+                 recheck_interval=1, close_timeout=1):
         self.app = app
         self.router = router
         self.store_provider = store_provider
         self.transport_is_verified = transport_is_verified
         self.max_body_bytes = _limit(max_body_bytes, 16 * 1024 * 1024)
         self.body_timeout = _limit(body_timeout, 5)
+        self.multipart_body_timeout = _limit(multipart_body_timeout, 300)
         self.auth_timeout = _limit(auth_timeout, 1)
         self.recheck_interval = _limit(recheck_interval, 1)
         self.close_timeout = _limit(close_timeout, 1)
@@ -241,6 +279,18 @@ class ServiceAuthMiddleware:
         except Exception:
             # Do not expose provider/driver diagnostics or fall back to legacy.
             raise _Denied(503) from None
+
+    async def _observe_consumer_use(self, context):
+        if context is None:
+            return
+        try:
+            store = self.store_provider()
+            async with asyncio.timeout(self.auth_timeout):
+                await store.observe_consumer_use(context)
+        except Exception:
+            # Authentication stays usable; owner acknowledgment remains closed
+            # until a later verified successful response persists this evidence.
+            return
 
     async def _body(self, receive, headers):
         chunks, size = [], 0
@@ -287,8 +337,10 @@ class ServiceAuthMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        multipart_limit = None
         try:
             headers, query = _headers(scope), _query(scope)
+            representation = _representation(headers)
             template, path = _route(self.router, scope)
             method = scope["method"]
             public = (method, template) in PUBLIC_ROUTES
@@ -308,8 +360,20 @@ class ServiceAuthMiddleware:
                     raise _Denied(503)
                 token = match[1]
                 context = await self._authenticate(token)
-            raw, body = await self._body(receive, headers)
-            _selectors(method, template, context, headers, path, query, body)
+            multipart_limit = MULTIPART_LIMITS.get((method, template))
+            if multipart_limit is not None:
+                if representation != "multipart":
+                    raise _Denied(415)
+                declared = headers.get(b"content-length")
+                if declared is not None and int(declared) > multipart_limit:
+                    raise _Denied(413)
+                raw, body = None, {}
+                _selectors(method, template, context, headers, path, query, body)
+            else:
+                if representation == "multipart":
+                    raise _Denied(415)
+                raw, body = await self._body(receive, headers)
+                _selectors(method, template, context, headers, path, query, body)
             admitted = dict(scope)
             admitted["state"] = dict(scope.get("state", {}))
             admitted["state"].pop("jwt_claims", None)
@@ -337,10 +401,133 @@ class ServiceAuthMiddleware:
                 raise _Denied(403)
             _selectors(method, template, current, headers, path, query, body)
 
-        await self._dispatch(admitted, receive, send, raw, recheck if context is not None else None)
+        authority_check = recheck if context is not None else None
+        if multipart_limit is not None:
+            await self._dispatch_multipart(
+                admitted, receive, send, headers, multipart_limit, authority_check, context
+            )
+        else:
+            await self._dispatch(admitted, receive, send, raw, authority_check, context)
 
-    async def _dispatch(self, scope, receive, send, raw, recheck):
-        started = complete = disconnected = failed = False
+    async def _dispatch_multipart(
+        self, scope, receive, send, headers, limit, recheck, context
+    ):
+        started = complete = disconnected = observed = False
+        denial_status = None
+        status_code = None
+        received = 0
+        request_finished = False
+        request_done = asyncio.Event()
+        app_task = None
+        deadline = asyncio.get_running_loop().time() + self.multipart_body_timeout
+        declared = int(headers[b"content-length"]) if b"content-length" in headers else None
+
+        async def limited_receive():
+            nonlocal received, request_finished, disconnected, denial_status
+            if request_finished:
+                message = await receive()
+            else:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    denial_status = 408
+                    raise _Denied(408)
+                try:
+                    async with asyncio.timeout(remaining):
+                        message = await receive()
+                except TimeoutError:
+                    denial_status = 408
+                    raise _Denied(408) from None
+            if message["type"] == "http.disconnect":
+                disconnected = True
+                raise _Disconnected()
+            if message["type"] != "http.request":
+                denial_status = 400
+                raise _Denied(400)
+            received += len(message.get("body", b""))
+            if received > limit:
+                denial_status = 413
+                raise _Denied(413)
+            if not message.get("more_body", False):
+                if declared is not None and declared != received:
+                    denial_status = 400
+                    raise _Denied(400)
+                request_finished = True
+                request_done.set()
+            return message
+
+        async def guarded_send(message):
+            nonlocal started, complete, denial_status, status_code, observed
+            if denial_status is not None or disconnected:
+                return
+            if message["type"] == "http.response.start" and recheck is not None:
+                try:
+                    await recheck()
+                except _Denied as exc:
+                    denial_status = exc.status
+                    raise
+            if message["type"] == "http.response.start":
+                stream = any(
+                    key.lower() == b"content-type"
+                    and value.lower().split(b";")[0].strip() == b"text/event-stream"
+                    for key, value in message.get("headers", ())
+                )
+                if 200 <= message["status"] < 300 and not stream and not observed:
+                    await self._observe_consumer_use(context)
+                    observed = True
+            if (
+                message["type"] == "http.response.body"
+                and not message.get("more_body", False)
+                and status_code is not None
+                and 200 <= status_code < 300
+                and not observed
+            ):
+                await self._observe_consumer_use(context)
+                observed = True
+            await send(message)
+            if message["type"] == "http.response.start":
+                started = True
+                status_code = message["status"]
+            elif message["type"] == "http.response.body" and not message.get("more_body", False):
+                complete = True
+
+        async def watch_disconnect():
+            nonlocal disconnected
+            # Never compete with the downstream multipart parser for request
+            # bytes. The watcher starts only after it consumed the final chunk.
+            await request_done.wait()
+            while True:
+                message = await receive()
+                if message["type"] == "http.disconnect":
+                    disconnected = True
+                    if app_task is not None and not app_task.done():
+                        app_task.cancel()
+                    return
+
+        app_task = asyncio.create_task(self.app(scope, limited_receive, guarded_send))
+        watcher = asyncio.create_task(watch_disconnect())
+        try:
+            await app_task
+        except (_Denied, _Disconnected):
+            pass
+        except asyncio.CancelledError:
+            if asyncio.current_task().cancelling() or not disconnected:
+                raise
+        finally:
+            if not watcher.done():
+                watcher.cancel()
+            await asyncio.gather(watcher, return_exceptions=True)
+        if denial_status is not None and not started and not disconnected:
+            await _error(send, denial_status)
+        elif started and not complete and not disconnected:
+            try:
+                async with asyncio.timeout(self.close_timeout):
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+            except (OSError, TimeoutError):
+                pass
+
+    async def _dispatch(self, scope, receive, send, raw, recheck, context):
+        started = complete = disconnected = failed = observed = False
+        status_code = None
         stream_ready = asyncio.Event()
         disconnect = asyncio.Event()
         replayed = False
@@ -364,12 +551,15 @@ class ServiceAuthMiddleware:
             return {"type": "http.disconnect"}
 
         async def guarded_send(message):
-            nonlocal started, complete, disconnected, failed
+            nonlocal started, complete, disconnected, failed, status_code, observed
             if disconnected or failed:
                 raise asyncio.CancelledError()
             if message["type"] == "http.response.start":
                 stream = any(k.lower() == b"content-type" and v.lower().split(b";")[0].strip() == b"text/event-stream"
                              for k, v in message.get("headers", ()))
+                if 200 <= message["status"] < 300 and not stream and not observed:
+                    await self._observe_consumer_use(context)
+                    observed = True
                 if stream and recheck:
                     stream_ready.set()
             if message["type"] == "http.response.body" and stream_ready.is_set():
@@ -380,6 +570,15 @@ class ServiceAuthMiddleware:
                 if failed:
                     stop_application()
                     raise asyncio.CancelledError()
+            if (
+                message["type"] == "http.response.body"
+                and not message.get("more_body", False)
+                and status_code is not None
+                and 200 <= status_code < 300
+                and not observed
+            ):
+                await self._observe_consumer_use(context)
+                observed = True
             try:
                 await send(message)
             except OSError:
@@ -389,6 +588,7 @@ class ServiceAuthMiddleware:
                 raise asyncio.CancelledError() from None
             if message["type"] == "http.response.start":
                 started = True
+                status_code = message["status"]
             elif message["type"] == "http.response.body" and not message.get("more_body", False):
                 complete = True
 

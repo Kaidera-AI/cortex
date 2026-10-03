@@ -167,9 +167,11 @@ SELECT t.*, p.project_id, p.agent_id, p.actor_id, p.installation_id,
        p.disabled_at AS principal_disabled, g.disabled_at AS grant_disabled,
        g.scopes AS grant_scopes, s.generation AS current_generation,
        cp.project_key, cp.status AS project_status, a.name AS agent_name,
-       a.status AS agent_status, a.project_id AS agent_project_id,
-       a.actor_id AS agent_actor_id, ca.project_id AS actor_project_id,
-       ca.status AS actor_status
+       a.status AS agent_status,
+       COALESCE(a.capabilities->>'visibility','active') AS agent_visibility,
+       COALESCE(a.capabilities->>'keep_visible','false') AS agent_keep_visible,
+       a.project_id AS agent_project_id, a.actor_id AS agent_actor_id,
+       ca.project_id AS actor_project_id, ca.status AS actor_status
 FROM cortex_auth.tokens t
 JOIN cortex_auth.principals p ON p.id=t.principal_id
 JOIN cortex_auth.grants g ON g.principal_id=p.id
@@ -192,6 +194,8 @@ def _context(row, now: datetime, *, allow_expired=False) -> AuthContext:
         or row["project_status"] != "active"
         or row["actor_status"] not in {"active", "system"}
         or row["agent_status"] in {"disabled", "deleted", "archived", "retired"}
+        or row["agent_visibility"] == "history-only"
+        or row["agent_keep_visible"] != "true"
         or row["agent_project_id"] != row["project_id"]
         or row["actor_project_id"] != row["project_id"]
         or row["agent_actor_id"] != row["actor_id"]
@@ -235,6 +239,22 @@ class ServiceAuthStore:
                 return str(UUID(str(row["instance_id"])))
             except (KeyError, TypeError, ValueError):
                 raise AuthStoreUnavailable("Security instance is unavailable") from None
+
+    async def instance_status(self, *, authority) -> dict[str, object]:
+        """Authoritative owner-only pairing and initialization metadata."""
+        _owner(authority)
+        async with self._connection() as conn:
+            row = await conn.fetchrow(
+                "SELECT instance_id, initialized_at FROM cortex_auth.state WHERE singleton"
+            )
+            try:
+                instance_id = str(UUID(str(row["instance_id"])))
+            except (KeyError, TypeError, ValueError):
+                raise AuthStoreUnavailable("Security instance is unavailable") from None
+            return {
+                "instance_id": instance_id,
+                "initialized": row["initialized_at"] is not None,
+            }
 
     @asynccontextmanager
     async def _connection(self, *, write=False):
@@ -304,7 +324,9 @@ class ServiceAuthStore:
                JOIN public.cortex_actors ca ON ca.id=a.actor_id AND ca.project_id=cp.id
                WHERE a.id=$1 AND cp.id=$2 AND cp.status='active'
                  AND ca.status IN ('active','system')
-                 AND a.status NOT IN ('disabled','deleted','archived','retired')""",
+                 AND a.status NOT IN ('disabled','deleted','archived','retired')
+                 AND COALESCE(a.capabilities->>'visibility','active') <> 'history-only'
+                 AND COALESCE(a.capabilities->>'keep_visible','false') = 'true'""",
             agent_id, project_id,
         )
         if identity is None:

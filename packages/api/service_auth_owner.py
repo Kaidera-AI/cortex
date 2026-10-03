@@ -103,20 +103,30 @@ def validate_request(value):
         raise OwnerError('unsupported owner protocol')
     operation = value.get('operation')
     keys = {'protocol', 'operation', 'instance_id'}
-    if operation == 'setup-grant': keys |= {'purpose'}
+    if operation == 'setup-grant':
+        keys |= {'purpose'}
     elif operation == 'consume-setup':
         keys |= {'purpose', 'setup_token', 'identity', 'installation_id', 'scopes', 'revoke_existing'}
-    elif operation != 'identity': raise OwnerError('unsupported owner operation')
+    elif operation in {'rotate', 'acknowledge-rotation'}:
+        keys |= {'token_id'}
+    elif operation not in {'identity', 'status'}:
+        raise OwnerError('unsupported owner operation')
     if set(value) != keys:
         raise OwnerError('invalid owner fields')
     instance = value['instance_id']
-    if instance is not None or operation != 'identity':
+    if instance is not None or operation not in {'identity', 'status'}:
         try:
             if not isinstance(instance, str) or str(UUID(instance)) != instance: raise ValueError
         except ValueError:
             raise OwnerError('invalid owner instance') from None
-    if operation != 'identity' and value['purpose'] not in {'bootstrap', 'recovery'}:
+    if operation in {'setup-grant', 'consume-setup'} and value['purpose'] not in {'bootstrap', 'recovery'}:
         raise OwnerError('invalid owner purpose')
+    if operation in {'rotate', 'acknowledge-rotation'}:
+        try:
+            if not isinstance(value['token_id'], str) or str(UUID(value['token_id'])) != value['token_id']:
+                raise ValueError
+        except ValueError:
+            raise OwnerError('invalid owner token identity') from None
     if operation == 'consume-setup':
         identity = value['identity']
         if (not isinstance(identity, dict) or set(identity) != {'project_key', 'agent_name'}
@@ -168,8 +178,14 @@ class OwnerServer:
                 os.chmod(self.socket_path, 0o600, follow_symlinks=False)
                 private_socket(self.socket_path)
                 sock.setblocking(False)
+                # cleanup_socket=False exists only on Python 3.13+; on 3.12 a
+                # pre-bound sock is never path-unlinked by asyncio, which is
+                # already the exact contract close() relies on.
+                server_kwargs = {"limit": MAX_HEADER + MAX_BODY}
+                if sys.version_info >= (3, 13):
+                    server_kwargs["cleanup_socket"] = False
                 self.server = await asyncio.start_unix_server(self._accept, sock=sock,
-                    limit=MAX_HEADER + MAX_BODY, cleanup_socket=False)
+                    **server_kwargs)
             except BaseException:
                 sock.close()
                 raise
@@ -250,17 +266,35 @@ class OwnerServer:
                 operation = value['operation']
                 if operation == 'identity':
                     result = {'instance_id': instance}
+                elif operation == 'status':
+                    result = await self.store.instance_status(authority=auth.LOCAL_OWNER)
                 elif operation == 'setup-grant':
-                    result = asdict(await self.store.create_setup_grant(authority=auth.LOCAL_OWNER,
-                        purpose=value['purpose'], expected_instance_id=value['instance_id']))
-                else:
+                    result = asdict(await self.store.create_setup_grant(
+                        authority=auth.LOCAL_OWNER,
+                        purpose=value['purpose'],
+                        expected_instance_id=value['instance_id'],
+                    ))
+                elif operation == 'consume-setup':
                     async def resolve(conn):
                         return await self.resolve_identity(conn, value['identity'])
-                    result = asdict(await self.store.consume_setup_grant(value['setup_token'],
-                        authority=auth.LOCAL_OWNER, resolve_identity=resolve,
-                        installation_id=value['installation_id'], scopes=value['scopes'],
-                        purpose=value['purpose'], revoke_existing=value['revoke_existing'],
-                        expected_instance_id=value['instance_id']))
+                    result = asdict(await self.store.consume_setup_grant(
+                        value['setup_token'],
+                        authority=auth.LOCAL_OWNER,
+                        resolve_identity=resolve,
+                        installation_id=value['installation_id'],
+                        scopes=value['scopes'],
+                        purpose=value['purpose'],
+                        revoke_existing=value['revoke_existing'],
+                        expected_instance_id=value['instance_id'],
+                    ))
+                elif operation == 'rotate':
+                    result = asdict(await self.store.rotate(
+                        value['token_id'], authority=auth.LOCAL_OWNER
+                    ))
+                else:
+                    result = asdict(await self.store.acknowledge_rotation(
+                        value['token_id'], authority=auth.LOCAL_OWNER
+                    ))
                 await self._respond(writer, conn, 200, {'protocol': PROTOCOL, 'instance_id': instance, 'result': result})
                 return
             else:

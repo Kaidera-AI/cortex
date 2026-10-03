@@ -37,13 +37,13 @@ except ImportError as exc:  # pragma: no cover — surface a clear setup error
     raise SystemExit(1) from exc
 
 import httpx
+from cortex_auth_tokens import CortexServiceAuth
 
 
 # ── Configuration ────────────────────────────────────────────────────────────
 CORTEX_API_URL = os.environ.get("CORTEX_API_URL", "http://localhost:8501")
 CORTEX_PROJECT = os.environ.get("CORTEX_PROJECT", "").strip()
 CORTEX_AGENT = os.environ.get("CORTEX_AGENT", "")  # used as X-Agent-Name header
-CORTEX_API_BEARER_TOKEN = os.environ.get("CORTEX_API_BEARER_TOKEN", "")
 HTTP_TIMEOUT = float(os.environ.get("CORTEX_API_TIMEOUT", "30"))
 # These client deadlines must remain above cortex-api's 70s/130s worker
 # deadlines. That seam lets cortex-api return a structured timeout instead of
@@ -214,13 +214,13 @@ async def lifespan(_server: MCPServer):
     headers: dict[str, str] = {"X-Project": CORTEX_PROJECT}
     if CORTEX_AGENT:
         headers["X-Agent-Name"] = CORTEX_AGENT
-    if CORTEX_API_BEARER_TOKEN:
-        headers["Authorization"] = f"Bearer {CORTEX_API_BEARER_TOKEN}"
 
     async with httpx.AsyncClient(
         base_url=CORTEX_API_URL,
         timeout=HTTP_TIMEOUT,
         headers=headers,
+        auth=CortexServiceAuth(default_project=CORTEX_PROJECT, default_agent=CORTEX_AGENT or "console"),
+        trust_env=False,
     ) as client:
         watchdog_task = asyncio.create_task(_stdin_watchdog())
         try:

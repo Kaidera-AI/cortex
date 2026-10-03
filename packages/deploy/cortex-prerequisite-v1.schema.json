@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cortex.prerequisite.v1",
+  "title": "Cortex prerequisite descriptor CM-1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "cortex.prerequisite.v1"
+    },
+    "api_url": {
+      "type": "string",
+      "format": "uri",
+      "maxLength": 2048
+    },
+    "installation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "owner_uid": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^v[0-9][A-Za-z0-9.+-]{0,127}$"
+    },
+    "release_lineage": {
+      "const": "cortex-v1-manual"
+    },
+    "release_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "api_contract": {
+      "const": "cortex-kos-v02009.v1"
+    },
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "platform": {
+      "enum": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    "host_os": {
+      "enum": [
+        "macos",
+        "linux"
+      ]
+    },
+    "release_manifest": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "release_signature": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "db",
+        "migrate",
+        "api"
+      ],
+      "properties": {
+        "db": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "migrate": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "api": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "graph": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "embed": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "pdf": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "audio": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        },
+        "vision": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "health_path": {
+      "const": "/health"
+    },
+    "credential_dir": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "credential_file": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "credential_project": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+    },
+    "credential_agent": {
+      "const": "console"
+    },
+    "podman": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported_family",
+        "tested_baseline",
+        "machine_name",
+        "machine_image_digest"
+      ],
+      "properties": {
+        "supported_family": {
+          "const": "6.0.x"
+        },
+        "tested_baseline": {
+          "const": "6.0.2"
+        },
+        "machine_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "machine_image_digest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "install_guide": {
+      "type": "string",
+      "pattern": "^https://github\\.com/Kaidera-AI/cortex/releases/tag/v[0-9][A-Za-z0-9.+-]{0,127}$"
+    }
+  },
+  "required": [
+    "schema",
+    "api_url",
+    "installation_id",
+    "owner_uid",
+    "release_id",
+    "release_lineage",
+    "release_sequence",
+    "api_contract",
+    "source_revision",
+    "platform",
+    "host_os",
+    "release_manifest",
+    "release_signature",
+    "images",
+    "health_path",
+    "credential_dir",
+    "credential_file",
+    "credential_project",
+    "credential_agent",
+    "podman",
+    "install_guide"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "host_os": {
+            "const": "macos"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "platform": {
+            "const": "linux/arm64"
+          },
+          "podman": {
+            "properties": {
+              "machine_name": {
+                "type": "string"
+              },
+              "machine_image_digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "podman": {
+            "properties": {
+              "machine_name": {
+                "type": "null"
+              },
+              "machine_image_digest": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$comment": "Schema describes proposed release output, not a live descriptor. URL origin restrictions, private no-follow path/owner/link checks, cross-field credential path equality, signature verification, release/image/health identity and policy-floor comparison are normative in CM1_PREREQUISITE_DESCRIPTOR_2026-10-03.md and require consumer code; JSON Schema alone does not establish those properties."
+}

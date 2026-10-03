@@ -4,6 +4,9 @@ ARG KOS_VERSION
 ARG KOS_SOURCE_REVISION
 ARG KOS_IMAGE_SOURCE
 ARG KOS_EDITION
+ARG CORTEX_RELEASE_LINEAGE
+ARG CORTEX_RELEASE_SEQUENCE
+ARG CORTEX_API_CONTRACT
 LABEL org.opencontainers.image.source="$KOS_IMAGE_SOURCE" \
       org.opencontainers.image.version="$KOS_VERSION" \
       org.opencontainers.image.revision="$KOS_SOURCE_REVISION" \
@@ -39,6 +42,10 @@ COPY main.py \
      openkai_provider_env.py \
      db_tls.py \
      service_auth.py \
+     service_auth_http.py \
+     service_auth_policy.py \
+     cortex_auth_tokens.py \
+     release_identity.py \
      service_auth_owner.py \
      service_auth_owner_client.py \
      service_auth_owner_lifespan.py \
@@ -54,6 +61,14 @@ RUN test -s ./main.py \
  && test -s ./service_auth_owner_lifespan.py \
  && test -s ./ingest/__init__.py \
  && test -s ./models/__init__.py
+
+# Legacy builds stay unqualified; a manual release must bake its public identity.
+RUN if [ -n "$CORTEX_RELEASE_SEQUENCE" ]; then \
+      python /app/release_identity.py "$KOS_VERSION" "$CORTEX_RELEASE_LINEAGE" \
+        "$CORTEX_RELEASE_SEQUENCE" "$CORTEX_API_CONTRACT" "$KOS_SOURCE_REVISION"; \
+    else \
+      case "$KOS_VERSION" in *-manual.*) exit 1 ;; esac; \
+    fi
 
 EXPOSE 8501
 USER 10001:10001
