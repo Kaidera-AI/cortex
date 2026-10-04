@@ -1,0 +1,49 @@
+name: Cortex R52 native source rehearsal
+
+# Kai r52 requires this source-verification run before Vera's new-tip review.
+# It creates no host executable/installable package and publishes no release.
+on:
+  push:
+    branches: ["ren-cx/package-rehearsal-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    if: github.repository == 'Kaidera-AI/cortex' && github.event.repository.private == false
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Exact source / first attempt
+        env:
+          REHEARSAL_SHA: ${{ github.sha }}
+          REHEARSAL_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test "$REHEARSAL_REF" = "ren-cx/package-rehearsal-$REHEARSAL_SHA"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(uname -m)" = aarch64
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Native builder prerequisite
+        run: sudo apt-get update && sudo apt-get install -y podman
+      - name: Build the exact DB/API/worker images; require real migrations and internal publish
+        env:
+          REHEARSAL_SHA: ${{ github.sha }}
+        run: >-
+          python3 scripts/release/build-candidate.py images
+          --source-sha "$REHEARSAL_SHA"
+          --version "0.2.001-test.$(date -u +%Y%m%d).$GITHUB_RUN_ID"
+          --output "$RUNNER_TEMP/cortex-r52-source-rehearsal"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cortex-r52-public-receipts-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/cortex-r52-source-rehearsal/rehearsal-receipt.json
+            ${{ runner.temp }}/cortex-r52-source-rehearsal/image-inventory.json
+          if-no-files-found: error
+          retention-days: 14

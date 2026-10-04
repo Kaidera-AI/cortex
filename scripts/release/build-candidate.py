@@ -4,10 +4,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 from datetime import datetime, timezone
 from importlib import metadata
@@ -30,6 +32,10 @@ def digest(path: Path) -> str:
 
 
 def source_identity(source_sha: str) -> None:
+    # A failed-job rerun can reuse the identity job's version output. Every
+    # actual stage checks its own attempt before it can create new bytes.
+    if os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("GITHUB_RUN_ATTEMPT") != "1":
+        raise RuntimeError("rerun refused; create a new candidate identity")
     if not re.fullmatch(r"[0-9a-f]{40}", source_sha):
         raise RuntimeError("exact source SHA required")
     if run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], read=True) != source_sha:
@@ -144,6 +150,11 @@ def images(out: Path, source_sha: str, version: str) -> None:
             "builder": {"podman": run(["podman", "version", "--format", "{{.Client.Version}}"], read=True),
                         "system": platform.platform(), "architecture": platform.machine()}}, indent=2) + "\n")
 
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from package_rehearsal import rehearse
+    receipt = rehearse(entries, source_sha, version)
+    (out / "rehearsal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+
 
 def host(out: Path, source_sha: str, version: str) -> None:
     if platform.system() != "Darwin" or platform.machine() != "arm64":
@@ -195,6 +206,7 @@ def host(out: Path, source_sha: str, version: str) -> None:
 def compose_projection(entries: dict) -> str:
     # JSON is valid YAML. Config IDs are immutable local image identities; the
     # source OCI manifest digests are recorded separately without conflation.
+    prefix = "${CORTEX_TEST_NAMESPACE:?Use the native installer}"
     common = {"pull_policy": "never", "restart": "no", "networks": ["test"],
               "profiles": ["package-managed"], "cpus": 1,
               "labels": {"com.kaidera.deployment-class": "TEST",
@@ -207,7 +219,7 @@ def compose_projection(entries: dict) -> str:
     services = {}
     for role, image_role in (("db", "db"), ("migrate", "api"), ("api", "api"), ("doc", "doc"), ("embed", "embed"), ("graph", "graph")):
         services[role] = dict(common, image=entries[image_role]["config_id"],
-                              container_name=f"{INSTANCE}_{role}", mem_limit="512m" if role in ("db", "api") else "256m")
+                              container_name=f"{prefix}_{role}", mem_limit="512m" if role in ("db", "api") else "256m")
         if role != "db":
             services[role].update(runtime)
             services[role]["environment"] = {"CORTEX_V2_SANDBOX_INSTANCE": INSTANCE}
@@ -233,7 +245,7 @@ def compose_projection(entries: dict) -> str:
             service["ports"] = ["127.0.0.1:${CORTEX_TEST_PORT:?Use the native installer}:8601"]
         else:
             service["environment"].update(CORTEX_V2_WORKER_TOKEN_FILE="/run/secrets/worker-token", CORTEX_V2_WORKER_PRINCIPAL_ID_FILE="/run/secrets/worker-principal-id")
-            service["environment"].update(CORTEX_V2_WORKER_ID=f"cortex-v2-package-test-{role}", CORTEX_V2_INFERENCE_ROUTING_POLICY="disabled")
+            service["environment"].update(CORTEX_V2_WORKER_ID=f"{prefix}-{role}", CORTEX_V2_INFERENCE_ROUTING_POLICY="disabled")
             if role == "doc":
                 service["environment"]["CORTEX_V2_WORKER_EXECUTOR_ROLES"] = "core,doc"
             elif role == "graph":
@@ -241,12 +253,12 @@ def compose_projection(entries: dict) -> str:
             service["secrets"] += [secret("worker-token", "worker-token"), secret("worker-principal-id", "worker-principal-id")]
     # Full pinned projection for review. External resources and the opt-in
     # profile prevent accidental construction. The native installer owns setup.
-    return json.dumps({"name": INSTANCE, "x-cortex-purpose": "image identity inventory; install with cortex-test",
+    return json.dumps({"name": prefix, "x-cortex-purpose": "image identity inventory; install with cortex-test",
                        "x-cortex-oci-manifest-digests": {k: v["manifest_digest"] for k, v in entries.items()},
                        "services": services,
-                       "networks": {"test": {"external": True, "name": f"{INSTANCE}_net"}},
-                       "volumes": {"pgdata": {"external": True, "name": f"{INSTANCE}_pgdata"}},
-                       "secrets": {s: {"external": True, "name": f"{INSTANCE}-{s}"} for s in
+                       "networks": {"test": {"external": True, "name": f"{prefix}_net"}},
+                       "volumes": {"pgdata": {"external": True, "name": f"{prefix}_pgdata"}},
+                       "secrets": {s: {"external": True, "name": f"{prefix}-{s}"} for s in
                                    ("db-owner-password", "db-app-password", "db-migrator-password", "database-url-app",
                                     "database-url-migrator", "fixture", "token-pepper", "worker-token", "worker-principal-id")}}, indent=2) + "\n"
 
@@ -255,8 +267,13 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     source_identity(source_sha)
     inventory = json.loads((images_dir / "image-inventory.json").read_text())
     native = json.loads((host_dir / "host-inventory.json").read_text())
+    rehearsal = json.loads((images_dir / "rehearsal-receipt.json").read_text())
     if inventory["source_sha"] != source_sha or inventory["version"] != version or native["source_sha"] != source_sha or native["version"] != version:
         raise RuntimeError("builder receipts do not bind to one frozen source/version")
+    if (rehearsal.get("status") != "PASS" or rehearsal.get("source_sha") != source_sha
+            or rehearsal.get("version") != version
+            or rehearsal.get("image_ids") != {r: i["config_id"] for r, i in inventory["images"].items()}):
+        raise RuntimeError("complete migration/network/restart rehearsal missing or mismatched")
     if out.exists():
         raise RuntimeError("assembly output already exists")
     out.mkdir(parents=True)
@@ -264,6 +281,7 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     package.mkdir()
     shutil.copytree(images_dir / "images", package / "images")
     shutil.copytree(images_dir / "sbom", package / "sbom")
+    shutil.copy2(images_dir / "rehearsal-receipt.json", package / "rehearsal-receipt.json")
     shutil.copytree(host_dir / "bin", package / "bin")
     # GitHub artifact upload/download does not preserve executable mode.
     (package / "bin/cortex-test").chmod(0o755)

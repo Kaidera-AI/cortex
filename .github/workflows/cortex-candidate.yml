@@ -7,6 +7,9 @@ on:
     branches: ["ren-cx/package-build-admitted-*"]
   workflow_dispatch:
 
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
 permissions:
   contents: read
 
@@ -16,7 +19,7 @@ concurrency:
 
 jobs:
   identity:
-    if: github.repository == 'Kaidera-AI/cortex'
+    if: github.repository == 'Kaidera-AI/cortex' && github.event.repository.private == false
     runs-on: ubuntu-24.04-arm
     outputs:
       version: ${{ steps.identity.outputs.version }}
@@ -31,7 +34,7 @@ jobs:
           test "$CANDIDATE_REF" = "ren-cx/package-build-admitted-$CANDIDATE_SHA"
           test "$GITHUB_RUN_ATTEMPT" = 1
           test "$(uname -m)" = aarch64
-          echo "version=0.2.001-test.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "version=0.2.001-test.$(date -u +%Y%m%d).$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
 
   images:
     needs: identity
