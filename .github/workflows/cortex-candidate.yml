@@ -1,0 +1,120 @@
+name: Cortex native TEST package
+
+# After Vera passes the frozen SHA, create this exact SHA-named branch. The
+# normal source-review branch never starts an image build or install.
+on:
+  push:
+    branches: ["ren-cx/package-build-admitted-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cortex-candidate-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  identity:
+    if: github.repository == 'Kaidera-AI/cortex'
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    steps:
+      - id: identity
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CANDIDATE_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test "$CANDIDATE_REF" = "ren-cx/package-build-admitted-$CANDIDATE_SHA"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(uname -m)" = aarch64
+          echo "version=0.2.001-test.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+  images:
+    needs: identity
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Builder tools (native Linux; no product host)
+        run: sudo apt-get update && sudo apt-get install -y podman
+      - name: Build immutable OCI images and package inventory
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CANDIDATE_VERSION: ${{ needs.identity.outputs.version }}
+        run: >-
+          python3 scripts/release/build-candidate.py images
+          --source-sha "$CANDIDATE_SHA" --version "$CANDIDATE_VERSION"
+          --output "$RUNNER_TEMP/cortex-images"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cortex-images-${{ github.sha }}
+          path: ${{ runner.temp }}/cortex-images
+          if-no-files-found: error
+          retention-days: 14
+
+  host:
+    needs: identity
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.14"
+          architecture: arm64
+      - name: Freeze native installer; no target Python dependency
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CANDIDATE_VERSION: ${{ needs.identity.outputs.version }}
+        run: >-
+          python3 scripts/release/build-candidate.py host
+          --source-sha "$CANDIDATE_SHA" --version "$CANDIDATE_VERSION"
+          --output "$RUNNER_TEMP/cortex-host"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cortex-host-${{ github.sha }}
+          path: ${{ runner.temp }}/cortex-host
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    needs: [identity, images, host]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cortex-images-${{ github.sha }}
+          path: ${{ runner.temp }}/cortex-images
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cortex-host-${{ github.sha }}
+          path: ${{ runner.temp }}/cortex-host
+      - name: Assemble exact builder bytes; do not rebuild
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CANDIDATE_VERSION: ${{ needs.identity.outputs.version }}
+        run: >-
+          python3 scripts/release/build-candidate.py assemble
+          --source-sha "$CANDIDATE_SHA" --version "$CANDIDATE_VERSION"
+          --images "$RUNNER_TEMP/cortex-images" --host "$RUNNER_TEMP/cortex-host"
+          --output "$RUNNER_TEMP/cortex-package"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cortex-macos-arm64-${{ needs.identity.outputs.version }}
+          path: |
+            ${{ runner.temp }}/cortex-package/*.tar.gz
+            ${{ runner.temp }}/cortex-package/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30

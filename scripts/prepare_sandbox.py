@@ -14,15 +14,18 @@ from urllib.parse import quote
 SANDBOX_INSTANCE = "cortex-v2-v0-02-001-sandbox"
 W1_INSTANCE = "cortex-v2-w1-candidate"
 KAI_TEST_INSTANCE = "cortex_kai_test"
+PACKAGE_TEST_INSTANCE = "cortex_v2_package_test"
 STATE_DIRECTORIES = {
     SANDBOX_INSTANCE: "cortex-v2-sandbox",
     W1_INSTANCE: "cortex-v2-w1-candidate",
     KAI_TEST_INSTANCE: "cortex-kai-test",
+    PACKAGE_TEST_INSTANCE: "cortex-v2-package-test",
 }
 DATABASE_HOSTS = {
     SANDBOX_INSTANCE: "db",
     W1_INSTANCE: "w1-db",
     KAI_TEST_INSTANCE: "db",
+    PACKAGE_TEST_INSTANCE: "db",
 }
 SANDBOX_SECRET_FILES = (
     "db-owner-password",
@@ -54,6 +57,7 @@ SECRET_FILES_BY_INSTANCE = {
     SANDBOX_INSTANCE: SANDBOX_SECRET_FILES,
     W1_INSTANCE: W1_SECRET_FILES,
     KAI_TEST_INSTANCE: KAI_SECRET_FILES,
+    PACKAGE_TEST_INSTANCE: KAI_SECRET_FILES,
 }
 
 
@@ -204,6 +208,7 @@ VALUES_BUILDERS = {
     SANDBOX_INSTANCE: _sandbox_values,
     W1_INSTANCE: _w1_values,
     KAI_TEST_INSTANCE: _kai_values,
+    PACKAGE_TEST_INSTANCE: _kai_values,
 }
 
 

@@ -10,6 +10,7 @@ from urllib.parse import unquote, urlsplit
 SANDBOX_INSTANCE = "cortex-v2-v0-02-001-sandbox"
 W1_INSTANCE = "cortex-v2-w1-candidate"
 KAI_TEST_INSTANCE = "cortex_kai_test"
+PACKAGE_TEST_INSTANCE = "cortex_v2_package_test"
 PRODUCTION_INSTANCE = "cortex_production"
 EXPECTED_DATABASE = "cortex_v2"
 EXPECTED_DATABASE_ROLE = "cortex_v2_app"
@@ -120,6 +121,19 @@ INSTANCE_PROFILES: dict[str, InstanceProfile] = {
         operation_modules=INTEGRATED_OPERATION_MODULES,
         container_prefix="Cortex_kai_test",
         resource_prefix="cortex_kai_test",
+    ),
+    PACKAGE_TEST_INSTANCE: InstanceProfile(
+        instance_id=PACKAGE_TEST_INSTANCE,
+        deployment_class="isolated-package-test",
+        database_host="db",
+        api_host="api",
+        api_port=8601,
+        contract_version="cortex.api.v2-integrated",
+        state_directory="cortex-v2-package-test",
+        migrations=FULL_V2_MIGRATIONS,
+        operation_modules=INTEGRATED_OPERATION_MODULES,
+        container_prefix="cortex_v2_package_test",
+        resource_prefix="cortex_v2_package_test",
     ),
     PRODUCTION_INSTANCE: InstanceProfile(
         instance_id=PRODUCTION_INSTANCE,

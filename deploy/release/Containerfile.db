@@ -1,0 +1,5 @@
+FROM docker.io/pgvector/pgvector:0.8.6-pg18@sha256:46481fb03d04f9160a2373d305f769eb34040fc866e7bd74b8f5b84a50cc2952
+
+# Only public initialization code is baked into the image. Passwords are
+# generated at installation and supplied by Podman secrets, never build args.
+COPY --chmod=0755 deploy/release/10-create-roles.sh /docker-entrypoint-initdb.d/10-create-v2-roles.sh
