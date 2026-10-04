@@ -156,27 +156,39 @@ def images(out: Path, source_sha: str, version: str) -> None:
     (out / "rehearsal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 
-def host(out: Path, source_sha: str, version: str) -> None:
+def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         raise RuntimeError("native macOS arm64 builder required")
     if platform.python_version() != "3.12.14":
         raise RuntimeError("host freeze requires the pinned CPython 3.12.14 builder")
     source_identity(source_sha)
+    runtime = runtime.resolve()
+    native = json.loads((runtime / "runtime-inventory.json").read_text())
+    expected = json.loads(run([sys.executable, str(ROOT / "scripts/release/bootstrap-macos-runtime.py"), "--describe"], read=True))
+    if (native.get("schema") != "cortex.native-ci-runtime.v1" or native.get("inputs") != expected
+            or not Path(sys.executable).resolve().is_relative_to(runtime)
+            or native.get("runtime", {}).get("python") != platform.python_version()):
+        raise RuntimeError("host interpreter does not bind to the pinned native bootstrap")
     if out.exists():
         raise RuntimeError("host output already exists")
     out.mkdir(parents=True)
-    run(["python3", "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
+    run([sys.executable, "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
          "--requirement", str(ROOT / "scripts/release/requirements-host-build.txt")])
-    run(["python3", "-m", "PyInstaller", "--noconfirm", "--onefile", "--target-arch=arm64", "--name=cortex-test",
+    run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", "--target-arch=arm64", "--name=cortex-test",
          "--paths", str(ROOT / "scripts"), "--distpath", str(out / "bin"), "--workpath", str(out / "work"),
          "--specpath", str(out / "spec"), str(ROOT / "scripts/release/install_candidate.py")])
     dependencies = run(["otool", "-L", str(out / "bin/cortex-test")], read=True)
     if run(["lipo", "-archs", str(out / "bin/cortex-test")], read=True) != "arm64":
         raise RuntimeError("host executable is not the admitted native architecture")
-    archive_inventory = run(["python3", "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief",
+    run([str(out / "bin/cortex-test"), "--help"])
+    archive_inventory = run([sys.executable, "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief",
                              str(out / "bin/cortex-test")], read=True)
     (out / "host-archive-inventory.txt").write_text(archive_inventory + "\n")
     (out / "licenses").mkdir()
+    for name, expected_digest in native["licenses"].items():
+        if name != Path(name).name or digest(runtime / "licenses" / name) != expected_digest:
+            raise RuntimeError("native runtime licence differs from bootstrap")
+        shutil.copyfile(runtime / "licenses" / name, out / "licenses" / name)
     builder_packages = []
     for name in ("altgraph", "macholib", "packaging", "pyinstaller", "pyinstaller-hooks-contrib", "setuptools"):
         distribution = metadata.distribution(name)
@@ -192,12 +204,14 @@ def host(out: Path, source_sha: str, version: str) -> None:
                  "downloadLocation": "https://www.python.org/", "filesAnalyzed": False},
                 {"SPDXID": "SPDXRef-cortex-installer", "name": "Cortex TEST installer", "versionInfo": version,
                  "downloadLocation": f"https://github.com/Kaidera-AI/cortex/tree/{source_sha}", "filesAnalyzed": False}]
+    packages.append({"SPDXID": "SPDXRef-openssl", "name": "OpenSSL", "versionInfo": native["inputs"]["openssl"]["version"],
+                     "downloadLocation": native["inputs"]["openssl"]["url"], "filesAnalyzed": False})
     document = spdx_document("Cortex TEST native host inventory", f"{version}-host-{source_sha}", packages)
     document["comment"] = "CPython/installer runtime inventory. Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
     (out / "host.spdx.json").write_text(json.dumps(document, indent=2) + "\n")
     (out / "host-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": "macos-arm64",
                 "minimum_macos": "14", "python": platform.python_version(), "dependencies": dependencies.splitlines(),
-                "builder_packages": builder_packages,
+                "builder_packages": builder_packages, "native_runtime_bootstrap": native,
                 "build_lock_sha256": digest(ROOT / "scripts/release/requirements-host-build.txt")}, indent=2) + "\n")
     shutil.rmtree(out / "work")
     shutil.rmtree(out / "spec")
@@ -318,6 +332,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--images", type=Path)
     parser.add_argument("--host", type=Path)
+    parser.add_argument("--runtime", type=Path)
     args = parser.parse_args()
     if not re.fullmatch(r"0\.2\.001-test\.[0-9]{8}\.[1-9][0-9]*", args.version):
         parser.error("explicit immutable TEST version required")
@@ -327,7 +342,9 @@ def main() -> None:
     if args.stage == "images":
         images(args.output, args.source_sha, args.version)
     elif args.stage == "host":
-        host(args.output, args.source_sha, args.version)
+        if args.runtime is None:
+            parser.error("host requires its compiled --runtime prefix")
+        host(args.output, args.source_sha, args.version, args.runtime)
     else:
         if args.images is None or args.host is None:
             parser.error("assemble requires --images and --host")
