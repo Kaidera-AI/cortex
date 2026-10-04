@@ -86,7 +86,7 @@ def verify_package(package: Path) -> dict:
             or not re.fullmatch(r"[0-9a-f]{40}", manifest.get("source_sha", ""))):
         raise Refusal("unsupported package identity/platform/class")
     files = manifest.get("files")
-    mandatory = {"bin/cortex-test", "INSTALL-macos.md", "LICENSE", "compose-images.yaml",
+    mandatory = {"bin/cortex-test", "INSTALL-macos.md", "LICENSE", "compose-images.yaml", "rehearsal-receipt.json",
                  "sbom/host-inventory.json", "sbom/host-build-lock.txt", "sbom/host.spdx.json",
                  "sbom/host-archive-inventory.txt", "licenses/Python-3.12.14-LICENSE.txt"}
     mandatory.update(f"sbom/{role}.spdx.json" for role in ROLES)
@@ -125,6 +125,11 @@ def verify_package(package: Path) -> dict:
             raise Refusal("invalid platform/image identity")
     if not os.access(package / "bin/cortex-test", os.X_OK):
         raise Refusal("packaged installer is not executable")
+    rehearsal = public_json(package / "rehearsal-receipt.json")
+    if (rehearsal.get("status") != "PASS" or rehearsal.get("source_sha") != manifest["source_sha"]
+            or rehearsal.get("version") != manifest["version"]
+            or rehearsal.get("image_ids") != {r: i["config_id"] for r, i in images.items()}):
+        raise Refusal("package rehearsal receipt missing or mismatched")
     return manifest
 
 
@@ -141,14 +146,12 @@ def private_root(root: Path, *, create: bool = False) -> None:
     for parent in (root, *root.parents):
         if parent.is_symlink():
             raise Refusal("linked TEST root or ancestor")
-    if create:
-        root.mkdir(mode=0o700, parents=True, exist_ok=False)
-    info = root.lstat()
-    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
-        raise Refusal("TEST root must be user-owned mode 0700")
+    probe = root
+    while not probe.exists():
+        probe = probe.parent
     if platform.system() == "Darwin":
         # diskutil accepts a device/mount point, not an arbitrary directory.
-        device = subprocess.run(["df", "-P", str(root)], capture_output=True, text=True, timeout=20)
+        device = subprocess.run(["df", "-P", str(probe)], capture_output=True, text=True, timeout=20)
         lines = device.stdout.splitlines()
         filesystem = lines[-1].split()[0] if len(lines) == 2 else ""
         if device.returncode or not re.fullmatch(r"/dev/disk[0-9]+s[0-9]+(?:s[0-9]+)?", filesystem):
@@ -162,6 +165,11 @@ def private_root(root: Path, *, create: bool = False) -> None:
         if (check.returncode or volume.get("GlobalPermissionsEnabled") is not True
                 or volume.get("Internal") is not True):
             raise Refusal("private runtime requires an internal volume with ownership enabled")
+    if create:
+        root.mkdir(mode=0o700, parents=True, exist_ok=False)
+    info = root.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+        raise Refusal("TEST root must be user-owned mode 0700")
 
 
 def private_bytes(path: Path, *, limit: int = 65536) -> bytes:
@@ -184,7 +192,7 @@ def private_bytes(path: Path, *, limit: int = 65536) -> bytes:
 
 @contextmanager
 def namespace_lock():
-    # One fixed resource namespace, even when two callers choose different roots.
+    # Serialize install/erase operations, including shared immutable image IDs.
     path = Path.home() / ".cortex-test-namespace.lock"
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, "w") as lock:
@@ -250,10 +258,18 @@ class Podman:
             raise Refusal("loaded image identity/platform differs")
 
 
-def names() -> list[tuple[str, str]]:
-    return [("container", f"{INSTANCE}_{r}") for r in (*ROLES, "migrate")] + [
-        ("network", f"{INSTANCE}_net"), ("volume", f"{INSTANCE}_pgdata")
-    ] + [("secret", f"{INSTANCE}-{s}") for s in SUFFIXES.values()]
+def namespace(record: dict) -> str:
+    installation = str(uuid.UUID(record["installation"]))
+    if installation != record["installation"]:
+        raise Refusal("invalid installation owner identity")
+    return INSTANCE + "_" + uuid.UUID(installation).hex
+
+
+def names(record: dict) -> list[tuple[str, str]]:
+    prefix = namespace(record)
+    return [("container", f"{prefix}_{r}") for r in (*ROLES, "migrate")] + [
+        ("network", f"{prefix}_net"), ("volume", f"{prefix}_pgdata")
+    ] + [("secret", f"{prefix}-{s}") for s in SUFFIXES.values()]
 
 
 def assert_owner(engine: Podman, kind: str, name: str, installation: str) -> None:
@@ -277,14 +293,14 @@ def verify_port(port: int) -> None:
             raise Refusal("TEST loopback port already in use") from exc
 
 
-def secret_args(suffix: str, target: str, uid: int = 10001) -> list[str]:
-    return ["--secret", f"{INSTANCE}-{suffix},target={target},uid={uid},gid={uid},mode=0400"]
+def secret_args(record: dict, suffix: str, target: str, uid: int = 10001) -> list[str]:
+    return ["--secret", f"{namespace(record)}-{suffix},target={target},uid={uid},gid={uid},mode=0400"]
 
 
 def container_args(role: str, record: dict) -> list[str]:
-    args = ["run", "--pull=never", "--name", f"{INSTANCE}_{role}", "--label",
+    args = ["run", "--pull=never", "--name", f"{namespace(record)}_{role}", "--label",
             f'{LABEL}={record["installation"]}', "--label", "com.kaidera.deployment-class=TEST",
-            "--network", f"{INSTANCE}_net", "--memory", "512m" if role in ("db", "api") else "256m",
+            "--network", f"{namespace(record)}_net", "--memory", "512m" if role in ("db", "api") else "256m",
             "--cpus", "1", "--restart=no"]
     if role != "db":
         args += ["--user", "10001:10001", "--read-only", "--init", "--cap-drop=ALL",
@@ -309,14 +325,14 @@ def start_stack(engine: Podman, manifest: dict, record: dict, root: Path) -> Non
     verify_port(record["port"])
     for role in ROLES:
         engine.image(manifest["images"][role])
-    for kind, name in names():
+    for kind, name in names(record):
         if not engine.exists(kind, name):
             raise Refusal("candidate object missing; no repair/removal attempted")
         assert_owner(engine, kind, name, record["installation"])
-    engine.run(["start", f"{INSTANCE}_db"])
+    engine.run(["start", f"{namespace(record)}_db"])
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
-        result = engine.run(["exec", f"{INSTANCE}_db", "pg_isready", "-U", "cortex_v2_owner", "-d", "cortex_v2"], allowed=(0, 1, 2))
+        result = engine.run(["exec", f"{namespace(record)}_db", "pg_isready", "-U", "cortex_v2_owner", "-d", "cortex_v2"], allowed=(0, 1, 2))
         if result == "0":
             break
         time.sleep(1)
@@ -324,8 +340,8 @@ def start_stack(engine: Podman, manifest: dict, record: dict, root: Path) -> Non
         raise Refusal("TEST database did not become ready")
     # A finite container is retained as the migration receipt. Rerun only via
     # `start --attach`, which executes the immutable checksum-verifying migrator.
-    output = engine.run(["start", "--attach", f"{INSTANCE}_migrate"], read=True, timeout=180)
-    exit_code = engine.run(["container", "inspect", "--format", "{{.State.ExitCode}}", f"{INSTANCE}_migrate"], read=True)
+    output = engine.run(["start", "--attach", f"{namespace(record)}_migrate"], read=True, timeout=180)
+    exit_code = engine.run(["container", "inspect", "--format", "{{.State.ExitCode}}", f"{namespace(record)}_migrate"], read=True)
     if exit_code != "0":
         raise Refusal("finite migration failed; API/workers not started")
     try:
@@ -336,14 +352,14 @@ def start_stack(engine: Podman, manifest: dict, record: dict, root: Path) -> Non
         raise Refusal("migration did not verify this TEST fixture")
     (root / "migration-receipt.json").write_text(json.dumps(migration, indent=2) + "\n")
     for role in ROLES[1:]:
-        engine.run(["start", f"{INSTANCE}_{role}"])
+        engine.run(["start", f"{namespace(record)}_{role}"])
     ready(engine, record)
-    running(engine)
+    running(engine, record)
 
 
-def running(engine: Podman) -> None:
+def running(engine: Podman, record: dict) -> None:
     for role in ROLES:
-        state = engine.run(["container", "inspect", "--format", "{{.State.Status}}", f"{INSTANCE}_{role}"], read=True)
+        state = engine.run(["container", "inspect", "--format", "{{.State.Status}}", f"{namespace(record)}_{role}"], read=True)
         if state != "running":
             raise Refusal("TEST role is not running; candidate preserved")
 
@@ -352,72 +368,84 @@ def install(args: argparse.Namespace, package: Path, manifest: dict, engine: Pod
     root = args.root
     if root.exists() or root.is_symlink():
         raise Refusal("TEST root already exists; use its lifecycle command")
-    verify_port(args.port)
-    for kind, name in names():
-        if engine.exists(kind, name):
-            raise Refusal("TEST namespace already exists; existing objects retained")
-    private_root(root, create=True)
     record = {"schema": "cortex.test-install.v1", "version": manifest["version"],
               "source_sha": manifest["source_sha"], "installation": str(uuid.uuid4()),
               "connection": args.connection, "port": args.port, "stage": "staged",
-              "service_label": "ai.kaidera.cortex.TEST-v2"}
-    shutil.copytree(package, root / "package")
+              "loaded_images": []}
+    record["namespace"] = namespace(record)
+    record["service_label"] = "ai.kaidera.cortex.TEST-v2." + uuid.UUID(record["installation"]).hex
+    verify_port(args.port)
+    for kind, name in names(record):
+        if engine.exists(kind, name):
+            raise Refusal("TEST namespace already exists; existing objects retained")
+    private_root(root, create=True)
+    # Identity must survive a failed package copy; erase needs no intact package.
     write_record(root, record)
+    shutil.copytree(package, root / "package")
     subprocess.run(["tmutil", "addexclusion", str(root)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     excluded = subprocess.run(["tmutil", "isexcluded", str(root)], capture_output=True, text=True, check=True)
     if not excluded.stdout.startswith("[Excluded]"):
         raise Refusal("private TEST root is not excluded from Time Machine")
     prepare(root / "state", INSTANCE)
     for role in ROLES:
+        image_id = manifest["images"][role]["config_id"]
+        if not engine.exists("image", image_id) and image_id not in record["loaded_images"]:
+            record["loaded_images"].append(image_id)
+            write_record(root, record)  # Record load intent before a possible timeout.
         engine.run(["load", "--input", str(package / manifest["images"][role]["archive"])], timeout=300)
         engine.image(manifest["images"][role])
+    provision(engine, manifest, root, record)
+    start_stack(engine, manifest, record, root)
+    record["stage"] = "ready"
+    write_record(root, record)
+    print(json.dumps({"status": "TEST ready", "version": manifest["version"], "source_sha": manifest["source_sha"],
+                      "root": str(root), "url": f'http://127.0.0.1:{record["port"]}', "service_label": record["service_label"]}))
+
+
+
+def provision(engine: Podman, manifest: dict, root: Path, record: dict) -> None:
     label = ["--label", f'{LABEL}={record["installation"]}']
-    engine.run(["network", "create", "--internal", *label, f"{INSTANCE}_net"])
-    engine.run(["volume", "create", *label, f"{INSTANCE}_pgdata"])
+    engine.run(["network", "create", "--internal", *label, f"{namespace(record)}_net"])
+    engine.run(["volume", "create", *label, f"{namespace(record)}_pgdata"])
     for source, suffix in SUFFIXES.items():
         path = root / "state" / "secrets" / source
-        engine.run(["secret", "create", *label, f"{INSTANCE}-{suffix}", "-"], input_data=private_bytes(path))
+        engine.run(["secret", "create", *label, f"{namespace(record)}-{suffix}", "-"], input_data=private_bytes(path))
     # Create first, then start DB -> finite migration -> API/workers. This also
     # records all intended objects before any service admits work.
     db = container_args("db", record)
     db[0] = "create"
     db += ["--network-alias=db", "--env", "POSTGRES_USER=cortex_v2_owner", "--env", "POSTGRES_DB=cortex_v2",
-           "--env", "POSTGRES_PASSWORD_FILE=/run/secrets/db-owner-password", "--volume", f"{INSTANCE}_pgdata:/var/lib/postgresql"]
+           "--env", "POSTGRES_PASSWORD_FILE=/run/secrets/db-owner-password", "--volume", f"{namespace(record)}_pgdata:/var/lib/postgresql"]
     for suffix in ("db-owner-password", "db-app-password", "db-migrator-password"):
-        db += secret_args(suffix, suffix, 999)
+        db += secret_args(record, suffix, suffix, 999)
     engine.run(db + [manifest["images"]["db"]["config_id"]])
     migrate = container_args("migrate", record)
     migrate[0] = "create"
     migrate += ["--entrypoint=python", "--env", "CORTEX_V2_MIGRATOR_DATABASE_URL_FILE=/run/secrets/database-url-migrator",
                 "--env", "CORTEX_V2_FIXTURE_FILE=/run/secrets/fixture"]
-    migrate += secret_args("database-url-migrator", "database-url-migrator") + secret_args("fixture", "fixture")
+    migrate += secret_args(record, "database-url-migrator", "database-url-migrator") + secret_args(record, "fixture", "fixture")
     engine.run(migrate + [manifest["images"]["api"]["config_id"], "-m", "cortex_v2.migrate"])
     for role in ROLES[1:]:
         command = container_args(role, record)
         command[0] = "create"
         command += ["--env", "CORTEX_V2_DATABASE_URL_FILE=/run/secrets/database-url-app",
                     "--env", "CORTEX_V2_TOKEN_PEPPER_FILE=/run/secrets/token-pepper"]
-        command += secret_args("database-url-app", "database-url-app") + secret_args("token-pepper", "token-pepper")
+        command += secret_args(record, "database-url-app", "database-url-app") + secret_args(record, "token-pepper", "token-pepper")
         if role == "api":
             command += ["--network-alias=api", "--publish", f'127.0.0.1:{record["port"]}:8601']
         else:
             command += ["--env", "CORTEX_V2_WORKER_TOKEN_FILE=/run/secrets/worker-token",
                         "--env", "CORTEX_V2_WORKER_PRINCIPAL_ID_FILE=/run/secrets/worker-principal-id",
-                        "--env", f"CORTEX_V2_WORKER_ID=cortex-v2-package-test-{role}",
+                        "--env", f"CORTEX_V2_WORKER_ID={namespace(record)}-{role}",
                         "--env", "CORTEX_V2_INFERENCE_ROUTING_POLICY=disabled"]
             if role == "doc":
                 command += ["--env", "CORTEX_V2_WORKER_EXECUTOR_ROLES=core,doc"]
             elif role == "graph":
                 command += ["--env", "CORTEX_V2_WORKER_HANDLER_MODULES=cortex_v2.retrieval.jobs"]
-            command += secret_args("worker-token", "worker-token") + secret_args("worker-principal-id", "worker-principal-id")
+            command += secret_args(record, "worker-token", "worker-token") + secret_args(record, "worker-principal-id", "worker-principal-id")
         engine.run(command + [manifest["images"][role]["config_id"]])
     record["stage"] = "created"
     write_record(root, record)
-    start_stack(engine, manifest, record, root)
-    record["stage"] = "ready"
-    write_record(root, record)
-    print(json.dumps({"status": "TEST ready", "version": manifest["version"], "source_sha": manifest["source_sha"],
-                      "root": str(root), "url": f'http://127.0.0.1:{record["port"]}', "service_label": record["service_label"]}))
 
 
 def smoke(root: Path, record: dict) -> None:
@@ -459,7 +487,7 @@ def smoke(root: Path, record: dict) -> None:
 
 def uninstall(engine: Podman, root: Path, record: dict) -> None:
     # Default retention: pgdata, credentials, image bytes and installed package.
-    containers = [f"{INSTANCE}_{role}" for role in (*ROLES, "migrate")]
+    containers = [f"{namespace(record)}_{role}" for role in (*ROLES, "migrate")]
     for name in containers:
         if engine.exists("container", name):
             assert_owner(engine, "container", name, record["installation"])
@@ -470,7 +498,7 @@ def uninstall(engine: Podman, root: Path, record: dict) -> None:
         if engine.exists("container", name):
             assert_owner(engine, "container", name, record["installation"])
             engine.run(["container", "rm", name])
-    network = f"{INSTANCE}_net"
+    network = f"{namespace(record)}_net"
     if engine.exists("network", network):
         assert_owner(engine, "network", network, record["installation"])
         engine.run(["network", "rm", network])  # No force; any foreign attachment refuses.
@@ -479,13 +507,84 @@ def uninstall(engine: Podman, root: Path, record: dict) -> None:
     print("TEST containers/network removed; data, credentials, images and package retained")
 
 
+def validate_record(record: dict) -> None:
+    if (record.get("schema") != "cortex.test-install.v1"
+            or record.get("stage") not in ("staged", "created", "ready", "uninstalled", "erasing")
+            or not re.fullmatch(r"[0-9a-f]{40}", record.get("source_sha", ""))
+            or not re.fullmatch(r"0\.2\.001-test\.[0-9]{8}\.[1-9][0-9]*", record.get("version", ""))
+            or record.get("namespace") != namespace(record)):
+        raise Refusal("unsupported installation record")
+    port = record.get("port")
+    if type(port) is not int or port in (8501, 5499, 5500) or not 1024 <= port <= 65535:
+        raise Refusal("installed port invalid or protected")
+    image_ids = record.get("loaded_images")
+    if (not isinstance(image_ids, list) or len(image_ids) > len(ROLES)
+            or len(set(image_ids)) != len(image_ids)
+            or any(not re.fullmatch(r"sha256:[0-9a-f]{64}", x) for x in image_ids)):
+        raise Refusal("invalid loaded-image inventory")
+
+
+def image_owner(engine: Podman, image_id: str, record: dict) -> None:
+    template = '{{index .Labels "com.kaidera.deployment-class"}} {{index .Labels "org.opencontainers.image.revision"}} {{index .Labels "org.opencontainers.image.version"}}'
+    if engine.run(["image", "inspect", "--format", template, image_id], read=True) != f'TEST {record["source_sha"]} {record["version"]}':
+        raise Refusal("loaded image ownership differs; erasure refused")
+
+
+def erase(engine: Podman, root: Path, record: dict, confirmation: str) -> dict:
+    private_root(root)
+    validate_record(record)
+    if confirmation != record["installation"]:
+        raise Refusal("erase requires --confirm with the exact installation ID")
+    if not shutil.rmtree.avoids_symlink_attacks:
+        raise Refusal("safe TEST-root erasure is unavailable on this platform")
+    # Check the complete existing set before stopping/removing any object.
+    for kind, name in names(record):
+        if engine.exists(kind, name):
+            assert_owner(engine, kind, name, record["installation"])
+    for image_id in record["loaded_images"]:
+        if engine.exists("image", image_id):
+            image_owner(engine, image_id, record)
+    record["stage"] = "erasing"
+    write_record(root, record)
+    removed, retained_images = [], []
+    for kind, name in names(record):
+        if not engine.exists(kind, name):
+            continue
+        assert_owner(engine, kind, name, record["installation"])
+        if kind == "container":
+            state = engine.run(["container", "inspect", "--format", "{{.State.Status}}", name], read=True)
+            if state in ("running", "paused", "restarting", "stopping"):
+                if state == "paused":
+                    engine.run(["unpause", name])
+                engine.run(["stop", "--time=30", name])
+        engine.run([kind, "rm", name])  # No force, including volume/network/image.
+        removed.append({"kind": kind, "name": name})
+    for image_id in record["loaded_images"]:
+        if not engine.exists("image", image_id):
+            continue
+        image_owner(engine, image_id, record)
+        references = engine.run(["ps", "--all", "--filter", "ancestor=" + image_id, "--format", "{{.ID}}"], read=True)
+        if references:
+            retained_images.append(image_id)
+            continue
+        engine.run(["image", "rm", image_id])
+        removed.append({"kind": "image", "name": image_id})
+    private_root(root)
+    receipt = {"status": "erased", "installation": record["installation"], "namespace": namespace(record),
+               "version": record["version"], "source_sha": record["source_sha"], "removed": removed,
+               "retained_shared_images": retained_images, "root": str(root)}
+    shutil.rmtree(root)
+    return receipt
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Cortex v2 package-only TEST installer/lifecycle")
-    parser.add_argument("command", choices=("verify", "install", "start", "stop", "status", "smoke", "uninstall"))
+    parser.add_argument("command", choices=("verify", "install", "start", "stop", "status", "smoke", "uninstall", "erase"))
     parser.add_argument("--package", type=Path)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--connection")
     parser.add_argument("--port", type=int, default=18601)
+    parser.add_argument("--confirm", help="exact installation ID; required for erase")
     args = parser.parse_args()
     try:
         if platform.system() != "Darwin" or platform.machine() != "arm64" or os.getuid() == 0:
@@ -513,19 +612,17 @@ def main() -> int:
                     or stat.S_IMODE(install_info.st_mode) != 0o600 or install_info.st_nlink != 1):
                 raise Refusal("installation record ownership/mode differs")
             record = public_json(args.root / "install.json")
-            manifest = verify_package(args.root / "package")
-            if record.get("source_sha") != manifest["source_sha"] or record.get("version") != manifest["version"]:
-                raise Refusal("installed record/package differs")
-            if record.get("schema") != "cortex.test-install.v1" or record.get("stage") not in ("staged", "created", "ready", "uninstalled"):
-                raise Refusal("unsupported installation record")
-            if str(uuid.UUID(record.get("installation", ""))) != record.get("installation"):
-                raise Refusal("invalid installation owner identity")
-            verify_port_range = record.get("port")
-            if not isinstance(verify_port_range, int) or verify_port_range in (8501, 5499, 5500) or not 1024 <= verify_port_range <= 65535:
-                raise Refusal("installed port invalid or protected")
+            validate_record(record)
             engine = Podman(record["connection"])
             engine.preflight()
-            for kind, name in names():
+            if args.command == "erase":
+                print(json.dumps(erase(engine, args.root, record, args.confirm)))
+                return 0
+            if args.command in ("start", "smoke"):
+                manifest = verify_package(args.root / "package")
+                if record.get("source_sha") != manifest["source_sha"] or record.get("version") != manifest["version"]:
+                    raise Refusal("installed record/package differs")
+            for kind, name in names(record):
                 if engine.exists(kind, name):
                     assert_owner(engine, kind, name, record["installation"])
             if args.command == "start":
@@ -535,21 +632,23 @@ def main() -> int:
                 print("TEST package started; existing state preserved")
             elif args.command == "stop":
                 for role in (*reversed(ROLES[1:]), "migrate", "db"):
-                    if engine.exists("container", f"{INSTANCE}_{role}"):
-                        engine.run(["stop", "--time=30", f"{INSTANCE}_{role}"])
+                    if engine.exists("container", f"{namespace(record)}_{role}"):
+                        engine.run(["stop", "--time=30", f"{namespace(record)}_{role}"])
                 print("TEST containers stopped; data, credentials and images retained")
             elif args.command == "smoke":
                 ready(engine, record)
-                running(engine)
+                running(engine, record)
                 smoke(args.root, record)
             elif args.command == "uninstall":
                 uninstall(engine, args.root, record)
             else:
                 result = {}
                 for role in (*ROLES, "migrate"):
-                    name = f"{INSTANCE}_{role}"
+                    name = f"{namespace(record)}_{role}"
                     result[role] = engine.run(["container", "inspect", "--format", "{{.State.Status}}", name], read=True) if engine.exists("container", name) else "absent"
-                print(json.dumps({"version": record["version"], "source_sha": record["source_sha"], "TEST": result}))
+                print(json.dumps({"version": record["version"], "source_sha": record["source_sha"],
+                                  "installation": record["installation"], "namespace": namespace(record),
+                                  "stage": record["stage"], "loaded_images": record["loaded_images"], "TEST": result}))
         return 0
     except (RuntimeError, OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as exc:
         # OS/provider details may include private bytes; preserve only safe class.

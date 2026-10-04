@@ -79,8 +79,10 @@ Substitute the exact connection name from the listing:
 
 Port 18601 must be free. Ports 8501, 5499 and 5500 are always refused.
 The database has no published host port. The TEST service label is
-`ai.kaidera.cortex.TEST-v2`; all objects use the separate
-`cortex_v2_package_test` namespace and installation-ownership label.
+`ai.kaidera.cortex.TEST-v2.<installation-id-without-hyphens>`. Each installation
+gets its own `cortex_v2_package_test_<installation-id-without-hyphens>` resource
+namespace and ownership label; the fixed TEST application profile is separate
+from resource names.
 
 The installer loads verified image bytes without pulling/building, creates
 private synthetic credentials, starts the new database, waits for it, completes
@@ -90,8 +92,9 @@ never credentials. It does not change the default Cortex endpoint or KOS
 prerequisite descriptor.
 
 Success is a `TEST ready` JSON line with the exact version, source and URL.
-A refusal exits 2 and preserves the partial candidate; it does not remove
-objects or repair another installation. Do not read container Env, full
+A refusal exits 2 and preserves the partial candidate. Its private install
+record is written before package staging, and `status` works even if the copy
+failed. Clear it only with the explicit confirmed `erase` command below. Do not read container Env, full
 Config, logs or credential files to troubleshoot. Give the safe refusal and
 the stage/status receipt to the Cortex owner.
 
@@ -122,7 +125,22 @@ When the Cortex owner authorizes retirement, the packaged `uninstall --root`
 command removes only stopped containers and their network with this install's
 ownership label. It retains pgdata, credentials, images and the TEST root.
 Start cannot repair a retired instance. Never run Podman prune, a prefix
-deletion or a live-stack command. Full erasure is a separate owner action.
+deletion or a live-stack command. Full erasure is explicit and permanent. Use the original extracted executable
+if staging failed, and obtain the installation ID from its public status:
+
+```sh
+"$package/bin/cortex-test" status --root "$test_root"
+"$package/bin/cortex-test" erase --root "$test_root" --confirm <exact-installation-id>
+```
+
+Erase validates the complete existing object's labels before changing anything,
+stops/removes only that installation's containers, and removes its network,
+pgdata, all eleven secrets and private TEST root. Any foreign label refuses.
+Only images newly loaded by this installation are eligible for removal; an
+image still used by another running or stopped container is retained. There
+is no force or prune. It prints a public erasure receipt. This is also the
+recovery route for a partial TEST installation, so a later candidate needs
+no hand-written Podman commands. Keep the extracted package until cleanup ends.
 
 ## Builder/reviewer sources
 
