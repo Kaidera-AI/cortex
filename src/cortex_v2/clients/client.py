@@ -34,11 +34,15 @@ from .transport import HttpResponse, http_request
 EXPECTED_API_VERSION = "v1"
 
 
-def _validate_handoff_write(operation, payload, path_params, key):
-    # Reuse the server's strict model; never infer a generation or rewrite input.
+def _validate_write_key(key):
     if (not isinstance(key, str) or not 1 <= len(key) <= 128 or key != key.strip()
             or any(ord(char) < 32 or ord(char) > 126 for char in key)):
-        raise ClientConfigError("handoff write requires a safe explicit idempotency key")
+        raise ClientConfigError("write requires a safe explicit idempotency key")
+
+
+def _validate_handoff_write(operation, payload, path_params, key):
+    # Reuse the server's strict model; never infer a generation or rewrite input.
+    _validate_write_key(key)
     try:
         if operation.request_model is None:
             raise ValueError("request model unavailable")
@@ -47,6 +51,27 @@ def _validate_handoff_write(operation, payload, path_params, key):
             uuid.UUID(str(path_params["handoff_id"]))
     except (ValidationError, ValueError, TypeError, KeyError, AttributeError):
         raise ClientConfigError("handoff write refused; check its request and claim fence") from None
+
+
+def _validate_search_ingest_request(operation, payload, path_params, query, reader, key):
+    if query:
+        raise ClientConfigError("native search/ingest request does not support query arguments")
+    if operation.requires_idempotency_key or key is not None:
+        _validate_write_key(key)
+    try:
+        model = operation.request_model
+        if set(path_params) != set(operation.path_params):
+            raise ValueError("undeclared path arguments")
+        if model is None and payload is not None and payload != {}:
+            raise ValueError("undeclared GET payload")
+        parsed = model.model_validate(payload) if model is not None else None
+        for name in operation.path_params:
+            uuid.UUID(str(path_params[name]))
+        scopes = getattr(parsed, "read_scopes", None)
+        if scopes is not None and any(value != reader.project for value in scopes):
+            raise ValueError("member body scope mismatch")
+    except (ValidationError, ValueError, TypeError, KeyError, AttributeError):
+        raise ClientConfigError("native search/ingest request refused; check its model and selected project") from None
 
 
 def _validate_handoff_receipt(operation, path_params, response):
@@ -192,6 +217,16 @@ class CortexClient:
         query: Mapping[str, Any] | None = None,
     ) -> CallResult:
         operation = self.operation(operation_id)
+        member_search_ingest = (self.profile.member_reader is not None
+                                and operation.module in ("retrieval", "ingest"))
+        if member_search_ingest:
+            if any(value is not None and not isinstance(value, Mapping)
+                   for value in (payload, path_params, query)):
+                raise ClientConfigError("native search/ingest arguments must be objects")
+            # A valid Mapping may be false-valued while still carrying fields.
+            payload = dict(payload) if payload is not None else None
+            path_params = dict(path_params) if path_params is not None else None
+            query = dict(query) if query is not None else None
         if operation.requires_idempotency_key and not idempotency_key:
             raise IdempotencyKeyRequired(operation_id)
         resolved_scope = self._resolve_scope(operation, scope)
@@ -211,6 +246,12 @@ class CortexClient:
                                 and operation_id.startswith("coordination.handoff."))
         if member_handoff_write:
             _validate_handoff_write(operation, json_body, path_params or {}, idempotency_key)
+        if member_search_ingest:
+            _validate_search_ingest_request(
+                operation, payload if operation.method == "GET" else json_body,
+                path_params or {}, effective_query,
+                self.profile.member_reader, idempotency_key,
+            )
         if self.profile.member_reader is not None:
             # Match the transport's local encoding before accessing a key.
             # Invalid caller data must not trigger a private credential read.
