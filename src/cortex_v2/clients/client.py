@@ -10,6 +10,7 @@ writes. Errors are typed; there is no legacy fallback of any kind.
 from __future__ import annotations
 
 import json
+from urllib.parse import urlencode
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
@@ -151,6 +152,13 @@ class CortexClient:
                 if value is None:
                     continue
                 effective_query.setdefault(name, _encode_query_value(value))
+        if self.profile.member_reader is not None:
+            # Match the transport's local encoding before accessing a key.
+            # Invalid caller data must not trigger a private credential read.
+            if json_body is not None:
+                json.dumps(json_body, ensure_ascii=False).encode("utf-8")
+            if effective_query:
+                urlencode(effective_query)
         headers = self._headers(
             operation, resolved_scope, read_scopes, idempotency_key
         )
