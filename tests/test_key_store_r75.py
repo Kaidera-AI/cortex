@@ -18,7 +18,7 @@ from cortex_v2.cli.keys import human_main
 
 class LinuxMissingStore(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
+        self.temp = tempfile.TemporaryDirectory(dir=Path(tempfile.gettempdir()).resolve())
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / 'keys'
         self.platform = patch.object(key_store, '_is_linux', return_value=True)
