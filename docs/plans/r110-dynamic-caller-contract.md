@@ -17,3 +17,5 @@ Source paths admitted: /Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r110-dy
 5. Required fresh-context final author verifier; each defect gets a separate frozen RED before repair. Freeze/push draft PR, return via Kai and follow R100 inbox wait. Re-read the inbox before mutation/freeze/return.
 
 The existing legacy boot/context/search/ingest/coordination routes remain unavailable. This contract does not complete their positive mappings or an installed whole caller. Wrapper/source-expression execution is not release, package, converted-data or runtime qualification. Integration is planned separately and starts only after applicable ACCEPTs and named admission; no CI spend, build/install, merge, publication, live DB/helper/VM or credential action in this contract.
+
+Author amendment: freeze /Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r110-dynamic-caller-contract-20261005/tests/test_agent_dynamic_admin_refusal.py before changing the existing admin wrapper. Unsupported operator requests use the same literal unavailable admission refusal, with no owner/profile/key/file/HTTP access. This supplies no privileged operation or owner workflow.
