@@ -217,6 +217,16 @@ class CortexClient:
         query: Mapping[str, Any] | None = None,
     ) -> CallResult:
         operation = self.operation(operation_id)
+        member_search_ingest = (self.profile.member_reader is not None
+                                and operation.module in ("retrieval", "ingest"))
+        if member_search_ingest:
+            if any(value is not None and not isinstance(value, Mapping)
+                   for value in (payload, path_params, query)):
+                raise ClientConfigError("native search/ingest arguments must be objects")
+            # A valid Mapping may be false-valued while still carrying fields.
+            payload = dict(payload) if payload is not None else None
+            path_params = dict(path_params) if path_params is not None else None
+            query = dict(query) if query is not None else None
         if operation.requires_idempotency_key and not idempotency_key:
             raise IdempotencyKeyRequired(operation_id)
         resolved_scope = self._resolve_scope(operation, scope)
@@ -236,7 +246,7 @@ class CortexClient:
                                 and operation_id.startswith("coordination.handoff."))
         if member_handoff_write:
             _validate_handoff_write(operation, json_body, path_params or {}, idempotency_key)
-        if self.profile.member_reader is not None and operation.module in ("retrieval", "ingest"):
+        if member_search_ingest:
             _validate_search_ingest_request(
                 operation, payload if operation.method == "GET" else json_body,
                 path_params or {}, effective_query,
