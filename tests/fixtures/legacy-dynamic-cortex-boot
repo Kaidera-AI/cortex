@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# cortex-boot — print agent boot context through the Cortex API.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: cortex-boot <agent> [--budget N] [--query <text>] [--full]
+
+Prints boot context for an agent in the current Cortex project.
+EOF
+}
+
+if [ "$#" -lt 1 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+AGENT_NAME="$(cortex_agent_base_name "$1" | tr '[:upper:]' '[:lower:]')"
+shift
+BUDGET="${CORTEX_BOOT_BUDGET:-1200}"
+FULL=0
+QUERY=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --budget)
+            [ "$#" -ge 2 ] || { echo "ERROR: --budget requires a value" >&2; exit 2; }
+            BUDGET="$2"
+            shift 2
+            ;;
+        --full)
+            FULL=1
+            shift
+            ;;
+        --query)
+            [ "$#" -ge 2 ] || { echo "ERROR: --query requires a value" >&2; exit 2; }
+            QUERY="$2"
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+encoded="$(cortex_api_urlencode "${AGENT_NAME}")"
+path="/boot/${encoded}?budget=${BUDGET}"
+if [ "${FULL}" -eq 1 ]; then
+    path="${path}&full=true"
+fi
+if [ -n "${QUERY}" ]; then
+    path="${path}&query=$(cortex_api_urlencode "${QUERY}")"
+fi
+
+cortex_api_call GET "${path}" "" "${AGENT_NAME}"
