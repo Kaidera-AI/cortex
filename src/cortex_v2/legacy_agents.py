@@ -179,6 +179,9 @@ def agent_groups(records, policy, dependencies):
         context_json = canonical_json(project)
         try:
             items = [_item(r, value, table, project, policy) for r, value, table in owned]
+            owners = {item['agent_name'] for item in items if item['identity_id'] is not None}
+            if any(item['source_class'] == 'public.agent_profiles' and item['agent_name'] not in owners for item in items):
+                raise ValueError('orphan public agent profile owner')
             role_names = {v['name'] for _, v, t in owned if t in ('public.roles', 'cortex.roles')}
             if any(v['role_name'] not in role_names for _, v, t in owned if t == 'cortex.role_audit_events'):
                 raise ValueError('orphan role history')
@@ -191,6 +194,8 @@ def agent_groups(records, policy, dependencies):
             projection = {'scope_id': project['scope_id'], 'project': project, 'items': items, 'roster': roster}
             groups.append(AgentGroup(original_records, canonical_json(projection), None, context_json))
         except (KeyError, TypeError, ValueError) as exc:
+            if not original_records:
+                raise ImportRefused('empty agent family has an invalid project mapping') from exc
             groups.append(AgentGroup(original_records, None, str(exc) or 'invalid_agent_mapping', context_json))
     return tuple(groups + sorted(orphans, key=lambda g: g.records[0].source_reference))
 

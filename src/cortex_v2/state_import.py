@@ -272,6 +272,11 @@ async def _import(target, snapshot, binding: RunBinding, policy: dict, *, family
     ordinals = {r.source_reference: n for n, r in enumerate(snapshot.records)}
     originals = {r.source_reference: r.original_bytes for r in snapshot.records}
     lock = int.from_bytes(hashlib.sha256(binding.run_id.bytes).digest()[:8], 'big', signed=True)
+    scope_locks = []
+    if family == 'agents':
+        scopes = {uuid.UUID(load_json(g.context_json)['scope_id']) for g in groups if g.context_json is not None}
+        scope_locks = [int.from_bytes(hashlib.sha256(b'cortex.import_agents.scope:' + scope.bytes).digest()[:8],
+                                     'big', signed=True) for scope in sorted(scopes, key=lambda value: value.bytes)]
     while True:
         committed = None
         receipt = None
@@ -285,6 +290,10 @@ async def _import(target, snapshot, binding: RunBinding, policy: dict, *, family
                     raise ImportRefused('import requires the migrator role')
                 await target.execute('SELECT pg_advisory_xact_lock($1::bigint)', lock)
                 await _target_guard(target, binding)
+                # Distinct runs serialize scopes before any preflight or replay
+                # acquires native readback locks. UUID order prevents deadlocks.
+                for scope_lock in scope_locks:
+                    await target.execute('SELECT pg_advisory_xact_lock($1::bigint)', scope_lock)
                 events = await target.fetch('SELECT * FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq', binding.run_id)
                 if events:
                     header = load_json(events[0]['payload'])
