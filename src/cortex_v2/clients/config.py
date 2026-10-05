@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from .errors import ClientConfigError
 from .key_store import KeyStore, KeyStoreError
+from .member_reader import MemberKeyReader
 
 
 URL_ENV = "CORTEX_URL"
@@ -25,6 +26,7 @@ LEGACY_CREDENTIAL_ENV = frozenset({
 CONNECTION_KEYS = frozenset({
     "profile", "base_url", "installation", "project", "name",
     "default_scope", "default_read_scopes",
+    "project_root",
 })
 
 
@@ -40,6 +42,7 @@ class ClientProfile:
     credential_store: KeyStore | None = None
     credential_project: str | None = None
     credential_name: str | None = None
+    member_reader: MemberKeyReader | None = field(default=None, repr=False)
 
 
 def _validate_base_url(value: str) -> str:
@@ -83,7 +86,7 @@ def _connection(path: str | Path | None) -> tuple[dict[str, Any], str]:
         raise ClientConfigError("cannot read connection profile") from exc
     if not isinstance(data, dict) or set(data) - CONNECTION_KEYS or data.get("profile") != "v2":
         raise ClientConfigError("connection profile must be v2 and contain no credential fields")
-    for field in ("base_url", "installation", "project", "name", "default_scope"):
+    for field in ("base_url", "installation", "project", "name", "default_scope", "project_root"):
         if field in data and not isinstance(data[field], str):
             raise ClientConfigError(f"connection profile field {field} must be text")
     return data, str(chosen)
@@ -189,4 +192,41 @@ def profile_from_credentials(
         installation_label=installation_label,
         principal_label=principal_label,
         source="per-request-credentials",
+    )
+
+
+def load_member_profile(
+    path: str | Path | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
+    installation: str | None = None,
+    project: str | None = None,
+    name: str | None = None,
+    project_root: Path | None = None,
+) -> ClientProfile:
+    """Select a project member without reading or retaining its bearer."""
+    environment = os.environ if env is None else env
+    if LEGACY_CREDENTIAL_ENV.intersection(environment) or CI_KEY_ENV in environment:
+        raise ClientConfigError("member clients require their selected private reader; ambient keys are prohibited")
+    data, source = _connection(path) if env is None or path is not None else ({}, "environment")
+    base_url = _require_url(data, environment)
+    installation = installation or data.get("installation")
+    project = project or data.get("project")
+    name = name or data.get("name")
+    if project_root is None and data.get("project_root"):
+        project_root = Path(data["project_root"])
+    if not installation or not project or not name or project_root is None:
+        raise ClientConfigError("member clients require installation, project, name and physical project_root")
+    read_scopes = _split_scopes(data.get("default_read_scopes"))
+    if data.get("default_scope", project) != project or any(value != project for value in read_scopes):
+        raise ClientConfigError("member profile scope must match its selected project")
+    try:
+        reader = MemberKeyReader(installation=installation, project=project,
+                                 name=name, project_root=project_root)
+    except KeyStoreError as exc:
+        raise ClientConfigError(str(exc)) from None
+    return ClientProfile(
+        base_url=base_url, token="", default_scope=project,
+        default_read_scopes=read_scopes, installation_label=installation,
+        principal_label=name, source=source, member_reader=reader,
     )

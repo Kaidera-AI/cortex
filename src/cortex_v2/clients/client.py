@@ -10,18 +10,21 @@ writes. Errors are typed; there is no legacy fallback of any kind.
 from __future__ import annotations
 
 import json
+from urllib.parse import urlencode
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
 from ..interface.registry import NormalizedOperation, OperationRegistry, build_registry
 from .config import ClientProfile
 from .errors import (
+    ClientConfigError,
     CortexApiError,
     IdempotencyKeyRequired,
     IncompatibleServerError,
     OperationUnknownToClient,
     ScopeRequired,
 )
+from .key_store import KeyStoreError
 from .transport import HttpResponse, http_request
 
 EXPECTED_API_VERSION = "v1"
@@ -85,7 +88,18 @@ class CortexClient:
         read_scopes: Sequence[str] | None,
         idempotency_key: str | None,
     ) -> dict[str, str]:
-        headers = {"Authorization": f"Bearer {self.profile.token}"}
+        reader = self.profile.member_reader
+        if reader is not None:
+            selected_reads = read_scopes or self.profile.default_read_scopes
+            if (scope not in (None, reader.project)
+                    or any(value != reader.project for value in selected_reads)):
+                raise ClientConfigError("member request scope must match its selected project")
+            try:
+                headers = dict(reader.headers())
+            except KeyStoreError:
+                raise ClientConfigError("member credential unavailable; ask the project lead for enrollment or unlock") from None
+        else:
+            headers = {"Authorization": f"Bearer {self.profile.token}"}
         if scope:
             headers["X-Cortex-Scope"] = scope
         if read_scopes:
@@ -129,9 +143,6 @@ class CortexClient:
             raise IdempotencyKeyRequired(operation_id)
         resolved_scope = self._resolve_scope(operation, scope)
         url = self._url(operation, path_params or {})
-        headers = self._headers(
-            operation, resolved_scope, read_scopes, idempotency_key
-        )
         json_body: Any | None = None
         effective_query: dict[str, str] = dict(query or {})
         if operation.method == "POST":
@@ -141,6 +152,16 @@ class CortexClient:
                 if value is None:
                     continue
                 effective_query.setdefault(name, _encode_query_value(value))
+        if self.profile.member_reader is not None:
+            # Match the transport's local encoding before accessing a key.
+            # Invalid caller data must not trigger a private credential read.
+            if json_body is not None:
+                json.dumps(json_body, ensure_ascii=False).encode("utf-8")
+            if effective_query:
+                urlencode(effective_query)
+        headers = self._headers(
+            operation, resolved_scope, read_scopes, idempotency_key
+        )
         response = self._transport(
             operation.method,
             url,

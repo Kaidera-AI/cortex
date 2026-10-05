@@ -9,7 +9,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from typing import Any, TextIO
 
 from ..clients.client import CortexClient
-from ..clients.config import load_client_profile
+from ..clients.config import load_member_profile
 from ..clients.errors import (
     ClientConfigError,
     ClientError,
@@ -139,7 +139,7 @@ def _pairs(values: list[str]) -> dict[str, str]:
 
 
 def _make_client(config: str | None) -> CortexClient:
-    profile = load_client_profile(config)
+    profile = load_member_profile(config)
     return CortexClient(profile)
 
 
