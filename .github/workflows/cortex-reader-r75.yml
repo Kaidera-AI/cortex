@@ -27,6 +27,12 @@ jobs:
           set -euo pipefail
           PYTHONPATH="$(find "$RUNNER_TEMP/r75-reader" -name '*.zip')" \
             python3 scripts/release/check-reader-r75-native.py | tee "$RUNNER_TEMP/r75-reader/native-mac.json"
+      - name: Existing member fixture compatibility from frozen bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$(find "$RUNNER_TEMP/r75-reader" -name '*.zip')" \
+            python3 tests/test_member_key_reader.py | tee "$RUNNER_TEMP/r75-reader/native-member.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

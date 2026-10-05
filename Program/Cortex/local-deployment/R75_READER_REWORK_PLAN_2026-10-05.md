@@ -32,3 +32,7 @@ Primary source URLs:
 - https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/OSX/libsecurity_keychain/lib/SecItem.cpp
 
 Rollback: retain previous frozen bytes and withdraw this new review input if qualification fails. Do not change any installed consumer. Native invalidation is controlled failure injection, not a reproduction claim about the CTO's Mac. Vera reviews the new exact tip; Kai rules on use and consumer re-pin separately.
+
+## Verification follow-up before final freeze
+
+Fresh read-only verification identified an empty open installation directory disappearing after listdir, and an item reference escaping cleanup if SecKeychainItemFreeContent fails. Add two RED unit cases before repair. Validate directory identity/custody at context exit; include content-release errors in item cleanup. The strengthened post-check also makes the old native fixture's intentional delete-inside-_open cleanup fail: add a hosted RED compatibility step, then change only tests/test_member_key_reader.py's cleanup to explicit native open/delete/release. Credential/read/rotation/lock assertions stay. Frozen r75 cases and hosted fault-injection fixture stay unchanged through each corresponding repair.

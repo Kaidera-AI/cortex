@@ -115,6 +115,17 @@ class LinuxMissingStore(unittest.TestCase):
             with self.assertRaises(KeyStoreError):
                 self.store.due()
 
+    def test_empty_installation_disappearance_after_list_is_error(self):
+        self.layout(2)
+        original = os.listdir
+        def disappear(fd):
+            entries = original(fd)
+            (self.root / 'installation').rmdir()
+            return entries
+        with patch.object(os, 'listdir', side_effect=disappear):
+            with self.assertRaises(KeyStoreError):
+                self.store.due()
+
 
 def value(pointer):
     return pointer.value if hasattr(pointer, 'value') else pointer
@@ -250,6 +261,20 @@ class MacExplicitCustody(unittest.TestCase):
         self.assertEqual(store.security.explicit_writes, 1)
         self.assertIn(21, store.security.released)
         self.assertEqual(store.security.released.count(7), 2)
+
+    def test_native_content_release_failure_also_releases_item(self):
+        store = self.store()
+        buffer = C.create_string_buffer(b'non-secret-unit-buffer')
+        def found(*args):
+            args[5]._obj.value = len(buffer) - 1
+            args[6]._obj.value = C.addressof(buffer)
+            args[7]._obj.value = 21
+            return 0
+        store.security.SecKeychainFindGenericPassword = found
+        store.security.SecKeychainItemFreeContent = lambda *_: -1
+        with self.assertRaises(KeyStoreError):
+            store._find(C.c_void_p(7), 'project', 'member')
+        self.assertIn(21, store.security.released)
 
 
 if __name__ == '__main__':
