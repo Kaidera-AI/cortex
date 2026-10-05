@@ -13,12 +13,16 @@ from ..clients.key_store import KeyStoreError
 from ..clients.transport import HttpResponse, http_request
 
 
+class FacadeUnavailable(ClientConfigError):
+    """The requested caller contract has not been mapped in this release."""
+
+
 def request_projects(
     profile: ClientProfile, *, method: str = "GET", path: str = "/projects",
     payload=None, agent_name: str = "",
 ) -> HttpResponse:
     if method != "GET" or path != "/projects" or payload is not None:
-        raise ClientConfigError("unqualified facade request; only GET /projects without query or body is admitted")
+        raise FacadeUnavailable("facade request unavailable in this release")
     reader = profile.member_reader
     if (reader is None or profile.default_scope != reader.project
             or any(scope != reader.project for scope in profile.default_read_scopes)
@@ -88,7 +92,7 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
         # Validate caller data before profile construction or credential access.
         if args.command == "api":
             if args.method != "GET" or args.path != "/projects" or stdin.read(1):
-                raise ClientConfigError("unqualified facade request")
+                raise FacadeUnavailable("facade request unavailable in this release")
         profile = load_member_profile(args.config)
         response = request_projects(profile, agent_name=getattr(args, "agent_name", ""))
         if response.status != 200:
@@ -110,6 +114,9 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
             output = response.body.decode("utf-8")
         stdout.write(output)
         return 0
+    except FacadeUnavailable:
+        print("ERROR: facade request unavailable in this release", file=stderr)
+        return 2
     except (ClientConfigError, KeyStoreError, ValueError, UnicodeError):
         print("ERROR: member project request refused; check its v2 profile, enrollment and response contract", file=stderr)
         return 2
