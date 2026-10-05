@@ -54,11 +54,10 @@ class LinuxMissingStore(unittest.TestCase):
     def test_delete_missing_root_installation_project_and_file(self):
         for depth in range(4):
             with self.subTest(depth=depth):
+                self.root = Path(self.temp.name) / f'keys-{depth}'
+                self.store = KeyStore('installation', root=self.root)
+                self.layout(depth)
                 self.store.delete('project', 'member')
-                if depth < 3:
-                    self.layout(depth + 1) if depth == 0 else (
-                        self.root / 'installation' / 'project' if depth == 2 else self.root / 'installation'
-                    ).mkdir(mode=0o700)
                 self.assertFalse((self.root / 'installation/project/member.key').exists())
 
     def test_unsafe_root_missing_installation_refused(self):
