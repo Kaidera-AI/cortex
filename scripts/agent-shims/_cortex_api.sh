@@ -67,6 +67,5 @@ cortex_api_urlencode() { _cortex_urlencode "$1" /; }
 cortex_api_urlencode_strict() { _cortex_urlencode "$1" ''; }
 
 cortex_api_call_admin() {
-    printf '%s\n' 'ERROR: privileged requests require the owner workflow' >&2
-    return 2
+    _cortex_facade_unavailable
 }
