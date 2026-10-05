@@ -132,9 +132,19 @@ class _FileStore:
         self.installation = _label(installation)
 
     @contextmanager
-    def _installation_dir(self, *, create: bool = False) -> Iterator[int]:
-        _private_directory(self.root, create=create)
-        _private_directory(self.root / self.installation, create=create)
+    def _installation_dir(
+        self, *, create: bool = False, missing_ok: bool = False,
+    ) -> Iterator[int | None]:
+        # Only initial absence is empty. Descriptor-open failures and any
+        # disappearance after this preflight remain custody errors.
+        try:
+            _private_directory(self.root, create=create)
+            _private_directory(self.root / self.installation, create=create)
+        except FileNotFoundError:
+            if create or not missing_ok:
+                raise
+            yield None
+            return
         rootfd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         try:
             installationfd = os.open(
@@ -147,15 +157,31 @@ class _FileStore:
                     if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
                         raise KeyStoreError("credential directory must be owner-only mode 0700")
                 yield installationfd
+                for path, fd in ((self.root, rootfd), (self.root / self.installation, installationfd)):
+                    _private_directory(path, create=False)
+                    current, opened = path.lstat(), os.fstat(fd)
+                    if (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
+                        raise KeyStoreError("credential directory changed during access")
             finally:
                 os.close(installationfd)
         finally:
             os.close(rootfd)
 
     @contextmanager
-    def _dir(self, project: str, *, create: bool = False) -> Iterator[int]:
-        with self._installation_dir(create=create) as installationfd:
-            _private_directory(self.root / self.installation / _label(project), create=create)
+    def _dir(
+        self, project: str, *, create: bool = False, missing_ok: bool = False,
+    ) -> Iterator[int | None]:
+        with self._installation_dir(create=create, missing_ok=missing_ok) as installationfd:
+            if installationfd is None:
+                yield None
+                return
+            try:
+                _private_directory(self.root / self.installation / _label(project), create=create)
+            except FileNotFoundError:
+                if create or not missing_ok:
+                    raise
+                yield None
+                return
             projectfd = os.open(
                 project, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 dir_fd=installationfd,
@@ -165,6 +191,11 @@ class _FileStore:
                 if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
                     raise KeyStoreError("credential directory must be owner-only mode 0700")
                 yield projectfd
+                path = self.root / self.installation / project
+                _private_directory(path, create=False)
+                current, opened = path.lstat(), os.fstat(projectfd)
+                if (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
+                    raise KeyStoreError("credential directory changed during access")
             finally:
                 os.close(projectfd)
 
@@ -181,7 +212,9 @@ class _FileStore:
     def metadata_entries(self) -> list[tuple[str, str, KeyMetadata]]:
         entries: list[tuple[str, str, KeyMetadata]] = []
         try:
-            with self._installation_dir() as installation:
+            with self._installation_dir(missing_ok=True) as installation:
+                if installation is None:
+                    return entries
                 for project in sorted(os.listdir(installation)):
                     _label(project)
                     with self._dir(project) as directory:
@@ -238,7 +271,9 @@ class _FileStore:
     def delete(self, project: str, name: str) -> None:
         filename = f"{_label(name)}.key"
         try:
-            with self._dir(project) as directory:
+            with self._dir(project, missing_ok=True) as directory:
+                if directory is None:
+                    return
                 if _check_file(directory, filename):
                     os.unlink(filename, dir_fd=directory)
                     os.fsync(directory)

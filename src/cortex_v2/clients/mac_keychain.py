@@ -16,12 +16,18 @@ _UI_LOCK = threading.RLock()
 _NOT_FOUND = -25300
 
 
+class _Attribute(C.Structure):
+    _fields_ = [('tag', C.c_uint32), ('length', C.c_uint32), ('data', C.c_void_p)]
+
+
 class _Security:
     def __init__(self):
         self.api = C.CDLL('/System/Library/Frameworks/Security.framework/Security')
         self.cf = C.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
         self.cf.CFRelease.argtypes = [C.c_void_p]
         self.cf.CFRelease.restype = None
+        self.cf.CFEqual.argtypes = [C.c_void_p, C.c_void_p]
+        self.cf.CFEqual.restype = C.c_ubyte
         pointer = C.POINTER(C.c_void_p)
         uint = C.c_uint32
         declarations = {
@@ -34,13 +40,22 @@ class _Security:
             'SecKeychainGetUserInteractionAllowed': [C.POINTER(C.c_ubyte)],
             'SecKeychainSetUserInteractionAllowed': [C.c_ubyte],
             'SecKeychainFindGenericPassword': [C.c_void_p, uint, C.c_char_p, uint, C.c_char_p, C.POINTER(uint), pointer, pointer],
-            'SecKeychainAddGenericPassword': [C.c_void_p, uint, C.c_char_p, uint, C.c_char_p, uint, C.c_void_p, pointer],
+            # Deprecated floating-item SPI. Fail closed if unavailable; the
+            # public legacy add and SecItemAdd can select a default keychain.
+            'SecKeychainItemCreateNew': [uint, uint, uint, C.c_void_p, pointer],
+            'SecKeychainItemSetAttribute': [C.c_void_p, C.POINTER(_Attribute)],
+            'SecKeychainItemAddNoUI': [C.c_void_p, C.c_void_p],
+            'SecKeychainItemCopyKeychain': [C.c_void_p, pointer],
+            'SecKeychainGetPath': [C.c_void_p, C.POINTER(uint), C.c_void_p],
             'SecKeychainItemModifyContent': [C.c_void_p, C.c_void_p, uint, C.c_void_p],
             'SecKeychainItemFreeContent': [C.c_void_p, C.c_void_p],
             'SecKeychainItemDelete': [C.c_void_p],
         }
         for name, args in declarations.items():
-            function = getattr(self.api, name)
+            try:
+                function = getattr(self.api, name)
+            except AttributeError:
+                raise KeyStoreError('explicit-only Cortex keychain API unavailable') from None
             function.argtypes, function.restype = args, C.c_int32
 
     @staticmethod
@@ -126,7 +141,8 @@ class MacKeychainStore:
                 if not self._check():
                     raise KeyStoreError('dedicated keychain disappeared')
                 yield reference
-                self._check()
+                if not self._check():
+                    raise KeyStoreError('dedicated keychain disappeared')
             finally:
                 self.security.cf.CFRelease(reference)
 
@@ -147,7 +163,8 @@ class MacKeychainStore:
         subprocess.run(['tmutil', 'addexclusion', str(self.root)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if not self.excluded():
             raise KeyStoreError('dedicated keychain is not excluded from Time Machine')
-        self._check()
+        if not self._check():
+            raise KeyStoreError('dedicated keychain disappeared')
 
     def excluded(self) -> bool:
         result = subprocess.run(['tmutil', 'isexcluded', str(self.root)], capture_output=True, text=True, timeout=20)
@@ -163,6 +180,46 @@ class MacKeychainStore:
         with self._open(require_unlocked=False) as reference:
             self.security.check(self.security.api.SecKeychainUnlock(reference, len(password), password, 1))
 
+    def _verify_item(self, reference, item):
+        if not reference.value or not item.value:
+            raise KeyStoreError('explicit dedicated keychain or item reference missing')
+        actual = C.c_void_p()
+        try:
+            self.security.check(self.security.api.SecKeychainItemCopyKeychain(item, C.byref(actual)))
+            if not actual.value or not self.security.cf.CFEqual(reference, actual):
+                raise KeyStoreError('credential item belongs to another keychain')
+            path = C.create_string_buffer(4096)
+            length = C.c_uint32(len(path))
+            self.security.check(self.security.api.SecKeychainGetPath(actual, C.byref(length), path))
+            if length.value >= len(path) or path.raw[:length.value] != os.fsencode(self.path):
+                raise KeyStoreError('credential item keychain path differs')
+        finally:
+            if actual.value:
+                self.security.cf.CFRelease(actual)
+
+    def _create_item(self, reference, account: bytes, raw: bytes):
+        if not reference.value:
+            raise KeyStoreError('explicit dedicated keychain reference missing')
+        item = C.c_void_p()
+        try:
+            self.security.check(self.security.api.SecKeychainItemCreateNew(
+                int.from_bytes(b'genp', 'big'), 0, len(raw), raw, C.byref(item),
+            ))
+            if not item.value:
+                raise KeyStoreError('explicit dedicated keychain item reference missing')
+            for tag, data in ((b'svce', self.service), (b'acct', account)):
+                buffer = C.create_string_buffer(data)
+                attribute = _Attribute(int.from_bytes(tag, 'big'), len(data), C.cast(buffer, C.c_void_p))
+                self.security.check(self.security.api.SecKeychainItemSetAttribute(item, C.byref(attribute)))
+            # With a mandatory non-null reference, AddNoUI's native path calls
+            # KeychainImpl::required(reference)->add(item), with no default UI
+            # recovery path. Rechecking only after a legacy add is too late.
+            self.security.check(self.security.api.SecKeychainItemAddNoUI(reference, item))
+            self._verify_item(reference, item)
+        finally:
+            if item.value:
+                self.security.cf.CFRelease(item)
+
     def _find(self, reference, project: str, name: str):
         account = (_label(project) + '/' + _label(name)).encode()
         length, data, item = C.c_uint32(), C.c_void_p(), C.c_void_p()
@@ -171,15 +228,17 @@ class MacKeychainStore:
             return None, item
         self.security.check(result)
         try:
-            if length.value > 4096:
-                raise KeyStoreError('credential record exceeds the safe size limit')
-            raw = C.string_at(data, length.value)
+            try:
+                self._verify_item(reference, item)
+                if length.value > 4096:
+                    raise KeyStoreError('credential record exceeds the safe size limit')
+                raw = C.string_at(data, length.value)
+            finally:
+                self.security.check(self.security.api.SecKeychainItemFreeContent(None, data))
         except BaseException:
             if item.value:
                 self.security.cf.CFRelease(item)
             raise
-        finally:
-            self.security.check(self.security.api.SecKeychainItemFreeContent(None, data))
         return raw, item
 
     def get(self, project: str, name: str) -> _KeyRecord | None:
@@ -205,7 +264,7 @@ class MacKeychainStore:
                 if item.value:
                     self.security.check(self.security.api.SecKeychainItemModifyContent(item, None, len(raw), raw))
                 else:
-                    self.security.check(self.security.api.SecKeychainAddGenericPassword(reference, len(self.service), self.service, len(account), account, len(raw), raw, None))
+                    self._create_item(reference, account, raw)
             finally:
                 if item.value:
                     self.security.cf.CFRelease(item)
