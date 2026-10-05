@@ -253,7 +253,8 @@ async def reconcile_project(target, projection_json: str, installation: uuid.UUI
     for field in ('original_project_id', 'display_name', 'default_agent', 'status', 'parent_project_key', 'repo_root'):
         if registry[field] != p[field]:
             raise ImportRefused('native project fields drifted')
-    if (load_json(registry['roots']) != p['roots']
+    # Python considers True == 1 and False == 0; JSON types must remain distinct.
+    if (canonical_json(load_json(registry['roots'])) != canonical_json(p['roots'])
         or registry['created_at'] != when
         or registry['updated_at'] != datetime.fromisoformat(p['updated_at'])):
         raise ImportRefused('native project roots or timestamps drifted')

@@ -23,10 +23,21 @@ class ImportRefused(RuntimeError):
 def canonical_json(value) -> str:
     # PostgreSQL jsonb numeric can carry more precision than a Python float. Keep
     # Decimal as a JSON number through projection, policy hashing and readback.
+    if type(value) in (int, float):
+        value = Decimal(str(value))
     if isinstance(value, Decimal):
         if not value.is_finite():
             raise ValueError('non-finite JSON number')
-        return str(value)
+        # Normalize exact decimal tuples without the Decimal arithmetic context
+        # (normalize() can round to its default precision). All numeric input
+        # types use the same spelling before and after a JSON decode.
+        sign, digits, exponent = value.as_tuple()
+        coefficient = ''.join(str(digit) for digit in digits)
+        if not any(digits):
+            return '0'
+        trimmed = coefficient.rstrip('0')
+        exponent += len(coefficient) - len(trimmed)
+        return ('-' if sign else '') + trimmed + (f'e{exponent}' if exponent else '')
     if isinstance(value, dict):
         if any(not isinstance(key, str) for key in value):
             raise TypeError('JSON object keys must be strings')
