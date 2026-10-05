@@ -125,14 +125,14 @@ def test_stdio_remote_denial_preserves_error_and_expiry_with_no_replay(monkeypat
     assert reader.reads == 1 and old == [] and len(requests) == 1
 
 
-@pytest.mark.parametrize('request', (tool(scope='other'),
+@pytest.mark.parametrize('message', (tool(scope='other'),
                                     tool('capability_discover', read_scopes=['other']),
                                     tool('memory_record', body='fixture'),
                                     tool('unknown_fixture_tool')))
-def test_stdio_invalid_operation_scope_or_idempotency_never_reads_key(monkeypatch, tmp_path, receiver, request):
+def test_stdio_invalid_operation_scope_or_idempotency_never_reads_key(monkeypatch, tmp_path, receiver, message):
     origin, requests = receiver()
     reader, old, path = setup_member(monkeypatch, tmp_path, origin)
-    response = session(monkeypatch, path, [request])[0]
+    response = session(monkeypatch, path, [message])[0]
     assert response.get('error') or response.get('result', {}).get('isError')
     assert reader.reads == 0 and old == [] and requests == []
 
