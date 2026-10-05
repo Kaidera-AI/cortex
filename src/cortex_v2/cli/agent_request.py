@@ -53,7 +53,7 @@ def format_projects(data) -> str:
             raise ClientConfigError("invalid project roots")
         for root in roots:
             if (not isinstance(root, dict) or not isinstance(root.get("path"), str)
-                    or not root["path"] or root.get("kind") not in ("primary", "secondary")):
+                    or not root["path"] or not isinstance(root.get("kind"), str) or not root["kind"]):
                 raise ClientConfigError("invalid project roots")
         primary = [root for root in roots if root["kind"] == "primary"]
         if len(primary) != 1 or primary[0]["path"] != row["repo_root"]:
