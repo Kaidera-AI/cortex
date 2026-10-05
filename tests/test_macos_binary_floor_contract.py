@@ -61,7 +61,7 @@ class Tools:
             binary.parent.mkdir(exist_ok=True)
             binary.write_bytes(("frozen-" + name).encode())
             binary.chmod(0o755)
-        elif stage.startswith("arch"):
+        elif stage.startswith("arch-"):
             bad = self.bad_post if post else self.bad_pre
             value = bad if name == self.target and bad in ("x86_64", "arm64 x86_64") else "arm64"
         elif stage.startswith("header"):
