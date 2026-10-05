@@ -18,9 +18,19 @@ class FacadeUnavailable(ClientConfigError):
 
 
 class _Parser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **dict(kwargs, allow_abbrev=False))
+
     def error(self, message):
         # ArgumentParser normally echoes caller argv, which may contain a URL.
         raise FacadeUnavailable("facade request unavailable in this release")
+
+
+class _SingleValue(argparse.Action):
+    def __call__(self, parser, namespace, value, option_string=None):
+        if getattr(namespace, self.dest, None) is not None:
+            raise FacadeUnavailable("facade request unavailable in this release")
+        setattr(namespace, self.dest, value)
 
 
 def request_projects(
@@ -86,13 +96,14 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
          stderr: TextIO | None = None) -> int:
     stdin, stdout, stderr = stdin or sys.stdin, stdout or sys.stdout, stderr or sys.stderr
     parser = _Parser(description=__doc__)
-    parser.add_argument("--config", help="non-secret v2 member connection profile")
+    parser.add_argument("--config", action=_SingleValue,
+                        help="non-secret v2 member connection profile")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("projects", help="show registered projects using the selected member")
     api = commands.add_parser("api", help="raw qualified facade response")
     api.add_argument("method")
     api.add_argument("path")
-    api.add_argument("--agent-name", default="")
+    api.add_argument("--agent-name", action=_SingleValue)
     try:
         args = parser.parse_args(argv)
         # Validate caller data before profile construction or credential access.

@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# cortex-graph-search - Dual-level retrieval over Cortex Layer 4 through API.
+#
+# Usage:
+#   cortex-graph-search <query> [--expand] [--high|--low]
+#   cortex-graph-search <query> [--limit N|--max-results N] [--json]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_cortex_api.sh
+source "${SCRIPT_DIR}/_cortex_api.sh"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cortex-graph-search <query> [--expand] [--high|--low]
+  cortex-graph-search <query> [--limit N|--max-results N] [--json]
+EOF
+}
+
+if [ "$#" -eq 0 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+EXPAND=false
+HIGH=false
+LOW=false
+LIMIT=100
+JSON_OUT=false
+QUERY_PARTS=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --expand) EXPAND=true; shift ;;
+        --high) HIGH=true; shift ;;
+        --low) LOW=true; shift ;;
+        --limit|--max-results)
+            [ "$#" -ge 2 ] || { echo "ERROR: $1 requires a value" >&2; exit 2; }
+            LIMIT="$2"
+            shift 2
+            ;;
+        --json) JSON_OUT=true; shift ;;
+        --help|-h) usage; exit 0 ;;
+        --*) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
+        *) QUERY_PARTS+=("$1"); shift ;;
+    esac
+done
+
+if [ "${#QUERY_PARTS[@]}" -eq 0 ]; then
+    echo "ERROR: query required" >&2
+    usage >&2
+    exit 2
+fi
+
+QUERY="${QUERY_PARTS[*]}"
+path="/cortex-graph-search?q=$(cortex_api_urlencode "${QUERY}")&limit=${LIMIT}&expand=${EXPAND}&high=${HIGH}&low=${LOW}"
+response="$(cortex_api_call_json GET "${path}")"
+
+if [ "${JSON_OUT}" = "true" ]; then
+    printf '%s' "${response}" | python3 -m json.tool
+    exit 0
+fi
+
+python3 - "${response}" <<'PYEOF'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+query = data.get("query") or ""
+project = data.get("project") or ""
+mode = data.get("mode") or "both"
+print(f'\n## Graph Search: "{query}" (project: {project}, mode: {mode})\n')
+
+def print_entities(title, rows):
+    print(f"### {title}\n")
+    if not rows:
+        print("  (no matches)\n")
+        return
+    for row in rows:
+        desc = row.get("description") or "-"
+        print(f"  [{row.get('entity_type', ''):<8}] {row.get('name', ''):<42} {desc}")
+    print()
+
+def print_relationships(rows):
+    print("### Related Entities (1-hop)\n")
+    if not rows:
+        print("  (no related matches)\n")
+        return
+    for row in rows:
+        desc = row.get("description") or ""
+        suffix = f"  - {desc}" if desc else ""
+        print(
+            f"  {row.get('source')} ({row.get('source_type')}) "
+            f"--[{row.get('relationship_type')}]--> "
+            f"{row.get('target')} ({row.get('target_type')}){suffix}"
+        )
+    print()
+
+if mode in {"both", "high"}:
+    print_entities("High-Level Topics (concept | epic | service | project | product)", data.get("high_level") or [])
+if mode in {"both", "low"}:
+    print_entities("Low-Level Entities (file | tool | endpoint | table | branch | model | agent)", data.get("low_level") or [])
+if data.get("expanded"):
+    print_relationships(data.get("relationships") or [])
+if mode == "both" and not data.get("high_level") and not data.get("low_level"):
+    print(f'No graph hits. Try `cortex-search "{query}"` for vector retrieval.\n')
+PYEOF
