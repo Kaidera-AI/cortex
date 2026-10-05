@@ -194,6 +194,10 @@ def test_native_build_wiring_inventories_both_programs(tmp_path, monkeypatch):
             target.write_bytes(b'unissued-native-build-fixture')
         if args[0] == 'lipo':
             return 'arm64'
+        if args[0] == 'otool' and '-l' in args:
+            return 'Load command 0\n cmd LC_BUILD_VERSION\n platform 1\n minos 14.0\n sdk 15.5\n'
+        if args[0] == 'vtool':
+            Path(args[args.index('-output') + 1]).write_bytes(Path(args[-1]).read_bytes())
         if 'PyInstaller.utils.cliutils.archive_viewer' in args:
             return 'fixture-archive-modules'
         return 'fixture-dependencies' if read else ''
