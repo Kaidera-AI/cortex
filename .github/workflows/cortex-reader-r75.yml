@@ -15,12 +15,28 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.10"
           architecture: arm64
       - name: Freeze exact reader bytes
         run: python3 scripts/release/build-key-reader.py --output "$RUNNER_TEMP/r75-reader"
+      - name: Reproduce legacy fallback with the same frozen native fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/r75-baseline"
+          git archive dfe12cdea374649786cbe2636a0aeacad074168a src/cortex_v2 \
+            | tar -x -C "$RUNNER_TEMP/r75-baseline"
+          set +e
+          PYTHONPATH="$RUNNER_TEMP/r75-baseline/src" python3 scripts/release/check-reader-r75-native.py \
+            > "$RUNNER_TEMP/r75-reader/native-mac-red.txt" 2>&1
+          result=$?
+          set -e
+          test "$result" = 1
+          grep -F 'AssertionError: invalidation: ambient_writes=1, completed=True' \
+            "$RUNNER_TEMP/r75-reader/native-mac-red.txt"
       - name: Native failure injection from frozen zip, synthetic runner keychains only
         shell: bash
         run: |

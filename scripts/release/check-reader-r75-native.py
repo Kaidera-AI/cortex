@@ -42,6 +42,8 @@ def main():
         'SecKeychainSetDefault': [C.c_void_p],
         'SecKeychainCopySearchList': [pointer],
         'SecKeychainSetSearchList': [C.c_void_p],
+        'SecKeychainSearchCreateFromAttributes': [C.c_void_p, C.c_uint32, C.c_void_p, pointer],
+        'SecKeychainSearchCopyNext': [C.c_void_p, pointer],
     }.items():
         function = getattr(api, name)
         function.argtypes, function.restype = args, C.c_int32
@@ -58,6 +60,29 @@ def main():
     project.chmod(0o700)
     handles, stores, checks = [], [], []
     search = None
+    def ambient_records():
+        counts = []
+        for keychain in handles:
+            cursor = C.c_void_p()
+            security.check(api.SecKeychainSearchCreateFromAttributes(
+                keychain, int.from_bytes(b'genp', 'big'), None, C.byref(cursor),
+            ))
+            count = 0
+            try:
+                while True:
+                    item = C.c_void_p()
+                    result = api.SecKeychainSearchCopyNext(cursor, C.byref(item))
+                    if item.value:
+                        cf.CFRelease(item)
+                    if result == -25300:
+                        break
+                    security.check(result)
+                    count += 1
+            finally:
+                if cursor.value:
+                    cf.CFRelease(cursor)
+            counts.append(count)
+        return counts
     try:
         password = secrets.token_urlsafe(40).encode()
         for name in ('ambient-default.keychain-db', 'ambient-search.keychain-db'):
@@ -82,6 +107,9 @@ def main():
             cf.CFArrayAppendValue(search, ref)
         security.check(api.SecKeychainSetDefault(handles[0]))
         security.check(api.SecKeychainSetSearchList(search))
+        before = ambient_records()
+        if before != [0, 0]:
+            raise AssertionError('synthetic ambient stores not initially empty')
         checks.append('only synthetic ambient stores selected for fixture')
 
         reader = MemberKeyReader(installation='r75-normal', project='fixture', name='console', project_root=project)
@@ -108,6 +136,8 @@ def main():
         normal.delete('fixture', 'console')
         refuse(reader.headers)
         checks.append('native deletion observed')
+        if ambient_records() != before:
+            raise AssertionError('normal operations wrote to synthetic ambient stores')
 
         class InvalidateBeforeAdd:
             def __init__(self):
@@ -134,24 +164,17 @@ def main():
             pass
         if not injected.injected:
             raise AssertionError('native invalidation hook not reached')
-        ambient_writes = 0
-        account = b'fixture/console'
-        for ref in handles:
-            item = C.c_void_p()
-            result = api.SecKeychainFindGenericPassword(ref, len(fault._native.service), fault._native.service,
-                                                       len(account), account, None, None, C.byref(item))
-            if item.value:
-                cf.CFRelease(item)
-            if result == 0:
-                ambient_writes += 1
-            elif result != -25300:
-                security.check(result)
+        after = ambient_records()
+        ambient_writes = sum(after) - sum(before)
         if ambient_writes or completed:
             raise AssertionError(f'invalidation: ambient_writes={ambient_writes}, completed={completed}')
         checks.append('native dedicated handle deleted immediately before add')
-        checks.append('zero writes to synthetic default and search-list stores; no success')
+        checks.append('both synthetic ambient stores remain empty; no successful completion')
         print(json.dumps({'status': 'PASS', 'platform': sys.platform, 'python': sys.version.split()[0],
-                          'ambient_writes': ambient_writes, 'checks': checks}, sort_keys=True))
+                          'ambient_writes': ambient_writes, 'ambient_generic_records_before': before,
+                          'ambient_generic_records_after': after,
+                          'observation': 'all generic-password records; no delete between fault add and observation',
+                          'checks': checks}, sort_keys=True))
     finally:
         # Restore the ephemeral runner preferences before deleting ONLY fixture stores.
         security.check(api.SecKeychainSetDefault(original_default))
