@@ -4,6 +4,9 @@ The runtime image ships only asyncpg/fastapi/uvicorn, so the client uses
 ``urllib.request`` instead of adding an HTTP dependency. One request, one
 response, no retries: retry policy belongs to the caller because only the
 caller knows whether an effect is safe to repeat.
+
+Credentials stay at the selected origin. Redirects remain response outcomes;
+environment proxy settings never select a different credential recipient.
 """
 
 from __future__ import annotations
@@ -25,6 +28,11 @@ class HttpResponse:
     status: int
     headers: dict[str, str]
     body: bytes
+
+
+class _NoRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def http_request(
@@ -49,8 +57,11 @@ def http_request(
     request = urllib.request.Request(
         target, data=data, headers=request_headers, method=method
     )
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), _NoRedirects()
+    )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             return HttpResponse(
                 status=response.status,
                 headers={
