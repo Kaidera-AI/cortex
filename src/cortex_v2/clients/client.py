@@ -60,7 +60,7 @@ def _validate_handoff_receipt(operation, path_params, response):
                  and data["status"] in HANDOFF_STATUSES
                  and type(data["claim_generation"]) is int and data["claim_generation"] >= 0
                  and type(data["revision"]) is int and data["revision"] >= 1
-                 and type(data["policy_revision"]) is int and data["policy_revision"] >= 1)
+                 and type(data["policy_revision"]) is int and data["policy_revision"] >= 0)
         handoff_id = uuid.UUID(data["handoff_id"])
         uuid.UUID(data["scope_id"])
         if "handoff_id" in operation.path_params:
