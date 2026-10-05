@@ -52,8 +52,11 @@ def _validate_handoff_write(operation, payload, path_params, key):
 def _validate_handoff_receipt(operation, path_params, response):
     if not 200 <= response.status < 300:
         return
+    request_id = response.headers.get("x-request-id")
     try:
         envelope = json.loads(response.body.decode("utf-8"))
+        if isinstance(envelope, dict):
+            request_id = envelope.get("request_id", request_id)
         data = envelope["data"]
         valid = (data["state"] == "committed"
                  and data["operation"] == operation.operation_id
@@ -73,7 +76,7 @@ def _validate_handoff_receipt(operation, path_params, response):
     raise CortexApiError(
         status=response.status, code="invalid_write_receipt",
         message="handoff write outcome uncertain; inspect the original request and idempotency key",
-        retryable=False, request_id=response.headers.get("x-request-id"),
+        retryable=False, request_id=request_id,
         operation_id=operation.operation_id,
         key_expires_at=next((value for name, value in response.headers.items()
                             if name.lower() == "cortex-key-expires"), None),
