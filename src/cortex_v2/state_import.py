@@ -50,13 +50,13 @@ async def native_schema_digest(target) -> str:
     defaults, checks, indexes, RLS policies, triggers, function bodies and ACLs matter.
     """
     queries = {
-        'relations': """SELECT n.nspname,c.relname,c.relkind,c.relrowsecurity,c.relforcerowsecurity,
+        'relations': """SELECT n.nspname,c.relname,c.relkind::text AS relkind,c.relrowsecurity,c.relforcerowsecurity,
                         c.relacl::text AS acl,pg_get_userbyid(c.relowner) AS owner
           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
           WHERE n.nspname IN ('cortex_core','cortex_auth')
           ORDER BY n.nspname,c.relname""",
         'columns': """SELECT n.nspname,c.relname,a.attname,format_type(a.atttypid,a.atttypmod) AS type,
-                        a.attnotnull,a.attidentity,a.attgenerated,pg_get_expr(d.adbin,d.adrelid) AS default_value
+                        a.attnotnull,a.attidentity::text AS attidentity,a.attgenerated::text AS attgenerated,pg_get_expr(d.adbin,d.adrelid) AS default_value
           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
           JOIN pg_attribute a ON a.attrelid=c.oid
           LEFT JOIN pg_attrdef d ON d.adrelid=c.oid AND d.adnum=a.attnum
@@ -73,7 +73,7 @@ async def native_schema_digest(target) -> str:
         'policies': """SELECT schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check
           FROM pg_policies WHERE schemaname IN ('cortex_core','cortex_auth')
           ORDER BY schemaname,tablename,policyname""",
-        'triggers': """SELECT n.nspname,c.relname,t.tgname,t.tgenabled,pg_get_triggerdef(t.oid,true) AS definition
+        'triggers': """SELECT n.nspname,c.relname,t.tgname,t.tgenabled::text AS tgenabled,pg_get_triggerdef(t.oid,true) AS definition
           FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
           JOIN pg_namespace n ON n.oid=c.relnamespace
           WHERE n.nspname IN ('cortex_core','cortex_auth') AND NOT t.tgisinternal
