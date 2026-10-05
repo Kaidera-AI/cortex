@@ -10,10 +10,14 @@ writes. Errors are typed; there is no legacy fallback of any kind.
 from __future__ import annotations
 
 import json
+import uuid
 from urllib.parse import urlencode
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
+from pydantic import ValidationError
+
+from ..coordination.state import HANDOFF_STATUSES
 from ..interface.registry import NormalizedOperation, OperationRegistry, build_registry
 from .config import ClientProfile
 from .errors import (
@@ -28,6 +32,52 @@ from .key_store import KeyStoreError
 from .transport import HttpResponse, http_request
 
 EXPECTED_API_VERSION = "v1"
+
+
+def _validate_handoff_write(operation, payload, path_params, key):
+    # Reuse the server's strict model; never infer a generation or rewrite input.
+    if (not isinstance(key, str) or not 1 <= len(key) <= 128
+            or any(ord(char) < 32 or ord(char) > 126 for char in key)):
+        raise ClientConfigError("handoff write requires a safe explicit idempotency key")
+    try:
+        if operation.request_model is None:
+            raise ValueError("request model unavailable")
+        operation.request_model.model_validate(payload)
+        if "handoff_id" in operation.path_params:
+            uuid.UUID(str(path_params["handoff_id"]))
+    except (ValidationError, ValueError, TypeError, KeyError, AttributeError):
+        raise ClientConfigError("handoff write refused; check its request and claim fence") from None
+
+
+def _validate_handoff_receipt(operation, path_params, response):
+    if not 200 <= response.status < 300:
+        return
+    try:
+        envelope = json.loads(response.body.decode("utf-8"))
+        data = envelope["data"]
+        valid = (data["state"] == "committed"
+                 and data["operation"] == operation.operation_id
+                 and data["status"] in HANDOFF_STATUSES
+                 and type(data["claim_generation"]) is int and data["claim_generation"] >= 0
+                 and type(data["revision"]) is int and data["revision"] >= 1
+                 and type(data["policy_revision"]) is int and data["policy_revision"] >= 1)
+        handoff_id = uuid.UUID(data["handoff_id"])
+        uuid.UUID(data["scope_id"])
+        if "handoff_id" in operation.path_params:
+            valid = valid and handoff_id == uuid.UUID(str(path_params["handoff_id"]))
+        if valid:
+            return
+    except (ValueError, UnicodeError, TypeError, KeyError, AttributeError):
+        pass
+    # A response failure says nothing about whether the server committed.
+    raise CortexApiError(
+        status=response.status, code="invalid_write_receipt",
+        message="handoff write outcome uncertain; inspect the original request and idempotency key",
+        retryable=False, request_id=response.headers.get("x-request-id"),
+        operation_id=operation.operation_id,
+        key_expires_at=next((value for name, value in response.headers.items()
+                            if name.lower() == "cortex-key-expires"), None),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +202,12 @@ class CortexClient:
                 if value is None:
                     continue
                 effective_query.setdefault(name, _encode_query_value(value))
+        member_handoff_write = (self.profile.member_reader is not None
+                                and operation.module == "coordination"
+                                and operation.kind == "scoped_write"
+                                and operation_id.startswith("coordination.handoff."))
+        if member_handoff_write:
+            _validate_handoff_write(operation, json_body, path_params or {}, idempotency_key)
         if self.profile.member_reader is not None:
             # Match the transport's local encoding before accessing a key.
             # Invalid caller data must not trigger a private credential read.
@@ -170,6 +226,8 @@ class CortexClient:
             query=effective_query or None,
             timeout=self._timeout,
         )
+        if member_handoff_write:
+            _validate_handoff_receipt(operation, path_params or {}, response)
         return self._result(operation_id, response)
 
     def _result(self, operation_id: str, response: HttpResponse) -> CallResult:
