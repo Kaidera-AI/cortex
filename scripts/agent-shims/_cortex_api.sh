@@ -10,7 +10,7 @@ cortex_api_call() {
        || [ -n "${CORTEX_API_PAYLOAD_FILE:-}" ] || [ "${1:-}" != GET ] \
        || [ "${2:-}" != /projects ] || [ -n "${CORTEX_CTO_OVERRIDE:-}" ] \
        || [ "${CORTEX_API_WITH_ADMIN:-0}" != 0 ]; then
-        printf '%s\n' 'ERROR: unqualified member facade request' >&2
+        printf '%s\n' 'ERROR: facade request unavailable in this release' >&2
         return 2
     fi
     if [ -z "${CORTEX_CONNECTION_PROFILE:-}" ]; then
