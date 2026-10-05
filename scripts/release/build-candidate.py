@@ -156,6 +156,33 @@ def images(out: Path, source_sha: str, version: str) -> None:
     (out / "rehearsal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 
+def freeze_host_programs(out: Path) -> dict:
+    """Freeze both host entrypoints and retain their separate byte inventories."""
+    programs = {}
+    for name, entrypoint, paths, inventory_name in (
+        ("cortex-test", "install_candidate.py", ROOT / "scripts", "host-archive-inventory.txt"),
+        ("cortex-agent", "agent_request.py", ROOT / "src", "agent-archive-inventory.txt"),
+    ):
+        run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", "--target-arch=arm64", f"--name={name}",
+             "--paths", str(paths), "--distpath", str(out / "bin"), "--workpath", str(out / "work" / name),
+             "--specpath", str(out / "spec"), str(ROOT / "scripts/release" / entrypoint)])
+        binary = out / "bin" / name
+        dependencies = run(["otool", "-L", str(binary)], read=True)
+        if run(["lipo", "-archs", str(binary)], read=True) != "arm64":
+            raise RuntimeError("host executable is not the admitted native architecture")
+        run([str(binary), "--help"])
+        archive = run([sys.executable, "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief",
+                       str(binary)], read=True)
+        (out / inventory_name).write_text(archive + "\n")
+        programs[name] = {"sha256": digest(binary), "dependencies": dependencies.splitlines(),
+                          "archive_inventory": inventory_name}
+    for name in ("cortex-projects", "_cortex_api.sh"):
+        source = ROOT / "scripts/agent-shims" / name
+        shutil.copy2(source, out / "bin" / name)
+        (out / "bin" / name).chmod(0o755 if name == "cortex-projects" else 0o644)
+    return programs
+
+
 def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         raise RuntimeError("native macOS arm64 builder required")
@@ -174,16 +201,7 @@ def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
     out.mkdir(parents=True)
     run([sys.executable, "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
          "--requirement", str(ROOT / "scripts/release/requirements-host-build.txt")])
-    run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", "--target-arch=arm64", "--name=cortex-test",
-         "--paths", str(ROOT / "scripts"), "--distpath", str(out / "bin"), "--workpath", str(out / "work"),
-         "--specpath", str(out / "spec"), str(ROOT / "scripts/release/install_candidate.py")])
-    dependencies = run(["otool", "-L", str(out / "bin/cortex-test")], read=True)
-    if run(["lipo", "-archs", str(out / "bin/cortex-test")], read=True) != "arm64":
-        raise RuntimeError("host executable is not the admitted native architecture")
-    run([str(out / "bin/cortex-test"), "--help"])
-    archive_inventory = run([sys.executable, "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief",
-                             str(out / "bin/cortex-test")], read=True)
-    (out / "host-archive-inventory.txt").write_text(archive_inventory + "\n")
+    programs = freeze_host_programs(out)
     (out / "licenses").mkdir()
     for name, expected_digest in native["licenses"].items():
         if name != Path(name).name or digest(runtime / "licenses" / name) != expected_digest:
@@ -203,14 +221,17 @@ def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
     packages = [{"SPDXID": "SPDXRef-python", "name": "CPython", "versionInfo": platform.python_version(),
                  "downloadLocation": "https://www.python.org/", "filesAnalyzed": False},
                 {"SPDXID": "SPDXRef-cortex-installer", "name": "Cortex TEST installer", "versionInfo": version,
+                 "downloadLocation": f"https://github.com/Kaidera-AI/cortex/tree/{source_sha}", "filesAnalyzed": False},
+                {"SPDXID": "SPDXRef-cortex-agent", "name": "Cortex member agent bridge", "versionInfo": version,
                  "downloadLocation": f"https://github.com/Kaidera-AI/cortex/tree/{source_sha}", "filesAnalyzed": False}]
     packages.append({"SPDXID": "SPDXRef-openssl", "name": "OpenSSL", "versionInfo": native["inputs"]["openssl"]["version"],
                      "downloadLocation": native["inputs"]["openssl"]["url"], "filesAnalyzed": False})
     document = spdx_document("Cortex TEST native host inventory", f"{version}-host-{source_sha}", packages)
-    document["comment"] = "CPython/installer runtime inventory. Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
+    document["comment"] = "CPython/installer/agent runtime inventory. Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
     (out / "host.spdx.json").write_text(json.dumps(document, indent=2) + "\n")
     (out / "host-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": "macos-arm64",
-                "minimum_macos": "14", "python": platform.python_version(), "dependencies": dependencies.splitlines(),
+                "minimum_macos": "14", "python": platform.python_version(),
+                "dependencies": programs["cortex-test"]["dependencies"], "programs": programs,
                 "builder_packages": builder_packages, "native_runtime_bootstrap": native,
                 "build_lock_sha256": digest(ROOT / "scripts/release/requirements-host-build.txt")}, indent=2) + "\n")
     shutil.rmtree(out / "work")
@@ -284,6 +305,15 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     rehearsal = json.loads((images_dir / "rehearsal-receipt.json").read_text())
     if inventory["source_sha"] != source_sha or inventory["version"] != version or native["source_sha"] != source_sha or native["version"] != version:
         raise RuntimeError("builder receipts do not bind to one frozen source/version")
+    programs = native.get("programs", {})
+    if set(programs) != {"cortex-test", "cortex-agent"}:
+        raise RuntimeError("native installer and agent bridge inventories required")
+    for name, receipt in programs.items():
+        if digest(host_dir / "bin" / name) != receipt.get("sha256"):
+            raise RuntimeError("downloaded host binary differs from its builder inventory")
+    for name in ("cortex-projects", "_cortex_api.sh"):
+        if digest(host_dir / "bin" / name) != digest(ROOT / "scripts/agent-shims" / name):
+            raise RuntimeError("downloaded agent shim differs from frozen source")
     if (rehearsal.get("status") != "PASS" or rehearsal.get("source_sha") != source_sha
             or rehearsal.get("version") != version
             or rehearsal.get("image_ids") != {r: i["config_id"] for r, i in inventory["images"].items()}):
@@ -298,11 +328,14 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     shutil.copy2(images_dir / "rehearsal-receipt.json", package / "rehearsal-receipt.json")
     shutil.copytree(host_dir / "bin", package / "bin")
     # GitHub artifact upload/download does not preserve executable mode.
-    (package / "bin/cortex-test").chmod(0o755)
+    for name in ("cortex-test", "cortex-agent", "cortex-projects"):
+        (package / "bin" / name).chmod(0o755)
+    (package / "bin/_cortex_api.sh").chmod(0o644)
     shutil.copytree(host_dir / "licenses", package / "licenses")
     shutil.copytree(ROOT / "deploy/release/licenses", package / "licenses", dirs_exist_ok=True)
     shutil.copy2(host_dir / "host.spdx.json", package / "sbom/host.spdx.json")
     shutil.copy2(host_dir / "host-archive-inventory.txt", package / "sbom/host-archive-inventory.txt")
+    shutil.copy2(host_dir / "agent-archive-inventory.txt", package / "sbom/agent-archive-inventory.txt")
     shutil.copy2(host_dir / "host-inventory.json", package / "sbom/host-inventory.json")
     shutil.copy2(ROOT / "scripts/release/requirements-host-build.txt", package / "sbom/host-build-lock.txt")
     shutil.copy2(ROOT / "docs/install/macos-test-candidate.md", package / "INSTALL-macos.md")
