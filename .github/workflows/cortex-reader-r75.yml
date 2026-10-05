@@ -1,0 +1,36 @@
+name: Cortex r75 isolated native reader
+on:
+  push:
+    branches: ["ren-cx/r75-reader-rework-*"]
+permissions:
+  contents: read
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+jobs:
+  mac-reader:
+    if: github.repository == 'Kaidera-AI/cortex' && github.event.repository.private == false
+    runs-on: macos-14
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+          architecture: arm64
+      - name: Freeze exact reader bytes
+        run: python3 scripts/release/build-key-reader.py --output "$RUNNER_TEMP/r75-reader"
+      - name: Native failure injection from frozen zip, synthetic runner keychains only
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$(find "$RUNNER_TEMP/r75-reader" -name '*.zip')" \
+            python3 scripts/release/check-reader-r75-native.py | tee "$RUNNER_TEMP/r75-reader/native-mac.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: cortex-reader-r75-${{ github.sha }}
+          path: ${{ runner.temp }}/r75-reader
+          if-no-files-found: error
+          retention-days: 30
