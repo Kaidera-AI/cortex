@@ -36,7 +36,7 @@ EXPECTED_API_VERSION = "v1"
 
 def _validate_handoff_write(operation, payload, path_params, key):
     # Reuse the server's strict model; never infer a generation or rewrite input.
-    if (not isinstance(key, str) or not 1 <= len(key) <= 128
+    if (not isinstance(key, str) or not 1 <= len(key) <= 128 or key != key.strip()
             or any(ord(char) < 32 or ord(char) > 126 for char in key)):
         raise ClientConfigError("handoff write requires a safe explicit idempotency key")
     try:
