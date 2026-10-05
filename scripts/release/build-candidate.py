@@ -156,6 +156,53 @@ def images(out: Path, source_sha: str, version: str) -> None:
     (out / "rehearsal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 
+def inspect_host_binary(binary: Path) -> tuple[str, str]:
+    """Read architecture and the sole macOS build version independently."""
+    if run(["lipo", "-archs", str(binary)], read=True) != "arm64":
+        raise RuntimeError("host executable is not the admitted native architecture")
+    output = run(["otool", "-l", str(binary)], read=True)
+    commands = re.findall(r"^\s*cmd\s+(\S+)\s*$", output, re.MULTILINE)
+    if commands.count("LC_BUILD_VERSION") != 1 or any(c.startswith("LC_VERSION_MIN_") for c in commands):
+        raise RuntimeError("host executable must have exactly one build version and no legacy minimum")
+    blocks = re.split(r"^Load command \d+\s*$", output, flags=re.MULTILINE)
+    block = next(b for b in blocks if re.search(r"^\s*cmd\s+LC_BUILD_VERSION\s*$", b, re.MULTILINE))
+    fields = {}
+    for name in ("platform", "minos", "sdk"):
+        values = re.findall(rf"^\s*{name}\s+(\S+)\s*$", block, re.MULTILINE)
+        if len(values) != 1:
+            raise RuntimeError("host executable has an invalid build version field")
+        fields[name] = values[0]
+    if fields["platform"] not in ("1", "MACOS", "macos"):
+        raise RuntimeError("host executable build version is not macOS")
+    if any(not re.fullmatch(r"\d+(?:\.\d+){1,2}", fields[name]) for name in ("minos", "sdk")):
+        raise RuntimeError("host executable has an invalid build version number")
+    return fields["minos"], fields["sdk"]
+
+
+def stamp_host_binary_floor(binary: Path) -> None:
+    """Narrow the frozen bootloader's floor, restore its signature, prove it."""
+    minimum, sdk = inspect_host_binary(binary)
+    version = tuple(int(v) for v in minimum.split("."))
+    if version + (0,) * (3 - len(version)) > (14, 0, 0):
+        raise RuntimeError("host executable minimum cannot be lowered to macOS 14.0")
+    stamped = binary.with_name(binary.name + ".floor-stamped")
+    if stamped.exists():
+        raise RuntimeError("host floor output already exists")
+    mode = binary.stat().st_mode & 0o777
+    try:
+        run(["vtool", "-set-build-version", "macos", "14.0", sdk, "-output", str(stamped), str(binary)])
+        stamped.chmod(mode)
+        stamped.replace(binary)
+    finally:
+        stamped.unlink(missing_ok=True)
+    run(["codesign", "--force", "--sign", "-", str(binary)])
+    run(["codesign", "--verify", "--strict", str(binary)])
+    actual_minimum, actual_sdk = inspect_host_binary(binary)
+    if actual_minimum != "14.0" or actual_sdk != sdk:
+        raise RuntimeError("host executable floor or preserved SDK differs after stamping")
+    run([str(binary), "--help"])
+
+
 def freeze_host_programs(out: Path) -> dict:
     """Freeze both host entrypoints and retain their separate byte inventories."""
     programs = {}
@@ -167,10 +214,12 @@ def freeze_host_programs(out: Path) -> dict:
              "--paths", str(paths), "--distpath", str(out / "bin"), "--workpath", str(out / "work" / name),
              "--specpath", str(out / "spec"), str(ROOT / "scripts/release" / entrypoint)])
         binary = out / "bin" / name
+        stamp_host_binary_floor(binary)
+    # Both entrypoints must survive stamping and signing before any final inventory.
+    for name, inventory_name in (("cortex-test", "host-archive-inventory.txt"),
+                                 ("cortex-agent", "agent-archive-inventory.txt")):
+        binary = out / "bin" / name
         dependencies = run(["otool", "-L", str(binary)], read=True)
-        if run(["lipo", "-archs", str(binary)], read=True) != "arm64":
-            raise RuntimeError("host executable is not the admitted native architecture")
-        run([str(binary), "--help"])
         archive = run([sys.executable, "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief",
                        str(binary)], read=True)
         (out / inventory_name).write_text(archive + "\n")
