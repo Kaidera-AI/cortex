@@ -6,13 +6,12 @@ Native readback covers the fields represented by the project schema independentl
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from cortex_v2.state_import import ImportRefused, canonical_json
+from cortex_v2.state_import import ImportRefused, canonical_json, load_json
 
 
 @dataclass(frozen=True)
@@ -164,7 +163,7 @@ def project_groups(records: tuple[OriginalRecord, ...], policy: dict) -> tuple[P
         seen.add(record.source_reference)
         try:
             table, identity = record.source_reference.split(':')
-            value = json.loads(record.original_bytes)
+            value = load_json(record.original_bytes)
             if not isinstance(value, dict) or str(uuid.UUID(value['id'])) != identity:
                 raise ValueError('source identity mismatch')
             if table == 'public.cortex_projects':
@@ -199,7 +198,7 @@ async def refuse_collisions(target, groups, owned_scopes: set[uuid.UUID]) -> Non
     for group in groups:
         if group.projection_json is None:
             continue
-        p = json.loads(group.projection_json)
+        p = load_json(group.projection_json)
         scope = uuid.UUID(p['scope_id'])
         names = [p['project_key'], *p['aliases']]
         if scope in scopes or aliases.intersection(names):
@@ -217,7 +216,7 @@ async def refuse_collisions(target, groups, owned_scopes: set[uuid.UUID]) -> Non
 
 
 async def write_project(target, projection_json: str, installation: uuid.UUID) -> None:
-    p = json.loads(projection_json)
+    p = load_json(projection_json)
     scope, created = uuid.UUID(p['scope_id']), datetime.fromisoformat(p['created_at'])
     await target.execute('INSERT INTO cortex_core.scopes(scope_id,scope_kind,display_name,is_active,created_at) VALUES($1,\'project\',$2,true,$3)', scope, p['display_name'], created)
     await target.execute('INSERT INTO cortex_auth.project_installations(scope_id,installation_id,created_at) VALUES($1,$2,$3)', scope, installation, created)
@@ -236,7 +235,7 @@ async def write_project(target, projection_json: str, installation: uuid.UUID) -
 
 async def reconcile_project(target, projection_json: str, installation: uuid.UUID) -> None:
     """Read actual native values and compare with a projection rebuilt from source originals."""
-    p = json.loads(projection_json)
+    p = load_json(projection_json)
     scope = uuid.UUID(p['scope_id'])
     registry = await target.fetchrow('SELECT * FROM cortex_core.project_registry WHERE project_scope_id=$1 FOR SHARE', scope)
     native_scope = await target.fetchrow('SELECT * FROM cortex_core.scopes WHERE scope_id=$1 FOR SHARE', scope)
@@ -254,7 +253,7 @@ async def reconcile_project(target, projection_json: str, installation: uuid.UUI
     for field in ('original_project_id', 'display_name', 'default_agent', 'status', 'parent_project_key', 'repo_root'):
         if registry[field] != p[field]:
             raise ImportRefused('native project fields drifted')
-    if (json.loads(registry['roots']) != p['roots']
+    if (load_json(registry['roots']) != p['roots']
         or registry['created_at'] != when
         or registry['updated_at'] != datetime.fromisoformat(p['updated_at'])):
         raise ImportRefused('native project roots or timestamps drifted')

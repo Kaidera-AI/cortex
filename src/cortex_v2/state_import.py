@@ -11,6 +11,7 @@ import re
 import uuid
 from collections import Counter
 from dataclasses import asdict, dataclass
+from decimal import Decimal
 
 import asyncpg
 
@@ -20,7 +21,24 @@ class ImportRefused(RuntimeError):
 
 
 def canonical_json(value) -> str:
+    # PostgreSQL jsonb numeric can carry more precision than a Python float. Keep
+    # Decimal as a JSON number through projection, policy hashing and readback.
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError('non-finite JSON number')
+        return str(value)
+    if isinstance(value, dict):
+        if any(not isinstance(key, str) for key in value):
+            raise TypeError('JSON object keys must be strings')
+        return '{' + ','.join(canonical_json(key) + ':' + canonical_json(value[key])
+                              for key in sorted(value)) + '}'
+    if isinstance(value, (list, tuple)):
+        return '[' + ','.join(canonical_json(item) for item in value) + ']'
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
+
+
+def load_json(value):
+    return json.loads(value, parse_float=Decimal)
 
 
 def policy_digest(policy: dict) -> str:
@@ -113,7 +131,7 @@ def _inputs(snapshot, binding: RunBinding, policy: dict) -> tuple[dict, dict]:
         raise ImportRefused('unsupported source, target or mapping binding')
     try:
         # Freeze caller-owned policy before the first await.
-        approved = json.loads(canonical_json(policy))
+        approved = load_json(canonical_json(policy))
         if not isinstance(approved, dict) or approved.get('version') != binding.mapping_version:
             raise ValueError('mapping version')
         mapping = approved['project_scope_ids']
@@ -158,7 +176,7 @@ async def _inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
     header = await target.fetchrow('SELECT payload FROM cortex_core.import_runs WHERE run_id=$1 AND event_seq=0', run_id)
     if header is None:
         raise ImportRefused('unknown import run')
-    payload = json.loads(header['payload'])
+    payload = load_json(header['payload'])
     rows = await target.fetch('SELECT * FROM cortex_core.import_rows WHERE run_id=$1 ORDER BY ordinal', run_id)
     records = []
     by_reference = {}
@@ -175,8 +193,8 @@ async def _inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
             if any(r['outcome'] != 'quarantined' or r['reason'] != group.reason for r in stored):
                 raise ImportRefused('quarantine disposition differs from originals')
         else:
-            scope = uuid.UUID(json.loads(group.projection_json)['scope_id'])
-            if any(r['outcome'] != 'migrated' or r['scope_id'] != scope or not json.loads(r['target_references']) for r in stored):
+            scope = uuid.UUID(load_json(group.projection_json)['scope_id'])
+            if any(r['outcome'] != 'migrated' or r['scope_id'] != scope or not load_json(r['target_references']) for r in stored):
                 raise ImportRefused('native disposition differs from originals')
             await reconcile_project(target, group.projection_json, installation)
     return {r.source_reference: r.original_bytes for r in records}
@@ -211,7 +229,9 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
         committed = None
         receipt = None
         try:
-            async with target.transaction():
+            # A lock waiter must see commits made while it waited, regardless of
+            # the operator connection's default isolation level.
+            async with target.transaction(isolation='read_committed'):
                 # Role check comes before protected relation reads or any target effect.
                 role = await target.fetchval('SELECT current_user')
                 if role != 'cortex_v2_migrator':
@@ -220,7 +240,7 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
                 await _target_guard(target, binding)
                 events = await target.fetch('SELECT * FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq', binding.run_id)
                 if events:
-                    header = json.loads(events[0]['payload'])
+                    header = load_json(events[0]['payload'])
                     if header != {'binding': value, 'policy': approved}:
                         raise ImportRefused('immutable run binding changed')
                     checkpoint, sequence = events[-1]['checkpoint'], events[-1]['event_seq']
@@ -231,7 +251,7 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
                     if events[-1]['event_kind'] == 'complete':
                         if checkpoint != len(groups) or actual != originals:
                             raise ImportRefused('completed run does not account for every source row')
-                        return json.loads(events[-1]['payload'])
+                        return load_json(events[-1]['payload'])
                 else:
                     checkpoint, sequence = 0, 0
                     await _event(target, binding, 0, 'binding', 0, {'binding': value, 'policy': approved})
@@ -243,7 +263,7 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
                     scope, references = None, []
                     if group.projection_json is not None:
                         await write_project(target, group.projection_json, binding.target_installation_id)
-                        p = json.loads(group.projection_json)
+                        p = load_json(group.projection_json)
                         scope = uuid.UUID(p['scope_id'])
                         references = [{'table': table, 'scope_id': str(scope)} for table in (
                             'cortex_core.scopes', 'cortex_auth.project_installations',
