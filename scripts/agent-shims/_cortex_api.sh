@@ -2,6 +2,8 @@
 # Cortex release-owned member API bridge. No bearer enters this shell.
 
 CORTEX_SHIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Legacy callers use this only in error text. Do not echo unvalidated URL env.
+CORTEX_API="selected Cortex v2 origin"
 
 cortex_api_call() {
     if [ "$#" -lt 2 ] || [ "$#" -gt 4 ] || [ -n "${3:-}" ] \
