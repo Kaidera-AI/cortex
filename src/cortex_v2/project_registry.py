@@ -47,8 +47,17 @@ async def list_projects(connection: asyncpg.Connection, principal: Principal) ->
     projects = []
     for scope in scopes:
         row = by_scope[scope["scope_id"]]
-        roots = json.loads(row["roots"])
-        primary = [root for root in roots if isinstance(root, dict) and root.get("kind") == "primary"]
+        try:
+            roots = json.loads(row["roots"])
+        except (ValueError, TypeError, UnicodeError):
+            raise ApiProblem(409, "project_registry_incomplete", "The preserved project roots are incomplete.") from None
+        if not isinstance(roots, list) or not roots or any(
+            not isinstance(root, dict) or not isinstance(root.get("path"), str)
+            or not root["path"] or not isinstance(root.get("kind"), str) or not root["kind"]
+            for root in roots
+        ):
+            raise ApiProblem(409, "project_registry_incomplete", "The preserved project roots are incomplete.")
+        primary = [root for root in roots if root["kind"] == "primary"]
         if len(primary) != 1 or primary[0].get("path") != row["repo_root"]:
             raise ApiProblem(409, "project_registry_incomplete", "The preserved project roots are incomplete.")
         projects.append({
