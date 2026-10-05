@@ -1,0 +1,19 @@
+# R110 dynamic caller mapping contract
+
+Owner: ren-cx@helix. Authority: /Users/amadmalik/DevVault/helix/docs/handoffs/INBOX_ren-cx.md r110 DO NOW and /Users/amadmalik/DevVault/helix/docs/handoffs/2026-10-05_kai_rulings-r110.md under the accepted R24 L2 plan. Base b5926337d0198513e53f3e8fcc4d9e7dac4d3556 is PR #11 queued for Vera, not an ACCEPT. Gavel/Jev remains held. SSD UUID checked, memory 49 percent free.
+
+Worktree: /Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r110-dynamic-caller-contract-20261005. Permanent receipts: /Users/amadmalik/DevVault/helix/output/Cortex/local-deployment-r63/2026-10-05/dynamic-callers/.
+
+## One bounded contract
+
+Freeze current helper and selected Helix caller hashes and exact dynamic expressions; regex call candidates require manual classification of definitions, comments and adapters. The scoped member /projects registry view contains Helix only and is not claimed as a whole-estate registry. Capture source call expressions without executing operator scripts or touching installed helpers. Every effective method/path/query/body/file/form/extra option either matches the existing GET /projects member contract or answers literal ERROR: facade request unavailable in this release, exit 2 and empty stdout before profile/key/HTTP/file access. Preserve exact admitted raw project JSON, selected origin/member, per-request reads, safe typed refusals and no retry/fallback.
+
+Source paths admitted: /Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r110-dynamic-caller-contract-20261005/scripts/agent-shims/_cortex_api.sh and /Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r110-dynamic-caller-contract-20261005/src/cortex_v2/cli/agent_request.py. Freeze /Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r110-dynamic-caller-contract-20261005/tests/test_agent_dynamic_caller_contract.py and public legacy dynamic-expression fixtures before source edits. No source change to native domain handlers, request models, credentials or owner authority.
+
+1. Commit this plan and the integration proposal first.
+2. Freeze RED for absent dynamic cortex_api wrapper and upload/download response helper refusal; require declared exact CLI options, rejecting abbreviated and duplicate selectors before profile access. Preserve known dynamic unsupported routes as GREEN baseline. Public input markers only.
+3. Restore the narrow dynamic cortex_api signature by dispatching only exact GET /projects with no additional query/body args to the existing member bridge. File/form/download helpers refuse before touching files, never emulate owner/export/parser outcomes. Reuse fixed unavailable error. Provide only credential-free encoding and agent-name string utilities needed to construct frozen dynamic caller expressions; do not infer project identity or scope from caller argv.
+4. Run the unchanged contract and all complete prior 41 agent/client/transport/CLI/MCP/interface/coordination/retrieval source suites, no -k. Real loopback with unissued readers; native package/DB/provider/caller estate proofs stay separate. Inspect captured utility outputs and exercised expression matches, not merely function existence.
+5. Required fresh-context final author verifier; each defect gets a separate frozen RED before repair. Freeze/push draft PR, return via Kai and follow R100 inbox wait. Re-read the inbox before mutation/freeze/return.
+
+The existing legacy boot/context/search/ingest/coordination routes remain unavailable. This contract does not complete their positive mappings or an installed whole caller. Wrapper/source-expression execution is not release, package, converted-data or runtime qualification. Integration is planned separately and starts only after applicable ACCEPTs and named admission; no CI spend, build/install, merge, publication, live DB/helper/VM or credential action in this contract.
