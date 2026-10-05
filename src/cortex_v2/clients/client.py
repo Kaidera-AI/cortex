@@ -34,11 +34,15 @@ from .transport import HttpResponse, http_request
 EXPECTED_API_VERSION = "v1"
 
 
-def _validate_handoff_write(operation, payload, path_params, key):
-    # Reuse the server's strict model; never infer a generation or rewrite input.
+def _validate_write_key(key):
     if (not isinstance(key, str) or not 1 <= len(key) <= 128 or key != key.strip()
             or any(ord(char) < 32 or ord(char) > 126 for char in key)):
-        raise ClientConfigError("handoff write requires a safe explicit idempotency key")
+        raise ClientConfigError("write requires a safe explicit idempotency key")
+
+
+def _validate_handoff_write(operation, payload, path_params, key):
+    # Reuse the server's strict model; never infer a generation or rewrite input.
+    _validate_write_key(key)
     try:
         if operation.request_model is None:
             raise ValueError("request model unavailable")
@@ -47,6 +51,23 @@ def _validate_handoff_write(operation, payload, path_params, key):
             uuid.UUID(str(path_params["handoff_id"]))
     except (ValidationError, ValueError, TypeError, KeyError, AttributeError):
         raise ClientConfigError("handoff write refused; check its request and claim fence") from None
+
+
+def _validate_search_ingest_request(operation, payload, path_params, query, reader, key):
+    if query:
+        raise ClientConfigError("native search/ingest request does not support query arguments")
+    if operation.requires_idempotency_key:
+        _validate_write_key(key)
+    try:
+        model = operation.request_model
+        parsed = model.model_validate(payload) if model is not None else None
+        for name in operation.path_params:
+            uuid.UUID(str(path_params[name]))
+        scopes = getattr(parsed, "read_scopes", None)
+        if scopes is not None and any(value != reader.project for value in scopes):
+            raise ValueError("member body scope mismatch")
+    except (ValidationError, ValueError, TypeError, KeyError, AttributeError):
+        raise ClientConfigError("native search/ingest request refused; check its model and selected project") from None
 
 
 def _validate_handoff_receipt(operation, path_params, response):
@@ -211,6 +232,11 @@ class CortexClient:
                                 and operation_id.startswith("coordination.handoff."))
         if member_handoff_write:
             _validate_handoff_write(operation, json_body, path_params or {}, idempotency_key)
+        if self.profile.member_reader is not None and operation.module in ("retrieval", "ingest"):
+            _validate_search_ingest_request(
+                operation, json_body, path_params or {}, effective_query,
+                self.profile.member_reader, idempotency_key,
+            )
         if self.profile.member_reader is not None:
             # Match the transport's local encoding before accessing a key.
             # Invalid caller data must not trigger a private credential read.
