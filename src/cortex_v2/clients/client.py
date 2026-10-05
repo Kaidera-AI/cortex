@@ -56,10 +56,14 @@ def _validate_handoff_write(operation, payload, path_params, key):
 def _validate_search_ingest_request(operation, payload, path_params, query, reader, key):
     if query:
         raise ClientConfigError("native search/ingest request does not support query arguments")
-    if operation.requires_idempotency_key:
+    if operation.requires_idempotency_key or key is not None:
         _validate_write_key(key)
     try:
         model = operation.request_model
+        if set(path_params) != set(operation.path_params):
+            raise ValueError("undeclared path arguments")
+        if model is None and payload is not None and payload != {}:
+            raise ValueError("undeclared GET payload")
         parsed = model.model_validate(payload) if model is not None else None
         for name in operation.path_params:
             uuid.UUID(str(path_params[name]))
@@ -234,7 +238,8 @@ class CortexClient:
             _validate_handoff_write(operation, json_body, path_params or {}, idempotency_key)
         if self.profile.member_reader is not None and operation.module in ("retrieval", "ingest"):
             _validate_search_ingest_request(
-                operation, json_body, path_params or {}, effective_query,
+                operation, payload if operation.method == "GET" else json_body,
+                path_params or {}, effective_query,
                 self.profile.member_reader, idempotency_key,
             )
         if self.profile.member_reader is not None:
