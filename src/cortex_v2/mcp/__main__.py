@@ -1,6 +1,6 @@
 """``python -m cortex_v2.mcp`` entrypoint: stdio (default) or streamable HTTP.
 
-Stdio reads one named key from the private credential store at startup.
+Stdio selects one project member and reads its private key per outgoing request.
 HTTP authenticates every request with its own bearer; it never loads a
 process-wide credential.
 """
@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
+
+from ..clients.errors import ClientConfigError
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,8 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--installation", help="stdio key-store installation")
     parser.add_argument("--project", help="stdio key-store project")
     parser.add_argument("--name", help="stdio key-store identity name")
+    parser.add_argument("--project-root", type=Path, help="stdio physical project root")
     namespace = parser.parse_args(argv)
-    if namespace.http and (namespace.installation or namespace.project or namespace.name):
+    if namespace.http and (namespace.installation or namespace.project or namespace.name or namespace.project_root):
         parser.error("HTTP MCP accepts only caller credentials; identity options are stdio-only")
     from .server import run_http, run_stdio
 
@@ -40,10 +44,15 @@ def main(argv: list[str] | None = None) -> int:
         run_http(host=namespace.host, port=namespace.port,
                  config=namespace.config)
         return 0
-    run_stdio(
-        config=namespace.config, installation=namespace.installation,
-        project=namespace.project, name=namespace.name,
-    )
+    try:
+        run_stdio(
+            config=namespace.config, installation=namespace.installation,
+            project=namespace.project, name=namespace.name,
+            project_root=namespace.project_root,
+        )
+    except ClientConfigError:
+        sys.stderr.write("MCP member configuration unavailable; select installation, project, member and physical root.\n")
+        return 2
     return 0
 
 

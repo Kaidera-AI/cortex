@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 from ..clients.client import CortexClient
 from ..clients.errors import ClientError, CortexApiError
+from ..clients.member_reader import MemberKeyReader
 from ..interface.registry import NormalizedOperation, OperationRegistry, build_registry
 
 MCP_PROTOCOL_VERSION = "2025-06-18"
@@ -37,6 +38,8 @@ class McpCredentials:
     token: str | None = field(repr=False)
     scope: str | None
     read_scopes: tuple[str, ...] = ()
+    # Trusted local stdio context only; never parsed from JSON or HTTP headers.
+    member_reader: MemberKeyReader | None = field(default=None, repr=False)
 
 
 def tool_name_for(operation_id: str) -> str:
@@ -256,7 +259,7 @@ class McpServer:
         if operation_id is None:
             return _error(message_id, INVALID_PARAMS, f"Unknown tool {name!r}")
         operation = self._registry.get(operation_id)
-        if credentials is None or not credentials.token:
+        if credentials is None or (not credentials.token and credentials.member_reader is None):
             return _tool_error(
                 message_id,
                 {
@@ -312,6 +315,7 @@ class McpServer:
                     "retryable": exc.retryable,
                     "status": exc.status,
                     "request_id": exc.request_id,
+                    "key_expires_at": exc.key_expires_at,
                 },
             )
         except ClientError as exc:
@@ -336,6 +340,7 @@ class McpServer:
                                 "replayed": result.replayed,
                                 "request_id": result.request_id,
                                 "data": result.data,
+                                "key_expires_at": result.key_expires_at,
                             },
                             sort_keys=True,
                         ),

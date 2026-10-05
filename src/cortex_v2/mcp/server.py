@@ -3,8 +3,8 @@
 
 Streamable HTTP authenticates every request from its own headers — it never
 forwards all users through one administrator credential and never reads an
-ambient token. Stdio inherits exactly one installation-bound identity from
-the explicit client profile, which is the documented local-MCP model.
+ambient token. Stdio selects exactly one project member from its explicit
+profile and reads that member's private key per outgoing request.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import replace
+from pathlib import Path
 from typing import Any, Callable, TextIO
 
 from fastapi import FastAPI, Request
@@ -20,7 +21,7 @@ from fastapi.responses import JSONResponse
 from ..clients.client import CortexClient
 from ..clients.config import (
     ClientProfile,
-    load_client_profile,
+    load_member_profile,
     load_connection_url,
     profile_from_credentials,
 )
@@ -208,15 +209,18 @@ def run_stdio_session(
 def run_stdio(
     *, config: str | None = None, installation: str | None = None,
     project: str | None = None, name: str | None = None,
+    project_root: Path | None = None,
 ) -> None:
     import sys
 
-    profile = load_client_profile(config, installation=installation, project=project, name=name)
+    profile = load_member_profile(config, installation=installation, project=project,
+                                  name=name, project_root=project_root)
     server = McpServer(client_factory=stdio_client_factory(profile))
     credentials = McpCredentials(
-        token=profile.token,
+        token=None,
         scope=profile.default_scope,
         read_scopes=profile.default_read_scopes,
+        member_reader=profile.member_reader,
     )
     run_stdio_session(server, sys.stdin, sys.stdout, credentials=credentials)
 
