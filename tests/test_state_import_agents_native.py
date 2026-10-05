@@ -97,11 +97,11 @@ async def prepare(pair):
 
 
 async def effects(pair, run):
-    return tuple(await pair["target"].fetchval(q, run) for q in (
+    return tuple([await pair["target"].fetchval(q, run) for q in (
         "SELECT count(*) FROM cortex_core.import_rows WHERE run_id=$1",
         "SELECT count(*) FROM cortex_core.import_runs WHERE run_id=$1",
         "SELECT count(*) FROM cortex_core.project_identities WHERE $1::uuid IS NOT NULL",
-        "SELECT count(*) FROM cortex_core.project_profiles WHERE $1::uuid IS NOT NULL"))
+        "SELECT count(*) FROM cortex_core.project_profiles WHERE $1::uuid IS NOT NULL")])
 
 
 def test_migration_widens_only_family_check(agent_cluster):
@@ -245,7 +245,7 @@ def test_fresh_readback_and_replay_refuse_native_or_context_drift(agent_cluster,
                 return
             if drift=="identity_name": await pair["target"].execute("UPDATE cortex_core.project_identities SET identity_name='drift' WHERE identity_id=$1",uuid.UUID(uid(10)))
             elif drift=="profile_owner": await pair["target"].execute("UPDATE cortex_core.project_profiles SET agent_name='drift' WHERE profile_id=$1",uuid.UUID(uid(13)))
-            elif drift=="project_roots": await pair["target"].execute("UPDATE cortex_core.project_registry SET roots='[]' WHERE project_scope_id=$1",PROJECTS[0])
+            elif drift=="project_roots": await pair["target"].execute("UPDATE cortex_core.project_registry SET roots=jsonb_set(roots,'{0,path}','\"/fixture/drift\"'::jsonb) WHERE project_scope_id=$1",PROJECTS[0])
             else:
                 patch={"true_to_one":'{"capabilities":{"can_write":1,"responsibility":["write","review"]}}',"false_to_zero":'{"runtime_state":{"old":0}}',"precise_number":'{"capabilities":{"can_write":true,"responsibility":["write","review"],"precise":0.12345678901234568}}'}[drift]
                 await pair["target"].execute("UPDATE cortex_core.project_identities SET original_record=original_record || $1::jsonb WHERE identity_id=$2",patch,uuid.UUID(uid(10)))
