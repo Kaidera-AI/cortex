@@ -138,7 +138,7 @@ def _inputs(snapshot, binding: RunBinding, policy: dict) -> tuple[dict, dict]:
     if (not isinstance(binding.source_database, str)
         or not re.fullmatch(r'legacy_restore_[a-zA-Z0-9_]+', binding.source_database)
         or not isinstance(binding.target_database, str) or not binding.target_database
-        or binding.mapping_version != 'legacy-projects.v1'):
+        or binding.mapping_version not in ('legacy-projects.v1', 'legacy-agents.v1')):
         raise ImportRefused('unsupported source, target or mapping binding')
     try:
         # Freeze caller-owned policy before the first await.
@@ -155,7 +155,7 @@ def _inputs(snapshot, binding: RunBinding, policy: dict) -> tuple[dict, dict]:
         raise ImportRefused('invalid approved project policy') from exc
     if (snapshot.database != binding.source_database
         or snapshot.fingerprint != binding.source_snapshot_sha256
-        or record_digest(snapshot.records) != snapshot.fingerprint
+        or record_digest(snapshot.fingerprint_records) != snapshot.fingerprint
         or snapshot.catalog_sha256 != binding.source_catalog_sha256
         or snapshot.extensions_sha256 != binding.source_extensions_sha256
         or policy_digest(approved) != binding.policy_sha256):
@@ -198,7 +198,18 @@ async def _inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
         records.append(OriginalRecord(row['source_reference'], original))
         by_reference[row['source_reference']] = row
     installation = uuid.UUID(payload['binding']['target_installation_id'])
-    for group in project_groups(tuple(records), payload['policy']):
+    agents = payload['binding']['mapping_version'] == 'legacy-agents.v1'
+    if agents:
+        from cortex_v2.legacy_agents import agent_groups, context_records, reconcile_agents, target_references
+        dependencies = context_records(payload['context'])
+        groups = agent_groups(tuple(records), payload['policy'], dependencies)
+        checkpoint = await target.fetchval('SELECT checkpoint FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq DESC LIMIT 1', run_id)
+        groups = groups[:checkpoint]
+    else:
+        groups = project_groups(tuple(records), payload['policy'])
+    for group in groups:
+        if agents and group.context_json is not None:
+            await reconcile_project(target, group.context_json, installation)
         stored = [by_reference[r.source_reference] for r in group.records]
         if group.reason is not None:
             if any(r['outcome'] != 'quarantined' or r['reason'] != group.reason for r in stored):
@@ -207,7 +218,13 @@ async def _inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
             scope = uuid.UUID(load_json(group.projection_json)['scope_id'])
             if any(r['outcome'] != 'migrated' or r['scope_id'] != scope or not load_json(r['target_references']) for r in stored):
                 raise ImportRefused('native disposition differs from originals')
-            await reconcile_project(target, group.projection_json, installation)
+            if agents:
+                await reconcile_agents(target, group.projection_json, installation)
+                for record, row in zip(group.records, stored):
+                    if row['family'] != 'agents' or canonical_json(load_json(row['target_references'])) != canonical_json(target_references(group.projection_json, record.source_reference)):
+                        raise ImportRefused('native target reference binding drifted')
+            else:
+                await reconcile_project(target, group.projection_json, installation)
     return {r.source_reference: r.original_bytes for r in records}
 
 
@@ -219,6 +236,15 @@ async def read_inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
 
 
 async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *, batch_size: int = 1, fault=None) -> dict:
+    return await _import(target, snapshot, binding, policy, family='projects', batch_size=batch_size, fault=fault)
+
+
+async def import_agents(target, snapshot, binding: RunBinding, policy: dict, *, batch_size: int = 1, fault=None) -> dict:
+    """Finite identity/roster family import; explicit historical mappings stay dormant."""
+    return await _import(target, snapshot, binding, policy, family='agents', batch_size=batch_size, fault=fault)
+
+
+async def _import(target, snapshot, binding: RunBinding, policy: dict, *, family: str, batch_size: int, fault) -> dict:
     """Import finite project groups. Each durable checkpoint includes verified native effects.
 
     A synchronous fault(stage, checkpoint) is invoked at the two batch crash points.
@@ -228,11 +254,21 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
     from cortex_v2.legacy_projects import project_groups, refuse_collisions, write_project
 
     value, approved = _inputs(snapshot, binding, policy)
+    if binding.mapping_version != f'legacy-{family}.v1':
+        raise ImportRefused('entrypoint does not match the bound family')
+    header_payload = {'binding': value, 'policy': approved}
+    if family == 'agents':
+        from cortex_v2.legacy_agents import AgentSnapshot, agent_groups, refuse_agent_collisions, write_agents, target_references
+        if not isinstance(snapshot, AgentSnapshot):
+            raise ImportRefused('typed agent snapshot required')
+        groups = agent_groups(snapshot.records, approved, snapshot.dependencies)
+        header_payload['context'] = [{'source_reference': r.source_reference, 'original': r.original_bytes.decode('utf-8')} for r in snapshot.dependencies]
+    else:
+        groups = project_groups(snapshot.records, approved)
     if type(batch_size) is not int or not 1 <= batch_size <= 256:
         raise ImportRefused('batch_size must be between 1 and 256')
     if target.is_in_transaction():
         raise ImportRefused('import engine owns the target transaction boundary')
-    groups = project_groups(snapshot.records, approved)
     ordinals = {r.source_reference: n for n, r in enumerate(snapshot.records)}
     originals = {r.source_reference: r.original_bytes for r in snapshot.records}
     lock = int.from_bytes(hashlib.sha256(binding.run_id.bytes).digest()[:8], 'big', signed=True)
@@ -252,7 +288,7 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
                 events = await target.fetch('SELECT * FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq', binding.run_id)
                 if events:
                     header = load_json(events[0]['payload'])
-                    if header != {'binding': value, 'policy': approved}:
+                    if canonical_json(header) != canonical_json(header_payload):
                         raise ImportRefused('immutable run binding changed')
                     checkpoint, sequence = events[-1]['checkpoint'], events[-1]['event_seq']
                     actual = await _inverse(target, binding.run_id)
@@ -265,25 +301,34 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
                         return load_json(events[-1]['payload'])
                 else:
                     checkpoint, sequence = 0, 0
-                    await _event(target, binding, 0, 'binding', 0, {'binding': value, 'policy': approved})
+                    await _event(target, binding, 0, 'binding', 0, header_payload)
                 owned = set(await target.fetchval('SELECT coalesce(array_agg(DISTINCT scope_id) FILTER (WHERE scope_id IS NOT NULL),ARRAY[]::uuid[]) FROM cortex_core.import_rows WHERE run_id=$1', binding.run_id))
                 # Validate all uncommitted targets before committing the next prefix.
-                await refuse_collisions(target, groups, owned)
+                if family == 'agents':
+                    await refuse_agent_collisions(target, groups, checkpoint, binding.target_installation_id)
+                else:
+                    await refuse_collisions(target, groups, owned)
                 next_checkpoint = min(checkpoint + batch_size, len(groups))
                 for group in groups[checkpoint:next_checkpoint]:
                     scope, references = None, []
                     if group.projection_json is not None:
-                        await write_project(target, group.projection_json, binding.target_installation_id)
+                        if family == 'agents':
+                            await write_agents(target, group.projection_json, binding.target_installation_id)
+                        else:
+                            await write_project(target, group.projection_json, binding.target_installation_id)
                         p = load_json(group.projection_json)
                         scope = uuid.UUID(p['scope_id'])
-                        references = [{'table': table, 'scope_id': str(scope)} for table in (
-                            'cortex_core.scopes', 'cortex_auth.project_installations',
-                            'cortex_core.scope_aliases', 'cortex_core.project_registry')]
+                        if family == 'projects':
+                            references = [{'table': table, 'scope_id': str(scope)} for table in (
+                                'cortex_core.scopes', 'cortex_auth.project_installations',
+                                'cortex_core.scope_aliases', 'cortex_core.project_registry')]
                     for record in group.records:
+                        if family == 'agents' and group.projection_json is not None:
+                            references = target_references(group.projection_json, record.source_reference)
                         await target.execute('''INSERT INTO cortex_core.import_rows
                             (run_id,ordinal,family,source_reference,original_bytes,source_sha256,outcome,reason,scope_id,target_references)
-                            VALUES($1,$2,'projects',$3,$4,$5,$6,$7,$8,$9::jsonb)''',
-                            binding.run_id, ordinals[record.source_reference], record.source_reference,
+                            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)''',
+                            binding.run_id, ordinals[record.source_reference], family, record.source_reference,
                             record.original_bytes, hashlib.sha256(record.original_bytes).digest(),
                             'quarantined' if group.reason is not None else 'migrated', group.reason,
                             scope, canonical_json(references))

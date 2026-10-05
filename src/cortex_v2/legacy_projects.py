@@ -37,6 +37,10 @@ class ProjectSnapshot:
     catalog_sha256: str
     extensions_sha256: str
 
+    @property
+    def fingerprint_records(self) -> tuple[OriginalRecord, ...]:
+        return self.records
+
 
 async def read_project_snapshot(source, *, expected_database: str) -> ProjectSnapshot:
     if not isinstance(expected_database, str) or not re.fullmatch(r'legacy_restore_[a-zA-Z0-9_]+', expected_database):
