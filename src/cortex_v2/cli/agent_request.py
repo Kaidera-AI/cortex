@@ -17,6 +17,12 @@ class FacadeUnavailable(ClientConfigError):
     """The requested caller contract has not been mapped in this release."""
 
 
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):
+        # ArgumentParser normally echoes caller argv, which may contain a URL.
+        raise FacadeUnavailable("facade request unavailable in this release")
+
+
 def request_projects(
     profile: ClientProfile, *, method: str = "GET", path: str = "/projects",
     payload=None, agent_name: str = "",
@@ -79,7 +85,7 @@ def format_projects(data) -> str:
 def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None,
          stderr: TextIO | None = None) -> int:
     stdin, stdout, stderr = stdin or sys.stdin, stdout or sys.stdout, stderr or sys.stderr
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _Parser(description=__doc__)
     parser.add_argument("--config", help="non-secret v2 member connection profile")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("projects", help="show registered projects using the selected member")
@@ -87,8 +93,8 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
     api.add_argument("method")
     api.add_argument("path")
     api.add_argument("--agent-name", default="")
-    args = parser.parse_args(argv)
     try:
+        args = parser.parse_args(argv)
         # Validate caller data before profile construction or credential access.
         if args.command == "api":
             if args.method != "GET" or args.path != "/projects" or stdin.read(1):
