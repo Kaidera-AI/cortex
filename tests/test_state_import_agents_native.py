@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 import pytest
-from fixtures.state_import_agents_native import AUTHORITY, agent_cluster
+from fixtures.state_import_agents_native import AUTHORITY, agent_cluster, state_cluster
 from test_state_import_projects_native import PROJECTS, WHEN, seed, inputs as project_inputs
 
 ROOT = Path(__file__).resolve().parents[1]
