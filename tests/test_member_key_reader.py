@@ -1,6 +1,7 @@
 """R65 native fixture; no installed credentials, token output or network."""
 from __future__ import annotations
 
+import ctypes as C
 import json
 import os
 import secrets
@@ -82,8 +83,16 @@ def fixture():
     finally:
         # Only this freshly allocated fixture; never another keychain/root.
         if store is not None and sys.platform == 'darwin' and store._native.path.exists():
-            with store._native._open(require_unlocked=False) as reference:
-                store._native.security.check(store._native.security.api.SecKeychainDelete(reference))
+            native = store._native.security
+            reference = C.c_void_p()
+            with native.headless():
+                native.check(native.api.SecKeychainOpen(os.fsencode(store._native.path), C.byref(reference)))
+                if not reference.value:
+                    raise AssertionError('fixture cleanup reference missing')
+                try:
+                    native.check(native.api.SecKeychainDelete(reference))
+                finally:
+                    native.cf.CFRelease(reference)
         shutil.rmtree(project)
 
 

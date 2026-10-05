@@ -228,16 +228,17 @@ class MacKeychainStore:
             return None, item
         self.security.check(result)
         try:
-            self._verify_item(reference, item)
-            if length.value > 4096:
-                raise KeyStoreError('credential record exceeds the safe size limit')
-            raw = C.string_at(data, length.value)
+            try:
+                self._verify_item(reference, item)
+                if length.value > 4096:
+                    raise KeyStoreError('credential record exceeds the safe size limit')
+                raw = C.string_at(data, length.value)
+            finally:
+                self.security.check(self.security.api.SecKeychainItemFreeContent(None, data))
         except BaseException:
             if item.value:
                 self.security.cf.CFRelease(item)
             raise
-        finally:
-            self.security.check(self.security.api.SecKeychainItemFreeContent(None, data))
         return raw, item
 
     def get(self, project: str, name: str) -> _KeyRecord | None:

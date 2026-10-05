@@ -157,6 +157,11 @@ class _FileStore:
                     if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
                         raise KeyStoreError("credential directory must be owner-only mode 0700")
                 yield installationfd
+                for path, fd in ((self.root, rootfd), (self.root / self.installation, installationfd)):
+                    _private_directory(path, create=False)
+                    current, opened = path.lstat(), os.fstat(fd)
+                    if (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
+                        raise KeyStoreError("credential directory changed during access")
             finally:
                 os.close(installationfd)
         finally:
@@ -186,6 +191,11 @@ class _FileStore:
                 if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
                     raise KeyStoreError("credential directory must be owner-only mode 0700")
                 yield projectfd
+                path = self.root / self.installation / project
+                _private_directory(path, create=False)
+                current, opened = path.lstat(), os.fstat(projectfd)
+                if (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
+                    raise KeyStoreError("credential directory changed during access")
             finally:
                 os.close(projectfd)
 
