@@ -76,21 +76,22 @@ def _record(data: bytes) -> _KeyRecord:
 
 
 def _label(value: str) -> str:
-    if not value or "/" in value or "\\" in value or "\x00" in value or value in (".", ".."):
+    if not isinstance(value, str) or not value or "/" in value or "\\" in value or "\x00" in value or value in (".", ".."):
         raise KeyStoreError("credential identity contains an unsafe path component")
     return value
 
 
-def _private_directory(path: Path) -> None:
+def _private_directory(path: Path, *, create: bool = True) -> None:
     current = Path(path.anchor)
     for part in path.parts[1:]:
         current = current / part
         if current.is_symlink():
             raise KeyStoreError("credential directory must not contain a symlink")
-    try:
-        path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    except OSError as exc:
-        raise KeyStoreError("cannot create private credential directory") from exc
+    if create:
+        try:
+            path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        except OSError as exc:
+            raise KeyStoreError("cannot create private credential directory") from exc
     info = path.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
         raise KeyStoreError("credential directory must be owner-only mode 0700")
@@ -131,9 +132,19 @@ class _FileStore:
         self.installation = _label(installation)
 
     @contextmanager
-    def _installation_dir(self) -> Iterator[int]:
-        _private_directory(self.root)
-        _private_directory(self.root / self.installation)
+    def _installation_dir(
+        self, *, create: bool = False, missing_ok: bool = False,
+    ) -> Iterator[int | None]:
+        # Only initial absence is empty. Descriptor-open failures and any
+        # disappearance after this preflight remain custody errors.
+        try:
+            _private_directory(self.root, create=create)
+            _private_directory(self.root / self.installation, create=create)
+        except FileNotFoundError:
+            if create or not missing_ok:
+                raise
+            yield None
+            return
         rootfd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         try:
             installationfd = os.open(
@@ -146,15 +157,31 @@ class _FileStore:
                     if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
                         raise KeyStoreError("credential directory must be owner-only mode 0700")
                 yield installationfd
+                for path, fd in ((self.root, rootfd), (self.root / self.installation, installationfd)):
+                    _private_directory(path, create=False)
+                    current, opened = path.lstat(), os.fstat(fd)
+                    if (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
+                        raise KeyStoreError("credential directory changed during access")
             finally:
                 os.close(installationfd)
         finally:
             os.close(rootfd)
 
     @contextmanager
-    def _dir(self, project: str) -> Iterator[int]:
-        with self._installation_dir() as installationfd:
-            _private_directory(self.root / self.installation / _label(project))
+    def _dir(
+        self, project: str, *, create: bool = False, missing_ok: bool = False,
+    ) -> Iterator[int | None]:
+        with self._installation_dir(create=create, missing_ok=missing_ok) as installationfd:
+            if installationfd is None:
+                yield None
+                return
+            try:
+                _private_directory(self.root / self.installation / _label(project), create=create)
+            except FileNotFoundError:
+                if create or not missing_ok:
+                    raise
+                yield None
+                return
             projectfd = os.open(
                 project, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 dir_fd=installationfd,
@@ -164,6 +191,11 @@ class _FileStore:
                 if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
                     raise KeyStoreError("credential directory must be owner-only mode 0700")
                 yield projectfd
+                path = self.root / self.installation / project
+                _private_directory(path, create=False)
+                current, opened = path.lstat(), os.fstat(projectfd)
+                if (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino):
+                    raise KeyStoreError("credential directory changed during access")
             finally:
                 os.close(projectfd)
 
@@ -172,13 +204,17 @@ class _FileStore:
         try:
             with self._dir(project) as directory:
                 return _read_file(directory, filename)
+        except FileNotFoundError:
+            return None
         except (OSError, UnicodeError) as exc:
             raise KeyStoreError("cannot safely read credential file") from exc
 
     def metadata_entries(self) -> list[tuple[str, str, KeyMetadata]]:
         entries: list[tuple[str, str, KeyMetadata]] = []
         try:
-            with self._installation_dir() as installation:
+            with self._installation_dir(missing_ok=True) as installation:
+                if installation is None:
+                    return entries
                 for project in sorted(os.listdir(installation)):
                     _label(project)
                     with self._dir(project) as directory:
@@ -205,7 +241,7 @@ class _FileStore:
     def put(self, project: str, name: str, record: _KeyRecord) -> None:
         filename = f"{_label(name)}.key"
         try:
-            with self._dir(project) as directory:
+            with self._dir(project, create=True) as directory:
                 _check_file(directory, filename)
                 temporary = f".{secrets.token_hex(16)}"
                 try:
@@ -235,7 +271,9 @@ class _FileStore:
     def delete(self, project: str, name: str) -> None:
         filename = f"{_label(name)}.key"
         try:
-            with self._dir(project) as directory:
+            with self._dir(project, missing_ok=True) as directory:
+                if directory is None:
+                    return
                 if _check_file(directory, filename):
                     os.unlink(filename, dir_fd=directory)
                     os.fsync(directory)
@@ -253,12 +291,38 @@ class KeyStore:
         backend: str | None = None,
     ) -> None:
         self.installation = _label(installation)
-        if not _is_linux():
-            raise KeyStoreError("private file credential storage requires Linux")
-        if backend not in (None, "file"):
-            raise KeyStoreError("unsupported credential storage backend")
-        self._native = _FileStore(self.installation, root)
-        self.backend = "file"
+        if _is_linux():
+            if backend not in (None, "file"):
+                raise KeyStoreError("unsupported credential storage backend")
+            self._native = _FileStore(self.installation, root)
+            self.backend = "file"
+        elif sys.platform == "darwin":
+            if backend not in (None, "keychain") or root is None:
+                raise KeyStoreError("Mac credentials require an explicit dedicated keychain root")
+            from .mac_keychain import MacKeychainStore
+            self._native = MacKeychainStore(self.installation, root)
+            self.backend = "keychain"
+        else:
+            raise KeyStoreError("credential storage requires Linux or macOS")
+
+    def read(self, project: str, name: str) -> _KeyRecord | None:
+        """One atomic token/metadata snapshot; never enumerate or select defaults."""
+        return self._native.get(_label(project), _label(name))
+
+    def initialize_keychain(self, password: bytes) -> None:
+        if self.backend != "keychain":
+            raise KeyStoreError("dedicated keychain operation requires macOS")
+        self._native.initialize(password)
+
+    def lock_keychain(self) -> None:
+        if self.backend != "keychain":
+            raise KeyStoreError("dedicated keychain operation requires macOS")
+        self._native.lock()
+
+    def unlock_keychain(self, password: bytes) -> None:
+        if self.backend != "keychain":
+            raise KeyStoreError("dedicated keychain operation requires macOS")
+        self._native.unlock(password)
 
     def get(self, project: str, name: str) -> str | None:
         record = self._native.get(_label(project), _label(name))
