@@ -191,3 +191,12 @@ def test_inventory_helper_failure_refuses_the_candidate(tmp_path, monkeypatch, n
     assert error.value.returncode == 9
     assert tools.calls[-1][:2] == (name, stage)
     assert {n for n, s, _ in tools.calls if s == "help"} == set(NAMES)
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_archive_simulator_returns_module_inventory_not_architecture(tmp_path, name):
+    tools = Tools(tmp_path)
+    binary = tmp_path / "bin" / name
+    result = tools.run(["fixture-python", "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief", str(binary)], check=True, stdout=subprocess.PIPE, text=True)
+    assert result.stdout == "modules-" + name
+    assert tools.calls[-1][:2] == (name, "archive")
