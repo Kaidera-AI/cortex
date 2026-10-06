@@ -1,0 +1,375 @@
+"""CM-2 trust, private file custody and bounded member admission.
+
+This module has no provisioning, engine mutation, ambient credentials or DB access.
+"""
+from __future__ import annotations
+
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import shutil
+import stat
+import subprocess
+import time
+import uuid
+from urllib.parse import quote
+
+RELEASE_PUBLIC_KEY = 'RWQuhegMfku7e4RltjV64sZmxXHEETzAntDePCQsJPYvXXujVMqKIvHL'
+RELEASE_KEY_ID = '7BBB4B7E0CE8852E'
+READER_SHA256 = '496cad574b823cd13ba01ccc2d5112667f27c11cb7f7677fe1130a6e860aff3a'
+HEX = re.compile(r'[0-9a-f]{64}')
+IDENTIFIER = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}')
+ROLES = ('db', 'api', 'doc', 'embed', 'graph')
+RELEASE_FIELDS = {'schema', 'release_id', 'release_lineage', 'release_sequence', 'api_contract',
+    'source_revision', 'deployment_class', 'target', 'archive', 'payload_manifest_sha256',
+    'files', 'images', 'migrations', 'rls_inventory', 'podman', 'member_reader_archive_sha256'}
+CONNECTION_FIELDS = {'schema', 'origin', 'installation_id', 'project', 'member_name',
+    'project_root', 'principal_id', 'actor_id', 'scope_id'}
+
+
+class PrerequisiteRefusal(RuntimeError):
+    def __init__(self, code: str, *, http_status: int | None = None):
+        if not re.fullmatch(r'cortex_[a-z_]+', code):
+            code = 'cortex_descriptor_invalid'
+        self.code, self.http_status = code, http_status
+        super().__init__(code + ': prerequisite refused; see INSTALL-linux.md')
+
+    def public(self) -> dict:
+        value = {'code': self.code, 'safe_message': 'Cortex prerequisite refused.',
+                 'install_guide': 'INSTALL-linux.md',
+                 'utc': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if type(self.http_status) is int:
+            value['http_status_if_observed'] = self.http_status
+        return value
+
+
+def strict_json(raw: bytes, *, limit: int = 65536) -> dict:
+    def pairs(items):
+        value = {}
+        for key, item in items:
+            if key in value:
+                raise ValueError('duplicate key')
+            value[key] = item
+        return value
+    def constant(_):
+        raise ValueError('non-finite value')
+    try:
+        if not isinstance(raw, bytes) or len(raw) > limit:
+            raise ValueError('bounded bytes required')
+        value = json.loads(raw.decode('utf-8', 'strict'), object_pairs_hook=pairs,
+                           parse_constant=constant)
+        if not isinstance(value, dict):
+            raise ValueError('object required')
+        return value
+    except (ValueError, UnicodeError, TypeError, RecursionError):
+        raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
+
+
+def canonical_uuid(value) -> str:
+    try:
+        if not isinstance(value, str) or str(uuid.UUID(value)) != value:
+            raise ValueError
+    except (ValueError, TypeError, AttributeError):
+        raise PrerequisiteRefusal('cortex_instance_mismatch') from None
+    return value
+
+
+def physical_path(path: Path) -> None:
+    if (not isinstance(path, Path) or not path.is_absolute() or '..' in path.parts
+            or any(ord(c) < 32 for c in str(path))
+            or any(p.is_symlink() for p in (path, *path.parents))):
+        raise PrerequisiteRefusal('cortex_descriptor_invalid')
+
+
+def _directory_identity(info):
+    return info.st_dev, info.st_ino, info.st_uid, stat.S_IMODE(info.st_mode)
+
+
+def _parents(path: Path) -> dict[Path, tuple]:
+    physical_path(path)
+    uid = os.getuid()
+    if uid == 0 or os.geteuid() != uid:
+        raise PrerequisiteRefusal('cortex_descriptor_owner_mismatch')
+    result = {}
+    for parent in path.parents:
+        info = parent.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, uid)
+                or stat.S_IMODE(info.st_mode) & 0o022):
+            raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        result[parent] = _directory_identity(info)
+    selected = path.parent.lstat()
+    if selected.st_uid != uid or stat.S_IMODE(selected.st_mode) != 0o700:
+        raise PrerequisiteRefusal('cortex_descriptor_invalid')
+    return result
+
+
+def _recheck_parents(snapshot) -> None:
+    for parent, expected in snapshot.items():
+        if _directory_identity(parent.lstat()) != expected:
+            raise PrerequisiteRefusal('cortex_descriptor_invalid')
+
+
+def _file_identity(info):
+    return info.st_dev, info.st_ino, info.st_uid, info.st_mode, info.st_nlink, info.st_size, info.st_mtime_ns
+
+
+def _private_file(info) -> None:
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+            or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1):
+        raise PrerequisiteRefusal('cortex_descriptor_invalid')
+
+
+def read_private_bytes(path: Path, *, limit: int = 65536) -> bytes:
+    try:
+        parents = _parents(path)
+        before = path.lstat(); _private_file(before)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as stream:
+            opened = os.fstat(stream.fileno()); _private_file(opened)
+            if _file_identity(opened) != _file_identity(before):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+            raw = stream.read(limit + 1)
+            if len(raw) > limit or _file_identity(os.fstat(stream.fileno())) != _file_identity(opened):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        if _file_identity(path.lstat()) != _file_identity(opened):
+            raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        _recheck_parents(parents)
+        return raw
+    except OSError:
+        raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
+
+
+def read_private_json(path: Path, *, limit: int = 65536) -> dict:
+    return strict_json(read_private_bytes(path, limit=limit), limit=limit)
+
+
+def atomic_private_json(path: Path, value: dict, *, limit: int = 65536) -> None:
+    try:
+        raw = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode() + b'\n'
+        strict_json(raw, limit=limit)
+        parents = _parents(path)
+        if path.exists() or path.is_symlink():
+            _private_file(path.lstat())
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        temporary = '.' + secrets.token_hex(16)
+        try:
+            _recheck_parents(parents)
+            if _directory_identity(os.fstat(directory)) != parents[path.parent]:
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=directory)
+            with os.fdopen(fd, 'wb') as stream:
+                _recheck_parents(parents)
+                stream.write(raw); stream.flush(); os.fsync(stream.fileno())
+            _recheck_parents(parents)
+            try:
+                existing = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+            except FileNotFoundError:
+                existing = None
+            if existing is not None:
+                _private_file(existing)
+            os.replace(temporary, path.name, src_dir_fd=directory, dst_dir_fd=directory)
+            os.fsync(directory)
+            _recheck_parents(parents)
+        finally:
+            try: os.unlink(temporary, dir_fd=directory)
+            except FileNotFoundError: pass
+            os.close(directory)
+    except (OSError, ValueError, TypeError):
+        raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
+
+
+def verify_signature(manifest: Path, signature: Path, *, trusted_public_key: str = RELEASE_PUBLIC_KEY) -> None:
+    try:
+        before = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
+        if not re.fullmatch(r'[A-Za-z0-9+/]{56}', trusted_public_key):
+            raise ValueError
+        result = subprocess.run([shutil.which('minisign') or 'minisign', '-V', '-P', trusted_public_key,
+                                 '-m', str(manifest), '-x', str(signature)],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        after = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
+        if result.returncode != 0 or before != after:
+            raise ValueError
+    except (OSError, ValueError, subprocess.TimeoutExpired, PrerequisiteRefusal):
+        raise PrerequisiteRefusal('cortex_release_signature_invalid') from None
+
+
+def _version(value) -> tuple[int, int, int]:
+    if not isinstance(value, str) or not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', value):
+        raise ValueError
+    return tuple(map(int, value.split('.')))
+
+
+def parse_podman_report(raw: bytes, *, host_os: str, mode: str, connection_name,
+                        expected_connection_name, cortex_policy: dict, kos_policy: dict) -> dict:
+    try:
+        report = strict_json(raw)
+        client = report['Client']['Version']; server = None
+        if host_os == 'linux':
+            if mode != 'local' or connection_name is not None or expected_connection_name is not None or report.get('Server') is not None:
+                raise ValueError
+        elif host_os == 'macos':
+            if (mode != 'remote' or not isinstance(connection_name, str) or not connection_name
+                    or connection_name != expected_connection_name):
+                raise ValueError
+            server = report['Server']['Version']
+        else:
+            raise ValueError
+        actual = [client] if server is None else [client, server]
+        for version in actual:
+            numeric = _version(version)
+            for policy in (cortex_policy, kos_policy):
+                if numeric < _version(policy['minimum_version']):
+                    raise ValueError
+                for denial in policy['denylist']['entries']:
+                    if _version(denial['version']) == numeric:
+                        date = datetime.date.fromisoformat(denial['date']).isoformat()
+                        error = PrerequisiteRefusal('cortex_podman_denied')
+                        error.args = ('cortex_podman_denied: dated policy ' + date + '; see INSTALL-linux.md',)
+                        raise error
+        return {'mode': mode, 'client_version': client, 'server_version': server,
+                'connection_name': connection_name}
+    except PrerequisiteRefusal as error:
+        if error.code == 'cortex_podman_denied': raise
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+    except (KeyError, ValueError, TypeError, AttributeError):
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+
+
+def validate_release_manifest(value: dict, *, target: str) -> dict:
+    try:
+        if (set(value) != RELEASE_FIELDS or value['schema'] != 'cortex.release.v2'
+                or value['release_lineage'] != 'cortex-v2-native'
+                or value['api_contract'] != 'cortex-kos-v02009.v2'
+                or type(value['release_sequence']) is not int or value['release_sequence'] < 1
+                or not isinstance(value['release_id'], str) or not 1 <= len(value['release_id']) <= 128
+                or value['target'] != target or target != 'linux-x86_64'
+                or value['deployment_class'] not in ('TEST', 'PRODUCTION')
+                or not re.fullmatch(r'[0-9a-f]{40}', value['source_revision'])
+                or not HEX.fullmatch(value['payload_manifest_sha256'])
+                or value['member_reader_archive_sha256'] != READER_SHA256):
+            raise ValueError
+        archive = value['archive']
+        if (set(archive) != {'name', 'sha256', 'size_bytes'}
+                or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', archive['name'])
+                or not HEX.fullmatch(archive['sha256'])
+                or type(archive['size_bytes']) is not int or archive['size_bytes'] <= 0):
+            raise ValueError
+        if not {'bin/cortex', 'bin/cortex-agent'} <= set(value['files']):
+            raise ValueError
+        for name, digest in value['files'].items():
+            if Path(name).is_absolute() or '..' in Path(name).parts or not HEX.fullmatch(digest):
+                raise ValueError
+        if set(value['images']) != set(ROLES):
+            raise ValueError
+        for role, image in value['images'].items():
+            if (image['os'] != 'linux' or image['architecture'] != 'amd64'
+                    or image['archive'] != 'images/' + role + '.oci.tar'
+                    or not re.fullmatch(r'sha256:[0-9a-f]{64}', image['config_id'])
+                    or not re.fullmatch(r'sha256:[0-9a-f]{64}', image['manifest_digest'])
+                    or not HEX.fullmatch(image['archive_sha256'])
+                    or not HEX.fullmatch(image['source_payload_sha256'])):
+                raise ValueError
+        migrations = value['migrations']
+        if not isinstance(migrations, list) or not migrations:
+            raise ValueError
+        names = []
+        for item in migrations:
+            if (set(item) != {'name', 'sha256'} or not re.fullmatch(r'[0-9]{4}_[a-z0-9_]+\.sql', item['name'])
+                    or not HEX.fullmatch(item['sha256'])):
+                raise ValueError
+            names.append(item['name'])
+        if len(names) != len(set(names)) or names != sorted(names) or not HEX.fullmatch(value['rls_inventory']['sha256']):
+            raise ValueError
+        policy = value['podman']
+        if _version(policy['minimum_version']) < (6, 0, 2) or policy['provider'] != 'cortex-native-lifecycle':
+            raise ValueError
+        datetime.date.fromisoformat(policy['denylist']['as_of'])
+        for item in policy['denylist']['entries']:
+            _version(item['version']); datetime.date.fromisoformat(item['date'])
+        return value
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise PrerequisiteRefusal('cortex_release_unsupported') from None
+
+
+def validate_connection(value: dict) -> dict:
+    try:
+        if (set(value) != CONNECTION_FIELDS or value['schema'] != 'cortex.console-connection.v1'
+                or value['member_name'] != 'console' or not IDENTIFIER.fullmatch(value['project'])
+                or not re.fullmatch(r'http://127\.0\.0\.1:[0-9]{1,5}', value['origin'])
+                or not 1 <= int(value['origin'].rsplit(':', 1)[1]) <= 65535):
+            raise ValueError
+        for field in ('installation_id', 'principal_id', 'actor_id', 'scope_id'):
+            canonical_uuid(value[field])
+        root = Path(value['project_root']); physical_path(root)
+        if not root.is_dir(): raise ValueError
+        return value
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
+
+
+def read_member_admission(connection: dict, *, reader, transport, deadline: float | None = None) -> dict:
+    validate_connection(connection)
+    deadline = time.monotonic() + 60 if deadline is None else deadline
+    snapshot = None
+    def get(path):
+        nonlocal snapshot
+        try:
+            headers = reader.headers()
+        except Exception:
+            raise PrerequisiteRefusal('cortex_credential_unavailable') from None
+        if (not isinstance(headers, dict) or set(headers) != {'Authorization', 'X-Cortex-Scope'}
+                or headers.get('X-Cortex-Scope') != connection['project']
+                or not re.fullmatch(r'Bearer [A-Za-z0-9_-]{43}', headers.get('Authorization', ''))):
+            raise PrerequisiteRefusal('cortex_credential_unavailable')
+        if snapshot is None:
+            snapshot = dict(headers)
+        elif snapshot != headers:
+            raise PrerequisiteRefusal('cortex_credential_refused')
+        remaining = min(5, deadline - time.monotonic())
+        if remaining <= 0: raise PrerequisiteRefusal('cortex_health_unavailable')
+        try:
+            status, raw = transport.get(connection['origin'] + path, headers=headers,
+                                         timeout=remaining, max_bytes=65536)
+        except Exception:
+            raise PrerequisiteRefusal('cortex_health_unavailable') from None
+        if time.monotonic() >= deadline: raise PrerequisiteRefusal('cortex_health_unavailable')
+        if status != 200:
+            raise PrerequisiteRefusal('cortex_credential_refused' if status in (401, 403, 404)
+                                     else 'cortex_health_unavailable', http_status=status)
+        return strict_json(raw)
+    try:
+        health = get('/health/ready')
+        if health.get('status') != 'ready': raise ValueError
+        principal = get('/v1/auth/principal')['data']
+        if principal['installation_id'] != connection['installation_id'] or principal['principal_id'] != connection['principal_id']:
+            raise ValueError
+        grants = principal['scopes']
+        if not isinstance(grants, list) or len(grants) != 1: raise ValueError
+        grant = grants[0]
+        if (grant['scope_id'] != connection['scope_id'] or grant['primary_alias'] != connection['project']
+                or grant['scope_kind'] != 'project' or grant['can_read'] is not True
+                or grant['can_write'] is not True or grant['can_publish'] is not False):
+            raise ValueError
+        roster = get('/v1/scopes/' + quote(connection['project'], safe='') + '/roster')['data']
+        entries = [e for e in roster['entries'] if e.get('display_name') == 'console']
+        if (roster['scope_id'] != connection['scope_id'] or len(entries) != 1
+                or type(roster['roster_revision']) is not int or roster['roster_revision'] < 0):
+            raise ValueError
+        member = entries[0]
+        if (member['principal_id'] != connection['principal_id'] or member['actor_id'] != connection['actor_id']
+                or member['actor_kind'] != 'service' or member['role'] != 'member' or member['status'] != 'active'):
+            raise ValueError
+        return {'roster_revision': roster['roster_revision'], 'principal_id': connection['principal_id'],
+                'actor_id': connection['actor_id'], 'scope_id': connection['scope_id'],
+                'project': connection['project'], 'member_name': 'console', 'actor_kind': 'service',
+                'role': 'member', 'status': 'active', 'can_read': True, 'can_write': True,
+                'can_publish': False, 'project_root': connection['project_root']}
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise PrerequisiteRefusal('cortex_credential_refused') from None
+    finally:
+        snapshot = None
