@@ -30,6 +30,24 @@ class DispatchRefused(RuntimeError):
         super().__init__(code)
 
 
+def route(target):
+    routes = {"macos-arm64": (WORKFLOW, PREFIX),
+              "linux-x86_64": ("cortex-linux-candidate.yml", "ren-cx/linux-package-build-admitted-")}
+    if not isinstance(target, str) or target not in routes:
+        raise DispatchRefused("native_target_invalid")
+    return routes[target]
+
+
+def check_routes(texts, target, sha):
+    selected, prefix = route(target)
+    if selected not in texts:
+        raise DispatchRefused("workflow_route_missing")
+    for name, text in texts.items():
+        can_push = push_can_trigger(text, prefix + sha)
+        if name != selected and can_push:
+            raise DispatchRefused("workflow_route_overlap")
+
+
 class WorkflowLoader(yaml.BaseLoader):
     def construct_mapping(self, node, deep=False):
         keys = [self.construct_object(key, deep=deep) for key, _ in node.value]
@@ -82,10 +100,11 @@ def check_runs(runs, sha):
         raise DispatchRefused("native_ci_run_exists")
 
 
-def dispatch_once(sha, workflow_text, github, wait):
+def dispatch_once(sha, workflow_text, github, wait, target="macos-arm64"):
+    workflow, prefix = route(target)
     if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise DispatchRefused("source_sha_invalid")
-    branch = PREFIX + sha
+    branch = prefix + sha
     can_push = push_can_trigger(workflow_text, branch)
     check_runs(github.list_runs(sha), sha)
     github.create_ref(branch, sha)
@@ -94,12 +113,16 @@ def dispatch_once(sha, workflow_text, github, wait):
     if can_push:
         raise DispatchRefused("push_can_trigger_native_ci")
     github.dispatch(branch)
-    return {"status": "manual_dispatch_submitted", "source_sha": sha, "branch": branch}
+    result = {"status": "manual_dispatch_submitted", "source_sha": sha, "branch": branch}
+    if target != "macos-arm64":
+        result["workflow"] = workflow
+    return result
 
 
 class Github:
-    def __init__(self, trace):
+    def __init__(self, trace, target="macos-arm64"):
         self.trace = trace
+        self.workflow, self.prefix = route(target)
 
     def request(self, endpoint, body=None):
         command = ["gh", "api", f"repos/{REPO}/{endpoint}"]
@@ -114,7 +137,7 @@ class Github:
         return json.loads(result.stdout) if result.stdout.strip() else None
 
     def list_runs(self, sha):
-        response = self.request(f"actions/workflows/{WORKFLOW}/runs?head_sha={sha}&per_page=100")
+        response = self.request(f"actions/workflows/{self.workflow}/runs?head_sha={sha}&per_page=100")
         if (not isinstance(response, dict) or not isinstance(response.get("workflow_runs"), list)
                 or type(response.get("total_count")) is not int
                 or response["total_count"] != len(response["workflow_runs"])):
@@ -128,18 +151,19 @@ class Github:
             raise DispatchRefused("created_ref_binding_invalid")
 
     def dispatch(self, branch):
-        self.request(f"actions/workflows/{WORKFLOW}/dispatches", {"ref": branch})
+        self.request(f"actions/workflows/{self.workflow}/dispatches", {"ref": branch})
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--target", choices=("macos-arm64", "linux-x86_64"), default="macos-arm64")
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--review-receipt", type=Path, required=True)
     parser.add_argument("--inbox", type=Path, required=True, help="fresh operator DO NOW, naming the full CI SHA")
     parser.add_argument("--evidence", type=Path, required=True, help="new public receipt file; never overwritten")
     args = parser.parse_args()
     trace = []
-    record = {"source_sha": args.source_sha, "calls": trace}
+    record = {"source_sha": args.source_sha, "target": args.target, "calls": trace}
     with args.evidence.open("x") as stream:
         try:
             if not re.fullmatch(r"[0-9a-f]{40}", args.source_sha):
@@ -161,13 +185,25 @@ def main():
                 return subprocess.check_output(["git", "-C", str(ROOT), *parts], text=True).strip()
             if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
                 raise DispatchRefused("clean_exact_source_required")
-            workflow_path = ROOT / ".github/workflows" / WORKFLOW
+            selected, _ = route(args.target)
+            workflow_path = ROOT / ".github/workflows" / selected
             workflow_bytes = workflow_path.read_bytes()
             workflow = workflow_bytes.decode("utf-8")
+            # The legacy Mac-only fixture remains valid. Linux always requires
+            # its Mac counterpart. Bind absence too, so later additions refuse.
+            route_bytes = {}
+            for target in ("macos-arm64", "linux-x86_64"):
+                name, _ = route(target)
+                path = ROOT / ".github/workflows" / name
+                route_bytes[path] = path.read_bytes() if path.exists() else None
+                if route_bytes[path] is None and args.target == "linux-x86_64":
+                    raise OSError("native workflow counterpart missing")
+            check_routes({p.name: b.decode("utf-8") for p, b in route_bytes.items() if b is not None}, args.target, args.source_sha)
             tool_path = Path(__file__)
             tool_bytes = tool_path.read_bytes()
             record.update(review_sha256=hashlib.sha256(review_bytes).hexdigest(), admission=admission)
-            github = Github(trace)
+            record["workflow_sha256"] = {p.name: hashlib.sha256(b).hexdigest() for p, b in route_bytes.items() if b is not None}
+            github = Github(trace, target=args.target)
             # Recheck the active instruction immediately before each mutation.
             original_request = github.request
             def request(endpoint, body=None):
@@ -178,11 +214,12 @@ def main():
                         raise DispatchRefused("review_receipt_changed")
                     if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
                         raise DispatchRefused("clean_exact_source_required")
-                    if tool_path.read_bytes() != tool_bytes or workflow_path.read_bytes() != workflow_bytes:
+                    current = {p: p.read_bytes() if p.exists() else None for p in route_bytes}
+                    if tool_path.read_bytes() != tool_bytes or current != route_bytes:
                         raise DispatchRefused("source_or_workflow_changed")
                 return original_request(endpoint, body)
             github.request = request
-            record.update(dispatch_once(args.source_sha, workflow, github, time.sleep))
+            record.update(dispatch_once(args.source_sha, workflow, github, time.sleep, target=args.target))
             code = 0
         except DispatchRefused as exc:
             record.update(status="manual_dispatch_refused", reason=exc.code)

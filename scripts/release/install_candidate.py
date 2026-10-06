@@ -219,6 +219,8 @@ def write_record(root: Path, record: dict) -> None:
 
 
 class Podman:
+    architecture = "arm64"
+
     def __init__(self, connection: str):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}", connection):
             raise Refusal("explicit Podman connection name required")
@@ -243,12 +245,20 @@ class Podman:
         return self.run([kind, "exists", name], allowed=(0, 1)) == "0"
 
     def preflight(self) -> None:
-        versions = self.run(["version", "--format", "{{.Client.Version}} {{.Server.Version}}"], read=True)
-        if len(versions.split()) != 2 or any(not re.fullmatch(r"6\.0\.[0-9]+", x) for x in versions.split()):
-            raise Refusal("package requires Podman client/server 6.0.x; see guide")
+        from podman_policy import validate_local_version, validate_versions
+        try:
+            if getattr(self, "local_abi", False):
+                version = self.run(["version", "--format", "{{.Client.Version}}"], read=True)
+                self.version_receipt = validate_local_version(version)
+            else:
+                versions = self.run(["version", "--format", "{{.Client.Version}} {{.Server.Version}}"], read=True)
+                self.version_receipt = validate_versions(versions)
+        except ValueError as exc:
+            raise Refusal(str(exc)) from None
         arch = self.run(["info", "--format", "{{.Host.Arch}}"], read=True)
-        if arch not in ("arm64", "aarch64"):
-            raise Refusal("Podman machine is not arm64")
+        expected = ("arm64", "aarch64") if self.architecture == "arm64" else ("amd64", "x86_64")
+        if arch not in expected:
+            raise Refusal("Podman architecture differs from native target")
         if self.run(["info", "--format", "{{.Host.Security.Rootless}}"], read=True) != "true":
             raise Refusal("TEST package requires a rootless Podman connection")
 
@@ -256,7 +266,7 @@ class Podman:
         actual = self.run(["image", "inspect", "--format", "{{.Id}} {{.Os}} {{.Architecture}}", entry["config_id"]], read=True)
         parts = actual.split()
         if (len(parts) != 3 or parts[0].removeprefix("sha256:") != entry["config_id"].removeprefix("sha256:")
-                or parts[1:] != ["linux", "arm64"]):
+                or parts[1:] != ["linux", self.architecture]):
             raise Refusal("loaded image identity/platform differs")
 
 
