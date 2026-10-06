@@ -38,6 +38,7 @@ REFUSALS = frozenset({
     'cortex_release_unsupported', 'cortex_release_signature_invalid',
     'cortex_podman_denied', 'cortex_podman_unsupported', 'cortex_image_mismatch',
     'cortex_cgroup_delegation_unavailable',
+    'cortex_podman_storage_setup_required',
 })
 
 
@@ -112,9 +113,18 @@ def _engine_json(command: list[str], *, environment: dict, deadline: float) -> d
                     buffer.extend(chunk)
             complete = True
         if process.returncode != 0 or errors or time.monotonic() >= work_deadline:
+            if (process.returncode == 125 and not output and os.getuid() > 0
+                    and command[1:] == ['--remote=false', 'info', '--format=json']
+                    and time.monotonic() < work_deadline
+                    and bytes(errors) == b'Error: creating runtime static files directory "/var/lib/containers/storage/libpod": mkdir /var/lib/containers/storage: permission denied\n'):
+                raise PrerequisiteRefusal('cortex_podman_storage_setup_required')
             raise ValueError
         return strict_json(bytes(output))
-    except (OSError, ValueError, TypeError, subprocess.SubprocessError, PrerequisiteRefusal):
+    except PrerequisiteRefusal as error:
+        if error.code == 'cortex_podman_storage_setup_required':
+            raise
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
         raise PrerequisiteRefusal('cortex_podman_unsupported') from None
     finally:
         if process is not None:
@@ -153,7 +163,10 @@ def observe_linux_engine(*, cortex_policy: dict, kos_policy: dict,
         return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf-8')
 
     try:
-        delegation = custody.check_linux_delegation(read('info'))
+        info = read('info')
+        if 'store' in strict_json(info):
+            custody.check_linux_storage_config(info, uid=context['uid'], home=context['environment']['HOME'])
+        delegation = custody.check_linux_delegation(info)
         version = custody.parse_podman_report(read('version'), host_os='linux', mode='local',
             connection_name=None, expected_connection_name=None,
             cortex_policy=cortex_policy, kos_policy=kos_policy)

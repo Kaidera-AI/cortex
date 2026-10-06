@@ -26,6 +26,7 @@ HEX = re.compile(r'[0-9a-f]{64}')
 IDENTIFIER = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}')
 ROLES = ('db', 'api', 'doc', 'embed', 'graph')
 CGROUP_FIX = 'Enable systemd delegation of cpu, memory and pids for the kos user; see INSTALL-linux.md.'
+STORAGE_FIX = 'Complete the per-user ~/.config/containers/storage.conf step in INSTALL-linux.md; Cortex does not write Podman configuration.'
 RELEASE_FIELDS = {'schema', 'release_id', 'release_lineage', 'release_sequence', 'api_contract',
     'source_revision', 'deployment_class', 'target', 'archive', 'payload_manifest_sha256',
     'files', 'images', 'migrations', 'rls_inventory', 'podman', 'member_reader_archive_sha256'}
@@ -38,7 +39,8 @@ class PrerequisiteRefusal(RuntimeError):
         if not re.fullmatch(r'cortex_[a-z_]+', code):
             code = 'cortex_descriptor_invalid'
         self.code, self.http_status = code, http_status
-        message = CGROUP_FIX if code == 'cortex_cgroup_delegation_unavailable' else 'prerequisite refused; see INSTALL-linux.md'
+        message = { 'cortex_cgroup_delegation_unavailable': CGROUP_FIX,
+                    'cortex_podman_storage_setup_required': STORAGE_FIX }.get(code, 'prerequisite refused; see INSTALL-linux.md')
         super().__init__(code + ': ' + message)
 
     def public(self) -> dict:
@@ -47,6 +49,8 @@ class PrerequisiteRefusal(RuntimeError):
                  'utc': datetime.datetime.now(datetime.timezone.utc).isoformat()}
         if self.code == 'cortex_cgroup_delegation_unavailable':
             value['safe_message'] = CGROUP_FIX
+        if self.code == 'cortex_podman_storage_setup_required':
+            value['safe_message'] = STORAGE_FIX
         if type(self.http_status) is int:
             value['http_status_if_observed'] = self.http_status
         return value
@@ -70,6 +74,26 @@ def check_linux_delegation(raw: bytes) -> dict:
                 'cgroup_version': 'v2', 'cgroup_controllers': ['cpu', 'memory', 'pids']}
     except (PrerequisiteRefusal, KeyError, ValueError, TypeError, AttributeError):
         raise PrerequisiteRefusal('cortex_cgroup_delegation_unavailable') from None
+
+
+def check_linux_storage_config(raw: bytes, *, uid: int, home: str) -> dict:
+    """Check actual engine paths only; filesystem custody is a separate predicate."""
+    try:
+        value = strict_json(raw)
+        if (type(uid) is not int or not 0 < uid <= 4294967295 or not isinstance(home, str)
+                or not Path(home).is_absolute() or str(Path(home)) != home or '..' in Path(home).parts
+                or any(ord(c) < 32 for c in home) or value['host']['security']['rootless'] is not True):
+            raise ValueError
+        graph_root = str(Path(home) / '.local/share/containers/storage')
+        run_root = '/run/user/' + str(uid) + '/containers'
+        store = value['store']
+        if (store['graphRoot'] != graph_root or store['runRoot'] != run_root
+                or store['graphDriverName'] != 'overlay'):
+            raise ValueError
+        return {'schema': 'cortex.linux-storage-config.v1', 'rootless': True,
+                'graph_root': graph_root, 'run_root': run_root, 'driver': 'overlay'}
+    except Exception:
+        raise PrerequisiteRefusal('cortex_podman_storage_setup_required') from None
 
 
 def strict_json(raw: bytes, *, limit: int = 65536) -> dict:
