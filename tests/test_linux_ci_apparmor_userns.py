@@ -16,7 +16,7 @@ REAL = '/home/linuxbrew/.linuxbrew/Cellar/podman/6.1.3/bin/podman'
 TEXT = ('abi <abi/4.0>,\ninclude <tunables/global>\n\n"' + REAL +
         '" flags=(unconfined) {\n  userns,\n}\n').encode()
 PRIVILEGED = ['sudo', '-n', 'timeout', '--kill-after=2s', '20s']
-STAGES = ['restriction', 'enabled', 'coverage_before', 'profile_load', 'coverage_after', 'engine_info']
+STAGES = ['restriction', 'enabled', 'engine_info_before', 'profile_load', 'engine_info_after']
 MARKER = 'PUBLIC_R295_CAPTURE_EXCEPTION_TEST'
 
 
@@ -43,24 +43,22 @@ def fixture(monkeypatch):
             assert args == ['kernel.apparmor_restrict_unprivileged_userns']; stage = 'restriction'; out = b'kernel.apparmor_restrict_unprivileged_userns = 1\n'
         elif prefix == ['cat']:
             assert args == ['/sys/module/apparmor/parameters/enabled']; stage = 'enabled'; out = b'Y\n'
-        elif prefix == PRIVILEGED + ['/usr/bin/python3']:
-            assert args == [str(PATH), '--profiles-for-path', REAL]
-            prior = sum(c[0].startswith('coverage_') for c in calls)
-            stage = 'coverage_after' if prior else 'coverage_before'
-            out = json.dumps({'covered': bool(prior), 'profile_count': 7 + prior}).encode()
         elif prefix == PRIVILEGED + ['apparmor_parser']:
             assert args == ['-r'] and input_data == TEXT; stage = 'profile_load'; out = b''
         else:
             assert prefix == [REAL, '--remote=false'] and args == ['info', '--format=json']
-            stage = 'engine_info'; out = b'{"Host":{"not_a_public_projection":"discard this field"}}'
+            stage = 'engine_info_after' if any(c[0] == 'engine_info_before' for c in calls) else 'engine_info_before'
+            out = b'{"Host":{"not_a_public_projection":"discard this field"}}'
         if stage != 'profile_load': assert input_data is None
         calls.append((stage, prefix, args, input_data))
-        return {'exit_code': 0, 'stdout': out, 'stderr': b'', 'overflow': False, 'timed_out': False}
+        return {'exit_code': 1 if stage == 'engine_info_before' else 0, 'stdout': out,
+                'stderr': b'failed to reexec: Permission denied\n' if stage == 'engine_info_before' else b'',
+                'overflow': False, 'timed_out': False}
     return module, calls, selected, capture
 
 
 CASES = ['valid', 'restriction-off', 'disabled', 'covered', 'bad-sysctl', 'bad-enabled',
-         'bad-coverage', 'unknown-coverage', 'bad-path', 'unsafe-mode', 'root', 'euid',
+         'unrelated-info-error', 'partial-info-error', 'bad-path', 'unsafe-mode', 'root', 'euid',
          'path-replacement', 'uid-drift', 'deadline', 'info-refused']
 
 
@@ -83,20 +81,20 @@ def test_conditional_profile_requires_all_public_preconditions_and_exact_effect(
         if stage == 'enabled':
             if case == 'disabled': result['stdout'] = b'N\n'
             if case == 'bad-enabled': result['stdout'] = b'Y\r\n'
-        if stage == 'coverage_before':
-            if case == 'covered': result['stdout'] = b'{"covered":true,"profile_count":7}'
-            if case == 'bad-coverage': result['stdout'] = b'{"covered":false,"profile_count":true}'
-            if case == 'unknown-coverage': result['stdout'] = b'{"covered":null,"profile_count":7}'
-        if case == 'info-refused' and stage == 'engine_info':
+        if stage == 'engine_info_before':
+            if case == 'covered': result.update(exit_code=0, stderr=b'')
+            if case == 'unrelated-info-error': result['stderr'] = b'Error: disk unavailable\n'
+            if case == 'partial-info-error': result['stderr'] = b'failed to reexec: Permission denied suffix\n'
+        if case == 'info-refused' and stage == 'engine_info_after':
             result['exit_code'] = 1; result['stderr'] = b'failed to reexec: Permission denied\n'
         return result
     value = module.prepare_userns(capture=capture)
-    success = case in ('valid', 'restriction-off', 'disabled', 'covered')
+    success = case in ('valid', 'covered')
     assert value['status'] == ('ready' if success else 'refused')
     loaded = [x for x in calls if x[0] == 'profile_load']
     assert len(loaded) == (1 if case in ('valid', 'info-refused') else 0)
     if success:
-        assert calls[-1][0] == 'engine_info'
+        assert calls[-1][0] == ('engine_info_after' if case == 'valid' else 'engine_info_before')
         assert value['facts']['podman'] == {'selected_path': selected['selected_path'], 'resolved_path': REAL, 'mode': '0755'}
         assert value['profile_loaded'] is (case == 'valid')
     if case in ('root', 'euid', 'bad-path', 'unsafe-mode'): assert not calls
@@ -104,14 +102,17 @@ def test_conditional_profile_requires_all_public_preconditions_and_exact_effect(
     assert not any('-w' in x[2] or 'restart' in x[2] or 'sysctl' in x[1] and len(x[2]) != 1 for x in calls)
 
 
-@pytest.mark.parametrize('stage', STAGES)
+@pytest.mark.parametrize('stage', STAGES + ['engine_info_before_success'])
 @pytest.mark.parametrize('kind', ['exit', 'timeout', 'overflow', 'stderr-overflow', 'non-dict', 'exception'])
 def test_fixed_command_refusal_retains_partial_bounded_evidence_without_retry(stage, kind, monkeypatch):
     module, calls, _, original = fixture(monkeypatch)
     def capture(prefix, args, **kw):
         result = original(prefix, args, **kw)
-        if calls[-1][0] == stage:
-            if kind == 'exit': result['exit_code'] = 1
+        actual_stage = 'engine_info_before' if stage == 'engine_info_before_success' else stage
+        if stage == 'engine_info_before_success' and calls[-1][0] == 'engine_info_before':
+            result.update(exit_code=0, stderr=b'')
+        if calls[-1][0] == actual_stage:
+            if kind == 'exit': result.update(exit_code=1, stderr=b'PUBLIC_R301_UNRELATED_EXIT\n')
             if kind == 'timeout': result['timed_out'] = True
             if kind == 'overflow': result['overflow'] = True
             if kind == 'stderr-overflow': result['stderr'] = b'x' * 4097
@@ -120,8 +121,9 @@ def test_fixed_command_refusal_retains_partial_bounded_evidence_without_retry(st
         return result
     value = module.prepare_userns(capture=capture)
     assert value['status'] == 'refused' and value['reason'] == 'command_refused'
-    assert [x[0] for x in calls] == STAGES[:STAGES.index(stage) + 1]
-    step = value['steps'][-1]; assert step['stage'] == stage
+    actual_stage = 'engine_info_before' if stage == 'engine_info_before_success' else stage
+    assert [x[0] for x in calls] == STAGES[:STAGES.index(actual_stage) + 1]
+    step = value['steps'][-1]; assert step['stage'] == actual_stage
     if kind == 'stderr-overflow':
         assert step['stderr_truncated'] and len(base64.b64decode(step['stderr_b64'])) == 4096
     assert MARKER not in json.dumps(value)
@@ -156,16 +158,16 @@ def test_actual_loaded_attachment_metadata_is_authoritative_and_conservative(att
         assert module.profile_coverage(REAL, policy_root=policy) == {'covered': expected, 'profile_count': 1}
 
 
-@pytest.mark.parametrize('case', ['missing', 'symlink', 'oversized', 'changed', 'no-new-coverage'])
+@pytest.mark.parametrize('case', ['missing', 'symlink', 'oversized', 'changed', 'postflight-info-refusal'])
 def test_unobserved_or_replaced_coverage_never_authorizes_a_policy_change(case, tmp_path, monkeypatch):
     module, calls, _, original = fixture(monkeypatch)
-    if case == 'no-new-coverage':
+    if case == 'postflight-info-refusal':
         def capture(prefix, args, **kw):
             result = original(prefix, args, **kw)
-            if calls[-1][0] == 'coverage_after': result['stdout'] = b'{"covered":false,"profile_count":7}'
+            if calls[-1][0] == 'engine_info_after': result.update(exit_code=1, stderr=b'failed to reexec: Permission denied\n')
             return result
         value = module.prepare_userns(capture=capture)
-        assert value['status'] == 'refused' and calls[-1][0] == 'coverage_after'
+        assert value['status'] == 'refused' and calls[-1][0] == 'engine_info_after'
         assert len([x for x in calls if x[0] == 'profile_load']) == 1
         return
     policy = tmp_path / 'profiles'; policy.mkdir(); profile = policy / 'p0'; profile.mkdir()
