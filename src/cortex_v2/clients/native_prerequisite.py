@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -183,19 +184,200 @@ def atomic_private_json(path: Path, value: dict, *, limit: int = 65536) -> None:
         raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
 
 
-def verify_signature(manifest: Path, signature: Path, *, trusted_public_key: str = RELEASE_PUBLIC_KEY) -> None:
+def verify_signature(manifest: Path, signature: Path, *, trusted_public_key: str = RELEASE_PUBLIC_KEY,
+                     timeout: float = 5) -> None:
     try:
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 5:
+            raise ValueError
         before = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
         if not re.fullmatch(r'[A-Za-z0-9+/]{56}', trusted_public_key):
             raise ValueError
         result = subprocess.run([shutil.which('minisign') or 'minisign', '-V', '-P', trusted_public_key,
                                  '-m', str(manifest), '-x', str(signature)],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
         after = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
         if result.returncode != 0 or before != after:
             raise ValueError
     except (OSError, ValueError, subprocess.TimeoutExpired, PrerequisiteRefusal):
         raise PrerequisiteRefusal('cortex_release_signature_invalid') from None
+
+
+def verify_installed_release(runtime_root: Path, *, deadline: float | None = None) -> dict:
+    """Read and measure signed installed bytes before any native helper execution.
+
+    This proves custody of the signed package. It does not establish a live engine,
+    native ABI, image payload or readiness claim.
+    """
+    now = time.monotonic()
+    if deadline is None:
+        deadline = now + 30
+    if type(deadline) not in (int, float) or not math.isfinite(deadline):
+        raise PrerequisiteRefusal('cortex_health_unavailable')
+    deadline = min(deadline, now + 60)
+
+    def remaining():
+        budget = deadline - time.monotonic()
+        if budget <= 0:
+            raise PrerequisiteRefusal('cortex_health_unavailable')
+        return budget
+
+    parents, files_seen = {}, {}
+
+    def record_parents(path):
+        physical_path(path)
+        result = {}
+        for parent in path.parents:
+            info = parent.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, os.getuid())
+                    or stat.S_IMODE(info.st_mode) & 0o022):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+            identity = _directory_identity(info)
+            if parent in parents and parents[parent] != identity:
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+            parents[parent] = identity
+            result[parent] = identity
+        return result
+
+    def identity(info):
+        return _file_identity(info), info.st_ctime_ns
+
+    def measure(path, *, executable=False, size=None):
+        remaining()
+        selected_parents = record_parents(path)
+        before = path.lstat()
+
+        def check(info):
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                    or stat.S_IMODE(info.st_mode) & 0o022
+                    or executable and not info.st_mode & stat.S_IXUSR
+                    or size is not None and info.st_size != size):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+
+        check(before)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        digest = hashlib.sha256()
+        with os.fdopen(fd, 'rb') as stream:
+            opened = os.fstat(stream.fileno()); check(opened)
+            if identity(opened) != identity(before):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+            while True:
+                remaining()
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                digest.update(chunk)
+            if identity(os.fstat(stream.fileno())) != identity(opened):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        remaining()
+        if identity(path.lstat()) != identity(opened):
+            raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        _recheck_parents(selected_parents)
+        files_seen[path] = identity(opened)
+        return digest.hexdigest()
+
+    try:
+        remaining(); physical_path(runtime_root)
+        uid = os.getuid()
+        if uid == 0 or os.geteuid() != uid:
+            raise PrerequisiteRefusal('cortex_descriptor_owner_mismatch')
+        package, signed = runtime_root / 'package', runtime_root / 'signed'
+        for directory in (runtime_root, package, signed):
+            physical_path(directory)
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != uid
+                    or stat.S_IMODE(info.st_mode) != 0o700):
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+            parents[directory] = _directory_identity(info)
+        manifest, signature = signed / 'release.json', signed / 'release.json.minisig'
+        outer_raw = read_private_bytes(manifest, limit=1048576)
+        signature_raw = read_private_bytes(signature, limit=4096)
+        verify_signature(manifest, signature, timeout=min(5, remaining()))
+        remaining()
+        if read_private_bytes(manifest, limit=1048576) != outer_raw:
+            raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        release = validate_release_manifest(strict_json(outer_raw, limit=1048576), target='linux-x86_64')
+        archive = release['archive']
+        retained = signed / archive['name']
+        _private_file(retained.lstat())
+        if measure(retained, size=archive['size_bytes']) != archive['sha256']:
+            raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        inner_path = package / 'release.json'
+        inner_raw = read_private_bytes(inner_path, limit=1048576)
+        inner_digest = hashlib.sha256(inner_raw).hexdigest()
+        if inner_digest != release['payload_manifest_sha256']:
+            raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        inner = strict_json(inner_raw, limit=1048576)
+        if (inner.get('schema') != 'cortex.test-package.v1' or inner.get('target') != release['target']
+                or inner.get('deployment_class') != release['deployment_class']
+                or inner.get('source_sha') != release['source_revision']
+                or not isinstance(inner.get('files'), dict) or not 1 <= len(inner['files']) <= 4096
+                or not isinstance(inner.get('images'), dict) or set(inner['images']) != set(ROLES)):
+            raise PrerequisiteRefusal('cortex_release_unsupported')
+        payload = inner['files']
+        for name, digest in payload.items():
+            if (not isinstance(name, str) or not name or Path(name).is_absolute()
+                    or Path(name).as_posix() != name or any(part in ('.', '..') for part in name.split('/'))
+                    or any(ord(c) < 32 for c in name) or name in ('release.json', 'SHA256SUMS')
+                    or not isinstance(digest, str) or not HEX.fullmatch(digest)):
+                raise PrerequisiteRefusal('cortex_release_unsupported')
+        if any(payload.get(name) != digest for name, digest in release['files'].items()):
+            raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        for role in ROLES:
+            image = inner['images'][role]
+            if (any(image.get(key) != value for key, value in release['images'][role].items())
+                    or payload.get(image['archive']) != image['archive_sha256']):
+                raise PrerequisiteRefusal('cortex_release_signature_invalid')
+
+        # Enumerate without following links and refuse unlisted or special objects.
+        actual, directories, pending = set(), set(), [package]
+        count = 0
+        while pending:
+            directory = pending.pop(); remaining()
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    remaining(); count += 1
+                    if count > 8192:
+                        raise PrerequisiteRefusal('cortex_descriptor_invalid')
+                    path = Path(entry.path); info = path.lstat()
+                    if info.st_uid != uid or stat.S_IMODE(info.st_mode) & 0o022:
+                        raise PrerequisiteRefusal('cortex_descriptor_invalid')
+                    name = path.relative_to(package).as_posix()
+                    if stat.S_ISDIR(info.st_mode):
+                        parents[path] = _directory_identity(info)
+                        directories.add(name); pending.append(path)
+                    elif stat.S_ISREG(info.st_mode):
+                        actual.add(name)
+                    else:
+                        raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        optional_sums = {'SHA256SUMS'} if 'SHA256SUMS' in actual else set()
+        expected = set(payload) | {'release.json'} | optional_sums
+        expected_dirs = {str(parent) for name in expected for parent in Path(name).parents if str(parent) != '.'}
+        if actual != expected or directories != expected_dirs:
+            raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        for name, digest in payload.items():
+            if measure(package / name, executable=name in ('bin/cortex', 'bin/cortex-agent')) != digest:
+                raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        if optional_sums:
+            sums = dict(payload, **{'release.json': inner_digest})
+            expected_raw = ''.join(f'{value}  {name}\n' for name, value in sorted(sums.items())).encode()
+            if measure(package / 'SHA256SUMS', size=len(expected_raw)) != hashlib.sha256(expected_raw).hexdigest():
+                raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        if (read_private_bytes(manifest, limit=1048576) != outer_raw
+                or read_private_bytes(signature, limit=4096) != signature_raw
+                or read_private_bytes(inner_path, limit=1048576) != inner_raw):
+            raise PrerequisiteRefusal('cortex_release_signature_invalid')
+        for path, expected_identity in files_seen.items():
+            remaining()
+            if identity(path.lstat()) != expected_identity:
+                raise PrerequisiteRefusal('cortex_descriptor_invalid')
+        _recheck_parents(parents); remaining()
+        return {'release': release, 'package_root': str(package),
+                'helper_sha256': payload['bin/cortex'],
+                'release_manifest_sha256': hashlib.sha256(outer_raw).hexdigest()}
+    except PrerequisiteRefusal:
+        raise
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
 
 
 def _version(value) -> tuple[int, int, int]:
