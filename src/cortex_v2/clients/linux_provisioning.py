@@ -701,13 +701,17 @@ def private_json_command(command: list[str], frame: dict, *, timeout: float = 5,
         raise ProvisionRefusal('cortex_health_unavailable') from None
     finally:
         if process is not None:
+            cleanup_refused = False
             if not streams_closed:
                 try: os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError: pass
+                except OSError: cleanup_refused = True
                 try: process.wait(timeout=max(0, absolute_deadline - time.monotonic()))
                 except subprocess.TimeoutExpired: pass
             for stream in (process.stdin, process.stdout, process.stderr):
                 if stream is not None: stream.close()
+            if cleanup_refused:
+                raise ProvisionRefusal('cortex_health_unavailable') from None
 
 
 @contextmanager
