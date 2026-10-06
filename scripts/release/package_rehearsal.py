@@ -1,6 +1,7 @@
 """Required disposable native-CI rehearsal; never an installed product entrypoint."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -14,6 +15,8 @@ from install_candidate import (INSTANCE, ROLES, Podman, Refusal, erase, names,
                                namespace, private_root, provision, smoke,
                                start_stack, write_record)
 from prepare_sandbox import prepare
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class NativeBuilder(Podman):
@@ -65,12 +68,22 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
                "podman": engine.run(["version", "--format", "{{.Client.Version}}"], read=True),
                "image_ids": {r: entries[r]["config_id"] for r in ROLES}}
     try:
-        provision(engine, manifest, root, record)
+        if target == 'linux-x86_64':
+            from linux_build_catalog import catalog_bytes, read_json
+            provision(engine, manifest, root, record, build_catalog_source=source_sha)
+        else:
+            provision(engine, manifest, root, record)
         start_stack(engine, manifest, record, root)
-        migration = json.loads((root / "migration-receipt.json").read_text())
+        migration = (read_json(root / 'migration-receipt.json') if target == 'linux-x86_64'
+                     else json.loads((root / "migration-receipt.json").read_text()))
         if len(migration.get("migrations", [])) != 15:
             raise Refusal("rehearsal did not execute the complete migration set")
         outcome["migration"] = migration
+        if target == 'linux-x86_64':
+            initial_catalog = catalog_bytes(migration, source_sha=source_sha,
+                source_root=ROOT / 'src', migration_root=ROOT / 'migrations')
+            outcome['build_catalog'] = json.loads(initial_catalog)
+            outcome['build_catalog_sha256'] = hashlib.sha256(initial_catalog).hexdigest()
         # Readiness is reached from the host through the internal network's
         # loopback publication. The authenticated smoke then uses that same URL.
         smoke(root, record)
@@ -79,9 +92,15 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
         for role in reversed(ROLES):
             engine.run(["stop", "--time=30", namespace(record) + "_" + role])
         start_stack(engine, manifest, record, root)
-        repeated = json.loads((root / "migration-receipt.json").read_text())
+        repeated = (read_json(root / 'migration-receipt.json') if target == 'linux-x86_64'
+                    else json.loads((root / "migration-receipt.json").read_text()))
         if repeated["migrations"] != migration["migrations"]:
             raise Refusal("migration replay checksums differ")
+        if target == 'linux-x86_64':
+            replay_catalog = catalog_bytes(repeated, source_sha=source_sha,
+                source_root=ROOT / 'src', migration_root=ROOT / 'migrations')
+            if replay_catalog != initial_catalog:
+                raise Refusal('native build catalog changed on replay')
         smoke(root, record)
         outcome["migration_replay"] = repeated
         outcome["restart_smoke"] = json.loads((root / "smoke-receipt.json").read_text())

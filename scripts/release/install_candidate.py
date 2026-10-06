@@ -419,7 +419,16 @@ def install(args: argparse.Namespace, package: Path, manifest: dict, engine: Pod
 
 
 
-def provision(engine: Podman, manifest: dict, root: Path, record: dict) -> None:
+def provision(engine: Podman, manifest: dict, root: Path, record: dict,
+              *, build_catalog_source=None) -> None:
+    if build_catalog_source is not None:
+        if (not isinstance(build_catalog_source, str)
+                or re.fullmatch(r'[0-9a-f]{40}', build_catalog_source) is None
+                or os.environ.get('GITHUB_ACTIONS') != 'true'
+                or platform.system() != 'Linux' or platform.machine() != 'x86_64'
+                or getattr(engine, 'architecture', None) != 'amd64'
+                or not isinstance(record, dict) or record.get('source_sha') != build_catalog_source):
+            raise Refusal('native build catalog invocation refused')
     label = ["--label", f'{LABEL}={record["installation"]}']
     engine.run(["network", "create", "--internal", *label, f"{namespace(record)}_net"])
     engine.run(["volume", "create", *label, f"{namespace(record)}_pgdata"])
@@ -440,7 +449,12 @@ def provision(engine: Podman, manifest: dict, root: Path, record: dict) -> None:
     migrate += ["--entrypoint=python", "--env", "CORTEX_V2_MIGRATOR_DATABASE_URL_FILE=/run/secrets/database-url-migrator",
                 "--env", "CORTEX_V2_FIXTURE_FILE=/run/secrets/fixture"]
     migrate += secret_args(record, "database-url-migrator", "database-url-migrator") + secret_args(record, "fixture", "fixture")
-    engine.run(migrate + [manifest["images"]["api"]["config_id"], "-m", "cortex_v2.migrate"])
+    if build_catalog_source is not None:
+        migrate += ['--env', 'GITHUB_ACTIONS=true']
+    migrate += [manifest["images"]["api"]["config_id"], "-m", "cortex_v2.migrate"]
+    if build_catalog_source is not None:
+        migrate += ['--linux-ci-build-catalog-source', build_catalog_source]
+    engine.run(migrate)
     for role in ROLES[1:]:
         command = container_args(role, record)
         command[0] = "create"
