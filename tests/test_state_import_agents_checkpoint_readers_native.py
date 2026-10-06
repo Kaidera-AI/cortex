@@ -5,7 +5,7 @@ import hashlib
 import pytest
 
 from fixtures.state_import_agents_native import agent_cluster, state_cluster
-from test_state_import_agents_native import setup, prepare
+from test_state_import_agents_native import PROJECTS, setup, prepare
 from test_state_import_agents_rework_native import no_authority
 from test_state_import_agents_checkpoints_native import (
     later_quarantine, ledger_count, no_advisory_locks,
@@ -34,7 +34,11 @@ def test_native_roster_reads_only_committed_prefix_before_later_quarantine(agent
             result = await engine.import_agents(pair["target"], snapshot, binding, policy)
             assert result["counts"] == {"migrated": 9, "quarantined": 1}
             assert result["functional_pass"] is False
-            assert await adapter.read_native_roster(pair["target"], binding.run_id) == roster
+            completed = await adapter.read_native_roster(pair["target"], binding.run_id)
+            assert len(completed) == 2
+            assert completed[0] == roster[0]
+            assert completed[1]["source_project_id"] == str(PROJECTS[2])
+            assert completed[1]["records"] == [] and completed[1]["roster_policy"] == {}
             assert await pair["target"].fetchval("SELECT count(*) FROM cortex_core.import_rows WHERE run_id=$1", project_run) == 12
             await no_authority(pair)
     asyncio.run(run())
