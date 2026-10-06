@@ -92,7 +92,8 @@ class LoopbackTransport:
             connection.request('GET', path, headers=dict(headers))
             response = connection.getresponse()
             raw = response.read(max_bytes + 1)
-            if len(raw) > max_bytes or time.monotonic() >= deadline:
+            if (len(raw) > max_bytes or time.monotonic() >= work_deadline
+                    or response.length not in (None, 0)):
                 raise ProvisionRefusal('cortex_health_unavailable')
             return response.status, raw
         except (OSError, ValueError, http.client.HTTPException):
