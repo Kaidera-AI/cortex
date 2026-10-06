@@ -10,6 +10,7 @@ import zipfile
 import zlib
 
 MAX_BINARY = 512 * 1024 * 1024
+MAX_COOKIE_WINDOW = 1024 * 1024
 MAX_MEMBER = 256 * 1024 * 1024
 MAX_EXPANDED = 1024 * 1024 * 1024
 MAX_MEMBERS = 100_000
@@ -56,12 +57,30 @@ def embedded_payloads(binary: Path):
     raw = binary.read_bytes()
     if len(raw) < COOKIE.size:
         raise RuntimeError('PyInstaller archive footer missing')
-    magic, package_size, toc_offset, toc_size, pyver, library = COOKIE.unpack(raw[-COOKIE.size:])
-    if (magic != MAGIC or pyver != 312 or not library.startswith(b'libpython3.12.so')
-            or package_size > len(raw) or package_size < COOKIE.size
-            or toc_offset + toc_size != package_size - COOKIE.size):
+    # ELF section names/headers can follow the PKG cookie. Search only a bounded
+    # tail, deriving the archive end from each candidate's actual position.
+    candidates = []
+    lower, cursor = max(0, len(raw) - MAX_COOKIE_WINDOW), len(raw)
+    while cursor > lower:
+        position = raw.rfind(MAGIC, lower, cursor)
+        if position < 0:
+            break
+        cursor = position
+        end = position + COOKIE.size
+        if end > len(raw):
+            continue
+        magic, package_size, toc_offset, toc_size, pyver, library = COOKIE.unpack_from(raw, position)
+        name, separator, padding = library.partition(b'\0')
+        if (pyver == 312 and separator and not padding.strip(b'\0')
+                and name in (b'libpython3.12.so', b'libpython3.12.so.1.0')
+                and COOKIE.size <= package_size <= end
+                and toc_offset + toc_size == package_size - COOKIE.size):
+            candidates.append((end - package_size, toc_offset, toc_size))
+    if len(candidates) > 1:
+        raise RuntimeError('ambiguous PyInstaller archive positions')
+    if not candidates:
         raise RuntimeError('PyInstaller archive footer or native Python binding invalid')
-    start = len(raw) - package_size
+    start, toc_offset, toc_size = candidates[0]
     toc = raw[start + toc_offset:start + toc_offset + toc_size]
     position, expanded, count, names = 0, 0, 0, set()
     while position < len(toc):
