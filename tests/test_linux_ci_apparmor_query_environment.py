@@ -8,9 +8,9 @@ import pytest
 from test_linux_ci_apparmor_userns import PATH, REAL
 
 CASES = [
-    ('query-missing', 'query', 'Linux', 'x86_64', 0, None, False, True),
-    ('query-false', 'query', 'Linux', 'x86_64', 0, 'false', False, True),
-    ('query-true', 'query', 'Linux', 'x86_64', 0, 'true', False, True),
+    ('query-missing', 'query', 'Linux', 'x86_64', 0, None, False, False),
+    ('query-false', 'query', 'Linux', 'x86_64', 0, 'false', False, False),
+    ('query-true', 'query', 'Linux', 'x86_64', 0, 'true', False, False),
     ('query-os', 'query', 'Darwin', 'x86_64', 0, 'true', False, False),
     ('query-arch', 'query', 'Linux', 'aarch64', 0, 'true', False, False),
     ('query-nonroot', 'query', 'Linux', 'x86_64', 1001, 'true', False, False),

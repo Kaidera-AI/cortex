@@ -5,7 +5,6 @@ import argparse
 import fnmatch
 import json
 import os
-import platform
 from pathlib import Path
 import re
 import shutil
@@ -139,7 +138,7 @@ def prepare_userns(*, capture=capture_command) -> dict:
         if _selected_podman() != selected:
             raise AppArmorRefused('podman_path_changed')
 
-    def command(stage, prefix, args, *, data=None, fact=False):
+    def command(stage, prefix, args, *, data=None, fact=False, allow_nonzero=False):
         step = {'stage': stage, 'exit_code': None, 'timed_out': None,
                 'overflow': None, 'launch_status': 'unknown', **_public_stream(None, 'stderr')}
         value['steps'].append(step)
@@ -158,32 +157,16 @@ def prepare_userns(*, capture=capture_command) -> dict:
             stdout = result.get('stdout')
             if fact:
                 value['facts'][stage] = _public_stream(stdout, 'stdout')
-            if (result['exit_code'] != 0 or step['timed_out'] or step['overflow']
+            if ((not allow_nonzero and result['exit_code'] != 0) or step['timed_out'] or step['overflow']
                     or not isinstance(stdout, bytes) or len(stdout) > (4096 if fact else 1048576)
                     or not isinstance(result.get('stderr'), bytes)):
                 raise ValueError
+            if stage == 'profile_load':
+                value['profile_loaded'] = True
             recheck()
-            return stdout
+            return result if allow_nonzero else stdout
         except Exception:
             raise AppArmorRefused('command_refused') from None
-
-    def coverage(stage):
-        raw = command(stage, PRIVILEGED + ['/usr/bin/python3'],
-            [str(Path(__file__).resolve()), '--profiles-for-path', selected['resolved_path']], fact=True)
-        def unique(pairs):
-            result = {}
-            for key, item in pairs:
-                if key in result:
-                    raise ValueError
-                result[key] = item
-            return result
-        parsed = json.loads(raw, object_pairs_hook=unique)
-        if (not isinstance(parsed, dict) or set(parsed) != {'covered', 'profile_count'}
-                or type(parsed['covered']) is not bool or type(parsed['profile_count']) is not int
-                or not 0 <= parsed['profile_count'] <= 1024):
-            raise AppArmorRefused('profile_coverage_unavailable')
-        value['facts'][stage]['coverage'] = parsed
-        return parsed['covered']
 
     try:
         if uid == 0 or os.geteuid() != uid:
@@ -201,15 +184,19 @@ def prepare_userns(*, capture=capture_command) -> dict:
         enabled_raw = command('enabled', ['cat'], ['/sys/module/apparmor/parameters/enabled'], fact=True)
         if enabled_raw not in (b'Y\n', b'N\n'):
             raise AppArmorRefused('apparmor_state_unavailable')
-        covered = coverage('coverage_before')
-        if restriction and enabled_raw == b'Y\n' and not covered:
+        probe = command('engine_info_before', [selected['resolved_path'], '--remote=false'],
+                        ['info', '--format=json'], allow_nonzero=True)
+        if probe['exit_code'] != 0:
+            stderr = probe['stderr'].decode('ascii')
+            refused = any(line in ('failed to reexec: Permission denied',
+                                   'Error: failed to reexec: Permission denied')
+                          for line in stderr.splitlines())
+            if not (0 < probe['exit_code'] <= 255 and refused and restriction and enabled_raw == b'Y\n'):
+                raise AppArmorRefused('command_refused')
             profile = ('abi <abi/4.0>,\ninclude <tunables/global>\n\n"' + selected['resolved_path']
                        + '" flags=(unconfined) {\n  userns,\n}\n').encode('ascii')
             command('profile_load', PRIVILEGED + ['apparmor_parser'], ['-r'], data=profile)
-            value['profile_loaded'] = True
-            if not coverage('coverage_after'):
-                raise AppArmorRefused('profile_not_effective')
-        command('engine_info', [selected['resolved_path'], '--remote=false'], ['info', '--format=json'])
+            command('engine_info_after', [selected['resolved_path'], '--remote=false'], ['info', '--format=json'])
         value['status'] = 'ready'
     except AppArmorRefused as error:
         value.update(status='refused', reason=error.code)
@@ -220,22 +207,9 @@ def prepare_userns(*, capture=capture_command) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--profiles-for-path')
     parser.add_argument('--source-sha')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    if args.profiles_for_path is not None:
-        if args.source_sha is not None or args.output is not None:
-            parser.error('one read-only coverage query required')
-        try:
-            if (platform.system() != 'Linux' or platform.machine() != 'x86_64'
-                    or os.geteuid() != 0):
-                raise AppArmorRefused('profile_query_requires_root_linux')
-            print(json.dumps(profile_coverage(args.profiles_for_path), sort_keys=True))
-        except AppArmorRefused:
-            print('{"covered":null,"profile_count":0}')
-            raise SystemExit(1) from None
-        return
     native_context('linux-x86_64')
     if args.source_sha is None or not re.fullmatch(r'[0-9a-f]{40}', args.source_sha):
         parser.error('exact source identity required')
