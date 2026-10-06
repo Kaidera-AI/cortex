@@ -65,7 +65,7 @@ def _attachment_snapshot(root: Path) -> dict:
             identity = lambda s: (s.st_dev, s.st_ino, s.st_mtime_ns, s.st_ctime_ns)
             total += len(raw)
             if (identity(before) != identity(after) or identity(after) != identity(current)
-                    or not raw or len(raw) > 4096 or total > 262144
+                    or not raw[:-1] or len(raw) > 4096 or total > 262144
                     or not raw.endswith(b'\n') or b'\n' in raw[:-1]
                     or any(c < 32 or c > 126 for c in raw[:-1])):
                 raise ValueError
@@ -109,8 +109,11 @@ def profile_coverage(path: str, *, policy_root: Path = POLICY) -> dict:
             raise ValueError
         covered = False; uncertain = False
         for _, attachment in first.values():
-            if attachment != '<unknown>' and not attachment.startswith('/'):
-                continue  # A named profile without an attachment cannot auto-attach.
+            if not attachment.startswith('/'):
+                if re.fullmatch(r'[A-Za-z0-9_.+-]+', attachment):
+                    continue  # A simple named profile cannot auto-attach.
+                uncertain = True
+                continue
             try:
                 covered |= any(fnmatch.fnmatchcase(path, p) for p in _patterns(attachment))
             except ValueError:
