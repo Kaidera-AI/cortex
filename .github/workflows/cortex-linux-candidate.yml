@@ -57,11 +57,19 @@ jobs:
           brew update
           brew install podman --force-bottle
           if test -n "$(brew outdated podman)"; then brew upgrade podman --force-bottle; fi
+          brew install crun --force-bottle
+          if test -n "$(brew outdated crun)"; then brew upgrade crun --force-bottle; fi
           test "$(command -v podman)" = /home/linuxbrew/.linuxbrew/bin/podman
-          podman --remote=false version
           brew info --json=v2 podman
+          brew info --json=v2 crun
           echo /home/linuxbrew/.linuxbrew/bin >> "$GITHUB_PATH"
           echo /home/linuxbrew/.linuxbrew/sbin >> "$GITHUB_PATH"
+      - name: Bind current stock Linuxbrew crun for Podman and Buildah
+        run: >-
+          python3 scripts/release/linux_ci_runtime.py
+          --runner-temp "$RUNNER_TEMP" --github-env "$GITHUB_ENV"
+      - name: Observe local engine using the bound runtime and fresh storage
+        run: podman --remote=false version
       - name: Build immutable OCI images and package inventory
         env:
           CANDIDATE_SHA: ${{ github.sha }}
@@ -101,11 +109,27 @@ jobs:
         env:
           CANDIDATE_SHA: ${{ github.sha }}
           CANDIDATE_VERSION: ${{ needs.identity.outputs.version }}
+          LD_LIBRARY_PATH: ${{ runner.temp }}/cortex-native-runtime/openssl/lib:${{ runner.temp }}/cortex-native-runtime/python/lib
         run: >-
           "$RUNNER_TEMP/cortex-native-runtime/venv/bin/python" scripts/release/build-candidate.py host --target linux-x86_64
           --source-sha "$CANDIDATE_SHA" --version "$CANDIDATE_VERSION"
           --runtime "$RUNNER_TEMP/cortex-native-runtime"
           --output "$RUNNER_TEMP/cortex-host"
+      - name: Qualify both bundled OpenSSL closures and actual loaded libraries
+        run: >-
+          "$RUNNER_TEMP/cortex-native-runtime/venv/bin/python" scripts/release/linux_runtime_closure.py
+          --runtime "$RUNNER_TEMP/cortex-native-runtime"
+          --binary "$RUNNER_TEMP/cortex-host/bin/cortex-test"
+          --binary "$RUNNER_TEMP/cortex-host/bin/cortex-agent"
+          --output "$RUNNER_TEMP/cortex-host/openssl-closure.json"
+      - name: Retain refused binary bytes as CI evidence only
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cortex-linux-refused-binaries-${{ github.sha }}
+          path: ${{ runner.temp }}/cortex-host/bin
+          if-no-files-found: ignore
+          retention-days: 3
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cortex-linux-host-${{ github.sha }}
