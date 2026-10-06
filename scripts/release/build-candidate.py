@@ -103,9 +103,10 @@ def spdx_document(name: str, identity: str, packages: list[dict]) -> dict:
             "comment": "Installed-package inventory; not a vulnerability or license-acceptance verdict."}
 
 
-def sbom(image: str, role: str, identity: str) -> dict:
+def sbom(image: str, role: str, identity: str, target: str = "macos-arm64") -> dict:
     packages = []
-    system = run(["podman", "run", "--rm", "--pull=never", "--network=none", "--entrypoint=dpkg-query",
+    prefix = ["podman", "--remote=false"] if native_target(target) == "amd64" else ["podman"]
+    system = run(prefix + ["run", "--rm", "--pull=never", "--network=none", "--entrypoint=dpkg-query",
                   image, "-W", "-f=${Package}\t${Version}\t${Architecture}\n"], read=True)
     for index, line in enumerate(system.splitlines()):
         name, version, arch = line.split("\t")
@@ -115,7 +116,7 @@ def sbom(image: str, role: str, identity: str) -> dict:
                                            "referenceLocator": f"pkg:deb/debian/{quote(name)}@{quote(version)}?arch={quote(arch)}"}]})
     if role != "db":
         code = "import importlib.metadata,json; print(json.dumps(sorted((d.metadata['Name'],d.version) for d in importlib.metadata.distributions())))"
-        python_packages = json.loads(run(["podman", "run", "--rm", "--pull=never", "--network=none",
+        python_packages = json.loads(run(prefix + ["run", "--rm", "--pull=never", "--network=none",
                                           "--entrypoint=python", image, "-c", code], read=True))
         for index, (name, version) in enumerate(python_packages):
             packages.append({"SPDXID": f"SPDXRef-python-{index}", "name": name, "versionInfo": version,
@@ -135,15 +136,15 @@ def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64"
     if platform.system() != "Linux" or platform.machine() not in machines:
         raise RuntimeError("native Linux " + architecture + " builder required; no emulation")
     source_identity(source_sha)
+    prefix = ["podman", "--remote=false"] if architecture == "amd64" else ["podman"]
     bases, policy, provider = None, None, None
     if architecture == "amd64":
         from linux_recipe_parity import verify_recipe_parity
-        from podman_policy import validate_versions
+        from podman_policy import validate_linuxbrew_provider, validate_local_version
         bases = verify_recipe_parity(ROOT)
-        policy = validate_versions(run(["podman", "version", "--format", "{{.Client.Version}} {{.Server.Version}}"], read=True))
-        provider = json.loads(run(["brew", "info", "--json=v2", "podman"], read=True))
-        if not provider.get("formulae") or not provider["formulae"][0].get("installed"):
-            raise RuntimeError("Linuxbrew current Podman installation receipt required")
+        policy = validate_local_version(run(prefix + ["version", "--format", "{{.Client.Version}}"], read=True))
+        metadata = json.loads(run(["brew", "info", "--json=v2", "podman"], read=True))
+        provider = dict(validate_linuxbrew_provider(metadata, policy['engine_version']), metadata=metadata)
     if out.exists():
         raise RuntimeError("build output already exists; candidate bytes are immutable")
     out.mkdir(parents=True)
@@ -152,7 +153,7 @@ def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64"
     entries = {}
     for role, role_target in TARGETS.items():
         tag = f"localhost/cortex-v2-test-{role}:{version}"
-        command = ["podman", "build", "--format=oci", "--layers", "--label", f"org.opencontainers.image.revision={source_sha}",
+        command = prefix + ["build", "--format=oci", "--layers", "--label", f"org.opencontainers.image.revision={source_sha}",
                    "--label", f"org.opencontainers.image.version={version}", "--label", "com.kaidera.deployment-class=TEST", "--tag", tag]
         if role_target is None:
             command += ["--file", str(ROOT / ("deploy/release/Containerfile.db.linux-amd64" if architecture == "amd64" else "deploy/release/Containerfile.db"))]
@@ -160,14 +161,14 @@ def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64"
             command += ["--target", role_target, "--file", str(ROOT / ("deploy/release/Dockerfile.linux-amd64" if architecture == "amd64" else "Dockerfile"))]
         run(command + [str(ROOT)])
         archive = out / "images" / f"{role}.oci.tar"
-        run(["podman", "save", "--format=oci-archive", "--output", str(archive), tag])
+        run(prefix + ["save", "--format=oci-archive", "--output", str(archive), tag])
         identity = oci_identity(archive, architecture=architecture)
         identity["archive"] = f"images/{role}.oci.tar"
         entries[role] = identity
-        (out / "sbom" / f"{role}.spdx.json").write_text(json.dumps(sbom(tag, role, f"{version}-{role}-{identity['manifest_digest'][7:]}"), indent=2) + "\n")
+        (out / "sbom" / f"{role}.spdx.json").write_text(json.dumps(sbom(tag, role, f"{version}-{role}-{identity['manifest_digest'][7:]}", target=target), indent=2) + "\n")
     selected_target = "linux-x86_64" if architecture == "amd64" else "macos-arm64"
     (out / "image-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": selected_target, "images": entries,
-            "builder": {"podman": run(["podman", "version", "--format", "{{.Client.Version}}"], read=True),
+            "builder": {"podman": run(prefix + ["version", "--format", "{{.Client.Version}}"], read=True),
                         "system": platform.platform(), "architecture": platform.machine(),
                         "podman_minimum_receipt": policy, "podman_provider": provider,
                         "recipe_parity": bases}}, indent=2) + "\n")

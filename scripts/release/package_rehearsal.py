@@ -30,6 +30,8 @@ class NativeBuilder(Podman):
             raise Refusal("builder Podman unavailable")
         self.prefix = [executable]
         if self.architecture == "amd64":
+            self.prefix.append("--remote=false")
+            self.local_abi = True
             self.preflight()
         if self.run(["info", "--format", "{{.Host.Security.Rootless}}"], read=True) != "true":
             raise Refusal("package rehearsal requires rootless Podman")

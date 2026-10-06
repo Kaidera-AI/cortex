@@ -26,3 +26,15 @@ rpath beyond the bootstrap process. Packaged help runs without inherited
 builder library or Python search paths. All additions are committed tests first;
 all inherited and earlier additive test bytes remain frozen. Source GREEN is
 followed by one fresh final author check; it is not native artifact admission.
+
+## Final author repair
+
+The first final author at4552086 returned R198-F001: a local Podman ABI has
+Client only, so the remote Client/Server template fails before image build and
+rehearsal. Its source, full GREEN and report remain preserved. A separate frozen
+21-case full supplemental RED captures explicit native-local query/mode and
+current Linuxbrew provider/version/bottle custody before repair. Mac remote
+pair validation remains unchanged. Linux build, SBOM, save and rehearsal
+commands force --remote=false, use the one reported in-process ABI version and
+never invent a Server. No CM-2 fixture/schema/provisioning change is made; the
+pending consumer ruling must retain this actual local-report distinction.

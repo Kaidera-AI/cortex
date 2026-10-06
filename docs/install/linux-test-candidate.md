@@ -34,17 +34,26 @@ verification. Once Linuxbrew is installed for the operator, run:
 
 ```sh
 brew update
-brew install podman
-if test -n "$(brew outdated podman)"; then brew upgrade podman; fi
-podman version
+brew install podman --force-bottle
+if test -n "$(brew outdated podman)"; then brew upgrade podman --force-bottle; fi
+podman --remote=false version
 brew info --json=v2 podman
 ```
 
-Record the provider receipt, actual client and server versions and native
-architecture. Both stable versions must be **6.0.2 or newer**. There is no
+Record the provider receipt, actual CLI/native-engine version and native
+architecture. Native local Podman reports `Client.Version` for the CLI and its
+in-process ABI engine; it has no separate `Server` record. The local commands
+force `--remote=false`. The remote Mac connection retains separate client and
+server checks. Each observed stable component must be **6.0.2 or newer**. There is no
 upper version ceiling. The dated denylist in `scripts/release/podman_policy.py`
 currently has no entries; an explicit denied version is refused with its date
-and reason. Future signed CM-2 manifests bind this policy on both consumers.
+and reason. Current formula identity, stable version/revision, linked installed
+keg, stock bottle receipt and observed local version must agree before any
+build. Homebrew verifies the bottle bytes; the inventory records its metadata
+and listed checksum. Future signed CM-2 manifests bind this policy on both
+consumers. The frozen proposed CM-2 contract remains awaiting Kai's ruling; its
+local version-report shape must reflect the native ABI without a fictional
+server.
 
 Do not use the old September Docker/npm setup. If the qualified Linuxbrew
 engine encounters SELinux or rootless trouble on kos-test, return a consult

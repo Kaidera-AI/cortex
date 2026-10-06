@@ -245,10 +245,14 @@ class Podman:
         return self.run([kind, "exists", name], allowed=(0, 1)) == "0"
 
     def preflight(self) -> None:
-        versions = self.run(["version", "--format", "{{.Client.Version}} {{.Server.Version}}"], read=True)
-        from podman_policy import validate_versions
+        from podman_policy import validate_local_version, validate_versions
         try:
-            self.version_receipt = validate_versions(versions)
+            if getattr(self, "local_abi", False):
+                version = self.run(["version", "--format", "{{.Client.Version}}"], read=True)
+                self.version_receipt = validate_local_version(version)
+            else:
+                versions = self.run(["version", "--format", "{{.Client.Version}} {{.Server.Version}}"], read=True)
+                self.version_receipt = validate_versions(versions)
         except ValueError as exc:
             raise Refusal(str(exc)) from None
         arch = self.run(["info", "--format", "{{.Host.Arch}}"], read=True)
