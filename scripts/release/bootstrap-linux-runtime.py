@@ -28,8 +28,11 @@ INPUTS = {
 
 
 def verify_archive(path: Path, expected: str) -> None:
+    checksum = hashlib.sha256()
     with path.open('rb') as handle:
-        actual = hashlib.file_digest(handle, 'sha256').hexdigest()
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            checksum.update(chunk)
+    actual = checksum.hexdigest()
     if actual != expected:
         raise RuntimeError('native runtime source archive digest mismatch')
 

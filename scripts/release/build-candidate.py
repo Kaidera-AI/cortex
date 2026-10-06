@@ -26,9 +26,16 @@ def run(args: list[str], *, read: bool = False) -> str:
     return result.stdout.strip() if read else ""
 
 
+def stream_digest(stream) -> str:
+    checksum = hashlib.sha256()
+    for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+        checksum.update(chunk)
+    return checksum.hexdigest()
+
+
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        return stream_digest(stream)
 
 
 def source_identity(source_sha: str) -> None:
@@ -83,7 +90,7 @@ def oci_identity(archive: Path, architecture: str = "arm64") -> dict:
             if not member.isfile() or member.size != layer["size"]:
                 raise RuntimeError("OCI layer length/type differs")
             with stream.extractfile(member) as handle:
-                if "sha256:" + hashlib.file_digest(handle, "sha256").hexdigest() != layer_digest:
+                if "sha256:" + stream_digest(handle) != layer_digest:
                     raise RuntimeError("OCI layer checksum differs")
         return {"manifest_digest": manifest_digest, "config_id": config_id,
                 "os": "linux", "architecture": architecture,
