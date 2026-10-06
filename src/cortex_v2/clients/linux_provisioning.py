@@ -853,3 +853,119 @@ class DeliveryJournal:
             return self._records(response, verify=verify, issued=issued)
         except Exception:
             return False
+
+
+@contextmanager
+def admitted_recipients(runtime_root: Path, args: dict, response: dict,
+                        *, kos_policy: dict, journal: DeliveryJournal,
+                        deadline: float | None = None):
+    """Hold both exact private records through delivery, readiness and publication.
+
+    The caller holds the operation lock and has journaled issuance with begin.
+    The yielded callback reauthenticates both recipients and returns metadata
+    only. Receipt replay reads existing records without delivering any token.
+    """
+    snapshots = {}; members = {}; active = False; private = None
+    try:
+        request = strict_json(json.dumps(args, ensure_ascii=False, allow_nan=False).encode())
+        private = strict_json(json.dumps(response, ensure_ascii=False, allow_nan=False).encode())
+        policy = strict_json(json.dumps(kos_policy, ensure_ascii=False, allow_nan=False).encode())
+        body = validate_request(request); issued = _response(private, body)
+        now = time.monotonic()
+        if deadline is None: deadline = now + 60
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or not now < deadline <= now + 60
+                or not isinstance(journal, DeliveryJournal) or journal.body != body):
+            raise ProvisionRefusal('cortex_provisioning_setup_required')
+        context = read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline)
+        store = journal.store
+        if context['installation_id'] != journal.installation:
+            raise ProvisionRefusal('cortex_instance_mismatch')
+        active = True
+
+        def records():
+            if not active or time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            try:
+                if store.installation != journal.installation or store.backend != 'file':
+                    raise ValueError
+                current = {}
+                for role, label in (('lead', body['lead_name']), ('console', 'console')):
+                    record = store.read(body['project_key'], label)
+                    receipt = private[role]
+                    if (record is None or not isinstance(record.token, str)
+                            or re.fullmatch(r'[A-Za-z0-9_-]{43}', record.token) is None
+                            or record.metadata.managed_by != receipt['manager']
+                            or record.metadata.expires_at != receipt['expires_at']
+                            or record.metadata.due_state(datetime.datetime.now(datetime.timezone.utc)) == 'expired'):
+                        raise ValueError
+                    previous = snapshots.get(role)
+                    if previous is not None and (record.metadata != previous.metadata
+                            or not hmac.compare_digest(record.token, previous.token)):
+                        raise ProvisionRefusal('cortex_credential_refused')
+                    current[role] = record
+                if not snapshots: snapshots.update(current)
+                return current
+            except PrerequisiteRefusal:
+                raise
+            except Exception:
+                raise ProvisionRefusal('cortex_credential_unavailable') from None
+
+        def runtime_check():
+            records()
+            if read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline) != context:
+                raise ProvisionRefusal('cortex_instance_mismatch')
+            records()
+
+        class PinnedStore:
+            @property
+            def installation(self): return store.installation
+            @property
+            def backend(self): return store.backend
+            def read(self, project, label):
+                runtime_check()
+                if project != body['project_key'] or label not in (body['lead_name'], 'console'):
+                    raise ProvisionRefusal('cortex_credential_refused')
+                return records()['lead' if label == body['lead_name'] else 'console']
+
+        def verify(role, record, principal):
+            runtime_check()
+            expected = snapshots[role]
+            if (principal != private[role]['principal_id'] or record.metadata != expected.metadata
+                    or not hmac.compare_digest(record.token, expected.token)):
+                raise ProvisionRefusal('cortex_credential_refused')
+            member = read_recipient_admission(runtime_root, request, private, role,
+                kos_policy=policy, store=PinnedStore(), deadline=deadline)
+            runtime_check()
+            if (role in members and member != members[role]
+                    or any(member['roster_revision'] != prior['roster_revision']
+                           for prior in members.values())):
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+            members[role] = member
+            return True
+
+        if issued:
+            journal.persist(private, verify=verify)
+        elif journal.complete(private, verify=verify) is not True:
+            raise ProvisionRefusal('cortex_provisioning_reissue_required')
+        if set(members) != {'lead', 'console'}:
+            raise ProvisionRefusal('cortex_provisioning_reissue_required')
+        runtime_check()
+
+        def recheck():
+            runtime_check()
+            for role, record in records().items():
+                verify(role, record, private[role]['principal_id'])
+            runtime_check()
+            return {role: dict(member) for role, member in members.items()}
+
+        yield recheck
+        runtime_check()
+    except PrerequisiteRefusal:
+        raise
+    except Exception:
+        raise ProvisionRefusal('cortex_provisioning_reissue_required') from None
+    finally:
+        active = False
+        snapshots.clear(); members.clear()
+        if isinstance(private, dict): private.clear()
