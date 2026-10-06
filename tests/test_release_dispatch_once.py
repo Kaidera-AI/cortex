@@ -14,6 +14,11 @@ MANUAL = 'on:\n  workflow_dispatch:\n'
 
 @pytest.fixture
 def subject():
+    # Load inside each case so a missing canonical entry point is a test failure.
+    return load_subject
+
+
+def load_subject():
     spec = importlib.util.spec_from_file_location("dispatch_once", ROOT / "scripts/release/dispatch-once.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -45,12 +50,13 @@ class Github:
 
 
 def run(subject, workflow, github, sha=SHA):
-    return subject.dispatch_once(sha, workflow, github, github.wait)
+    return subject().dispatch_once(sha, workflow, github, github.wait)
 
 
 def refused(subject, workflow, github, code, sha=SHA):
-    with pytest.raises(subject.DispatchRefused) as exc:
-        run(subject, workflow, github, sha)
+    module = subject()
+    with pytest.raises(module.DispatchRefused) as exc:
+        module.dispatch_once(sha, workflow, github, github.wait)
     assert exc.value.code == code
     assert not any(call[0] == "dispatch" for call in github.calls)
     return github.calls
