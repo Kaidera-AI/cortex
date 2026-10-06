@@ -68,6 +68,12 @@ jobs:
         run: >-
           python3 scripts/release/linux_ci_runtime.py
           --runner-temp "$RUNNER_TEMP" --github-env "$GITHUB_ENV"
+      - name: Observe AppArmor and conditionally allow exact Podman user namespaces
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: >-
+          python3 scripts/release/linux_ci_apparmor.py
+          --source-sha "$CANDIDATE_SHA" --output "$RUNNER_TEMP/cortex-linux-diagnostics"
       - name: Read-only systemd and effective CPU memory pids delegation
         env:
           CANDIDATE_SHA: ${{ github.sha }}
