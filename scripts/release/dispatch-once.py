@@ -161,7 +161,9 @@ def main():
                 return subprocess.check_output(["git", "-C", str(ROOT), *parts], text=True).strip()
             if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
                 raise DispatchRefused("clean_exact_source_required")
-            workflow = (ROOT / ".github/workflows" / WORKFLOW).read_text()
+            workflow_path = ROOT / ".github/workflows" / WORKFLOW
+            workflow_bytes = workflow_path.read_bytes()
+            workflow = workflow_bytes.decode("utf-8")
             tool_path = Path(__file__)
             tool_bytes = tool_path.read_bytes()
             record.update(review_sha256=hashlib.sha256(review_bytes).hexdigest(), admission=admission)
@@ -176,7 +178,7 @@ def main():
                         raise DispatchRefused("review_receipt_changed")
                     if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
                         raise DispatchRefused("clean_exact_source_required")
-                    if tool_path.read_bytes() != tool_bytes or (ROOT / ".github/workflows" / WORKFLOW).read_text() != workflow:
+                    if tool_path.read_bytes() != tool_bytes or workflow_path.read_bytes() != workflow_bytes:
                         raise DispatchRefused("source_or_workflow_changed")
                 return original_request(endpoint, body)
             github.request = request
