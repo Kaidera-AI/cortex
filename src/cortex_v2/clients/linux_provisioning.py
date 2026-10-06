@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+import contextvars
+import copy
 import fcntl
 import datetime
 import hashlib
@@ -412,7 +414,7 @@ NETWORK_PROJECTION = ('{"name":{{json .Name}},"id":{{json .ID}},"internal":{{jso
     '"owner":{{json (index .Labels "com.kaidera.candidate")}}}')
 
 
-def read_linux_runtime(runtime_root: Path, *, kos_policy: dict,
+def _read_linux_runtime_uncached(runtime_root: Path, *, kos_policy: dict,
                        deadline: float | None = None) -> dict:
     """Bind exact owned live objects to signed bytes through fixed public projections."""
     now = time.monotonic()
@@ -518,6 +520,127 @@ def read_linux_runtime(runtime_root: Path, *, kos_policy: dict,
         return {**binding, 'containers': containers, 'network_id': network_id}
     except (OSError, ValueError, TypeError, KeyError):
         raise PrerequisiteRefusal('cortex_image_mismatch') from None
+
+
+_RUNTIME_OBSERVATION = contextvars.ContextVar('cortex_linux_runtime_observation', default=None)
+
+
+class _RuntimeObservation:
+    def __init__(self, root, policy, deadline):
+        self.root = root; self.policy = strict_json(json.dumps(policy, allow_nan=False).encode())
+        self.deadline = deadline; self.markers = []; self.context = None
+        self.local = _local_engine_context()
+        release = custody.validate_release_manifest(strict_json(custody.read_private_bytes(
+            root / 'signed/release.json', limit=1048576), limit=1048576), target='linux-x86_64')
+        inner = strict_json(custody.read_private_bytes(root / 'package/release.json', limit=1048576), limit=1048576)
+        package = root / 'package'
+        self.paths = [root / 'install.json', package / 'release.json', root / 'signed/release.json',
+                      root / 'signed/release.json.minisig', root / 'signed' / release['archive']['name']]
+        for name in inner['files']:
+            part = Path(name)
+            if (not name or part.is_absolute() or part.as_posix() != name
+                    or any(p in ('.', '..') for p in name.split('/'))): raise ValueError
+            self.paths.append(package / part)
+        if (package / 'SHA256SUMS').exists(): self.paths.append(package / 'SHA256SUMS')
+        self.parents = {}; self.files = {}
+        for path in self.paths:
+            self.parents.update(custody._parents(path))
+            self.files[path] = (custody._file_identity(path.lstat()), path.lstat().st_ctime_ns)
+        self.inventory = self.package_inventory()
+
+    def package_inventory(self):
+        result = {}; pending = [self.root / 'package']; count = 0
+        while pending:
+            directory = pending.pop()
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    count += 1
+                    if count > 8192: raise ValueError
+                    path = Path(entry.path); info = path.lstat()
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(path); result[path] = ('directory', custody._directory_identity(info))
+                    elif stat.S_ISREG(info.st_mode): result[path] = ('file', custody._file_identity(info), info.st_ctime_ns)
+                    else: raise ValueError
+        return result
+
+    def check(self, root=None, policy=None, deadline=None):
+        try:
+            if root is not None and root != self.root: raise ValueError
+            if policy is not None and policy != self.policy: raise ValueError
+            if deadline is not None and (type(deadline) not in (int, float) or not math.isfinite(deadline)):
+                raise ValueError
+            if time.monotonic() >= min(self.deadline, self.deadline if deadline is None else deadline):
+                raise ProvisionRefusal('cortex_health_unavailable')
+            custody._recheck_parents(self.parents)
+            if (_local_engine_context() != self.local or self.package_inventory() != self.inventory
+                    or any((custody._file_identity(path.lstat()), path.lstat().st_ctime_ns) != value
+                           for path, value in self.files.items())):
+                raise ValueError
+        except (OSError, ValueError, KeyError, TypeError):
+            raise ProvisionRefusal('cortex_image_mismatch') from None
+
+    def revoke_markers(self):
+        for path, marker in reversed(self.markers):
+            directory = None
+            try:
+                custody._recheck_parents(marker['parents'])
+                directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                if custody._directory_identity(os.fstat(directory)) != marker['parents'][path.parent]: continue
+                info = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+                if (custody._file_identity(info), info.st_ctime_ns) != marker['identity']: continue
+                os.unlink(path.name, dir_fd=directory); os.fsync(directory)
+            except Exception:
+                pass
+            finally:
+                if directory is not None:
+                    try: os.close(directory)
+                    except OSError: pass
+
+
+@contextmanager
+def runtime_observation_scope(runtime_root: Path, *, kos_policy: dict, deadline: float | None = None):
+    """Two full measurements, with live custody checks through one operation."""
+    state = None; token = None
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 30
+        if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+            raise ProvisionRefusal('cortex_health_unavailable')
+        deadline = min(deadline, now + 60)
+        previous = _RUNTIME_OBSERVATION.get()
+        if previous is not None:
+            previous.check(runtime_root, kos_policy, deadline)
+            yield previous
+            previous.check(runtime_root, kos_policy, deadline)
+            return
+        state = _RuntimeObservation(runtime_root, kos_policy, deadline)
+        state.check()
+        state.context = _read_linux_runtime_uncached(runtime_root, kos_policy=state.policy, deadline=deadline)
+        state.check()
+        token = _RUNTIME_OBSERVATION.set(state)
+        yield state
+        _RUNTIME_OBSERVATION.reset(token); token = None
+        state.check()
+        final = _read_linux_runtime_uncached(runtime_root, kos_policy=state.policy, deadline=deadline)
+        state.check()
+        if final != state.context: raise ProvisionRefusal('cortex_instance_mismatch')
+    except BaseException as error:
+        if state is not None: state.revoke_markers()
+        if isinstance(error, PrerequisiteRefusal): raise
+        raise ProvisionRefusal('cortex_image_mismatch') from None
+    finally:
+        if token is not None: _RUNTIME_OBSERVATION.reset(token)
+        if state is not None:
+            state.markers.clear()
+            if isinstance(state.context, dict): state.context.clear()
+
+
+def read_linux_runtime(runtime_root: Path, *, kos_policy: dict, deadline: float | None = None) -> dict:
+    observation = _RUNTIME_OBSERVATION.get()
+    if observation is None:
+        return _read_linux_runtime_uncached(runtime_root, kos_policy=kos_policy, deadline=deadline)
+    observation.check(runtime_root, kos_policy, deadline)
+    return copy.deepcopy(observation.context)
 
 
 def read_linux_host_security(runtime_root: Path, *, kos_policy: dict,
@@ -1775,7 +1898,11 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
             # its newly linked name until its return registers that identity.
             result = _publish_private_once(path, value, check)
             published[path] = result
-            if path == descriptor_file: marker = result
+            if path == descriptor_file:
+                marker = result
+                observation = _RUNTIME_OBSERVATION.get()
+                if observation is not None and result['created']:
+                    observation.markers.append((path, result))
             output_check()
         ready()
         output_check()

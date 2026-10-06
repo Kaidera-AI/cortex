@@ -133,6 +133,14 @@ def _frame(value):
         raise NativeRefusal('cortex_provisioning_setup_required') from None
 
 
+async def _select_readiness_scope(connection, principal, project):
+    from . import store
+    context = await store.resolve_scopes(connection, principal, project, [project], write=False)
+    if context.selected.kind != 'project' or context.selected.can_read is not True:
+        raise NativeRefusal('cortex_credential_refused')
+    return context
+
+
 async def execute_private(value: dict, *, settings=None, connect=None) -> dict:
     mode, body = _frame(value)
     if mode == 'payload':
@@ -168,9 +176,13 @@ async def execute_private(value: dict, *, settings=None, connect=None) -> dict:
                     _, result, _ = await identity.create_project(connection, principal, settings.token_pepper,
                                                                    body, value['idempotency_key'])
                     return result
-                return await read_native_database(connection, principal, project=value['project'],
+                scope = await _select_readiness_scope(connection, principal, value['project'])
+                result = await read_native_database(connection, principal, project=value['project'],
                            project_root=value['project_root'], migrations=value['migrations'],
                            expected_relations=value['expected_relations'])
+                if result['project_binding']['scope_id'] != str(scope.selected.scope_id):
+                    raise NativeRefusal('cortex_instance_mismatch')
+                return result
     except NativeRefusal:
         raise
     except store.ApiProblem as error:

@@ -5,6 +5,7 @@ This module has no provisioning, engine mutation, ambient credentials or DB acce
 from __future__ import annotations
 
 import datetime
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -15,6 +16,7 @@ import secrets
 import shutil
 import stat
 import subprocess
+import sys
 import time
 import uuid
 from urllib.parse import quote
@@ -232,6 +234,90 @@ def atomic_private_json(path: Path, value: dict, *, limit: int = 65536) -> None:
         raise PrerequisiteRefusal('cortex_descriptor_invalid') from None
 
 
+# Independent verifier selection is code-owned. No descriptor, request, PATH or
+# runtime manifest can provide this trust root. The Mac entries are the pinned
+# local source-verification tools, not a standalone Linux verifier release.
+_MINISIGN_VERIFIERS = {
+    'linux': ('/usr/bin/minisign', 0, None, ()),
+    'darwin': ('/opt/homebrew/Cellar/minisign/0.12/bin/minisign', 'self',
+        'bc3124c608881bea3a2e71ed5d6acea39ff0415a2e436b676b9e7d3b4c666392',
+        (('/opt/homebrew/Cellar/libsodium/1.0.22/lib/libsodium.26.dylib',
+          '0721476f42bdf7533bc9de57908cc3bfaaf8a1396d20f7fba59a7d6cb0826282',
+          '/opt/homebrew/opt/libsodium/lib/libsodium.26.dylib'),)),
+}
+_MINISIGN_GROUP_PARENT_CUSTODY = frozenset({Path('/opt/homebrew/Cellar')})
+
+
+@contextmanager
+def _signature_verifier():
+    """Hold the trusted executable and dependency identities across execution."""
+    descriptors = []; files = {}; parents = {}; changing_parents = {}; aliases = {}
+    try:
+        name, owner, digest, dependencies = _MINISIGN_VERIFIERS[sys.platform]
+        owner = os.getuid() if owner == 'self' else owner
+        executable = Path(name)
+        def identity(info): return _file_identity(info), info.st_ctime_ns
+        def retain(path, expected, *, executable=False):
+            physical_path(path)
+            for parent in path.parents:
+                info = parent.lstat()
+                pinned_group = (expected is not None and owner == os.getuid()
+                    and parent in _MINISIGN_GROUP_PARENT_CUSTODY
+                    and info.st_uid == owner and stat.S_IMODE(info.st_mode) == 0o775)
+                if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, owner)
+                        or stat.S_IMODE(info.st_mode) & 0o022 and not pinned_group): raise ValueError
+                parents[parent] = _directory_identity(info)
+                if info.st_uid == owner and owner != 0 and (not executable or pinned_group):
+                    changing_parents[parent] = (parents[parent], info.st_ctime_ns)
+            changing_parents[path.parent] = (parents[path.parent], path.parent.stat().st_ctime_ns)
+            before = path.lstat()
+            if (not stat.S_ISREG(before.st_mode) or before.st_uid != owner or before.st_nlink != 1
+                    or stat.S_IMODE(before.st_mode) & 0o022 or executable and not before.st_mode & stat.S_IXUSR
+                    or before.st_size > 16 * 1024 * 1024 or expected is None and owner != 0): raise ValueError
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK); descriptors.append(fd)
+            if identity(os.fstat(fd)) != identity(before): raise ValueError
+            if expected is not None:
+                if not HEX.fullmatch(expected): raise ValueError
+                actual = hashlib.sha256()
+                while chunk := os.read(fd, 65536): actual.update(chunk)
+                os.lseek(fd, 0, os.SEEK_SET)
+                if actual.hexdigest() != expected: raise ValueError
+            files[path] = (fd, identity(before))
+        retain(executable, digest, executable=True)
+        for name, digest, alias in dependencies:
+            path = Path(name); retain(path, digest)
+            selected = Path(alias)
+            if selected.resolve(strict=True) != path: raise ValueError
+            # A transient library-name swap must also change one of these dirs.
+            for parent in (selected.parent, *selected.parents):
+                info = parent.stat()
+                if info.st_uid == owner:
+                    changing_parents[parent] = (_directory_identity(info), info.st_ctime_ns)
+            aliases[selected] = path
+        def check():
+            _recheck_parents(parents)
+            for path, (fd, expected) in files.items():
+                if identity(path.lstat()) != expected or identity(os.fstat(fd)) != expected: raise ValueError
+            for path, expected in changing_parents.items():
+                info = path.stat()
+                if (_directory_identity(info), info.st_ctime_ns) != expected: raise ValueError
+            if any(alias.resolve(strict=True) != path for alias, path in aliases.items()): raise ValueError
+        check()
+        fd = descriptors[0]
+        yield {'executable': ('/proc/self/fd/' if sys.platform == 'linux' else '/dev/fd/') + str(fd),
+               'pass_fds': (fd,), 'environment': {'PATH': '/usr/bin:/bin', 'LANG': 'C', 'LC_ALL': 'C'},
+               'check': check}
+        check()
+    except (OSError, KeyError, TypeError, ValueError, PrerequisiteRefusal):
+        raise PrerequisiteRefusal('cortex_release_signature_invalid') from None
+    finally:
+        failed = False
+        for fd in descriptors:
+            try: os.close(fd)
+            except OSError: failed = True
+        if failed: raise PrerequisiteRefusal('cortex_release_signature_invalid') from None
+
+
 def verify_signature(manifest: Path, signature: Path, *, trusted_public_key: str = RELEASE_PUBLIC_KEY,
                      timeout: float = 5) -> None:
     try:
@@ -240,9 +326,16 @@ def verify_signature(manifest: Path, signature: Path, *, trusted_public_key: str
         before = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
         if not re.fullmatch(r'[A-Za-z0-9+/]{56}', trusted_public_key):
             raise ValueError
-        result = subprocess.run([shutil.which('minisign') or 'minisign', '-V', '-P', trusted_public_key,
-                                 '-m', str(manifest), '-x', str(signature)],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
+        deadline = time.monotonic() + timeout
+        with _signature_verifier() as verifier:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0: raise ValueError
+            result = subprocess.run([verifier['executable'], '-V', '-P', trusted_public_key,
+                                     '-m', str(manifest), '-x', str(signature)],
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, env=verifier['environment'],
+                                    close_fds=True, pass_fds=verifier['pass_fds'], timeout=remaining)
+            verifier['check']()
         after = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
         if result.returncode != 0 or before != after:
             raise ValueError
