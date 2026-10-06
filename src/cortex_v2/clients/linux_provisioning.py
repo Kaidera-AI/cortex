@@ -551,9 +551,11 @@ class _RuntimeObservation:
     def package_inventory(self):
         result = {}; pending = [self.root / 'package']; count = 0
         while pending:
+            if time.monotonic() >= self.deadline: raise ProvisionRefusal('cortex_health_unavailable')
             directory = pending.pop()
             with os.scandir(directory) as entries:
                 for entry in entries:
+                    if time.monotonic() >= self.deadline: raise ProvisionRefusal('cortex_health_unavailable')
                     count += 1
                     if count > 8192: raise ValueError
                     path = Path(entry.path); info = path.lstat()
@@ -561,6 +563,7 @@ class _RuntimeObservation:
                         pending.append(path); result[path] = ('directory', custody._directory_identity(info))
                     elif stat.S_ISREG(info.st_mode): result[path] = ('file', custody._file_identity(info), info.st_ctime_ns)
                     else: raise ValueError
+        if time.monotonic() >= self.deadline: raise ProvisionRefusal('cortex_health_unavailable')
         return result
 
     def check(self, root=None, policy=None, deadline=None):
@@ -576,6 +579,8 @@ class _RuntimeObservation:
                     or any((custody._file_identity(path.lstat()), path.lstat().st_ctime_ns) != value
                            for path, value in self.files.items())):
                 raise ValueError
+            if time.monotonic() >= min(self.deadline, self.deadline if deadline is None else deadline):
+                raise ProvisionRefusal('cortex_health_unavailable')
         except (OSError, ValueError, KeyError, TypeError):
             raise ProvisionRefusal('cortex_image_mismatch') from None
 
@@ -640,7 +645,9 @@ def read_linux_runtime(runtime_root: Path, *, kos_policy: dict, deadline: float 
     if observation is None:
         return _read_linux_runtime_uncached(runtime_root, kos_policy=kos_policy, deadline=deadline)
     observation.check(runtime_root, kos_policy, deadline)
-    return copy.deepcopy(observation.context)
+    result = copy.deepcopy(observation.context)
+    observation.check(runtime_root, kos_policy, deadline)
+    return result
 
 
 def read_linux_host_security(runtime_root: Path, *, kos_policy: dict,

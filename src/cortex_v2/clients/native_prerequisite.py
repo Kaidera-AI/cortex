@@ -245,13 +245,13 @@ _MINISIGN_VERIFIERS = {
           '0721476f42bdf7533bc9de57908cc3bfaaf8a1396d20f7fba59a7d6cb0826282',
           '/opt/homebrew/opt/libsodium/lib/libsodium.26.dylib'),)),
 }
-_MINISIGN_GROUP_PARENT_CUSTODY = frozenset({Path('/opt/homebrew/Cellar')})
+_MINISIGN_GROUP_PARENT_CUSTODY = frozenset({Path('/opt/homebrew/Cellar'), Path('/opt/homebrew/opt')})
 
 
 @contextmanager
 def _signature_verifier():
     """Hold the trusted executable and dependency identities across execution."""
-    descriptors = []; files = {}; parents = {}; changing_parents = {}; aliases = {}
+    descriptors = []; files = {}; parents = {}; changing_parents = {}; aliases = {}; alias_nodes = {}
     try:
         name, owner, digest, dependencies = _MINISIGN_VERIFIERS[sys.platform]
         owner = os.getuid() if owner == 'self' else owner
@@ -288,11 +288,25 @@ def _signature_verifier():
             path = Path(name); retain(path, digest)
             selected = Path(alias)
             if selected.resolve(strict=True) != path: raise ValueError
-            # A transient library-name swap must also change one of these dirs.
-            for parent in (selected.parent, *selected.parents):
-                info = parent.stat()
-                if info.st_uid == owner:
-                    changing_parents[parent] = (_directory_identity(info), info.st_ctime_ns)
+            # The loader uses these names, including intentional keg symlinks.
+            # Validate their ownership and the directories that can change them,
+            # not just the resolved physical dependency's ancestry.
+            for node in (selected, *selected.parents):
+                info = node.lstat()
+                if info.st_uid not in (0, owner): raise ValueError
+                if stat.S_ISLNK(info.st_mode):
+                    if info.st_nlink != 1: raise ValueError
+                    alias_nodes[node] = identity(info)
+                elif stat.S_ISDIR(info.st_mode):
+                    pinned_group = (digest is not None and owner == os.getuid()
+                        and node in _MINISIGN_GROUP_PARENT_CUSTODY
+                        and info.st_uid == owner and stat.S_IMODE(info.st_mode) == 0o775)
+                    if stat.S_IMODE(info.st_mode) & 0o022 and not pinned_group: raise ValueError
+                    parents[node] = _directory_identity(info)
+                    if info.st_uid == owner and owner != 0:
+                        changing_parents[node] = (parents[node], info.st_ctime_ns)
+                elif node != selected or not stat.S_ISREG(info.st_mode):
+                    raise ValueError
             aliases[selected] = path
         def check():
             _recheck_parents(parents)
@@ -301,6 +315,7 @@ def _signature_verifier():
             for path, expected in changing_parents.items():
                 info = path.stat()
                 if (_directory_identity(info), info.st_ctime_ns) != expected: raise ValueError
+            if any(identity(path.lstat()) != expected for path, expected in alias_nodes.items()): raise ValueError
             if any(alias.resolve(strict=True) != path for alias, path in aliases.items()): raise ValueError
         check()
         fd = descriptors[0]
@@ -318,27 +333,74 @@ def _signature_verifier():
         if failed: raise PrerequisiteRefusal('cortex_release_signature_invalid') from None
 
 
+@contextmanager
+def _signature_inputs(manifest: Path, signature: Path):
+    """Bind the named inputs to held private inodes across verification.
+
+    The frozen child argv uses names. A transient rename/restore or an in-place
+    rewrite cannot restore kernel change times, so its result is never accepted.
+    Input FDs remain private to the parent and are not inherited by the child.
+    """
+    descriptors = []; files = {}; parents = {}; changing_parents = {}; contents = {}
+    def identity(info): return _file_identity(info), info.st_ctime_ns
+    def check():
+        _recheck_parents(parents)
+        for path, expected in changing_parents.items():
+            info = path.lstat()
+            if (_directory_identity(info), info.st_ctime_ns) != expected: raise ValueError
+        for path, (fd, expected, limit) in files.items():
+            if identity(path.lstat()) != expected or identity(os.fstat(fd)) != expected: raise ValueError
+            os.lseek(fd, 0, os.SEEK_SET)
+            if os.read(fd, limit + 1) != contents[path] or identity(os.fstat(fd)) != expected: raise ValueError
+    try:
+        for path, limit in ((manifest, 1048576), (signature, 4096)):
+            parents.update(_parents(path))
+            for parent in path.parents:
+                info = parent.lstat()
+                if info.st_uid == os.getuid():
+                    current = (_directory_identity(info), info.st_ctime_ns)
+                    if parent in changing_parents and changing_parents[parent] != current: raise ValueError
+                    changing_parents[parent] = current
+            before = path.lstat(); _private_file(before)
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK); descriptors.append(fd)
+            opened = os.fstat(fd); _private_file(opened)
+            if identity(before) != identity(opened): raise ValueError
+            raw = os.read(fd, limit + 1)
+            if len(raw) > limit: raise ValueError
+            contents[path] = raw; files[path] = (fd, identity(opened), limit)
+        check()
+        yield check
+        check()
+    finally:
+        failed = False
+        for fd in descriptors:
+            try: os.close(fd)
+            except OSError: failed = True
+        contents.clear()
+        if failed: raise ValueError
+
+
 def verify_signature(manifest: Path, signature: Path, *, trusted_public_key: str = RELEASE_PUBLIC_KEY,
                      timeout: float = 5) -> None:
     try:
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 5:
             raise ValueError
-        before = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
         if not re.fullmatch(r'[A-Za-z0-9+/]{56}', trusted_public_key):
             raise ValueError
         deadline = time.monotonic() + timeout
-        with _signature_verifier() as verifier:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0: raise ValueError
-            result = subprocess.run([verifier['executable'], '-V', '-P', trusted_public_key,
-                                     '-m', str(manifest), '-x', str(signature)],
-                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL, env=verifier['environment'],
-                                    close_fds=True, pass_fds=verifier['pass_fds'], timeout=remaining)
-            verifier['check']()
-        after = (read_private_bytes(manifest, limit=1048576), read_private_bytes(signature, limit=4096))
-        if result.returncode != 0 or before != after:
-            raise ValueError
+        with _signature_inputs(manifest, signature) as check_inputs:
+            with _signature_verifier() as verifier:
+                check_inputs()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0: raise ValueError
+                result = subprocess.run([verifier['executable'], '-V', '-P', trusted_public_key,
+                                         '-m', str(manifest), '-x', str(signature)],
+                                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL, env=verifier['environment'],
+                                        close_fds=True, pass_fds=verifier['pass_fds'], timeout=remaining)
+                verifier['check'](); check_inputs()
+                if result.returncode != 0: raise ValueError
+        if time.monotonic() >= deadline: raise ValueError
     except (OSError, ValueError, subprocess.TimeoutExpired, PrerequisiteRefusal):
         raise PrerequisiteRefusal('cortex_release_signature_invalid') from None
 
