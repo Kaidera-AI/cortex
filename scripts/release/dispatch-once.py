@@ -30,6 +30,10 @@ class DispatchRefused(RuntimeError):
         super().__init__(code)
 
 
+class WorkflowMissing(DispatchRefused):
+    """Only the selected workflow's literal provider 404 enters registration."""
+
+
 def route(target):
     routes = {"macos-arm64": (WORKFLOW, PREFIX),
               "linux-x86_64": ("cortex-linux-candidate.yml", "ren-cx/linux-package-build-admitted-")}
@@ -132,17 +136,69 @@ class Github:
                                 capture_output=True, text=True)
         self.trace.append({"endpoint": endpoint, "method": "POST" if body is not None else "GET",
                            "exit_code": result.returncode})
+        def unique_object(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError("ambiguous provider JSON")
+                value[key] = item
+            return value
+        def invalid_constant(value):
+            raise ValueError("non-JSON provider constant")
+        try:
+            response = (json.loads(result.stdout, object_pairs_hook=unique_object,
+                                   parse_constant=invalid_constant)
+                        if result.stdout.strip() else None)
+        except (ValueError, TypeError):
+            raise DispatchRefused("github_request_failed") from None
         if result.returncode:
+            if (body is None and endpoint.startswith(f"actions/workflows/{self.workflow}/runs?")
+                    and isinstance(response, dict) and response.get("message") == "Not Found"
+                    and response.get("status") == "404"):
+                raise WorkflowMissing("github_request_failed")
             raise DispatchRefused("github_request_failed")
-        return json.loads(result.stdout) if result.stdout.strip() else None
+        return response
+
+    def confirm_missing_workflow(self):
+        response = self.request("actions/workflows?per_page=100")
+        if (not isinstance(response, dict) or not isinstance(response.get("workflows"), list)
+                or type(response.get("total_count")) is not int
+                or response["total_count"] != len(response["workflows"])):
+            raise DispatchRefused("workflow_inventory_invalid")
+        identifiers, paths = set(), set()
+        for workflow in response["workflows"]:
+            if (not isinstance(workflow, dict) or type(workflow.get("id")) is not int
+                    or workflow["id"] <= 0 or workflow["id"] in identifiers
+                    or not isinstance(workflow.get("path"), str)
+                    or not re.fullmatch(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml", workflow["path"])
+                    or workflow["path"] in paths or not isinstance(workflow.get("name"), str)
+                    or not workflow["name"].strip() or workflow["name"] == self.workflow
+                    or workflow["path"] == ".github/workflows/" + self.workflow
+                    or workflow.get("state") not in ("active", "deleted", "disabled_fork",
+                                                      "disabled_inactivity", "disabled_manually")):
+                raise DispatchRefused("workflow_inventory_invalid")
+            identifiers.add(workflow["id"])
+            paths.add(workflow["path"])
 
     def list_runs(self, sha):
-        response = self.request(f"actions/workflows/{self.workflow}/runs?head_sha={sha}&per_page=100")
+        try:
+            response = self.request(f"actions/workflows/{self.workflow}/runs?head_sha={sha}&per_page=100")
+        except WorkflowMissing:
+            # Fail closed on incomplete inventories (including pagination).
+            # A 404 alone never proves absence or licenses a provider mutation.
+            self.confirm_missing_workflow()
+            response = self.request(f"actions/runs?head_sha={sha}&per_page=100")
+            self.check_run_response(response)
+            check_runs(response["workflow_runs"], sha)
+        self.check_run_response(response)
+        return response["workflow_runs"]
+
+    @staticmethod
+    def check_run_response(response):
         if (not isinstance(response, dict) or not isinstance(response.get("workflow_runs"), list)
                 or type(response.get("total_count")) is not int
                 or response["total_count"] != len(response["workflow_runs"])):
             raise DispatchRefused("ci_run_binding_invalid")
-        return response["workflow_runs"]
 
     def create_ref(self, branch, sha):
         response = self.request("git/refs", {"ref": "refs/heads/" + branch, "sha": sha})
