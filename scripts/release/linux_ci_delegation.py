@@ -35,10 +35,10 @@ def _placement(path: Path) -> bytes:
             raw = stream.read(65537)
         if not raw or len(raw) > 65536 or not raw.endswith(b'\n'):
             raise ValueError
-        lines = raw.decode('ascii', errors='strict').splitlines()
-        if len(lines) != 1 or not lines[0].startswith('0::/'):
+        line = raw[:-1].decode('ascii', errors='strict')
+        if (not line.startswith('0::/') or any(ord(c) < 32 or ord(c) > 126 for c in line)):
             raise ValueError
-        cgroup = lines[0][3:]
+        cgroup = line[3:]
         parts = cgroup[1:].split('/') if cgroup != '/' else []
         if any(not part or part in ('.', '..') or any(ord(c) < 33 or ord(c) > 126 for c in part)
                for part in parts):
