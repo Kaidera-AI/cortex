@@ -8,11 +8,17 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
+import select
+import time
 from pathlib import Path
 import re
 import sys
 
 from .clients.native_prerequisite import PrerequisiteRefusal, canonical_uuid, strict_json
+
+
+COMMAND_TIMEOUT = 5.0
 
 
 class NativeRefusal(PrerequisiteRefusal):
@@ -133,24 +139,26 @@ async def execute_private(value: dict, *, settings=None, connect=None) -> dict:
     settings = Settings.from_env() if settings is None else settings
     connect = asyncpg.connect if connect is None else connect
     connection = None
+    deadline = asyncio.get_running_loop().time() + COMMAND_TIMEOUT
     try:
-        connection = await connect(settings.database_url, timeout=5, command_timeout=5)
-        async with connection.transaction(readonly=mode != 'create-project'):
-            principal = await store.authenticate(connection, store.token_digest(value['credential'], settings.token_pepper))
-            if str(principal.installation_id) != value['installation_id']:
-                raise NativeRefusal('cortex_instance_mismatch')
-            if mode == 'create-project':
-                try:
-                    # Existing DB-mediated audit read is owner-only. Discard its body.
-                    await identity.list_privileged_actions(connection, principal, 1)
-                except store.ApiProblem:
-                    raise NativeRefusal('cortex_provisioning_owner_required') from None
-                _, result, _ = await identity.create_project(connection, principal, settings.token_pepper,
-                                                               body, value['idempotency_key'])
-                return result
-            return await read_native_database(connection, principal, project=value['project'],
-                       project_root=value['project_root'], migrations=value['migrations'],
-                       expected_relations=value['expected_relations'])
+        async with asyncio.timeout_at(deadline):
+            connection = await connect(settings.database_url, timeout=min(5, COMMAND_TIMEOUT), command_timeout=min(5, COMMAND_TIMEOUT))
+            async with connection.transaction(readonly=mode != 'create-project'):
+                principal = await store.authenticate(connection, store.token_digest(value['credential'], settings.token_pepper))
+                if str(principal.installation_id) != value['installation_id']:
+                    raise NativeRefusal('cortex_instance_mismatch')
+                if mode == 'create-project':
+                    try:
+                        # Existing DB-mediated audit read is owner-only. Discard its body.
+                        await identity.list_privileged_actions(connection, principal, 1)
+                    except store.ApiProblem:
+                        raise NativeRefusal('cortex_provisioning_owner_required') from None
+                    _, result, _ = await identity.create_project(connection, principal, settings.token_pepper,
+                                                                   body, value['idempotency_key'])
+                    return result
+                return await read_native_database(connection, principal, project=value['project'],
+                           project_root=value['project_root'], migrations=value['migrations'],
+                           expected_relations=value['expected_relations'])
     except NativeRefusal:
         raise
     except store.ApiProblem as error:
@@ -158,19 +166,49 @@ async def execute_private(value: dict, *, settings=None, connect=None) -> dict:
                 else 'cortex_provisioning_conflict' if error.status in (409, 422)
                 else 'cortex_health_unavailable')
         raise NativeRefusal(code, http_status=error.status) from None
+    except asyncio.CancelledError:
+        raise NativeRefusal('cortex_provisioning_reissue_required' if mode == 'create-project'
+                            else 'cortex_health_unavailable') from None
     except (OSError, asyncpg.PostgresError, TimeoutError, ValueError):
         raise NativeRefusal('cortex_provisioning_reissue_required' if mode == 'create-project'
                             else 'cortex_health_unavailable') from None
     finally:
         if connection is not None:
-            await connection.close()
+            remaining = deadline - asyncio.get_running_loop().time()
+            if asyncio.current_task().cancelling() or remaining <= 0:
+                connection.terminate()
+            else:
+                try:
+                    await asyncio.wait_for(connection.close(), timeout=remaining)
+                except (TimeoutError, asyncio.CancelledError, OSError, asyncpg.PostgresError):
+                    connection.terminate()
+                    raise NativeRefusal('cortex_provisioning_reissue_required' if mode == 'create-project'
+                                        else 'cortex_health_unavailable') from None
+
+
+def _private_input(deadline: float) -> bytes:
+    """Wait for EOF within the command budget, even when the peer retains its pipe."""
+    raw = bytearray()
+    fd = sys.stdin.fileno()
+    while len(raw) <= 65536:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not select.select([fd], [], [], remaining)[0]:
+            raise NativeRefusal('cortex_health_unavailable')
+        part = os.read(fd, 65537 - len(raw))
+        if not part:
+            break
+        raw.extend(part)
+    return bytes(raw)
 
 
 def main() -> int:
     try:
-        raw = sys.stdin.buffer.read(65537)
-        value = strict_json(raw)
-        result = asyncio.run(asyncio.wait_for(execute_private(value), timeout=5))
+        deadline = time.monotonic() + COMMAND_TIMEOUT
+        value = strict_json(_private_input(deadline))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise NativeRefusal('cortex_health_unavailable')
+        result = asyncio.run(asyncio.wait_for(execute_private(value), timeout=remaining))
         output = json.dumps(result, sort_keys=True, separators=(',', ':'), allow_nan=False).encode() + b'\n'
         if len(output) > 65536: raise NativeRefusal('cortex_health_unavailable')
         sys.stdout.buffer.write(output); sys.stdout.buffer.flush()
