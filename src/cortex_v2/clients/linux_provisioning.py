@@ -1384,3 +1384,146 @@ def read_linux_catalog(runtime_root: Path, args: dict, response: dict, *, kos_po
         snapshot = None
         for value in (private, request, frame):
             if isinstance(value, dict): value.clear()
+
+
+def read_linux_readiness(runtime_root: Path, args: dict, response: dict, *, kos_policy: dict,
+                         store, recheck_recipients, deadline: float | None = None) -> dict:
+    """Compose fresh read-only observations while both recipients remain pinned.
+
+    The caller holds admitted_recipients and the operation lock. This returns
+    the measured projection; descriptor/nonce binding and publication are separate.
+    """
+    private = request = None
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 30
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now
+                or not callable(recheck_recipients)):
+            raise ProvisionRefusal('cortex_provisioning_setup_required')
+        deadline = min(deadline, now + 30)
+        request = strict_json(json.dumps(args, allow_nan=False).encode())
+        private = strict_json(json.dumps(response, allow_nan=False).encode())
+        policy = strict_json(json.dumps(kos_policy, allow_nan=False).encode())
+        body = validate_request(request); _response(private, body)
+        context = read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline)
+        installation = custody.canonical_uuid(context['installation_id'])
+        release = context['release']
+        custody.validate_release_manifest(release, target='linux-x86_64')
+        if (context['host_os'] != 'linux' or store.installation != installation or store.backend != 'file'):
+            raise ProvisionRefusal('cortex_credential_unavailable')
+        if (context['helper_sha256'] != release['files']['bin/cortex']
+                or not custody.HEX.fullmatch(context['helper_sha256'])
+                or not custody.HEX.fullmatch(context['release_manifest_sha256'])):
+            raise ProvisionRefusal('cortex_image_mismatch')
+        engine = context['engine']
+        if (set(engine) != {'schema', 'mode', 'client_version', 'server_version', 'connection_name', 'delegation'}
+                or engine['schema'] != 'cortex.linux-engine-readiness.v1' or engine['mode'] != 'local'
+                or engine['server_version'] is not None or engine['connection_name'] is not None
+                or engine['delegation'] != {'schema': 'cortex.linux-cgroup-readiness.v1', 'rootless': True,
+                    'cgroup_version': 'v2', 'cgroup_controllers': ['cpu', 'memory', 'pids']}
+                or engine['delegation']['rootless'] is not True):
+            raise ProvisionRefusal('cortex_podman_unsupported')
+        version = custody.parse_podman_report(json.dumps({'Client': {'Version': engine['client_version']}},
+            allow_nan=False).encode(), host_os='linux', mode='local', connection_name=None,
+            expected_connection_name=None, cortex_policy=release['podman'], kos_policy=policy)['client_version']
+        local = _local_engine_context()
+        if local.get('provider') != 'linuxbrew':
+            raise ProvisionRefusal('cortex_podman_unsupported')
+        project = {'scope_id': private['project_id'], 'primary_alias': body['project_key'], 'primary_root': body['repo_root']}
+        fields = {'roster_revision', 'principal_id', 'actor_id', 'scope_id', 'project', 'member_name',
+                  'actor_kind', 'role', 'status', 'can_read', 'can_write', 'can_publish', 'project_root'}
+
+        def members():
+            if time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            value = strict_json(json.dumps(recheck_recipients(), allow_nan=False).encode())
+            if time.monotonic() >= deadline or set(value) != {'lead', 'console'}:
+                raise ProvisionRefusal('cortex_credential_refused')
+            for role in ('lead', 'console'):
+                row = value[role]
+                expected = {'principal_id': private[role]['principal_id'], 'scope_id': private['project_id'],
+                    'project': body['project_key'], 'member_name': body['lead_name'] if role == 'lead' else 'console',
+                    'actor_kind': 'agent' if role == 'lead' else 'service', 'role': 'lead' if role == 'lead' else 'member',
+                    'status': 'active', 'project_root': body['repo_root']}
+                if (not isinstance(row, dict) or set(row) != fields or any(row[k] != v for k,v in expected.items())
+                        or row['can_read'] is not True or row['can_write'] is not True
+                        or row['can_publish'] is not (role == 'lead')
+                        or type(row['roster_revision']) is not int or row['roster_revision'] < 0):
+                    raise ProvisionRefusal('cortex_credential_refused')
+                custody.canonical_uuid(row['actor_id'])
+            if (value['lead']['actor_id'] == value['console']['actor_id']
+                    or value['lead']['roster_revision'] != value['console']['roster_revision']):
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+            return value
+
+        selected_members = members()
+
+        def check():
+            if time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            if (read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline) != context
+                    or _local_engine_context() != local):
+                raise ProvisionRefusal('cortex_instance_mismatch')
+            if members() != selected_members:
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+            if time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+
+        predicates = {'source_payload_matches', 'migration_checksums_match', 'required_rls_enabled_and_forced',
+                      'app_role_non_superuser_without_bypassrls', 'app_role_not_migrator_or_table_owner', 'database_instance_matches'}
+        provider_fields = {'schema', 'provider', 'formula', 'version', 'linked_keg', 'poured_from_bottle',
+                           'bottle_sha256', 'bottle_url', 'checksum_verifier', 'scope'}
+        security_fields = {'schema', 'installation_id', 'rootless', 'storage_config_matches', 'storage_custody_matches', 'selinux'}
+        observed = None
+        check()
+        for _ in range(2):
+            provider = observe_linuxbrew_provider(cortex_policy=release['podman'], kos_policy=policy, deadline=deadline)
+            check()
+            if (set(provider) != provider_fields or provider['schema'] != 'cortex.linuxbrew-provider.v1'
+                    or provider['provider'] != 'linuxbrew' or provider['formula'] != 'homebrew/core/podman'
+                    or provider['version'] != version or provider['linked_keg'] != local['linked_keg']
+                    or re.fullmatch(re.escape(version) + r'(?:_[1-9][0-9]*)?', provider['linked_keg']) is None
+                    or provider['poured_from_bottle'] is not True or not custody.HEX.fullmatch(provider['bottle_sha256'])
+                    or provider['bottle_url'] != 'https://ghcr.io/v2/homebrew/core/podman/blobs/sha256:' + provider['bottle_sha256']
+                    or provider['checksum_verifier'] != 'Homebrew'
+                    or provider['scope'] != 'current formula metadata and installed stock keg; Homebrew verifies downloaded bottle bytes'):
+                raise ProvisionRefusal('cortex_podman_unsupported')
+            security = read_linux_host_security(runtime_root, kos_policy=policy, deadline=deadline)
+            check()
+            if (set(security) != security_fields or security['schema'] != 'cortex.linux-host-security.v1'
+                    or security['installation_id'] != installation or security['rootless'] is not True
+                    or security['storage_config_matches'] is not True or security['storage_custody_matches'] is not True
+                    or security['selinux'] != 'Enforcing'):
+                raise ProvisionRefusal('cortex_health_degraded')
+            catalog = read_linux_catalog(runtime_root, request, private, kos_policy=policy, store=store, deadline=deadline)
+            check()
+            if (set(catalog) != predicates | {'schema', 'installation_id', 'project_binding'}
+                    or catalog['schema'] != 'cortex.linux-catalog-readiness.v1' or catalog['installation_id'] != installation
+                    or any(catalog[k] is not True for k in predicates) or catalog['project_binding'] != project):
+                raise ProvisionRefusal('cortex_health_degraded')
+            if observed is None: observed = (provider, security, catalog)
+            elif observed != (provider, security, catalog):
+                raise ProvisionRefusal('cortex_health_degraded')
+        check()
+        origin = urlsplit(context['origin'])
+        if (origin.scheme != 'http' or origin.hostname != '127.0.0.1' or origin.username is not None
+                or origin.password is not None or origin.path or origin.query or origin.fragment
+                or origin.port is None or not 1024 <= origin.port <= 65535 or origin.port in (8501, 5499, 5500)):
+            raise ProvisionRefusal('cortex_instance_mismatch')
+        return {'schema': 'cortex.linux-readiness.v1', 'status': 'READY', 'installation_id': installation,
+                'release_manifest_sha256': context['release_manifest_sha256'], 'target': 'linux-x86_64',
+                'engine': {'client_version': version, 'server_version': None, 'rootless': True, 'os': 'linux',
+                    'architecture': 'amd64', 'provider': 'cortex-native-lifecycle', 'mode': 'local', 'connection_name': None},
+                'api_binding': {'loopback_port': origin.port, 'installation_label_matches': True,
+                    'api_image_id': release['images']['api']['config_id'], 'exact_owned_network': True, 'network_internal': True},
+                'images': {role: release['images'][role]['config_id'] for role in custody.ROLES},
+                'selinux': 'Enforcing', 'signed_helper_verified': True, 'helper_sha256': context['helper_sha256'],
+                'project_binding': project, **{key: catalog[key] for key in predicates}}
+    except PrerequisiteRefusal as error:
+        raise ProvisionRefusal(error.code if error.code in REFUSALS else 'cortex_health_degraded',
+                               http_status=error.http_status) from None
+    except Exception:
+        raise ProvisionRefusal('cortex_health_degraded') from None
+    finally:
+        for value in (private, request):
+            if isinstance(value, dict): value.clear()
