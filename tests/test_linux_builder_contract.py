@@ -152,7 +152,8 @@ def test_linux_workflow_uses_x64_floor_builder_and_distinct_push_prefix(monkeypa
     import yaml
     data=yaml.load(path.read_text(),Loader=yaml.BaseLoader)
     assert data['on']['push']['branches']==['ren-cx/linux-package-build-admitted-*']
-    assert all(job['runs-on']=='ubuntu-22.04' for job in data['jobs'].values())
+    assert {name: job['runs-on'] for name, job in data['jobs'].items()} == {
+        'identity': 'ubuntu-22.04', 'images': 'ubuntu-24.04', 'host': 'ubuntu-22.04', 'package': 'ubuntu-22.04'}
     body=path.read_text();assert 'bootstrap-linux-runtime.py' in body and '--target linux-x86_64' in body
     assert 'brew install podman' in body and 'apt-get install -y podman' not in body
     assert 'formula-commit' not in body and 'GITHUB_RUN_ATTEMPT' in body
