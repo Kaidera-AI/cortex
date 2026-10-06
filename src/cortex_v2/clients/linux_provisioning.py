@@ -1,18 +1,24 @@
 """Finite Linux host process port. Private frames never enter argv or logs."""
 from __future__ import annotations
 
+from contextlib import contextmanager
+import fcntl
+import hashlib
+import hmac
 import json
 import math
 import os
 from pathlib import Path
 import pwd
+import re
 import selectors
 import signal
 import subprocess
 import time
 
+from . import native_prerequisite as custody
 from .native_prerequisite import PrerequisiteRefusal, strict_json
-from .provisioning import ProvisionRefusal
+from .provisioning import ProvisionRefusal, _response, validate_request
 
 
 REFUSALS = frozenset({
@@ -126,3 +132,142 @@ def private_json_command(command: list[str], frame: dict, *, timeout: float = 5)
                 except subprocess.TimeoutExpired: pass
             for stream in (process.stdin, process.stdout, process.stderr):
                 if stream is not None: stream.close()
+
+
+@contextmanager
+def operation_lock(path: Path):
+    """Nonblocking private inode lock; retain its inode between operations."""
+    descriptor = None
+    acquired = False
+    try:
+        parents = custody._parents(path)
+        if path.exists() or path.is_symlink():
+            custody.read_private_bytes(path, limit=0)
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        opened = os.fstat(descriptor); custody._private_file(opened)
+        if opened.st_size != 0 or custody._file_identity(path.lstat()) != custody._file_identity(opened):
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+        custody._recheck_parents(parents)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        acquired = True
+        yield True
+        custody._recheck_parents(parents)
+        if custody._file_identity(path.lstat()) != custody._file_identity(os.fstat(descriptor)):
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+    except (OSError, PrerequisiteRefusal):
+        raise ProvisionRefusal('cortex_provisioning_conflict') from None
+    finally:
+        if descriptor is not None:
+            try:
+                if acquired: fcntl.flock(descriptor, fcntl.LOCK_UN)
+            finally:
+                os.close(descriptor)
+
+
+class DeliveryJournal:
+    """Private nonsecret receipt state; never recover or replay plaintext.
+
+    The caller holds the operation lock. Recipient verification must authenticate
+    each atomic native KeyStore record against its exact principal using the
+    finite installed adapter. Metadata alone cannot establish that binding.
+    """
+    FIELDS = {'schema', 'installation_id', 'request_sha256', 'operation_id',
+              'project_id', 'project_key', 'lead', 'console', 'state'}
+    RECIPIENT = ('principal_id', 'manager', 'expires_at')
+
+    def __init__(self, path: Path, args: dict, installation_id: str, store):
+        self.path = path
+        self.body = validate_request(args)
+        self.installation = custody.canonical_uuid(installation_id)
+        self.store = store
+        request = json.dumps(self.body, sort_keys=True, separators=(',', ':'),
+                             ensure_ascii=False, allow_nan=False).encode('utf-8')
+        self.request_sha256 = hashlib.sha256(request).hexdigest()
+        self.started = False
+
+    def _base(self):
+        return {'schema': 'cortex.private-delivery.v1', 'installation_id': self.installation,
+                'request_sha256': self.request_sha256, 'project_key': self.body['project_key']}
+
+    def _read(self):
+        try:
+            custody._parents(self.path)
+            if not self.path.exists() and not self.path.is_symlink(): return None
+            value = custody.read_private_json(self.path)
+            if (set(value) != self.FIELDS or any(value.get(k) != v for k, v in self._base().items())
+                    or value['state'] not in ('command_started', 'delivery_pending', 'keys_committed')
+                    or self.store.installation != self.installation or self.store.backend != 'file'):
+                raise ValueError
+            if value['state'] == 'command_started':
+                if any(value[k] is not None for k in ('operation_id', 'project_id', 'lead', 'console')):
+                    raise ValueError
+            else:
+                custody.canonical_uuid(value['operation_id']); custody.canonical_uuid(value['project_id'])
+                for name in ('lead', 'console'):
+                    if not isinstance(value[name], dict) or set(value[name]) != set(self.RECIPIENT):
+                        raise ValueError
+                    custody.canonical_uuid(value[name]['principal_id'])
+            return value
+        except (OSError, ValueError, TypeError, KeyError, PrerequisiteRefusal):
+            raise ProvisionRefusal('cortex_provisioning_reissue_required') from None
+
+    def begin(self) -> str:
+        existing = self._read()
+        if existing is not None:
+            if existing['state'] == 'keys_committed': return 'resume'
+            raise ProvisionRefusal('cortex_provisioning_reissue_required')
+        if self.store.installation != self.installation or self.store.backend != 'file':
+            raise ProvisionRefusal('cortex_provisioning_reissue_required')
+        value = dict(self._base(), operation_id=None, project_id=None, lead=None,
+                     console=None, state='command_started')
+        custody.atomic_private_json(self.path, value)
+        self.started = True
+        return 'new'
+
+    def _receipt(self, response: dict, state: str):
+        return dict(self._base(), operation_id=response['operation_id'], project_id=response['project_id'],
+                    lead={k: response['lead'][k] for k in self.RECIPIENT},
+                    console={k: response['console'][k] for k in self.RECIPIENT}, state=state)
+
+    def _records(self, response: dict, *, verify, issued: bool) -> bool:
+        for name, label in (('lead', self.body['lead_name']), ('console', 'console')):
+            record = self.store.read(self.body['project_key'], label)
+            if (record is None or not isinstance(record.token, str)
+                    or re.fullmatch(r'[A-Za-z0-9_-]{43}', record.token) is None
+                    or record.metadata.managed_by != response[name]['manager']
+                    or record.metadata.expires_at != response[name]['expires_at']):
+                return False
+            if issued and not hmac.compare_digest(record.token, response[name + '_token']): return False
+            if verify(name, record, response[name]['principal_id']) is not True: return False
+        return True
+
+    def persist(self, response: dict, *, verify) -> None:
+        try:
+            issued = _response(response, self.body)
+            current = self._read()
+            if not issued or not self.started or current is None or current['state'] != 'command_started':
+                raise ValueError
+            # No second delivery attempt, even on the same in-memory object.
+            self.started = False
+            pending = self._receipt(response, 'delivery_pending')
+            custody.atomic_private_json(self.path, pending)
+            for name, label in (('lead', self.body['lead_name']), ('console', 'console')):
+                self.store.put(self.body['project_key'], label, response[name + '_token'],
+                               managed_by=response[name]['manager'], expires_at=response[name]['expires_at'])
+            if not self._records(response, verify=verify, issued=True): raise ValueError
+            custody.atomic_private_json(self.path, self._receipt(response, 'keys_committed'))
+        except Exception:
+            raise ProvisionRefusal('cortex_provisioning_reissue_required') from None
+
+    def complete(self, response: dict, *, verify) -> bool:
+        try:
+            issued = _response(response, self.body)
+            saved = self._read()
+            if saved != self._receipt(response, 'keys_committed'): return False
+            return self._records(response, verify=verify, issued=issued)
+        except Exception:
+            return False
