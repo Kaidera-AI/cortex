@@ -1,6 +1,7 @@
 """Pure native build receipt binding; no engine, database or signing effects."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -89,6 +90,71 @@ def catalog_bytes(migration_receipt: dict, *, source_sha: str,
             raise ValueError
         raw = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode() + b'\n'
         if len(raw) > 65536 or payload_inventory(source_root, migration_root) != payload:
+            raise ValueError
+        return raw
+    except Exception:
+        raise RuntimeError(MESSAGE) from None
+
+
+def rehearsal_catalog_bytes(rehearsal: dict, entries: dict, *, source_sha: str,
+                            version: str, source_root: Path, migration_root: Path) -> bytes:
+    """Bind initial/replay observations, smoke and owned teardown before assembly."""
+    try:
+        from install_candidate import ROLES, names, namespace
+        from podman_policy import validate_local_version
+        from cortex_v2.clients.native_prerequisite import canonical_uuid
+        value = strict_json(json.dumps(rehearsal, allow_nan=False).encode(), limit=1048576)
+        if (set(value) != {'scope', 'target', 'source_sha', 'version', 'podman', 'image_ids',
+                'migration', 'migration_replay', 'build_catalog', 'build_catalog_sha256',
+                'internal_network_loopback_publish', 'smoke', 'restart_smoke', 'status', 'epoch', 'cleanup'}
+                or value['scope'] != 'native Linux amd64 CI; not installed product qualification'
+                or value['target'] != 'linux-x86_64' or value['source_sha'] != source_sha
+                or not isinstance(version, str) or re.fullmatch(r'0\.2\.001-test\.[0-9]{8}\.[1-9][0-9]*', version) is None
+                or value['version'] != version or value['status'] != 'PASS'
+                or type(value['epoch']) is not int or value['epoch'] <= 0
+                or value['internal_network_loopback_publish'] != 'PASS' or set(entries) != set(ROLES)):
+            raise ValueError
+        ids = {role: entries[role]['config_id'] for role in ROLES}
+        if (any(not isinstance(item, str) or re.fullmatch(r'sha256:[0-9a-f]{64}', item) is None for item in ids.values())
+                or len(set(ids.values())) != 5 or value['image_ids'] != ids):
+            raise ValueError
+        validate_local_version(value['podman'])
+        initial, replay = value['migration'], value['migration_replay']
+        if initial['status'] != 'applied' or replay['status'] != 'verified' or len(initial['migrations']) != 15:
+            raise ValueError
+        kwargs = {'source_sha': source_sha, 'source_root': source_root, 'migration_root': migration_root}
+        raw = catalog_bytes(initial, **kwargs)
+        if (catalog_bytes(replay, **kwargs) != raw or initial['migrations'] != replay['migrations']
+                or json.dumps(value['build_catalog'], sort_keys=True, separators=(',', ':'), allow_nan=False).encode() + b'\n' != raw
+                or value['build_catalog_sha256'] != hashlib.sha256(raw).hexdigest()):
+            raise ValueError
+        for key in ('smoke', 'restart_smoke'):
+            smoke = value[key]
+            if (set(smoke) != {'status', 'scope', 'source_sha', 'version', 'checks', 'record_id', 'epoch'}
+                    or smoke['status'] != 'PASS' or smoke['scope'] != 'TEST package smoke only'
+                    or smoke['source_sha'] != source_sha or smoke['version'] != version
+                    or smoke['checks'] != ['readiness', 'unauthenticated refusal', 'synthetic write/read']
+                    or type(smoke['epoch']) is not int or not 0 < smoke['epoch'] <= value['epoch']):
+                raise ValueError
+            canonical_uuid(smoke['record_id'])
+        cleanup = value['cleanup']
+        if (set(cleanup) != {'status', 'installation', 'namespace', 'source_sha', 'version', 'removed', 'retained_shared_images', 'root'}
+                or cleanup['status'] != 'erased' or cleanup['source_sha'] != source_sha
+                or cleanup['version'] != version or cleanup['retained_shared_images'] != []):
+            raise ValueError
+        installation = canonical_uuid(cleanup['installation'])
+        record = {'installation': installation}
+        root = Path(cleanup['root'])
+        if (cleanup['namespace'] != namespace(record) or not root.is_absolute() or '..' in root.parts
+                or any(ord(c) < 32 for c in str(root)) or root.name != 'ci-rehearsal-' + installation
+                or not isinstance(cleanup['removed'], list) or len(cleanup['removed']) != len(names(record))):
+            raise ValueError
+        actual = []
+        for item in cleanup['removed']:
+            if not isinstance(item, dict) or set(item) != {'kind', 'name'}:
+                raise ValueError
+            actual.append((item['kind'], item['name']))
+        if len(set(actual)) != len(actual) or set(actual) != set(names(record)):
             raise ValueError
         return raw
     except Exception:

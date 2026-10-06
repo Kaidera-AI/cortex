@@ -51,7 +51,8 @@ def source_identity(source_sha: str) -> None:
         raise RuntimeError("source checkout is dirty; output must be outside it")
 
 
-def oci_identity(archive: Path, architecture: str = "arm64") -> dict:
+def oci_identity(archive: Path, architecture: str = "arm64", *, source_sha: str | None = None,
+                 version: str | None = None) -> dict:
     if architecture not in ("arm64", "amd64"):
         raise RuntimeError("closed native image architecture required")
     with tarfile.open(archive, "r") as stream:
@@ -82,6 +83,16 @@ def oci_identity(archive: Path, architecture: str = "arm64") -> dict:
         config = json.loads(raw_config)
         if config.get("os") != "linux" or config.get("architecture") != architecture:
             raise RuntimeError("image is not native linux/" + architecture)
+        if source_sha is not None or version is not None:
+            from linux_build_catalog import strict_json
+            config = strict_json(raw_config, limit=16_000_000)
+            labels = config.get('config', {}).get('Labels', {})
+            if (not isinstance(source_sha, str) or re.fullmatch(r'[0-9a-f]{40}', source_sha) is None
+                    or not isinstance(version, str) or re.fullmatch(r'0\.2\.001-test\.[0-9]{8}\.[1-9][0-9]*', version) is None
+                    or labels.get('org.opencontainers.image.revision') != source_sha
+                    or labels.get('org.opencontainers.image.version') != version
+                    or labels.get('com.kaidera.deployment-class') != 'TEST'):
+                raise RuntimeError('OCI source/version/TEST labels differ')
         for layer in manifest["layers"]:
             layer_digest = layer["digest"]
             if not re.fullmatch(r"sha256:[0-9a-f]{64}", layer_digest):
@@ -415,20 +426,36 @@ def compose_projection(entries: dict) -> str:
                                     "database-url-migrator", "fixture", "token-pepper", "worker-token", "worker-principal-id")}}, indent=2) + "\n"
 
 
+def linux_catalog_bytes(rehearsal: dict, entries: dict, source_sha: str, version: str) -> bytes:
+    from linux_build_catalog import rehearsal_catalog_bytes
+    return rehearsal_catalog_bytes(rehearsal, entries, source_sha=source_sha, version=version,
+        source_root=ROOT / 'src', migration_root=ROOT / 'migrations')
+
+
 def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, version: str, target: str = "macos-arm64") -> None:
     from podman_policy import POLICY
     architecture = native_target(target)
     source_identity(source_sha)
-    inventory = json.loads((images_dir / "image-inventory.json").read_text())
-    native = json.loads((host_dir / "host-inventory.json").read_text())
-    rehearsal = json.loads((images_dir / "rehearsal-receipt.json").read_text())
+    if architecture == 'amd64':
+        from linux_build_catalog import read_json, physical_path
+        inventory = read_json(images_dir / 'image-inventory.json')
+        native = read_json(host_dir / 'host-inventory.json')
+        rehearsal = read_json(images_dir / 'rehearsal-receipt.json')
+        if (set(inventory['images']) != set(TARGETS)
+                or any(entry.get('archive') != 'images/' + role + '.oci.tar' for role, entry in inventory['images'].items())):
+            raise RuntimeError('complete canonical native image archives required')
+    else:
+        inventory = json.loads((images_dir / "image-inventory.json").read_text())
+        native = json.loads((host_dir / "host-inventory.json").read_text())
+        rehearsal = json.loads((images_dir / "rehearsal-receipt.json").read_text())
     if inventory["source_sha"] != source_sha or inventory["version"] != version or native["source_sha"] != source_sha or native["version"] != version:
         raise RuntimeError("builder receipts do not bind to one frozen source/version")
     if architecture == "amd64" and (inventory.get("target") != target or native.get("target") != target
             or rehearsal.get("target") != target or native.get("maximum_glibc") != "2.35"):
         raise RuntimeError("Linux builder receipts do not bind to the selected native target")
     for role, entry in inventory["images"].items():
-        actual = oci_identity(images_dir / entry["archive"], architecture=architecture)
+        actual = oci_identity(images_dir / entry["archive"], architecture=architecture,
+            **({'source_sha': source_sha, 'version': version} if architecture == 'amd64' else {}))
         if any(actual[key] != entry.get(key) for key in actual):
             raise RuntimeError("downloaded OCI bytes differ from native builder inventory")
     programs = native.get("programs", {})
@@ -449,9 +476,28 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
         raise RuntimeError("complete migration/network/restart rehearsal missing or mismatched")
     if out.exists():
         raise RuntimeError("assembly output already exists")
+    catalog = None
+    if architecture == 'amd64':
+        catalog = linux_catalog_bytes(rehearsal, inventory['images'], source_sha, version)
+        parent = out.parent
+        while not parent.exists():
+            parent = parent.parent
+        physical_path(parent)
     out.mkdir(parents=True)
     package = out / f"cortex-{version}-{target}"
     package.mkdir()
+    if catalog is not None:
+        directory = package / 'native'
+        directory.mkdir(mode=0o700)
+        physical_path(directory)
+        info = directory.stat()
+        if info.st_uid != os.getuid() or info.st_mode & 0o777 != 0o700:
+            raise RuntimeError('native catalog directory custody differs')
+        descriptor = os.open(directory / 'rls-inventory.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, 'wb') as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(catalog)
+        inventory['images']['api']['source_payload_sha256'] = json.loads(catalog)['api_source_payload_sha256']
     shutil.copytree(images_dir / "images", package / "images")
     shutil.copytree(images_dir / "sbom", package / "sbom")
     shutil.copy2(images_dir / "rehearsal-receipt.json", package / "rehearsal-receipt.json")
