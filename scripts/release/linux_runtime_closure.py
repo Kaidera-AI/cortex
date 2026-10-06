@@ -162,6 +162,7 @@ def trace_product(binary: Path, libraries: dict, *, run=subprocess.run) -> dict:
         raise RuntimeError('bounded successful product loader observation required')
     names = {'libssl.so.3', 'libcrypto.so.3'}
     loaded, checked = {}, {name: set() for name in names}
+    checked_paths = {name: set() for name in names}
     for line in result.stderr.splitlines():
         match = re.search(r'calling init:\s+(\S+)', line)
         if match:
@@ -179,8 +180,10 @@ def trace_product(binary: Path, libraries: dict, *, run=subprocess.run) -> dict:
                     or node not in libraries[name]['definitions']):
                 raise RuntimeError('product requested an unbound OpenSSL version node')
             checked[name].add(node)
+            checked_paths[name].add(str(path))
     if (set(loaded) != names or any(not nodes for nodes in checked.values())
-            or len({str(Path(value).parent) for value in loaded.values()}) != 1):
+            or len({str(Path(value).parent) for value in loaded.values()}) != 1
+            or any(checked_paths[name] != {loaded[name]} for name in names)):
         raise RuntimeError('complete actual product OpenSSL loader proof required')
     if hashlib.sha256(binary.read_bytes()).hexdigest() != original:
         raise RuntimeError('product binary changed during loader observation')
