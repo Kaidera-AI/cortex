@@ -28,6 +28,7 @@ from . import native_prerequisite as custody
 from .native_prerequisite import PrerequisiteRefusal, strict_json
 from .provisioning import ProvisionRefusal, _response, validate_request
 
+SELINUX_ENFORCE = Path('/sys/fs/selinux/enforce')
 
 REFUSALS = frozenset({
     'cortex_health_unavailable', 'cortex_health_degraded', 'cortex_credential_refused',
@@ -39,6 +40,7 @@ REFUSALS = frozenset({
     'cortex_podman_denied', 'cortex_podman_unsupported', 'cortex_image_mismatch',
     'cortex_cgroup_delegation_unavailable',
     'cortex_podman_storage_setup_required',
+    'cortex_selinux_refused',
 })
 
 
@@ -361,6 +363,120 @@ def read_linux_runtime(runtime_root: Path, *, kos_policy: dict,
         return {**binding, 'containers': containers, 'network_id': network_id}
     except (OSError, ValueError, TypeError, KeyError):
         raise PrerequisiteRefusal('cortex_image_mismatch') from None
+
+
+def read_linux_host_security(runtime_root: Path, *, kos_policy: dict,
+                             deadline: float | None = None) -> dict:
+    """Observe physical private stores and enforcing SELinux without host repair."""
+    now = time.monotonic()
+    if deadline is None: deadline = now + 30
+    if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+        raise PrerequisiteRefusal('cortex_health_unavailable')
+    deadline = min(deadline, now + 30)
+    descriptors = []
+    try:
+        binding = read_linux_runtime(runtime_root, kos_policy=kos_policy, deadline=deadline)
+        installation = custody.canonical_uuid(binding['installation_id'])
+        context = _local_engine_context()
+
+        def same():
+            if time.monotonic() >= deadline:
+                raise PrerequisiteRefusal('cortex_health_unavailable')
+            if _local_engine_context() != context:
+                raise PrerequisiteRefusal('cortex_instance_mismatch')
+
+        def identity(info):
+            return custody._file_identity(info), info.st_ctime_ns
+
+        def observe():
+            same()
+            value = _engine_json([context['executable'], '--remote=false', 'info', '--format=json'],
+                environment=context['environment'], deadline=deadline)
+            same()
+            raw = json.dumps(value, allow_nan=False).encode()
+            selected = custody.check_linux_storage_config(raw, uid=context['uid'], home=context['environment']['HOME'])
+            custody.check_linux_delegation(raw)
+            if value['host']['security'].get('selinuxEnabled') is not True:
+                raise PrerequisiteRefusal('cortex_selinux_refused')
+            return selected
+
+        storage = observe()
+        directories = []
+        try:
+            for key in ('graph_root', 'run_root'):
+                path = Path(storage[key])
+                parents = custody._parents(path / '.cortex-custody-observation')
+                before = path.lstat()
+                if (not stat.S_ISDIR(before.st_mode) or before.st_uid != context['uid']
+                        or stat.S_IMODE(before.st_mode) != 0o700):
+                    raise ValueError
+                fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                descriptors.append(fd)
+                if identity(os.fstat(fd)) != identity(before): raise ValueError
+                directories.append((path, fd, identity(before), parents))
+        except Exception:
+            raise PrerequisiteRefusal('cortex_podman_storage_setup_required') from None
+
+        try:
+            path = SELINUX_ENFORCE
+            custody.physical_path(path)
+            parents = {}
+            for parent in path.parents:
+                info = parent.lstat()
+                if not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+                    raise ValueError
+                parents[parent] = custody._directory_identity(info)
+            before = path.lstat()
+            if (not stat.S_ISREG(before.st_mode) or before.st_uid != 0 or before.st_nlink != 1
+                    or before.st_mode & 0o022 or not 0 <= before.st_size <= 2):
+                raise ValueError
+            kernel = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            descriptors.append(kernel)
+            selected = identity(before)
+            def enforce():
+                custody.physical_path(path)
+                custody._recheck_parents(parents)
+                if identity(path.lstat()) != selected or identity(os.fstat(kernel)) != selected:
+                    raise ValueError
+                os.lseek(kernel, 0, os.SEEK_SET)
+                raw = os.read(kernel, 2)
+                if raw not in (b'1', b'1\n') or identity(os.fstat(kernel)) != selected:
+                    raise ValueError
+                return raw
+            enforcement = enforce()
+        except Exception:
+            raise PrerequisiteRefusal('cortex_selinux_refused') from None
+
+        if observe() != storage:
+            raise PrerequisiteRefusal('cortex_podman_storage_setup_required')
+        if read_linux_runtime(runtime_root, kos_policy=kos_policy, deadline=deadline) != binding:
+            raise PrerequisiteRefusal('cortex_instance_mismatch')
+        same()
+        try:
+            for root, fd, selected_root, root_parents in directories:
+                custody._recheck_parents(root_parents)
+                if identity(root.lstat()) != selected_root or identity(os.fstat(fd)) != selected_root:
+                    raise ValueError
+        except Exception:
+            raise PrerequisiteRefusal('cortex_podman_storage_setup_required') from None
+        try:
+            if enforce() != enforcement: raise ValueError
+        except Exception:
+            raise PrerequisiteRefusal('cortex_selinux_refused') from None
+        same()
+        return {'schema': 'cortex.linux-host-security.v1', 'installation_id': installation,
+                'rootless': True, 'storage_config_matches': True, 'storage_custody_matches': True,
+                'selinux': 'Enforcing'}
+    except PrerequisiteRefusal:
+        raise
+    except Exception:
+        raise PrerequisiteRefusal('cortex_health_unavailable') from None
+    finally:
+        refused = False
+        for fd in reversed(descriptors):
+            try: os.close(fd)
+            except OSError: refused = True
+        if refused: raise PrerequisiteRefusal('cortex_health_unavailable') from None
 
 
 def read_recipient_admission(runtime_root: Path, args: dict, response: dict, role: str,
