@@ -226,6 +226,128 @@ def read_linux_installation(runtime_root: Path, *, kos_policy: dict,
         raise ProvisionRefusal('cortex_provisioning_setup_required') from None
 
 
+CONTAINER_PROJECTION = ('{"name":{{json .Name}},"id":{{json .ID}},"image_id":{{json .Image}},'
+    '"owner":{{json (index .Config.Labels "com.kaidera.candidate")}},'
+    '"deployment_class":{{json (index .Config.Labels "com.kaidera.deployment-class")}},'
+    '"running":{{json .State.Running}},"networks":{{json .NetworkSettings.Networks}},'
+    '"ports":{{json .HostConfig.PortBindings}}}')
+IMAGE_PROJECTION = ('{"id":{{json .ID}},"digest":{{json .Digest}},"os":{{json .Os}},'
+    '"architecture":{{json .Architecture}},'
+    '"source":{{json (index .Labels "org.opencontainers.image.revision")}},'
+    '"version":{{json (index .Labels "org.opencontainers.image.version")}},'
+    '"deployment_class":{{json (index .Labels "com.kaidera.deployment-class")}}}')
+NETWORK_PROJECTION = ('{"name":{{json .Name}},"id":{{json .ID}},"internal":{{json .Internal}},'
+    '"owner":{{json (index .Labels "com.kaidera.candidate")}}}')
+
+
+def read_linux_runtime(runtime_root: Path, *, kos_policy: dict,
+                       deadline: float | None = None) -> dict:
+    """Bind exact owned live objects to signed bytes through fixed public projections."""
+    now = time.monotonic()
+    if deadline is None:
+        deadline = now + 30
+    if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+        raise PrerequisiteRefusal('cortex_health_unavailable')
+    deadline = min(deadline, now + 60)
+
+    def identity(path):
+        info = path.lstat()
+        return custody._file_identity(info), info.st_ctime_ns
+
+    def remaining():
+        if time.monotonic() >= deadline:
+            raise PrerequisiteRefusal('cortex_health_unavailable')
+
+    try:
+        remaining()
+        record_path = runtime_root / 'install.json'
+        record_parents = custody._parents(record_path)
+        record_identity = identity(record_path)
+        record_raw = custody.read_private_bytes(record_path)
+        binding = read_linux_installation(runtime_root, kos_policy=kos_policy, deadline=deadline)
+        remaining()
+        release, package = binding['release'], Path(binding['package_root'])
+        inner_path = package / 'release.json'
+        inner = strict_json(custody.read_private_bytes(inner_path, limit=1048576), limit=1048576)
+        signed = runtime_root / 'signed'
+        paths = [record_path, inner_path, signed / 'release.json', signed / 'release.json.minisig',
+                 signed / release['archive']['name']]
+        paths.extend(package / name for name in inner['files'])
+        if (package / 'SHA256SUMS').exists():
+            paths.append(package / 'SHA256SUMS')
+        files = {path: identity(path) for path in paths}
+        parents = dict(record_parents)
+        for path in paths:
+            parents.update(custody._parents(path))
+        context = _local_engine_context()
+
+        def recheck():
+            remaining()
+            if (_local_engine_context() != context
+                    or identity(record_path) != record_identity
+                    or custody.read_private_bytes(record_path) != record_raw
+                    or any(identity(path) != expected for path, expected in files.items())):
+                raise PrerequisiteRefusal('cortex_image_mismatch')
+            custody._recheck_parents(parents)
+            remaining()
+
+        def read(kind, projection, target):
+            recheck()
+            try:
+                value = _engine_json([context['executable'], '--remote=false', kind, 'inspect',
+                                      '--format', projection, target],
+                    environment=context['environment'], deadline=min(deadline, time.monotonic() + 5))
+            except PrerequisiteRefusal:
+                raise
+            except Exception:
+                raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+            recheck()
+            if not isinstance(value, dict):
+                raise PrerequisiteRefusal('cortex_image_mismatch')
+            return value
+
+        containers = {}
+        network = binding['namespace'] + '_net'
+        ports = {'8601/tcp': [{'HostIp': '127.0.0.1', 'HostPort': binding['origin'].rsplit(':', 1)[1]}]}
+        for role in custody.ROLES:
+            image = release['images'][role]
+            container = read('container', CONTAINER_PROJECTION, binding['namespace'] + '_' + role)
+            object_id = container.get('id')
+            if (set(container) != {'name', 'id', 'image_id', 'owner', 'deployment_class', 'running', 'networks', 'ports'}
+                    or container['name'] != binding['namespace'] + '_' + role
+                    or not isinstance(object_id, str) or not custody.HEX.fullmatch(object_id)
+                    or object_id in containers.values()
+                    or container['image_id'] != image['config_id'].removeprefix('sha256:')
+                    or container['owner'] != binding['installation_id']
+                    or container['deployment_class'] != 'TEST' or container['running'] is not True
+                    or not isinstance(container['networks'], dict) or set(container['networks']) != {network}
+                    or (container['ports'] != ports if role == 'api' else container['ports'] not in (None, {}))):
+                raise PrerequisiteRefusal('cortex_image_mismatch')
+            containers[role] = object_id
+            observed_image = read('image', IMAGE_PROJECTION, image['config_id'])
+            if observed_image != {'id': image['config_id'].removeprefix('sha256:'),
+                    'digest': image['manifest_digest'], 'os': 'linux', 'architecture': 'amd64',
+                    'source': release['source_revision'], 'version': release['release_id'].removeprefix('v'),
+                    'deployment_class': 'TEST'}:
+                raise PrerequisiteRefusal('cortex_image_mismatch')
+        observed_network = read('network', NETWORK_PROJECTION, network)
+        network_id = observed_network.get('id')
+        if (set(observed_network) != {'name', 'id', 'owner', 'internal'}
+                or observed_network['name'] != network or not isinstance(network_id, str)
+                or not custody.HEX.fullmatch(network_id) or observed_network['internal'] is not True
+                or observed_network['owner'] != binding['installation_id']):
+            raise PrerequisiteRefusal('cortex_image_mismatch')
+        # Snapshot identities guard every read. Remeasure bytes to close the gap
+        # between initial signature verification and the subsequent snapshot.
+        measured = custody.verify_installed_release(runtime_root, deadline=deadline)
+        if any(measured[key] != binding[key] for key in measured):
+            raise PrerequisiteRefusal('cortex_image_mismatch')
+        recheck()
+        return {**binding, 'containers': containers, 'network_id': network_id}
+    except (OSError, ValueError, TypeError, KeyError):
+        raise PrerequisiteRefusal('cortex_image_mismatch') from None
+
+
 class LoopbackTransport:
     """One bounded GET to the explicitly bound local API; never proxy or redirect."""
 
