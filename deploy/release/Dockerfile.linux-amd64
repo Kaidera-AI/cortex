@@ -1,0 +1,75 @@
+FROM docker.io/library/python:3.12.14-slim-trixie@sha256:44ff437bba879d4941b710a369a8f19266aea34b29002807f0c487fabc9eec9b AS builder
+
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy \
+    PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+
+COPY requirements-build.txt ./
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements-build.txt \
+    && python -m venv /opt/venv
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+COPY src ./src
+COPY migrations ./migrations
+
+# Lock regeneration runs only inside this throwaway stage; the uv cache stays
+# confined to the container layers. Extract the result with:
+#   podman build --target lockgen -t localhost/<candidate>-lockgen:<tag> .
+#   podman run --rm --entrypoint cat localhost/<candidate>-lockgen:<tag> /app/uv.lock > uv.lock
+FROM docker.io/library/python:3.12.14-slim-trixie@sha256:44ff437bba879d4941b710a369a8f19266aea34b29002807f0c487fabc9eec9b AS lockgen
+
+ENV UV_LINK_MODE=copy \
+    PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+
+COPY requirements-build.txt ./
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements-build.txt
+COPY pyproject.toml uv.lock ./
+COPY src ./src
+RUN uv lock
+
+FROM builder AS builder-doc
+RUN uv sync --frozen --no-dev --group doc --no-install-project
+
+FROM builder-doc AS test
+RUN uv sync --frozen --group test --group doc --no-install-project
+COPY tests ./tests
+COPY scripts ./scripts
+ENV CORTEX_V2_SANDBOX_INSTANCE=cortex-v2-v0-02-001-sandbox \
+    PYTHONPATH=/app/src
+USER 10001:10001
+ENTRYPOINT ["/opt/venv/bin/pytest", "-q", "-p", "no:cacheprovider", "tests"]
+
+FROM test AS tests
+
+FROM docker.io/library/python:3.12.14-slim-trixie@sha256:44ff437bba879d4941b710a369a8f19266aea34b29002807f0c487fabc9eec9b AS runtime-base
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONPATH=/app/src \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/migrations /app/migrations
+USER 10001:10001
+
+FROM runtime-base AS runtime
+COPY --from=builder /opt/venv /opt/venv
+EXPOSE 8601
+ENTRYPOINT ["python", "-m", "uvicorn", "cortex_v2.app:app", "--host", "0.0.0.0", "--port", "8601", "--no-access-log"]
+
+# Lean API image (identical bytes to `runtime`; named target for the integrated stack).
+FROM runtime AS api
+
+# Document processor worker: adds only the pre-approved pure-Python doc group.
+FROM runtime-base AS worker-doc
+COPY --from=builder-doc /opt/venv /opt/venv
+ENTRYPOINT ["python", "-m", "cortex_v2.worker", "--role", "doc"]
+
+FROM runtime-base AS worker-embed
+COPY --from=builder /opt/venv /opt/venv
+ENTRYPOINT ["python", "-m", "cortex_v2.worker", "--role", "embed"]
+
+FROM runtime-base AS worker-graph
+COPY --from=builder /opt/venv /opt/venv
+ENTRYPOINT ["python", "-m", "cortex_v2.worker", "--role", "graph"]

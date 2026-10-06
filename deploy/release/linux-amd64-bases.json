@@ -1,0 +1,22 @@
+{
+  "schema": "cortex.linux-amd64-bases.v1",
+  "resolved_at": "2026-10-06",
+  "owner": "ren-cx",
+  "source": "Docker Registry v2 version-tag index, selected linux/amd64 manifest and config independently rehashed",
+  "bases": {
+    "python": {
+      "architecture": "amd64",
+      "os": "linux",
+      "reference": "docker.io/library/python:3.12.14-slim-trixie",
+      "manifest_digest": "sha256:44ff437bba879d4941b710a369a8f19266aea34b29002807f0c487fabc9eec9b",
+      "config_digest": "sha256:9e87977b867847e186d066f531ef783b006d582a985c341c269446088d90f2c4"
+    },
+    "postgres": {
+      "architecture": "amd64",
+      "os": "linux",
+      "reference": "docker.io/pgvector/pgvector:0.8.6-pg18",
+      "manifest_digest": "sha256:1d50c689b0a6511b9ea0a15615281c81a59fd04a08eb35057ec8646fb3a2118a",
+      "config_digest": "sha256:b551e63a5606bdd3127b12a8120c6df8d71c812b29a7faf944b034cb9beb644a"
+    }
+  }
+}

@@ -16,3 +16,13 @@ Accepted scope R197/H-D258 and R198/H-D259. Source base origin47f0dd5b3ef4874d08
 Modify release builder/installer Podman validation/native rehearsal/dispatch guard and the Podman wording in Mac guide if necessary; add Linux bootstrap/wheel lock, ELF inspection helper, shared Podman policy, architecture/body-parity helper, separate AMD64 recipes/base inventory, Linux workflow and additive suites. `docs/plans/r198-linux-independent-package.md` mirrors this file in the source checkpoint. The Linux guide at this checkpoint may describe only the builder/real-byte gates and explicit pending CM-2/signed installation steps; no fabricated operational recipe.
 
 CM-2 external signed manifest, descriptor, provisioning/owner APIs and KOS edits remain excluded until Kai rules on the consumer consult. No new public HTTP route. Docs/evidence in the permanent root, public source/scratch on SSD, private native fixtures internal0700. Source review cannot qualify the future Linux package.
+
+## Additive implementation checks
+
+The original frozen RED remains intact. Additions close nested ZIP ELF coverage,
+Linux counterpart-workflow byte custody, actual target stage/OCI routing, and
+runtime library custody. The native interpreter carries its private-prefix
+rpath beyond the bootstrap process. Packaged help runs without inherited
+builder library or Python search paths. All additions are committed tests first;
+all inherited and earlier additive test bytes remain frozen. Source GREEN is
+followed by one fresh final author check; it is not native artifact admission.

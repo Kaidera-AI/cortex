@@ -44,7 +44,9 @@ def source_identity(source_sha: str) -> None:
         raise RuntimeError("source checkout is dirty; output must be outside it")
 
 
-def oci_identity(archive: Path) -> dict:
+def oci_identity(archive: Path, architecture: str = "arm64") -> dict:
+    if architecture not in ("arm64", "amd64"):
+        raise RuntimeError("closed native image architecture required")
     with tarfile.open(archive, "r") as stream:
         def read(name: str) -> bytes:
             member = stream.getmember(name)
@@ -71,8 +73,8 @@ def oci_identity(archive: Path) -> dict:
         if "sha256:" + hashlib.sha256(raw_config).hexdigest() != config_id:
             raise RuntimeError("OCI config checksum differs")
         config = json.loads(raw_config)
-        if config.get("os") != "linux" or config.get("architecture") != "arm64":
-            raise RuntimeError("image is not native linux/arm64")
+        if config.get("os") != "linux" or config.get("architecture") != architecture:
+            raise RuntimeError("image is not native linux/" + architecture)
         for layer in manifest["layers"]:
             layer_digest = layer["digest"]
             if not re.fullmatch(r"sha256:[0-9a-f]{64}", layer_digest):
@@ -84,7 +86,7 @@ def oci_identity(archive: Path) -> dict:
                 if "sha256:" + hashlib.file_digest(handle, "sha256").hexdigest() != layer_digest:
                     raise RuntimeError("OCI layer checksum differs")
         return {"manifest_digest": manifest_digest, "config_id": config_id,
-                "os": "linux", "architecture": "arm64",
+                "os": "linux", "architecture": architecture,
                 "layers": [x["digest"] for x in manifest["layers"]]}
 
 
@@ -121,38 +123,58 @@ def sbom(image: str, role: str, identity: str) -> dict:
     return spdx_document(f"Cortex TEST {role} installed-package inventory", identity, packages)
 
 
-def images(out: Path, source_sha: str, version: str) -> None:
-    if platform.system() != "Linux" or platform.machine() not in ("aarch64", "arm64"):
-        raise RuntimeError("native Linux arm64 builder required; no emulation")
+def native_target(target: str) -> str:
+    if target not in ("macos-arm64", "linux-x86_64"):
+        raise RuntimeError("closed native target required")
+    return "amd64" if target == "linux-x86_64" else "arm64"
+
+
+def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64") -> None:
+    architecture = native_target(target)
+    machines = ("x86_64",) if architecture == "amd64" else ("aarch64", "arm64")
+    if platform.system() != "Linux" or platform.machine() not in machines:
+        raise RuntimeError("native Linux " + architecture + " builder required; no emulation")
     source_identity(source_sha)
+    bases, policy, provider = None, None, None
+    if architecture == "amd64":
+        from linux_recipe_parity import verify_recipe_parity
+        from podman_policy import validate_versions
+        bases = verify_recipe_parity(ROOT)
+        policy = validate_versions(run(["podman", "version", "--format", "{{.Client.Version}} {{.Server.Version}}"], read=True))
+        provider = json.loads(run(["brew", "info", "--json=v2", "podman"], read=True))
+        if not provider.get("formulae") or not provider["formulae"][0].get("installed"):
+            raise RuntimeError("Linuxbrew current Podman installation receipt required")
     if out.exists():
         raise RuntimeError("build output already exists; candidate bytes are immutable")
     out.mkdir(parents=True)
     (out / "images").mkdir()
     (out / "sbom").mkdir()
     entries = {}
-    for role, target in TARGETS.items():
+    for role, role_target in TARGETS.items():
         tag = f"localhost/cortex-v2-test-{role}:{version}"
         command = ["podman", "build", "--format=oci", "--layers", "--label", f"org.opencontainers.image.revision={source_sha}",
                    "--label", f"org.opencontainers.image.version={version}", "--label", "com.kaidera.deployment-class=TEST", "--tag", tag]
-        if target is None:
-            command += ["--file", str(ROOT / "deploy/release/Containerfile.db")]
+        if role_target is None:
+            command += ["--file", str(ROOT / ("deploy/release/Containerfile.db.linux-amd64" if architecture == "amd64" else "deploy/release/Containerfile.db"))]
         else:
-            command += ["--target", target, "--file", str(ROOT / "Dockerfile")]
+            command += ["--target", role_target, "--file", str(ROOT / ("deploy/release/Dockerfile.linux-amd64" if architecture == "amd64" else "Dockerfile"))]
         run(command + [str(ROOT)])
         archive = out / "images" / f"{role}.oci.tar"
         run(["podman", "save", "--format=oci-archive", "--output", str(archive), tag])
-        identity = oci_identity(archive)
+        identity = oci_identity(archive, architecture=architecture)
         identity["archive"] = f"images/{role}.oci.tar"
         entries[role] = identity
         (out / "sbom" / f"{role}.spdx.json").write_text(json.dumps(sbom(tag, role, f"{version}-{role}-{identity['manifest_digest'][7:]}"), indent=2) + "\n")
-    (out / "image-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "images": entries,
+    selected_target = "linux-x86_64" if architecture == "amd64" else "macos-arm64"
+    (out / "image-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": selected_target, "images": entries,
             "builder": {"podman": run(["podman", "version", "--format", "{{.Client.Version}}"], read=True),
-                        "system": platform.platform(), "architecture": platform.machine()}}, indent=2) + "\n")
+                        "system": platform.platform(), "architecture": platform.machine(),
+                        "podman_minimum_receipt": policy, "podman_provider": provider,
+                        "recipe_parity": bases}}, indent=2) + "\n")
 
     sys.path.insert(0, str(ROOT / "scripts"))
     from package_rehearsal import rehearse
-    receipt = rehearse(entries, source_sha, version)
+    receipt = rehearse(entries, source_sha, version, target=selected_target)
     (out / "rehearsal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 
@@ -232,15 +254,50 @@ def freeze_host_programs(out: Path) -> dict:
     return programs
 
 
-def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        raise RuntimeError("native macOS arm64 builder required")
+def run_linux_qualification(args: list[str], *, read: bool = False) -> str:
+    environment = {k: v for k, v in os.environ.items()
+                   if not k.startswith("LD_") and k not in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV")}
+    environment.update(PATH="/usr/bin:/bin:/usr/sbin:/sbin", LC_ALL="C")
+    result = subprocess.run(args, check=True, stdout=subprocess.PIPE if read else None,
+                            text=True, env=environment)
+    return result.stdout.strip() if read else ""
+
+
+def freeze_linux_programs(out: Path) -> dict:
+    from linux_binaries import verify_program
+    programs = {}
+    for name, entrypoint, paths in (("cortex-test", "install_candidate.py", ROOT / "scripts"),
+                                    ("cortex-agent", "agent_request.py", ROOT / "src")):
+        run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", f"--name={name}",
+             "--paths", str(paths), "--distpath", str(out / "bin"), "--workpath", str(out / "work" / name),
+             "--specpath", str(out / "spec"), str(ROOT / "scripts/release" / entrypoint)])
+        programs[name] = verify_program(out / "bin" / name, run=run_linux_qualification)
+    # Only after BOTH ELF closures and entry points pass, publish inventories.
+    for name, inventory_name in (("cortex-test", "host-archive-inventory.txt"),
+                                 ("cortex-agent", "agent-archive-inventory.txt")):
+        archive = run([sys.executable, "-m", "PyInstaller.utils.cliutils.archive_viewer", "--recursive", "--brief",
+                       str(out / "bin" / name)], read=True)
+        (out / inventory_name).write_text(archive + "\n")
+        programs[name]["archive_inventory"] = inventory_name
+    for name in ("cortex-projects", "_cortex_api.sh"):
+        shutil.copy2(ROOT / "scripts/agent-shims" / name, out / "bin" / name)
+        (out / "bin" / name).chmod(0o755 if name == "cortex-projects" else 0o644)
+    return programs
+
+
+def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = "macos-arm64") -> None:
+    architecture = native_target(target)
+    expected_system, expected_machine = ("Linux", "x86_64") if architecture == "amd64" else ("Darwin", "arm64")
+    if platform.system() != expected_system or platform.machine() != expected_machine:
+        raise RuntimeError("native " + target + " builder required")
     if platform.python_version() != "3.12.14":
         raise RuntimeError("host freeze requires the pinned CPython 3.12.14 builder")
     source_identity(source_sha)
     runtime = runtime.resolve()
     native = json.loads((runtime / "runtime-inventory.json").read_text())
-    expected = json.loads(run([sys.executable, str(ROOT / "scripts/release/bootstrap-macos-runtime.py"), "--describe"], read=True))
+    bootstrap = "bootstrap-linux-runtime.py" if architecture == "amd64" else "bootstrap-macos-runtime.py"
+    lock = ROOT / "scripts/release" / ("requirements-linux-host-build.txt" if architecture == "amd64" else "requirements-host-build.txt")
+    expected = json.loads(run([sys.executable, str(ROOT / "scripts/release" / bootstrap), "--describe"], read=True))
     if (native.get("schema") != "cortex.native-ci-runtime.v1" or native.get("inputs") != expected
             or not Path(sys.executable).resolve().is_relative_to(runtime)
             or native.get("runtime", {}).get("python") != platform.python_version()):
@@ -249,15 +306,18 @@ def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
         raise RuntimeError("host output already exists")
     out.mkdir(parents=True)
     run([sys.executable, "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
-         "--requirement", str(ROOT / "scripts/release/requirements-host-build.txt")])
-    programs = freeze_host_programs(out)
+         "--requirement", str(lock)])
+    programs = freeze_linux_programs(out) if architecture == "amd64" else freeze_host_programs(out)
     (out / "licenses").mkdir()
     for name, expected_digest in native["licenses"].items():
         if name != Path(name).name or digest(runtime / "licenses" / name) != expected_digest:
             raise RuntimeError("native runtime licence differs from bootstrap")
         shutil.copyfile(runtime / "licenses" / name, out / "licenses" / name)
     builder_packages = []
-    for name in ("altgraph", "macholib", "packaging", "pyinstaller", "pyinstaller-hooks-contrib", "setuptools"):
+    builder_names = ("altgraph", "packaging", "pyinstaller", "pyinstaller-hooks-contrib", "setuptools")
+    if architecture == "arm64":
+        builder_names = ("altgraph", "macholib", "packaging", "pyinstaller", "pyinstaller-hooks-contrib", "setuptools")
+    for name in builder_names:
         distribution = metadata.distribution(name)
         notices = [f for f in distribution.files or [] if ".dist-info/" in str(f)
                    and ("license" in str(f).lower() or "copying" in str(f).lower())]
@@ -278,11 +338,11 @@ def host(out: Path, source_sha: str, version: str, runtime: Path) -> None:
     document = spdx_document("Cortex TEST native host inventory", f"{version}-host-{source_sha}", packages)
     document["comment"] = "CPython/installer/agent runtime inventory. Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
     (out / "host.spdx.json").write_text(json.dumps(document, indent=2) + "\n")
-    (out / "host-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": "macos-arm64",
-                "minimum_macos": "14", "python": platform.python_version(),
+    (out / "host-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": target,
+                **({"maximum_glibc": "2.35"} if architecture == "amd64" else {"minimum_macos": "14"}), "python": platform.python_version(),
                 "dependencies": programs["cortex-test"]["dependencies"], "programs": programs,
                 "builder_packages": builder_packages, "native_runtime_bootstrap": native,
-                "build_lock_sha256": digest(ROOT / "scripts/release/requirements-host-build.txt")}, indent=2) + "\n")
+                "build_lock_sha256": digest(lock)}, indent=2) + "\n")
     shutil.rmtree(out / "work")
     shutil.rmtree(out / "spec")
 
@@ -347,19 +407,31 @@ def compose_projection(entries: dict) -> str:
                                     "database-url-migrator", "fixture", "token-pepper", "worker-token", "worker-principal-id")}}, indent=2) + "\n"
 
 
-def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, version: str) -> None:
+def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, version: str, target: str = "macos-arm64") -> None:
+    from podman_policy import POLICY
+    architecture = native_target(target)
     source_identity(source_sha)
     inventory = json.loads((images_dir / "image-inventory.json").read_text())
     native = json.loads((host_dir / "host-inventory.json").read_text())
     rehearsal = json.loads((images_dir / "rehearsal-receipt.json").read_text())
     if inventory["source_sha"] != source_sha or inventory["version"] != version or native["source_sha"] != source_sha or native["version"] != version:
         raise RuntimeError("builder receipts do not bind to one frozen source/version")
+    if architecture == "amd64" and (inventory.get("target") != target or native.get("target") != target
+            or rehearsal.get("target") != target or native.get("maximum_glibc") != "2.35"):
+        raise RuntimeError("Linux builder receipts do not bind to the selected native target")
+    for role, entry in inventory["images"].items():
+        actual = oci_identity(images_dir / entry["archive"], architecture=architecture)
+        if any(actual[key] != entry.get(key) for key in actual):
+            raise RuntimeError("downloaded OCI bytes differ from native builder inventory")
     programs = native.get("programs", {})
     if set(programs) != {"cortex-test", "cortex-agent"}:
         raise RuntimeError("native installer and agent bridge inventories required")
     for name, receipt in programs.items():
         if digest(host_dir / "bin" / name) != receipt.get("sha256"):
             raise RuntimeError("downloaded host binary differs from its builder inventory")
+        if architecture == "amd64" and (receipt.get("architecture") != "x86_64" or receipt.get("help") != "PASS"
+                or receipt.get("maximum_glibc") != "2.35" or not receipt.get("embedded_elf_count")):
+            raise RuntimeError("complete native ELF and help qualification required")
     for name in ("cortex-projects", "_cortex_api.sh"):
         if digest(host_dir / "bin" / name) != digest(ROOT / "scripts/agent-shims" / name):
             raise RuntimeError("downloaded agent shim differs from frozen source")
@@ -370,7 +442,7 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     if out.exists():
         raise RuntimeError("assembly output already exists")
     out.mkdir(parents=True)
-    package = out / f"cortex-{version}-macos-arm64"
+    package = out / f"cortex-{version}-{target}"
     package.mkdir()
     shutil.copytree(images_dir / "images", package / "images")
     shutil.copytree(images_dir / "sbom", package / "sbom")
@@ -386,14 +458,18 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     shutil.copy2(host_dir / "host-archive-inventory.txt", package / "sbom/host-archive-inventory.txt")
     shutil.copy2(host_dir / "agent-archive-inventory.txt", package / "sbom/agent-archive-inventory.txt")
     shutil.copy2(host_dir / "host-inventory.json", package / "sbom/host-inventory.json")
-    shutil.copy2(ROOT / "scripts/release/requirements-host-build.txt", package / "sbom/host-build-lock.txt")
-    shutil.copy2(ROOT / "docs/install/macos-test-candidate.md", package / "INSTALL-macos.md")
+    lock = "requirements-linux-host-build.txt" if architecture == "amd64" else "requirements-host-build.txt"
+    guide = "linux-test-candidate.md" if architecture == "amd64" else "macos-test-candidate.md"
+    guide_name = "INSTALL-linux.md" if architecture == "amd64" else "INSTALL-macos.md"
+    shutil.copy2(ROOT / "scripts/release" / lock, package / "sbom/host-build-lock.txt")
+    shutil.copy2(ROOT / "docs/install" / guide, package / guide_name)
     shutil.copy2(ROOT / "LICENSE", package / "LICENSE")
     (package / "compose-images.yaml").write_text(compose_projection(inventory["images"]))
     files = {p.relative_to(package).as_posix(): digest(p) for p in sorted(package.rglob("*")) if p.is_file()}
     manifest = {"schema": "cortex.test-package.v1", "deployment_class": "TEST", "instance": INSTANCE,
-                "version": version, "source_sha": source_sha, "target": "macos-arm64", "minimum_macos": "14",
-                "podman_supported_family": "6.0.x", "images": inventory["images"], "files": files,
+                "version": version, "source_sha": source_sha, "target": target,
+                **({"maximum_glibc": "2.35"} if architecture == "amd64" else {"minimum_macos": "14"}),
+                "podman_policy": POLICY, "images": inventory["images"], "files": files,
                 "builder": inventory["builder"], "qualification": "NOT_INSTALLED; source admission recorded separately; literal local smoke required",
                 "signature": "unsigned TEST; not a signed customer release"}
     (package / "release.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
@@ -408,6 +484,7 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--target", choices=("macos-arm64", "linux-x86_64"), default="macos-arm64")
     parser.add_argument("stage", choices=("images", "host", "assemble"))
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--version", required=True)
@@ -422,15 +499,15 @@ def main() -> None:
     if args.output == ROOT or ROOT in args.output.parents:
         parser.error("output must be outside the source checkout")
     if args.stage == "images":
-        images(args.output, args.source_sha, args.version)
+        images(args.output, args.source_sha, args.version, target=args.target)
     elif args.stage == "host":
         if args.runtime is None:
             parser.error("host requires its compiled --runtime prefix")
-        host(args.output, args.source_sha, args.version, args.runtime)
+        host(args.output, args.source_sha, args.version, args.runtime, target=args.target)
     else:
         if args.images is None or args.host is None:
             parser.error("assemble requires --images and --host")
-        assemble(args.output, args.images, args.host, args.source_sha, args.version)
+        assemble(args.output, args.images, args.host, args.source_sha, args.version, target=args.target)
 
 
 if __name__ == "__main__":

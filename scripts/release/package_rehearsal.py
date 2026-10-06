@@ -17,20 +17,26 @@ from prepare_sandbox import prepare
 
 
 class NativeBuilder(Podman):
-    def __init__(self):
+    def __init__(self, target="macos-arm64"):
+        if target not in ("macos-arm64", "linux-x86_64"):
+            raise Refusal("closed native rehearsal target required")
+        self.architecture = "amd64" if target == "linux-x86_64" else "arm64"
+        machines = ("x86_64",) if self.architecture == "amd64" else ("arm64", "aarch64")
         if (os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux"
-                or platform.machine() not in ("arm64", "aarch64")):
+                or platform.machine() not in machines):
             raise Refusal("package rehearsal requires the disposable native CI builder")
         executable = shutil.which("podman")
         if not executable:
             raise Refusal("builder Podman unavailable")
         self.prefix = [executable]
+        if self.architecture == "amd64":
+            self.preflight()
         if self.run(["info", "--format", "{{.Host.Security.Rootless}}"], read=True) != "true":
             raise Refusal("package rehearsal requires rootless Podman")
 
 
-def rehearse(entries: dict, source_sha: str, version: str) -> dict:
-    engine = NativeBuilder()
+def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64") -> dict:
+    engine = NativeBuilder(target)
     installation = str(uuid.uuid4())
     root = Path.home() / ".cortex" / "test" / ("ci-rehearsal-" + installation)
     while True:
@@ -51,7 +57,8 @@ def rehearse(entries: dict, source_sha: str, version: str) -> dict:
     # All private bytes stay in the runner's owner-only home and Podman secrets.
     prepare(root / "state", INSTANCE)
     manifest = {"images": entries}
-    outcome = {"scope": "native Linux arm64 CI; not macOS/gvproxy or native installer qualification",
+    outcome = {"scope": "native Linux " + engine.architecture + " CI; not installed product qualification",
+               "target": target,
                "source_sha": source_sha, "version": version,
                "podman": engine.run(["version", "--format", "{{.Client.Version}}"], read=True),
                "image_ids": {r: entries[r]["config_id"] for r in ROLES}}

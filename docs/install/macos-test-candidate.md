@@ -7,7 +7,7 @@ The first archive is unsigned TEST material; it is not the signed customer relea
 ## Requirements
 
 - macOS 14 or newer on Apple Silicon, a normal user account.
-- Podman client **and machine/server 6.0.x**, with a running arm64 machine and
+- Podman client **and machine/server 6.0.2 or newer**, with a running arm64 machine and
   an explicit rootless connection.
   The qualification baseline is 6.0.2. Use the official Podman installer;
   KOS does not install or replace this prerequisite.
