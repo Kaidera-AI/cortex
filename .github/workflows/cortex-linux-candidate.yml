@@ -39,7 +39,7 @@ jobs:
 
   images:
     needs: identity
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -68,11 +68,11 @@ jobs:
         run: >-
           python3 scripts/release/linux_ci_runtime.py
           --runner-temp "$RUNNER_TEMP" --github-env "$GITHUB_ENV"
-      - name: Activate CPU delegation only outside the runner user manager
+      - name: Read-only systemd and effective CPU memory pids delegation
         env:
           CANDIDATE_SHA: ${{ github.sha }}
         run: >-
-          python3 scripts/release/linux_ci_delegation.py
+          python3 scripts/release/linux_ci_delegation.py --read-only
           --source-sha "$CANDIDATE_SHA" --output "$RUNNER_TEMP/cortex-linux-diagnostics"
       - name: Observe local engine using the bound runtime and fresh storage
         run: podman --remote=false version

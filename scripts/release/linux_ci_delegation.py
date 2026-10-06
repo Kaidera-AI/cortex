@@ -198,8 +198,100 @@ def observe_delegation(*, cgroup_path: Path = Path('/proc/self/cgroup'),
     return value
 
 
+def observe_readonly_delegation(*, capture=capture_command) -> dict:
+    """R288 CI path: observe current delegation; never change or restart systemd."""
+    native_context('linux-x86_64')
+    uid = os.getuid()
+    value = {'schema': 'cortex.linux-ci-delegation.v1', 'status': 'refused',
+             'uid': uid, 'required_controllers': list(REQUIRED), 'facts': {}, 'steps': []}
+    deadline = time.monotonic() + 15
+
+    def read(stage, prefix, args, *, fact=False):
+        step = {'stage': stage, 'exit_code': None, 'timed_out': None,
+                'overflow': None, 'launch_status': 'unknown', **_public_stream(None, 'stderr')}
+        value['steps'].append(step)
+        try:
+            remaining = min(5, deadline - time.monotonic())
+            if remaining <= 0 or os.getuid() != uid or os.geteuid() != uid:
+                raise ValueError
+            result = capture(prefix, args, input_data=None, timeout=remaining, public=False)
+            if not isinstance(result, dict):
+                raise ValueError
+            step.update(_public_stream(result.get('stderr'), 'stderr'))
+            if fact:
+                value['facts'][stage] = _public_stream(result.get('stdout'), 'stdout')
+            if (type(result.get('exit_code')) is not int or not -128 <= result['exit_code'] <= 255
+                    or type(result.get('timed_out')) is not bool or type(result.get('overflow')) is not bool
+                    or not isinstance(result.get('stdout'), bytes) or len(result['stdout']) > 1048576
+                    or not isinstance(result.get('stderr'), bytes) or len(result['stderr']) > 65536):
+                raise ValueError
+            overflow = (result['overflow'] or step['stderr_truncated']
+                        or fact and value['facts'][stage]['stdout_truncated'])
+            step.update(exit_code=result['exit_code'], timed_out=result['timed_out'],
+                        overflow=bool(overflow), launch_status='started')
+            if (result['exit_code'] != 0 or result['timed_out'] or overflow
+                    or time.monotonic() >= deadline or os.getuid() != uid or os.geteuid() != uid):
+                raise ValueError
+            return result['stdout']
+        except Exception:
+            raise DelegationRefused('command_refused') from None
+
+    def engine_json(raw):
+        def unique(pairs):
+            result = {}
+            for key, item in pairs:
+                if key in result:
+                    raise ValueError
+                result[key] = item
+            return result
+        def nonfinite(value):
+            raise ValueError
+        return json.loads(raw.decode('utf-8', errors='strict'),
+                          object_pairs_hook=unique, parse_constant=nonfinite)
+
+    try:
+        if uid == 0 or os.geteuid() != uid:
+            raise DelegationRefused('nonroot_runner_uid_required')
+        properties = read('systemctl_delegate', ['systemctl'],
+            ['show', 'user@' + str(uid) + '.service', '-p', 'Delegate', '-p', 'DelegateControllers'], fact=True)
+        try:
+            if (not properties.endswith(b'\n') or b'\r' in properties
+                    or any(c < 32 and c != 10 or c > 126 for c in properties)):
+                raise ValueError
+            rows = [line.split('=', 1) for line in properties[:-1].decode('ascii').split('\n')]
+            if len(rows) != 2 or any(len(row) != 2 for row in rows) or len({row[0] for row in rows}) != 2:
+                raise ValueError
+            parsed = dict(rows)
+            controllers = parsed['DelegateControllers'].split(' ')
+            known = {'cpu', 'cpuset', 'io', 'memory', 'pids', 'hugetlb', 'rdma', 'misc'}
+            if (set(parsed) != {'Delegate', 'DelegateControllers'} or parsed['Delegate'] != 'yes'
+                    or any(c not in known for c in controllers) or len(set(controllers)) != len(controllers)
+                    or not set(REQUIRED) <= set(controllers)):
+                raise ValueError
+            value['systemd'] = {'delegate': True, 'controllers': controllers}
+        except (ValueError, KeyError, TypeError, UnicodeError):
+            raise DelegationRefused('systemd_delegation_unavailable') from None
+        info_raw = read('engine_info', ['podman', '--remote=false'], ['info', '--format=json'])
+        version_raw = read('engine_version', ['podman', '--remote=false'], ['version', '--format=json'])
+        try:
+            report = engine_report(engine_json(info_raw), engine_json(version_raw),
+                presence={name: shutil.which(name) is not None for name in ('pasta', 'slirp4netns')})
+            value['engine'] = report
+            if (report['cgroup_version'] != 'v2' or report['rootless'] is not True
+                    or not set(REQUIRED) <= set(report['cgroup_controllers'])
+                    or time.monotonic() >= deadline):
+                raise ValueError
+        except (ValueError, KeyError, TypeError, UnicodeError, RecursionError, DiagnosticsRefused):
+            raise DelegationRefused('effective_cpu_memory_pids_required') from None
+        value['status'] = 'ready'
+    except DelegationRefused as error:
+        value.update(status='refused', reason=error.code)
+    return value
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--read-only', action='store_true', help='observe existing delegation without privileged changes')
     parser.add_argument('--source-sha', required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -210,7 +302,8 @@ def main():
     if (not output.is_absolute() or '..' in output.parts or output == ROOT or ROOT in output.parents
             or any(path.is_symlink() for path in (output, *output.parents))):
         parser.error('physical CI diagnostics output outside source required')
-    value = {**observe_delegation(capture=capture_command), 'source_sha': args.source_sha}
+    observer = observe_readonly_delegation if args.read_only else observe_delegation
+    value = {**observer(capture=capture_command), 'source_sha': args.source_sha}
     _write(output, 'delegation.json', value)
     if value['status'] != 'ready':
         print(json.dumps(value, sort_keys=True), file=sys.stderr)
