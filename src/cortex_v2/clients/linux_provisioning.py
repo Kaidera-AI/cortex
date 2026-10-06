@@ -348,6 +348,84 @@ def read_linux_runtime(runtime_root: Path, *, kos_policy: dict,
         raise PrerequisiteRefusal('cortex_image_mismatch') from None
 
 
+def owned_api_command(runtime_root: Path, frame: dict, *, kos_policy: dict,
+                      deadline: float | None = None) -> dict:
+    """Measure the signed owned API before delivering one private command.
+
+    The caller journals issuance before create-project. This port never retries
+    an uncertain command and never selects a container by a mutable name.
+    """
+    from ..native_prerequisite import _frame
+    try:
+        now = time.monotonic()
+        if deadline is None:
+            deadline = now + 60
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or not now < deadline <= now + 60):
+            raise ValueError
+        private = strict_json(json.dumps(frame, ensure_ascii=False, allow_nan=False,
+                                        separators=(',', ':')).encode())
+        mode, _ = _frame(private)
+    except (ValueError, TypeError, UnicodeError, RecursionError, PrerequisiteRefusal):
+        raise ProvisionRefusal('cortex_provisioning_setup_required') from None
+    context = read_linux_runtime(runtime_root, kos_policy=kos_policy, deadline=deadline)
+    if mode != 'payload' and private['installation_id'] != context['installation_id']:
+        raise ProvisionRefusal('cortex_instance_mismatch')
+    engine = _local_engine_context()
+    api_id = context['containers']['api']
+    if not isinstance(api_id, str) or re.fullmatch(r'[0-9a-f]{64}', api_id) is None:
+        raise ProvisionRefusal('cortex_image_mismatch')
+    command = ['/usr/bin/podman', '--remote=false', 'exec', '--interactive', api_id,
+               '/opt/venv/bin/python', '-m', 'cortex_v2.native_prerequisite']
+
+    def execute(value):
+        try:
+            remaining = min(5, deadline - time.monotonic())
+            if remaining <= 0 or _local_engine_context() != engine:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            result = private_json_command(command, value, timeout=remaining,
+                                          environment=engine['environment'])
+            fresh = read_linux_runtime(runtime_root, kos_policy=kos_policy, deadline=deadline)
+            if (time.monotonic() >= deadline or fresh != context
+                    or _local_engine_context() != engine):
+                raise ProvisionRefusal('cortex_instance_mismatch')
+            return result
+        except PrerequisiteRefusal:
+            raise
+        except Exception:
+            raise ProvisionRefusal('cortex_health_unavailable') from None
+
+    payload = execute({'mode': 'payload'})
+    try:
+        if (not isinstance(payload, dict) or set(payload) != {'files', 'sha256'}
+                or not isinstance(payload['files'], dict) or not 1 <= len(payload['files']) <= 4096):
+            raise ValueError
+        for name, digest in payload['files'].items():
+            if (not isinstance(name, str) or not name.startswith(('src/', 'migrations/'))
+                    or any(part in ('', '.', '..') for part in name.split('/'))
+                    or any(ord(c) < 32 or ord(c) == 127 for c in name) or '\\' in name
+                    or not isinstance(digest, str) or re.fullmatch(r'[0-9a-f]{64}', digest) is None):
+                raise ValueError
+        measured = hashlib.sha256(json.dumps(payload['files'], sort_keys=True,
+                                            separators=(',', ':')).encode()).hexdigest()
+        migrations = {'migrations/' + item['name']: item['sha256']
+                      for item in context['release']['migrations']}
+        if (payload['sha256'] != measured
+                or measured != context['release']['images']['api']['source_payload_sha256']
+                or {n: d for n, d in payload['files'].items() if n.startswith('migrations/')} != migrations):
+            raise ValueError
+    except (ValueError, TypeError, KeyError, UnicodeError, RecursionError):
+        raise ProvisionRefusal('cortex_image_mismatch') from None
+    if mode == 'payload':
+        return payload
+    result = execute(private)
+    if mode == 'authorize-owner' and (not isinstance(result, dict)
+            or set(result) != {'authorized', 'installation_id'} or result['authorized'] is not True
+            or result['installation_id'] != context['installation_id']):
+        raise ProvisionRefusal('cortex_provisioning_owner_required')
+    return result
+
+
 class LoopbackTransport:
     """One bounded GET to the explicitly bound local API; never proxy or redirect."""
 
@@ -435,7 +513,8 @@ def _one_frame(raw: bytes, limit: int) -> dict:
         raise ProvisionRefusal('cortex_health_unavailable') from None
 
 
-def private_json_command(command: list[str], frame: dict, *, timeout: float = 5) -> dict:
+def private_json_command(command: list[str], frame: dict, *, timeout: float = 5,
+                         environment: dict | None = None) -> dict:
     """One private request/response with an absolute work and cleanup deadline.
 
     The caller binds the executable and owned object before calling this port.
@@ -451,14 +530,19 @@ def private_json_command(command: list[str], frame: dict, *, timeout: float = 5)
         request = json.dumps(frame, ensure_ascii=False, allow_nan=False, separators=(',', ':')).encode() + b'\n'
         if len(request) > 65536: raise ValueError
         strict_json(request)
+        if environment is not None:
+            if not isinstance(environment, dict) or environment != _local_engine_context()['environment']:
+                raise ValueError
+            environment = dict(environment)
     except (ValueError, TypeError, UnicodeError, PrerequisiteRefusal, RecursionError):
         raise ProvisionRefusal('cortex_provisioning_setup_required') from None
     absolute_deadline = time.monotonic() + timeout
     cleanup_budget = min(.1, timeout / 4)
     work_deadline = absolute_deadline - cleanup_budget
-    environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C',
-                   'HOME': pwd.getpwuid(os.getuid()).pw_dir,
-                   'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONUTF8': '1'}
+    if environment is None:
+        environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C',
+                       'HOME': pwd.getpwuid(os.getuid()).pw_dir}
+    environment.update(PYTHONDONTWRITEBYTECODE='1', PYTHONUTF8='1')
     process = None
     streams_closed = False
     output, errors = bytearray(), bytearray()

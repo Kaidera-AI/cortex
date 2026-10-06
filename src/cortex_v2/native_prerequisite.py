@@ -107,6 +107,10 @@ def _frame(value):
         canonical_uuid(value['installation_id'])
         if not isinstance(value['credential'], str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}', value['credential']):
             raise ValueError
+        if mode == 'authorize-owner':
+            if set(value) != {'mode', 'installation_id', 'credential'}:
+                raise ValueError
+            return mode, None
         if mode == 'create-project':
             if (set(value) != {'mode', 'installation_id', 'credential', 'idempotency_key', 'request'}
                     or not isinstance(value['idempotency_key'], str)
@@ -147,6 +151,14 @@ async def execute_private(value: dict, *, settings=None, connect=None) -> dict:
                 principal = await store.authenticate(connection, store.token_digest(value['credential'], settings.token_pepper))
                 if str(principal.installation_id) != value['installation_id']:
                     raise NativeRefusal('cortex_instance_mismatch')
+                if mode == 'authorize-owner':
+                    try:
+                        await identity.list_privileged_actions(connection, principal, 1)
+                    except store.ApiProblem:
+                        raise NativeRefusal('cortex_provisioning_owner_required') from None
+                    except Exception:
+                        raise NativeRefusal('cortex_health_unavailable') from None
+                    return {'authorized': True, 'installation_id': value['installation_id']}
                 if mode == 'create-project':
                     try:
                         # Existing DB-mediated audit read is owner-only. Discard its body.
