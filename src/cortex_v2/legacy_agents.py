@@ -81,6 +81,14 @@ def context_records(context):
         raise ImportRefused('invalid bound project context') from exc
 
 
+def _committed_agent_groups(records, policy, context, checkpoint):
+    # Originals cover only committed groups. A future nonempty quarantine must
+    # not be reconstructed as an invalid empty family by either native reader.
+    contexts = project_groups(context_records(context), policy)[:checkpoint]
+    dependencies = tuple(record for group in contexts for record in group.records)
+    return agent_groups(records, policy, dependencies)[:checkpoint]
+
+
 @dataclass(frozen=True)
 class AgentGroup:
     records: tuple[OriginalRecord, ...]
@@ -284,7 +292,7 @@ async def read_native_roster(target, run_id):
         records = tuple(OriginalRecord(key, value) for key, value in originals.items())
         checkpoint = await target.fetchval('SELECT checkpoint FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq DESC LIMIT 1', run_id)
         result = []
-        for group in agent_groups(records, header['policy'], context_records(header['context']))[:checkpoint]:
+        for group in _committed_agent_groups(records, header['policy'], header['context'], checkpoint):
             if group.projection_json is None:
                 continue
             p = load_json(group.projection_json); actual = []

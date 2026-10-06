@@ -201,14 +201,9 @@ async def _inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
     installation = uuid.UUID(payload['binding']['target_installation_id'])
     agents = payload['binding']['mapping_version'] == 'legacy-agents.v1'
     if agents:
-        from cortex_v2.legacy_agents import agent_groups, context_records, reconcile_agents, target_references
-        dependencies = context_records(payload['context'])
+        from cortex_v2.legacy_agents import _committed_agent_groups, reconcile_agents, target_references
         checkpoint = await target.fetchval('SELECT checkpoint FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq DESC LIMIT 1', run_id)
-        # Only committed contexts can be reconstructed from committed originals.
-        # A future nonempty quarantine must not look like an invalid empty family.
-        contexts = project_groups(dependencies, payload['policy'])[:checkpoint]
-        prefix = tuple(record for context in contexts for record in context.records)
-        groups = agent_groups(tuple(records), payload['policy'], prefix)[:checkpoint]
+        groups = _committed_agent_groups(tuple(records), payload['policy'], payload['context'], checkpoint)
     else:
         groups = project_groups(tuple(records), payload['policy'])
     for group in groups:
@@ -259,8 +254,8 @@ async def _agent_run_lock(target, binding):
     # transaction locks below still protect each checkpoint/replay readback.
     await _target_guard(target, binding)
     lock = int.from_bytes(hashlib.sha256(b'cortex.state.import_agents.run').digest()[:8], 'big', signed=True)
-    await target.execute('SELECT pg_advisory_lock($1::bigint)', lock)
     try:
+        await target.execute('SELECT pg_advisory_lock($1::bigint)', lock)
         yield
     finally:
         # No unlock-all: release only the exact acquisition owned by this call.
