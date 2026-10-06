@@ -129,12 +129,15 @@ def _engine_json(command: list[str], *, environment: dict, deadline: float) -> d
     except (OSError, ValueError, TypeError, subprocess.SubprocessError):
         raise PrerequisiteRefusal('cortex_podman_unsupported') from None
     finally:
+        cleanup_failed = False
         if process is not None:
             if not complete:
                 try:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+                except OSError:
+                    cleanup_failed = True
                 try:
                     process.wait(timeout=max(0, absolute_deadline - time.monotonic()))
                 except subprocess.TimeoutExpired:
@@ -142,6 +145,8 @@ def _engine_json(command: list[str], *, environment: dict, deadline: float) -> d
             for stream in (process.stdout, process.stderr):
                 if stream is not None:
                     stream.close()
+        if cleanup_failed:
+            raise PrerequisiteRefusal('cortex_podman_unsupported') from None
 
 
 def observe_linux_engine(*, cortex_policy: dict, kos_policy: dict,
