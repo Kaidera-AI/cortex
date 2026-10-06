@@ -29,6 +29,7 @@ from .native_prerequisite import PrerequisiteRefusal, strict_json
 from .provisioning import ProvisionRefusal, _response, validate_request
 
 SELINUX_ENFORCE = Path('/sys/fs/selinux/enforce')
+LINUXBREW_PREFIX = Path('/home/linuxbrew/.linuxbrew')
 
 REFUSALS = frozenset({
     'cortex_health_unavailable', 'cortex_health_degraded', 'cortex_credential_refused',
@@ -44,6 +45,73 @@ REFUSALS = frozenset({
 })
 
 
+def _linuxbrew_program(name: str, *, uid: int) -> dict:
+    """Measure only the anchored stock link, physical program and parents."""
+    descriptor = None
+    try:
+        prefix = LINUXBREW_PREFIX
+        custody.physical_path(prefix)
+        link = prefix / 'bin' / name
+        before = link.lstat()
+        if not stat.S_ISLNK(before.st_mode) or before.st_uid not in (0, uid) or before.st_nlink != 1:
+            raise ValueError
+        link_identity = custody._file_identity(before), before.st_ctime_ns
+        target = link.resolve(strict=True)
+        relative = target.relative_to(prefix).parts
+        keg = None
+        if name == 'podman':
+            if (len(relative) != 5 or relative[:2] != ('Cellar', 'podman')
+                    or relative[3:] != ('bin', 'podman')
+                    or re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:_[1-9][0-9]*)?', relative[2]) is None):
+                raise ValueError
+            keg = relative[2]
+        elif name != 'brew' or relative != ('Homebrew', 'bin', 'brew'):
+            raise ValueError
+        text = os.readlink(link)
+        if text not in (str(target), os.path.relpath(target, link.parent)):
+            raise ValueError
+        custody.physical_path(target)
+        parents = {}
+        for parent in (*link.parents, *target.parents):
+            custody.physical_path(parent)
+            info = parent.lstat()
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, uid) or info.st_mode & 0o022:
+                raise ValueError
+            parents[parent] = custody._directory_identity(info)
+        selected = target.lstat()
+        if (not stat.S_ISREG(selected.st_mode) or selected.st_uid not in (0, uid)
+                or selected.st_nlink != 1 or selected.st_mode & 0o022 or not selected.st_mode & 0o111
+                or not 1 <= selected.st_size <= (268435456 if name == 'podman' else 1048576)):
+            raise ValueError
+        identity = custody._file_identity(selected), selected.st_ctime_ns
+        descriptor = os.open(target, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        opened = os.fstat(descriptor)
+        if (custody._file_identity(opened), opened.st_ctime_ns) != identity:
+            raise ValueError
+        header = os.read(descriptor, 64)
+        if name == 'podman':
+            if (len(header) != 64 or header[:7] != b'\x7fELF\x02\x01\x01'
+                    or header[16:18] not in (b'\x02\x00', b'\x03\x00')
+                    or header[18:20] != b'\x3e\x00' or header[20:24] != b'\x01\x00\x00\x00'):
+                raise ValueError
+        elif not header.startswith(b'#!/bin/bash\n'):
+            raise ValueError
+        fresh = target.lstat(); opened = os.fstat(descriptor); current = link.lstat()
+        if ((custody._file_identity(fresh), fresh.st_ctime_ns) != identity
+                or (custody._file_identity(opened), opened.st_ctime_ns) != identity
+                or (custody._file_identity(current), current.st_ctime_ns) != link_identity
+                or os.readlink(link) != text or link.resolve(strict=True) != target):
+            raise ValueError
+        for parent, expected in parents.items():
+            if custody._directory_identity(parent.lstat()) != expected:
+                raise ValueError
+        return {'executable': str(target), 'linked_keg': keg,
+                'identity': (link_identity, identity, tuple((str(p), v) for p, v in parents.items()), text)}
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
 def _local_engine_context() -> dict:
     """Bind the actual kos identity and physical local engine before execution."""
     try:
@@ -53,9 +121,9 @@ def _local_engine_context() -> dict:
         account = pwd.getpwuid(uid)
         if account.pw_name != 'kos':
             raise ValueError
-        home, runtime, executable = Path(account.pw_dir), Path('/run/user/' + str(uid)), Path('/usr/bin/podman')
+        home, runtime = Path(account.pw_dir), Path('/run/user/' + str(uid))
         identities = []
-        for path, owner, directory in ((home, uid, True), (runtime, uid, True), (executable, 0, False)):
+        for path, owner, directory in ((home, uid, True), (runtime, uid, True)):
             custody.physical_path(path)
             info = path.lstat()
             if (info.st_uid != owner or info.st_mode & 0o022
@@ -63,10 +131,91 @@ def _local_engine_context() -> dict:
                     or (not directory and (not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o111))):
                 raise ValueError
             identities.append(custody._file_identity(info))
-        return {'executable': str(executable), 'uid': uid, 'identity': tuple(identities),
-                'environment': {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': str(home),
-                                'XDG_RUNTIME_DIR': str(runtime), 'LC_ALL': 'C'}}
+        environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': str(home),
+                       'XDG_RUNTIME_DIR': str(runtime), 'LC_ALL': 'C'}
+        try:
+            LINUXBREW_PREFIX.lstat()
+        except FileNotFoundError:
+            # Version-only legacy contexts never qualify the stock provider.
+            executable = Path('/usr/bin/podman')
+            custody.physical_path(executable)
+            info = executable.lstat()
+            if info.st_uid != 0 or info.st_mode & 0o022 or not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o111:
+                raise ValueError
+            identities.append(custody._file_identity(info))
+            return {'executable': str(executable), 'uid': uid, 'identity': tuple(identities), 'environment': environment}
+        program = _linuxbrew_program('podman', uid=uid)
+        return {'executable': program['executable'], 'uid': uid, 'provider': 'linuxbrew',
+                'linked_keg': program['linked_keg'], 'identity': (*identities, program['identity']),
+                'environment': environment}
     except (OSError, KeyError, ValueError, TypeError, PrerequisiteRefusal):
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+
+
+def observe_linuxbrew_provider(*, cortex_policy: dict, kos_policy: dict,
+                              deadline: float | None = None) -> dict:
+    """Bind current core formula and installed stock keg to the measured ABI."""
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 30
+        if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+            raise ValueError
+        deadline = min(deadline, now + 30)
+        context = _local_engine_context()
+        if context.get('provider') != 'linuxbrew':
+            raise ValueError
+        brew = _linuxbrew_program('brew', uid=context['uid'])
+
+        def check():
+            if (time.monotonic() >= deadline or _local_engine_context() != context
+                    or _linuxbrew_program('brew', uid=context['uid']) != brew):
+                raise ValueError
+
+        def read(command, environment):
+            check()
+            value = _engine_json(command, environment=environment, deadline=deadline)
+            check()
+            return value
+
+        report = read([context['executable'], '--remote=false', 'version', '--format=json'], context['environment'])
+        version = custody.parse_podman_report(json.dumps(report, allow_nan=False).encode(),
+            host_os='linux', mode='local', connection_name=None, expected_connection_name=None,
+            cortex_policy=cortex_policy, kos_policy=kos_policy)['client_version']
+        if custody._version(version) < (6, 0, 2):
+            raise ValueError
+        environment = dict(context['environment'], HOMEBREW_NO_AUTO_UPDATE='1',
+                           HOMEBREW_NO_ANALYTICS='1', HOMEBREW_NO_INSTALL_CLEANUP='1')
+        metadata = read([brew['executable'], 'info', '--json=v2', '--formula', 'podman'], environment)
+        formulae = metadata['formulae']
+        if not isinstance(formulae, list) or len(formulae) != 1:
+            raise ValueError
+        formula = formulae[0]; revision = formula['revision']
+        if (formula['name'] != 'podman' or formula['tap'] != 'homebrew/core'
+                or formula['versions']['stable'] != version or type(revision) is not int or revision < 0):
+            raise ValueError
+        keg = version + ('_' + str(revision) if revision else '')
+        installed = formula['installed']
+        if not isinstance(installed, list):
+            raise ValueError
+        matches = [item for item in installed if item['version'] == keg]
+        if (context['linked_keg'] != keg or formula['linked_keg'] != keg or len(matches) != 1
+                or matches[0]['poured_from_bottle'] is not True):
+            raise ValueError
+        bottle = formula['bottle']['stable']['files']['x86_64_linux']; checksum = bottle['sha256']
+        if (not isinstance(checksum, str) or re.fullmatch(r'[0-9a-f]{64}', checksum) is None
+                or bottle['url'] != 'https://ghcr.io/v2/homebrew/core/podman/blobs/sha256:' + checksum):
+            raise ValueError
+        check()
+        return {'schema': 'cortex.linuxbrew-provider.v1', 'provider': 'linuxbrew',
+                'formula': 'homebrew/core/podman', 'version': version, 'linked_keg': keg,
+                'poured_from_bottle': True, 'bottle_sha256': checksum, 'bottle_url': bottle['url'],
+                'checksum_verifier': 'Homebrew',
+                'scope': 'current formula metadata and installed stock keg; Homebrew verifies downloaded bottle bytes'}
+    except PrerequisiteRefusal as error:
+        if error.code == 'cortex_podman_denied':
+            raise
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+    except Exception:
         raise PrerequisiteRefusal('cortex_podman_unsupported') from None
 
 
@@ -611,7 +760,7 @@ def owned_api_command(runtime_root: Path, frame: dict, *, kos_policy: dict,
     api_id = context['containers']['api']
     if not isinstance(api_id, str) or re.fullmatch(r'[0-9a-f]{64}', api_id) is None:
         raise ProvisionRefusal('cortex_image_mismatch')
-    command = ['/usr/bin/podman', '--remote=false', 'exec', '--interactive', api_id,
+    command = [engine['executable'], '--remote=false', 'exec', '--interactive', api_id,
                '/opt/venv/bin/python', '-m', 'cortex_v2.native_prerequisite']
 
     def execute(value):
