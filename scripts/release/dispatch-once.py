@@ -1,0 +1,167 @@
+"""Guard one admitted native CI submission from a clean source checkout.
+
+Use the locked source test group (PyYAML is already pinned). The operator must
+have Vera's exact source PASS and Kai's fresh CI admission. A matching push
+predicate creates the ref once, waits/re-lists, and REFUSES manual dispatch.
+Observe that push run. This does not authorize a build, retry or publication.
+"""
+from pathlib import Path
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+import time
+
+import yaml
+
+
+ROOT = Path(__file__).resolve().parents[2]
+REPO = "Kaidera-AI/cortex"
+WORKFLOW = "cortex-candidate.yml"
+PREFIX = "ren-cx/package-build-admitted-"
+
+
+class DispatchRefused(RuntimeError):
+    def __init__(self, code):
+        self.code = code
+        super().__init__(code)
+
+
+def push_can_trigger(workflow_text, branch):
+    try:
+        # BaseLoader retains the GitHub YAML 'on' key and constructs no objects.
+        document = yaml.load(workflow_text, Loader=yaml.BaseLoader)
+        events = document["on"]
+        if isinstance(events, str):
+            if events not in ("push", "workflow_dispatch"):
+                raise ValueError
+            return events == "push"
+        if isinstance(events, list):
+            if not events or any(e not in ("push", "workflow_dispatch") for e in events):
+                raise ValueError
+            return "push" in events
+        if not isinstance(events, dict) or not events or set(events) - {"push", "workflow_dispatch"}:
+            raise ValueError
+        if "push" not in events:
+            return False
+        push = events["push"]
+        if push == "" or push == {}:
+            return True
+        if not isinstance(push, dict) or set(push) != {"branches"}:
+            raise ValueError
+        patterns = push["branches"]
+        if not isinstance(patterns, list) or not patterns:
+            raise ValueError
+        matched = False
+        for pattern in patterns:
+            if not isinstance(pattern, str) or not re.fullmatch(r"(?:[A-Za-z0-9_./-]+\*?|\*)", pattern):
+                raise ValueError
+            matched |= branch.startswith(pattern[:-1]) if pattern.endswith("*") else branch == pattern
+        return matched
+    except (KeyError, TypeError, ValueError, yaml.YAMLError):
+        raise DispatchRefused("workflow_push_predicate_unknown") from None
+
+
+def check_runs(runs, sha):
+    if not isinstance(runs, list) or any(not isinstance(r, dict) or r.get("head_sha") != sha for r in runs):
+        raise DispatchRefused("ci_run_binding_invalid")
+    if runs:
+        raise DispatchRefused("native_ci_run_exists")
+
+
+def dispatch_once(sha, workflow_text, github, wait):
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise DispatchRefused("source_sha_invalid")
+    branch = PREFIX + sha
+    can_push = push_can_trigger(workflow_text, branch)
+    check_runs(github.list_runs(sha), sha)
+    github.create_ref(branch, sha)
+    wait(30)
+    check_runs(github.list_runs(sha), sha)
+    if can_push:
+        raise DispatchRefused("push_can_trigger_native_ci")
+    github.dispatch(branch)
+    return {"status": "manual_dispatch_submitted", "source_sha": sha, "branch": branch}
+
+
+class Github:
+    def __init__(self, trace):
+        self.trace = trace
+
+    def request(self, endpoint, body=None):
+        command = ["gh", "api", f"repos/{REPO}/{endpoint}"]
+        if body is not None:
+            command += ["--method", "POST", "--input", "-"]
+        result = subprocess.run(command, input=json.dumps(body) if body is not None else None,
+                                capture_output=True, text=True)
+        self.trace.append({"endpoint": endpoint, "method": "POST" if body is not None else "GET",
+                           "exit_code": result.returncode})
+        if result.returncode:
+            raise DispatchRefused("github_request_failed")
+        return json.loads(result.stdout) if result.stdout.strip() else None
+
+    def list_runs(self, sha):
+        response = self.request(f"actions/workflows/{WORKFLOW}/runs?head_sha={sha}&per_page=100")
+        if not isinstance(response, dict) or response.get("total_count") != len(response.get("workflow_runs", [])):
+            raise DispatchRefused("ci_run_binding_invalid")
+        return response["workflow_runs"]
+
+    def create_ref(self, branch, sha):
+        response = self.request("git/refs", {"ref": "refs/heads/" + branch, "sha": sha})
+        if response.get("object", {}).get("sha") != sha:
+            raise DispatchRefused("created_ref_binding_invalid")
+
+    def dispatch(self, branch):
+        self.request(f"actions/workflows/{WORKFLOW}/dispatches", {"ref": branch})
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--review-receipt", type=Path, required=True)
+    parser.add_argument("--inbox", type=Path, required=True, help="fresh operator DO NOW, naming this CI SHA")
+    parser.add_argument("--evidence", type=Path, required=True, help="new public receipt file; never overwritten")
+    args = parser.parse_args()
+    trace = []
+    record = {"source_sha": args.source_sha, "calls": trace}
+    with args.evidence.open("x") as stream:
+        try:
+            if not re.fullmatch(r"[0-9a-f]{40}", args.source_sha):
+                raise DispatchRefused("source_sha_invalid")
+            review_bytes = args.review_receipt.read_bytes()
+            review = json.loads(review_bytes)
+            if review.get("verdict") != "PASS" or review.get("target_receipt", {}).get("head_commit") != args.source_sha:
+                raise DispatchRefused("exact_source_review_required")
+            admission = next(line for line in args.inbox.read_text().splitlines() if line.startswith("**▶ DO NOW"))
+            if args.source_sha[:10] not in admission or "CI" not in admission:
+                raise DispatchRefused("fresh_ci_admission_required")
+            def git(*parts):
+                return subprocess.check_output(["git", "-C", str(ROOT), *parts], text=True).strip()
+            if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
+                raise DispatchRefused("clean_exact_source_required")
+            workflow = (ROOT / ".github/workflows" / WORKFLOW).read_text()
+            record.update(review_sha256=hashlib.sha256(review_bytes).hexdigest(), admission=admission)
+            github = Github(trace)
+            # Recheck the active instruction immediately before each mutation.
+            original_request = github.request
+            def request(endpoint, body=None):
+                if body is not None and admission not in args.inbox.read_text().splitlines():
+                    raise DispatchRefused("ci_admission_changed")
+                return original_request(endpoint, body)
+            github.request = request
+            record.update(dispatch_once(args.source_sha, workflow, github, time.sleep))
+            code = 0
+        except DispatchRefused as exc:
+            record.update(status="manual_dispatch_refused", reason=exc.code)
+            code = 2
+        except (OSError, ValueError, KeyError, TypeError, StopIteration, subprocess.SubprocessError):
+            record.update(status="manual_dispatch_refused", reason="operator_input_or_provider_failed")
+            code = 2
+        stream.write(json.dumps(record, indent=2) + "\n")
+    print(json.dumps(record))
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
