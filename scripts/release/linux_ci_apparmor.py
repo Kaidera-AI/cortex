@@ -161,6 +161,8 @@ def prepare_userns(*, capture=capture_command) -> dict:
                     or not isinstance(stdout, bytes) or len(stdout) > (4096 if fact else 1048576)
                     or not isinstance(result.get('stderr'), bytes)):
                 raise ValueError
+            if stage == 'profile_load':
+                value['profile_loaded'] = True
             recheck()
             return result if allow_nonzero else stdout
         except Exception:
@@ -194,7 +196,6 @@ def prepare_userns(*, capture=capture_command) -> dict:
             profile = ('abi <abi/4.0>,\ninclude <tunables/global>\n\n"' + selected['resolved_path']
                        + '" flags=(unconfined) {\n  userns,\n}\n').encode('ascii')
             command('profile_load', PRIVILEGED + ['apparmor_parser'], ['-r'], data=profile)
-            value['profile_loaded'] = True
             command('engine_info_after', [selected['resolved_path'], '--remote=false'], ['info', '--format=json'])
         value['status'] = 'ready'
     except AppArmorRefused as error:
