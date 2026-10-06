@@ -365,7 +365,13 @@ def instrument_builder(original, output: Path, source_sha: str):
                 canary_ok = self._canary(recipe)
                 # Exactly one actual start. Neither a canary failure nor a
                 # diagnostics refusal authorizes a fallback or another start.
-                result = capture_command(self.prefix, args, input_data=input_data, timeout=timeout, public=False)
+                try:
+                    result = capture_command(self.prefix, args, input_data=input_data, timeout=timeout, public=False)
+                except DiagnosticsRefused:
+                    _write(output, 'real-start.json', {'schema': 'cortex.linux-ci-real-start.v1', 'source_sha': source_sha,
+                            'role': 'db', 'exit_code': None, 'timed_out': False, 'overflow': False,
+                            'signature': 'process_unavailable', 'component': 'podman'})
+                    raise refusal('Podman start unavailable; private diagnostic classified') from None
                 classification = classify_stderr(result['stderr'])
                 if result['timed_out'] or result['overflow']:
                     classification = {'signature': 'timeout' if result['timed_out'] else 'output_limit', 'component': 'podman'}
@@ -388,28 +394,35 @@ def instrument_builder(original, output: Path, source_sha: str):
 
 def run_images(args, *, delegate=None, rehearsal=None):
     native_context(args.target)
-    if rehearsal is None:
-        import package_rehearsal as rehearsal
-    if delegate is None:
-        spec = importlib.util.spec_from_file_location('cortex_linux_ci_original_build', ROOT / 'scripts/release/build-candidate.py')
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        def delegate(argv):
-            previous = sys.argv
-            try:
-                sys.argv = [str(ROOT / 'scripts/release/build-candidate.py'), *argv]
-                module.main()
-            finally:
-                sys.argv = previous
-
-    original = rehearsal.NativeBuilder
+    previous_path = list(sys.path)
+    original = None
     try:
+        if rehearsal is None:
+            # The original images entrypoint adds scripts/ before importing
+            # prepare_sandbox. Resolve that same shared path before wrapping.
+            sys.path.insert(0, str(ROOT / 'scripts'))
+            import package_rehearsal as rehearsal
+        if delegate is None:
+            spec = importlib.util.spec_from_file_location('cortex_linux_ci_original_build', ROOT / 'scripts/release/build-candidate.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            def delegate(argv):
+                previous = sys.argv
+                try:
+                    sys.argv = [str(ROOT / 'scripts/release/build-candidate.py'), *argv]
+                    module.main()
+                finally:
+                    sys.argv = previous
+
+        original = rehearsal.NativeBuilder
         rehearsal.NativeBuilder = instrument_builder(original, args.diagnostics_output, args.source_sha)
         return delegate(['images', '--target', args.target, '--source-sha', args.source_sha,
                          '--version', args.version, '--output', str(args.output)])
     finally:
-        rehearsal.NativeBuilder = original
+        if original is not None:
+            rehearsal.NativeBuilder = original
+        sys.path[:] = previous_path
 
 
 def main():
