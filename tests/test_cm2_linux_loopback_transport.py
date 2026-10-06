@@ -132,8 +132,8 @@ def test_actual_transport_drives_existing_member_health_principal_and_roster_adm
     connection['project_root'] = str(tmp_path)
     private = headers(); private['X-Cortex-Scope'] = connection['project']
     routes = {'/health/ready': (200, b'{"status":"ready"}', {}, 0),
-              '/v1/auth/principal': (200, json.dumps({'data': principal}).encode(), {}, 0),
-              '/v1/scopes/' + connection['project'] + '/roster': (200, json.dumps({'data': roster}).encode(), {}, 0)}
+              '/v1/auth/principal': (200, json.dumps(principal).encode(), {}, 0),
+              '/v1/scopes/' + connection['project'] + '/roster': (200, json.dumps(roster).encode(), {}, 0)}
     with endpoint(routes) as (origin, calls):
         connection['origin'] = origin
         value = custody.read_member_admission(connection, reader=SimpleNamespace(headers=lambda: dict(private)),
