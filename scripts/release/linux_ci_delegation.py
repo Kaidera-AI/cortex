@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -104,6 +105,99 @@ def prepare_delegation(*, cgroup_path: Path = Path('/proc/self/cgroup'),
             'engine': report}
 
 
+def _public_stream(raw, name: str) -> dict:
+    """R283 allows only the fixed commands' secret-free diagnostic streams."""
+    available = isinstance(raw, bytes)
+    bounded = raw[:4096] if available else b''
+    return {name + '_b64': base64.b64encode(bounded).decode('ascii'),
+            name + '_utf8': bounded.decode('utf-8', errors='replace'),
+            name + '_available': available,
+            name + '_truncated': available and len(raw) > 4096}
+
+
+def observe_delegation(*, cgroup_path: Path = Path('/proc/self/cgroup'),
+                       capture=capture_command) -> dict:
+    """Public facts and fixed stages; retain partial proof on every refusal."""
+    native_context('linux-x86_64')
+    uid = os.getuid()
+    value = {'schema': 'cortex.linux-ci-delegation.v1', 'status': 'refused',
+             'uid': uid, 'required_controllers': list(REQUIRED), 'facts': {}, 'steps': []}
+    deadline = time.monotonic() + 120
+    readonly = [
+        ('loginctl_user', ['loginctl'], ['show-user', str(uid), '-p', 'Linger', '-p', 'State']),
+        ('systemctl_user', ['systemctl'], ['show', 'user@' + str(uid) + '.service',
+            '-p', 'ActiveState', '-p', 'SubState', '-p', 'Result', '-p', 'ControlGroup']),
+    ]
+    stages = {(tuple(prefix), tuple(args)): stage for stage, prefix, args in readonly}
+    for stage, prefix, args in [
+        ('mkdir_dropin', PRIVILEGED, ['mkdir', '-p', '/etc/systemd/system/user@.service.d']),
+        ('write_dropin', PRIVILEGED, ['tee', '/etc/systemd/system/user@.service.d/90-cortex-ci-delegate.conf']),
+        ('reload_systemd', PRIVILEGED, ['systemctl', 'daemon-reload']),
+        ('restart_user_manager', PRIVILEGED, ['systemctl', 'restart', 'user@' + str(uid) + '.service']),
+        ('engine_info', ['podman', '--remote=false'], ['info', '--format=json']),
+        ('engine_version', ['podman', '--remote=false'], ['version', '--format=json']),
+    ]:
+        stages[(tuple(prefix), tuple(args))] = stage
+
+    def observed(prefix, args, *, input_data=None, timeout=90, public=False):
+        stage = stages.get((tuple(prefix), tuple(args)))
+        if stage is None or input_data != (DROPIN if stage == 'write_dropin' else None):
+            raise DiagnosticsRefused('capture scope refused')
+        step = {'stage': stage, 'exit_code': None, 'timed_out': None,
+                'overflow': None, 'launch_status': 'unknown', **_public_stream(None, 'stderr')}
+        value['steps'].append(step)
+        try:
+            remaining = min(timeout, deadline - time.monotonic())
+            if remaining <= 0:
+                step['timed_out'] = True
+                raise DiagnosticsRefused('capture deadline')
+            result = capture(prefix, args, input_data=input_data, timeout=remaining, public=False)
+            if not isinstance(result, dict):
+                raise DiagnosticsRefused('capture result unavailable')
+            step.update(_public_stream(result.get('stderr'), 'stderr'))
+            valid = (type(result.get('exit_code')) is int and -128 <= result['exit_code'] <= 255
+                     and type(result.get('timed_out')) is bool and type(result.get('overflow')) is bool
+                     and isinstance(result.get('stdout'), bytes) and len(result['stdout']) <= 1048576
+                     and isinstance(result.get('stderr'), bytes) and len(result['stderr']) <= 65536)
+            if not valid:
+                raise DiagnosticsRefused('capture result unavailable')
+            step.update(exit_code=result['exit_code'], timed_out=result['timed_out'],
+                        overflow=result['overflow'] or step['stderr_truncated'], launch_status='started')
+            return {**result, 'overflow': step['overflow']}
+        except Exception:
+            raise DiagnosticsRefused('capture unavailable') from None
+
+    try:
+        if uid == 0 or os.geteuid() != uid:
+            raise DelegationRefused('nonroot_runner_uid_required')
+        try:
+            fd = os.open(cgroup_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, 'rb') as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise ValueError
+                raw = stream.read(4097)
+            value['facts']['cgroup'] = _public_stream(raw, 'stdout')
+            if value['facts']['cgroup']['stdout_truncated']:
+                raise ValueError
+        except (OSError, ValueError, TypeError):
+            raise DelegationRefused('job_placement_unavailable') from None
+        for stage, prefix, args in readonly:
+            try:
+                result = observed(prefix, args, timeout=5)
+                value['facts'][stage] = _public_stream(result['stdout'], 'stdout')
+                if value['facts'][stage]['stdout_truncated']:
+                    value['steps'][-1]['overflow'] = True
+                if (result['exit_code'] != 0 or result['timed_out'] or result['overflow']
+                        or value['facts'][stage]['stdout_truncated']):
+                    raise DiagnosticsRefused('public facts unavailable')
+            except DiagnosticsRefused:
+                raise DelegationRefused('public_facts_unavailable') from None
+        value.update(prepare_delegation(cgroup_path=cgroup_path, capture=observed))
+    except DelegationRefused as error:
+        value.update(status='refused', reason=error.code)
+    return value
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-sha', required=True)
@@ -116,15 +210,11 @@ def main():
     if (not output.is_absolute() or '..' in output.parts or output == ROOT or ROOT in output.parents
             or any(path.is_symlink() for path in (output, *output.parents))):
         parser.error('physical CI diagnostics output outside source required')
-    try:
-        value = prepare_delegation()
-    except DelegationRefused as error:
-        value = {'schema': 'cortex.linux-ci-delegation.v1', 'status': 'refused', 'reason': error.code,
-                 'uid': os.getuid(), 'required_controllers': list(REQUIRED)}
-        _write(output, 'delegation.json', {**value, 'source_sha': args.source_sha})
+    value = {**observe_delegation(capture=capture_command), 'source_sha': args.source_sha}
+    _write(output, 'delegation.json', value)
+    if value['status'] != 'ready':
         print(json.dumps(value, sort_keys=True), file=sys.stderr)
         raise SystemExit(1) from None
-    _write(output, 'delegation.json', {**value, 'source_sha': args.source_sha})
     print(json.dumps(value, sort_keys=True))
 
 
