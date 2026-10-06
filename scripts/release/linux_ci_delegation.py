@@ -210,8 +210,8 @@ def main():
     if (not output.is_absolute() or '..' in output.parts or output == ROOT or ROOT in output.parents
             or any(path.is_symlink() for path in (output, *output.parents))):
         parser.error('physical CI diagnostics output outside source required')
-    value = observe_delegation(capture=capture_command)
-    _write(output, 'delegation.json', {**value, 'source_sha': args.source_sha})
+    value = {**observe_delegation(capture=capture_command), 'source_sha': args.source_sha}
+    _write(output, 'delegation.json', value)
     if value['status'] != 'ready':
         print(json.dumps(value, sort_keys=True), file=sys.stderr)
         raise SystemExit(1) from None
