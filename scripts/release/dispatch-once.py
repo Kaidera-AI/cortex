@@ -1,7 +1,9 @@
 """Guard one admitted native CI submission from a clean source checkout.
 
 Use the locked source test group (PyYAML is already pinned). The operator must
-have Vera's exact source PASS and Kai's fresh CI admission. A matching push
+have Vera's exact source PASS and Kai's fresh CI admission. Inbox input checks
+bind the full SHA and reject explicit stop/negative inputs; they cannot establish
+authorization from arbitrary prose. A matching push
 predicate creates the ref once, waits/re-lists, and REFUSES manual dispatch.
 Observe that push run. This does not authorize a build, retry or publication.
 """
@@ -28,10 +30,18 @@ class DispatchRefused(RuntimeError):
         super().__init__(code)
 
 
+class WorkflowLoader(yaml.BaseLoader):
+    def construct_mapping(self, node, deep=False):
+        keys = [self.construct_object(key, deep=deep) for key, _ in node.value]
+        if len(set(keys)) != len(keys):
+            raise ValueError("duplicate workflow mapping key")
+        return super().construct_mapping(node, deep=deep)
+
+
 def push_can_trigger(workflow_text, branch):
     try:
         # BaseLoader retains the GitHub YAML 'on' key and constructs no objects.
-        document = yaml.load(workflow_text, Loader=yaml.BaseLoader)
+        document = yaml.load(workflow_text, Loader=WorkflowLoader)
         events = document["on"]
         if isinstance(events, str):
             if events not in ("push", "workflow_dispatch"):
@@ -42,6 +52,8 @@ def push_can_trigger(workflow_text, branch):
                 raise ValueError
             return "push" in events
         if not isinstance(events, dict) or not events or set(events) - {"push", "workflow_dispatch"}:
+            raise ValueError
+        if "workflow_dispatch" in events and events["workflow_dispatch"] != "" and not isinstance(events["workflow_dispatch"], dict):
             raise ValueError
         if "push" not in events:
             return False
@@ -103,13 +115,16 @@ class Github:
 
     def list_runs(self, sha):
         response = self.request(f"actions/workflows/{WORKFLOW}/runs?head_sha={sha}&per_page=100")
-        if not isinstance(response, dict) or response.get("total_count") != len(response.get("workflow_runs", [])):
+        if (not isinstance(response, dict) or not isinstance(response.get("workflow_runs"), list)
+                or type(response.get("total_count")) is not int
+                or response["total_count"] != len(response["workflow_runs"])):
             raise DispatchRefused("ci_run_binding_invalid")
         return response["workflow_runs"]
 
     def create_ref(self, branch, sha):
         response = self.request("git/refs", {"ref": "refs/heads/" + branch, "sha": sha})
-        if response.get("object", {}).get("sha") != sha:
+        if (not isinstance(response, dict) or response.get("ref") != "refs/heads/" + branch
+                or not isinstance(response.get("object"), dict) or response["object"].get("sha") != sha):
             raise DispatchRefused("created_ref_binding_invalid")
 
     def dispatch(self, branch):
@@ -120,7 +135,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--review-receipt", type=Path, required=True)
-    parser.add_argument("--inbox", type=Path, required=True, help="fresh operator DO NOW, naming this CI SHA")
+    parser.add_argument("--inbox", type=Path, required=True, help="fresh operator DO NOW, naming the full CI SHA")
     parser.add_argument("--evidence", type=Path, required=True, help="new public receipt file; never overwritten")
     args = parser.parse_args()
     trace = []
@@ -131,23 +146,38 @@ def main():
                 raise DispatchRefused("source_sha_invalid")
             review_bytes = args.review_receipt.read_bytes()
             review = json.loads(review_bytes)
-            if review.get("verdict") != "PASS" or review.get("target_receipt", {}).get("head_commit") != args.source_sha:
+            if (not isinstance(review, dict) or review.get("verdict") != "PASS"
+                    or not isinstance(review.get("target_receipt"), dict)
+                    or review["target_receipt"].get("head_commit") != args.source_sha):
                 raise DispatchRefused("exact_source_review_required")
-            admission = next(line for line in args.inbox.read_text().splitlines() if line.startswith("**▶ DO NOW"))
-            if args.source_sha[:10] not in admission or "CI" not in admission:
+            def active_instruction():
+                return next(line for line in args.inbox.read_text().splitlines() if line.startswith("**▶ DO NOW"))
+            admission = active_instruction()
+            negative = r"\b(?:STOP|WAIT)\b|\bno\s+(?:native\s+)?CI\b|\bCI\s+not\b|\bnot\s+dispatch\s+(?:native\s+)?CI\b"
+            if (not re.search(r"(?<![0-9a-f])" + args.source_sha + r"(?![0-9a-f])", admission)
+                    or "CI" not in admission or re.search(negative, admission, re.IGNORECASE)):
                 raise DispatchRefused("fresh_ci_admission_required")
             def git(*parts):
                 return subprocess.check_output(["git", "-C", str(ROOT), *parts], text=True).strip()
             if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
                 raise DispatchRefused("clean_exact_source_required")
             workflow = (ROOT / ".github/workflows" / WORKFLOW).read_text()
+            tool_path = Path(__file__)
+            tool_bytes = tool_path.read_bytes()
             record.update(review_sha256=hashlib.sha256(review_bytes).hexdigest(), admission=admission)
             github = Github(trace)
             # Recheck the active instruction immediately before each mutation.
             original_request = github.request
             def request(endpoint, body=None):
-                if body is not None and admission not in args.inbox.read_text().splitlines():
-                    raise DispatchRefused("ci_admission_changed")
+                if body is not None:
+                    if active_instruction() != admission:
+                        raise DispatchRefused("ci_admission_changed")
+                    if args.review_receipt.read_bytes() != review_bytes:
+                        raise DispatchRefused("review_receipt_changed")
+                    if git("rev-parse", "HEAD") != args.source_sha or git("status", "--porcelain"):
+                        raise DispatchRefused("clean_exact_source_required")
+                    if tool_path.read_bytes() != tool_bytes or (ROOT / ".github/workflows" / WORKFLOW).read_text() != workflow:
+                        raise DispatchRefused("source_or_workflow_changed")
                 return original_request(endpoint, body)
             github.request = request
             record.update(dispatch_once(args.source_sha, workflow, github, time.sleep))
