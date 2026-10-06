@@ -5,6 +5,7 @@ import argparse
 import fnmatch
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
@@ -223,16 +224,19 @@ def main():
     parser.add_argument('--source-sha')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    native_context('linux-x86_64')
     if args.profiles_for_path is not None:
         if args.source_sha is not None or args.output is not None:
             parser.error('one read-only coverage query required')
         try:
+            if (platform.system() != 'Linux' or platform.machine() != 'x86_64'
+                    or os.geteuid() != 0):
+                raise AppArmorRefused('profile_query_requires_root_linux')
             print(json.dumps(profile_coverage(args.profiles_for_path), sort_keys=True))
         except AppArmorRefused:
             print('{"covered":null,"profile_count":0}')
             raise SystemExit(1) from None
         return
+    native_context('linux-x86_64')
     if args.source_sha is None or not re.fullmatch(r'[0-9a-f]{40}', args.source_sha):
         parser.error('exact source identity required')
     output = args.output
