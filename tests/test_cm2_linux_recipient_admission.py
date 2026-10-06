@@ -26,6 +26,7 @@ def test_exact_recipient_record_principal_scope_actor_and_stable_runtime_before_
     response = io.response; receipt = response[role]
     label = args['create_project']['lead_name'] if role == 'lead' else 'console'
     token = response[role + '_token']
+    monkeypatch.setattr(importlib.import_module('cortex_v2.clients.key_store'), '_is_linux', lambda: True)
     store = KeyStore(INSTALLATION, root=tmp_path / 'keys', backend='file')
     if case != 'missing':
         store.put(response['project_key'], label, token,
