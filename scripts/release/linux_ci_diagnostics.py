@@ -279,8 +279,16 @@ def instrument_builder(original, output: Path, source_sha: str):
             self._engine_available = False
             super().__init__(target)
             try:
-                info_raw = super().run(['info', '--format=json'], read=True)
-                version_raw = super().run(['version', '--format=json'], read=True)
+                def engine_json(kind):
+                    if getattr(self, 'local_abi', False):
+                        result = capture_command(self.prefix, [kind, '--format=json'], timeout=5)
+                        if result['exit_code'] != 0 or result['timed_out'] or result['overflow']:
+                            raise DiagnosticsRefused('engine capture unavailable')
+                        return result['stdout'].decode('utf-8', errors='strict')
+                    return super(DiagnosticBuilder, self).run([kind, '--format=json'], read=True)
+
+                info_raw = engine_json('info')
+                version_raw = engine_json('version')
                 if len(info_raw) > STDOUT_LIMIT or len(version_raw) > STDERR_LIMIT:
                     raise DiagnosticsRefused('engine output size refused')
                 report = engine_report(json.loads(info_raw), json.loads(version_raw),
