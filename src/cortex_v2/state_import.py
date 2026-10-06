@@ -10,6 +10,7 @@ import json
 import re
 import uuid
 from collections import Counter
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 
@@ -202,9 +203,12 @@ async def _inverse(target, run_id: uuid.UUID) -> dict[str, bytes]:
     if agents:
         from cortex_v2.legacy_agents import agent_groups, context_records, reconcile_agents, target_references
         dependencies = context_records(payload['context'])
-        groups = agent_groups(tuple(records), payload['policy'], dependencies)
         checkpoint = await target.fetchval('SELECT checkpoint FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq DESC LIMIT 1', run_id)
-        groups = groups[:checkpoint]
+        # Only committed contexts can be reconstructed from committed originals.
+        # A future nonempty quarantine must not look like an invalid empty family.
+        contexts = project_groups(dependencies, payload['policy'])[:checkpoint]
+        prefix = tuple(record for context in contexts for record in context.records)
+        groups = agent_groups(tuple(records), payload['policy'], prefix)[:checkpoint]
     else:
         groups = project_groups(tuple(records), payload['policy'])
     for group in groups:
@@ -241,7 +245,77 @@ async def import_projects(target, snapshot, binding: RunBinding, policy: dict, *
 
 async def import_agents(target, snapshot, binding: RunBinding, policy: dict, *, batch_size: int = 1, fault=None) -> dict:
     """Finite identity/roster family import; explicit historical mappings stay dormant."""
-    return await _import(target, snapshot, binding, policy, family='agents', batch_size=batch_size, fault=fault)
+    # Freeze/validate caller-owned policy before the first await, as _import does.
+    _, approved = _inputs(snapshot, binding, policy)
+    if target.is_in_transaction():
+        raise ImportRefused('import engine owns the target transaction boundary')
+    async with _agent_run_lock(target, binding):
+        return await _import(target, snapshot, binding, approved, family='agents', batch_size=batch_size, fault=fault)
+
+
+@asynccontextmanager
+async def _agent_run_lock(target, binding):
+    # Database-scoped session ownership spans every checkpoint COMMIT. The
+    # transaction locks below still protect each checkpoint/replay readback.
+    await _target_guard(target, binding)
+    lock = int.from_bytes(hashlib.sha256(b'cortex.state.import_agents.run').digest()[:8], 'big', signed=True)
+    await target.execute('SELECT pg_advisory_lock($1::bigint)', lock)
+    try:
+        yield
+    finally:
+        # No unlock-all: release only the exact acquisition owned by this call.
+        await target.execute('SELECT pg_advisory_unlock($1::bigint)', lock)
+
+
+def _agent_reservations(groups):
+    from cortex_v2.legacy_agents import _targets
+
+    references = []
+    for group in groups:
+        if group.projection_json is None:
+            continue
+        projection = load_json(group.projection_json)
+        for kind, identity, source, name, _ in _targets(projection):
+            references.append({'kind': kind, 'identity_id': identity,
+                               'scope_id': projection['scope_id'],
+                               'source_reference': source, 'agent_name': name})
+    return sorted(references, key=canonical_json)
+
+
+async def _refuse_reserved_agents(target, run_id, incoming):
+    # An interrupted owner retains future identities in its immutable binding.
+    # The session lock makes this check and the first durable binding exclusive.
+    rows = await target.fetch('''SELECT r.payload FROM cortex_core.import_runs AS r
+        WHERE r.event_seq=0 AND r.run_id<>$1
+          AND r.payload->'binding'->>'mapping_version'='legacy-agents.v1'
+          AND NOT EXISTS(SELECT 1 FROM cortex_core.import_runs AS done
+                         WHERE done.run_id=r.run_id AND done.event_kind='complete')''', run_id)
+    required = {'kind', 'identity_id', 'scope_id', 'source_reference', 'agent_name'}
+    for row in rows:
+        reserved = load_json(row['payload']).get('agent_reservations')
+        if not isinstance(reserved, list):
+            raise ImportRefused('unfinished agent import reservations unavailable')
+        for previous in reserved:
+            try:
+                if (not isinstance(previous, dict) or set(previous) != required
+                    or previous['kind'] not in ('identity', 'profile')
+                    or any(not isinstance(previous[key], str) or not previous[key]
+                           or '\0' in previous[key] for key in required)
+                    or any(str(uuid.UUID(previous[key])) != previous[key]
+                           for key in ('identity_id', 'scope_id'))):
+                    raise ValueError('invalid reservation')
+            except (TypeError, ValueError, KeyError) as exc:
+                raise ImportRefused('unfinished agent import reservation malformed') from exc
+            for current in incoming:
+                same_kind = previous['kind'] == current['kind']
+                same_scope = previous['scope_id'] == current['scope_id']
+                if same_kind and (
+                    previous['identity_id'] == current['identity_id']
+                    or (same_scope and previous['source_reference'] == current['source_reference'])
+                    or (same_scope and current['kind'] == 'identity'
+                        and previous['agent_name'] == current['agent_name'])
+                ):
+                    raise ImportRefused('native identity/profile collision reserved by unfinished import')
 
 
 async def _import(target, snapshot, binding: RunBinding, policy: dict, *, family: str, batch_size: int, fault) -> dict:
@@ -263,6 +337,7 @@ async def _import(target, snapshot, binding: RunBinding, policy: dict, *, family
             raise ImportRefused('typed agent snapshot required')
         groups = agent_groups(snapshot.records, approved, snapshot.dependencies)
         header_payload['context'] = [{'source_reference': r.source_reference, 'original': r.original_bytes.decode('utf-8')} for r in snapshot.dependencies]
+        header_payload['agent_reservations'] = _agent_reservations(groups)
     else:
         groups = project_groups(snapshot.records, approved)
     if type(batch_size) is not int or not 1 <= batch_size <= 256:
@@ -294,6 +369,8 @@ async def _import(target, snapshot, binding: RunBinding, policy: dict, *, family
                 # acquires native readback locks. UUID order prevents deadlocks.
                 for scope_lock in scope_locks:
                     await target.execute('SELECT pg_advisory_xact_lock($1::bigint)', scope_lock)
+                if family == 'agents':
+                    await _refuse_reserved_agents(target, binding.run_id, header_payload['agent_reservations'])
                 events = await target.fetch('SELECT * FROM cortex_core.import_runs WHERE run_id=$1 ORDER BY event_seq', binding.run_id)
                 if events:
                     header = load_json(events[0]['payload'])
