@@ -1,0 +1,80 @@
+{
+  "authority": "R203/H-D264",
+  "consult": "/Users/amadmalik/DevVault/helix/docs/handoffs/2026-10-06_ren-kos_kai_r201-cm2-consumer-consult.md",
+  "baseline_ids_outcomes_phases_preserved": 94,
+  "added_cases": 53,
+  "nine_gap_groups": {
+    "G1-local-report": [
+      "linux-json-client-only",
+      "linux-local-ignores-ambient-remote",
+      "linux-remote-mode-refused",
+      "linux-non-null-server-refused",
+      "podman-json-duplicate",
+      "podman-report-oversized",
+      "podman-report-deadline"
+    ],
+    "G2-remote-report": [
+      "mac-client-below-minimum",
+      "mac-server-below-minimum",
+      "mac-server-missing",
+      "mac-server-malformed",
+      "mac-server-denied",
+      "mac-wrong-named-connection",
+      "mac-local-mode-refused",
+      "mac-newer-remote-pair"
+    ],
+    "G3-denylist-union": [
+      "cortex-only-denial-valid-descriptor",
+      "kos-only-denial-valid-descriptor"
+    ],
+    "G4-helper-binding": [
+      "helper-unsigned",
+      "helper-wrong-bytes",
+      "fresh-proof-descriptor-mismatch",
+      "fresh-proof-release-mismatch"
+    ],
+    "G5-mac-preparation": [
+      "mac-creator-success-verifier-denied",
+      "mac-verifier-success-console-denied",
+      "mac-stage-success-final-identity-differs",
+      "mac-final-verifier-denied",
+      "mac-final-console-denied",
+      "mac-independent-readers-locked",
+      "mac-prepare-success-no-publication",
+      "mac-prepare-crash-preserves-old"
+    ],
+    "G6-member-custody": [
+      "read-grant-missing",
+      "roster-wrong-actor-kind",
+      "principal-alias-mismatch",
+      "native-primary-root-mismatch",
+      "connection-literal-duplicate-json"
+    ],
+    "G7-bounded-transport": [
+      "http-response-oversized",
+      "http-response-invalid-utf8",
+      "http-response-duplicate-json",
+      "health-per-step-deadline",
+      "rotation-before-health-request",
+      "principal-per-step-deadline",
+      "rotation-before-principal-request",
+      "roster-per-step-deadline",
+      "rotation-before-roster-request",
+      "admission-overall-deadline"
+    ],
+    "G8-custody-races": [
+      "descriptor-replaced-during-read",
+      "connection-parent-replaced-during-read",
+      "member-file-replaced-during-read",
+      "staged-helper-changed-before-use"
+    ],
+    "G9-mode-adoption": [
+      "explicit-cm1-success",
+      "explicit-cm2-missing-with-valid-legacy",
+      "explicit-cm2-refused-with-valid-legacy",
+      "adopt-enrolled-success",
+      "adopt-concurrent-roster-refused"
+    ]
+  },
+  "scope": "declarative shared contract coverage, not executed consumer assertions"
+}

@@ -1,0 +1,23 @@
+{
+  "notice": "SYNTHETIC ONLY; separate actual caller seams, no native access or release claim",
+  "manager_explicit": true,
+  "owned_private_stage": true,
+  "staged_release_bytes_verified": true,
+  "verifier": {
+    "staged_identity": "fixture-verifier-identity",
+    "final_identity": "fixture-verifier-identity",
+    "headless_staged_read": true,
+    "headless_final_read": true
+  },
+  "console": {
+    "staged_identity": "fixture-console-identity",
+    "final_identity": "fixture-console-identity",
+    "headless_staged_read": true,
+    "headless_final_read": true
+  },
+  "promotion_changes_identity": false,
+  "fresh_manager_qualification": true,
+  "old_runtime_and_unit_preserved": true,
+  "kos_runtime_state_carrier_service_switch_writes": 0,
+  "preparation_and_cleanup_effects_measured_separately": true
+}

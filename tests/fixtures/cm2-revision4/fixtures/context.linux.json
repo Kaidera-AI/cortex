@@ -1,0 +1,38 @@
+{
+  "notice": "SYNTHETIC FIXTURE ONLY. Signature/stat/transport/catalog seams are fixture inputs; no released bytes, token, key or real admission.",
+  "descriptor": "fixtures/descriptor.linux.json",
+  "connection": "fixtures/connection.linux.json",
+  "release": "fixtures/release.linux.json",
+  "principal_response": "fixtures/principal.linux.json",
+  "roster_response": "fixtures/roster.linux.json",
+  "local_proof": "fixtures/local-proof.linux.json",
+  "seams": {
+    "signature_verified_by_independent_kos_pin": true,
+    "canonical_private_files_owner_and_mode_ok": true,
+    "reader_archive_bytes_match_kos_pin": true,
+    "actual_consumer_read_successful": true,
+    "mac_dedicated_keychain_locked": false,
+    "mac_actual_installer_and_console_access_proved": false,
+    "same_request_credential_snapshot": true,
+    "health_ready_response": {
+      "status": "ready",
+      "database": "ready"
+    }
+  },
+  "podman_report": "fixtures/podman-version.linux.json",
+  "prerequisite_mode": "CM-2",
+  "effect_contract": {
+    "before_admission": {
+      "runtime_tree": 0,
+      "state": 0,
+      "carriers": 0,
+      "service_registration": 0,
+      "service_start": 0,
+      "switch": 0
+    },
+    "fallback_calls": 0,
+    "installer_provisioning_calls": 0,
+    "engine_mutations": 0,
+    "old_runtime_and_unit_preserved_on_refusal": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "data": {
+    "scope_id": "40000000-0000-4000-8000-000000000004",
+    "roster_revision": 0,
+    "entries": [
+      {
+        "principal_id": "20000000-0000-4000-8000-000000000002",
+        "actor_id": "30000000-0000-4000-8000-000000000003",
+        "actor_kind": "service",
+        "display_name": "console",
+        "role": "member",
+        "status": "active",
+        "responsibility": null
+      }
+    ],
+    "writer_policy": {
+      "revision": 0,
+      "allowed_roles": []
+    }
+  },
+  "request_id": "50000000-0000-4000-8000-000000000006"
+}

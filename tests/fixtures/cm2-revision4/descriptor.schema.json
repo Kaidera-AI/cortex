@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CM-2 native prerequisite v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "owner_uid",
+    "host_os",
+    "target",
+    "api_origin",
+    "installation_id",
+    "runtime_root",
+    "package_root",
+    "release_manifest",
+    "release_signature",
+    "release_manifest_sha256",
+    "connection_file",
+    "member_reader_archive_sha256",
+    "podman"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cortex.prerequisite.v2"
+    },
+    "owner_uid": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "host_os": {
+      "enum": [
+        "linux",
+        "macos"
+      ]
+    },
+    "target": {
+      "enum": [
+        "linux-x86_64",
+        "macos-arm64"
+      ]
+    },
+    "api_origin": {
+      "type": "string",
+      "pattern": "^http://127\\.0\\.0\\.1:[0-9]+$"
+    },
+    "installation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "runtime_root": {
+      "type": "string",
+      "pattern": "^/[^\\x00]*$"
+    },
+    "package_root": {
+      "type": "string",
+      "pattern": "^/[^\\x00]*$"
+    },
+    "release_manifest": {
+      "type": "string",
+      "pattern": "^/[^\\x00]*$"
+    },
+    "release_signature": {
+      "type": "string",
+      "pattern": "^/[^\\x00]*$"
+    },
+    "release_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "connection_file": {
+      "type": "string",
+      "pattern": "^/[^\\x00]*$"
+    },
+    "member_reader_archive_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "podman": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_version",
+        "policy_sha256",
+        "provider",
+        "connection_name",
+        "machine_name"
+      ],
+      "properties": {
+        "minimum_version": {
+          "const": "6.0.2"
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "provider": {
+          "const": "cortex-native-lifecycle"
+        },
+        "connection_name": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+            }
+          ]
+        },
+        "machine_name": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "host_os": {
+            "const": "linux"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "const": "linux-x86_64"
+          },
+          "podman": {
+            "properties": {
+              "connection_name": {
+                "type": "null"
+              },
+              "machine_name": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "target": {
+            "const": "macos-arm64"
+          },
+          "podman": {
+            "properties": {
+              "connection_name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              },
+              "machine_name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

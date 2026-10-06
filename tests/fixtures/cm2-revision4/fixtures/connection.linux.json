@@ -1,0 +1,11 @@
+{
+  "schema": "cortex.console-connection.v1",
+  "origin": "http://127.0.0.1:18612",
+  "installation_id": "10000000-0000-4000-8000-000000000001",
+  "principal_id": "20000000-0000-4000-8000-000000000002",
+  "actor_id": "30000000-0000-4000-8000-000000000003",
+  "scope_id": "40000000-0000-4000-8000-000000000004",
+  "project": "kos-primary",
+  "member_name": "console",
+  "project_root": "/home/kos/Projects/kos-primary"
+}

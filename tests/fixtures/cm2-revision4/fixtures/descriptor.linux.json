@@ -1,0 +1,22 @@
+{
+  "schema": "cortex.prerequisite.v2",
+  "owner_uid": 1000,
+  "host_os": "linux",
+  "target": "linux-x86_64",
+  "api_origin": "http://127.0.0.1:18612",
+  "installation_id": "10000000-0000-4000-8000-000000000001",
+  "runtime_root": "/home/kos/.cortex/test/cm2-fixture",
+  "package_root": "/home/kos/.cortex/test/cm2-fixture/package",
+  "release_manifest": "/home/kos/.cortex/test/cm2-fixture/signed/release.json",
+  "release_signature": "/home/kos/.cortex/test/cm2-fixture/signed/release.json.minisig",
+  "release_manifest_sha256": "7ef10afcb95b79585ec4c355b546de5e251479a67f754e0a7f655f1da0e22eab",
+  "connection_file": "/home/kos/.cortex/connections/10000000-0000-4000-8000-000000000001/kos-primary/console.json",
+  "member_reader_archive_sha256": "496cad574b823cd13ba01ccc2d5112667f27c11cb7f7677fe1130a6e860aff3a",
+  "podman": {
+    "minimum_version": "6.0.2",
+    "policy_sha256": "4bf98bfda7bcbfe838e697ae80a7f326ef12045691d7155da14621132235eefe",
+    "provider": "cortex-native-lifecycle",
+    "connection_name": null,
+    "machine_name": null
+  }
+}

@@ -1,0 +1,296 @@
+{
+  "schema": "cortex.cm2.contract.v1",
+  "status": "R216 protocol amendment; synthetic fixtures, no product or installed admission",
+  "authority": "R216/H-D282 protocol detail; preserves accepted R203/R210 boundaries",
+  "compatibility": {
+    "descriptor": "cortex.prerequisite.v2",
+    "release": "cortex.release.v2",
+    "connection": "cortex.console-connection.v1",
+    "proof": "cortex.prerequisite-proof.v2",
+    "api_contract": "cortex-kos-v02009.v2",
+    "lineage": "cortex-v2-native",
+    "minimum_signed_release_sequence": 1
+  },
+  "location": "runtime user HOME/.cortex/prerequisite.json",
+  "descriptor_max_bytes": 65536,
+  "connection_max_bytes": 8192,
+  "private_dirs_mode": "0700",
+  "private_files_mode": "0600",
+  "no_symlinks_or_unsafe_ancestors": true,
+  "regular_single_link_files": true,
+  "same_non_root_runtime_uid": true,
+  "origin": "same-user local rootless API, explicit http://127.0.0.1:port; this CM2 rejects remote service selection",
+  "console_name": "console",
+  "console_actor_kind": "service",
+  "console_role": "member",
+  "console_grant": {
+    "can_read": true,
+    "can_write": true,
+    "can_publish": false,
+    "scope_count": 1
+  },
+  "member_reader": {
+    "schema": "cortex.member-reader.v1",
+    "source_sha": "38f4f1bc24d69858de3271efacd7d77535fbc66c",
+    "module": "cortex_v2.clients.member_reader",
+    "api": "MemberKeyReader.headers",
+    "archive": "cortex-key-reader-38f4f1bc24d69858de3271efacd7d77535fbc66c.zip",
+    "sha256": "496cad574b823cd13ba01ccc2d5112667f27c11cb7f7677fe1130a6e860aff3a",
+    "python": "3.12",
+    "dependencies": "standard library only; native Security.framework on macOS",
+    "files": {
+      "cortex_v2/__init__.py": "ddccea3d36687a87596295556ace2892d848d4592d0bf569feb37ebbb4d27b59",
+      "cortex_v2/key_lifetime.py": "2c790653e0d7407f4a5290fc80c004546099a864802b66b7a354414c1e42d478",
+      "cortex_v2/clients/__init__.py": "7617b93f34862a55582c671e819bb15bb590bdd254afdc96ba4f4be8d9ba2556",
+      "cortex_v2/clients/key_store.py": "d4e664f55da94302d72430234ace8102cb78dc41906afd9cd6d059aeb91b59d2",
+      "cortex_v2/clients/mac_keychain.py": "ff4d1667fcd5d9ba5119b2cebc9ff7f697cf0f85b518cdee83191e785acf984a",
+      "cortex_v2/clients/member_reader.py": "c1919b541d229bd56086b7d8a220d107b7820a76cff39618d4975b8578262195"
+    }
+  },
+  "podman": {
+    "minimum_version": "6.0.2",
+    "minimum_reason": "native lifecycle qualified at 6.0.2",
+    "denylist": {
+      "as_of": "2026-10-06",
+      "entries": []
+    },
+    "provider": "cortex-native-lifecycle",
+    "linux_acquisition": "current Linuxbrew Podman, Homebrew bottle checksum verification; record actual version"
+  },
+  "podman_policy_hash_encoding": "UTF-8 compact sorted-key JSON with no final newline",
+  "podman_comparison": "strict numeric stable major.minor.patch tuple; Linux local Client.Version >= minimum, observed absent Server represented as server_version=null; Mac remote Client.Version and Server.Version each >= minimum on the exact descriptor connection; signed Cortex and KOS dated denylist union; no ceiling, automatic downgrade, invented server, service start or altered SELinux",
+  "signed_release_required_fields": [
+    "schema",
+    "release_id",
+    "release_lineage",
+    "release_sequence",
+    "api_contract",
+    "source_revision",
+    "deployment_class",
+    "target",
+    "archive",
+    "payload_manifest_sha256",
+    "files",
+    "images",
+    "migrations",
+    "rls_inventory",
+    "podman",
+    "member_reader_archive_sha256"
+  ],
+  "runtime_proof_required_fields": [
+    "schema",
+    "nonce",
+    "descriptor_sha256",
+    "installation_id",
+    "release_manifest_sha256",
+    "target",
+    "engine",
+    "api_binding",
+    "images",
+    "source_payload_matches",
+    "migration_checksums_match",
+    "required_rls_enabled_and_forced",
+    "app_role_non_superuser_without_bypassrls",
+    "app_role_not_migrator_or_table_owner",
+    "database_instance_matches",
+    "selinux",
+    "signed_helper_verified",
+    "helper_sha256",
+    "project_binding"
+  ],
+  "runtime_proof_rule": "fresh nonce-bound read-only check by the exact signed Cortex helper, matched descriptor/release hashes, actual owned containers/image IDs/payload bytes/loopback/internal network/DB instance, recorded complete migration checksums and actual catalog RLS/role state; cached install booleans never suffice; helper_sha256 must match signed files[bin/cortex] before execution; project_binding selects the exact native scope, primary alias and physical primary root; each live observation is rechecked before publication",
+  "local_database_inspection": "Cortex helper only; bounded read-only transactions using its existing private app/migrator connections; no DB credential returned to KOS, no migration or owner/admin API fallback",
+  "consumer_network_steps": [
+    "GET /health/ready",
+    "GET /v1/auth/principal",
+    "GET /v1/scopes/{explicit project}/roster"
+  ],
+  "requests": {
+    "timeout_seconds": 5,
+    "max_response_bytes": 65536,
+    "overall_deadline_seconds": 60,
+    "redirects": false,
+    "proxy_inheritance": false,
+    "reader_headers_once_per_request": true,
+    "same_credential_snapshot_across_admission": true,
+    "identity_headers": [
+      "Authorization",
+      "X-Cortex-Scope"
+    ],
+    "legacy_headers": false,
+    "no_write_retry": true
+  },
+  "secret_custody": {
+    "root": "physical project_root/.kaidera/secrets",
+    "linux": "KeyStore(installation, root=...); per-project/name .key record",
+    "macos": "dedicated installation keychain on owned internal volume; manager preparation is separate from KOS publication; exact verifier and Console executable identities must read headlessly, including fresh qualification after identity-changing promotion; no ambient or file fallback",
+    "missing_or_locked_or_denied": "typed refusal before transport; explicit manager unlock/ACL/reissue only",
+    "excluded_from_backups": true
+  },
+  "consumer_env": {
+    "KAIDERA_CORTEX_AUTH_MODE": "v2",
+    "CORTEX_API_URL": "descriptor.api_origin",
+    "CORTEX_V2_CONNECTION_FILE": "descriptor.connection_file",
+    "KAIDERA_DEFAULT_PROJECT": "connection.project"
+  },
+  "unset_inherited_legacy_auth": true,
+  "refusal_public_fields": [
+    "code",
+    "safe_message",
+    "install_guide",
+    "utc",
+    "http_status_if_observed"
+  ],
+  "forbidden_receipt_material": [
+    "bearer",
+    "token_hash",
+    "token_fingerprint",
+    "raw auth/grant response",
+    "DB secret",
+    "passphrase"
+  ],
+  "refusal_codes": [
+    "cortex_consumer_access_unqualified",
+    "cortex_credential_refused",
+    "cortex_credential_unavailable",
+    "cortex_descriptor_invalid",
+    "cortex_descriptor_missing",
+    "cortex_descriptor_owner_mismatch",
+    "cortex_health_degraded",
+    "cortex_health_unavailable",
+    "cortex_image_mismatch",
+    "cortex_instance_mismatch",
+    "cortex_machine_missing",
+    "cortex_podman_denied",
+    "cortex_podman_unsupported",
+    "cortex_provisioning_conflict",
+    "cortex_provisioning_owner_required",
+    "cortex_provisioning_reissue_required",
+    "cortex_provisioning_setup_required",
+    "cortex_release_signature_invalid",
+    "cortex_release_unsupported",
+    "cortex_selinux_refused"
+  ],
+  "source_and_proof_boundaries": [
+    "contract fixtures are synthetic only",
+    "source RED/GREEN/author separate from Vera",
+    "signed bytes separate from native KOS consumer proof",
+    "Linux first; no current Mac release CM2 qualification claimed"
+  ],
+  "review_questions": [],
+  "manifest_max_bytes": 1048576,
+  "signature_max_bytes": 4096,
+  "source_payload_digest_encoding": "SHA256 of UTF-8 compact sorted-key JSON path-to-raw-file-SHA256 inventory, with paths lexicographically sorted and no final newline; all source/migration bytes, excluding only generated Python cache files; build inventory and installed image inventory must agree",
+  "validation_order": [
+    "private descriptor structural/owner validation",
+    "independent signature and compatible native release identity",
+    "exact archive/inner manifest/image/binary/reader-byte binding",
+    "private connection and selected member credential custody",
+    "minimum/denylist/rootless/platform/local runtime proof",
+    "live member health/profile/roster admission",
+    "zero KOS product writes until all admitted"
+  ],
+  "revision": 4,
+  "podman_version_report": {
+    "format": "strict UTF-8 duplicate-free bounded JSON from podman version --format json; accept extra upstream metadata, validate required observed fields",
+    "max_bytes": 65536,
+    "timeout_seconds": 5,
+    "overall_deadline_includes_report": true,
+    "linux_command": [
+      "podman",
+      "--remote=false",
+      "version",
+      "--format",
+      "json"
+    ],
+    "linux_engine": {
+      "mode": "local",
+      "client_version": "observed Client.Version",
+      "server_version": null,
+      "connection_name": null
+    },
+    "linux_server_rule": "absent or null is normal; a non-null Server or remote mode refuses; never fabricate a Server from Client",
+    "macos_command": [
+      "podman",
+      "--connection",
+      "<descriptor.podman.connection_name>",
+      "version",
+      "--format",
+      "json"
+    ],
+    "macos_engine": {
+      "mode": "remote",
+      "client_version": "observed Client.Version",
+      "server_version": "observed Server.Version",
+      "connection_name": "exact descriptor.podman.connection_name"
+    },
+    "no_engine_or_machine_mutation": true
+  },
+  "mac_access_preparation": {
+    "authority": "explicit manager-authorized local preparation, passphrase only through separate attached fd",
+    "allowed": [
+      "stage verified release executables in private owned area",
+      "configure dedicated installation keychain ACL",
+      "record exact staged executable bytes and execution identity",
+      "headless read by actual verifier and actual Console separately"
+    ],
+    "forbidden": [
+      "publish KOS runtime",
+      "write KOS state or carriers",
+      "register or start services",
+      "switch installation",
+      "consumer unlock or ACL mutation"
+    ],
+    "promotion": "if executable identity changes, fresh explicit manager qualification and a headless final read precede service publication; failure preserves prior runtime and unit",
+    "consumer_admission": "read-only until every prerequisite passes; preparation writes and cleanup counted separately from KOS product writes",
+    "scope": "macos-arm64 only; never a Linux dependency"
+  },
+  "accepted_decisions": {
+    "fresh_create": "accepted",
+    "adopt_enrolled": "validation only, accepted",
+    "mac_acl": "accepted with preparation/publication boundary, Mac-only",
+    "native_identity_reader_minimum_denylist": "accepted",
+    "podman_observed_local_remote_json": "accepted"
+  },
+  "execution_requirements": {
+    "every_refusal": "instrument real KOS installer boundary: runtime tree, state, carriers, service registration/start and switch writes all zero before admission; old runtime/unit unchanged; provisioning and fallback branch counters zero",
+    "producer_vectors": "Cortex owns issuance/adoption/reissue/preparation execution; KOS additionally proves installation calls none of them",
+    "custody": "use actual owned private inode/file and parent replacement fixtures, no-follow reads and staged-byte rechecks; synthetic stat Boolean alone insufficient",
+    "transport": "literal raw response bytes and instrumented bounded reader/deadlines; independently read headers once per request and reject rotation at each step",
+    "mac_callers": "separate verifier and actual Console execution identities; combined access Boolean alone insufficient; source refusal mechanics do not qualify native ACL",
+    "modes": "explicit operator prerequisite selection only; valid legacy input cannot rescue missing/invalid/refused CM2; no ambient owner/admin authority",
+    "setup_mapping": "engine.* mutations affect observed Podman JSON and corresponding fresh proof; local_proof.* mutations affect proof only; fixture file inputs are copied as literal bytes into owned private test custody; never skip an unsupported vector"
+  },
+  "runtime_helper": {
+    "binary": "bin/cortex",
+    "command": [
+      "<package_root>/bin/cortex",
+      "prerequisite-proof",
+      "--descriptor",
+      "<absolute private descriptor path>",
+      "--nonce",
+      "<32 lowercase hexadecimal characters>"
+    ],
+    "nonce_bytes": 16,
+    "nonce_encoding": "32 lowercase hexadecimal characters",
+    "signed_manifest": "<runtime_root>/signed/release.json",
+    "signature": "<runtime_root>/signed/release.json.minisig",
+    "archive": "signed manifest parent / validated signed archive.name basename",
+    "inner_manifest": "<package_root>/release.json",
+    "success_exit_code": 0,
+    "refusal_exit_code": 2,
+    "success_schema": "cortex.prerequisite-proof.v2",
+    "stdout_max_bytes": 65536,
+    "stderr_max_bytes": 4096,
+    "bytes_include_final_newline": true,
+    "wall_deadline_seconds": 30,
+    "per_observation_timeout_seconds": 5,
+    "included_in_consumer_overall_deadline_seconds": 60,
+    "read_only": true,
+    "stdout_on_refusal": "empty",
+    "stderr_on_success": "empty",
+    "malformed_or_oversized_or_timeout_or_other_exit": "consumer refuses; never admit partial proof or retry provisioning",
+    "helper_verification": "independent signature and exact files[bin/cortex] bytes before invocation; proof.helper_sha256 matches actual bytes",
+    "no_descriptor_supplied_trust": true
+  }
+}

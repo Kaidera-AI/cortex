@@ -1,0 +1,144 @@
+{
+  "schema": "cortex.release.v2",
+  "release_id": "v0.2.001-test.cm2-fixture.1",
+  "release_lineage": "cortex-v2-native",
+  "release_sequence": 1,
+  "api_contract": "cortex-kos-v02009.v2",
+  "source_revision": "1111111111111111111111111111111111111111",
+  "deployment_class": "TEST",
+  "target": "linux-x86_64",
+  "archive": {
+    "name": "cortex-cm2-fixture-linux-x86_64.tar.gz",
+    "sha256": "b4d4b026b490197f117ae9355a88d712b95f410e5c1ba548b42bab5d23ac12b4",
+    "size_bytes": 100000
+  },
+  "payload_manifest_sha256": "16af889ffa0605fe94bba17227ebbfe9fc7a15538a1333be8bf11962fe0e0ae1",
+  "files": {
+    "bin/cortex": "ee86bafb137ed69357abbadc532996cff800ce234b1b5d5d6bd9c069153ba33a",
+    "bin/cortex-agent": "7a4ad633ae3d11639ecbd943ea0d1952893d3bb90da4dbc2f6c138f5c69c4259"
+  },
+  "images": {
+    "db": {
+      "os": "linux",
+      "architecture": "amd64",
+      "archive": "images/db.oci.tar",
+      "archive_sha256": "d30d0ce90f0104e020dce72756eecf6fac6209b03d098fb105ffcb0d71fbb86f",
+      "manifest_digest": "sha256:c1de49bcdaaab60ac8d6716e2ddad6841ddd098686bfe64434d725335feab4f6",
+      "config_id": "sha256:05b4a4957dbf3e30c04d1bc5ef24a1c25c1bb173deefb83109eab05bf97a5969",
+      "source_payload_sha256": "c68071343515882d6400ac4ca72254749ee42ca65249f305acb0169845c5bee3"
+    },
+    "api": {
+      "os": "linux",
+      "architecture": "amd64",
+      "archive": "images/api.oci.tar",
+      "archive_sha256": "f8fec7572d91f08a2eac13c75ba5f54576230a4b2431033430ce08df0293a7ca",
+      "manifest_digest": "sha256:f84eebce78d9da1ba5bcbbce3f0fc32dc487ec96f45e3506de4e1e310d5e9942",
+      "config_id": "sha256:0473160d19b3ba0432cb0c5ea56f45db9d90ec371524a0697cbbfef46723e695",
+      "source_payload_sha256": "96c5ad3baea2193db78b7abaabc1158be8ef14a3ee7bf2c9eda8643da150aedd"
+    },
+    "doc": {
+      "os": "linux",
+      "architecture": "amd64",
+      "archive": "images/doc.oci.tar",
+      "archive_sha256": "0ee08e728d393269eed9fd051cbab26bcb1799c1bd4b8498edeeb44db605523d",
+      "manifest_digest": "sha256:9a13680c04335fc2e1c54cd82911360625d3e5f3ed1183867d834b85c79d4ce8",
+      "config_id": "sha256:c105f9ea2fd7da622b8e7333435a1c7b59e443af2b70cb165568190a8677c5fa",
+      "source_payload_sha256": "67ef47668e49d69cae442a0090c4b9498f9829c81a93185849f2920f48e7107a"
+    },
+    "embed": {
+      "os": "linux",
+      "architecture": "amd64",
+      "archive": "images/embed.oci.tar",
+      "archive_sha256": "32e3a4653d73ba9f6ae1f6340c4f9555c7505ef518f2dc4f9d04d2590336f338",
+      "manifest_digest": "sha256:8b1fa57a2be1a897b5b5148c6f263e71c4d6aba4f1d3d42b9bb933d78a84268d",
+      "config_id": "sha256:a3e602907824f4f990d98da498f5d5f18eeb2c108e540630d7b692256499038d",
+      "source_payload_sha256": "3137e89e269e80198c920136edbd2287e50cd614a219b3a2561a3780a79d7ed9"
+    },
+    "graph": {
+      "os": "linux",
+      "architecture": "amd64",
+      "archive": "images/graph.oci.tar",
+      "archive_sha256": "f7dc14f7f1c432dc265745a90d50ad5a000bfb0244f877c705eaf027fea0e03d",
+      "manifest_digest": "sha256:a13c02137dd54cdb424f06c39f2d398f55dbe8aaed94cabb1803cbc9b25ccd94",
+      "config_id": "sha256:b321f39a6c1534219d374c0305cb62790839d36b629010ef6bf1e4c73bc276b9",
+      "source_payload_sha256": "89dee51bd242173d566827524df6dda6badda9f083cf5775ffb4d4779a9d3f7e"
+    }
+  },
+  "migrations": [
+    {
+      "name": "0001_core.sql",
+      "sha256": "bf8c55ce64e24b37a1fae45c2016afb1ffc3e8e7f9dc4f71ef12c1fef7597440"
+    },
+    {
+      "name": "0002_w1_identity_memory.sql",
+      "sha256": "a3d741ab9c28785b78cc25fd522656f62824d6d1bbd6d5c3b154ef9d6afda62c"
+    },
+    {
+      "name": "0003_coordination.sql",
+      "sha256": "0d876b6a16d278b071da285c0df65fa8a50d9b118d89ddff75a43780bb4b611a"
+    },
+    {
+      "name": "0004_processing.sql",
+      "sha256": "960b3dec25f6e4823e269f420f352c96a690ef339b6a8276831962d6505e15d9"
+    },
+    {
+      "name": "0005_retrieval.sql",
+      "sha256": "32a1c0780779e9048d69c05c12d20610e610c8cf7abfe354e4cc59d684ac3608"
+    },
+    {
+      "name": "0006_context_interface.sql",
+      "sha256": "3b40ca255ad3679b84454c55c6d53ad75bfc7bcd44773321f359a8b2f4705d7a"
+    },
+    {
+      "name": "0007_feed_verification.sql",
+      "sha256": "75059245ba7fdf94e8f053714548038b718cddbbab2caaadb03f51e9a6f3fb56"
+    },
+    {
+      "name": "0008_ops.sql",
+      "sha256": "3698e40bbd68daee4c3b7005275b30d0b6dbb3ba0d0012d63d47bdf3f031d72f"
+    },
+    {
+      "name": "0009_coordination_withdraw_and_target_fk.sql",
+      "sha256": "fe271bb07d57ec4481d12116a393498b66f4ac331b1b986e5ba20edb5a9673b9"
+    },
+    {
+      "name": "0010_keys_bootstrap.sql",
+      "sha256": "d5d032fdb99bc2d3bdb69b1dc3b11685b7b8d0d5fa9cb6325d8ec3baae77e420"
+    },
+    {
+      "name": "0011_keys_lead_sponsor.sql",
+      "sha256": "61744963018f834f48f8197ebd637773eea7d861d6812b9618732ed01192dc25"
+    },
+    {
+      "name": "0012_keys_create_right.sql",
+      "sha256": "96d3f236af125e0510566bc8be81eef9d7c2f47da0ee84473b53ea9bf0043a3e"
+    },
+    {
+      "name": "0013_keys_issuance_t21.sql",
+      "sha256": "ad41fc21ad6bf3671065a58a9ae4b18b5af3b910f6a2b0a7f9439add71ac5f37"
+    },
+    {
+      "name": "0014_keys_365d_t34.sql",
+      "sha256": "fa079340ed52eb3bac8401b604dfb8d2fad6612555618d714b8ce9e12809a344"
+    },
+    {
+      "name": "0015_keys_project_create.sql",
+      "sha256": "45212464e70e3691319e3a0d19aa39bf1a1f7b62cf259129acf856d31120f95e"
+    }
+  ],
+  "rls_inventory": {
+    "source": "exact accepted migration inventory, materialized by the build",
+    "sha256": "45e2815a6ed8295d3491947c63011716c07c796822ed0a8949b186896d9017db"
+  },
+  "podman": {
+    "minimum_version": "6.0.2",
+    "minimum_reason": "native lifecycle qualified at 6.0.2",
+    "denylist": {
+      "as_of": "2026-10-06",
+      "entries": []
+    },
+    "provider": "cortex-native-lifecycle",
+    "linux_acquisition": "current Linuxbrew Podman, Homebrew bottle checksum verification; record actual version"
+  },
+  "member_reader_archive_sha256": "496cad574b823cd13ba01ccc2d5112667f27c11cb7f7677fe1130a6e860aff3a"
+}

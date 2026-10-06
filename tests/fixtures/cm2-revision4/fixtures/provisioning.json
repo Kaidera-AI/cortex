@@ -1,0 +1,96 @@
+{
+  "command": "cortex provision-console",
+  "modes": {
+    "create-project": {
+      "owner_token_source": "attached file descriptor, never argv/environment",
+      "request": {
+        "source_project": null,
+        "project_key": "kos-primary",
+        "display_name": "KOS primary",
+        "lead_name": "kos-lead",
+        "lead_responsibility": "project delivery",
+        "lead_key_manager": "kos",
+        "with_console": true,
+        "parent_project_key": null,
+        "repo_root": "/home/kos/Projects/kos-primary",
+        "roots": [
+          {
+            "path": "/home/kos/Projects/kos-primary",
+            "kind": "primary"
+          }
+        ]
+      },
+      "api": {
+        "method": "POST",
+        "path": "/v1/projects",
+        "idempotency_key": "60000000-0000-4000-8000-000000000006"
+      },
+      "once_issued_fields": "lead_token and console_token: private response to KeyStore only; omitted from this fixture",
+      "expected_console_grant": {
+        "can_read": true,
+        "can_write": true,
+        "can_publish": false
+      },
+      "publish_descriptor_only_after": "both recipient keys persisted and validated, full CM2 readiness passed",
+      "expected_lead_grant": {
+        "can_read": true,
+        "can_write": true,
+        "can_publish": true,
+        "first_project_create_right": true
+      }
+    },
+    "adopt-enrolled": {
+      "effect": "validate the exact existing private Console record and native roster; no issuance or roster edit",
+      "missing_member": "cortex_provisioning_setup_required",
+      "manager_setup_routes": [
+        "POST /v1/auth/principals:enroll",
+        "POST /v1/scopes/{project}/roster"
+      ],
+      "manager_setup_rule": "existing full-roster changes stay explicit owner setup; no automatic replacement or hidden scope widening",
+      "roster_consistency": "capture exact selected roster revision and entry; fresh same-member profile/roster before publication must agree; changed roster refuses with cortex_provisioning_conflict; no roster write or clobber"
+    },
+    "reissue-project-keys": {
+      "effect": "explicit recovery only, with original project creation operation id and fresh idempotency key",
+      "api": "POST /v1/projects/{operation_id}:reissue-keys",
+      "body": {
+        "reason": "recipient_store_failed"
+      },
+      "warning": "both lead and Console credentials rotate; neither original token remains usable after committed issuance"
+    },
+    "prepare-mac-access": {
+      "effect": "explicit manager-authorized verified private executable staging and dedicated keychain ACL preparation only",
+      "result": "PREPARED, never KOS READY or publication",
+      "passphrase_source": "separate attached file descriptor only",
+      "actual_callers": [
+        "KOS verifier",
+        "packaged Console"
+      ],
+      "promotion": "if executable identity changes, fresh explicit manager qualification and a headless final read precede service publication; failure preserves prior runtime and unit",
+      "kos_product_writes": 0,
+      "old_runtime_and_unit_unchanged": true
+    }
+  },
+  "owner_authority_probe": "GET /v1/auth/privileged-actions?limit=1; same verified installation; bounded, discard audit body",
+  "plaintext_replay": "never exists; same-key replay returns receipt only",
+  "public_output_allowlist": [
+    "status",
+    "operation_id",
+    "installation_id",
+    "principal_id",
+    "actor_id",
+    "scope_id",
+    "connection_file",
+    "descriptor_file",
+    "expires_at",
+    "typed_refusal"
+  ],
+  "public_output_forbidden": [
+    "tokens",
+    "token_fingerprint",
+    "token_hash",
+    "raw API body",
+    "Authorization",
+    "passphrase",
+    "DB secret"
+  ]
+}

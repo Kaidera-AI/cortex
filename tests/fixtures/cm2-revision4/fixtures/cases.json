@@ -1,0 +1,2275 @@
+{
+  "schema": "cortex.cm2.consumer-vectors.v1",
+  "status": "R216 protocol/name amendment; all147 revision3 case records unchanged",
+  "case_count": 147,
+  "mutation_semantics": "setup keys identify fixture seams or fields; consumers implement literal assertions after Kai acceptance, not ignore unsupported vectors",
+  "cases": [
+    {
+      "id": "accept-linux",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {},
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "accept-macos",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {},
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-admit-6.0.2",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.0.2",
+        "engine.server_version": null,
+        "engine.mode": "local",
+        "engine.connection_name": null
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-admit-6.1.3",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.1.3",
+        "engine.server_version": null,
+        "engine.mode": "local",
+        "engine.connection_name": null
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-admit-7.0.0",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "7.0.0",
+        "engine.server_version": null,
+        "engine.mode": "local",
+        "engine.connection_name": null
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-refuse-6.0.1",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.0.1"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-refuse-5.9.9",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "5.9.9"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-refuse-6.1.0-rc1",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.1.0-rc1"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-refuse-garbage",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "garbage"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "podman-denied-visible",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.1.99",
+        "signed_denylist.entries": [
+          {
+            "version": "6.1.99",
+            "date": "2026-10-06",
+            "reason": "SYNTHETIC known-bad fixture, not a real advisory"
+          }
+        ]
+      },
+      "expected": "cortex_podman_denied",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-cannot-remove-denial",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signed_kos_denylist": [
+          "6.1.99"
+        ],
+        "descriptor.podman.denylist": [],
+        "engine.client_version": "6.1.99"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "later-compatible-signed-sequence",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signed_release.release_id": "v0.2.002-test.cm2-fixture.2",
+        "signed_release.release_sequence": 2,
+        "all_byte_bindings": "updated together as synthetic fixture"
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-missing",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "descriptor": "absent"
+      },
+      "expected": "cortex_descriptor_missing",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "schema-legacy",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "descriptor.schema": "cortex.prerequisite.v1"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-unknown",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "descriptor.extra": true
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-duplicate-json",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "raw_descriptor": "duplicate owner_uid"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-trailing-json",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "raw_descriptor": "second JSON object"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-oversize",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "stat.size": 65537
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-link",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "stat.symlink": true
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-hardlink",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "stat.nlink": 2
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-other-user",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "stat.uid": 0
+      },
+      "expected": "cortex_descriptor_owner_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "descriptor-public",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "stat.mode": "0644"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "path-linked-parent",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "paths.linked_ancestor": true
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "path-traversal",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "descriptor.runtime_root": "/home/kos/../other"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "signature-absent",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signature": "absent"
+      },
+      "expected": "cortex_release_signature_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "signature-wrong-key",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signature.independent_pin_matches": false
+      },
+      "expected": "cortex_release_signature_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "signature-invalid",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signature.crypto_valid": false
+      },
+      "expected": "cortex_release_signature_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "manifest-digest",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "manifest.bytes_sha256": "different"
+      },
+      "expected": "cortex_release_signature_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "release-lineage",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signed_release.release_lineage": "cortex-v1-manual"
+      },
+      "expected": "cortex_release_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "release-contract",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signed_release.api_contract": "cortex-kos-v02009.v1"
+      },
+      "expected": "cortex_release_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "release-floor",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signed_release.release_sequence": 0
+      },
+      "expected": "cortex_release_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "release-target",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "signed_release.target": "linux-arm64"
+      },
+      "expected": "cortex_release_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "archive-digest",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "package.archive_sha256": "different"
+      },
+      "expected": "cortex_image_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "package-manifest",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "package.payload_manifest_sha256": "different"
+      },
+      "expected": "cortex_image_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "reader-digest",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "descriptor.member_reader_archive_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "connection-unknown",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.extra": true
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "connection-symlink",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.stat.symlink": true
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "connection-public",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.stat.mode": "0644"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "connection-member-owner",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.member_name": "owner"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "connection-physical-root",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.project_root": "/home/kos/linked-root"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "member-key-missing",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "keystore.record": "absent"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "member-key-legacy",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "keystore.token_format": "ctx1"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "member-key-expired-local",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "keystore.expiry": "past"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "member-key-401",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.http_status": 401
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "member-key-403",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.http_status": 403
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "member-identity",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.principal_id": "wrong"
+      },
+      "expected": "cortex_instance_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "installation-identity",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.installation_id": "wrong"
+      },
+      "expected": "cortex_instance_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "extra-grant",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.scopes": "two grants"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "wrong-scope",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.scopes.0.scope_id": "wrong"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "publish-grant",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.scopes.0.can_publish": true
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "write-grant-missing",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.scopes.0.can_write": false
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "roster-actor",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "roster.selected.actor_id": "wrong"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "roster-role",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "roster.selected.role": "lead"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "roster-inactive",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "roster.selected.status": "inactive"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "roster-duplicate",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "roster.selected_count": 2
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "rotation-mid-proof",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "credential.snapshot_changed": true
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "remote-origin",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.origin": "https://unselected.example.invalid"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "redirect",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.redirect": true
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "proxy",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.proxy_inheritance": true
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "health-not-ready",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "health.http_status": 503
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "profile-timeout",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.deadline_elapsed": true
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "health-only",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "readiness.only_health_ready": true
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "cached-proof",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.nonce": "previous-run"
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "rootful-engine",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.engine.rootless": false
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "wrong-image",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.images.api": "wrong"
+      },
+      "expected": "cortex_image_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "label-only",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.source_payload_matches": false
+      },
+      "expected": "cortex_image_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "foreign-container",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.api_binding.installation_label_matches": false
+      },
+      "expected": "cortex_instance_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "wrong-loopback-port",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.api_binding.loopback_port": 8501
+      },
+      "expected": "cortex_instance_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "external-network",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.api_binding.network_internal": false
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "migration-mismatch",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.migration_checksums_match": false
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "rls-not-forced",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.required_rls_enabled_and_forced": false
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "app-superuser",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.app_role_non_superuser_without_bypassrls": false
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "app-migrator",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.app_role_not_migrator_or_table_owner": false
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "db-instance",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.database_instance_matches": false
+      },
+      "expected": "cortex_instance_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "selinux-permissive",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.selinux": "Permissive"
+      },
+      "expected": "cortex_selinux_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "linux-machine",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "descriptor.podman.machine_name": "unexpected"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "mac-keychain-locked",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac_dedicated_keychain_locked": true
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "mac-creator-only-acl",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac_actual_installer_and_console_access_proved": false
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "mac-ambient-item",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "member_record_only_in_login_keychain": true
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "mac-file-fallback",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac_backend": "file"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "mac-machine-stopped",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "machine.running": false
+      },
+      "expected": "cortex_machine_missing",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-owner-only",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "caller": "member"
+      },
+      "expected": "cortex_provisioning_owner_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-success",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "initial_private_issue": true,
+        "both_key_writes": "verified",
+        "readiness": "passed"
+      },
+      "expected": "READY",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-replay-stored",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "same_idempotency_key": true,
+        "response": "receipt_only",
+        "both_key_writes": "already_verified"
+      },
+      "expected": "READY",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-replay-no-key",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "same_idempotency_key": true,
+        "response": "receipt_only",
+        "keys": "absent"
+      },
+      "expected": "cortex_provisioning_reissue_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-timeout",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "transport_result": "uncertain",
+        "keys": "absent"
+      },
+      "expected": "cortex_provisioning_reissue_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-store-failure",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "lead_store": "written",
+        "console_store": "failed"
+      },
+      "expected": "cortex_provisioning_reissue_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "create-collision",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "project": "existing_unselected"
+      },
+      "expected": "cortex_provisioning_conflict",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "adopt-missing-console",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "adopt-enrolled",
+        "roster_member": "absent"
+      },
+      "expected": "cortex_provisioning_setup_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "reissue-explicit",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "reissue-project-keys",
+        "operator_explicit": true,
+        "old_credentials": "revoked",
+        "both_new_keys": "verified"
+      },
+      "expected": "READY",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "reissue-not-automatic",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "create-project",
+        "replay_receipt_only": true
+      },
+      "expected": "cortex_provisioning_reissue_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "provision-concurrent",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "local_operation_lock": "held"
+      },
+      "expected": "cortex_provisioning_conflict",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "enroll-no-token-replay",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "api": "auth.principals:enroll",
+        "response": "receipt_only",
+        "private_key": "absent"
+      },
+      "expected": "cortex_provisioning_reissue_required",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "cross-scope-native-red",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "fixture_has_second_ungranted_scope": true,
+        "member_request": "GET /v1/scopes/other-project/roster",
+        "expected_native_error": {
+          "http": 404,
+          "code": "scope_not_found"
+        }
+      },
+      "expected": "REFUSED_WITH_ZERO_WRITES",
+      "phase": "native implementation proof",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0
+    },
+    {
+      "id": "linux-json-client-only",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "podman.raw_fixture": "fixtures/podman-version.linux.json",
+        "engine.mode": "local",
+        "engine.server_version": null
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_remote_calls": 0
+    },
+    {
+      "id": "linux-local-ignores-ambient-remote",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "environment.CONTAINER_HOST": "unix:///fixture/foreign.sock",
+        "environment.CONTAINER_CONNECTION": "fixture-foreign",
+        "podman.require_remote_false": true
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_remote_calls": 0
+    },
+    {
+      "id": "linux-remote-mode-refused",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.mode": "remote"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "linux-non-null-server-refused",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "podman.report.Server": {
+          "Version": "6.1.3"
+        }
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "podman-json-duplicate",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "podman.raw_fixture": "fixtures/podman.duplicate.json"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "podman-report-oversized",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "podman.output_bytes": 65537
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "podman-report-deadline",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "podman.elapsed_seconds": 5.001
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G1-local-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-client-below-minimum",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.client_version": "6.0.1"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-server-below-minimum",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.server_version": "6.0.1"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-server-missing",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "podman.report.Server": null
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-server-malformed",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.server_version": "not-numeric"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-server-denied",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.server_version": "6.1.99",
+        "signed_kos_denylist.entries": [
+          {
+            "version": "6.1.99",
+            "date": "2026-10-06",
+            "reason": "SYNTHETIC only"
+          }
+        ]
+      },
+      "expected": "cortex_podman_denied",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-wrong-named-connection",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.connection_name": "fixture-unselected"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-local-mode-refused",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.mode": "local"
+      },
+      "expected": "cortex_podman_unsupported",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "mac-newer-remote-pair",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "engine.client_version": "7.0.0",
+        "engine.server_version": "7.0.1"
+      },
+      "expected": "READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G2-remote-report",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "cortex-only-denial-valid-descriptor",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.1.99",
+        "signed_cortex_denylist.entries": [
+          {
+            "version": "6.1.99",
+            "date": "2026-10-06",
+            "reason": "SYNTHETIC only"
+          }
+        ],
+        "descriptor.structurally_valid": true,
+        "all_byte_bindings": "recompute changed signed policy/release/descriptor/proof; independent signatures are explicit fixture seams"
+      },
+      "expected": "cortex_podman_denied",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G3-denylist-union",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "kos-only-denial-valid-descriptor",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "engine.client_version": "6.1.99",
+        "signed_kos_denylist.entries": [
+          {
+            "version": "6.1.99",
+            "date": "2026-10-06",
+            "reason": "SYNTHETIC only"
+          }
+        ],
+        "descriptor.structurally_valid": true,
+        "all_byte_bindings": "recompute changed signed policy/release/descriptor/proof; independent signatures are explicit fixture seams"
+      },
+      "expected": "cortex_podman_denied",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G3-denylist-union",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "helper-unsigned",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.signed_helper_verified": false
+      },
+      "expected": "cortex_release_signature_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G4-helper-binding",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "helper-wrong-bytes",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "helper.observed_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": "cortex_image_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G4-helper-binding",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "fresh-proof-descriptor-mismatch",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.descriptor_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "local_proof.nonce": "fresh supplied challenge"
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G4-helper-binding",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "fresh-proof-release-mismatch",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.release_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "local_proof.nonce": "fresh supplied challenge"
+      },
+      "expected": "cortex_health_degraded",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G4-helper-binding",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "mac-creator-success-verifier-denied",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac.creator_read": true,
+        "mac.verifier.headless_staged_read": false
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_keychain_consumer_mutations": 0
+    },
+    {
+      "id": "mac-verifier-success-console-denied",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac.verifier.headless_staged_read": true,
+        "mac.console.headless_staged_read": false
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_keychain_consumer_mutations": 0
+    },
+    {
+      "id": "mac-stage-success-final-identity-differs",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac.console.headless_staged_read": true,
+        "mac.console.final_identity": "fixture-changed",
+        "mac.fresh_manager_qualification": false
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_keychain_consumer_mutations": 0
+    },
+    {
+      "id": "mac-final-verifier-denied",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac.verifier.headless_staged_read": true,
+        "mac.verifier.headless_final_read": false
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_keychain_consumer_mutations": 0
+    },
+    {
+      "id": "mac-final-console-denied",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac.console.headless_staged_read": true,
+        "mac.console.headless_final_read": false
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_keychain_consumer_mutations": 0
+    },
+    {
+      "id": "mac-independent-readers-locked",
+      "base_fixture": "fixtures/descriptor.macos.json",
+      "setup": {
+        "mac.keychain_locked": true,
+        "mac.readers_invoked_headlessly": true
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_keychain_consumer_mutations": 0
+    },
+    {
+      "id": "mac-prepare-success-no-publication",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "prepare-mac-access",
+        "manager_explicit": true,
+        "staged_verified_callers": true,
+        "headless_readers": "each actual caller separately"
+      },
+      "expected": "PREPARED",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_kos_runtime_state_carrier_service_switch_writes": 0
+    },
+    {
+      "id": "mac-prepare-crash-preserves-old",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "prepare-mac-access",
+        "crash_point": "after owned staging before final access qualification"
+      },
+      "expected": "cortex_consumer_access_unqualified",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G5-mac-preparation",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_kos_runtime_state_carrier_service_switch_writes": 0
+    },
+    {
+      "id": "read-grant-missing",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.scopes.0.can_read": false
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G6-member-custody",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "roster-wrong-actor-kind",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "roster.selected.actor_kind": "agent"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G6-member-custody",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "principal-alias-mismatch",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "principal.scopes.0.primary_alias": "fixture-other"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G6-member-custody",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "native-primary-root-mismatch",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "local_proof.project_binding.primary_root": "/home/kos/Projects/fixture-other"
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G6-member-custody",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "connection-literal-duplicate-json",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "connection.raw_fixture": "fixtures/connection.duplicate.json"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G6-member-custody",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "http-response-oversized",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.step": "health",
+        "transport.response_bytes": 65537
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "http-response-invalid-utf8",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.step": "health",
+        "transport.response_fixture": "fixtures/http.invalid-utf8.bin"
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "http-response-duplicate-json",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.step": "health",
+        "transport.response_fixture": "fixtures/http.duplicate.json"
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "health-per-step-deadline",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.step": "health",
+        "transport.elapsed_seconds": 5.001
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "rotation-before-health-request",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "credential.rotate_before_request": "health",
+        "reader.headers_once_per_request": true
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "principal-per-step-deadline",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.step": "principal",
+        "transport.elapsed_seconds": 5.001
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "rotation-before-principal-request",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "credential.rotate_before_request": "principal",
+        "reader.headers_once_per_request": true
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "roster-per-step-deadline",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.step": "roster",
+        "transport.elapsed_seconds": 5.001
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "rotation-before-roster-request",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "credential.rotate_before_request": "roster",
+        "reader.headers_once_per_request": true
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "admission-overall-deadline",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "transport.total_elapsed_seconds": 60.001,
+        "transport.each_step_below_deadline": true
+      },
+      "expected": "cortex_health_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G7-bounded-transport",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0
+    },
+    {
+      "id": "descriptor-replaced-during-read",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "custody.replace_file_after_open": "descriptor"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G8-custody-races",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "connection-parent-replaced-during-read",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "custody.replace_parent_after_open": "connection"
+      },
+      "expected": "cortex_descriptor_invalid",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G8-custody-races",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "member-file-replaced-during-read",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "custody.replace_file_after_open": "member key"
+      },
+      "expected": "cortex_credential_unavailable",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G8-custody-races",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "staged-helper-changed-before-use",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "custody.change_staged_executable_before_use": true
+      },
+      "expected": "cortex_image_mismatch",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G8-custody-races",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_member_transport_calls": 0
+    },
+    {
+      "id": "explicit-cm1-success",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "operator.prerequisite_mode": "CM-1",
+        "legacy_fixture_valid": true
+      },
+      "expected": "LEGACY_READY",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G9-mode-adoption",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_explicit_cm1_calls": 1
+    },
+    {
+      "id": "explicit-cm2-missing-with-valid-legacy",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "operator.prerequisite_mode": "CM-2",
+        "descriptor": "absent",
+        "legacy_fixture_valid": true
+      },
+      "expected": "cortex_descriptor_missing",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G9-mode-adoption",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_explicit_cm1_calls": 0
+    },
+    {
+      "id": "explicit-cm2-refused-with-valid-legacy",
+      "base_fixture": "fixtures/descriptor.linux.json",
+      "setup": {
+        "operator.prerequisite_mode": "CM-2",
+        "principal.http_status": 403,
+        "legacy_fixture_valid": true
+      },
+      "expected": "cortex_credential_refused",
+      "phase": "consumer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G9-mode-adoption",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_installer_provisioning_calls": 0,
+      "expected_explicit_cm1_calls": 0
+    },
+    {
+      "id": "adopt-enrolled-success",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "adopt-enrolled",
+        "existing_console_key": "verified private record",
+        "profile_and_roster": "exact active service/member",
+        "initial_and_final_roster_revision": 7,
+        "readiness": "passed"
+      },
+      "expected": "READY",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G9-mode-adoption",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_issuance_calls": 0,
+      "expected_roster_writes": 0
+    },
+    {
+      "id": "adopt-concurrent-roster-refused",
+      "base_fixture": "fixtures/provisioning.json",
+      "setup": {
+        "mode": "adopt-enrolled",
+        "initial_roster_revision": 7,
+        "before_publication_roster_revision": 8
+      },
+      "expected": "cortex_provisioning_conflict",
+      "phase": "producer",
+      "expected_public_secret_material": false,
+      "expected_legacy_fallback": false,
+      "expected_automatic_issuance": false,
+      "expected_kos_product_writes_before_admission": 0,
+      "gap": "G9-mode-adoption",
+      "expected_engine_mutations": 0,
+      "expected_old_runtime_and_unit_preserved": true,
+      "expected_issuance_calls": 0,
+      "expected_roster_writes": 0,
+      "expected_connection_and_descriptor_publications": 0,
+      "expected_existing_keys_unchanged": true
+    }
+  ],
+  "revision": 4,
+  "baseline_case_count": 94,
+  "success_outcomes": {
+    "READY": "CM2 prerequisite/admitted complete producer result only",
+    "PREPARED": "manager ACL preparation only; no KOS admission or publication",
+    "LEGACY_READY": "explicit CM1 consumer selection only, no fallback"
+  },
+  "execution_requirements": {
+    "every_refusal": "instrument real KOS installer boundary: runtime tree, state, carriers, service registration/start and switch writes all zero before admission; old runtime/unit unchanged; provisioning and fallback branch counters zero",
+    "producer_vectors": "Cortex owns issuance/adoption/reissue/preparation execution; KOS additionally proves installation calls none of them",
+    "custody": "use actual owned private inode/file and parent replacement fixtures, no-follow reads and staged-byte rechecks; synthetic stat Boolean alone insufficient",
+    "transport": "literal raw response bytes and instrumented bounded reader/deadlines; independently read headers once per request and reject rotation at each step",
+    "mac_callers": "separate verifier and actual Console execution identities; combined access Boolean alone insufficient; source refusal mechanics do not qualify native ACL",
+    "modes": "explicit operator prerequisite selection only; valid legacy input cannot rescue missing/invalid/refused CM2; no ambient owner/admin authority",
+    "setup_mapping": "engine.* mutations affect observed Podman JSON and corresponding fresh proof; local_proof.* mutations affect proof only; fixture file inputs are copied as literal bytes into owned private test custody; never skip an unsupported vector"
+  }
+}

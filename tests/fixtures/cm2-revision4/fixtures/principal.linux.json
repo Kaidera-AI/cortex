@@ -1,0 +1,17 @@
+{
+  "data": {
+    "principal_id": "20000000-0000-4000-8000-000000000002",
+    "installation_id": "10000000-0000-4000-8000-000000000001",
+    "scopes": [
+      {
+        "scope_id": "40000000-0000-4000-8000-000000000004",
+        "primary_alias": "kos-primary",
+        "scope_kind": "project",
+        "can_read": true,
+        "can_write": true,
+        "can_publish": false
+      }
+    ]
+  },
+  "request_id": "50000000-0000-4000-8000-000000000005"
+}

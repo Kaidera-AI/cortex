@@ -1,0 +1,36 @@
+{
+  "schema": "cortex.cm2.linux-execution-map.v1",
+  "authority": "R210 Linux first; R221 ratified revision4",
+  "contract_freeze_sha256": "e96b69c53e42e97c88bfc2bfc438a78a6d59462be07f8501c7e11730f0590537",
+  "current_producer": [
+    "create-owner-only",
+    "create-success",
+    "create-replay-stored",
+    "create-replay-no-key",
+    "create-timeout",
+    "create-store-failure",
+    "create-collision",
+    "reissue-not-automatic",
+    "provision-concurrent"
+  ],
+  "next_slice_producer": [
+    "adopt-missing-console",
+    "reissue-explicit",
+    "enroll-no-token-replay",
+    "mac-prepare-success-no-publication",
+    "mac-prepare-crash-preserves-old",
+    "adopt-enrolled-success",
+    "adopt-concurrent-roster-refused"
+  ],
+  "consumer_vectors": {
+    "count": 130,
+    "owner": "ren-kos",
+    "full_records_retained": true
+  },
+  "native_vector": {
+    "count": 1,
+    "gate": "signed package/native installed proof"
+  },
+  "all_147_full_records_preserved": true,
+  "hidden_skips": 0
+}

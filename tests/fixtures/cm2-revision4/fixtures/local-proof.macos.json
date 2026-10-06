@@ -1,0 +1,46 @@
+{
+  "schema": "cortex.prerequisite-proof.v2",
+  "nonce": "0123456789abcdef0123456789abcdef",
+  "descriptor_sha256": "ddb18d9bfdc797de2115440c9d22b66627f277e1e7460e4b0a6487e8a01ad660",
+  "installation_id": "10000000-0000-4000-8000-000000000001",
+  "release_manifest_sha256": "6722af8adcf054147ac37c32117d12da7a9fe474ad2032cccc1a1d1643743a6b",
+  "target": "macos-arm64",
+  "engine": {
+    "client_version": "6.1.3",
+    "server_version": "6.1.3",
+    "rootless": true,
+    "os": "linux",
+    "architecture": "arm64",
+    "provider": "cortex-native-lifecycle",
+    "mode": "remote",
+    "connection_name": "podman-machine-default"
+  },
+  "api_binding": {
+    "loopback_port": 18612,
+    "installation_label_matches": true,
+    "api_image_id": "sha256:4b317722e9dbfacd760a0bc9f39cbb2dc75b20f877e336813144e1635a3faa5e",
+    "exact_owned_network": true,
+    "network_internal": true
+  },
+  "images": {
+    "db": "sha256:f762724fb23f1903c091dd18600723f8b885be84b9ddc101364f96b462333723",
+    "api": "sha256:4b317722e9dbfacd760a0bc9f39cbb2dc75b20f877e336813144e1635a3faa5e",
+    "doc": "sha256:e652411d3fc5c4f2e7f60b02bc2316be93e095576857503dceaf998f10d77b9a",
+    "embed": "sha256:3edb1ff1a7bc00ac1d1443475f142b67ea47920b0fa7e83347717d0c15d1c198",
+    "graph": "sha256:c00ca0081a2babd1a5c98d36a164ff9e1c960af25951ed58f140c83c3118c742"
+  },
+  "source_payload_matches": true,
+  "migration_checksums_match": true,
+  "required_rls_enabled_and_forced": true,
+  "app_role_non_superuser_without_bypassrls": true,
+  "app_role_not_migrator_or_table_owner": true,
+  "database_instance_matches": true,
+  "selinux": null,
+  "signed_helper_verified": true,
+  "helper_sha256": "f6e26c0bd77669ba0882a2853e3cfd48dc376f0ef0487beca35335a04c30ca8c",
+  "project_binding": {
+    "scope_id": "40000000-0000-4000-8000-000000000004",
+    "primary_alias": "kos-primary",
+    "primary_root": "/Users/kos/Projects/kos-primary"
+  }
+}
