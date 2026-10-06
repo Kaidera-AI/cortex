@@ -140,26 +140,32 @@ def operation_lock(path: Path):
     descriptor = None
     acquired = False
     try:
-        parents = custody._parents(path)
-        if path.exists() or path.is_symlink():
-            custody.read_private_bytes(path, limit=0)
-        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
-        opened = os.fstat(descriptor); custody._private_file(opened)
-        if opened.st_size != 0 or custody._file_identity(path.lstat()) != custody._file_identity(opened):
-            raise ProvisionRefusal('cortex_provisioning_conflict')
-        custody._recheck_parents(parents)
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            yield False
+            parents = custody._parents(path)
+            if path.exists() or path.is_symlink():
+                custody.read_private_bytes(path, limit=0)
+            descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+            opened = os.fstat(descriptor); custody._private_file(opened)
+            if opened.st_size != 0 or custody._file_identity(path.lstat()) != custody._file_identity(opened):
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+            custody._recheck_parents(parents)
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+            except BlockingIOError:
+                pass
+        except (OSError, PrerequisiteRefusal):
+            raise ProvisionRefusal('cortex_provisioning_conflict') from None
+        # Body refusals belong to the operation and keep their original code.
+        yield acquired
+        if not acquired:
             return
-        acquired = True
-        yield True
-        custody._recheck_parents(parents)
-        if custody._file_identity(path.lstat()) != custody._file_identity(os.fstat(descriptor)):
+        try:
+            custody._recheck_parents(parents)
+            if custody._file_identity(path.lstat()) != custody._file_identity(os.fstat(descriptor)):
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+        except (OSError, PrerequisiteRefusal):
             raise ProvisionRefusal('cortex_provisioning_conflict')
-    except (OSError, PrerequisiteRefusal):
-        raise ProvisionRefusal('cortex_provisioning_conflict') from None
     finally:
         if descriptor is not None:
             try:
