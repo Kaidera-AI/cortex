@@ -25,6 +25,7 @@ READER_SHA256 = '496cad574b823cd13ba01ccc2d5112667f27c11cb7f7677fe1130a6e860aff3
 HEX = re.compile(r'[0-9a-f]{64}')
 IDENTIFIER = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}')
 ROLES = ('db', 'api', 'doc', 'embed', 'graph')
+CGROUP_FIX = 'Enable systemd delegation of cpu, memory and pids for the kos user; see INSTALL-linux.md.'
 RELEASE_FIELDS = {'schema', 'release_id', 'release_lineage', 'release_sequence', 'api_contract',
     'source_revision', 'deployment_class', 'target', 'archive', 'payload_manifest_sha256',
     'files', 'images', 'migrations', 'rls_inventory', 'podman', 'member_reader_archive_sha256'}
@@ -37,15 +38,38 @@ class PrerequisiteRefusal(RuntimeError):
         if not re.fullmatch(r'cortex_[a-z_]+', code):
             code = 'cortex_descriptor_invalid'
         self.code, self.http_status = code, http_status
-        super().__init__(code + ': prerequisite refused; see INSTALL-linux.md')
+        message = CGROUP_FIX if code == 'cortex_cgroup_delegation_unavailable' else 'prerequisite refused; see INSTALL-linux.md'
+        super().__init__(code + ': ' + message)
 
     def public(self) -> dict:
         value = {'code': self.code, 'safe_message': 'Cortex prerequisite refused.',
                  'install_guide': 'INSTALL-linux.md',
                  'utc': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if self.code == 'cortex_cgroup_delegation_unavailable':
+            value['safe_message'] = CGROUP_FIX
         if type(self.http_status) is int:
             value['http_status_if_observed'] = self.http_status
         return value
+
+
+def check_linux_delegation(raw: bytes) -> dict:
+    """Check a bounded actual engine observation; never perform a host repair."""
+    try:
+        value = strict_json(raw)
+        host = value['host']
+        controllers = host['cgroupControllers']
+        known = {'cpu', 'cpuset', 'io', 'memory', 'pids', 'hugetlb', 'rdma', 'misc',
+                 'devices', 'freezer', 'blkio', 'net_cls', 'net_prio', 'perf_event'}
+        if (host['cgroupVersion'] != 'v2' or host['security']['rootless'] is not True
+                or not isinstance(controllers, list) or not 3 <= len(controllers) <= len(known)
+                or any(not isinstance(item, str) or item not in known for item in controllers)
+                or len(set(controllers)) != len(controllers)
+                or not {'cpu', 'memory', 'pids'} <= set(controllers)):
+            raise ValueError
+        return {'schema': 'cortex.linux-cgroup-readiness.v1', 'rootless': True,
+                'cgroup_version': 'v2', 'cgroup_controllers': ['cpu', 'memory', 'pids']}
+    except (PrerequisiteRefusal, KeyError, ValueError, TypeError, AttributeError):
+        raise PrerequisiteRefusal('cortex_cgroup_delegation_unavailable') from None
 
 
 def strict_json(raw: bytes, *, limit: int = 65536) -> dict:

@@ -33,6 +33,7 @@ REFUSALS = frozenset({
     'cortex_descriptor_owner_mismatch', 'cortex_instance_mismatch',
     'cortex_release_unsupported', 'cortex_release_signature_invalid',
     'cortex_podman_denied', 'cortex_podman_unsupported', 'cortex_image_mismatch',
+    'cortex_cgroup_delegation_unavailable',
 })
 
 
