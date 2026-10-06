@@ -164,7 +164,7 @@ def observe_delegation(*, cgroup_path: Path = Path('/proc/self/cgroup'),
             step.update(exit_code=result['exit_code'], timed_out=result['timed_out'],
                         overflow=result['overflow'] or step['stderr_truncated'], launch_status='started')
             return {**result, 'overflow': step['overflow']}
-        except (OSError, ValueError, TypeError, KeyError, DiagnosticsRefused):
+        except Exception:
             raise DiagnosticsRefused('capture unavailable') from None
 
     try:
