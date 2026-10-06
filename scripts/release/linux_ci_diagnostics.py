@@ -51,6 +51,8 @@ def classify_stderr(raw: bytes) -> dict:
     except UnicodeDecodeError:
         return unknown
     for line in raw.splitlines():
+        if re.match(rb'(?:crun:|Error: OCI runtime error: unable to start container "[0-9a-f]{64}": crun:) controller `cpu` is not available(?: under |$)', line):
+            return {'signature': 'cgroup_cpu_unavailable', 'component': 'crun'}
         for prefix, signature, component in SIGNATURES:
             if line.startswith(prefix):
                 return {'signature': signature, 'component': component}

@@ -68,6 +68,12 @@ jobs:
         run: >-
           python3 scripts/release/linux_ci_runtime.py
           --runner-temp "$RUNNER_TEMP" --github-env "$GITHUB_ENV"
+      - name: Activate CPU delegation only outside the runner user manager
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: >-
+          python3 scripts/release/linux_ci_delegation.py
+          --source-sha "$CANDIDATE_SHA" --output "$RUNNER_TEMP/cortex-linux-diagnostics"
       - name: Observe local engine using the bound runtime and fresh storage
         run: podman --remote=false version
       - name: Build immutable OCI images and package inventory
