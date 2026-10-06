@@ -48,13 +48,16 @@ def publish_environment(path: Path, values: dict[str, str]) -> None:
             raise RuntimeError('literal CI storage paths required')
         physical_path(Path(value))
     physical_path(path)
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW)
+    # Nonblocking open refuses special files without waiting for a FIFO peer.
+    fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(fd, 'w', encoding='utf-8') as output:
         info = os.fstat(output.fileno())
         selected = path.lstat()
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
                 or (info.st_dev, info.st_ino) != (selected.st_dev, selected.st_ino)):
             raise RuntimeError('owned single-link CI environment file required')
+        if info.st_size and os.pread(output.fileno(), 1, info.st_size - 1) != b'\n':
+            raise RuntimeError('terminated CI environment entries required')
         output.write(''.join(key + '=' + value + '\n' for key, value in values.items()))
 
 
