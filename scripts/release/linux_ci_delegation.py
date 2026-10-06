@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -246,8 +247,14 @@ def observe_readonly_delegation(*, capture=capture_command) -> dict:
             return result
         def nonfinite(value):
             raise ValueError
+        def finite_float(value):
+            number = float(value)
+            if not math.isfinite(number):
+                raise ValueError
+            return number
         return json.loads(raw.decode('utf-8', errors='strict'),
-                          object_pairs_hook=unique, parse_constant=nonfinite)
+                          object_pairs_hook=unique, parse_constant=nonfinite,
+                          parse_float=finite_float)
 
     try:
         if uid == 0 or os.geteuid() != uid:
