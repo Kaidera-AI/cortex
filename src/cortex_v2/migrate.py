@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import argparse
 import hashlib
 import json
+import os
+import platform
+import re
 import uuid
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -233,8 +237,28 @@ async def _assert_role_contract(connection: asyncpg.Connection) -> None:
         raise RuntimeError("candidate app role must not own candidate relations")
 
 
-async def apply() -> None:
+async def apply(*, build_catalog_source=None) -> None:
     profile = active_profile()
+    if build_catalog_source is not None:
+        from .native_prerequisite import NativeRefusal
+        if (not isinstance(build_catalog_source, str)
+                or re.fullmatch(r'[0-9a-f]{40}', build_catalog_source) is None
+                or os.environ.get('GITHUB_ACTIONS') != 'true'
+                or platform.system() != 'Linux' or platform.machine() != 'x86_64'
+                or profile.instance_id != 'cortex_v2_package_test'):
+            raise NativeRefusal('cortex_bad_arguments')
+    try:
+        await _apply(profile, build_catalog_source=build_catalog_source)
+    except Exception as error:
+        if build_catalog_source is None:
+            raise
+        from .native_prerequisite import NativeRefusal
+        if isinstance(error, NativeRefusal):
+            raise
+        raise NativeRefusal('cortex_health_degraded') from None
+
+
+async def _apply(profile, *, build_catalog_source) -> None:
     fixture = None
     if profile.instance_id != PRODUCTION_INSTANCE:
         if "0002_w1_identity_memory.sql" in profile.migrations:
@@ -298,21 +322,26 @@ async def apply() -> None:
                 await _seed_w1(connection, fixture)
             else:
                 await _seed_sandbox(connection, fixture)
-        print(
-            json.dumps(
-                {
-                    "instance": profile.instance_id,
-                    "migrations": [
-                        {"migration": migration_id, "checksum": checksum}
-                        for migration_id, checksum, _ in migrations
-                    ],
-                    "status": status,
-                    "fixture": "none" if fixture is None else "verified",
-                }
+        receipt = {
+            "instance": profile.instance_id,
+            "migrations": [
+                {"migration": migration_id, "checksum": checksum}
+                for migration_id, checksum, _ in migrations
+            ],
+            "status": status,
+            "fixture": "none" if fixture is None else "verified",
+        }
+        if build_catalog_source is None:
+            print(json.dumps(receipt))
+        else:
+            from .build_catalog import materialize_catalog
+            receipt['build_catalog'] = await materialize_catalog(
+                connection, source_revision=build_catalog_source
             )
-        )
     finally:
         await connection.close()
+    if build_catalog_source is not None:
+        print(json.dumps(receipt))
 
 
 async def _seed_sandbox(
@@ -1186,8 +1215,11 @@ async def _assert_seed(
             )
 
 
-def main() -> None:
-    asyncio.run(apply())
+def main(argv=None) -> None:
+    parser = argparse.ArgumentParser(description='Apply the registered Cortex migrations.')
+    parser.add_argument('--linux-ci-build-catalog-source')
+    arguments = parser.parse_args(argv)
+    asyncio.run(apply(build_catalog_source=arguments.linux_ci_build_catalog_source))
 
 
 if __name__ == "__main__":
