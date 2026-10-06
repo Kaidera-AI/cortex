@@ -17,9 +17,12 @@ CASES = ['valid', 'bad-revision', 'bool-revision', 'missing-source', 'missing-mi
 MARKER = 'PUBLIC_BUILD_CATALOG_PRIVATE_EXCEPTION_SENTINEL'
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize('case', CASES)
-async def test_materialized_catalog_binds_actual_migrated_rows_and_payload_bytes(case, tmp_path, monkeypatch):
+def test_materialized_catalog_binds_actual_migrated_rows_and_payload_bytes(case, tmp_path, monkeypatch):
+    asyncio.run(_catalog_case(case, tmp_path, monkeypatch))
+
+
+async def _catalog_case(case, tmp_path, monkeypatch):
     assert importlib.util.find_spec('cortex_v2.build_catalog') is not None, 'actual migrated build-catalog unit is unavailable'
     from cortex_v2 import build_catalog as module
     from cortex_v2.native_prerequisite import NativeRefusal, payload_inventory
