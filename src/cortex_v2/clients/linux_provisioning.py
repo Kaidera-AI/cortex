@@ -160,6 +160,72 @@ def observe_linux_engine(*, cortex_policy: dict, kos_policy: dict,
         raise PrerequisiteRefusal('cortex_podman_unsupported') from None
 
 
+def read_linux_installation(runtime_root: Path, *, kos_policy: dict,
+                            deadline: float | None = None) -> dict:
+    """Bind the private ready TEST lifecycle to signed bytes before host effects."""
+    now = time.monotonic()
+    if deadline is None:
+        deadline = now + 30
+    if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+        raise PrerequisiteRefusal('cortex_health_unavailable')
+    deadline = min(deadline, now + 60)
+
+    def remaining():
+        if time.monotonic() >= deadline:
+            raise PrerequisiteRefusal('cortex_health_unavailable')
+
+    def identity(path):
+        info = path.lstat()
+        return custody._file_identity(info), info.st_ctime_ns
+
+    try:
+        remaining()
+        binding = custody.verify_installed_release(runtime_root, deadline=deadline)
+        remaining()
+        release = binding['release']
+        record_path = runtime_root / 'install.json'
+        inner_path = Path(binding['package_root']) / 'release.json'
+        parents = {**custody._parents(record_path), **custody._parents(inner_path)}
+        record_identity, inner_identity = identity(record_path), identity(inner_path)
+        record_raw = custody.read_private_bytes(record_path)
+        inner_raw = custody.read_private_bytes(inner_path, limit=1048576)
+        record, inner = strict_json(record_raw), strict_json(inner_raw, limit=1048576)
+        installation = custody.canonical_uuid(record['installation'])
+        namespace = 'cortex_v2_package_test_' + installation.replace('-', '')
+        expected_images = {image['config_id'] for image in release['images'].values()}
+        loaded = record.get('loaded_images')
+        if (set(record) != {'schema', 'version', 'source_sha', 'installation', 'connection',
+                'port', 'stage', 'loaded_images', 'namespace', 'service_label'}
+                or record['schema'] != 'cortex.test-install.v1' or record['stage'] != 'ready'
+                or release['deployment_class'] != 'TEST' or record['connection'] is not None
+                or record['source_sha'] != release['source_revision']
+                or not isinstance(record['version'], str)
+                or not re.fullmatch(r'0\.2\.001-test\.[0-9]{8}\.[1-9][0-9]*', record['version'])
+                or release['release_id'] != 'v' + record['version'] or inner.get('version') != record['version']
+                or hashlib.sha256(inner_raw).hexdigest() != release['payload_manifest_sha256']
+                or record['namespace'] != namespace
+                or record['service_label'] != 'ai.kaidera.cortex.TEST-v2.' + installation.replace('-', '')
+                or type(record['port']) is not int or not 1024 <= record['port'] <= 65535
+                or record['port'] in (8501, 5499, 5500)
+                or not isinstance(loaded, list) or len(loaded) != 5 or len(expected_images) != 5
+                or any(not isinstance(item, str) for item in loaded) or set(loaded) != expected_images):
+            raise ProvisionRefusal('cortex_provisioning_setup_required')
+        remaining()
+        engine = observe_linux_engine(cortex_policy=release['podman'], kos_policy=kos_policy, deadline=deadline)
+        remaining()
+        if (identity(record_path) != record_identity or identity(inner_path) != inner_identity
+                or custody.read_private_bytes(record_path) != record_raw
+                or custody.read_private_bytes(inner_path, limit=1048576) != inner_raw):
+            raise ProvisionRefusal('cortex_provisioning_setup_required')
+        custody._recheck_parents(parents)
+        remaining()
+        return {**binding, 'installation_id': installation, 'host_os': 'linux',
+                'runtime_root': str(runtime_root), 'namespace': namespace,
+                'origin': 'http://127.0.0.1:' + str(record['port']), 'engine': engine}
+    except (OSError, ValueError, TypeError, KeyError):
+        raise ProvisionRefusal('cortex_provisioning_setup_required') from None
+
+
 class LoopbackTransport:
     """One bounded GET to the explicitly bound local API; never proxy or redirect."""
 
