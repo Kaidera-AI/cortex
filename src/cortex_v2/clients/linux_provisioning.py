@@ -14,6 +14,7 @@ from pathlib import Path
 import platform
 import pwd
 import re
+import secrets
 import selectors
 import signal
 import socket
@@ -1524,6 +1525,285 @@ def read_linux_readiness(runtime_root: Path, args: dict, response: dict, *, kos_
                                http_status=error.http_status) from None
     except Exception:
         raise ProvisionRefusal('cortex_health_degraded') from None
+    finally:
+        for value in (private, request):
+            if isinstance(value, dict): value.clear()
+
+
+def _publish_private_once(path: Path, value: dict, recheck) -> dict:
+    """Publish one private inode without replacing any existing name.
+
+    The caller supplies a live observation guard. A matching existing file is
+    retained byte for byte. This primitive never creates or repairs a parent.
+    """
+    directory = descriptor = None
+    temporary = None
+    written = None
+    created = False
+    parents = {}
+
+    def identity(info):
+        return custody._file_identity(info), info.st_ctime_ns
+
+    def check():
+        recheck()
+        custody._recheck_parents(parents)
+        if custody._directory_identity(os.fstat(directory)) != parents[path.parent]:
+            raise ProvisionRefusal('cortex_descriptor_invalid')
+
+    def same_bytes_identity(info):
+        current = custody._file_identity(info)
+        expected = custody._file_identity(written)
+        return current[:4] == expected[:4] and current[5:] == expected[5:]
+
+    try:
+        if not callable(recheck): raise ValueError
+        raw = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode() + b'\n'
+        wanted = strict_json(raw)
+        parents = custody._parents(path)
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        check()
+        try:
+            existing = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        if existing is not None:
+            custody._private_file(existing)
+            descriptor = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+            opened = os.fstat(descriptor); custody._private_file(opened)
+            if identity(opened) != identity(existing): raise ValueError
+            actual = os.read(descriptor, 65537)
+            if strict_json(actual) != wanted: raise ProvisionRefusal('cortex_provisioning_conflict')
+            check()
+            final = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+            if identity(final) != identity(opened) or identity(os.fstat(descriptor)) != identity(opened):
+                raise ValueError
+            return {'created': False, 'identity': identity(final), 'raw': actual, 'parents': parents}
+
+        temporary = '.' + secrets.token_hex(16)
+        descriptor = os.open(temporary, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                             0o600, dir_fd=directory)
+        custody._private_file(os.fstat(descriptor))
+        offset = 0
+        while offset < len(raw):
+            check()
+            count = os.write(descriptor, raw[offset:])
+            if count <= 0: raise ValueError
+            offset += count
+        os.fsync(descriptor)
+        written = os.fstat(descriptor); custody._private_file(written)
+        check()
+        if identity(os.stat(temporary, dir_fd=directory, follow_symlinks=False)) != identity(written):
+            raise ValueError
+        os.link(temporary, path.name, src_dir_fd=directory, dst_dir_fd=directory, follow_symlinks=False)
+        created = True
+        linked = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+        if linked.st_nlink != 2 or not same_bytes_identity(linked): raise ValueError
+        temporary_info = os.stat(temporary, dir_fd=directory, follow_symlinks=False)
+        if custody._file_identity(temporary_info) != custody._file_identity(linked): raise ValueError
+        os.unlink(temporary, dir_fd=directory); temporary = None
+        os.fsync(directory)
+        check()
+        final = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+        custody._private_file(final)
+        if not same_bytes_identity(final) or identity(final) != identity(os.fstat(descriptor)): raise ValueError
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        if os.read(descriptor, 65537) != raw: raise ValueError
+        check()
+        if identity(os.stat(path.name, dir_fd=directory, follow_symlinks=False)) != identity(final): raise ValueError
+        return {'created': True, 'identity': identity(final), 'raw': raw, 'parents': parents}
+    except BaseException as error:
+        if created and written is not None and directory is not None:
+            try:
+                custody._recheck_parents(parents)
+                current = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+                if same_bytes_identity(current) and current.st_nlink in (1, 2):
+                    os.unlink(path.name, dir_fd=directory)
+            except Exception:
+                pass
+        if isinstance(error, PrerequisiteRefusal):
+            raise ProvisionRefusal(error.code if error.code in REFUSALS else 'cortex_descriptor_invalid') from None
+        raise ProvisionRefusal('cortex_descriptor_invalid') from None
+    finally:
+        cleanup_failed = False
+        if temporary is not None and directory is not None and descriptor is not None:
+            try:
+                current = os.stat(temporary, dir_fd=directory, follow_symlinks=False)
+                opened = os.fstat(descriptor)
+                if custody._file_identity(current) != custody._file_identity(opened): raise ValueError
+                os.unlink(temporary, dir_fd=directory)
+            except FileNotFoundError:
+                pass
+            except Exception:
+                cleanup_failed = True
+        for fd in (descriptor, directory):
+            if fd is not None:
+                try: os.close(fd)
+                except OSError: cleanup_failed = True
+        if cleanup_failed: raise ProvisionRefusal('cortex_descriptor_invalid') from None
+
+
+def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, proof: dict,
+                               *, kos_policy: dict, store, recheck_recipients,
+                               connection_file: Path, descriptor_file: Path,
+                               deadline: float | None = None) -> dict:
+    """Publish state and connection before the independently bound descriptor.
+
+    The operation lock and admitted_recipients context remain held by the caller.
+    Partial valid companions are retained for an explicit receipt-only resume.
+    """
+    private = request = None
+    published = {}
+    marker = None
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 30
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now
+                or not callable(recheck_recipients)):
+            raise ProvisionRefusal('cortex_provisioning_setup_required')
+        deadline = min(deadline, now + 30)
+        request = strict_json(json.dumps(args, allow_nan=False).encode())
+        private = strict_json(json.dumps(response, allow_nan=False).encode())
+        measured = strict_json(json.dumps(proof, allow_nan=False).encode())
+        policy = strict_json(json.dumps(kos_policy, allow_nan=False).encode())
+        body = validate_request(request); _response(private, body)
+        context = read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline)
+        installation = custody.canonical_uuid(context['installation_id'])
+        release = custody.validate_release_manifest(context['release'], target='linux-x86_64')
+        if (context['host_os'] != 'linux' or context['runtime_root'] != str(runtime_root)
+                or context['package_root'] != str(runtime_root / 'package')
+                or store.installation != installation or store.backend != 'file'):
+            raise ProvisionRefusal('cortex_instance_mismatch')
+
+        fields = {'roster_revision', 'principal_id', 'actor_id', 'scope_id', 'project', 'member_name',
+                  'actor_kind', 'role', 'status', 'can_read', 'can_write', 'can_publish', 'project_root'}
+        def members():
+            value = strict_json(json.dumps(recheck_recipients(), allow_nan=False).encode())
+            if set(value) != {'lead', 'console'}: raise ValueError
+            for role in ('lead', 'console'):
+                row = value[role]
+                expected = {'principal_id': private[role]['principal_id'], 'scope_id': private['project_id'],
+                    'project': body['project_key'], 'member_name': body['lead_name'] if role == 'lead' else 'console',
+                    'actor_kind': 'agent' if role == 'lead' else 'service', 'role': 'lead' if role == 'lead' else 'member',
+                    'status': 'active', 'project_root': body['repo_root']}
+                if (set(row) != fields or any(row[k] != v for k,v in expected.items())
+                        or row['can_read'] is not True or row['can_write'] is not True
+                        or row['can_publish'] is not (role == 'lead')
+                        or type(row['roster_revision']) is not int or row['roster_revision'] < 0):
+                    raise ProvisionRefusal('cortex_credential_refused')
+                custody.canonical_uuid(row['actor_id'])
+            if (value['lead']['actor_id'] == value['console']['actor_id']
+                    or value['lead']['roster_revision'] != value['console']['roster_revision']):
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+            return value
+
+        selected_members = members()
+        def check():
+            if time.monotonic() >= deadline: raise ProvisionRefusal('cortex_health_unavailable')
+            if read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline) != context:
+                raise ProvisionRefusal('cortex_instance_mismatch')
+            if members() != selected_members: raise ProvisionRefusal('cortex_provisioning_conflict')
+            if time.monotonic() >= deadline: raise ProvisionRefusal('cortex_health_unavailable')
+
+        def ready():
+            check()
+            fresh = read_linux_readiness(runtime_root, request, private, kos_policy=policy, store=store,
+                                         recheck_recipients=recheck_recipients, deadline=deadline)
+            if fresh != measured or fresh.get('schema') != 'cortex.linux-readiness.v1' or fresh.get('status') != 'READY':
+                raise ProvisionRefusal('cortex_health_degraded')
+            check()
+
+        ready()
+        if (measured['installation_id'] != installation or measured['target'] != 'linux-x86_64'
+                or measured['release_manifest_sha256'] != context['release_manifest_sha256']
+                or measured['helper_sha256'] != context['helper_sha256']
+                or measured['helper_sha256'] != release['files']['bin/cortex']):
+            raise ProvisionRefusal('cortex_image_mismatch')
+        connection = custody.validate_connection({'schema': 'cortex.console-connection.v1',
+            'origin': context['origin'], 'installation_id': installation, 'project': body['project_key'],
+            'member_name': 'console', 'project_root': body['repo_root'],
+            **{k: selected_members['console'][k] for k in ('principal_id', 'actor_id', 'scope_id')}})
+        receipt = {k: private[k] for k in ('operation_id', 'project_id', 'project_key')}
+        receipt['delivery_state'] = 'reissue_required'
+        receipt.update({role: {k: private[role][k] for k in DeliveryJournal.RECIPIENT} for role in ('lead', 'console')})
+        state = {'schema': 'cortex.prerequisite-state.v1', 'installation_id': installation,
+                 'create_project': body, 'receipt': receipt, 'kos_policy': policy}
+        descriptor = {'schema': 'cortex.prerequisite.v2', 'owner_uid': os.getuid(), 'host_os': 'linux',
+            'target': 'linux-x86_64', 'api_origin': context['origin'], 'installation_id': installation,
+            'runtime_root': str(runtime_root), 'package_root': context['package_root'],
+            'release_manifest': str(runtime_root / 'signed/release.json'),
+            'release_signature': str(runtime_root / 'signed/release.json.minisig'),
+            'release_manifest_sha256': context['release_manifest_sha256'], 'connection_file': str(connection_file),
+            'member_reader_archive_sha256': release['member_reader_archive_sha256'],
+            'podman': {'minimum_version': release['podman']['minimum_version'],
+                'policy_sha256': hashlib.sha256(json.dumps(release['podman'], sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+                'provider': 'cortex-native-lifecycle', 'connection_name': None, 'machine_name': None}}
+        if descriptor_file.name.endswith('.state.json'):
+            raise ProvisionRefusal('cortex_descriptor_invalid')
+        state_file = descriptor_file.with_name(descriptor_file.name + '.state.json')
+        values = {state_file: state, connection_file: connection, descriptor_file: descriptor}
+        if len(values) != 3: raise ProvisionRefusal('cortex_descriptor_invalid')
+        selected = {}
+        for path, value in values.items():
+            custody.physical_path(path)
+            if (any(path != other and (path in other.parents or other in path.parents) for other in values)
+                    or path == runtime_root / 'install.json'
+                    or path.is_relative_to(runtime_root / 'package') or path.is_relative_to(runtime_root / 'signed')):
+                raise ProvisionRefusal('cortex_descriptor_invalid')
+            parents = custody._parents(path)
+            try: info = path.lstat()
+            except FileNotFoundError: info = None
+            if info is not None:
+                custody._private_file(info)
+                if custody.read_private_json(path) != value: raise ProvisionRefusal('cortex_provisioning_conflict')
+            selected[path] = (parents, None if info is None else (custody._file_identity(info), info.st_ctime_ns))
+
+        def output_check():
+            check()
+            for path, (parents, original) in selected.items():
+                custody._recheck_parents(parents)
+                if path in published: expected = published[path]['identity']
+                else: expected = original
+                try: info = path.lstat()
+                except FileNotFoundError: info = None
+                actual = None if info is None else (custody._file_identity(info), info.st_ctime_ns)
+                if actual != expected: raise ProvisionRefusal('cortex_descriptor_invalid')
+
+        for path, value in values.items():
+            output_check()
+            # The per-file guard checks live custody, while the primitive owns
+            # its newly linked name until its return registers that identity.
+            result = _publish_private_once(path, value, check)
+            published[path] = result
+            if path == descriptor_file: marker = result
+            output_check()
+        ready()
+        output_check()
+        for path, value in values.items():
+            if custody.read_private_bytes(path) != published[path]['raw'] or custody.read_private_json(path) != value:
+                raise ProvisionRefusal('cortex_descriptor_invalid')
+        output_check()
+        return {'connection_file': str(connection_file), 'descriptor_file': str(descriptor_file)}
+    except BaseException as error:
+        if marker is not None and marker['created']:
+            directory = None
+            try:
+                custody._recheck_parents(marker['parents'])
+                directory = os.open(descriptor_file.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                if custody._directory_identity(os.fstat(directory)) != marker['parents'][descriptor_file.parent]: raise ValueError
+                info = os.stat(descriptor_file.name, dir_fd=directory, follow_symlinks=False)
+                if (custody._file_identity(info), info.st_ctime_ns) != marker['identity']: raise ValueError
+                os.unlink(descriptor_file.name, dir_fd=directory)
+                os.fsync(directory)
+            except Exception:
+                pass
+            finally:
+                if directory is not None:
+                    try: os.close(directory)
+                    except OSError: pass
+        if isinstance(error, PrerequisiteRefusal):
+            raise ProvisionRefusal(error.code if error.code in REFUSALS else 'cortex_descriptor_invalid') from None
+        raise ProvisionRefusal('cortex_descriptor_invalid') from None
     finally:
         for value in (private, request):
             if isinstance(value, dict): value.clear()
