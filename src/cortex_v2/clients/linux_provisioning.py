@@ -1,7 +1,7 @@
 """Finite Linux host process port. Private frames never enter argv or logs."""
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import contextvars
 import copy
 import fcntl
@@ -29,7 +29,7 @@ from urllib.parse import quote
 
 from . import native_prerequisite as custody
 from .native_prerequisite import PrerequisiteRefusal, strict_json
-from .provisioning import ProvisionRefusal, _response, validate_request
+from .provisioning import ProvisionRefusal, _response, run_provision, validate_request
 
 SELINUX_ENFORCE = Path('/sys/fs/selinux/enforce')
 LINUXBREW_PREFIX = Path('/home/linuxbrew/.linuxbrew')
@@ -1658,6 +1658,188 @@ def read_linux_readiness(runtime_root: Path, args: dict, response: dict, *, kos_
     finally:
         for value in (private, request):
             if isinstance(value, dict): value.clear()
+
+
+class LinuxProvisionPorts:
+    """Bind the declared orchestrator to one locked, finite Linux operation."""
+    def __init__(self, runtime_root, args, *, kos_policy, connection_file,
+                 descriptor_file, deadline, store=None):
+        self.root = runtime_root
+        self.args = strict_json(json.dumps(args, allow_nan=False).encode())
+        self.body = validate_request(self.args)
+        self.policy = strict_json(json.dumps(kos_policy, allow_nan=False).encode())
+        self.connection = connection_file; self.descriptor = descriptor_file
+        self.deadline = deadline; self.store = store; self.context = None
+        self.response = {}; self.recheck = None; self.stack = None; self.journal = None
+        self.active = False; self.used = False; self.final_records = {}
+        self.intent_path = descriptor_file.with_name(descriptor_file.name + '.request.json')
+        self.journal_path = descriptor_file.with_name(descriptor_file.name + '.delivery.json')
+        self.lock_path = descriptor_file.with_name(descriptor_file.name + '.lock')
+        paths = [connection_file, descriptor_file, self.intent_path, self.journal_path,
+                 self.lock_path, descriptor_file.with_name(descriptor_file.name + '.state.json')]
+        custody.physical_path(runtime_root)
+        if len(set(paths)) != len(paths) or descriptor_file.name.endswith('.state.json'): raise ValueError
+        for path in paths:
+            custody._parents(path)
+            if (path == runtime_root / 'install.json' or path.is_relative_to(runtime_root / 'package')
+                    or path.is_relative_to(runtime_root / 'signed')
+                    or any(path != other and (path in other.parents or other in path.parents) for other in paths)):
+                raise ValueError
+            if path.exists(): custody.read_private_bytes(path)
+        if 'operation_id' in self.args: custody.canonical_uuid(self.args['operation_id'])
+
+    def _guard(self):
+        if not self.active or time.monotonic() >= self.deadline:
+            raise ProvisionRefusal('cortex_health_unavailable')
+        if read_linux_runtime(self.root, kos_policy=self.policy, deadline=self.deadline) != self.context:
+            raise ProvisionRefusal('cortex_instance_mismatch')
+
+    def validate_installation(self, args):
+        if self.used or args != self.args: raise ProvisionRefusal('cortex_provisioning_conflict')
+        # A hint determines only which operation is locked. Signed and complete
+        # runtime validation must still happen under the lock before any command.
+        hint = custody.read_private_json(self.root / 'install.json')
+        installation = custody.canonical_uuid(hint['installation'])
+        return {'installation_id': installation, 'host_os': 'linux'}
+
+    def _records(self):
+        if time.monotonic() >= self.deadline: raise ProvisionRefusal('cortex_health_unavailable')
+        result = {}
+        for role, label in (('lead', self.body['lead_name']), ('console', 'console')):
+            record = self.store.read(self.body['project_key'], label)
+            if (record is None or record.metadata.managed_by != self.response[role]['manager']
+                    or record.metadata.expires_at != self.response[role]['expires_at']
+                    or record.metadata.due_state(datetime.datetime.now(datetime.timezone.utc)) == 'expired'):
+                raise ProvisionRefusal('cortex_credential_refused')
+            previous = self.final_records.get(role)
+            if previous is not None and (record.metadata != previous.metadata
+                    or not hmac.compare_digest(record.token, previous.token)):
+                raise ProvisionRefusal('cortex_credential_refused')
+            result[role] = record
+        if time.monotonic() >= self.deadline: raise ProvisionRefusal('cortex_health_unavailable')
+        return result
+
+    @contextmanager
+    def operation_lock(self, args):
+        if self.used or args != self.args: raise ProvisionRefusal('cortex_provisioning_conflict')
+        self.used = True
+        try:
+            with operation_lock(self.lock_path) as acquired:
+                if not acquired:
+                    yield False
+                    return
+                with runtime_observation_scope(self.root, kos_policy=self.policy, deadline=self.deadline):
+                    self.context = read_linux_runtime(self.root, kos_policy=self.policy, deadline=self.deadline)
+                    hint = custody.read_private_json(self.root / 'install.json')
+                    if self.context['installation_id'] != hint['installation'] or self.context['host_os'] != 'linux':
+                        raise ProvisionRefusal('cortex_instance_mismatch')
+                    if self.store is None:
+                        from .key_store import KeyStore
+                        home = Path(_local_engine_context()['environment']['HOME'])
+                        self.store = KeyStore(self.context['installation_id'], root=home / '.config/cortex/keys', backend='file')
+                    if self.store.backend != 'file' or self.store.installation != self.context['installation_id']:
+                        raise ProvisionRefusal('cortex_credential_unavailable')
+                    self.journal = DeliveryJournal(self.journal_path, self.args, self.context['installation_id'], self.store)
+                    self.active = True
+                    with ExitStack() as self.stack:
+                        yield True
+                        self._guard()
+                        if self.recheck is None: raise ProvisionRefusal('cortex_provisioning_reissue_required')
+                        self.recheck()
+                        self.final_records.update(self._records())
+                # The two actual records remain pinned across the final full
+                # runtime observation. This last read performs no native command.
+                self._records()
+        finally:
+            self.active = False; self.recheck = None; self.stack = None
+            self.final_records.clear(); self.response.clear(); self.context = None
+
+    def owner_authorized(self, owner, context):
+        self._guard()
+        if context != {'installation_id': self.context['installation_id'], 'host_os': 'linux'}:
+            raise ProvisionRefusal('cortex_instance_mismatch')
+        result = owned_api_command(self.root, {'mode': 'authorize-owner',
+            'installation_id': self.context['installation_id'], 'credential': owner.decode('ascii')},
+            kos_policy=self.policy, deadline=self.deadline)
+        self._guard()
+        return result == {'authorized': True, 'installation_id': self.context['installation_id']}
+
+    def private_command(self, mode, body, *, owner, idempotency_key):
+        self._guard()
+        if mode != 'create-project' or body != self.body or idempotency_key != self.args['idempotency_key']:
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+        intent = {'schema': 'cortex.provision-intent.v1', 'installation_id': self.context['installation_id'],
+                  'arguments': self.args}
+        _publish_private_once(self.intent_path, intent, self._guard)
+        state = self.journal.begin()
+        if state == 'resume':
+            saved = self.journal._read()
+            response = {k: saved[k] for k in ('operation_id', 'project_id', 'project_key', 'lead', 'console')}
+            response['delivery_state'] = 'reissue_required'
+        else:
+            # Existing recipients are not implicitly overwritten by fresh work.
+            if any(self.store.read(body['project_key'], label) is not None for label in (body['lead_name'], 'console')):
+                raise ProvisionRefusal('cortex_provisioning_reissue_required')
+            response = owned_api_command(self.root, {'mode': mode, 'installation_id': self.context['installation_id'],
+                'credential': owner.decode('ascii'), 'idempotency_key': idempotency_key, 'request': body},
+                kos_policy=self.policy, deadline=self.deadline)
+        _response(response, self.body)
+        if self.args.get('operation_id', response['operation_id']) != response['operation_id']:
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+        self.response.update(response)
+        self._guard()
+        return self.response
+
+    def _admit(self, response, args):
+        self._guard()
+        if args != self.args or response != self.response or self.stack is None:
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+        if self.recheck is None:
+            self.recheck = self.stack.enter_context(admitted_recipients(self.root, self.args, self.response,
+                kos_policy=self.policy, journal=self.journal, deadline=self.deadline))
+        return self.recheck()
+
+    def store_recipients(self, response, args):
+        self._admit(response, args)
+
+    def keys_complete(self, response, args):
+        self._admit(response, args)
+        return self.journal._read() == self.journal._receipt(response, 'keys_committed')
+
+    def member_snapshot(self, args):
+        return self._admit(self.response, args)['console']
+
+    def native_readiness(self, args, member):
+        if self.member_snapshot(args) != member: raise ProvisionRefusal('cortex_provisioning_conflict')
+        return read_linux_readiness(self.root, self.args, self.response, kos_policy=self.policy,
+            store=self.store, recheck_recipients=self.recheck, deadline=self.deadline)
+
+    def publish_prerequisite(self, args, member, proof):
+        if self.member_snapshot(args) != member: raise ProvisionRefusal('cortex_provisioning_conflict')
+        return publish_linux_prerequisite(self.root, self.args, self.response, proof, kos_policy=self.policy,
+            store=self.store, recheck_recipients=self.recheck, connection_file=self.connection,
+            descriptor_file=self.descriptor, deadline=self.deadline)
+
+
+def provision_linux(runtime_root: Path, args: dict, *, owner_token: bytes, kos_policy: dict,
+                    connection_file: Path, descriptor_file: Path, store=None,
+                    deadline: float | None = None) -> dict:
+    """One explicit attempt; private uncertainty never triggers automatic retry."""
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 30
+        if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+            raise ProvisionRefusal('cortex_health_unavailable')
+        deadline = min(deadline, now + 30)
+        ports = LinuxProvisionPorts(runtime_root, args, kos_policy=kos_policy, connection_file=connection_file,
+            descriptor_file=descriptor_file, deadline=deadline, store=store)
+        result = run_provision(ports.args, owner_token=owner_token, ports=ports)
+        if time.monotonic() >= deadline: raise ProvisionRefusal('cortex_health_unavailable')
+        return result
+    except PrerequisiteRefusal:
+        raise
+    except Exception:
+        raise ProvisionRefusal('cortex_provisioning_reissue_required') from None
 
 
 def _publish_private_once(path: Path, value: dict, recheck) -> dict:
