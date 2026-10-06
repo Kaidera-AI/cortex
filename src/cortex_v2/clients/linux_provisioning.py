@@ -10,11 +10,13 @@ import json
 import math
 import os
 from pathlib import Path
+import platform
 import pwd
 import re
 import selectors
 import signal
 import socket
+import stat
 import subprocess
 import threading
 import time
@@ -35,6 +37,127 @@ REFUSALS = frozenset({
     'cortex_podman_denied', 'cortex_podman_unsupported', 'cortex_image_mismatch',
     'cortex_cgroup_delegation_unavailable',
 })
+
+
+def _local_engine_context() -> dict:
+    """Bind the actual kos identity and physical local engine before execution."""
+    try:
+        uid = os.getuid()
+        if platform.system() != 'Linux' or uid == 0 or os.geteuid() != uid:
+            raise ValueError
+        account = pwd.getpwuid(uid)
+        if account.pw_name != 'kos':
+            raise ValueError
+        home, runtime, executable = Path(account.pw_dir), Path('/run/user/' + str(uid)), Path('/usr/bin/podman')
+        identities = []
+        for path, owner, directory in ((home, uid, True), (runtime, uid, True), (executable, 0, False)):
+            custody.physical_path(path)
+            info = path.lstat()
+            if (info.st_uid != owner or info.st_mode & 0o022
+                    or (directory and not stat.S_ISDIR(info.st_mode))
+                    or (not directory and (not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o111))):
+                raise ValueError
+            identities.append(custody._file_identity(info))
+        return {'executable': str(executable), 'uid': uid, 'identity': tuple(identities),
+                'environment': {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': str(home),
+                                'XDG_RUNTIME_DIR': str(runtime), 'LC_ALL': 'C'}}
+    except (OSError, KeyError, ValueError, TypeError, PrerequisiteRefusal):
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+
+
+def _engine_json(command: list[str], *, environment: dict, deadline: float) -> dict:
+    """Read-only process, bounded pipes and cleanup; raw diagnostics stay local."""
+    try:
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or deadline <= time.monotonic() or not isinstance(command, list)
+                or not 1 <= len(command) <= 32 or not Path(command[0]).is_absolute()
+                or any(not isinstance(arg, str) or '\x00' in arg or len(arg) > 4096 for arg in command)
+                or not isinstance(environment, dict)
+                or any(not isinstance(k, str) or not isinstance(v, str) or '\x00' in k + v for k, v in environment.items())):
+            raise ValueError
+        absolute_deadline = min(deadline, time.monotonic() + 5)
+        cleanup_budget = min(.1, (absolute_deadline - time.monotonic()) / 4)
+        work_deadline = absolute_deadline - cleanup_budget
+    except (OSError, ValueError, TypeError):
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+    process = None
+    complete = False
+    output, errors = bytearray(), bytearray()
+    try:
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, env=dict(environment), close_fds=True,
+                                   start_new_session=True)
+        with selectors.DefaultSelector() as selector:
+            for stream, name in ((process.stdout, 'output'), (process.stderr, 'error')):
+                os.set_blocking(stream.fileno(), False)
+                selector.register(stream, selectors.EVENT_READ, name)
+            while selector.get_map() or process.poll() is None:
+                remaining = work_deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ValueError
+                for key, _ in selector.select(min(remaining, .05)):
+                    try:
+                        chunk = os.read(key.fileobj.fileno(), 8192)
+                    except BlockingIOError:
+                        continue
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        key.fileobj.close()
+                        continue
+                    buffer, limit = (output, 65536) if key.data == 'output' else (errors, 4096)
+                    if len(buffer) + len(chunk) > limit:
+                        raise ValueError
+                    buffer.extend(chunk)
+            complete = True
+        if process.returncode != 0 or errors or time.monotonic() >= work_deadline:
+            raise ValueError
+        return strict_json(bytes(output))
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError, PrerequisiteRefusal):
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
+    finally:
+        if process is not None:
+            if not complete:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=max(0, absolute_deadline - time.monotonic()))
+                except subprocess.TimeoutExpired:
+                    pass
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    stream.close()
+
+
+def observe_linux_engine(*, cortex_policy: dict, kos_policy: dict,
+                         deadline: float | None = None) -> dict:
+    """Finite actual local reads, before any producer write; no host repair."""
+    now = time.monotonic()
+    if deadline is None:
+        deadline = now + 30
+    if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+        raise PrerequisiteRefusal('cortex_podman_unsupported')
+    deadline = min(deadline, now + 60)
+    context = _local_engine_context()
+
+    def read(kind):
+        if time.monotonic() >= deadline or _local_engine_context() != context:
+            raise PrerequisiteRefusal('cortex_podman_unsupported')
+        value = _engine_json([context['executable'], '--remote=false', kind, '--format=json'],
+                             environment=context['environment'], deadline=deadline)
+        if time.monotonic() >= deadline or _local_engine_context() != context:
+            raise PrerequisiteRefusal('cortex_podman_unsupported')
+        return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf-8')
+
+    try:
+        delegation = custody.check_linux_delegation(read('info'))
+        version = custody.parse_podman_report(read('version'), host_os='linux', mode='local',
+            connection_name=None, expected_connection_name=None,
+            cortex_policy=cortex_policy, kos_policy=kos_policy)
+        return {'schema': 'cortex.linux-engine-readiness.v1', **version, 'delegation': delegation}
+    except (ValueError, TypeError, UnicodeError, RecursionError):
+        raise PrerequisiteRefusal('cortex_podman_unsupported') from None
 
 
 class LoopbackTransport:
