@@ -149,13 +149,58 @@ def qualify(binary: Path, runtime: Path, *, run=_run) -> dict:
                 'host_fallback': False, 'loaded': actual['loaded']}
 
 
+def trace_product(binary: Path, libraries: dict, *, run=subprocess.run) -> dict:
+    """Observe the actual product loader; no inherited library/environment fallback."""
+    original = hashlib.sha256(binary.read_bytes()).hexdigest()
+    environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LC_ALL': 'C',
+                   'LD_DEBUG': 'libs,versions', 'LD_BIND_NOW': '1'}
+    result = run([str(binary), '--help'], env=environment, text=True,
+                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    if (result.returncode != 0 or not isinstance(result.stdout, str) or not isinstance(result.stderr, str)
+            or len(result.stdout.encode()) > 2 * 1024 * 1024
+            or len(result.stderr.encode()) > 2 * 1024 * 1024):
+        raise RuntimeError('bounded successful product loader observation required')
+    names = {'libssl.so.3', 'libcrypto.so.3'}
+    loaded, checked = {}, {name: set() for name in names}
+    for line in result.stderr.splitlines():
+        match = re.search(r'calling init:\s+(\S+)', line)
+        if match:
+            path = Path(match.group(1)); name = path.name
+            if name in names:
+                if (not path.is_absolute() or '..' in path.parts or not path.parent.name.startswith('_MEI')
+                        or name in loaded and loaded[name] != str(path)):
+                    raise RuntimeError('product loaded a foreign OpenSSL provider')
+                loaded[name] = str(path)
+        match = re.search(r"checking for version `([^']+)' in file (\S+)", line)
+        if match and match.group(1).startswith('OPENSSL_'):
+            node, value = match.groups(); path = Path(value); name = path.name
+            if (name not in names or not path.is_absolute() or '..' in path.parts
+                    or not path.parent.name.startswith('_MEI')
+                    or node not in libraries[name]['definitions']):
+                raise RuntimeError('product requested an unbound OpenSSL version node')
+            checked[name].add(node)
+    if (set(loaded) != names or any(not nodes for nodes in checked.values())
+            or len({str(Path(value).parent) for value in loaded.values()}) != 1):
+        raise RuntimeError('complete actual product OpenSSL loader proof required')
+    if hashlib.sha256(binary.read_bytes()).hexdigest() != original:
+        raise RuntimeError('product binary changed during loader observation')
+    return {'help': 'PASS', 'host_fallback': False, 'loaded': loaded,
+            'checked_nodes': {name: sorted(nodes) for name, nodes in checked.items()},
+            'binary_sha256': original, 'loader_trace': result.stderr,
+            'loader_trace_sha256': hashlib.sha256(result.stderr.encode()).hexdigest()}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime', type=Path, required=True)
     parser.add_argument('--binary', type=Path, action='append', required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    receipts = {str(binary): qualify(binary, args.runtime) for binary in args.binary}
+    receipts = {}
+    for binary in args.binary:
+        receipt = qualify(binary, args.runtime)
+        receipt['product_loader'] = trace_product(binary, receipt['libraries'])
+        receipts[str(binary)] = receipt
     with args.output.open('x') as stream: json.dump(receipts, stream, indent=2); stream.write('\n')
     print(json.dumps(receipts, sort_keys=True))
 
