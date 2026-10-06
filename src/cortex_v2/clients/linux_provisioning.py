@@ -969,3 +969,131 @@ def admitted_recipients(runtime_root: Path, args: dict, response: dict,
         active = False
         snapshots.clear(); members.clear()
         if isinstance(private, dict): private.clear()
+
+
+def read_linux_catalog(runtime_root: Path, args: dict, response: dict, *, kos_policy: dict,
+                       store, deadline: float | None = None) -> dict:
+    """Bind one app-role catalog observation to signed inventory and Console.
+
+    The surrounding admitted_recipients context holds both recipients. This
+    finite boundary neither publishes a descriptor nor asserts whole readiness.
+    """
+    from .provisioning import _member
+    private = request = frame = snapshot = None
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 60
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or not now < deadline <= now + 60):
+            raise ProvisionRefusal('cortex_provisioning_setup_required')
+        request = strict_json(json.dumps(args, ensure_ascii=False, allow_nan=False).encode())
+        private = strict_json(json.dumps(response, ensure_ascii=False, allow_nan=False).encode())
+        policy = strict_json(json.dumps(kos_policy, ensure_ascii=False, allow_nan=False).encode())
+        body = validate_request(request); _response(private, body)
+        context = read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline)
+        release = context['release']
+        path = Path(context['package_root']) / 'native/rls-inventory.json'
+        parents = custody._parents(path)
+        def identity():
+            info = path.lstat()
+            return custody._file_identity(info), info.st_ctime_ns
+        selected = identity()
+        raw = custody.read_private_bytes(path)
+        digest = hashlib.sha256(raw).hexdigest()
+        if (release['files'].get('native/rls-inventory.json') != digest
+                or release['rls_inventory']['sha256'] != digest):
+            raise ProvisionRefusal('cortex_image_mismatch')
+        inventory = strict_json(raw)
+        migrations = {item['name']: item['sha256'] for item in release['migrations']}
+        if (set(inventory) != {'schema', 'source_revision', 'api_source_payload_sha256', 'migrations', 'relations'}
+                or inventory['schema'] != 'cortex.rls-inventory.v1'
+                or inventory['source_revision'] != release['source_revision']
+                or inventory['api_source_payload_sha256'] != release['images']['api']['source_payload_sha256']
+                or inventory['migrations'] != migrations
+                or not isinstance(inventory['relations'], list) or not 1 <= len(inventory['relations']) <= 1024):
+            raise ProvisionRefusal('cortex_image_mismatch')
+        names = []
+        for row in inventory['relations']:
+            if (not isinstance(row, dict) or set(row) != {'name', 'rls', 'forced', 'app_direct_grant'}
+                    or not isinstance(row['name'], str)
+                    or re.fullmatch(r'cortex_(?:auth|core)\.[a-z_][a-z0-9_]{0,62}', row['name']) is None
+                    or any(type(row[key]) is not bool for key in ('rls', 'forced', 'app_direct_grant'))
+                    or row['rls'] and not row['forced'] or not row['rls'] and row['app_direct_grant']):
+                raise ProvisionRefusal('cortex_image_mismatch')
+            names.append(row['name'])
+        if names != sorted(set(names)):
+            raise ProvisionRefusal('cortex_image_mismatch')
+
+        def record():
+            nonlocal snapshot
+            if time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            if store.installation != context['installation_id'] or store.backend != 'file':
+                raise ProvisionRefusal('cortex_credential_unavailable')
+            current = store.read(body['project_key'], 'console')
+            receipt = private['console']
+            if (current is None or not isinstance(current.token, str)
+                    or re.fullmatch(r'[A-Za-z0-9_-]{43}', current.token) is None
+                    or current.metadata.managed_by != receipt['manager']
+                    or current.metadata.expires_at != receipt['expires_at']
+                    or current.metadata.due_state(datetime.datetime.now(datetime.timezone.utc)) == 'expired'):
+                raise ProvisionRefusal('cortex_credential_unavailable')
+            if snapshot is None: snapshot = current
+            elif (current.metadata != snapshot.metadata
+                    or not hmac.compare_digest(current.token, snapshot.token)):
+                raise ProvisionRefusal('cortex_credential_refused')
+            return current
+
+        def check():
+            current = record()
+            if read_linux_runtime(runtime_root, kos_policy=policy, deadline=deadline) != context:
+                raise ProvisionRefusal('cortex_instance_mismatch')
+            if identity() != selected or custody.read_private_bytes(path) != raw:
+                raise ProvisionRefusal('cortex_image_mismatch')
+            custody._recheck_parents(parents)
+            record()
+            return current
+
+        class PinnedStore:
+            @property
+            def installation(self): return store.installation
+            @property
+            def backend(self): return store.backend
+            def read(self, project, name):
+                if project != body['project_key'] or name != 'console':
+                    raise ProvisionRefusal('cortex_credential_refused')
+                return check()
+
+        check()
+        member = _member(read_recipient_admission(runtime_root, request, private, 'console',
+            kos_policy=policy, store=PinnedStore(), deadline=deadline), body, private)
+        current = check()
+        frame = {'mode': 'readiness', 'installation_id': context['installation_id'],
+                 'credential': current.token, 'project': body['project_key'], 'project_root': body['repo_root'],
+                 'migrations': migrations, 'expected_relations': inventory['relations']}
+        result = owned_api_command(runtime_root, frame, kos_policy=policy, deadline=deadline)
+        check()
+        predicates = {'migration_checksums_match', 'required_rls_enabled_and_forced',
+                      'app_role_non_superuser_without_bypassrls', 'app_role_not_migrator_or_table_owner',
+                      'database_instance_matches'}
+        if (not isinstance(result, dict) or set(result) != predicates | {'project_binding'}
+                or any(result[key] is not True for key in predicates)
+                or result['project_binding'] != {'scope_id': private['project_id'],
+                     'primary_alias': body['project_key'], 'primary_root': body['repo_root']}):
+            raise ProvisionRefusal('cortex_health_degraded')
+        custody.canonical_uuid(result['project_binding']['scope_id'])
+        fresh = _member(read_recipient_admission(runtime_root, request, private, 'console',
+            kos_policy=policy, store=PinnedStore(), deadline=deadline), body, private)
+        check()
+        if fresh != member:
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+        return {'schema': 'cortex.linux-catalog-readiness.v1', 'installation_id': context['installation_id'],
+                'source_payload_matches': True, **strict_json(json.dumps(result, allow_nan=False).encode())}
+    except PrerequisiteRefusal:
+        raise
+    except Exception:
+        raise ProvisionRefusal('cortex_health_degraded') from None
+    finally:
+        snapshot = None
+        for value in (private, request, frame):
+            if isinstance(value, dict): value.clear()
