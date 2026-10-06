@@ -5,6 +5,7 @@ does not discover credentials, connect to a database, or inspect the filesystem.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -259,7 +260,18 @@ async def _agent_run_lock(target, binding):
         yield
     finally:
         # No unlock-all: release only the exact acquisition owned by this call.
-        await target.execute('SELECT pg_advisory_unlock($1::bigint)', lock)
+        # Cancellation may arrive during successful cleanup, or again after a
+        # cancelled checkpoint. Finish the release before propagating it.
+        release = asyncio.create_task(target.execute('SELECT pg_advisory_unlock($1::bigint)', lock))
+        cancellation = None
+        while not release.done():
+            try:
+                await asyncio.shield(release)
+            except asyncio.CancelledError as exc:
+                cancellation = exc
+        release.result()
+        if cancellation is not None:
+            raise cancellation
 
 
 def _agent_reservations(groups):
