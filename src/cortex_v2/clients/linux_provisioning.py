@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import fcntl
+import datetime
 import hashlib
 import hmac
 import http.client
@@ -21,6 +22,7 @@ import subprocess
 import threading
 import time
 from urllib.parse import urlsplit
+from urllib.parse import quote
 
 from . import native_prerequisite as custody
 from .native_prerequisite import PrerequisiteRefusal, strict_json
@@ -346,6 +348,106 @@ def read_linux_runtime(runtime_root: Path, *, kos_policy: dict,
         return {**binding, 'containers': containers, 'network_id': network_id}
     except (OSError, ValueError, TypeError, KeyError):
         raise PrerequisiteRefusal('cortex_image_mismatch') from None
+
+
+def read_recipient_admission(runtime_root: Path, args: dict, response: dict, role: str,
+                             *, kos_policy: dict, store, deadline: float | None = None) -> dict:
+    """Authenticate one exact stored recipient without publishing private material."""
+    body = validate_request(args)
+    _response(response, body)
+    now = time.monotonic()
+    if deadline is None:
+        deadline = now + 60
+    if (role not in ('lead', 'console') or type(deadline) not in (int, float)
+            or not math.isfinite(deadline) or not now < deadline <= now + 60):
+        raise ProvisionRefusal('cortex_provisioning_setup_required')
+    context = read_linux_runtime(runtime_root, kos_policy=kos_policy, deadline=deadline)
+    label = body['lead_name'] if role == 'lead' else 'console'
+    receipt = response[role]
+    if store.installation != context['installation_id'] or store.backend != 'file':
+        raise ProvisionRefusal('cortex_credential_unavailable')
+    transport = LoopbackTransport(context['origin'])
+    snapshot = None
+
+    def get(path):
+        nonlocal snapshot
+        try:
+            record = store.read(body['project_key'], label)
+            if (record is None or not isinstance(record.token, str)
+                    or re.fullmatch(r'[A-Za-z0-9_-]{43}', record.token) is None
+                    or record.metadata.managed_by != receipt['manager']
+                    or record.metadata.expires_at != receipt['expires_at']
+                    or record.metadata.due_state(datetime.datetime.now(datetime.timezone.utc)) == 'expired'):
+                raise ValueError
+            if snapshot is None:
+                snapshot = record
+            elif (not hmac.compare_digest(record.token, snapshot.token)
+                    or record.metadata != snapshot.metadata):
+                raise ProvisionRefusal('cortex_credential_refused')
+        except PrerequisiteRefusal:
+            raise
+        except Exception:
+            raise ProvisionRefusal('cortex_credential_unavailable') from None
+        remaining = min(5, deadline - time.monotonic())
+        if remaining <= 0:
+            raise ProvisionRefusal('cortex_health_unavailable')
+        try:
+            status, raw = transport.get(context['origin'] + path,
+                headers={'Authorization': 'Bearer ' + record.token, 'X-Cortex-Scope': body['project_key']},
+                timeout=remaining, max_bytes=65536)
+            if time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            if read_linux_runtime(runtime_root, kos_policy=kos_policy, deadline=deadline) != context:
+                raise ProvisionRefusal('cortex_instance_mismatch')
+            if type(status) is not int or status != 200:
+                raise ProvisionRefusal('cortex_credential_refused' if status in (401, 403, 404)
+                                       else 'cortex_health_unavailable')
+            value = strict_json(raw)
+            json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf-8')
+            return value
+        except PrerequisiteRefusal:
+            raise
+        except Exception:
+            raise ProvisionRefusal('cortex_health_unavailable') from None
+
+    try:
+        if get('/health/ready').get('status') != 'ready':
+            raise ProvisionRefusal('cortex_health_degraded')
+        principal = get('/v1/auth/principal')['data']
+        if (principal['installation_id'] != context['installation_id']
+                or principal['principal_id'] != receipt['principal_id']
+                or not isinstance(principal['scopes'], list) or len(principal['scopes']) != 1):
+            raise ValueError
+        grant = principal['scopes'][0]
+        if (grant['scope_id'] != response['project_id'] or grant['primary_alias'] != body['project_key']
+                or grant['scope_kind'] != 'project' or grant['can_read'] is not True
+                or grant['can_write'] is not True or grant['can_publish'] is not (role == 'lead')):
+            raise ValueError
+        roster = get('/v1/scopes/' + quote(body['project_key'], safe='') + '/roster')['data']
+        if (roster['scope_id'] != response['project_id'] or not isinstance(roster['entries'], list)
+                or type(roster['roster_revision']) is not int or roster['roster_revision'] < 0):
+            raise ValueError
+        entries = [e for e in roster['entries'] if e.get('display_name') == label
+                   or e.get('principal_id') == receipt['principal_id']]
+        if len(entries) != 1:
+            raise ValueError
+        member = entries[0]
+        if (member['principal_id'] != receipt['principal_id'] or member['display_name'] != label
+                or member['actor_kind'] != ('agent' if role == 'lead' else 'service')
+                or member['role'] != ('lead' if role == 'lead' else 'member') or member['status'] != 'active'):
+            raise ValueError
+        custody.canonical_uuid(member['actor_id'])
+        return {'roster_revision': roster['roster_revision'], 'principal_id': receipt['principal_id'],
+                'actor_id': member['actor_id'], 'scope_id': response['project_id'],
+                'project': body['project_key'], 'member_name': label, 'actor_kind': member['actor_kind'],
+                'role': member['role'], 'status': 'active', 'can_read': True, 'can_write': True,
+                'can_publish': role == 'lead', 'project_root': body['repo_root']}
+    except PrerequisiteRefusal:
+        raise
+    except Exception:
+        raise ProvisionRefusal('cortex_credential_refused') from None
+    finally:
+        snapshot = None
 
 
 def owned_api_command(runtime_root: Path, frame: dict, *, kos_policy: dict,
