@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import fcntl
 import hashlib
 import hmac
+import http.client
 import json
 import math
 import os
@@ -13,8 +14,11 @@ import pwd
 import re
 import selectors
 import signal
+import socket
 import subprocess
+import threading
 import time
+from urllib.parse import urlsplit
 
 from . import native_prerequisite as custody
 from .native_prerequisite import PrerequisiteRefusal, strict_json
@@ -30,6 +34,79 @@ REFUSALS = frozenset({
     'cortex_release_unsupported', 'cortex_release_signature_invalid',
     'cortex_podman_denied', 'cortex_podman_unsupported', 'cortex_image_mismatch',
 })
+
+
+class LoopbackTransport:
+    """One bounded GET to the explicitly bound local API; never proxy or redirect."""
+
+    def __init__(self, origin: str):
+        if (not isinstance(origin, str)
+                or not re.fullmatch(r'http://127\.0\.0\.1:[0-9]{1,5}', origin)
+                or not 1 <= int(origin.rsplit(':', 1)[1]) <= 65535):
+            raise ProvisionRefusal('cortex_health_unavailable')
+        self.origin = origin
+        self.port = int(origin.rsplit(':', 1)[1])
+
+    def get(self, url: str, *, headers: dict, timeout: float, max_bytes: int) -> tuple[int, bytes]:
+        try:
+            if (not isinstance(url, str) or len(url) > 4096 or '#' in url
+                    or any(ord(c) <= 32 or ord(c) >= 127 for c in url)
+                    or type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 5
+                    or type(max_bytes) is not int or not 1 <= max_bytes <= 65536
+                    or not isinstance(headers, dict) or set(headers) != {'Authorization', 'X-Cortex-Scope'}
+                    or not isinstance(headers['Authorization'], str)
+                    or not re.fullmatch(r'Bearer [A-Za-z0-9_-]{43}', headers['Authorization'])
+                    or not isinstance(headers['X-Cortex-Scope'], str)
+                    or not custody.IDENTIFIER.fullmatch(headers['X-Cortex-Scope'])):
+                raise ValueError
+            parsed = urlsplit(url)
+            if (parsed.scheme != 'http' or 'http://' + parsed.netloc != self.origin
+                    or not parsed.path.startswith('/') or parsed.fragment):
+                raise ValueError
+            path = parsed.path + ('?' + parsed.query if parsed.query else '')
+        except (ValueError, TypeError):
+            raise ProvisionRefusal('cortex_health_unavailable') from None
+
+        deadline = time.monotonic() + timeout
+        work_deadline = deadline - min(.05, timeout / 4)
+        connection = response = owned_socket = timer = None
+        try:
+            connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=timeout)
+            connection.connect()
+            owned_socket = connection.sock
+            remaining = work_deadline - time.monotonic()
+            if remaining <= 0:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            owned_socket.settimeout(remaining)
+
+            def interrupt():
+                # Own the socket object, not a descriptor number which may be reused.
+                try:
+                    owned_socket.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+            timer = threading.Timer(remaining, interrupt)
+            timer.daemon = True
+            timer.start()
+            connection.request('GET', path, headers=dict(headers))
+            response = connection.getresponse()
+            raw = response.read(max_bytes + 1)
+            if len(raw) > max_bytes or time.monotonic() >= deadline:
+                raise ProvisionRefusal('cortex_health_unavailable')
+            return response.status, raw
+        except (OSError, ValueError, http.client.HTTPException):
+            raise ProvisionRefusal('cortex_health_unavailable') from None
+        finally:
+            if timer is not None:
+                timer.cancel()
+                timer.join(timeout=max(0, min(.05, deadline - time.monotonic())))
+            if response is not None:
+                response.close()
+            if connection is not None:
+                connection.close()
+            if owned_socket is not None:
+                owned_socket.close()
 
 
 def _one_frame(raw: bytes, limit: int) -> dict:
