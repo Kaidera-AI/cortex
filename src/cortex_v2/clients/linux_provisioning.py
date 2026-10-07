@@ -22,6 +22,7 @@ import signal
 import socket
 import stat
 import subprocess
+import sys
 import threading
 import time
 from urllib.parse import urlsplit
@@ -1658,6 +1659,181 @@ def read_linux_readiness(runtime_root: Path, args: dict, response: dict, *, kos_
     finally:
         for value in (private, request):
             if isinstance(value, dict): value.clear()
+
+
+@contextmanager
+def _readonly_operation_lock(path: Path):
+    """Share only the existing lock inode; never create or modify its bytes."""
+    descriptor = None; acquired = False
+    try:
+        parents = custody._parents(path)
+        before = path.lstat(); custody._private_file(before)
+        if before.st_size != 0: raise ValueError
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        opened = os.fstat(descriptor); custody._private_file(opened)
+        identity = lambda info: (custody._file_identity(info), info.st_ctime_ns)
+        if identity(before) != identity(opened): raise ValueError
+        fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB); acquired = True
+        custody._recheck_parents(parents)
+        yield
+        custody._recheck_parents(parents)
+        if identity(path.lstat()) != identity(opened) or identity(os.fstat(descriptor)) != identity(opened):
+            raise ProvisionRefusal('cortex_provisioning_conflict')
+    except (OSError, ValueError):
+        raise ProvisionRefusal('cortex_provisioning_conflict') from None
+    finally:
+        if descriptor is not None:
+            try:
+                if acquired: fcntl.flock(descriptor, fcntl.LOCK_UN)
+            finally:
+                os.close(descriptor)
+
+
+def read_linux_prerequisite_proof(descriptor_file: Path, nonce: str, *, store=None,
+                                  executable: Path | None = None, deadline: float | None = None) -> dict:
+    """Fresh revision-4 challenge; only existing private state may be read."""
+    files = {}; parents = {}; changing_parents = {}; records = {}; values = []
+    try:
+        now = time.monotonic()
+        if deadline is None: deadline = now + 30
+        if type(deadline) not in (int, float) or not math.isfinite(deadline) or deadline <= now:
+            raise ProvisionRefusal('cortex_health_unavailable')
+        deadline = min(deadline, now + 30)
+        if not isinstance(nonce, str) or re.fullmatch(r'[0-9a-f]{32}', nonce) is None:
+            raise ProvisionRefusal('cortex_descriptor_invalid')
+        def check_inputs():
+            if time.monotonic() >= deadline: raise ProvisionRefusal('cortex_health_unavailable')
+            custody._recheck_parents(parents)
+            for path, expected in changing_parents.items():
+                info = path.lstat()
+                if (custody._directory_identity(info), info.st_ctime_ns) != expected: raise ValueError
+            for path, expected in files.items():
+                info = path.lstat()
+                if (custody._file_identity(info), info.st_ctime_ns) != expected: raise ValueError
+            if time.monotonic() >= deadline: raise ProvisionRefusal('cortex_health_unavailable')
+        def pin(path):
+            check_inputs(); parents.update(custody._parents(path))
+            for parent in path.parents:
+                info = parent.lstat()
+                if info.st_uid == os.getuid():
+                    expected = (custody._directory_identity(info), info.st_ctime_ns)
+                    if parent in changing_parents and changing_parents[parent] != expected: raise ValueError
+                    changing_parents[parent] = expected
+            info = path.lstat(); custody._private_file(info)
+            files[path] = (custody._file_identity(info), info.st_ctime_ns)
+            raw = custody.read_private_bytes(path)
+            check_inputs()
+            value = strict_json(raw); values.append(value)
+            return raw, value
+
+        descriptor_raw, descriptor = pin(descriptor_file)
+        fields = {'schema', 'owner_uid', 'host_os', 'target', 'api_origin', 'installation_id', 'runtime_root',
+                  'package_root', 'release_manifest', 'release_signature', 'release_manifest_sha256',
+                  'connection_file', 'member_reader_archive_sha256', 'podman'}
+        if (set(descriptor) != fields or descriptor['schema'] != 'cortex.prerequisite.v2'
+                or type(descriptor['owner_uid']) is not int or descriptor['owner_uid'] != os.getuid()
+                or descriptor['host_os'] != 'linux' or descriptor['target'] != 'linux-x86_64'):
+            raise ValueError
+        root = Path(descriptor['runtime_root']); custody.physical_path(root)
+        if str(root) != descriptor['runtime_root']: raise ValueError
+        state_path = descriptor_file.with_name(descriptor_file.name + '.state.json')
+        intent_path = descriptor_file.with_name(descriptor_file.name + '.request.json')
+        journal_path = descriptor_file.with_name(descriptor_file.name + '.delivery.json')
+        lock_path = descriptor_file.with_name(descriptor_file.name + '.lock')
+        connection_path = Path(descriptor['connection_file'])
+        paths = (descriptor_file, state_path, intent_path, journal_path, lock_path, connection_path)
+        if len(set(paths)) != len(paths) or any(p.is_relative_to(root / 'package') or p.is_relative_to(root / 'signed')
+                or p == root / 'install.json' for p in paths): raise ValueError
+        with _readonly_operation_lock(lock_path):
+            _, state = pin(state_path); _, intent = pin(intent_path)
+            _, connection = pin(connection_path); pin(journal_path)
+            if (set(state) != {'schema', 'installation_id', 'create_project', 'receipt', 'kos_policy'}
+                    or state['schema'] != 'cortex.prerequisite-state.v1'
+                    or set(intent) != {'schema', 'installation_id', 'arguments'}
+                    or intent['schema'] != 'cortex.provision-intent.v1'):
+                raise ValueError
+            args = intent['arguments']; body = validate_request(args)
+            response = state['receipt']; policy = state['kos_policy']
+            if (state['installation_id'] != descriptor['installation_id']
+                    or intent['installation_id'] != descriptor['installation_id'] or state['create_project'] != body
+                    or not isinstance(response, dict) or set(response) != {'operation_id', 'project_id', 'project_key',
+                        'delivery_state', 'lead', 'console'} or response['delivery_state'] != 'reissue_required'
+                    or any(set(response[role]) != set(DeliveryJournal.RECIPIENT) for role in ('lead', 'console'))
+                    or _response(response, body) is not False):
+                raise ValueError
+            connection = custody.validate_connection(connection)
+            with runtime_observation_scope(root, kos_policy=policy, deadline=deadline):
+                context = read_linux_runtime(root, kos_policy=policy, deadline=deadline)
+                release = custody.validate_release_manifest(context['release'], target='linux-x86_64')
+                expected = {'schema': 'cortex.prerequisite.v2', 'owner_uid': os.getuid(), 'host_os': 'linux',
+                    'target': 'linux-x86_64', 'api_origin': context['origin'], 'installation_id': context['installation_id'],
+                    'runtime_root': str(root), 'package_root': str(root / 'package'),
+                    'release_manifest': str(root / 'signed/release.json'),
+                    'release_signature': str(root / 'signed/release.json.minisig'),
+                    'release_manifest_sha256': context['release_manifest_sha256'], 'connection_file': str(connection_path),
+                    'member_reader_archive_sha256': release['member_reader_archive_sha256'],
+                    'podman': {'minimum_version': release['podman']['minimum_version'],
+                        'policy_sha256': hashlib.sha256(json.dumps(release['podman'], sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+                        'provider': 'cortex-native-lifecycle', 'connection_name': None, 'machine_name': None}}
+                if descriptor != expected or context['host_os'] != 'linux' or context['runtime_root'] != str(root):
+                    raise ValueError
+                helper = root / 'package/bin/cortex'
+                selected = Path(sys.executable) if executable is None else executable
+                custody.physical_path(selected)
+                if selected != helper or str(selected) != str(helper): raise ValueError
+                info = helper.lstat()
+                if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                        or not info.st_mode & stat.S_IXUSR or stat.S_IMODE(info.st_mode) & 0o022
+                        or context['helper_sha256'] != release['files']['bin/cortex']): raise ValueError
+                if store is None:
+                    from .key_store import KeyStore
+                    home = Path(_local_engine_context()['environment']['HOME'])
+                    store = KeyStore(context['installation_id'], root=home / '.config/cortex/keys', backend='file')
+                journal = DeliveryJournal(journal_path, args, context['installation_id'], store)
+                if journal._read() != journal._receipt(response, 'keys_committed'): raise ValueError
+                def check_records():
+                    for role, label in (('lead', body['lead_name']), ('console', 'console')):
+                        record = store.read(body['project_key'], label)
+                        if (record is None or record.metadata.managed_by != response[role]['manager']
+                                or record.metadata.expires_at != response[role]['expires_at']
+                                or record.metadata.due_state(datetime.datetime.now(datetime.timezone.utc)) == 'expired'):
+                            raise ProvisionRefusal('cortex_credential_refused')
+                        previous = records.get(role)
+                        if previous is not None and (record.metadata != previous.metadata
+                                or not hmac.compare_digest(record.token, previous.token)):
+                            raise ProvisionRefusal('cortex_credential_refused')
+                        records[role] = record
+                    check_inputs()
+                with admitted_recipients(root, args, response, kos_policy=policy, journal=journal,
+                                         deadline=deadline) as recheck:
+                    members = recheck(); console = members['console']
+                    expected_connection = {'schema': 'cortex.console-connection.v1', 'origin': context['origin'],
+                        'installation_id': context['installation_id'], 'project': body['project_key'], 'member_name': 'console',
+                        'project_root': body['repo_root'], **{k: console[k] for k in ('principal_id', 'actor_id', 'scope_id')}}
+                    if connection != expected_connection: raise ProvisionRefusal('cortex_credential_refused')
+                    check_records()
+                    proof = read_linux_readiness(root, args, response, kos_policy=policy, store=store,
+                        recheck_recipients=recheck, deadline=deadline)
+                    if (proof.get('status') != 'READY' or proof.get('schema') != 'cortex.linux-readiness.v1'
+                            or proof['installation_id'] != context['installation_id']
+                            or proof['release_manifest_sha256'] != context['release_manifest_sha256']
+                            or proof['helper_sha256'] != context['helper_sha256']):
+                        raise ProvisionRefusal('cortex_health_degraded')
+                    recheck(); check_records()
+                    result = {k: v for k, v in proof.items() if k != 'status'}
+                    result.update(schema='cortex.prerequisite-proof.v2', nonce=nonce,
+                                  descriptor_sha256=hashlib.sha256(descriptor_raw).hexdigest())
+                check_inputs(); check_records()
+            check_inputs(); check_records()
+        check_inputs()
+        return result
+    except PrerequisiteRefusal:
+        raise
+    except Exception:
+        raise ProvisionRefusal('cortex_descriptor_invalid') from None
+    finally:
+        records.clear(); files.clear(); parents.clear(); changing_parents.clear()
+        for value in values: value.clear()
 
 
 class LinuxProvisionPorts:
