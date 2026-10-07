@@ -17,6 +17,10 @@ class FacadeUnavailable(ClientConfigError):
     """The requested caller contract has not been mapped in this release."""
 
 
+class _LogUsage(Exception):
+    pass
+
+
 class _Parser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **dict(kwargs, allow_abbrev=False))
@@ -101,6 +105,12 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("projects", help="show registered projects using the selected member")
     log = commands.add_parser('log', help='record and confirm the selected agent event')
+    def log_usage(*unused, **kwargs):
+        from .agent_log import USAGE
+        stdout.write(USAGE)
+        raise _LogUsage
+    log.print_help = log_usage
+    log.error = log_usage
     log.add_argument('--goal', '--goal-parent', action=_SingleValue)
     confirmation = log.add_mutually_exclusive_group()
     confirmation.add_argument('--confirm', dest='confirm', action='store_true', default=None)
@@ -146,6 +156,8 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
             output = response.body.decode("utf-8")
         stdout.write(output)
         return 0
+    except _LogUsage:
+        return 1
     except FacadeUnavailable:
         print("ERROR: facade request unavailable in this release", file=stderr)
         return 2

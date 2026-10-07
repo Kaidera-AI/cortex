@@ -2,6 +2,9 @@
 # Release-owned native log command; only the non-secret profile crosses shell.
 set -euo pipefail
 directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "$#" -eq 0 ] || [ "${1:-}" = --help ] || [ "${1:-}" = -h ]; then
+    exec "${directory}/cortex-agent" log --help
+fi
 if [ -z "${CORTEX_CONNECTION_PROFILE:-}" ]; then
     printf '%s\n' 'ERROR: select CORTEX_CONNECTION_PROFILE (non-secret v2 member profile)' >&2
     exit 2

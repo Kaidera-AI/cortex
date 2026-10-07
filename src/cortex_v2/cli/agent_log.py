@@ -12,6 +12,11 @@ from ..clients.errors import ClientConfigError
 from ..clients.transport import http_request
 
 TYPES = ('commit', 'decision', 'lesson', 'started', 'stopped', 'blocked', 'unblocked', 'bug', 'handoff', 'question')
+USAGE = ('Usage: cortex-log [--confirm|--no-confirm] [--goal <goal-id>] <agent_name> <event_type> <summary> [files...]\n\n'
+         'Options:\n'
+         '  --confirm     Read the written row back and fail if summary/files do not match exactly (default)\n'
+         '  --no-confirm  Disable client read-back confirmation; API verified=true is still required\n\n'
+         'Valid event types:\n  ' + ' '.join(TYPES) + '\n')
 
 
 def _refuse():
