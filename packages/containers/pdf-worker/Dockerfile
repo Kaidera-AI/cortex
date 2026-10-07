@@ -33,7 +33,7 @@ RUN set -eux; \
     printf '%s  %s\n' '19a20e3818e39ae271b114aa048a20d961b3f4604c013bed46c2e6c991d08dbb' "$1" | sha256sum -c -; \
     set -- /var/lib/apt/lists/*_dists_trixie-updates_InRelease; \
     [ "$#" -eq 1 ]; \
-    printf '%s  %s\n' 'f02d96f99db560df6328eeb584f034ca1d9fc4f25eb644144b042a0193165def' "$1" | sha256sum -c -; \
+    printf '%s  %s\n' '5fec4fee5b084bff5ce5a46137cb6347b11393a02b81d2eed2e084ed62295048' "$1" | sha256sum -c -; \
     apt-get install -y --download-only --no-install-recommends \
       'poppler-utils=25.03.0-5+deb13u4'; \
     architecture="$(dpkg --print-architecture)"; \
@@ -81,7 +81,7 @@ LABEL org.opencontainers.image.title="Kaidera OS Cortex PDF worker" \
       io.kaidera.kos.edition="${KOS_EDITION}" \
       io.kaidera.kos.apt.snapshot="20260905T000000Z" \
       io.kaidera.kos.apt.security-inrelease.sha256="19a20e3818e39ae271b114aa048a20d961b3f4604c013bed46c2e6c991d08dbb" \
-      io.kaidera.kos.apt.updates-inrelease.sha256="f02d96f99db560df6328eeb584f034ca1d9fc4f25eb644144b042a0193165def" \
+      io.kaidera.kos.apt.updates-inrelease.sha256="5fec4fee5b084bff5ce5a46137cb6347b11393a02b81d2eed2e084ed62295048" \
       io.kaidera.kos.apt.sources.sha256="92bb8050b6c14816344007be399de0cba4b0f173ba700c08937d3540b88fbecf" \
       io.kaidera.kos.apt.inrelease.sha256="98b25b5cd185c59d34aa6e4c3e9b5b8f01bbe9d104fe2dcfbcd30dc0a14a59ed" \
       io.kaidera.kos.apt.package="poppler-utils=25.03.0-5+deb13u4" \
