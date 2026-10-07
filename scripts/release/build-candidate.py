@@ -281,6 +281,11 @@ def stamp_host_binary_floor(binary: Path) -> None:
     run([str(binary), "--help"])
 
 
+def freeze_boot_shim(root: Path, stage: Path) -> dict:
+    from boot_shim import freeze
+    return freeze(root, stage)
+
+
 def freeze_host_programs(out: Path) -> dict:
     """Freeze both host entrypoints and retain their separate byte inventories."""
     programs = {}
@@ -435,6 +440,16 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
     run([sys.executable, "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
          "--requirement", str(lock)])
     programs = freeze_linux_cm2_programs(out) if cm2 else (freeze_linux_programs(out) if architecture == "amd64" else freeze_host_programs(out))
+    from boot_shim import boot_enabled
+    shims = {}
+    if boot_enabled(ROOT):
+        shim = freeze_boot_shim(ROOT, out)
+        from cortex_v2.cli.agent_boot import USAGE
+        output = run([str(out / 'bin/cortex-boot'), '--help'], read=True)
+        if output != USAGE.rstrip():
+            raise RuntimeError('native boot shim help qualification failed')
+        shim['help'] = 'PASS'
+        shims['cortex-boot'] = shim
     (out / "licenses").mkdir()
     for name, expected_digest in native["licenses"].items():
         if name != Path(name).name or digest(runtime / "licenses" / name) != expected_digest:
@@ -481,6 +496,7 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
     (out / "host-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": target,
                 **({"maximum_glibc": "2.35"} if architecture == "amd64" else {"minimum_macos": "14"}), "python": platform.python_version(),
                 "dependencies": programs["cortex" if cm2 else "cortex-test"]["dependencies"], "programs": programs,
+                **({"shims": shims} if shims else {}),
                 **({"host_contract": "linux-cm2"} if cm2 else {}),
                 **({"runtime_packages": runtime_packages} if architecture == "amd64" else {}),
                 "builder_packages": builder_packages, "native_runtime_bootstrap": native,
@@ -590,6 +606,9 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
         if architecture == "amd64" and (receipt.get("architecture") != "x86_64" or receipt.get("help") != "PASS"
                 or receipt.get("maximum_glibc") != "2.35" or not receipt.get("embedded_elf_count")):
             raise RuntimeError("complete native ELF and help qualification required")
+    from boot_shim import boot_enabled, validate as validate_boot_shim
+    if boot_enabled(ROOT):
+        validate_boot_shim(ROOT, host_dir, native.get('shims'))
     for name in ("cortex-projects", "_cortex_api.sh"):
         if digest(host_dir / "bin" / name) != digest(ROOT / "scripts/agent-shims" / name):
             raise RuntimeError("downloaded agent shim differs from frozen source")
@@ -628,6 +647,8 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     # GitHub artifact upload/download does not preserve executable mode.
     for name in ("cortex-test", "cortex-agent", "cortex-projects"):
         (package / "bin" / name).chmod(0o755)
+    if boot_enabled(ROOT):
+        (package / 'bin/cortex-boot').chmod(0o755)
     (package / "bin/_cortex_api.sh").chmod(0o644)
     shutil.copytree(host_dir / "licenses", package / "licenses")
     shutil.copytree(ROOT / "deploy/release/licenses", package / "licenses", dirs_exist_ok=True)

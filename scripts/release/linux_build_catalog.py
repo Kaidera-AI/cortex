@@ -36,6 +36,9 @@ def _source_inputs(root: Path) -> dict:
             if len(paths) > 4096:
                 raise ValueError
     paths.add(root / 'deploy/release/10-create-roles.sh')
+    from boot_shim import boot_enabled
+    if boot_enabled(root):
+        paths.update((root / 'scripts', root / 'scripts/agent-shims', root / 'scripts/agent-shims/cortex-boot'))
     for name in ('pyproject.toml', 'uv.lock', 'requirements-build.txt', '.dockerignore',
                  'Dockerfile', 'deploy/release/Dockerfile.linux-amd64',
                  'deploy/release/Containerfile.db', 'deploy/release/Containerfile.db.linux-amd64'):

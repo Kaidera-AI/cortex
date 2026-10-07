@@ -133,7 +133,7 @@ def _payload(stream, release, check):
         raise ValueError
     if any(payload.get(n) != digest for n,digest in release['files'].items()):
         raise ValueError
-    for name in ('bin/cortex','bin/cortex-agent'):
+    for name in ('bin/cortex','bin/cortex-agent') + (('bin/cortex-boot',) if 'bin/cortex-boot' in payload else ()):
         if name not in payload or not modes[name] & 0o100: raise ValueError
     for role in custody.ROLES:
         image = inner['images'][role]

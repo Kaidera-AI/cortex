@@ -558,7 +558,7 @@ def verify_installed_release(runtime_root: Path, *, deadline: float | None = Non
         if actual != expected or directories != expected_dirs:
             raise PrerequisiteRefusal('cortex_descriptor_invalid')
         for name, digest in payload.items():
-            if measure(package / name, executable=name in ('bin/cortex', 'bin/cortex-agent')) != digest:
+            if measure(package / name, executable=name in ('bin/cortex', 'bin/cortex-agent', 'bin/cortex-boot')) != digest:
                 raise PrerequisiteRefusal('cortex_release_signature_invalid')
         if optional_sums:
             sums = dict(payload, **{'release.json': inner_digest})

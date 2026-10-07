@@ -16,6 +16,7 @@ import zipfile
 from linux_build_catalog import (_source_inputs, _source_snapshot, _source_stamp,
                                  physical_path, read_json, rehearsal_catalog_bytes)
 from podman_policy import POLICY
+from boot_shim import boot_enabled, validate as validate_boot_shim
 from cortex_v2.clients import linux_bundle, native_prerequisite as custody
 
 MESSAGE = 'CM-2 assembly inputs missing or mismatched'
@@ -145,7 +146,11 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
         raise ValueError
     payloads, source_observation = _source_snapshot(root)
     lock = root / 'scripts/release/requirements-linux-host-build.txt'
-    inputs = _Inputs((images_dir, host_dir, reader_dir, root / 'LICENSE', lock))
+    has_boot = boot_enabled(root)
+    input_roots = (images_dir, host_dir, reader_dir, root / 'LICENSE', lock)
+    if has_boot:
+        input_roots += (root / 'scripts/agent-shims/cortex-boot',)
+    inputs = _Inputs(input_roots)
     try:
         inventory = read_json(images_dir / 'image-inventory.json')
         native = read_json(host_dir / 'host-inventory.json')
@@ -206,6 +211,13 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
             mapping[host_dir / 'bin' / name] = 'bin/' + name
             mapping[host_dir / listing] = 'sbom/' + listing
             host_files.update(('bin/' + name, listing))
+        if has_boot:
+            receipt = validate_boot_shim(root, host_dir, native.get('shims'))
+            if (receipt['sha256'] != inputs.digest(host_dir / 'bin/cortex-boot')
+                    or receipt['sha256'] != inputs.digest(root / 'scripts/agent-shims/cortex-boot')):
+                raise ValueError
+            mapping[host_dir / 'bin/cortex-boot'] = 'bin/cortex-boot'
+            host_files.add('bin/cortex-boot')
         if read_json(host_dir / 'host.spdx.json').get('spdxVersion') != 'SPDX-2.3':
             raise ValueError
         licenses = list((host_dir / 'licenses').iterdir())
@@ -255,7 +267,7 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
         for source, name in sorted(mapping.items(), key=lambda row: row[1]):
             destination = package / name
             destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            mode = 0o755 if name in ('bin/cortex', 'bin/cortex-agent') else 0o600
+            mode = 0o755 if name in ('bin/cortex', 'bin/cortex-agent', 'bin/cortex-boot') else 0o600
             fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
             digest = hashlib.sha256()
             with os.fdopen(fd, 'wb') as stream:
