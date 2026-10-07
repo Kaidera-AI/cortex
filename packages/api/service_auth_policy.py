@@ -144,10 +144,10 @@ ROUTE_POLICIES = {
     ("PATCH", "/projects/{project_key}/roster-policy"): frozenset({"instance:admin"}),
     ("PATCH", "/projects/{project_key}"): frozenset({"instance:admin"}),
     ("DELETE", "/skills/{slug}"): frozenset({"instance:admin"}),
-    ("POST", "/admin/sql/query"): frozenset({"instance:admin"}),
-    ("POST", "/admin/sql/exec"): frozenset({"instance:admin"}),
+    ("POST", "/admin/sql/query"): None,
+    ("POST", "/admin/sql/exec"): None,
     ("POST", "/handoffs/cross-project"): frozenset({"instance:admin"}),
-    ("POST", "/project-local-sync"): frozenset({"instance:admin"}),
+    ("POST", "/project-local-sync"): None,
     # Removed compatibility route and generated framework surfaces remain
     # explicit holds rather than becoming accidental public documentation.
     ("POST", "/admin/redis"): None,
