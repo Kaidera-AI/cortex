@@ -459,12 +459,13 @@ class ServiceAuthMiddleware:
             _selectors(method, template, current, headers, path, query, body)
 
         authority_check = recheck if context is not None else None
+        observation_context = None if public else context
         if multipart_limit is not None:
             await self._dispatch_multipart(
-                admitted, receive, send, headers, multipart_limit, authority_check, context
+                admitted, receive, send, headers, multipart_limit, authority_check, observation_context
             )
         else:
-            await self._dispatch(admitted, receive, send, raw, authority_check, context)
+            await self._dispatch(admitted, receive, send, raw, authority_check, observation_context)
 
     async def _dispatch_multipart(
         self, scope, receive, send, headers, limit, recheck, context
