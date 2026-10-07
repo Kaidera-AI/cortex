@@ -4,7 +4,7 @@ set -eu
 umask 077
 
 action=${1:-init}
-case "$action" in init|rotate-leaves) ;; *) echo 'usage: init.sh [init|rotate-leaves]' >&2; exit 2 ;; esac
+case "$action" in init|rotate-leaves|owner-control) ;; *) echo 'usage: init.sh [init|rotate-leaves|owner-control]' >&2; exit 2 ;; esac
 tls_root=${CORTEX_TLS_ROOT:-/tls}
 case "$tls_root" in /*) ;; *) echo 'TLS root must be absolute' >&2; exit 2 ;; esac
 [ "$tls_root" != / ] || { echo 'TLS root cannot be /' >&2; exit 2; }
@@ -17,26 +17,6 @@ for owner in "$server_uid" "$server_gid" "$client_uid" "$client_gid"; do
 done
 
 fail() { echo "cortex TLS: $*" >&2; exit 1; }
-for dir in "$tls_root" "$tls_root/ca" "$tls_root/server" "$tls_root/app" "$tls_root/admin"; do
-    [ ! -L "$dir" ] || fail 'TLS directories must not be symlinks'
-    mkdir -p "$dir"
-done
-ca_dir=$tls_root/ca
-mkdir "$ca_dir/.lock" 2>/dev/null || fail 'initializer already running (or stale lock needs inspection)'
-work=''
-cleanup() {
-    if [ -n "$work" ]; then
-        for name in ca.crt ca.key ca.cnf server.crt server.key server.csr server.cnf app.crt app.key app.csr app.cnf admin.crt admin.key admin.csr admin.cnf; do
-            rm -f "$work/$name"
-        done
-        rmdir "$work"
-    fi
-    rmdir "$ca_dir/.lock"
-}
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-
 mode_of() { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"; }
 uid_of() { stat -c '%u' "$1" 2>/dev/null || stat -f '%u' "$1"; }
 gid_of() { stat -c '%g' "$1" 2>/dev/null || stat -f '%g' "$1"; }
@@ -73,6 +53,57 @@ validate_leaf() {
         openssl x509 -in "$leaf_dir/tls.crt" -noout -text | grep -Eq 'DNS:cortex-pg([,[:space:]]|$)' || fail 'server SAN must include cortex-pg'
     fi
 }
+
+# The same finite restricted initializer owns the private ServiceAuth socket
+# volume. Never repair nonempty state silently; ownership drift needs review.
+initialize_owner_control() {
+    control=${CORTEX_OWNER_CONTROL_DIR:-}
+    [ -n "$control" ] || fail 'owner-control directory is required'
+    case "$control" in /*) ;; *) fail 'owner-control directory must be absolute' ;; esac
+    case "$control" in /|*/../*|*/..|*/./*|*/.) fail 'invalid owner-control path' ;; esac
+    cursor=$control
+    while [ "$cursor" != / ]; do
+        [ ! -L "$cursor" ] || fail 'owner-control ancestry must not be symlinked'
+        cursor=$(dirname "$cursor")
+    done
+    [ -d "$control" ] || fail 'owner-control volume must already exist'
+    if [ -n "$(ls -A "$control")" ]; then
+        [ "$(mode_of "$control")" = 700 ] || fail 'existing owner-control state is not private'
+        [ "$(uid_of "$control")" = "$client_uid" ] || fail 'existing owner-control owner differs'
+        [ "$(gid_of "$control")" = "$client_gid" ] || fail 'existing owner-control group differs'
+    else
+        chown "$client_uid:$client_gid" "$control"
+        chmod 0700 "$control"
+    fi
+}
+if [ "$action" = owner-control ]; then
+    initialize_owner_control
+    echo 'cortex owner-control: private directory validated'
+    exit 0
+fi
+if [ "$action" = init ] && [ -n "${CORTEX_OWNER_CONTROL_DIR:-}" ]; then
+    initialize_owner_control
+fi
+
+for dir in "$tls_root" "$tls_root/ca" "$tls_root/server" "$tls_root/app" "$tls_root/admin"; do
+    [ ! -L "$dir" ] || fail 'TLS directories must not be symlinks'
+    mkdir -p "$dir"
+done
+ca_dir=$tls_root/ca
+mkdir "$ca_dir/.lock" 2>/dev/null || fail 'initializer already running (or stale lock needs inspection)'
+work=''
+cleanup() {
+    if [ -n "$work" ]; then
+        for name in ca.crt ca.key ca.cnf server.crt server.key server.csr server.cnf app.crt app.key app.csr app.cnf admin.crt admin.key admin.csr admin.cnf; do
+            rm -f "$work/$name"
+        done
+        rmdir "$work"
+    fi
+    rmdir "$ca_dir/.lock"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # Check every known path before writing anything. A missing CA in an existing
 # deployment must never silently create a new trust root.

@@ -19,10 +19,13 @@ import tempfile
 import time
 import types
 import urllib.request
+from urllib.error import HTTPError
+from uuid import UUID
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import image_manifest as images
+import prerequisite
 
 
 PKI_FILES = tuple(['ca/ca.crt', 'ca/ca.key'] + [
@@ -116,6 +119,11 @@ def write_json(path, value):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+class _NoReadinessRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        raise HTTPError(request.full_url, code, 'Readiness redirect refused', headers, response)
 
 
 class Runtime:
@@ -470,6 +478,129 @@ class Runtime:
                 pass
         raise RuntimeError('migrator returned no schema receipt')
 
+    def credential_locations(self):
+        project = self.args.credential_project
+        if not isinstance(project, str) or not prerequisite.PROJECT.fullmatch(project):
+            raise ValueError('invalid credential project')
+        root = Path(self.args.credential_dir).expanduser()
+        if (not root.is_absolute() or '..' in root.parts
+                or any(ord(c) < 32 or ord(c) == 127 for c in str(root))):
+            raise ValueError('credential directory must be an exact absolute path')
+        return root, root / project, root / project / 'console.token'
+
+    def readiness_credential(self):
+        if (self.state / 'console-enrollment-pending.json').exists():
+            raise RuntimeError('console enrollment outcome unknown; deliberate recovery required')
+        root, directory, path = self.credential_locations()
+        uid = os.getuid()
+        prerequisite._private_directory(root, uid, 'cortex_credential_unavailable')
+        prerequisite._private_directory(directory, uid, 'cortex_credential_unavailable')
+        try:
+            token = prerequisite._read(path, uid, 128, 'cortex_credential_unavailable', private=True).decode('ascii').strip()
+        except UnicodeError:
+            raise RuntimeError('cortex_credential_unavailable') from None
+        if not prerequisite.TOKEN.fullmatch(token):
+            raise RuntimeError('cortex_credential_unavailable')
+        return token
+
+    def authenticated_get(self, route, *, timeout):
+        token = self.readiness_credential()
+        if not route.startswith('/') or route.startswith('//') or any(ord(c) < 32 for c in route):
+            raise ValueError('invalid readiness route')
+        request = urllib.request.Request(f'http://127.0.0.1:{self.port}' + route,
+            headers={'Authorization': 'Bearer ' + token, 'X-Project': self.args.credential_project,
+                     'X-Agent-Name': 'console'})
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoReadinessRedirect())
+        try:
+            with opener.open(request, timeout=timeout) as response:
+                body = response.read(64 * 1024 + 1)
+            if len(body) > 64 * 1024:
+                raise RuntimeError('readiness response exceeded bound')
+            return prerequisite._json(body, 'cortex_readiness_invalid')
+        except (OSError, ValueError):
+            raise RuntimeError('authenticated readiness unavailable') from None
+
+    def enroll_console(self):
+        # Enrollment is explicit. Never infer an engine, recover another token,
+        # overwrite a credential, or retry an uncertain one-use operation.
+        prerequisite._private_directory(self.state, os.getuid(), 'cortex_owner_state_unavailable')
+        root, directory, destination = self.credential_locations()
+        marker = self.state / 'console-enrollment-pending.json'
+        if marker.exists() or marker.is_symlink() or destination.exists() or destination.is_symlink():
+            raise RuntimeError('console enrollment exists or is uncertain; deliberate recovery required')
+        if not self.args.owner_engine:
+            raise ValueError('console enrollment requires an explicit owner engine')
+        for parent in reversed([root, *root.parents]):
+            if parent == Path(parent.anchor): continue
+            if not parent.exists(): parent.mkdir(mode=0o700)
+            prerequisite._path(parent, 'cortex_credential_unavailable')
+        prerequisite._private_directory(root, os.getuid(), 'cortex_credential_unavailable')
+        if not directory.exists(): directory.mkdir(mode=0o700)
+        prerequisite._private_directory(directory, os.getuid(), 'cortex_credential_unavailable')
+        staging = Path(tempfile.mkdtemp(prefix='console-enrollment-', dir=self.state))
+        # Exclusive durable journal is the retry barrier before owner mutation.
+        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(images.encode({'schema': 'cortex.console-enrollment.v1', 'staging': str(staging)}))
+            handle.flush(); os.fsync(handle.fileno())
+        state_fd = os.open(self.state, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(state_fd)
+            binding_path = self.state / 'owner-binding.json'
+            if not binding_path.exists():
+                self.owner_action('owner-pair', selector=self.args.owner_engine,
+                                  volume=self.args.project + '_cortex-owner-control')
+            binding = prerequisite._json(prerequisite._read(binding_path, os.getuid(), 64*1024,
+                'cortex_owner_binding_unavailable', private=True), 'cortex_owner_binding_unavailable')
+            instance = binding['instance_id']
+            if str(UUID(instance)) != instance: raise ValueError('invalid owner instance')
+            def request(operation, **fields):
+                value = {'protocol': 'cortex.owner.v1', 'operation': operation, 'instance_id': instance, **fields}
+                source, target = staging / (operation + '.request'), staging / (operation + '.response')
+                write_private(source, images.encode(value))
+                self.owner_action('owner-request', selector=self.args.owner_engine,
+                                  request_file=str(source), response_file=str(target))
+                response = prerequisite._json(prerequisite._read(target, os.getuid(), 16384,
+                    'cortex_owner_response_invalid', private=True), 'cortex_owner_response_invalid')
+                if (set(response) != {'protocol','instance_id','result'} or response['protocol'] != 'cortex.owner.v1'
+                        or response['instance_id'] != instance or not isinstance(response['result'], dict)):
+                    raise RuntimeError('invalid owner response')
+                return response['result']
+            grant = request('setup-grant', purpose='bootstrap')
+            issued = request('consume-setup', purpose='bootstrap', setup_token=grant['raw_token'],
+                identity={'project_key': self.args.credential_project, 'agent_name': 'console'},
+                installation_id='KOS-Cortex', scopes=['memory:read','memory:write','runtime:read',
+                    'coordination:read','coordination:write','ingest:write','registry:read','registry:write','instance:admin'],
+                revoke_existing=False)
+            token = issued['raw_token']
+            if not isinstance(token, str) or not prerequisite.TOKEN.fullmatch(token):
+                raise RuntimeError('invalid owner credential')
+            # Open the admitted directory and publish exclusively through its fd.
+            dir_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                info = os.fstat(dir_fd)
+                if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                    raise RuntimeError('credential directory changed')
+                token_fd = os.open('console.token', os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=dir_fd)
+                with os.fdopen(token_fd, 'wb') as handle:
+                    handle.write((token + '\n').encode('ascii')); handle.flush(); os.fsync(handle.fileno())
+                os.fsync(dir_fd)
+            finally: os.close(dir_fd)
+            prerequisite._private_directory(root, os.getuid(), 'cortex_credential_unavailable')
+            prerequisite._private_directory(directory, os.getuid(), 'cortex_credential_unavailable')
+            if prerequisite._read(destination, os.getuid(), 128, 'cortex_credential_unavailable', private=True) != (token + '\n').encode('ascii'):
+                raise RuntimeError('credential publication changed')
+            for name in ('setup-grant.request','setup-grant.response','consume-setup.request','consume-setup.response'):
+                (staging / name).unlink()
+            staging.rmdir()
+            marker.unlink(); os.fsync(state_fd)
+            return {'enrolled': True, 'installation_id': instance, 'credential_dir': str(root),
+                'credential_file': str(destination), 'credential_project': self.args.credential_project,
+                'credential_agent': 'console'}
+        except BaseException:
+            raise RuntimeError('console enrollment outcome unknown; private journal retained, do not retry automatically') from None
+        finally: os.close(state_fd)
+
     def check(self):
         images = {}
         for service in ('cortex-pg', 'cortex-provider', 'cortex-api', 'cortex-embed-worker',
@@ -485,24 +616,26 @@ class Runtime:
                 raise RuntimeError('runtime service is unhealthy or its image identity does not match payload: ' + service)
             images[service] = running['Image']
             self.verify_running_image(service, running['Image'])
-        with urllib.request.urlopen(f'http://127.0.0.1:{self.port}/health', timeout=10) as response:
-            health = json.load(response)
+        health = self.authenticated_get('/health', timeout=10)
         if health.get('status') != 'healthy' or health.get('postgres') != 'connected':
             raise RuntimeError('Cortex health effect check failed')
         if health.get('surface_version') != 'cortex-standalone-' + self.identity['version']:
             raise RuntimeError('API health does not identify the expected release')
+        try:
+            instance = health['installation_id']
+            if str(UUID(instance)) != instance or health.get('rls_enforced') is not True:
+                raise ValueError
+        except (KeyError, ValueError, TypeError):
+            raise RuntimeError('authenticated readiness lacks instance identity or enforced RLS') from None
         for route in ('/search?q=standalone-canary&limit=1', '/handoffs?status=pending'):
-            request = urllib.request.Request(f'http://127.0.0.1:{self.port}' + route,
-                                             headers={'X-Project': 'cortex-standalone-canary'})
-            with urllib.request.urlopen(request, timeout=20) as response:
-                json.load(response)
+            self.authenticated_get(route, timeout=20)
         schema = self.migration_status()['schema_revision']
         if self.args.schema_revision and schema != self.args.schema_revision:
             raise RuntimeError('deployed schema does not match the requested inventory')
         return {'healthy': True, 'schema_revision': schema,
                 'discovery_url': f'http://127.0.0.1:{self.port}/health',
                 'version': self.identity['version'], 'source_revision': self.identity['source_revision'],
-                'images': images}
+                'installation_id': instance, 'images': images}
 
     def up(self):
         # Nothing stops or migrates until every image has been acquired and its
@@ -532,6 +665,9 @@ class Runtime:
         for worker in ('cortex-embed-worker', 'cortex-graph-worker', 'cortex-pdf-worker'):
             self.compose('up', '-d', '--no-deps', worker)
             self.wait(worker, timeout=900)
+        _, _, credential = self.credential_locations()
+        if not credential.exists():
+            return {'started': True, 'readiness': 'console-enrollment-required', 'healthy': False}
         return self.check()
 
     def rotate_leaves(self):
@@ -734,7 +870,7 @@ class Runtime:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['prepare-images', 'up', 'check', 'schema-status', 'rotate-leaves', 'backup', 'restore', 'owner-pair', 'owner-request', 'provider-labels-inventory', 'provider-labels-apply'])
+    parser.add_argument('action', choices=['prepare-images', 'up', 'check', 'schema-status', 'rotate-leaves', 'backup', 'restore', 'owner-pair', 'owner-request', 'enroll-console', 'provider-labels-inventory', 'provider-labels-apply'])
     parser.add_argument('--project', default='cortex')
     parser.add_argument('--state-dir', required=True)
     parser.add_argument('--payload-dir', required=True)
@@ -743,6 +879,8 @@ def main():
     parser.add_argument('--rollback', action='store_true')
     parser.add_argument('--backup-file')
     parser.add_argument('--confirm-restore', action='store_true')
+    parser.add_argument('--credential-dir', default=str(Path.home() / '.kaidera-os/cortex-auth/KOS-Cortex'))
+    parser.add_argument('--credential-project', default='cortex-standalone-canary')
     parser.add_argument('--owner-engine')
     parser.add_argument('--owner-volume')
     parser.add_argument('--owner-request-file')
@@ -753,6 +891,8 @@ def main():
     if args.action in {'owner-pair', 'owner-request'}:
         result = runtime.owner_action(args.action, selector=args.owner_engine, volume=args.owner_volume,
             request_file=args.owner_request_file, response_file=args.owner_response_file)
+    elif args.action == 'enroll-console':
+        result = runtime.enroll_console()
     elif args.action in {'provider-labels-inventory', 'provider-labels-apply'}:
         result = runtime.provider_label_action(args.action.removeprefix('provider-labels-'))
     elif args.action == 'prepare-images':

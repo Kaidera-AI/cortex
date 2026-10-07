@@ -19,8 +19,6 @@ from urllib import error, request
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
 PINNED_PUBLIC_KEY = "RWQuhegMfku7e4RltjV64sZmxXHEETzAntDePCQsJPYvXXujVMqKIvHL"
@@ -112,6 +110,9 @@ def _json(body, code):
 
 
 def _signature(body, signature):
+    # Runtime shares the stdlib custody validators; signing alone needs crypto.
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
     code = "cortex_release_signature_invalid"
     try:
         public = base64.b64decode(PINNED_PUBLIC_KEY, validate=True)

@@ -148,6 +148,20 @@ async def migrate_connection(conn, *, migration_dir: Path | None = None,
         VALUES ('cortex-standalone-canary', 'Cortex installation health',
                 '/installation-health', 'repo', '{"purpose":"installation-health"}'::jsonb)
         ON CONFLICT (project_key) DO NOTHING""")
+    # The canary is created after historical console seeding, so explicitly
+    # supply its canonical service role/console identity before owner enrollment.
+    await conn.execute("""INSERT INTO public.roles
+        (project, name, default_capabilities, description, is_builtin, source_file)
+        VALUES ('cortex-standalone-canary', 'service',
+                '{"designation":"service","writer_scope":"work"}'::jsonb,
+                'Local Cortex service principal', true, 'standalone-migrator')
+        ON CONFLICT (project, name) DO NOTHING""")
+    await conn.execute("""INSERT INTO public.agents
+        (name, project, role, capabilities, status, runtime_state)
+        VALUES ('console', 'cortex-standalone-canary', 'service',
+                '{"designation":"service","writer_scope":"work","keep_visible":true,"visibility":"active"}'::jsonb,
+                'available', '{"agent":"console","project":"cortex-standalone-canary","registered_by":"standalone-migrator"}'::jsonb)
+        ON CONFLICT (name, project) DO NOTHING""")
     return {
         **await schema_status(conn),
         "baseline_adopted": adopted,
