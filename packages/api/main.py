@@ -13416,21 +13416,6 @@ async def persist_handoff_record(
                 f"{handoff_create_dedupe_fingerprint(project=project, from_agent=from_agent, body=body, to_agent=to_agent)}"
             )
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext($1))", dedupe_key)
-            duplicate = await find_equal_open_handoff(
-                conn,
-                project=project,
-                expected=body,
-                expected_from_agent=from_agent,
-                expected_to_agent=to_agent,
-            )
-            if duplicate is not None:
-                return {
-                    "id": duplicate["id"],
-                    "status": duplicate.get("status") or "pending",
-                    "verified": True,
-                    "deduped": True,
-                }
-
             if single_use_approval_id:
                 consumed = await conn.fetchrow(
                     """SELECT id::text, status
@@ -13448,6 +13433,21 @@ async def persist_handoff_record(
                         f"{single_use_approval_id} was already consumed by "
                         f"handoff {consumed['id']}",
                     )
+
+            duplicate = await find_equal_open_handoff(
+                conn,
+                project=project,
+                expected=body,
+                expected_from_agent=from_agent,
+                expected_to_agent=to_agent,
+            )
+            if duplicate is not None:
+                return {
+                    "id": duplicate["id"],
+                    "status": duplicate.get("status") or "pending",
+                    "verified": True,
+                    "deduped": True,
+                }
 
             row_id = await conn.fetchval(
                 """INSERT INTO handoffs (project, from_agent, from_role, to_role,
