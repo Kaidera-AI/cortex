@@ -178,7 +178,7 @@ def main(argv=None, *, out=None, err=None):
     out=sys.stdout if out is None else out;err=sys.stderr if err is None else err
     if not argv or not any(a in ('provision-console','prerequisite-proof') for a in argv):
         return keys.human_main(argv,out=out,err=err)
-    owner=None;deadline=time.monotonic()+30
+    owner=None;output_started=False;deadline=time.monotonic()+30
     try:
         with _wall_deadline(deadline),redirect_stdout(_Discard()),redirect_stderr(_Discard()):
             args=_arguments(argv)
@@ -205,10 +205,11 @@ def main(argv=None, *, out=None, err=None):
                     connection_file=connection,descriptor_file=descriptor,deadline=deadline)
                 _validate_receipt(value,connection,descriptor)
             line=_public_line(value,65536);_check_deadline(deadline)
+            output_started=True
             out.write(line);out.flush();_check_deadline(deadline)
         return 0
     except BaseException as error:
-        if isinstance(error,(KeyboardInterrupt,GeneratorExit)):return 4
+        if output_started or isinstance(error,(KeyboardInterrupt,GeneratorExit)):return 4
         code=error.code if isinstance(error,custody.PrerequisiteRefusal) and error.code in host.REFUSALS else 'cortex_descriptor_invalid'
         status=error.http_status if isinstance(error,custody.PrerequisiteRefusal) else None
         if type(status) is not int or not 100<=status<=599:status=None
