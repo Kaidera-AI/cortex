@@ -1,0 +1,16 @@
+{
+  "authority": "Kai r428 2026-10-08",
+  "source_absent_head": "88c2de4f8d3a7ddfdd18101621ca0cbdbcf834da",
+  "executed_red": "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/boot-source-r417/2026-10-07/r428-owner-succession-frozen-red.json",
+  "cases": [
+    "test_owner_succession_never_blesses_predecessor_publication[False]",
+    "test_owner_succession_never_blesses_predecessor_publication[True]"
+  ],
+  "files": {
+    "tests/test_agent_boot_reader_edges_r426.py": "8f7dbd462780542b200be34ddcfc6f408991cea315deb15ab1f088fb1e59fc14",
+    "tests/test_agent_boot_reader_sql_r426.py": "38ffaf0a21632029aabee8ee89e9a60b3d6dbe48d517728bb2588fcd7eda909f"
+  },
+  "candidate_source_reverted": "955c2f5",
+  "only_live_facts": "public synthetic private PG18",
+  "no_constraint_relaxed": true
+}
