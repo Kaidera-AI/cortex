@@ -77,7 +77,9 @@ def resolve_boot_bindings(
     visible = [row for row in publications.values()
                if row.get("state") == "active"
                and row.get("installation_id") == context["installation_id"]
-               and row.get("published_by_principal") == context["installation_owner_principal_id"]]
+               and ((row.get("installation_id"), row.get("publication_id"), row.get("revision"))
+                    in context["eligible_publication_heads"] if "eligible_publication_heads" in context
+                    else row.get("published_by_principal") == context["installation_owner_principal_id"])]
 
     for publication in visible:
         _reference_revision(publication["entry_revision"])
@@ -293,3 +295,22 @@ def project_boot_response(snapshot, *, budget, query, full):
     return {"boot":_budget_boot(manifest["identity_text"] + "\n" + tail,
         operational.get("optional_tiers", {}) if available else {}, budget),
         "surface_version":operational["surface_version"], "persona":persona}
+
+
+async def load_boot_snapshot(connection, context):
+    from .interface.agent_boot import load_snapshot
+    return await load_snapshot(connection, context)
+
+
+async def read_boot(connection, context, agent, *, budget=1200, query=None, full=False, agent_label=None):
+    snapshot = await load_boot_snapshot(connection, context)
+    trusted = snapshot['context']
+    if (trusted['project_scope_id'] != context.selected.scope_id
+            or trusted['installation_id'] != context.principal.installation_id
+            or not isinstance(agent, str) or agent.casefold() != trusted['actor_name'].casefold()
+            or agent_label is not None and agent_label.casefold() != trusted['actor_name'].casefold()):
+        raise ApiProblem(403, 'boot_identity_mismatch', 'Boot requires the credential-bound own agent.')
+    try:
+        return project_boot_response(snapshot, budget=budget, query=query, full=full)
+    except (ValueError, KeyError, TypeError):
+        raise ApiProblem(409, 'boot_binding_unavailable', 'Required canonical boot facts are unavailable.') from None
