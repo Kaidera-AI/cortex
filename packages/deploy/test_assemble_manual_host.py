@@ -1,11 +1,22 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
 
 spec=importlib.util.spec_from_file_location('assemble',Path(__file__).with_name('assemble-manual-host.py'))
 a=importlib.util.module_from_spec(spec);spec.loader.exec_module(a)
 
 class ClosureTests(unittest.TestCase):
+    def test_optional_obsolete_crypt_is_removed_without_crypto_dependency(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);lib=root/'python/lib/python3.12';(lib/'lib-dynload').mkdir(parents=True)
+            (lib/'crypt.py').write_text('unused')
+            (lib/'lib-dynload/_crypt.cpython-312-x86_64-linux-gnu.so').write_text('unused')
+            (lib/'lib-dynload/_ssl.cpython-312-x86_64-linux-gnu.so').write_text('keep')
+            a.prune_optional_crypt(root)
+            self.assertFalse((lib/'crypt.py').exists())
+            self.assertTrue((lib/'lib-dynload/_ssl.cpython-312-x86_64-linux-gnu.so').is_file())
+
     def test_resolved_dynamic_libraries_and_loader(self):
         output="linux-vdso.so.1 (0x1)\nlibc.so.6 => /lib64/libc.so.6 (0x2)\n/lib64/ld-linux-x86-64.so.2 (0x3)\n"
         self.assertEqual(a.library_paths(output),{'/lib64/libc.so.6','/lib64/ld-linux-x86-64.so.2'})
