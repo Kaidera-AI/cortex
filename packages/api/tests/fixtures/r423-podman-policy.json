@@ -1,0 +1,10 @@
+{
+  "minimum_version": "6.0.2",
+  "minimum_reason": "H-D258: minimum 6.0.2; newer stable versions admitted unless explicitly denylisted.",
+  "denylist": {
+    "as_of": "2026-10-07",
+    "entries": []
+  },
+  "provider": "cortex-native-lifecycle",
+  "linux_acquisition": "Current Linuxbrew Podman stock bottle; Homebrew verifies its checksum; actual tested version recorded separately."
+}

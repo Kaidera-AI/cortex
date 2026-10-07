@@ -15,6 +15,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
+PODMAN_POLICY = json.loads((Path(__file__).parent / "fixtures/r423-podman-policy.json").read_text())
 WRITER = ROOT / "packages/deploy/prerequisite.py"
 TOKEN = "ctx1_" + "1" * 32 + "." + "a" * 43
 INSTANCE = str(UUID(int=407))
@@ -62,7 +63,7 @@ def seed(tmp_path):
     credential.chmod(0o600)
     manifest = {"schema": "cortex.release.v1", **IDENTITY,
         "images": {"linux/amd64": dict(IMAGES)},
-        "podman": {"supported_family": "6.0.x", "tested_baseline": "6.0.2"}}
+        "podman": copy.deepcopy(PODMAN_POLICY), "podman_tested_version": "6.1.3"}
     manifest_path = release_dir / "release.json"
     signature_path = release_dir / "release.json.minisig"
     health = {**IDENTITY, "installation_id": INSTANCE, "status": "healthy",
@@ -92,8 +93,7 @@ def seed(tmp_path):
         "release_signature": str(signature_path), "images": IMAGES, "health_path": "/health",
         "credential_dir": str(credential_dir), "credential_file": str(credential),
         "credential_project": "notes", "credential_agent": "console",
-        "podman": {"supported_family": "6.0.x", "tested_baseline": "6.0.2",
-                   "machine_name": None, "machine_image_digest": None},
+        "podman": {"minimum_version": "6.0.2", "policy_sha256": hashlib.sha256(json.dumps(PODMAN_POLICY, sort_keys=True, separators=(",", ":")).encode()).hexdigest(), "provider": "cortex-native-lifecycle", "connection_name": None, "machine_name": None},
         "install_guide": "https://github.com/Kaidera-AI/cortex/releases/tag/v0.1.003-manual.1"}
     return args, manifest, health, expected, calls, write_manifest
 
@@ -154,7 +154,7 @@ def test_refusal_keeps_existing_descriptor_and_never_publishes_partial_success(t
         manifest["images"] = {"linux/arm64": IMAGES}
         write_manifest()
     elif damage == "wrong-podman":
-        manifest["podman"]["supported_family"] = "6.1.x"
+        manifest["podman"]["minimum_version"] = "5.8.2"
         write_manifest()
     elif damage == "credential-missing": token.unlink()
     elif damage == "credential-mode": token.chmod(0o644)
