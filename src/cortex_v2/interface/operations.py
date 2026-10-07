@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..agent_boot_models import BootAgentBindRequest, BootEntryBindRequest, BootPublicationRequest
+from .agent_boot_enact import enact_boot_agent, enact_boot_entry, publish_boot_catalogue
+
 from .context import (
     bind_skills,
     enact_persona,
@@ -487,3 +490,25 @@ OPERATIONS: list[dict[str, Any]] = [
         },
     },
 ]
+
+# Same typed write transport and receipt protocol as existing context operations.
+for operation_id, path, model, handler, authority in (
+    ('boot.agent.bind','/v1/boot/agent-bindings',BootAgentBindRequest,enact_boot_agent,'scope_write'),
+    ('boot.entry.bind','/v1/boot/entry-bindings',BootEntryBindRequest,enact_boot_entry,'scope_write'),
+    ('boot.catalogue.publish','/v1/boot/catalogue-publications',BootPublicationRequest,publish_boot_catalogue,'installation_owner'),
+):
+    OPERATIONS.append({
+        'operation_id':operation_id,'method':'POST','path':path,'kind':'scoped_write',
+        'authority':authority,'requires_scope':True,'requires_idempotency_key':True,
+        'request_model':model,'handler':handler,'summary':'Append an authorized exact boot binding with an atomic receipt.',
+        'usage':{'purpose':'Enact a consecutive boot revision without changing canonical bodies or grants.',
+            'use_when':'A current lead/owner explicitly binds or withdraws an exact boot input.',
+            'avoid_when':'The existing head already expresses the intent.',
+            'effects':'one append and one committed receipt, or no effect',
+            'prerequisites':('selected writable project','current lead/owner; publication requires installation owner and curator facts'),
+            'cost_class':'cheap','freshness':'expected_revision checked under stream lock',
+            'evidence_contract':'Exact stored receipt replays for the same canonical request and key; changed requests conflict.',
+            'failure_codes':('boot_enact_denied','boot_revision_conflict','boot_fact_mismatch','idempotency_key_reused'),
+            'recovery_actions':('inspect current head; use a new request/key for a new intent',),
+            'examples':(),'counterexamples':('Treating a member write grant as boot enactment authority.',)},
+    })
