@@ -330,9 +330,37 @@ cortex_api_call_json() {
     cortex_api_call "$@"
 }
 
+cortex_canonical_operator_identity() {
+    local operator_identity="${1:-}"
+    case "${operator_identity}" in
+        *@*)
+            if [ "${operator_identity}" != "${operator_identity%%@*}@${CORTEX_PROJECT}" ]; then
+                echo "ERROR: ambiguous operator identity: the project does not match." >&2
+                return 1
+            fi
+            operator_identity="${operator_identity%%@*}"
+            ;;
+    esac
+    if ! [[ "${operator_identity}" =~ ^[a-z][a-z0-9_-]{1,31}$ ]]; then
+        echo "ERROR: invalid operator identity: choose one canonical enrolled operator." >&2
+        return 1
+    fi
+    printf '%s' "${operator_identity}"
+}
+
 # Operator-scoped call: the API verifies instance:admin; no automatic issuance.
 cortex_api_call_admin() {
-    CORTEX_SERVICE_AGENT="${CORTEX_OPERATOR_AGENT:-admin}" cortex_api_call "$@"
+    local chosen_operator requested_operator
+    chosen_operator="$(cortex_canonical_operator_identity "${CORTEX_OPERATOR_AGENT-admin}")" || return 1
+    if [ -n "${4:-}" ]; then
+        requested_operator="$(cortex_canonical_operator_identity "$4")" || return 1
+        if [ "${CORTEX_OPERATOR_AGENT+x}" = x ] && [ "${requested_operator}" != "${chosen_operator}" ]; then
+            echo "ERROR: ambiguous operator identity: explicit selections disagree." >&2
+            return 1
+        fi
+        chosen_operator="${requested_operator}"
+    fi
+    cortex_api_call "$1" "$2" "${3:-}" "${chosen_operator}" "${@:5}"
 }
 
 # Simple wrapper matching old cortex_api signature: cortex_api GET /path [k=v ...]
