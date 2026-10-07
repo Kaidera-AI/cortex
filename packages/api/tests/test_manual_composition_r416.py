@@ -1,4 +1,5 @@
 """r416 frozen behavioral composition, private enrollment and readiness controls."""
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -21,8 +22,10 @@ def runtime(tmp_path):
     loader.exec_module(module)
     obj = object.__new__(module.Runtime)
     obj.args = SimpleNamespace(project='cortex', credential_dir=str(tmp_path/'credentials'),
-        credential_project='cortex-standalone-canary', owner_engine='native', schema_revision=None)
+        credential_project='cortex-standalone-canary', owner_engine='local', schema_revision=None)
     obj.state = tmp_path/'state'; obj.state.mkdir(mode=0o700)
+    obj.payload=ROOT
+    obj.installation={'files':{'packages/deploy/owner_helper.py':hashlib.sha256((ROOT/'packages/deploy/owner_helper.py').read_bytes()).hexdigest()}}
     obj.port = 8501
     obj.identity = {'version':'0.1.003-manual.1', 'source_revision':'a'*40}
     return module, obj
