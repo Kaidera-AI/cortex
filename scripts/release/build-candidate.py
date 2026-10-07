@@ -1,6 +1,8 @@
 """Build-once TEST artifacts. Run only on an admitted native CI builder."""
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 import argparse
 import hashlib
 import json
@@ -281,6 +283,22 @@ def stamp_host_binary_floor(binary: Path) -> None:
     run([str(binary), "--help"])
 
 
+_BOOT_STAGE = ContextVar('cortex_boot_host_stage', default=None)
+
+
+def _finish_boot_stage(out: Path) -> None:
+    stage = _BOOT_STAGE.get()
+    if stage is None or not stage['required']:
+        return
+    shim = freeze_boot_shim(ROOT, out)
+    from cortex_v2.cli.agent_boot import USAGE
+    output = run([str(out / 'bin/cortex-boot'), '--help'], read=True)
+    if output != USAGE.rstrip():
+        raise RuntimeError('native boot shim help qualification failed')
+    shim['help'] = 'PASS'
+    stage['receipt'] = shim
+
+
 def freeze_boot_shim(root: Path, stage: Path) -> dict:
     from boot_shim import freeze
     return freeze(root, stage)
@@ -312,6 +330,7 @@ def freeze_host_programs(out: Path) -> dict:
         source = ROOT / "scripts/agent-shims" / name
         shutil.copy2(source, out / "bin" / name)
         (out / "bin" / name).chmod(0o755 if name == "cortex-projects" else 0o644)
+    _finish_boot_stage(out)
     return programs
 
 
@@ -343,6 +362,7 @@ def freeze_linux_programs(out: Path) -> dict:
     for name in ("cortex-projects", "_cortex_api.sh"):
         shutil.copy2(ROOT / "scripts/agent-shims" / name, out / "bin" / name)
         (out / "bin" / name).chmod(0o755 if name == "cortex-projects" else 0o644)
+    _finish_boot_stage(out)
     return programs
 
 
@@ -412,6 +432,7 @@ def freeze_linux_cm2_programs(out: Path) -> dict:
     for inventory, value in inventories.items():
         with (out / inventory).open("x") as stream:
             stream.write(value)
+    _finish_boot_stage(out)
     return programs
 
 
@@ -439,17 +460,14 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
     out.mkdir(parents=True)
     run([sys.executable, "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
          "--requirement", str(lock)])
-    programs = freeze_linux_cm2_programs(out) if cm2 else (freeze_linux_programs(out) if architecture == "amd64" else freeze_host_programs(out))
     from boot_shim import boot_enabled
-    shims = {}
-    if boot_enabled(ROOT):
-        shim = freeze_boot_shim(ROOT, out)
-        from cortex_v2.cli.agent_boot import USAGE
-        output = run([str(out / 'bin/cortex-boot'), '--help'], read=True)
-        if output != USAGE.rstrip():
-            raise RuntimeError('native boot shim help qualification failed')
-        shim['help'] = 'PASS'
-        shims['cortex-boot'] = shim
+    boot_stage = {'required': boot_enabled(ROOT), 'receipt': None}
+    token = _BOOT_STAGE.set(boot_stage)
+    try:
+        programs = freeze_linux_cm2_programs(out) if cm2 else (freeze_linux_programs(out) if architecture == "amd64" else freeze_host_programs(out))
+    finally:
+        _BOOT_STAGE.reset(token)
+    shims = {'cortex-boot': boot_stage['receipt']} if boot_stage['receipt'] is not None else {}
     (out / "licenses").mkdir()
     for name, expected_digest in native["licenses"].items():
         if name != Path(name).name or digest(runtime / "licenses" / name) != expected_digest:
