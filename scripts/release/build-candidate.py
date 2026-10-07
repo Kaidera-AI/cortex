@@ -310,7 +310,7 @@ def freeze_linux_cm2_programs(out: Path) -> dict:
     from linux_binaries import MAX_BINARY, verify_program
     entries = (("cortex", "cortex_native.py", "cm2-host-archive-inventory.txt"),
                ("cortex-agent", "agent_request.py", "agent-archive-inventory.txt"))
-    if (out / "bin").exists() or any((out / inventory).exists() for _, _, inventory in entries):
+    if os.path.lexists(out / "bin") or any(os.path.lexists(out / inventory) for _, _, inventory in entries):
         raise RuntimeError("CM-2 host output already exists")
     for name, entrypoint, _ in entries:
         run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", f"--name={name}",
