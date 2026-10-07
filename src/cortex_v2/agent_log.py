@@ -139,12 +139,12 @@ async def write_log(connection, context, payload, idempotency_key, agent_name):
 def mount_log_routes(application, helpers, resolve):
     @application.post('/log')
     async def log(request: Request):
-        from .clients.native_prerequisite import strict_json
+        from .clients.native_prerequisite import PrerequisiteRefusal, strict_json
         try:
             if request.query_params:
                 raise ValueError
             payload = LogRequest.model_validate(strict_json(await request.body(), limit=1024**2))
-        except (ValueError, ValidationError, ApiProblem):
+        except (ValueError, ValidationError, ApiProblem, PrerequisiteRefusal):
             raise _refuse() from None
         digest = await helpers.token_hash(request, request.headers.get('authorization'))
         key = helpers.required_idempotency_key(request.headers.get('idempotency-key'))
