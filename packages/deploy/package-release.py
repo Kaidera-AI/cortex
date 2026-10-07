@@ -97,8 +97,11 @@ def snapshot(projection: Path) -> tuple[dict, dict[str, tuple[bytes, int]], set[
     manifest_bytes, manifest_mode = regular_bytes(projection / "PROJECTION_MANIFEST.json", 256 * 1024)
     manifest = decode_json(manifest_bytes, "projection manifest")
     if (manifest.get("schema") != "cortex.projection_manifest.v1"
-            or manifest.get("source_repo") != "Kaidera-AI/kaideraos"
-            or manifest.get("source_provenance") != "pristine git archive of committed HEAD"
+            or not isinstance(manifest.get("source_repo"), str)
+            or not isinstance(manifest.get("source_provenance"), str)
+            or (manifest.get("source_repo"), manifest.get("source_provenance")) not in {
+                ("Kaidera-AI/kaideraos", "pristine git archive of committed HEAD"),
+                ("Kaidera-AI/cortex", "public git archive at source_revision with derived release identity")}
             or not re.fullmatch(r"[a-f0-9]{40}", str(manifest.get("source_revision", "")))):
         raise ValueError("projection provenance is invalid")
     if (not isinstance(manifest.get("components"), dict)
@@ -176,6 +179,10 @@ def snapshot(projection: Path) -> tuple[dict, dict[str, tuple[bytes, int]], set[
             or not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", str(identity.get("version", "")))
             or not re.fullmatch(r"[a-f0-9]{64}", str(identity.get("schema_revision", "")))):
         raise ValueError("inner payload identity disagrees with projection provenance")
+    if manifest.get("source_repo") == "Kaidera-AI/cortex":
+        derived = {"packages/deploy/release.json": sha(files["packages/deploy/release.json"][0])}
+        if manifest.get("derived_files") != derived or identity.get("version") != "0.1.003-manual.1":
+            raise ValueError("manual public projection derived identity is invalid")
     migration_prefix = "packages/schema/migrations/"
     migrations = sorted((member[len(migration_prefix):], sha(data))
                         for member, (data, _mode) in files.items()

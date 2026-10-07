@@ -15,6 +15,7 @@ from pathlib import Path
 import platform
 import re
 import subprocess
+import oci_archive
 
 VERSION = '0.1.003-manual.1'
 RELEASE = 'v' + VERSION
@@ -22,7 +23,7 @@ SOURCE = 'https://github.com/Kaidera-AI/cortex'
 ROLES = {
     'tls': ('packages/deploy/tls', 'Containerfile'),
     'db': ('packages', 'deploy/Containerfile.db'),
-    'api': ('packages/api', 'Dockerfile'),
+    'api': ('packages', 'api/Dockerfile'),
     'provider': ('packages/deploy', 'Containerfile.provider'),
     'embed-worker': ('packages/containers/embed-worker', 'Dockerfile'),
     'graph-worker': ('packages/containers/graph-worker', 'Dockerfile'),
@@ -81,7 +82,6 @@ def main():
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--admission', type=Path)
     parser.add_argument('--podman', type=Path)
-    parser.add_argument('--skopeo', type=Path)
     options = parser.parse_args()
     root = options.source.absolute()
     plan = make_plan(root, options.source_sha)
@@ -96,7 +96,7 @@ def main():
         plan['recipes'][role] = hashlib.sha256(raw).hexdigest()
     if options.execute:
         native_check(platform.system(), platform.machine(), os.getuid())
-        for tool in (options.podman, options.skopeo):
+        for tool in (options.podman,):
             if tool is None or not tool.is_absolute() or not tool.is_file() or not os.access(tool, os.X_OK):
                 raise ValueError('execution requires explicit existing native tool paths')
         if git(root, 'status', '--porcelain', '--untracked-files=all'):
@@ -122,7 +122,7 @@ def main():
     engine = [str(options.podman), '--root', str(out/'store'), '--runroot', str(out/'runroot')]
     env = {key: os.environ[key] for key in ('PATH', 'HOME', 'XDG_RUNTIME_DIR') if key in os.environ}
     env.update(REGISTRY_AUTH_FILE=str(out/'auth.json'), LANG='C.UTF-8')
-    (out/'native-tools.json').write_text(json.dumps({str(tool): hashlib.sha256(tool.read_bytes()).hexdigest() for tool in (options.podman, options.skopeo)}, indent=2)+'\n')
+    (out/'native-tools.json').write_text(json.dumps({str(tool): hashlib.sha256(tool.read_bytes()).hexdigest() for tool in (options.podman,)}, indent=2)+'\n')
     inventory = {'schema': 'cortex.images.v1', 'version': VERSION,
                  'source_revision': options.source_sha, 'platforms': {'linux/amd64': {}}}
     for image in plan['images']:
@@ -131,18 +131,9 @@ def main():
             subprocess.run(engine+image['argv'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         archive = out/('cortex-'+role+'-'+VERSION+'-linux-amd64.oci.tar')
         subprocess.run(engine+['save', '--format', 'oci-archive', '--output', str(archive), image['tag']], env=env, check=True)
-        transport = 'oci-archive:' + str(archive)
-        raw = subprocess.check_output([str(options.skopeo), 'inspect', '--raw', transport], env=env)
-        digest = manifest_digest(raw)
-        info = json.loads(subprocess.check_output([str(options.skopeo), 'inspect', transport], env=env))
-        labels = info.get('Labels') or {}
-        if (info.get('Os') != 'linux' or info.get('Architecture') != 'amd64'
-                or info.get('Digest') != digest
-                or labels.get('org.opencontainers.image.source') != SOURCE
-                or labels.get('org.opencontainers.image.version') != VERSION
-                or labels.get('org.opencontainers.image.revision') != options.source_sha):
-            raise ValueError('exported image platform/digest/source label mismatch: '+role)
-        (out/(role+'.manifest.json')).write_bytes(raw)
+        inspection = oci_archive.verify(archive, options.source_sha)
+        digest = inspection['manifest_digest']
+        (out/(role+'.archive-verification.json')).write_text(json.dumps(inspection, indent=2)+'\n')
         inventory['platforms']['linux/amd64'][role] = {
             'repository': 'ghcr.io/kaidera-ai/cortex-'+role, 'tag': RELEASE,
             'manifest_digest': digest}
