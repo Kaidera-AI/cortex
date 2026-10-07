@@ -37,7 +37,10 @@ def test_sql_observation_queries_all_exact_product_namespaces(boundary,monkeypat
         def transaction(self,**kwargs):return self
         async def __aenter__(self):return self
         async def __aexit__(self,*args):pass
-        async def fetchrow(self,query):return {'role_name':'cortex_v2_migrator' if boundary=='producer' else 'cortex_v2_app','rolsuper':False,'rolbypassrls':False,'migrator_member':False}
+        async def fetchrow(self,query):
+            row={'role_name':'cortex_v2_migrator' if boundary=='producer' else 'cortex_v2_app','rolsuper':False,'rolbypassrls':False}
+            if boundary=='observer':row['migrator_member']=False
+            return row
         async def fetch(self,query):queries.append(query);raise Stop
     async def role(*args):pass
     monkeypatch.setattr(build_catalog,'_assert_role_contract',role)
