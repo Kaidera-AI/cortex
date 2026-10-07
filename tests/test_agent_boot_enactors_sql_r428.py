@@ -150,3 +150,26 @@ async def test_context_cannot_forge_authenticated_installation_scope_or_author(b
             with pytest.raises(ApiProblem) as error:await call(app,ctx,'PUBLIC-forged',stream,request)
             assert error.value.status==403
         assert await count(f,stream)==1 and await receipts(f)==0
+
+@native
+@pytest.mark.parametrize('stream',STREAMS)
+async def test_current_authority_can_withdraw_exact_head_after_target_eligibility_revocation(boot_database,stream):
+    async with boot_database() as f:
+        await prepared(f);request=payload(f,stream).model_copy(update={'state':'retired'});ctx=context(f)
+        if stream=='publication':await f['db'].execute('UPDATE cortex_auth.scope_grants SET can_publish=false WHERE principal_id=$1 AND scope_id=$2',f['principal'],f['catalogue'])
+        else:await f['db'].execute("UPDATE cortex_auth.actors SET status='retired' WHERE actor_id=$1",f['actor'])
+        async with app_reader(f,f['principal']) as app:
+            status,receipt,replay=await call(app,ctx,'PUBLIC-withdraw',stream,request)
+            assert status==201 and receipt['revision']==2 and replay is False
+        assert await count(f,stream)==2 and await receipts(f)==1
+        assert await f['db'].fetchval('SELECT state FROM cortex_context.'+TABLES[stream]+' WHERE revision=2')=='retired'
+
+@native
+async def test_revoked_curator_cannot_append_active_publication_or_receipt(boot_database):
+    async with boot_database() as f:
+        await prepared(f);request=payload(f,'publication');ctx=context(f)
+        await f['db'].execute('UPDATE cortex_auth.scope_grants SET can_publish=false WHERE principal_id=$1 AND scope_id=$2',f['principal'],f['catalogue'])
+        async with app_reader(f,f['principal']) as app:
+            with pytest.raises(ApiProblem) as error:await call(app,ctx,'PUBLIC-denied-active','publication',request)
+            assert error.value.status==422 and error.value.code=='boot_fact_mismatch'
+        assert await count(f,'publication')==1 and await receipts(f)==0

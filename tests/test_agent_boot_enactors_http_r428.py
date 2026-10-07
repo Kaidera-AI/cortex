@@ -42,7 +42,7 @@ def test_mounted_enactor_validates_body_key_and_exact_replay_envelope(stream,cas
     monkeypatch.setitem(entry,'handler',handler)
     monkeypatch.setattr(app_module,'authenticate',auth);monkeypatch.setattr(app_module,'resolve_scopes',scopes)
     app=app_module.create_app();app.state.pool=SimpleNamespace(acquire=lambda:Acquisition())
-    app.state.profile=SimpleNamespace(instance_id='PUBLIC fixture');app.state.settings=SimpleNamespace(token_pepper=b'PUBLIC fixture pepper')
+    app.state.profile=SimpleNamespace(instance_id='PUBLIC fixture',contract_version='PUBLIC test contract');app.state.settings=SimpleNamespace(token_pepper=b'PUBLIC fixture pepper')
     data={'expected_revision':0,'state':'active','source_reference':'PUBLIC route'}
     if stream=='agent':data.update(actor_id=str(uuid.uuid4()),identity_id=str(uuid.uuid4()),persona_id=str(uuid.uuid4()),persona_revision=1,functional_roles=['PUBLIC-role'])
     elif stream=='entry':data.update(subject_kind='project',entry_kind='skill',entry_scope_id=str(scope.scope_id),skill_id=str(uuid.uuid4()),bound_revision=1,priority=0)
