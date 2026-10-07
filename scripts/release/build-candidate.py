@@ -659,20 +659,35 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
     print(json.dumps({"archive": str(archive), "sha256": digest(archive), "source_sha": source_sha, "version": version}))
 
 
+def assemble_cm2(out: Path, images_dir: Path, host_dir: Path, reader_dir: Path,
+                 source_sha: str, version: str, *, release_sequence: int,
+                 target: str = 'linux-x86_64') -> dict:
+    if target != 'linux-x86_64' or type(release_sequence) is not int or release_sequence < 1:
+        raise RuntimeError('explicit Linux CM-2 target and positive release sequence required')
+    source_identity(source_sha)
+    from linux_cm2_assembly import assemble as assemble_native
+    expected = json.loads(run([sys.executable, str(ROOT / 'scripts/release/bootstrap-linux-runtime.py'), '--describe'], read=True))
+    return assemble_native(out, images_dir, host_dir, reader_dir, root=ROOT,
+        source_sha=source_sha, version=version, release_sequence=release_sequence,
+        expected_bootstrap=expected, oci_identity=oci_identity)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=("macos-arm64", "linux-x86_64"), default="macos-arm64")
-    parser.add_argument("stage", choices=("images", "cm2-images", "host", "cm2-host", "assemble"))
+    parser.add_argument("stage", choices=("images", "cm2-images", "host", "cm2-host", "assemble", "cm2-assemble"))
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--images", type=Path)
     parser.add_argument("--host", type=Path)
     parser.add_argument("--runtime", type=Path)
+    parser.add_argument("--reader", type=Path)
+    parser.add_argument("--release-sequence", type=int)
     args = parser.parse_args()
     if not re.fullmatch(r"0\.2\.001-test\.[0-9]{8}\.[1-9][0-9]*", args.version):
         parser.error("explicit immutable TEST version required")
-    args.output = args.output.resolve()
+    args.output = args.output.absolute() if args.stage == 'cm2-assemble' else args.output.resolve()
     if args.output == ROOT or ROOT in args.output.parents:
         parser.error("output must be outside the source checkout")
     if args.stage in ("images", "cm2-images"):
@@ -690,7 +705,13 @@ def main() -> None:
     else:
         if args.images is None or args.host is None:
             parser.error("assemble requires --images and --host")
-        assemble(args.output, args.images, args.host, args.source_sha, args.version, target=args.target)
+        if args.stage == 'cm2-assemble':
+            if args.reader is None or args.release_sequence is None:
+                parser.error('cm2-assemble requires --reader and --release-sequence')
+            assemble_cm2(args.output, args.images, args.host, args.reader, args.source_sha,
+                args.version, release_sequence=args.release_sequence, target=args.target)
+        else:
+            assemble(args.output, args.images, args.host, args.source_sha, args.version, target=args.target)
 
 
 if __name__ == "__main__":
