@@ -1,6 +1,8 @@
 """Finite Linux host process port. Private frames never enter argv or logs."""
 from __future__ import annotations
 
+from ..catalogue_contract import relation_name
+
 from contextlib import contextmanager, ExitStack
 import contextvars
 import copy
@@ -1427,7 +1429,7 @@ def read_linux_catalog(runtime_root: Path, args: dict, response: dict, *, kos_po
         for row in inventory['relations']:
             if (not isinstance(row, dict) or set(row) != {'name', 'rls', 'forced', 'app_direct_grant'}
                     or not isinstance(row['name'], str)
-                    or re.fullmatch(r'cortex_(?:auth|core)\.[a-z_][a-z0-9_]{0,62}', row['name']) is None
+                    or not relation_name(row['name'])
                     or any(type(row[key]) is not bool for key in ('rls', 'forced', 'app_direct_grant'))
                     or row['rls'] and not row['forced'] or not row['rls'] and row['app_direct_grant']):
                 raise ProvisionRefusal('cortex_image_mismatch')

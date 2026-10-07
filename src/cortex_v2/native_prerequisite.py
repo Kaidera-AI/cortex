@@ -5,6 +5,8 @@ tokens leave only in the initial private create response to the host KeyStore po
 """
 from __future__ import annotations
 
+from .catalogue_contract import CATALOGUE_SQL_SCHEMAS
+
 import asyncio
 import hashlib
 import json
@@ -55,7 +57,7 @@ async def read_native_database(connection, principal, *, project: str, project_r
     if (not role or role['role_name'] != 'cortex_v2_app' or role['rolsuper'] is not False
             or role['rolbypassrls'] is not False or role['migrator_member'] is not False):
         raise NativeRefusal('cortex_health_degraded')
-    rows = await connection.fetch('''
+    rows = await connection.fetch(f'''
         SELECT n.nspname || '.' || c.relname AS name,
                c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
                pg_get_userbyid(c.relowner)=current_user AS app_owns,
@@ -64,7 +66,7 @@ async def read_native_database(connection, principal, *, project: str, project_r
                 OR has_table_privilege(current_user,c.oid,'UPDATE')
                 OR has_table_privilege(current_user,c.oid,'DELETE')) AS app_direct_grant
           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-         WHERE n.nspname IN ('cortex_auth','cortex_core') AND c.relkind IN ('r','p')
+         WHERE n.nspname IN ({CATALOGUE_SQL_SCHEMAS}) AND c.relkind IN ('r','p')
          ORDER BY name
     ''')
     columns = ('name', 'rls', 'forced', 'app_direct_grant')

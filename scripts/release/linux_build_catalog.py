@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 from cortex_v2.native_prerequisite import payload_inventory
+from cortex_v2.catalogue_contract import relation_name, migration_identity, validate_migration_receipt
 from cortex_v2.clients.native_prerequisite import physical_path, strict_json
 
 MESSAGE = 'native build catalog missing or mismatched'
@@ -122,8 +123,7 @@ def catalog_bytes(migration_receipt: dict, *, source_sha: str,
                 or receipt['fixture'] != 'verified' or receipt['status'] not in ('applied', 'verified')):
             raise ValueError
         payload = payload_inventory(source_root, migration_root)
-        expected = {name[len('migrations/'):]: digest for name, digest in payload['files'].items()
-                    if name.startswith('migrations/')}
+        expected = migration_identity(source_root, migration_root)
         if (not any(name.startswith('src/') for name in payload['files'])
                 or not 1 <= len(expected) <= 1024
                 or any(re.fullmatch(r'[0-9]{4}_[a-z0-9_]+\.sql', name) is None for name in expected)):
@@ -151,7 +151,7 @@ def catalog_bytes(migration_receipt: dict, *, source_sha: str,
         for row in value['relations']:
             if (not isinstance(row, dict) or set(row) != {'name', 'rls', 'forced', 'app_direct_grant'}
                     or not isinstance(row['name'], str)
-                    or re.fullmatch(r'cortex_(?:auth|core)\.[a-z_][a-z0-9_]{0,62}', row['name']) is None
+                    or not relation_name(row['name'])
                     or any(type(row[key]) is not bool for key in ('rls', 'forced', 'app_direct_grant'))
                     or row['rls'] and not row['forced'] or not row['rls'] and row['app_direct_grant']):
                 raise ValueError
@@ -190,8 +190,10 @@ def rehearsal_catalog_bytes(rehearsal: dict, entries: dict, *, source_sha: str,
             raise ValueError
         validate_local_version(value['podman'])
         initial, replay = value['migration'], value['migration_replay']
-        if initial['status'] != 'applied' or replay['status'] != 'verified' or len(initial['migrations']) != 15:
+        if initial['status'] != 'applied' or replay['status'] != 'verified':
             raise ValueError
+        validate_migration_receipt(initial, source_root, migration_root)
+        validate_migration_receipt(replay, source_root, migration_root)
         kwargs = {'source_sha': source_sha, 'source_root': source_root, 'migration_root': migration_root}
         raw = catalog_bytes(initial, **kwargs)
         if (catalog_bytes(replay, **kwargs) != raw or initial['migrations'] != replay['migrations']

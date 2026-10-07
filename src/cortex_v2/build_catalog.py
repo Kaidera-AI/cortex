@@ -1,6 +1,8 @@
 """Materialize the migrated build catalog using the existing migrator connection."""
 from __future__ import annotations
 
+from .catalogue_contract import CATALOGUE_SQL_SCHEMAS, relation_name, migration_identity
+
 import asyncio
 import json
 import math
@@ -21,7 +23,7 @@ def _relations(rows) -> list[dict]:
     for row in rows:
         if (set(row.keys()) != RELATION_COLUMNS
                 or not isinstance(row['name'], str)
-                or re.fullmatch(r'cortex_(?:auth|core)\.[a-z_][a-z0-9_]{0,62}', row['name']) is None
+                or not relation_name(row['name'])
                 or any(type(row[key]) is not bool for key in RELATION_COLUMNS - {'name'})
                 or row['app_owns'] is not False
                 or row['rls'] and not row['forced']
@@ -53,8 +55,7 @@ async def materialize_catalog(connection, *, source_revision, source_root=None,
         raise NativeRefusal('cortex_bad_arguments') from None
     try:
         before = payload_inventory(source, migrations)
-        expected = {name[len('migrations/'):]: digest for name, digest in before['files'].items()
-                    if name.startswith('migrations/')}
+        expected = migration_identity(source, migrations)
         if (not any(name.startswith('src/') for name in before['files'])
                 or not 1 <= len(expected) <= 1024
                 or any(re.fullmatch(r'[0-9]{4}_[a-z0-9_]+\.sql', name) is None for name in expected)):
@@ -70,7 +71,7 @@ async def materialize_catalog(connection, *, source_revision, source_root=None,
                         or role['rolsuper'] is not False or role['rolbypassrls'] is not False):
                     raise NativeRefusal('cortex_health_degraded')
                 await _assert_role_contract(connection)
-                rows = await connection.fetch('''
+                rows = await connection.fetch(f'''
                     SELECT n.nspname || '.' || c.relname AS name,
                            c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
                            pg_get_userbyid(c.relowner)='cortex_v2_app' AS app_owns,
@@ -79,7 +80,7 @@ async def materialize_catalog(connection, *, source_revision, source_root=None,
                             OR has_table_privilege('cortex_v2_app',c.oid,'UPDATE')
                             OR has_table_privilege('cortex_v2_app',c.oid,'DELETE')) AS app_direct_grant
                       FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-                     WHERE n.nspname IN ('cortex_auth','cortex_core') AND c.relkind IN ('r','p')
+                     WHERE n.nspname IN ({CATALOGUE_SQL_SCHEMAS}) AND c.relkind IN ('r','p')
                      ORDER BY name LIMIT 1025
                 ''')
                 relations = _relations(rows)

@@ -11,6 +11,8 @@ import time
 import uuid
 from pathlib import Path
 
+from cortex_v2.catalogue_contract import validate_migration_receipt
+
 from install_candidate import (INSTANCE, ROLES, Podman, Refusal, erase, names,
                                namespace, private_root, provision, smoke,
                                start_stack, write_record)
@@ -76,8 +78,10 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
         start_stack(engine, manifest, record, root)
         migration = (read_json(root / 'migration-receipt.json') if target == 'linux-x86_64'
                      else json.loads((root / "migration-receipt.json").read_text()))
-        if len(migration.get("migrations", [])) != 15:
-            raise Refusal("rehearsal did not execute the complete migration set")
+        try:
+            validate_migration_receipt(migration, ROOT / 'src', ROOT / 'migrations')
+        except (ValueError, RuntimeError):
+            raise Refusal("rehearsal did not execute the complete migration identity") from None
         outcome["migration"] = migration
         if target == 'linux-x86_64':
             initial_catalog = catalog_bytes(migration, source_sha=source_sha,
