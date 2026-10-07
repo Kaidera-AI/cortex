@@ -21,6 +21,12 @@ class ProducerTests(unittest.TestCase):
         self.assertIn('CORTEX_RELEASE_ID=v0.1.003-manual.1', api['argv'])
         self.assertIn('KOS_VERSION=0.1.003-manual.1', api['argv'])
 
+    def test_r416_api_context_contains_migration_sources(self):
+        plan = producer.make_plan(Path('/source'), 'a' * 40)
+        api = next(x for x in plan['images'] if x['role'] == 'api')
+        self.assertEqual(api['argv'][-1], '/source/packages')
+        self.assertIn('/source/packages/api/Dockerfile', api['argv'])
+
     def test_invalid_identity_refuses(self):
         for sha in ('main', 'a' * 39, 'A' * 40, 'a' * 40 + ';echo x'):
             with self.assertRaises(ValueError):
