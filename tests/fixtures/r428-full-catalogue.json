@@ -1,0 +1,842 @@
+{
+  "rows": [
+    {
+      "name": "cortex_auth.actor_bindings",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_auth.actors",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_auth.bootstrap_markers",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.credential_managers",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.credentials",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.grant_revisions",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.installation_owners",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.installation_recovery",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.installations",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.memberships",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_auth.principals",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.privileged_actions",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.project_create_rights",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.project_creation_operations",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.project_installations",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.project_sponsors",
+      "rls": false,
+      "forced": false,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_auth.roster_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_auth.scope_grants",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_auth.writer_policies",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.boot_agent_binding_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.boot_catalogue_publication_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.boot_entry_binding_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.context_preparations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.harness_generation_files",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.harness_generations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.harness_mirrors",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.ingest_run_contents",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.ingest_runs",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.persona_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.rule_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.skill_binding_sets",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.skill_bindings",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_context.skill_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.approvals",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.audit_log",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.board_tasks",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.boards",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.claims",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.epics",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.handoffs",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.outbox_events",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.relay_authorizations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.relay_materializations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.relay_receipts",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.returns",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.reviews",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.task_assignments",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.task_dependencies",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.tasks",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.waves",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_coord.work_product_receipts",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.backup_manifests",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.command_receipts",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.content_items",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.content_lexical_documents",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.content_outbox_events",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.content_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.content_status_log",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.conversion_quarantine",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_core.idempotency_receipts",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.import_blob_chunks",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_core.import_rows",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_core.import_runs",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": false
+    },
+    {
+      "name": "cortex_core.lexical_documents",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.memory_records",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.outbox_events",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.project_identities",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.project_profiles",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.project_registry",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.repairs",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.retention_ledger",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.retention_policies",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.schema_migrations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.scope_aliases",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.scopes",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_core.source_connectors",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_feed.feed_entries",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_feed.publication_checkpoints",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.attempts",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.budget_defaults",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.budget_policies",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.budget_reservations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.chunk_revisions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.chunk_vectors",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.distillations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.embedding_spaces",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.index_generations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.jobs",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.local_inference_policies",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.local_model_manifests",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.outbox_events",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.processing_profiles",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.provider_roles",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.quarantine_ledger",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_processing.workers",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.code_annotations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.code_assessments",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.code_edges",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.code_generations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.code_repositories",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.code_symbols",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.extraction_runs",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.graph_assertion_evidence",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.graph_assertions",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.graph_entities",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_retrieval.trigram_documents",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_verification.outbox_events",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_verification.verification_citations",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    },
+    {
+      "name": "cortex_verification.verifications",
+      "rls": true,
+      "forced": true,
+      "app_owns": false,
+      "app_direct_grant": true
+    }
+  ],
+  "ledger": [
+    {
+      "migration": "0001_core.sql",
+      "checksum": "bf8c55ce64e24b37a1fae45c2016afb1ffc3e8e7f9dc4f71ef12c1fef7597440"
+    },
+    {
+      "migration": "0002_w1_identity_memory.sql",
+      "checksum": "a3d741ab9c28785b78cc25fd522656f62824d6d1bbd6d5c3b154ef9d6afda62c"
+    },
+    {
+      "migration": "0003_coordination.sql",
+      "checksum": "0d876b6a16d278b071da285c0df65fa8a50d9b118d89ddff75a43780bb4b611a"
+    },
+    {
+      "migration": "0004_processing.sql",
+      "checksum": "960b3dec25f6e4823e269f420f352c96a690ef339b6a8276831962d6505e15d9"
+    },
+    {
+      "migration": "0005_retrieval.sql",
+      "checksum": "32a1c0780779e9048d69c05c12d20610e610c8cf7abfe354e4cc59d684ac3608"
+    },
+    {
+      "migration": "0006_context_interface.sql",
+      "checksum": "3b40ca255ad3679b84454c55c6d53ad75bfc7bcd44773321f359a8b2f4705d7a"
+    },
+    {
+      "migration": "0007_feed_verification.sql",
+      "checksum": "75059245ba7fdf94e8f053714548038b718cddbbab2caaadb03f51e9a6f3fb56"
+    },
+    {
+      "migration": "0008_ops.sql",
+      "checksum": "3698e40bbd68daee4c3b7005275b30d0b6dbb3ba0d0012d63d47bdf3f031d72f"
+    },
+    {
+      "migration": "0009_coordination_withdraw_and_target_fk.sql",
+      "checksum": "fe271bb07d57ec4481d12116a393498b66f4ac331b1b986e5ba20edb5a9673b9"
+    },
+    {
+      "migration": "0010_keys_bootstrap.sql",
+      "checksum": "d5d032fdb99bc2d3bdb69b1dc3b11685b7b8d0d5fa9cb6325d8ec3baae77e420"
+    },
+    {
+      "migration": "0011_keys_lead_sponsor.sql",
+      "checksum": "61744963018f834f48f8197ebd637773eea7d861d6812b9618732ed01192dc25"
+    },
+    {
+      "migration": "0012_keys_create_right.sql",
+      "checksum": "96d3f236af125e0510566bc8be81eef9d7c2f47da0ee84473b53ea9bf0043a3e"
+    },
+    {
+      "migration": "0013_keys_issuance_t21.sql",
+      "checksum": "ad41fc21ad6bf3671065a58a9ae4b18b5af3b910f6a2b0a7f9439add71ac5f37"
+    },
+    {
+      "migration": "0014_keys_365d_t34.sql",
+      "checksum": "fa079340ed52eb3bac8401b604dfb8d2fad6612555618d714b8ce9e12809a344"
+    },
+    {
+      "migration": "0015_keys_project_create.sql",
+      "checksum": "45212464e70e3691319e3a0d19aa39bf1a1f7b62cf259129acf856d31120f95e"
+    },
+    {
+      "migration": "0022_state_import.sql",
+      "checksum": "67b298e715502d7672c747e2b9e3d97f3a69b8140be7f8462803339faf3af90e"
+    },
+    {
+      "migration": "0023_state_import_agents.sql",
+      "checksum": "4ad8083993d3521d804b47bb5606d45c64b875789af8db550cfae3e5f70aa89f"
+    },
+    {
+      "migration": "0024_context_agent_boot.sql",
+      "checksum": "5d23c0f946ea578683ea9e2cd8adfc58228a08397fbaa30ab35865fb49a0626d"
+    }
+  ],
+  "scope": "actual disposable PostgreSQL18.4 arm64 public catalogue; not native amd64 producer"
+}
