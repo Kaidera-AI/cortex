@@ -27,7 +27,7 @@ ENV PYTHONUNBUFFERED=1 \
     OPENKAI_PROVIDER_REGISTRY_FILE=/run/openkai-registry.json \
     OPENKAI_PROVIDER_STATUS_URL=http://host.containers.internal:8766/provider-config
 
-COPY requirements.lock /build/requirements.lock
+COPY api/requirements.lock /build/requirements.lock
 RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
       -r /build/requirements.lock \
  && rm -rf /build \
@@ -35,24 +35,26 @@ RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
  && useradd --system --uid 10001 --gid 10001 --no-create-home \
       --shell /usr/sbin/nologin kaidera
 
-# Keep the Apple/Compose image to the same explicit importable API allowlist as the
-# source-free appliance image. Tests, caches and the source Dockerfile are not runtime.
-COPY main.py \
-     mcp_server.py \
-     observability.py \
-     openkai_provider_env.py \
-     db_tls.py \
-     service_auth.py \
-     service_auth_http.py \
-     service_auth_policy.py \
-     cortex_auth_tokens.py \
-     release_identity.py \
-     service_auth_owner.py \
-     service_auth_owner_client.py \
-     service_auth_owner_lifespan.py \
+# Build from packages so the one canonical schema inventory is in context.
+# Explicit API allowlist; tests, caches and recipes are never runtime payload.
+COPY api/main.py \
+     api/mcp_server.py \
+     api/observability.py \
+     api/openkai_provider_env.py \
+     api/db_tls.py \
+     api/service_auth.py \
+     api/service_auth_http.py \
+     api/service_auth_policy.py \
+     api/cortex_auth_tokens.py \
+     api/release_identity.py \
+     api/service_auth_owner.py \
+     api/service_auth_owner_client.py \
+     api/service_auth_owner_lifespan.py \
      ./
-COPY ingest/ ./ingest/
-COPY models/ ./models/
+COPY api/ingest/ ./ingest/
+COPY api/models/ ./models/
+
+COPY schema/migrations/ /app/migrations/
 
 RUN test -s ./main.py \
  && test -s ./openkai_provider_env.py \
@@ -75,4 +77,4 @@ EXPOSE 8501
 USER 10001:10001
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8501"]
 
-COPY standalone/ ./standalone/
+COPY api/standalone/ ./standalone/

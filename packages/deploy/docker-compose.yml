@@ -86,7 +86,7 @@ services:
 
   cortex-migrate:
     <<: *runtime
-    build: {context: ../api, args: *build-args}
+    build: {context: .., dockerfile: api/Dockerfile, args: *build-args}
     image: localhost/cortex/api:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     restart: 'no'
     command: [python, /app/standalone/migrate.py]
@@ -94,7 +94,6 @@ services:
     depends_on: {cortex-pg: {condition: service_healthy}}
     volumes:
       - cortex-tls-admin:/tls/admin:ro
-      - ../schema/migrations:/app/migrations:ro
 
   cortex-provider:
     <<: *runtime
@@ -122,11 +121,10 @@ services:
     volumes:
       - cortex-tls-app:/tls/app:ro
       - cortex-tls-admin:/tls/admin:ro
-      - ../schema/migrations:/app/migrations:ro
       - ${CORTEX_PROVIDER_PROJECTION_DIR}:/run/openkai-provider:ro
       - ${CORTEX_PROVIDER_REGISTRY_FILE:?runtime validates registry}:/run/openkai-registry.json:ro
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8501/health', timeout=3).read()"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8501/health/live', timeout=3).read()"]
       interval: 5s
       timeout: 4s
       retries: 30
