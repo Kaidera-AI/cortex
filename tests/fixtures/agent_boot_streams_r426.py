@@ -65,12 +65,17 @@ import asyncpg
 
 @asynccontextmanager
 async def app_reader(f, principal=None, scope=None):
-    db=f['db']; socket=Path(await db.fetchval('SHOW unix_socket_directories'))
+    db=f['db']
+    # Reconnect to the fixture's actual socket; PG18 hides the server socket
+    # GUC from the migrator. Do not grant pg_read_all_settings to a test role.
+    address=Path(db._addr)
+    socket=address.parent
+    port=int(address.name.removeprefix('.s.PGSQL.'))
     assert str(socket).startswith(os.environ['CORTEX_NATIVE_FIXTURE_ROOT']+'/')
     assert not socket.is_symlink() and stat.S_IMODE(socket.stat().st_mode)==0o700
     database=await db.fetchval('SELECT current_database()')
     assert database=='kaidera-test-bootdb'
-    app=await asyncpg.connect(host=str(socket),port=int(await db.fetchval('SHOW port')),
+    app=await asyncpg.connect(host=str(socket),port=port,
                              database=database,user='cortex_v2_app',password='',ssl=False,command_timeout=10)
     try:
         await caller({**f,'db':app,'scope':scope or f['scope']},principal or f['member'])
