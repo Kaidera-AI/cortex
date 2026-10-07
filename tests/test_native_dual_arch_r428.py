@@ -85,3 +85,11 @@ def test_rehearsal_imports_from_clean_native_builder_without_site_packages():
     code = "import sys; sys.path[:0] = " + repr([str(ROOT / 'scripts/release'), str(ROOT / 'scripts')]) + "; import package_rehearsal"
     result = subprocess.run([sys.executable, '-I', '-c', code], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+def test_job_environment_uses_only_github_allowed_expression_contexts():
+    doc = yaml.load((ROOT / '.github/workflows/cortex-package-rehearsal.yml').read_text(), Loader=yaml.BaseLoader)
+    allowed = {'github', 'needs', 'strategy', 'matrix', 'vars', 'secrets', 'inputs'}
+    for job in doc['jobs'].values():
+        for value in job.get('env', {}).values():
+            contexts = re.findall(r'\$\{\{\s*([a-z_]+)\.', value)
+            assert set(contexts) <= allowed
