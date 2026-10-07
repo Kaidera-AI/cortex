@@ -42,7 +42,8 @@ class MemoryDB:
                     principal_disabled=p["disabled_at"], grant_disabled=g["disabled_at"],
                     grant_scopes=g["scopes"], current_generation=self.data["state"]["generation"],
                     project_key="notes", project_status="active", agent_name="writer",
-                    agent_status="available", agent_visibility="active", agent_project_id=p["project_id"],
+                    agent_status="available", agent_visibility="active", agent_keep_visible="true",
+                    agent_project_id=p["project_id"],
                     agent_actor_id=p["actor_id"], actor_project_id=p["project_id"], actor_status="active")
 
 
