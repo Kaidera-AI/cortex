@@ -2092,7 +2092,8 @@ def _publish_private_once(path: Path, value: dict, recheck) -> dict:
         if os.read(descriptor, 65537) != raw: raise ValueError
         check()
         if identity(os.stat(path.name, dir_fd=directory, follow_symlinks=False)) != identity(final): raise ValueError
-        result = {'created': True, 'identity': identity(final), 'raw': raw, 'parents': parents, 'fd': descriptor}
+        result = {'created': True, 'identity': identity(final), 'raw': raw, 'parents': parents,
+                  'fd': descriptor, 'path': path}
         retained = True
         return result
     except BaseException as error:
@@ -2125,7 +2126,7 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
     """
     private = request = None
     published = {}
-    marker = None
+    marker = result = None
     try:
         now = time.monotonic()
         if deadline is None: deadline = now + 30
@@ -2244,6 +2245,7 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
             output_check()
             # The per-file guard checks live custody, while the primitive owns
             # its newly created inode until its return registers that identity.
+            result = None
             result = _publish_private_once(path, value, check)
             published[path] = result
             if path == descriptor_file:
@@ -2261,16 +2263,19 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
         output_check()
         return {'connection_file': str(connection_file), 'descriptor_file': str(descriptor_file)}
     except BaseException as error:
-        if marker is not None and marker['created']:
-            _invalidate_new_marker(marker)
+        pending_marker = marker
+        if pending_marker is None and isinstance(result, dict) and result.get('path') == descriptor_file:
+            pending_marker = result
+        if pending_marker is not None and pending_marker['created']:
+            _invalidate_new_marker(pending_marker)
         if isinstance(error, PrerequisiteRefusal):
             raise ProvisionRefusal(error.code if error.code in REFUSALS else 'cortex_descriptor_invalid') from None
         raise ProvisionRefusal('cortex_descriptor_invalid') from None
     finally:
         close_failed = False
-        for result in published.values():
-            if not result.get('observation_owner'):
-                try: _close_marker(result)
+        for owned in [*published.values(), result]:
+            if isinstance(owned, dict) and not owned.get('observation_owner'):
+                try: _close_marker(owned)
                 except OSError: close_failed = True
         for value in (private, request):
             if isinstance(value, dict): value.clear()
