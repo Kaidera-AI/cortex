@@ -10,12 +10,12 @@ import pytest
 API_MAIN_PATH = Path(__file__).resolve().parents[1] / "main.py"
 MIGRATION_PATH = (
     Path(__file__).resolve().parents[2]
-    / "data"
+    / "schema"
     / "migrations"
     / "2026-07-15-cross-project-handoff-relay.sql"
 )
 FULL_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "cortex-schema-full.sql"
+    Path(__file__).resolve().parents[2] / "schema" / "cortex-schema-full.sql"
 )
 APPROVAL_ID = "e60b027e-4007-44f1-8009-8b6ee7c36291"
 
