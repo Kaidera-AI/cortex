@@ -1938,25 +1938,28 @@ class LinuxProvisionPorts:
             raise ProvisionRefusal('cortex_provisioning_conflict')
         intent = {'schema': 'cortex.provision-intent.v1', 'installation_id': self.context['installation_id'],
                   'arguments': self.args}
-        _publish_private_once(self.intent_path, intent, self._guard)
-        state = self.journal.begin()
-        if state == 'resume':
-            saved = self.journal._read()
-            response = {k: saved[k] for k in ('operation_id', 'project_id', 'project_key', 'lead', 'console')}
-            response['delivery_state'] = 'reissue_required'
-        else:
-            # Existing recipients are not implicitly overwritten by fresh work.
-            if any(self.store.read(body['project_key'], label) is not None for label in (body['lead_name'], 'console')):
-                raise ProvisionRefusal('cortex_provisioning_reissue_required')
-            response = owned_api_command(self.root, {'mode': mode, 'installation_id': self.context['installation_id'],
-                'credential': owner.decode('ascii'), 'idempotency_key': idempotency_key, 'request': body},
-                kos_policy=self.policy, deadline=self.deadline)
-        _response(response, self.body)
-        if self.args.get('operation_id', response['operation_id']) != response['operation_id']:
-            raise ProvisionRefusal('cortex_provisioning_conflict')
-        self.response.update(response)
-        self._guard()
-        return self.response
+        owned_intent = _publish_private_once(self.intent_path, intent, self._guard)
+        try:
+            state = self.journal.begin()
+            if state == 'resume':
+                saved = self.journal._read()
+                response = {k: saved[k] for k in ('operation_id', 'project_id', 'project_key', 'lead', 'console')}
+                response['delivery_state'] = 'reissue_required'
+            else:
+                # Existing recipients are not implicitly overwritten by fresh work.
+                if any(self.store.read(body['project_key'], label) is not None for label in (body['lead_name'], 'console')):
+                    raise ProvisionRefusal('cortex_provisioning_reissue_required')
+                response = owned_api_command(self.root, {'mode': mode, 'installation_id': self.context['installation_id'],
+                    'credential': owner.decode('ascii'), 'idempotency_key': idempotency_key, 'request': body},
+                    kos_policy=self.policy, deadline=self.deadline)
+            _response(response, self.body)
+            if self.args.get('operation_id', response['operation_id']) != response['operation_id']:
+                raise ProvisionRefusal('cortex_provisioning_conflict')
+            self.response.update(response)
+            self._guard()
+            return self.response
+        finally:
+            _close_marker(owned_intent)
 
     def _admit(self, response, args):
         self._guard()
@@ -2082,6 +2085,8 @@ def _publish_private_once(path: Path, value: dict, recheck) -> dict:
             if count <= 0: raise ValueError
             offset += count
         os.fsync(descriptor)
+        check()
+        os.fsync(directory)
         written = os.fstat(descriptor); custody._private_file(written)
         check()
         final = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
