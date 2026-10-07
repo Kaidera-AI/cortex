@@ -8,7 +8,7 @@ import stat
 import time
 
 import pytest
-from test_cm2_linux_publication import publication, required
+from test_cm2_linux_publication import POLICY, publication, required
 from test_cm2_linux_review_repairs import actual_runtime
 
 def test_revision2_actual_final_name_order_no_secret_and_byte_identical_resume(tmp_path, monkeypatch):
