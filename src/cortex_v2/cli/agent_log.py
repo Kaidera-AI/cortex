@@ -90,7 +90,8 @@ def run(profile, args, prepared):
         for selected_kind, row_id in checks:
             data = request('GET', '/verify/write?' + urlencode({'kind': selected_kind, 'id': row_id}))
             row = data.get('row', {})
-            if (data.get('verified') is not True or data.get('kind') != selected_kind or data.get('id') != row_id
+            if (not isinstance(row, dict) or data.get('verified') is not True
+                    or data.get('kind') != selected_kind or data.get('id') != row_id
                     or row.get('summary') != payload['summary']):
                 raise _refuse()
             if selected_kind == 'team_event' and (row.get('event_type') != args.event_type
