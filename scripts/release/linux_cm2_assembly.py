@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gzip
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -80,13 +81,36 @@ class _Inputs:
         self.check()
         fd = self.fds[path]
         os.lseek(fd, 0, os.SEEK_SET)
+        total = 0
         while True:
             self.tick()
             chunk = os.read(fd, 65536)
             if not chunk:
                 break
+            total += len(chunk)
+            if total > self.before[path][5]:
+                raise ValueError
             yield chunk
+        if total != self.before[path][5]:
+            raise ValueError
         self.check()
+
+    @contextmanager
+    def stream(self, path):
+        self.check()
+        os.lseek(self.fds[path], 0, os.SEEK_SET)
+        with os.fdopen(os.dup(self.fds[path]), 'rb') as stream:
+            yield stream
+        self.check()
+
+    def namespace(self, directory, names):
+        expected = {directory}
+        for name in names:
+            expected.update(p for p in (directory / name).parents if p.is_relative_to(directory))
+        actual = {p for p, info in self.before.items()
+                  if p.is_relative_to(directory) and stat.S_ISDIR(info[3])}
+        if actual != expected:
+            raise ValueError
 
     def digest(self, path):
         value = hashlib.sha256()
@@ -155,6 +179,7 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
             image_files.update((name, notice))
         if {p.relative_to(images_dir).as_posix() for p in inputs.fds if p.is_relative_to(images_dir)} != image_files:
             raise ValueError
+        inputs.namespace(images_dir, image_files)
         catalog = rehearsal_catalog_bytes(rehearsal, entries, source_sha=source_sha, version=version,
                                            source_root=root / 'src', migration_root=root / 'migrations')
         programs = native['programs']
@@ -195,6 +220,7 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
                 raise ValueError
         if {p.relative_to(host_dir).as_posix() for p in inputs.fds if p.is_relative_to(host_dir)} != host_files:
             raise ValueError
+        inputs.namespace(host_dir, host_files)
         for directory, names in ((images_dir, image_files), (host_dir, host_files)):
             for name in names:
                 mapping.setdefault(directory / name, 'sbom/' + name if '/' not in name else name)
@@ -208,7 +234,8 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
                 or len(expected_reader_files) != 6 or reader['files'] != expected_reader_files
                 or {p.name for p in reader_dir.iterdir()} != {'reader.json', archive_name}):
             raise ValueError
-        with reader_archive.open('rb') as stream, zipfile.ZipFile(stream) as archive:
+        inputs.namespace(reader_dir, {'reader.json', archive_name})
+        with inputs.stream(reader_archive) as stream, zipfile.ZipFile(stream) as archive:
             members = archive.infolist()
             if (len(members) != 6 or {p.filename for p in members} != set(reader['files'])
                     or sum(p.file_size for p in members) > linux_bundle.MAX_METADATA_BYTES
@@ -249,43 +276,51 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
         fd = os.open(archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, 'wb') as stream:
             os.fchmod(stream.fileno(), 0o600)
-            with gzip.GzipFile(filename='', fileobj=stream, mode='wb', mtime=0) as zipped:
-                with tarfile.open(fileobj=zipped, mode='w', format=tarfile.PAX_FORMAT) as tar:
-                    for path in [package] + sorted(package.rglob('*')):
-                        inputs.tick()
-                        member = tarfile.TarInfo(package.name if path == package else package.name + '/' + path.relative_to(package).as_posix())
-                        member.mode = stat.S_IMODE(path.lstat().st_mode)
-                        if path.is_dir():
-                            member.type = tarfile.DIRTYPE; tar.addfile(member)
-                        else:
-                            member.size = path.stat().st_size
-                            with path.open('rb') as source:
-                                tar.addfile(member, source)
+            staged = _Inputs((package,))
+            try:
+                with gzip.GzipFile(filename='', fileobj=stream, mode='wb', mtime=0) as zipped:
+                    with tarfile.open(fileobj=zipped, mode='w', format=tarfile.PAX_FORMAT) as tar:
+                        for path in [package] + sorted(p for p in staged.before if p != package):
+                            staged.check()
+                            observed = staged.before[path]
+                            member = tarfile.TarInfo(package.name if path == package else package.name + '/' + path.relative_to(package).as_posix())
+                            member.mode = stat.S_IMODE(observed[3])
+                            if stat.S_ISDIR(observed[3]):
+                                member.type = tarfile.DIRTYPE; tar.addfile(member)
+                            else:
+                                member.size = observed[5]
+                                with staged.stream(path) as source:
+                                    tar.addfile(member, source)
+                            staged.check()
+                staged.check()
+            finally:
+                staged.close()
         inputs.check()
         if _source_snapshot(root) != (payloads, source_observation):
             raise ValueError
-        archive_hash = hashlib.sha256()
-        with archive.open('rb') as stream:
-            for chunk in iter(lambda: stream.read(65536), b''):
-                inputs.tick(); archive_hash.update(chunk)
-        value = {'schema': 'cortex.release.v2', 'release_id': version, 'release_lineage': 'cortex-v2-native',
+        retained = _Inputs((archive,))
+        try:
+            archive_hash = retained.digest(archive)
+            value = {'schema': 'cortex.release.v2', 'release_id': version, 'release_lineage': 'cortex-v2-native',
                  'release_sequence': release_sequence, 'api_contract': 'cortex-kos-v02009.v2',
                  'source_revision': source_sha, 'deployment_class': 'TEST', 'target': 'linux-x86_64',
-                 'archive': {'name': archive.name, 'sha256': archive_hash.hexdigest(), 'size_bytes': archive.stat().st_size},
+                 'archive': {'name': archive.name, 'sha256': archive_hash, 'size_bytes': retained.before[archive][5]},
                  'payload_manifest_sha256': inner_hash, 'files': files, 'images': entries,
                  'migrations': [{'name': n, 'sha256': d} for n, d in sorted(json.loads(catalog)['migrations'].items())],
                  'rls_inventory': {'sha256': files['native/rls-inventory.json']},
                  'podman': dict(POLICY, provider='cortex-native-lifecycle'), 'member_reader_archive_sha256': custody.READER_SHA256}
-        custody.validate_release_manifest(value, target='linux-x86_64')
-        with archive.open('rb') as stream, gzip.GzipFile(fileobj=stream, mode='rb') as zipped:
-            measured, archive_root = linux_bundle._payload(zipped, value, inputs.tick)
-        if measured != inner or archive_root != package.name:
-            raise ValueError
-        inputs.check()
-        if _source_inputs(root) != source_observation:
-            raise ValueError
-        _write(unsigned / 'release.json', _json(value))
-        return value
+            custody.validate_release_manifest(value, target='linux-x86_64')
+            with retained.stream(archive) as stream, gzip.GzipFile(fileobj=stream, mode='rb') as zipped:
+                measured, archive_root = linux_bundle._payload(zipped, value, inputs.tick)
+            if measured != inner or archive_root != package.name:
+                raise ValueError
+            inputs.check(); retained.check()
+            if _source_inputs(root) != source_observation:
+                raise ValueError
+            _write(unsigned / 'release.json', _json(value))
+            return value
+        finally:
+            retained.close()
     finally:
         inputs.close()
 
