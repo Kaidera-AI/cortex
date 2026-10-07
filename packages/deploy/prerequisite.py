@@ -43,7 +43,8 @@ def _fail(code):
 
 def _path(value, code):
     path = Path(value)
-    if not path.is_absolute() or ".." in path.parts:
+    if (not path.is_absolute() or ".." in path.parts
+            or any(ord(char) < 32 or ord(char) == 127 for char in str(path))):
         _fail(code)
     current = Path(path.anchor)
     for part in path.parts[1:]:
@@ -199,6 +200,18 @@ def _private_directory(path, uid, code):
     return path
 
 
+def _same_json_types(actual, expected):
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return (set(actual) == set(expected)
+                and all(_same_json_types(actual[key], value) for key, value in expected.items()))
+    if isinstance(expected, list):
+        return (len(actual) == len(expected)
+                and all(_same_json_types(a, b) for a, b in zip(actual, expected)))
+    return True
+
+
 def _publish(home, descriptor, uid):
     # Fresh installation only. An exact replay is read-only; another selected
     # installation is never silently overwritten.
@@ -221,7 +234,10 @@ def _publish(home, descriptor, uid):
             _fail("cortex_descriptor_owner_mismatch")
         target = home / ".cortex/prerequisite.json"
         if target.exists() or target.is_symlink():
-            if _json(_read(target, uid, 64 * 1024, code, private=True), code) != descriptor:
+            existing = _json(_read(target, uid, 64 * 1024, code, private=True), code)
+            if not _same_json_types(existing, descriptor):
+                _fail(code)
+            if existing != descriptor:
                 _fail("cortex_instance_mismatch")
             return target
         body = (json.dumps(descriptor, sort_keys=True, separators=(",", ":")) + "\n").encode()
