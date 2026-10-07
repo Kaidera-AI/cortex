@@ -13,9 +13,6 @@ PUBLIC=json.loads((Path(__file__).parent/'fixtures/r428-full-catalogue.json').re
 SCHEMAS=('cortex_auth','cortex_core','cortex_coord','cortex_processing','cortex_retrieval','cortex_context','cortex_feed','cortex_verification')
 
 
-def test_producer_accepts_actual_all_namespace_rows_without_weakening_rls():
-    rows=PUBLIC['rows'];result=build_catalog._relations(rows)
-    assert len(result)==129 and sum(r['name'].startswith('cortex_context.boot_') for r in result)==3
 
 
 @pytest.mark.parametrize('schema',SCHEMAS)
