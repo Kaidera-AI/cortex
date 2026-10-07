@@ -40,6 +40,7 @@ class Store:
         self.current = context()
         self.calls = []
         self.lifecycle_writes = []
+        self.consumer_observations = []
         self.failure = None
 
     async def authenticate(self, token):
@@ -54,8 +55,7 @@ class Store:
         return self.current
 
     async def observe_consumer_use(self, *args):
-        self.lifecycle_writes.append(args)
-        raise AssertionError("admission must not acknowledge consumer use")
+        self.consumer_observations.append(args)
 
 
 class Exchange:
@@ -143,7 +143,7 @@ async def test_bearer_only_dispatch_derives_identity_and_removes_raw_credentials
     assert result["verified_principal"] == str(store.current.principal_id)
     assert result["raw_auth"] is result["legacy"] is result["jwt_claims"] is None
     assert calls == [("/search", "school-notes", "homework-bot")]
-    assert store.lifecycle_writes == []
+    assert len(store.consumer_observations) == 1 and store.lifecycle_writes == []
     assert exchange.scope["state"] == {} and b"x-project" not in dict(exchange.scope["headers"])
 
 
@@ -249,8 +249,8 @@ async def test_failed_authentication_is_generic_and_never_falls_back(adapter_typ
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("method,path", [("GET", "/projects"), ("POST", "/admin/sql/query"),
-    ("POST", "/admin/sql/exec"), ("POST", "/admin/redis"), ("POST", "/handoffs/cross-project"),
+@pytest.mark.parametrize("method,path", [("POST", "/admin/sql/query"),
+    ("POST", "/admin/sql/exec"), ("POST", "/admin/redis"),
     ("POST", "/project-local-sync"), ("GET", "/new-route"), ("GET", "/admin/new-route"),
     ("GET", "/docs"), ("GET", "/openapi.json"), ("HEAD", "/search"), ("OPTIONS", "/search"),
     ("GET", "/search/")])

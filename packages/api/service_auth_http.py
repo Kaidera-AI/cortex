@@ -25,6 +25,63 @@ from service_auth_policy import (
 )
 
 
+class _DeliveredUse:
+    """Recognize complete delivered events, preserving CRLF across sends."""
+    def __init__(self):
+        self.status = None
+        self.sse = False
+        self.line = bytearray()
+        self.skip_lf = False
+        self.event_size = 0
+        self.has_data = False
+        self.invalid = False
+
+    def _end_line(self):
+        if not self.line:
+            delivered = self.has_data and not self.invalid
+            self.event_size = 0
+            self.has_data = self.invalid = False
+            return delivered
+        if not self.invalid:
+            try:
+                line = self.line.decode("utf-8")
+            except UnicodeError:
+                self.invalid = True
+            else:
+                if line == "data" or line.startswith("data:"):
+                    self.has_data = True
+        self.line.clear()
+        return False
+
+    def sent(self, message):
+        if message["type"] == "http.response.start":
+            self.status = message["status"]
+            self.sse = any(k.lower() == b"content-type" and v.lower().split(b";")[0].strip() == b"text/event-stream"
+                           for k, v in message.get("headers", ()))
+            return False
+        if message["type"] != "http.response.body" or self.status is None or not 200 <= self.status < 300:
+            return False
+        if not self.sse:
+            return not message.get("more_body", False)
+        for char in message.get("body", b""):
+            if self.skip_lf:
+                self.skip_lf = False
+                if char == 10:
+                    continue
+            if char in (10, 13):
+                self.skip_lf = char == 13
+                if self._end_line():
+                    return True
+            else:
+                self.event_size += 1
+                if self.event_size > 64 * 1024:
+                    self.invalid = True
+                # Keep a nonempty sentinel until the line ends while discarded.
+                if not self.invalid or not self.line:
+                    self.line.append(char)
+        return False
+
+
 _PROJECT_FIELDS = frozenset({
     "project", "project_key", "project_id", "source_project", "target_project",
     "source_project_key", "target_project_key", "parent_project_key",
@@ -415,6 +472,7 @@ class ServiceAuthMiddleware:
         started = complete = disconnected = observed = False
         denial_status = None
         status_code = None
+        delivery = _DeliveredUse()
         received = 0
         request_finished = False
         request_done = asyncio.Event()
@@ -459,36 +517,23 @@ class ServiceAuthMiddleware:
             nonlocal started, complete, denial_status, status_code, observed
             if denial_status is not None or disconnected:
                 return
-            if message["type"] == "http.response.start" and recheck is not None:
+            if message["type"] in {"http.response.start", "http.response.body"} and recheck is not None:
                 try:
                     await recheck()
                 except _Denied as exc:
                     denial_status = exc.status
                     raise
-            if message["type"] == "http.response.start":
-                stream = any(
-                    key.lower() == b"content-type"
-                    and value.lower().split(b";")[0].strip() == b"text/event-stream"
-                    for key, value in message.get("headers", ())
-                )
-                if 200 <= message["status"] < 300 and not stream and not observed:
-                    await self._observe_consumer_use(context)
-                    observed = True
-            if (
-                message["type"] == "http.response.body"
-                and not message.get("more_body", False)
-                and status_code is not None
-                and 200 <= status_code < 300
-                and not observed
-            ):
-                await self._observe_consumer_use(context)
-                observed = True
             await send(message)
             if message["type"] == "http.response.start":
                 started = True
                 status_code = message["status"]
             elif message["type"] == "http.response.body" and not message.get("more_body", False):
                 complete = True
+            if delivery.sent(message) and not observed and context is not None:
+                if recheck is not None:
+                    await recheck()
+                await self._observe_consumer_use(context)
+                observed = True
 
         async def watch_disconnect():
             nonlocal disconnected
@@ -528,6 +573,7 @@ class ServiceAuthMiddleware:
     async def _dispatch(self, scope, receive, send, raw, recheck, context):
         started = complete = disconnected = failed = observed = False
         status_code = None
+        delivery = _DeliveredUse()
         stream_ready = asyncio.Event()
         disconnect = asyncio.Event()
         replayed = False
@@ -557,12 +603,9 @@ class ServiceAuthMiddleware:
             if message["type"] == "http.response.start":
                 stream = any(k.lower() == b"content-type" and v.lower().split(b";")[0].strip() == b"text/event-stream"
                              for k, v in message.get("headers", ()))
-                if 200 <= message["status"] < 300 and not stream and not observed:
-                    await self._observe_consumer_use(context)
-                    observed = True
                 if stream and recheck:
                     stream_ready.set()
-            if message["type"] == "http.response.body" and stream_ready.is_set():
+            if message["type"] == "http.response.body" and recheck is not None:
                 try:
                     await recheck()
                 except _Denied:
@@ -570,15 +613,6 @@ class ServiceAuthMiddleware:
                 if failed:
                     stop_application()
                     raise asyncio.CancelledError()
-            if (
-                message["type"] == "http.response.body"
-                and not message.get("more_body", False)
-                and status_code is not None
-                and 200 <= status_code < 300
-                and not observed
-            ):
-                await self._observe_consumer_use(context)
-                observed = True
             try:
                 await send(message)
             except OSError:
@@ -591,6 +625,15 @@ class ServiceAuthMiddleware:
                 status_code = message["status"]
             elif message["type"] == "http.response.body" and not message.get("more_body", False):
                 complete = True
+            if delivery.sent(message) and not observed and context is not None:
+                try:
+                    await recheck()
+                except _Denied:
+                    failed = True
+                    stop_application()
+                    raise asyncio.CancelledError()
+                await self._observe_consumer_use(context)
+                observed = True
 
         async def watch_disconnect():
             nonlocal disconnected

@@ -23,25 +23,33 @@ EXPECTED_GROUPS = [
     ("memory:read", "POST", "/search"),
     ("memory:write", "POST", "/log /artifacts /work-products /diary/{agent} /save-chat/{agent} /memory /invalidate/{item_id}"),
     ("ingest:write", "POST", "/knowledge/ingest /lessons/ingest /decisions/ingest /sessions/ingest /artifacts/transcribe /artifacts/describe-image /media/transcribe /media/describe-image /analysis/session/{session_id}"),
-    ("registry:read", "GET", "/projects/{project_key} /roster /skills"),
+    ("registry:read", "GET", "/projects /projects/{project_key} /roster /skills"),
     ("registry:write", "POST", "/agents"),
     ("coordination:read", "GET", "/handoffs /handoffs/{handoff_id} /events /epics /epics/{epic_id} /board"),
     ("coordination:write", "POST", "/handoffs /handoffs/{handoff_id}/claim-with-budget /handoffs/{handoff_id}/claim /handoffs/{handoff_id}/return /handoffs/{handoff_id}/release /handoffs/{handoff_id}/abandon /handoffs/{handoff_id}/fail /board"),
     ("coordination:write", "PUT", "/handoffs/{handoff_id}/claim /handoffs/{handoff_id}/return /handoffs/{handoff_id}/release /handoffs/{handoff_id}/abandon /handoffs/{handoff_id}/fail"),
     ("coordination:write", "PATCH", "/board/{task_id}"),
     ("instance:admin", "GET", "/metrics /beat/projections/status /graph/stats /graph/build/jobs/{job_id} /beat/embeddings/backlog /beat/embeddings/jobs/{job_id} /admin/projects/{project_key}/export /identity/audit /verify/table/{table_name} /admin/cortex/doctor /admin/cortex/health /admin/stats /admin/recall-check /admin/cortex/entities /admin/cortex/config /admin/migrations /dashboard/snapshot /beat/status /beat/roles /beat/handoffs/stale /beat/handoffs/open /beat/handoffs/dispatchable /beat/handoffs/orchestrator /beat/ship-events/latest /beat/deploy-events /beat/events"),
-    ("instance:admin", "POST", "/rules/ingest /beat/work-products/check-freshness /graph/prune /graph/build /graph/blast /graph/callers /graph/impact /graph/large-fn /skills /skills/{slug}/bind /beat/embeddings/backfill /beat/handoffs/archive-stale /admin/projects/{target_project_key}/import /epics /admin/migrations/apply /admin/retention/sweep /cortex-graph-extract /handoffs/{handoff_id}/complete /projects /admin/agents/remove"),
+    ("instance:admin", "POST", "/handoffs/cross-project /rules/ingest /beat/work-products/check-freshness /graph/prune /graph/build /graph/blast /graph/callers /graph/impact /graph/large-fn /skills /skills/{slug}/bind /beat/embeddings/backfill /beat/handoffs/archive-stale /admin/projects/{target_project_key}/import /epics /admin/migrations/apply /admin/retention/sweep /cortex-graph-extract /handoffs/{handoff_id}/complete /projects /admin/agents/remove"),
     ("instance:admin", "PUT", "/handoffs/{handoff_id}/complete"),
     ("instance:admin", "PATCH", "/admin/cortex/config /projects/{project_key}/roster-policy /projects/{project_key}"),
     ("instance:admin", "DELETE", "/skills/{slug}"),
-    (None, "GET", "/projects"),
-    (None, "POST", "/admin/sql/query /admin/sql/exec /admin/redis /handoffs/cross-project /project-local-sync"),
+    (None, "POST", "/admin/sql/query /admin/sql/exec /admin/redis /project-local-sync"),
 ]
 EXPECTED = {
     (method, path): None if scope is None else frozenset({scope})
     for scope, method, paths in EXPECTED_GROUPS for path in paths.split()
 }
-ADMITTED = [(key, value) for key, value in EXPECTED.items() if value is not None]
+EXPECTED[("GET", "/health/live")] = frozenset()
+# These explicit pre-existing proxy classifications are not registered main.py handlers.
+# Framework holds also remain independent of the 129 actual handler inventory.
+NON_HANDLER_POLICIES = {
+    ("GET", "/artifacts/document-formats"): frozenset({"ingest:write"}),
+    ("POST", "/artifacts/parse-document"): frozenset({"ingest:write"}),
+    **{(method, path): None for method in ("GET", "HEAD")
+       for path in ("/docs", "/docs/oauth2-redirect", "/openapi.json", "/redoc")},
+}
+ADMITTED = [(key, value) for key, value in EXPECTED.items() if value]
 HELD = [key for key, value in EXPECTED.items() if value is None]
 
 
@@ -87,12 +95,13 @@ def current_routes():
 
 def test_inventory_exactly_matches_current_handlers_and_reviewed_classification(policy):
     routes = current_routes()
-    assert len(routes) == len(set(routes)) == len(EXPECTED) == 128
+    assert len(routes) == len(set(routes)) == len(EXPECTED) == 129
     assert set(routes) == set(EXPECTED)
-    assert policy.ROUTE_POLICIES == {**EXPECTED, ("GET", "/health/live"): frozenset()}
-    assert len(HELD) == 6
+    assert not (set(EXPECTED) & set(NON_HANDLER_POLICIES))
+    assert policy.ROUTE_POLICIES == {**EXPECTED, **NON_HANDLER_POLICIES}
+    assert len(HELD) == 4
     assert policy.PUBLIC_ROUTES == {("GET", "/health/live")}
-    assert not (set(routes) & policy.PUBLIC_ROUTES), "liveness is planned, not implemented"
+    assert set(routes) & policy.PUBLIC_ROUTES == {("GET", "/health/live")}
     declared_scopes = set().union(*(value for value in EXPECTED.values() if value))
     assert declared_scopes == SCOPES - {"tokens:manage"}
 

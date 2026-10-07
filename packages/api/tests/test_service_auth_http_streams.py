@@ -47,6 +47,7 @@ async def test_finite_stream_checks_actual_chunks_and_never_acknowledges_rotatio
     exchange = await fixture.Exchange("/events").run(fixture.wrapped(adapter_type, app, store))
     assert exchange.status == 200 and exchange.body == b"data: one\n\ndata: two\n\n"
     assert len(store.calls) >= 3 and closed.is_set() and store.lifecycle_writes == []
+    assert len(store.consumer_observations) == 1
     assert sum(m["type"] == "http.response.start" for m in exchange.messages) == 1
 
 
