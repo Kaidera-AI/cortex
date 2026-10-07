@@ -16,6 +16,69 @@ from cortex_v2.clients.native_prerequisite import physical_path, strict_json
 MESSAGE = 'native build catalog missing or mismatched'
 
 
+def _source_stamp(info):
+    return (info.st_dev, info.st_ino, info.st_uid, info.st_mode, info.st_nlink,
+            info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def _source_inputs(root: Path) -> dict:
+    physical_path(root)
+    paths = {root, root / 'deploy', root / 'deploy/release'}
+    for directory in (root / 'src', root / 'migrations'):
+        if not directory.is_dir() or directory.is_symlink():
+            raise ValueError
+        paths.add(directory)
+        for path in directory.rglob('*'):
+            paths.add(path)
+            if len(paths) > 4096:
+                raise ValueError
+    paths.add(root / 'deploy/release/10-create-roles.sh')
+    result = {}
+    for path in paths:
+        physical_path(path)
+        info = path.lstat()
+        if (info.st_uid != os.getuid() or not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
+                or (stat.S_ISREG(info.st_mode) and (info.st_nlink != 1 or info.st_size > 8 * 1024**2))):
+            raise ValueError
+        result[path] = _source_stamp(info)
+    return result
+
+
+def _source_snapshot(root: Path) -> tuple[dict, dict]:
+    """Own-source payload plus private inode observations, never image digests."""
+    try:
+        before = _source_inputs(root)
+        app = payload_inventory(root / 'src', root / 'migrations')
+        if (not any(n.startswith('src/') for n in app['files'])
+                or not any(n.startswith('migrations/') for n in app['files'])):
+            raise ValueError
+        name = 'deploy/release/10-create-roles.sh'
+        fd = os.open(root / name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as stream:
+            if _source_stamp(os.fstat(stream.fileno())) != before[root / name]:
+                raise ValueError
+            raw = stream.read(8 * 1024**2 + 1)
+            if _source_stamp(os.fstat(stream.fileno())) != before[root / name]:
+                raise ValueError
+        if not raw or len(raw) > 8 * 1024**2:
+            raise ValueError
+        files = {name: hashlib.sha256(raw).hexdigest()}
+        db = {'files': files, 'sha256': hashlib.sha256(
+            json.dumps(files, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
+        if _source_inputs(root) != before:
+            raise ValueError
+        roles = {role: {'files': dict(app['files']), 'sha256': app['sha256']}
+                 for role in ('api', 'doc', 'embed', 'graph')}
+        roles['db'] = db
+        return roles, before
+    except Exception:
+        raise RuntimeError('native source payload missing or mismatched') from None
+
+
+def source_payloads(root: Path) -> dict:
+    return _source_snapshot(root)[0]
+
+
 def read_json(path: Path) -> dict:
     """Read one actual bounded, physical public receipt without duplicate keys."""
     try:

@@ -149,20 +149,41 @@ def native_target(target: str) -> str:
     return "amd64" if target == "linux-x86_64" else "arm64"
 
 
-def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64") -> None:
+def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64", *, cm2: bool = False) -> None:
+    if cm2 and target != "linux-x86_64":
+        raise RuntimeError("CM-2 image build requires native Linux x86_64")
     architecture = native_target(target)
     machines = ("x86_64",) if architecture == "amd64" else ("aarch64", "arm64")
     if platform.system() != "Linux" or platform.machine() not in machines:
         raise RuntimeError("native Linux " + architecture + " builder required; no emulation")
     source_identity(source_sha)
+    payloads = source_observation = None
+    if cm2:
+        from linux_build_catalog import _source_snapshot
+        payloads, source_observation = _source_snapshot(ROOT)
+        payload_bytes = json.dumps({'schema': 'cortex.image-source-payloads.v1',
+            'source_revision': source_sha, 'roles': payloads}, sort_keys=True, separators=(',', ':')).encode() + b'\n'
+        if len(payload_bytes) > 1048576:
+            raise RuntimeError("native source payload inventory too large")
+
+    def check_inputs():
+        if cm2 and _source_snapshot(ROOT) != (payloads, source_observation):
+            raise RuntimeError("native source payload changed during build")
+
+    def checked_run(args, *, read=False):
+        check_inputs()
+        result = run(args, read=read)
+        check_inputs()
+        return result
+
     prefix = ["podman", "--remote=false"] if architecture == "amd64" else ["podman"]
     bases, policy, provider = None, None, None
     if architecture == "amd64":
         from linux_recipe_parity import verify_recipe_parity
         from podman_policy import validate_linuxbrew_provider, validate_local_version
         bases = verify_recipe_parity(ROOT)
-        policy = validate_local_version(run(prefix + ["version", "--format", "{{.Client.Version}}"], read=True))
-        metadata = json.loads(run(["brew", "info", "--json=v2", "podman"], read=True))
+        policy = validate_local_version(checked_run(prefix + ["version", "--format", "{{.Client.Version}}"], read=True))
+        metadata = json.loads(checked_run(["brew", "info", "--json=v2", "podman"], read=True))
         provider = dict(validate_linuxbrew_provider(metadata, policy['engine_version']), metadata=metadata)
     if out.exists():
         raise RuntimeError("build output already exists; candidate bytes are immutable")
@@ -178,23 +199,38 @@ def images(out: Path, source_sha: str, version: str, target: str = "macos-arm64"
             command += ["--file", str(ROOT / ("deploy/release/Containerfile.db.linux-amd64" if architecture == "amd64" else "deploy/release/Containerfile.db"))]
         else:
             command += ["--target", role_target, "--file", str(ROOT / ("deploy/release/Dockerfile.linux-amd64" if architecture == "amd64" else "Dockerfile"))]
-        run(command + [str(ROOT)])
+        checked_run(command + [str(ROOT)])
         archive = out / "images" / f"{role}.oci.tar"
-        run(prefix + ["save", "--format=oci-archive", "--output", str(archive), tag])
-        identity = oci_identity(archive, architecture=architecture)
+        checked_run(prefix + ["save", "--format=oci-archive", "--output", str(archive), tag])
+        identity = oci_identity(archive, architecture=architecture,
+                                **({"source_sha": source_sha, "version": version} if cm2 else {}))
+        check_inputs()
         identity["archive"] = f"images/{role}.oci.tar"
+        if cm2:
+            identity["source_payload_sha256"] = payloads[role]['sha256']
+            identity["archive_sha256"] = digest(archive)
         entries[role] = identity
         (out / "sbom" / f"{role}.spdx.json").write_text(json.dumps(sbom(tag, role, f"{version}-{role}-{identity['manifest_digest'][7:]}", target=target), indent=2) + "\n")
+        check_inputs()
     selected_target = "linux-x86_64" if architecture == "amd64" else "macos-arm64"
-    (out / "image-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": selected_target, "images": entries,
-            "builder": {"podman": run(prefix + ["version", "--format", "{{.Client.Version}}"], read=True),
+    inventory = {"source_sha": source_sha, "version": version, "target": selected_target, "images": entries,
+            "builder": {"podman": checked_run(prefix + ["version", "--format", "{{.Client.Version}}"], read=True),
                         "system": platform.platform(), "architecture": platform.machine(),
                         "podman_minimum_receipt": policy, "podman_provider": provider,
-                        "recipe_parity": bases}}, indent=2) + "\n")
+                        "recipe_parity": bases}}
+    if not cm2:
+        (out / "image-inventory.json").write_text(json.dumps(inventory, indent=2) + "\n")
 
     sys.path.insert(0, str(ROOT / "scripts"))
     from package_rehearsal import rehearse
+    check_inputs()
     receipt = rehearse(entries, source_sha, version, target=selected_target)
+    check_inputs()
+    if cm2:
+        with (out / 'source-payload-inventory.json').open('xb') as stream:
+            stream.write(payload_bytes)
+        with (out / 'image-inventory.json').open('x') as stream:
+            stream.write(json.dumps(inventory, indent=2) + '\n')
     (out / "rehearsal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 
@@ -626,7 +662,7 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=("macos-arm64", "linux-x86_64"), default="macos-arm64")
-    parser.add_argument("stage", choices=("images", "host", "cm2-host", "assemble"))
+    parser.add_argument("stage", choices=("images", "cm2-images", "host", "cm2-host", "assemble"))
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -639,8 +675,11 @@ def main() -> None:
     args.output = args.output.resolve()
     if args.output == ROOT or ROOT in args.output.parents:
         parser.error("output must be outside the source checkout")
-    if args.stage == "images":
-        images(args.output, args.source_sha, args.version, target=args.target)
+    if args.stage in ("images", "cm2-images"):
+        if args.stage == "cm2-images":
+            images(args.output, args.source_sha, args.version, target=args.target, cm2=True)
+        else:
+            images(args.output, args.source_sha, args.version, target=args.target)
     elif args.stage in ("host", "cm2-host"):
         if args.runtime is None:
             parser.error("host requires its compiled --runtime prefix")
