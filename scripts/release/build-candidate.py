@@ -53,10 +53,10 @@ def source_identity(source_sha: str) -> None:
 
 
 def oci_identity(archive: Path, architecture: str = "arm64", *, source_sha: str | None = None,
-                 version: str | None = None) -> dict:
+                 version: str | None = None, fileobj=None) -> dict:
     if architecture not in ("arm64", "amd64"):
         raise RuntimeError("closed native image architecture required")
-    with tarfile.open(archive, "r") as stream:
+    with tarfile.open(archive if fileobj is None else None, "r", fileobj=fileobj) as stream:
         def read(name: str) -> bytes:
             member = stream.getmember(name)
             if not member.isfile() or member.size > 16_000_000:

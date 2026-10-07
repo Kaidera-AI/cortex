@@ -168,7 +168,9 @@ def _assemble(out, images_dir, host_dir, reader_dir, *, root, source_sha, versio
             if (entry.get('archive') != name or entry.get('source_payload_sha256') != payloads[role]['sha256']
                     or entry.get('archive_sha256') != inputs.digest(images_dir / name)):
                 raise ValueError
-            actual = oci_identity(images_dir / name, architecture='amd64', source_sha=source_sha, version=version)
+            with inputs.stream(images_dir / name) as stream:
+                actual = oci_identity(images_dir / name, architecture='amd64', source_sha=source_sha,
+                                      version=version, fileobj=stream)
             if any(entry.get(k) != v for k, v in actual.items()):
                 raise ValueError
             notice = 'sbom/' + role + '.spdx.json'
