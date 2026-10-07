@@ -587,20 +587,7 @@ class _RuntimeObservation:
 
     def revoke_markers(self):
         for path, marker in reversed(self.markers):
-            directory = None
-            try:
-                custody._recheck_parents(marker['parents'])
-                directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-                if custody._directory_identity(os.fstat(directory)) != marker['parents'][path.parent]: continue
-                info = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
-                if (custody._file_identity(info), info.st_ctime_ns) != marker['identity']: continue
-                os.unlink(path.name, dir_fd=directory); os.fsync(directory)
-            except Exception:
-                pass
-            finally:
-                if directory is not None:
-                    try: os.close(directory)
-                    except OSError: pass
+            _invalidate_new_marker(marker)
 
 
 @contextmanager
@@ -637,8 +624,13 @@ def runtime_observation_scope(runtime_root: Path, *, kos_policy: dict, deadline:
     finally:
         if token is not None: _RUNTIME_OBSERVATION.reset(token)
         if state is not None:
+            close_failed = False
+            for path, marker in state.markers:
+                try: _close_marker(marker)
+                except OSError: close_failed = True
             state.markers.clear()
             if isinstance(state.context, dict): state.context.clear()
+            if close_failed: raise ProvisionRefusal('cortex_descriptor_invalid') from None
 
 
 def read_linux_runtime(runtime_root: Path, *, kos_policy: dict, deadline: float | None = None) -> dict:
@@ -2018,16 +2010,31 @@ def provision_linux(runtime_root: Path, args: dict, *, owner_token: bytes, kos_p
         raise ProvisionRefusal('cortex_provisioning_reissue_required') from None
 
 
-def _publish_private_once(path: Path, value: dict, recheck) -> dict:
-    """Publish one private inode without replacing any existing name.
+def _invalidate_new_marker(marker):
+    """Only the newly created held inode is writable; never act on its name."""
+    fd = marker.get('fd')
+    if marker.get('created') and fd is not None:
+        try:
+            os.ftruncate(fd, 0)
+            os.fsync(fd)
+        except OSError:
+            pass  # The enclosing operation already refuses; never unlink a name.
 
-    The caller supplies a live observation guard. A matching existing file is
-    retained byte for byte. This primitive never creates or repairs a parent.
+
+def _close_marker(marker):
+    fd = marker.pop('fd', None)
+    if fd is not None:
+        os.close(fd)
+
+
+def _publish_private_once(path: Path, value: dict, recheck) -> dict:
+    """Create-only final name; retain its writable inode for the caller's tail.
+
+    Existing valid files remain byte/inode-identical. A failed new inode is
+    invalidated through its own descriptor, keeping any uncertain basename.
     """
     directory = descriptor = None
-    temporary = None
-    written = None
-    created = False
+    created = retained = False
     parents = {}
 
     def identity(info):
@@ -2038,11 +2045,6 @@ def _publish_private_once(path: Path, value: dict, recheck) -> dict:
         custody._recheck_parents(parents)
         if custody._directory_identity(os.fstat(directory)) != parents[path.parent]:
             raise ProvisionRefusal('cortex_descriptor_invalid')
-
-    def same_bytes_identity(info):
-        current = custody._file_identity(info)
-        expected = custody._file_identity(written)
-        return current[:4] == expected[:4] and current[5:] == expected[5:]
 
     try:
         if not callable(recheck): raise ValueError
@@ -2068,9 +2070,10 @@ def _publish_private_once(path: Path, value: dict, recheck) -> dict:
                 raise ValueError
             return {'created': False, 'identity': identity(final), 'raw': actual, 'parents': parents}
 
-        temporary = '.' + secrets.token_hex(16)
-        descriptor = os.open(temporary, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        descriptor = os.open(path.name, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                              0o600, dir_fd=directory)
+        created = True
+        os.fchmod(descriptor, 0o600)
         custody._private_file(os.fstat(descriptor))
         offset = 0
         while offset < len(raw):
@@ -2081,53 +2084,33 @@ def _publish_private_once(path: Path, value: dict, recheck) -> dict:
         os.fsync(descriptor)
         written = os.fstat(descriptor); custody._private_file(written)
         check()
-        if identity(os.stat(temporary, dir_fd=directory, follow_symlinks=False)) != identity(written):
-            raise ValueError
-        os.link(temporary, path.name, src_dir_fd=directory, dst_dir_fd=directory, follow_symlinks=False)
-        created = True
-        linked = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
-        if linked.st_nlink != 2 or not same_bytes_identity(linked): raise ValueError
-        temporary_info = os.stat(temporary, dir_fd=directory, follow_symlinks=False)
-        if custody._file_identity(temporary_info) != custody._file_identity(linked): raise ValueError
-        os.unlink(temporary, dir_fd=directory); temporary = None
-        os.fsync(directory)
-        check()
         final = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
         custody._private_file(final)
-        if not same_bytes_identity(final) or identity(final) != identity(os.fstat(descriptor)): raise ValueError
+        if identity(final) != identity(written) or identity(os.fstat(descriptor)) != identity(written):
+            raise ValueError
         os.lseek(descriptor, 0, os.SEEK_SET)
         if os.read(descriptor, 65537) != raw: raise ValueError
         check()
         if identity(os.stat(path.name, dir_fd=directory, follow_symlinks=False)) != identity(final): raise ValueError
-        return {'created': True, 'identity': identity(final), 'raw': raw, 'parents': parents}
+        result = {'created': True, 'identity': identity(final), 'raw': raw, 'parents': parents, 'fd': descriptor}
+        retained = True
+        return result
     except BaseException as error:
-        if created and written is not None and directory is not None:
-            try:
-                custody._recheck_parents(parents)
-                current = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
-                if same_bytes_identity(current) and current.st_nlink in (1, 2):
-                    os.unlink(path.name, dir_fd=directory)
-            except Exception:
-                pass
+        retained = False
+        _invalidate_new_marker({'created': created, 'fd': descriptor})
         if isinstance(error, PrerequisiteRefusal):
             raise ProvisionRefusal(error.code if error.code in REFUSALS else 'cortex_descriptor_invalid') from None
         raise ProvisionRefusal('cortex_descriptor_invalid') from None
     finally:
         cleanup_failed = False
-        if temporary is not None and directory is not None and descriptor is not None:
-            try:
-                current = os.stat(temporary, dir_fd=directory, follow_symlinks=False)
-                opened = os.fstat(descriptor)
-                if custody._file_identity(current) != custody._file_identity(opened): raise ValueError
-                os.unlink(temporary, dir_fd=directory)
-            except FileNotFoundError:
-                pass
-            except Exception:
-                cleanup_failed = True
-        for fd in (descriptor, directory):
-            if fd is not None:
-                try: os.close(fd)
-                except OSError: cleanup_failed = True
+        if directory is not None:
+            try: os.close(directory)
+            except OSError: cleanup_failed = True
+        if cleanup_failed and retained:
+            _invalidate_new_marker({'created': created, 'fd': descriptor})
+        if descriptor is not None and (not retained or cleanup_failed):
+            try: os.close(descriptor)
+            except OSError: cleanup_failed = True
         if cleanup_failed: raise ProvisionRefusal('cortex_descriptor_invalid') from None
 
 
@@ -2260,7 +2243,7 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
         for path, value in values.items():
             output_check()
             # The per-file guard checks live custody, while the primitive owns
-            # its newly linked name until its return registers that identity.
+            # its newly created inode until its return registers that identity.
             result = _publish_private_once(path, value, check)
             published[path] = result
             if path == descriptor_file:
@@ -2268,6 +2251,7 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
                 observation = _RUNTIME_OBSERVATION.get()
                 if observation is not None and result['created']:
                     observation.markers.append((path, result))
+                    result['observation_owner'] = True
             output_check()
         ready()
         output_check()
@@ -2278,24 +2262,16 @@ def publish_linux_prerequisite(runtime_root: Path, args: dict, response: dict, p
         return {'connection_file': str(connection_file), 'descriptor_file': str(descriptor_file)}
     except BaseException as error:
         if marker is not None and marker['created']:
-            directory = None
-            try:
-                custody._recheck_parents(marker['parents'])
-                directory = os.open(descriptor_file.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-                if custody._directory_identity(os.fstat(directory)) != marker['parents'][descriptor_file.parent]: raise ValueError
-                info = os.stat(descriptor_file.name, dir_fd=directory, follow_symlinks=False)
-                if (custody._file_identity(info), info.st_ctime_ns) != marker['identity']: raise ValueError
-                os.unlink(descriptor_file.name, dir_fd=directory)
-                os.fsync(directory)
-            except Exception:
-                pass
-            finally:
-                if directory is not None:
-                    try: os.close(directory)
-                    except OSError: pass
+            _invalidate_new_marker(marker)
         if isinstance(error, PrerequisiteRefusal):
             raise ProvisionRefusal(error.code if error.code in REFUSALS else 'cortex_descriptor_invalid') from None
         raise ProvisionRefusal('cortex_descriptor_invalid') from None
     finally:
+        close_failed = False
+        for result in published.values():
+            if not result.get('observation_owner'):
+                try: _close_marker(result)
+                except OSError: close_failed = True
         for value in (private, request):
             if isinstance(value, dict): value.clear()
+        if close_failed: raise ProvisionRefusal('cortex_descriptor_invalid') from None
