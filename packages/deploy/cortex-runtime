@@ -155,7 +155,7 @@ class Runtime:
         self.env_file = self.state / 'runtime.env'
         self.stage = self.state / 'backup-stage'
 
-    def owner_action(self, action, *, selector=None, volume=None, request_file=None, response_file=None):
+    def _owner_helper(self):
         # This private path must never prepare state, use ambient Compose, or
         # import an unbound host module. Execute the verified bytes, not a second
         # filesystem read through an import loader.
@@ -170,14 +170,18 @@ class Runtime:
         source = path.read_bytes()
         if hashlib.sha256(source).hexdigest() != expected:
             raise ValueError('owner helper checksum differs')
+        module = types.ModuleType('cortex_owner_helper')
+        module.__file__ = str(path)
+        exec(compile(source, str(path), 'exec'), module.__dict__)
+        return module
+
+    def owner_action(self, action, *, selector=None, volume=None, request_file=None, response_file=None):
         if (action == 'owner-pair' and (not selector or not volume)
                 or action == 'owner-request' and (not request_file or not response_file)
                 or action not in {'owner-pair', 'owner-request'}):
             raise ValueError('owner helper requires explicit action inputs')
+        module = self._owner_helper()
         try:
-            module = types.ModuleType('cortex_owner_helper')
-            module.__file__ = str(path)
-            exec(compile(source, str(path), 'exec'), module.__dict__)
             helper = module.OwnerHelper(self, selector=selector)
             if action == 'owner-pair': return helper.pair(volume)
             return helper.request(request_file, response_file)
@@ -528,8 +532,10 @@ class Runtime:
         marker = self.state / 'console-enrollment-pending.json'
         if marker.exists() or marker.is_symlink() or destination.exists() or destination.is_symlink():
             raise RuntimeError('console enrollment exists or is uncertain; deliberate recovery required')
-        if not self.args.owner_engine:
-            raise ValueError('console enrollment requires an explicit owner engine')
+        try:
+            self._owner_helper().validate_selector(self.args.owner_engine)
+        except Exception:
+            raise ValueError('console enrollment requires local or connection:<name>') from None
         for parent in reversed([root, *root.parents]):
             if parent == Path(parent.anchor): continue
             if not parent.exists(): parent.mkdir(mode=0o700)

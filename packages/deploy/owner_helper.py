@@ -261,8 +261,17 @@ def _endpoint(path):
     return {'path': str(path), 'device': before.st_dev, 'inode': before.st_ino, 'uid': before.st_uid}
 
 
+def validate_selector(selector):
+    """Validate the explicit selector grammar without engine effects or aliases."""
+    if selector == 'local': return selector
+    if isinstance(selector, str) and re.fullmatch(r'connection:[A-Za-z0-9_.-]{1,80}', selector):
+        return selector
+    raise HelperError('choose local or an explicit named connection')
+
+
 class Engine:
     def __init__(self, selector, runner):
+        validate_selector(selector)
         self.runner = runner
         binary = shutil.which('podman')
         if not binary or not Path(binary).is_absolute(): raise HelperError('Podman is unavailable')
