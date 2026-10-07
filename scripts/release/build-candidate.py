@@ -414,6 +414,18 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
             shutil.copyfile(distribution.locate_file(notice), out / "licenses" / f"{name}-{index}-{Path(notice).name}")
         builder_packages.append({"SPDXID": f"SPDXRef-builder-{name}", "name": name,
                                  "versionInfo": distribution.version, "downloadLocation": "NOASSERTION", "filesAnalyzed": False})
+    runtime_packages = []
+    runtime_names = ("annotated-types", "pydantic", "pydantic-core", "typing-extensions", "typing-inspection") if architecture == "amd64" else ()
+    for name in runtime_names:
+        distribution = metadata.distribution(name)
+        notices = [f for f in distribution.files or [] if ".dist-info/" in str(f)
+                   and ("license" in str(f).lower() or "copying" in str(f).lower())]
+        if not notices:
+            raise RuntimeError("runtime dependency license notice missing")
+        for index, notice in enumerate(notices):
+            shutil.copyfile(distribution.locate_file(notice), out / "licenses" / f"{name}-{index}-{Path(notice).name}")
+        runtime_packages.append({"SPDXID": f"SPDXRef-runtime-{name}", "name": name,
+                                 "versionInfo": distribution.version, "downloadLocation": "NOASSERTION", "filesAnalyzed": False})
     packages = [{"SPDXID": "SPDXRef-python", "name": "CPython", "versionInfo": platform.python_version(),
                  "downloadLocation": "https://www.python.org/", "filesAnalyzed": False},
                 {"SPDXID": "SPDXRef-cortex-helper" if cm2 else "SPDXRef-cortex-installer", "name": "Cortex CM-2 native helper" if cm2 else "Cortex TEST installer", "versionInfo": version,
@@ -422,6 +434,7 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
                  "downloadLocation": f"https://github.com/Kaidera-AI/cortex/tree/{source_sha}", "filesAnalyzed": False}]
     packages.append({"SPDXID": "SPDXRef-openssl", "name": "OpenSSL", "versionInfo": native["inputs"]["openssl"]["version"],
                      "downloadLocation": native["inputs"]["openssl"]["url"], "filesAnalyzed": False})
+    packages.extend(runtime_packages)
     document = spdx_document("Cortex TEST native host inventory", f"{version}-host-{source_sha}", packages)
     document["comment"] = ("CPython/CM-2 helper/agent runtime inventory. " if cm2 else "CPython/installer/agent runtime inventory. ") + "Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
     (out / "host.spdx.json").write_text(json.dumps(document, indent=2) + "\n")
@@ -429,6 +442,7 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
                 **({"maximum_glibc": "2.35"} if architecture == "amd64" else {"minimum_macos": "14"}), "python": platform.python_version(),
                 "dependencies": programs["cortex" if cm2 else "cortex-test"]["dependencies"], "programs": programs,
                 **({"host_contract": "linux-cm2"} if cm2 else {}),
+                **({"runtime_packages": runtime_packages} if architecture == "amd64" else {}),
                 "builder_packages": builder_packages, "native_runtime_bootstrap": native,
                 "build_lock_sha256": digest(lock)}, indent=2) + "\n")
     shutil.rmtree(out / "work")

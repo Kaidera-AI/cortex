@@ -11,6 +11,12 @@ generically onto a transport.
 
 from __future__ import annotations
 
-from .operations import OPERATIONS
-
 __all__ = ["OPERATIONS"]
+
+
+def __getattr__(name: str):
+    if name == "OPERATIONS":
+        from .operations import OPERATIONS
+
+        return OPERATIONS
+    raise AttributeError(name)
