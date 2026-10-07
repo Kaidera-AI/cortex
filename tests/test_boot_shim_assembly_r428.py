@@ -34,11 +34,11 @@ def test_boot_enabled_capsule_requires_source_bound_executable_shim(defect,tmp_p
     if defect=='source-changed':source.write_bytes(b'PUBLIC changed source\n')
     for p,v in [(images/'image-inventory.json',inventory),(images/'source-payload-inventory.json',sources),(images/'rehearsal-receipt.json',rehearsal),(host/'host-inventory.json',native),(reader/'reader.json',receipt)]:p.write_text(json.dumps(v))
     out=tmp_path/'out'
-    call=lambda:module.assemble_cm2(out,images,host,reader,SOURCE,VERSION,'linux-x86_64',release_sequence=7)
+    call=lambda:module.assemble_cm2(out,images,host,reader,SOURCE,VERSION,target='linux-x86_64',release_sequence=7)
     if defect=='valid':
-        call();release=json.loads((out/'unsigned/release.linux.json').read_text())
+        call();release=json.loads((out/'unsigned/release.json').read_text())
         assert release['files']['bin/cortex-boot']==hashlib.sha256(source.read_bytes()).hexdigest()
-        archives=list(out.glob('*.tar.gz'));assert len(archives)==1
+        archives=list((out/'unsigned').glob('*.tar.gz'));assert len(archives)==1
         with tarfile.open(archives[0]) as archive:
             member=next(m for m in archive.getmembers() if m.name.endswith('/bin/cortex-boot'))
             assert member.mode==0o755 and archive.extractfile(member).read()==source.read_bytes()
