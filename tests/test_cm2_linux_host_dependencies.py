@@ -28,8 +28,8 @@ def test_native_host_runtime_import_closure_has_exact_repo_locked_linux_wheel_ha
 def test_actual_release_entry_help_imports_only_declared_builder_packages(tmp_path):
     # Loaded modules are real fixture dependencies; the child rejects each
     # third-party import absent from the actual clean native-builder lock.
-    script='''import importlib.abc,runpy,sys
-allowed=set(sys.argv[1].split(','))|sys.stdlib_module_names|{'cortex_v2'}
+    script='''import importlib.abc,runpy,sys,sysconfig
+allowed=set(sys.argv[1].split(','))|sys.stdlib_module_names|{'cortex_v2',sysconfig._get_sysconfigdata_name()}
 class Audit(importlib.abc.MetaPathFinder):
  def find_spec(self,fullname,path=None,target=None):
   if fullname.split('.')[0] not in allowed:raise ModuleNotFoundError('UNDECLARED:'+fullname.split('.')[0])
