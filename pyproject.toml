@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-cortex = "cortex_v2.cli.keys:human_main"
+cortex = "cortex_v2.cli.native:main"
 cortex2 = "cortex_v2.cli.main:main"
 
 [dependency-groups]
