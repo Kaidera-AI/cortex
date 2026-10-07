@@ -219,7 +219,8 @@ async def select_persona_revision(
         """
         SELECT persona_id, revision, template_version, payload, body
           FROM cortex_context.persona_revisions
-         WHERE scope_id = $1 AND ($2::integer IS NULL OR revision = $2)
+         WHERE scope_id = $1 AND audience = 'scope'
+           AND ($2::integer IS NULL OR revision = $2)
          ORDER BY created_at DESC, revision DESC, body DESC,
                   template_version DESC, payload::text DESC, ctid DESC
          LIMIT 1
@@ -772,7 +773,7 @@ async def prepare_context(
               SELECT DISTINCT ON (rule_id)
                      rule_id, revision, slug, obligation, body, state
                 FROM cortex_context.rule_revisions
-               WHERE scope_id = $1
+               WHERE scope_id = $1 AND audience = 'scope'
                ORDER BY rule_id, revision DESC
           ) AS latest
          WHERE latest.state = 'active'
