@@ -52,8 +52,8 @@ def test_exact_cm2_program_bytes_qualify_before_any_final_inventory(case,tmp_pat
     def native(args,*,read=False):
         if args[0]=='readelf':
             is_outer=Path(args[-1]).parent==tmp_path/'bin'
-            if is_outer and case==('qualify-cortex' if Path(args[-1]).name=='cortex' else 'qualify-agent'):return versions('GLIBC_2.36')
-            return versions('GLIBC_2.35')
+            if is_outer and case==('qualify-cortex' if Path(args[-1]).name=='cortex' else 'qualify-agent'):return versions('2.36')
+            return versions('2.35')
         binary=Path(args[0]);assert args==[str(binary),'--help'] and not read
         assert binary.read_bytes()==archive([('libpython3.12.so.1.0',elf())])
         calls.append(('help',binary.name));qualified.append(binary.name);return ''
