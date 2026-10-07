@@ -94,7 +94,7 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
         if version_destination:
             from database_version_receipt import observe
             observe(engine, record, entries, target=target, source_root=ROOT,
-                    source_sha=source_sha, destination=Path(version_destination))
+                    source_sha=source_sha, destination=Path(os.path.expandvars(version_destination)))
         # Readiness is reached from the host through the internal network's
         # loopback publication. The authenticated smoke then uses that same URL.
         smoke(root, record)

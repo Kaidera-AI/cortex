@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 45
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      CORTEX_CI_DATABASE_VERSION_RECEIPT: ${{ runner.temp }}/cortex-r52-source-rehearsal/database-version-receipt.json
+      CORTEX_CI_DATABASE_VERSION_RECEIPT: $RUNNER_TEMP/cortex-r52-source-rehearsal/database-version-receipt.json
     steps:
       - name: Exact source / first attempt
         env:
@@ -56,7 +56,7 @@ jobs:
     timeout-minutes: 45
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      CORTEX_CI_DATABASE_VERSION_RECEIPT: ${{ runner.temp }}/cortex-r52-source-rehearsal/database-version-receipt.json
+      CORTEX_CI_DATABASE_VERSION_RECEIPT: $RUNNER_TEMP/cortex-r52-source-rehearsal/database-version-receipt.json
     steps:
       - name: Exact source / first attempt
         env:
