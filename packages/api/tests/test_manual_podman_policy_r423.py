@@ -84,5 +84,5 @@ def test_changed_existing_descriptor_cannot_forge_policy_digest(tmp_path, monkey
     value = json.loads(target.read_text()); value['podman']['policy_sha256'] = '0' * 64
     body = (json.dumps(value) + '\n').encode(); target.write_bytes(body)
     with pytest.raises(module.PrerequisiteRefusal) as caught: module.write_prerequisite(**args)
-    assert caught.value.code == 'cortex_descriptor_immutable_mismatch'
+    assert caught.value.code == 'cortex_instance_mismatch'
     assert target.read_bytes() == body
