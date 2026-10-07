@@ -37,3 +37,20 @@ def test_boot_without_token_reports_pending_never_healthy(tmp_path):
     obj.check=lambda:pytest.fail('fresh unauthenticated startup must not report readiness')
     result=obj.up()
     assert result=={'started':True,'readiness':'console-enrollment-required','healthy':False}
+
+
+def test_enrollment_and_unmodified_signed_writer_agree_on_all_credential_fields(tmp_path,monkeypatch):
+    from test_manual_prerequisite_r407 import required,seed
+    writer=required(monkeypatch)
+    args,manifest,health,expected,calls,_=seed(tmp_path)
+    _,obj=runtime(tmp_path)
+    obj.args.credential_dir=str(tmp_path/'enrolled')
+    obj.args.credential_project='notes'
+    owner_calls=[]; fake_owner(obj,owner_calls)
+    receipt=obj.enroll_console()
+    args['credential_dir']=Path(receipt['credential_dir'])
+    writer.write_prerequisite(**args)
+    descriptor=json.loads((args['home']/'.cortex/prerequisite.json').read_text())
+    assert {field:descriptor[field] for field in ('credential_dir','credential_file','credential_project','credential_agent')} == {
+        field:receipt[field] for field in ('credential_dir','credential_file','credential_project','credential_agent')}
+    assert calls==['http://127.0.0.1:8501/health']
