@@ -76,11 +76,13 @@ def _payload(stream, release, check):
             if root is None: root = prefix
             if prefix != root or entry.mode & ~0o777 or entry.mode & 0o022 or entry.sparse is not None:
                 raise ValueError
+            if full in directories or name in files:
+                raise ValueError
             if entry.type == tarfile.DIRTYPE:
-                if full in directories or entry.size != 0: raise ValueError
+                if entry.size != 0: raise ValueError
                 directories.add(full)
                 continue
-            if entry.type not in (tarfile.REGTYPE, tarfile.AREGTYPE) or not name or name in files:
+            if entry.type not in (tarfile.REGTYPE, tarfile.AREGTYPE) or not name:
                 raise ValueError
             if len(files) >= MAX_FILES+2 or not 0 <= entry.size <= MAX_PAYLOAD_BYTES:
                 raise ValueError
