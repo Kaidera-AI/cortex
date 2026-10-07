@@ -1,4 +1,4 @@
-"""Release-owned member bridge. Only the qualified GET /projects row is admitted."""
+"""Release-owned member bridge for qualified projects and agent log commands."""
 from __future__ import annotations
 
 import argparse
@@ -100,12 +100,27 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
                         help="non-secret v2 member connection profile")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("projects", help="show registered projects using the selected member")
+    log = commands.add_parser('log', help='record and confirm the selected agent event')
+    log.add_argument('--goal', '--goal-parent', action=_SingleValue)
+    confirmation = log.add_mutually_exclusive_group()
+    confirmation.add_argument('--confirm', dest='confirm', action='store_true', default=None)
+    confirmation.add_argument('--no-confirm', dest='confirm', action='store_false')
+    log.add_argument('agent')
+    log.add_argument('event_type')
+    log.add_argument('summary')
+    log.add_argument('files', nargs='*')
     api = commands.add_parser("api", help="raw qualified facade response")
     api.add_argument("method")
     api.add_argument("path")
     api.add_argument("--agent-name", action=_SingleValue)
     try:
         args = parser.parse_args(argv)
+        if args.command == 'log':
+            from .agent_log import prepare, run
+            prepared = prepare(args)
+            profile = load_member_profile(args.config)
+            stdout.write(run(profile, args, prepared))
+            return 0
         # Validate caller data before profile construction or credential access.
         if args.command == "api":
             if args.method != "GET" or args.path != "/projects" or stdin.read(1):

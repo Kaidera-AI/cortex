@@ -1183,6 +1183,10 @@ def create_app() -> FastAPI:
         application, active_profile(), operation_helpers
     )
 
+    from .agent_log import mount_log_routes
+    mount_log_routes(application, operation_helpers,
+                     lambda *args, **kwargs: resolve_scopes(*args, **kwargs))
+
     return application
 
 
