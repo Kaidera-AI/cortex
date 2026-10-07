@@ -17,6 +17,10 @@ class FacadeUnavailable(ClientConfigError):
     """The requested caller contract has not been mapped in this release."""
 
 
+class _BootUsage(Exception):
+    pass
+
+
 class _LogUsage(Exception):
     pass
 
@@ -116,12 +120,30 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
     confirmation.add_argument('--confirm', dest='confirm', action='store_true', default=None)
     confirmation.add_argument('--no-confirm', dest='confirm', action='store_false')
     log.add_argument('arguments', nargs=argparse.REMAINDER)
+    boot = commands.add_parser('boot', help='read and validate selected member boot context')
+    def boot_usage(*unused, **kwargs):
+        from .agent_boot import USAGE
+        stdout.write(USAGE)
+        raise _BootUsage
+    boot.print_help = boot_usage
+    boot.add_argument('agent', nargs='?')
+    boot.add_argument('--budget', action=_SingleValue)
+    boot.add_argument('--query', action=_SingleValue)
+    boot.add_argument('--full', action='store_true')
     api = commands.add_parser("api", help="raw qualified facade response")
     api.add_argument("method")
     api.add_argument("path")
     api.add_argument("--agent-name", action=_SingleValue)
     try:
         args = parser.parse_args(argv)
+        if args.command == 'boot':
+            if args.agent is None:
+                boot_usage()
+            from .agent_boot import prepare, run
+            prepared = prepare(args)
+            profile = load_member_profile(args.config)
+            stdout.write(run(profile, args, prepared))
+            return 0
         if args.command == 'log':
             if args.arguments[:1] == ['--']:
                 args.arguments = args.arguments[1:]
@@ -135,8 +157,14 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
             return 0
         # Validate caller data before profile construction or credential access.
         if args.command == "api":
-            if args.method != "GET" or args.path != "/projects" or stdin.read(1):
+            if args.method != "GET" or stdin.read(1):
                 raise FacadeUnavailable("facade request unavailable in this release")
+            if args.path != '/projects':
+                from .agent_boot import prepare_raw, run
+                prepared = prepare_raw(args.path, args.agent_name)
+                profile = load_member_profile(args.config)
+                stdout.write(run(profile, args, prepared))
+                return 0
         profile = load_member_profile(args.config)
         response = request_projects(profile, agent_name=getattr(args, "agent_name", ""))
         if response.status != 200:
@@ -158,12 +186,21 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
             output = response.body.decode("utf-8")
         stdout.write(output)
         return 0
+    except _BootUsage:
+        return 0
     except _LogUsage:
         return 1
     except FacadeUnavailable:
         print("ERROR: facade request unavailable in this release", file=stderr)
         return 2
-    except (ClientConfigError, KeyStoreError, ValueError, UnicodeError):
+    except ClientConfigError as exc:
+        from .agent_boot import BootRefused
+        if isinstance(exc, BootRefused):
+            print('ERROR: '+str(exc), file=stderr)
+        else:
+            print("ERROR: member project request refused; check its v2 profile, enrollment and response contract", file=stderr)
+        return 2
+    except (KeyStoreError, ValueError, UnicodeError):
         print("ERROR: member project request refused; check its v2 profile, enrollment and response contract", file=stderr)
         return 2
     except CortexTransportError:
