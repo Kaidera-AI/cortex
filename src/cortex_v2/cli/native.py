@@ -206,7 +206,8 @@ def main(argv=None, *, out=None, err=None):
                 _validate_receipt(value,connection,descriptor)
             line=_public_line(value,65536);_check_deadline(deadline)
             output_started=True
-            out.write(line);out.flush();_check_deadline(deadline)
+            if out.write(line)!=len(line):raise OSError
+            out.flush();_check_deadline(deadline)
         return 0
     except BaseException as error:
         if output_started or isinstance(error,(KeyboardInterrupt,GeneratorExit)):return 4
@@ -214,7 +215,10 @@ def main(argv=None, *, out=None, err=None):
         status=error.http_status if isinstance(error,custody.PrerequisiteRefusal) else None
         if type(status) is not int or not 100<=status<=599:status=None
         refusal=custody.PrerequisiteRefusal(code,http_status=status).public()
-        try:err.write(_public_line(refusal,4096));err.flush()
+        try:
+            line=_public_line(refusal,4096)
+            if err.write(line)!=len(line):return 4
+            err.flush()
         except Exception:return 4
         return 2
     finally:
