@@ -13,7 +13,6 @@ from test_cm2_build_catalog_assembly import observation, image, SOURCE, VERSION
 from test_linux_builder_contract import load
 
 REPO = Path(__file__).resolve().parents[1]
-READER = Path('/Users/amadmalik/DevVault/helix/output/Cortex/g1-package-linux/2026-10-06/r221-linux-cm2/member-reader-assembly-source-probe1')
 CASES = ['valid', 'target', 'sequence-zero', 'sequence-bool', 'sequence-missing',
  'image-source', 'image-target', 'image-role', 'image-path', 'image-digest', 'image-label', 'image-layer',
  'payload-map', 'payload-digest', 'payload-source', 'db-payload', 'replay', 'catalog',
@@ -23,20 +22,22 @@ CASES = ['valid', 'target', 'sequence-zero', 'sequence-bool', 'sequence-missing'
 
 
 def fixture(tmp_path, monkeypatch):
-    module, _, rehearsal, _ = observation(tmp_path, monkeypatch)
+    source_root = tmp_path/'source';source_root.mkdir()
+    module, _, rehearsal, _ = observation(source_root, monkeypatch)
     assert callable(getattr(module, 'assemble_cm2', None)), 'CM-2 outer assembler missing'
     # Copy only the six public reader source modules; never credential material.
-    original = json.loads((READER/'reader.json').read_text())
-    for name in original['files']:
-        destination = tmp_path/'src'/name
+    reader_builder = load('build-key-reader.py', monkeypatch)
+    for relative in reader_builder.MODULES:
+        name = 'cortex_v2/'+relative
+        destination = source_root/'src'/name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REPO/'src'/name, destination)
-    script = tmp_path/'deploy/release/10-create-roles.sh'
+    script = source_root/'deploy/release/10-create-roles.sh'
     script.parent.mkdir(parents=True); script.write_bytes(b'#!/bin/sh\n# PUBLIC synthetic initialization\n')
     for name in ['LICENSE', 'scripts/release/requirements-linux-host-build.txt']:
-        dest = tmp_path/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(REPO/name,dest)
+        dest = source_root/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(REPO/name,dest)
     catalog = load('linux_build_catalog.py', monkeypatch)
-    payloads = catalog.source_payloads(tmp_path)
+    payloads = catalog.source_payloads(source_root)
     for row in [rehearsal['build_catalog'],rehearsal['migration']['build_catalog'],rehearsal['migration_replay']['build_catalog']]:
         row['api_source_payload_sha256'] = payloads['api']['sha256']
     raw = json.dumps(rehearsal['build_catalog'],sort_keys=True,separators=(',',':')).encode()+b'\n'
@@ -59,10 +60,15 @@ def fixture(tmp_path, monkeypatch):
         programs[name]={'sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'architecture':'x86_64','help':'PASS','maximum_glibc':'2.35','embedded_elf_count':1,'dependencies':['libc.so.6'],'archive_inventory':listing}
     notice=host/'licenses/PUBLIC-LICENSE';notice.write_bytes(b'PUBLIC synthetic native license\n')
     bootstrap={'schema':'cortex.native-ci-runtime.v1','inputs':{'public':'synthetic native admission'},'runtime':{'python':'3.12.14'},'licenses':{'PUBLIC-LICENSE':hashlib.sha256(notice.read_bytes()).hexdigest()}}
-    native={'source_sha':SOURCE,'version':VERSION,'target':'linux-x86_64','host_contract':'linux-cm2','maximum_glibc':'2.35','python':'3.12.14','programs':programs,'native_runtime_bootstrap':bootstrap,'build_lock_sha256':hashlib.sha256((tmp_path/'scripts/release/requirements-linux-host-build.txt').read_bytes()).hexdigest(),'runtime_packages':[],'builder_packages':[]}
+    native={'source_sha':SOURCE,'version':VERSION,'target':'linux-x86_64','host_contract':'linux-cm2','maximum_glibc':'2.35','python':'3.12.14','programs':programs,'native_runtime_bootstrap':bootstrap,'build_lock_sha256':hashlib.sha256((source_root/'scripts/release/requirements-linux-host-build.txt').read_bytes()).hexdigest(),'runtime_packages':[],'builder_packages':[]}
     (host/'host.spdx.json').write_text(json.dumps({'spdxVersion':'SPDX-2.3','SPDXID':'SPDXRef-DOCUMENT','name':'PUBLIC synthetic host','packages':[]}))
-    reader=tmp_path/'reader-stage';reader.mkdir();reader_receipt=copy.deepcopy(original);reader_receipt['source_sha']=SOURCE;reader_receipt['archive']='cortex-key-reader-'+SOURCE+'.zip'
-    shutil.copyfile(READER/original['archive'],reader/reader_receipt['archive'])
+    reader=tmp_path/'reader-stage'
+    with monkeypatch.context() as context:
+        context.setattr(reader_builder,'ROOT',source_root)
+        context.setattr(reader_builder.subprocess,'check_output',lambda args,**kw:SOURCE+'\n' if 'rev-parse' in args else '')
+        context.setattr(sys,'argv',['build-key-reader.py','--output',str(reader)])
+        reader_builder.main()
+    reader_receipt=json.loads((reader/'reader.json').read_text())
     calls=[];monkeypatch.setattr(module,'source_identity',lambda sha:calls.append(sha))
     monkeypatch.setattr(module,'run',lambda args,**kw:json.dumps(bootstrap['inputs']))
     return module,images,host,reader,inventory,sources,rehearsal,native,reader_receipt,raw,calls
