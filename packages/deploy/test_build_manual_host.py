@@ -31,6 +31,20 @@ class HostTests(unittest.TestCase):
                 link=tarfile.TarInfo('python/bin/escape');link.type=tarfile.SYMTYPE;link.linkname='../../../outside';tar.addfile(link)
             with self.assertRaises(ValueError):host.unpack(archive,root/'stage')
 
+    def test_minisign_pin_is_mandatory(self):
+        self.inputs.pop('minisign')
+        with self.assertRaises(ValueError):host.validate(self.inputs)
+
+    def test_prune_preserves_closure_and_removes_acquisition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);site=root/'python/lib/python3.12/site-packages';site.mkdir(parents=True)
+            for name in ('pip','pip-26.2.1.dist-info','cryptography','cffi'):(site/name).mkdir()
+            (root/'python/lib/python3.12/ensurepip').mkdir()
+            binary=root/'python/bin';binary.mkdir();(binary/'pip3').write_text('stub')
+            host.prune_acquisition(root)
+            self.assertFalse((site/'pip').exists());self.assertFalse((binary/'pip3').exists())
+            self.assertTrue((site/'cryptography').is_dir());self.assertTrue((site/'cffi').is_dir())
+
     def test_complete_native_pin_set(self):
         host.validate(self.inputs)
 
