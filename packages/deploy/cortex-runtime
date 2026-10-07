@@ -230,6 +230,107 @@ class Runtime:
                 handle.write('CORTEX_ADMIN_TOKEN=' + secrets.token_urlsafe(48) + '\n')
         private_regular(self.env_file)
 
+    def provider_setup(self, provider_home):
+        """Materialise only the pinned public template; never replace authority."""
+        template_member = 'packages/installer/templates/openkai.env.example'
+        template_sha = 'fd25fc78a15f85a47fa8bae91179dcea3892cc37f81cd42186face03e962fc64'
+        template = images.read_member(self.payload, template_member)
+        if (self.installation['files'].get(template_member) != template_sha
+                or hashlib.sha256(template).hexdigest() != template_sha):
+            raise ValueError('pinned provider template checksum differs')
+
+        def directory(path, *, private=False):
+            info = path.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in {0, os.geteuid()}
+                    or info.st_mode & 0o022 and not (info.st_uid == 0 and info.st_mode & stat.S_ISVTX)
+                    or private and (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700)):
+                raise ValueError('provider setup directory custody is invalid')
+
+        home = Path(provider_home)
+        original_state = Path(self.args.state_dir).expanduser()
+        if (not home.is_absolute() or '..' in home.parts or home != home.resolve()
+                or any(ord(c) < 32 for c in str(home))
+                or not original_state.is_absolute() or original_state != self.state):
+            raise ValueError('provider setup requires physical absolute paths')
+        for path in [*reversed(home.parents), *reversed(self.state.parents)]:
+            directory(path)
+        if home.exists() or home.is_symlink():
+            directory(home, private=True)
+        if self.state.exists() or self.state.is_symlink():
+            directory(self.state, private=True)
+        target = home / '.env'
+        settings = self.state / 'provider-settings.json'
+        expected = {'schema': 'cortex.provider-settings.v1', 'path': str(target)}
+
+        def read_private(path):
+            try:
+                fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            except OSError:
+                raise ValueError('provider setup private file custody is invalid') from None
+            try:
+                info = os.fstat(fd)
+                if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                        or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                        or info.st_size > 262144):
+                    raise ValueError('provider setup private file custody is invalid')
+                data = os.read(fd, 262145)
+                current = path.lstat()
+                if len(data) > 262144 or (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino):
+                    raise ValueError('provider setup private file changed')
+                return data
+            finally:
+                os.close(fd)
+
+        def exclusive(path, data):
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as handle:
+                os.fchmod(handle.fileno(), 0o600)
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+
+        if settings.exists() or settings.is_symlink():
+            if json.loads(read_private(settings)) != expected:
+                raise ValueError('provider path receipt conflicts')
+        if target.exists() or target.is_symlink():
+            read_private(target)
+        # Retain the existing runtime ownership guards; do not invent an owner
+        # receipt over an unowned project's containers or volumes.
+        self.prepare()
+        if not home.exists():
+            home.mkdir(mode=0o700)
+        directory(home, private=True)
+        authored = False
+        if not target.exists():
+            try:
+                exclusive(target, template)
+                authored = True
+            except FileExistsError:
+                read_private(target)
+        provenance = home / 'cortex-provider-bootstrap.json'
+        if authored and not provenance.exists():
+            record = {'schema': 'cortex.provider-bootstrap.v1', 'author': 'cortex',
+                      'source_repo': 'Kaidera-AI/openkai',
+                      'source_revision': 'f3660f3c19939d2a6ff3b95be9aab3f85fb8312a',
+                      'source_path': '.env.example', 'sha256': template_sha}
+            try:
+                exclusive(provenance, (json.dumps(record, sort_keys=True, indent=2) + '\n').encode())
+            except FileExistsError:
+                read_private(provenance)
+        if not settings.exists():
+            try:
+                exclusive(settings, (json.dumps(expected, sort_keys=True, indent=2) + '\n').encode())
+            except FileExistsError:
+                if json.loads(read_private(settings)) != expected:
+                    raise ValueError('provider path receipt conflicts')
+        self._provider_authority()
+        return {'authored': authored, 'path': str(target)}
+
     def _provider_authority(self):
         # Validate custody before opening authority or calling its materializer.
         # These maintenance reads must never create/repair instance state.
@@ -876,7 +977,7 @@ class Runtime:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['prepare-images', 'up', 'check', 'schema-status', 'rotate-leaves', 'backup', 'restore', 'owner-pair', 'owner-request', 'enroll-console', 'provider-labels-inventory', 'provider-labels-apply'])
+    parser.add_argument('action', choices=['provider-setup', 'prepare-images', 'up', 'check', 'schema-status', 'rotate-leaves', 'backup', 'restore', 'owner-pair', 'owner-request', 'enroll-console', 'provider-labels-inventory', 'provider-labels-apply'])
     parser.add_argument('--project', default='cortex')
     parser.add_argument('--state-dir', required=True)
     parser.add_argument('--payload-dir', required=True)
@@ -892,9 +993,14 @@ def main():
     parser.add_argument('--owner-request-file')
     parser.add_argument('--owner-response-file')
     parser.add_argument('--label-inventory-sha256')
+    parser.add_argument('--provider-home')
     args = parser.parse_args()
     runtime = Runtime(args)
-    if args.action in {'owner-pair', 'owner-request'}:
+    if args.action == 'provider-setup':
+        if not args.provider_home:
+            parser.error('provider-setup requires --provider-home')
+        result = runtime.provider_setup(args.provider_home)
+    elif args.action in {'owner-pair', 'owner-request'}:
         result = runtime.owner_action(args.action, selector=args.owner_engine, volume=args.owner_volume,
             request_file=args.owner_request_file, response_file=args.owner_response_file)
     elif args.action == 'enroll-console':

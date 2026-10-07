@@ -36,7 +36,8 @@ CREATE TABLE public.cortex_actors (
 CREATE TABLE public.agents (
     id uuid PRIMARY KEY, name text NOT NULL, project text NOT NULL,
     project_id uuid REFERENCES public.cortex_projects(id),
-    actor_id uuid REFERENCES public.cortex_actors(id), status text NOT NULL DEFAULT 'available'
+    actor_id uuid REFERENCES public.cortex_actors(id), status text NOT NULL DEFAULT 'available',
+    capabilities jsonb
 );
 """
 
@@ -77,7 +78,7 @@ async def pg_env():
             project_id, actor_id, agent_id = uuid4(), uuid4(), uuid4()
             await conn.execute("INSERT INTO public.cortex_projects(id,project_key) VALUES($1,'notes')", project_id)
             await conn.execute("INSERT INTO public.cortex_actors(id,project_id,slug) VALUES($1,$2,'writer')", actor_id, project_id)
-            await conn.execute("INSERT INTO public.agents(id,name,project,project_id,actor_id) VALUES($1,'writer','notes',$2,$3)", agent_id, project_id, actor_id)
+            await conn.execute("INSERT INTO public.agents(id,name,project,project_id,actor_id,capabilities) VALUES($1,'writer','notes',$2,$3,'{\"keep_visible\":true}'::jsonb)", agent_id, project_id, actor_id)
         now = [datetime.now(timezone.utc)]
         store = auth.ServiceAuthStore(lambda: pool, clock=lambda: now[0])
         yield store, pool, now, project_id, agent_id
