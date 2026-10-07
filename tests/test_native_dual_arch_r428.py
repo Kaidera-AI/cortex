@@ -78,3 +78,10 @@ def test_rehearsal_observes_versions_before_smoke_and_cleanup():
     source = (ROOT / 'scripts/release/package_rehearsal.py').read_text()
     assert 'CORTEX_CI_DATABASE_VERSION_RECEIPT' in source
     assert source.index('observe(') < source.index('smoke(root, record)') < source.index('outcome["cleanup"]')
+
+def test_rehearsal_imports_from_clean_native_builder_without_site_packages():
+    import subprocess
+    import sys
+    code = "import sys; sys.path[:0] = " + repr([str(ROOT / 'scripts/release'), str(ROOT / 'scripts')]) + "; import package_rehearsal"
+    result = subprocess.run([sys.executable, '-I', '-c', code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
