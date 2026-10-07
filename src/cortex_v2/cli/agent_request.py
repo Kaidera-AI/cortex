@@ -115,10 +115,7 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
     confirmation = log.add_mutually_exclusive_group()
     confirmation.add_argument('--confirm', dest='confirm', action='store_true', default=None)
     confirmation.add_argument('--no-confirm', dest='confirm', action='store_false')
-    log.add_argument('agent')
-    log.add_argument('event_type')
-    log.add_argument('summary')
-    log.add_argument('files', nargs='*')
+    log.add_argument('arguments', nargs=argparse.REMAINDER)
     api = commands.add_parser("api", help="raw qualified facade response")
     api.add_argument("method")
     api.add_argument("path")
@@ -126,6 +123,11 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
     try:
         args = parser.parse_args(argv)
         if args.command == 'log':
+            if args.arguments[:1] == ['--']:
+                args.arguments = args.arguments[1:]
+            if len(args.arguments) < 3:
+                log_usage()
+            args.agent, args.event_type, args.summary, *args.files = args.arguments
             from .agent_log import prepare, run
             prepared = prepare(args)
             profile = load_member_profile(args.config)

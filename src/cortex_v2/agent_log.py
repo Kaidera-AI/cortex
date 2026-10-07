@@ -78,7 +78,28 @@ async def read_log(connection, context, kind, write_id):
     if kind not in KINDS:
         raise _refuse()
     row = await get_content(connection, _id(write_id), 1, False)
-    return _view(row, context, kind)
+    view = _view(row, context, kind)
+    creator = _id(row.get('created_by_principal'))
+    # Command receipts are principal-local by RLS. This command confirms its
+    # own writer's log; generic same-scope content cannot mint log origin.
+    if creator != context.principal.principal_id:
+        raise _refuse(404, 'log_record_not_found')
+    author = await connection.fetchval('''
+        SELECT p.principal_name FROM cortex_core.command_receipts r
+          JOIN cortex_auth.principals p ON p.principal_id=r.principal_id
+          JOIN cortex_auth.actor_bindings b ON b.principal_id=p.principal_id
+          JOIN cortex_auth.actors a ON a.actor_id=b.actor_id
+          JOIN cortex_auth.memberships m ON m.actor_id=a.actor_id AND m.scope_id=r.scope_id
+         WHERE r.principal_id=$1 AND r.scope_id=$2 AND r.operation='agent.log'
+           AND r.receipt_kind='committed' AND a.actor_kind='agent'
+           AND ((r.receipt->>'id'=$3 AND ($4<>'team_event' OR NOT (r.receipt ? 'team_event_id')))
+                OR ($4='team_event' AND r.receipt->>'team_event_id'=$3))
+    ''', creator, context.selected.scope_id, write_id, kind)
+    if (not isinstance(author, str) or not re.fullmatch(r'[a-z][a-z0-9_-]{0,95}', author)
+            or view['row']['agent_name'] != author + '@' + context.selected.alias):
+        raise _refuse(404, 'log_record_not_found')
+    view['row']['agent_name'] = author + '@' + context.selected.alias
+    return view
 
 
 async def write_log(connection, context, payload, idempotency_key, agent_name):
