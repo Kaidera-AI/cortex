@@ -339,7 +339,11 @@ def freeze_linux_cm2_programs(out: Path) -> dict:
             raise RuntimeError("CM-2 executable changed")
         return identity(before), checksum
 
-    parent = identity((out / "bin").lstat())
+    parent_info = (out / "bin").lstat()
+    if (not stat.S_ISDIR(parent_info.st_mode) or parent_info.st_uid != os.getuid()
+            or parent_info.st_mode & 0o7022):
+        raise RuntimeError("CM-2 executable directory custody invalid")
+    parent = identity(parent_info)
     bindings = {name: observe(out / "bin" / name) for name, _, _ in entries}
 
     def recheck():
