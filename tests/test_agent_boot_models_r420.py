@@ -4,7 +4,11 @@ import importlib
 import importlib.util
 
 import pytest
-from boot_r374_fixture import seed, uid
+from boot_r374_fixture import seed, uid as native_uid
+
+
+def uid(label):
+    return str(native_uid(label))
 
 
 def models():
