@@ -42,7 +42,7 @@ class MemoryDB:
                     principal_disabled=p["disabled_at"], grant_disabled=g["disabled_at"],
                     grant_scopes=g["scopes"], current_generation=self.data["state"]["generation"],
                     project_key="notes", project_status="active", agent_name="writer",
-                    agent_status="available", agent_project_id=p["project_id"],
+                    agent_status="available", agent_visibility="active", agent_project_id=p["project_id"],
                     agent_actor_id=p["actor_id"], actor_project_id=p["project_id"], actor_status="active")
 
 
@@ -541,7 +541,7 @@ async def test_list_metadata_no_digest_or_plaintext(env):
 
 
 def test_migration_is_additive_private_and_uses_existing_registries():
-    sql = (Path(__file__).parents[2] / "data/migrations/2026-09-05-01-service-auth.sql").read_text()
+    sql = (Path(__file__).parents[2] / "schema/migrations/2026-09-05-01-service-auth.sql").read_text()
     assert "CREATE SCHEMA IF NOT EXISTS cortex_auth" in sql
     for table in ["public.cortex_projects(id)", "public.agents(id)", "public.cortex_actors(id)"]:
         assert f"REFERENCES {table}" in sql

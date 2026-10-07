@@ -72,7 +72,7 @@ async def pg_env():
                     pytest.fail(f"Required runtime role {role} is absent; no objects were changed")
             await conn.execute(REGISTRIES)
             owned = True
-            sql = (Path(__file__).parents[2] / "data/migrations/2026-09-05-01-service-auth.sql").read_text()
+            sql = (Path(__file__).parents[2] / "schema/migrations/2026-09-05-01-service-auth.sql").read_text()
             await conn.execute(sql)
             project_id, actor_id, agent_id = uuid4(), uuid4(), uuid4()
             await conn.execute("INSERT INTO public.cortex_projects(id,project_key) VALUES($1,'notes')", project_id)
