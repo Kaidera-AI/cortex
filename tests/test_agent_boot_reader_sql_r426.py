@@ -70,3 +70,21 @@ async def test_snapshot_does_not_resurrect_a_withdrawn_or_ineligible_publication
             assert not snapshot['context']['eligible_publication_heads']
             resolved=agent_boot.resolve_boot_bindings(snapshot['context'],agent_rows=snapshot['agent_rows'],entry_rows=snapshot['entry_rows'],publication_rows=snapshot['publication_rows'])
             assert resolved['publications']==[]
+
+@native
+@pytest.mark.parametrize('revoked',(False,True))
+async def test_snapshot_checks_each_current_owner_publication_independently(boot_database,revoked):
+    assert callable(getattr(agent_boot,'load_boot_snapshot',None)), 'Own-member SQL loader missing'
+    from fixtures.agent_boot_streams_r426 import caller
+    async with boot_database() as f:
+        ctx=await prepared(f);db=f['db'];owner=uuid.uuid4();publication=uuid.uuid4()
+        await db.execute("INSERT INTO cortex_auth.principals(principal_id,installation_id,principal_name,status) VALUES($1,$2,'public-second-owner','active')",owner,f['installation'])
+        await db.execute('INSERT INTO cortex_auth.installation_owners(installation_id,principal_id) VALUES($1,$2)',f['installation'],owner)
+        await db.execute('INSERT INTO cortex_auth.scope_grants(principal_id,scope_id,can_read,can_publish) VALUES($1,$2,true,true)',owner,f['catalogue'])
+        await caller(f,owner)
+        await append(f,'publication',publication_id=publication,published_by_principal=owner)
+        if revoked:await db.execute('UPDATE cortex_auth.installation_owners SET revoked_at=now() WHERE installation_id=$1 AND principal_id=$2',f['installation'],f['principal'])
+        async with app_reader(f) as app:
+            snapshot=await agent_boot.load_boot_snapshot(app,ctx)
+            resolved=agent_boot.resolve_boot_bindings(snapshot['context'],agent_rows=snapshot['agent_rows'],entry_rows=snapshot['entry_rows'],publication_rows=snapshot['publication_rows'])
+            assert {r['publication_id'] for r in resolved['publications']}==({publication} if revoked else {f['publication'],publication})
