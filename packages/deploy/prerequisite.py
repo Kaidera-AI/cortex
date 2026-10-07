@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from datetime import date
 import hashlib
 import ipaddress
 import json
@@ -22,6 +23,17 @@ from uuid import UUID
 
 
 PINNED_PUBLIC_KEY = "RWQuhegMfku7e4RltjV64sZmxXHEETzAntDePCQsJPYvXXujVMqKIvHL"
+PODMAN_POLICY = {
+    "minimum_version": "6.0.2",
+    "minimum_reason": "H-D258: minimum 6.0.2; newer stable versions admitted unless explicitly denylisted.",
+    "denylist": {
+        "as_of": "2026-10-07",
+        "entries": []
+    },
+    "provider": "cortex-native-lifecycle",
+    "linux_acquisition": "Current Linuxbrew Podman stock bottle; Homebrew verifies its checksum; actual tested version recorded separately."
+}
+
 IDENTITY = ("release_id", "release_lineage", "release_sequence", "api_contract", "source_revision")
 ROLES = {"db", "migrate", "api", "graph", "embed", "pdf", "audio", "vision"}
 IMAGE = re.compile(r"ghcr\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}")
@@ -133,6 +145,58 @@ def _signature(body, signature):
         _fail(code)
 
 
+def _podman_version(value):
+    if (type(value) is not str or len(value) > 128
+            or re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", value) is None):
+        _fail("cortex_podman_unsupported")
+    return tuple(int(part) for part in value.split('.'))
+
+
+def _podman_policy(value):
+    code = "cortex_podman_unsupported"
+    def text(item):
+        return (type(item) is str and 0 < len(item) <= 4096 and bool(item.strip())
+                and not any(ord(char) < 32 or ord(char) == 127 for char in item))
+    def dated(item):
+        if type(item) is not str:
+            _fail(code)
+        try:
+            parsed = date.fromisoformat(item)
+            if parsed.isoformat() != item:
+                _fail(code)
+            return parsed
+        except ValueError:
+            _fail(code)
+    if (type(value) is not dict or set(value) != {'minimum_version', 'minimum_reason', 'denylist', 'provider', 'linux_acquisition'}
+            or value['minimum_version'] != '6.0.2'
+            or value['provider'] != 'cortex-native-lifecycle'
+            or not text(value['minimum_reason']) or not text(value['linux_acquisition'])):
+        _fail(code)
+    denied = value['denylist']
+    if (type(denied) is not dict or set(denied) != {'as_of', 'entries'}
+            or type(denied['entries']) is not list or len(denied['entries']) > 256):
+        _fail(code)
+    as_of = dated(denied['as_of'])
+    versions = set()
+    for entry in denied['entries']:
+        if type(entry) is not dict or set(entry) != {'version', 'date', 'reason'}:
+            _fail(code)
+        _podman_version(entry['version'])
+        if (entry['version'] in versions or dated(entry['date']) > as_of or not text(entry['reason'])):
+            _fail(code)
+        versions.add(entry['version'])
+    # The digest binds the complete signed object including descriptive text
+    # and the dated denials. Return a detached copy, never mutable caller state.
+    return json.loads(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False))
+
+
+def _podman_descriptor(policy):
+    return {'minimum_version': policy['minimum_version'],
+            'policy_sha256': hashlib.sha256(json.dumps(policy, sort_keys=True,
+                separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode('utf-8')).hexdigest(),
+            'provider': policy['provider'], 'connection_name': None, 'machine_name': None}
+
+
 def _release(manifest):
     if (manifest.get("schema") != "cortex.release.v1"
             or any(key not in manifest for key in IDENTITY)
@@ -151,11 +215,10 @@ def _release(manifest):
             or not set(images) <= ROLES or any(not isinstance(ref, str) or IMAGE.fullmatch(ref) is None
                                               for ref in images.values())):
         _fail("cortex_image_mismatch")
-    podman = manifest.get("podman")
-    if (not isinstance(podman, dict) or podman.get("supported_family") != "6.0.x"
-            or podman.get("tested_baseline") != "6.0.2"):
-        _fail("cortex_podman_unsupported")
-    return {key: manifest[key] for key in IDENTITY}, dict(images)
+    podman = _podman_policy(manifest.get("podman"))
+    # Observation only; it is not compared with the policy or current engine.
+    _podman_version(manifest.get("podman_tested_version"))
+    return {key: manifest[key] for key in IDENTITY}, dict(images), podman
 
 
 def _origin(value):
@@ -321,7 +384,7 @@ def write_prerequisite(*, home, manifest_path, signature_path, api_url, installa
     body = _read(manifest_path, uid, 4 * 1024 * 1024, "cortex_release_signature_invalid")
     signature = _read(signature_path, uid, 4096, "cortex_release_signature_invalid")
     _signature(body, signature)
-    identity, images = _release(_json(body, "cortex_release_identity_missing"))
+    identity, images, podman = _release(_json(body, "cortex_release_identity_missing"))
     api_url = _origin(api_url)
     try:
         if str(UUID(installation_id)) != installation_id:
@@ -374,8 +437,7 @@ def write_prerequisite(*, home, manifest_path, signature_path, api_url, installa
         "release_signature": str(signature_path), "images": images, "health_path": "/health",
         "credential_dir": str(credential_dir), "credential_file": str(credential_file),
         "credential_project": project, "credential_agent": "console",
-        "podman": {"supported_family": "6.0.x", "tested_baseline": "6.0.2",
-                   "machine_name": None, "machine_image_digest": None},
+        "podman": _podman_descriptor(podman),
         "install_guide": "https://github.com/Kaidera-AI/cortex/releases/tag/" + identity["release_id"]}
     target = _publish(home, descriptor, uid)
     return {"path": str(target), "schema": descriptor["schema"], "release_id": identity["release_id"],

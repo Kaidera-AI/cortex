@@ -88,7 +88,17 @@ def _measure(value):
             os.close(fd)
 
 
-def build_manifest(*, source_revision, image_inventory, artifacts):
+def build_manifest(*, source_revision, image_inventory, artifacts,
+                   podman_tested_version=None, podman_policy=None):
+    path = Path(__file__).with_name("prerequisite.py")
+    spec = importlib.util.spec_from_file_location("cortex_manual_podman_contract", path)
+    contract = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(contract)
+    try:
+        contract._podman_version(podman_tested_version)
+        policy = contract._podman_policy(contract.PODMAN_POLICY if podman_policy is None else podman_policy)
+    except contract.PrerequisiteRefusal:
+        _fail("invalid_or_missing_podman_policy_observation")
     if not isinstance(source_revision, str) or re.fullmatch(r"[0-9a-f]{40}", source_revision) is None:
         _fail("source_revision_invalid")
     inventory = _inventory(image_inventory, source_revision)
@@ -108,4 +118,4 @@ def build_manifest(*, source_revision, image_inventory, artifacts):
             "api_contract": "cortex-kos-v02009.v1", "source_revision": source_revision,
             "version": VERSION, "images": {"linux/amd64": images},
             "oci_inventory": inventory, "artifacts": measured,
-            "podman": {"supported_family": "6.0.x", "tested_baseline": "6.0.2"}}
+            "podman": policy, "podman_tested_version": podman_tested_version}

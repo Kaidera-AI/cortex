@@ -86,3 +86,16 @@ def test_changed_existing_descriptor_cannot_forge_policy_digest(tmp_path, monkey
     with pytest.raises(module.PrerequisiteRefusal) as caught: module.write_prerequisite(**args)
     assert caught.value.code == 'cortex_instance_mismatch'
     assert target.read_bytes() == body
+
+
+@pytest.mark.parametrize('change', ['nonascii-description', 'dated-denial'])
+def test_complete_signed_policy_including_dated_denials_and_ascii_text_is_digest_bound(tmp_path, monkeypatch, change):
+    module = writer(monkeypatch); args, manifest, health, expected, calls, write_manifest = writer_seed(tmp_path)
+    if change == 'nonascii-description': manifest['podman']['minimum_reason'] += ' PUBLIC λ'
+    else: manifest['podman']['denylist']['entries'] = [{'version':'7.0.1', 'date':'2026-10-07', 'reason':'PUBLIC synthetic denied version'}]
+    policy = copy.deepcopy(manifest['podman']); write_manifest()
+    module.write_prerequisite(**args)
+    descriptor = json.loads((args['home'] / '.cortex/prerequisite.json').read_text())
+    assert descriptor['podman']['policy_sha256'] == hashlib.sha256(json.dumps(policy,
+        sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()).hexdigest()
+    assert manifest['podman'] == policy and len(calls) == 1
