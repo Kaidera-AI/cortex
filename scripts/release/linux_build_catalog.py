@@ -29,6 +29,8 @@ def _source_inputs(root: Path) -> dict:
             raise ValueError
         paths.add(directory)
         for path in directory.rglob('*'):
+            if 'secrets' in path.relative_to(directory).parts:
+                raise ValueError
             paths.add(path)
             if len(paths) > 4096:
                 raise ValueError
