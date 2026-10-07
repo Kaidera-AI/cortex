@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import platform
+import posixpath
 import re
 import ssl
 import subprocess
@@ -72,7 +73,9 @@ def unpack(path, destination):
             if total>1024**3:raise ValueError('runtime expanded bound exceeded')
             if item.issym():
                 link=PurePosixPath(item.linkname)
-                if link.is_absolute() or '..' in link.parts: raise ValueError('unsafe runtime link')
+                target=posixpath.normpath(posixpath.join(str(name.parent),item.linkname))
+                if link.is_absolute() or not target.startswith('python/'):
+                    raise ValueError('unsafe runtime link')
             elif not (item.isfile() or item.isdir()):raise ValueError('runtime special member refused')
         archive.extractall(destination,filter='data')
 
