@@ -1,0 +1,12 @@
+{
+  "kai-default.json": "331133429c30860b23107f125514925a0cdf7b767d8289daa7f479800dc51dbc",
+  "kai-full.json": "0254b68e2be8d1692610951222554fb15cccb799c8f81427b2bc96bffe19bdd8",
+  "bob-default.json": "48fcee2219e98c6d27bfbd0bc6f41739c02071b461875e841df431c815b10eb4",
+  "bob-full.json": "9b4cefb72b88bcdae4c0a105e3c5cf3972e0f5f435e1f0f71470e87b682f6b01",
+  "vera-default.json": "a5354254d38452affe2e9cec6213fd6ec9a0ebdd235876878a8c1cc8cabc1683",
+  "vera-full.json": "7234f8a20c56bf5dcbb49e8420e5824f57ba41e27137c1d935a5b1c7f7a8cd83",
+  "kai-budget50.json": "e84e37f637cd7341479dce080162c972fdea304a56ebd7772f204a7f73ad6dcc",
+  "kai-budget500.json": "15afe41c46a467a4fe0b330be8ec40c614db26503fb11d15498457f9750b06c3",
+  "kai-query-release.json": "9ca55fa08bc2770930e2e795737f29787bff71f9f07c6310b662ba9b6ec1f09a",
+  "cortex-boot": "6aac3e1fba0880fa77cbd3f78e4c4adcce7c3c7d0521c25fe1b12deca6cbe362"
+}

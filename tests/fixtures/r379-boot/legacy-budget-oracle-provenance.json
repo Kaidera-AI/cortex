@@ -1,0 +1,15 @@
+{
+  "source_path": "/Users/amadmalik/DevVault/helix/.agents/api/main.py",
+  "source_sha256": "89290c645d7e66c72fa5c621cf41f275e39743a8cf619babc39b03490adff69e",
+  "truncate_function_ast_sha256": "8a74d82e81575628ee6adad9fe965cab7b52f597c3d1d7a896e81f5a2f4ba489",
+  "budget_statements_ast_sha256": "08f2df3fec2ba99f24bed67ce8adbc1cb281506b19d26d26b85e7ad0727271d5",
+  "copied_budget_statements": [
+    9568,
+    9569,
+    9570,
+    9579
+  ],
+  "oracle_sha256": "36f82455195bd3be758ca5f5a6b42aaf1fb80e6cbd09d98690741f58e04efee3",
+  "clamp": "current observed 50..500 token hint; independent of context.prepare budget_bytes",
+  "no_product_code": true
+}
