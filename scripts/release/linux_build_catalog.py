@@ -33,6 +33,11 @@ def _source_inputs(root: Path) -> dict:
             if len(paths) > 4096:
                 raise ValueError
     paths.add(root / 'deploy/release/10-create-roles.sh')
+    for name in ('pyproject.toml', 'uv.lock', 'requirements-build.txt', '.dockerignore',
+                 'Dockerfile', 'deploy/release/Dockerfile.linux-amd64',
+                 'deploy/release/Containerfile.db', 'deploy/release/Containerfile.db.linux-amd64'):
+        if os.path.lexists(root / name):
+            paths.add(root / name)
     result = {}
     for path in paths:
         physical_path(path)
