@@ -9,7 +9,7 @@ import re
 import stat
 import uuid
 from types import SimpleNamespace
-from urllib.parse import parse_qsl, urlencode, urlsplit
+from urllib.parse import parse_qsl, quote, urlsplit
 
 from ..clients.config import _validate_base_url
 from ..clients.errors import ClientConfigError
@@ -42,7 +42,7 @@ def prepare(args):
     pairs = [('budget', budget)]
     if getattr(args, 'full', False): pairs.append(('full', 'true'))
     if query is not None: pairs.append(('query', query))
-    return match[1], match[2], '/boot/'+match[1]+'?'+urlencode(pairs)
+    return match[1], match[2], '/boot/'+match[1]+'?'+'&'.join(k+'='+quote(v, safe='/') for k,v in pairs)
 
 
 def prepare_raw(path, agent_name):

@@ -160,8 +160,11 @@ def main(argv=None, *, stdin: TextIO | None = None, stdout: TextIO | None = None
             if args.method != "GET" or stdin.read(1):
                 raise FacadeUnavailable("facade request unavailable in this release")
             if args.path != '/projects':
-                from .agent_boot import prepare_raw, run
-                prepared = prepare_raw(args.path, args.agent_name)
+                from .agent_boot import BootRefused, prepare_raw, run
+                try:
+                    prepared = prepare_raw(args.path, args.agent_name)
+                except (BootRefused, ValueError):
+                    raise FacadeUnavailable('facade request unavailable in this release') from None
                 profile = load_member_profile(args.config)
                 stdout.write(run(profile, args, prepared))
                 return 0
