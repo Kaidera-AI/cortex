@@ -549,6 +549,26 @@ def create_app() -> FastAPI:
         warn_if_key_due(request, principal, digest)
         return principal
 
+    @application.get("/boot/{agent}")
+    async def own_agent_boot(
+        request: Request, agent: str,
+        authorization: Annotated[str | None, Header()] = None,
+        selected_alias: Annotated[str | None, Header(alias="X-Cortex-Scope")] = None,
+        agent_label: Annotated[str | None, Header(alias="X-Agent-Name")] = None,
+        budget: int = 1200, query: str | None = None, full: bool = False,
+    ) -> JSONResponse:
+        from .agent_boot import read_boot
+        digest = await token_hash(request, authorization)
+        if not selected_alias:
+            raise ApiProblem(400, "scope_required", "Select a primary Cortex scope.")
+        async with request.app.state.pool.acquire() as connection:
+            async with connection.transaction():
+                principal = await authenticated_principal(request, connection, digest)
+                context = await resolve_scopes(connection, principal, selected_alias, [selected_alias], write=False)
+                result = await read_boot(connection, context, agent, budget=budget, query=query, full=full,
+                                         agent_label=agent_label)
+        return JSONResponse(content=result)
+
     @application.get("/projects")
     async def legacy_project_reader(request: Request) -> JSONResponse:
         digest = await token_hash(request, request.headers.get("authorization"))

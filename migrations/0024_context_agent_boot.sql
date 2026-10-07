@@ -393,3 +393,26 @@ REVOKE ALL ON FUNCTION cortex_context.valid_boot_roles(text[]),cortex_context.bo
 GRANT EXECUTE ON FUNCTION cortex_context.valid_boot_roles(text[]),cortex_context.boot_current_owner(uuid,uuid),
     cortex_context.boot_project_manager(uuid,uuid),cortex_context.boot_project_reader(uuid),
     cortex_context.boot_published_revision(text,uuid,uuid,integer) TO cortex_v2_app;
+
+-- Exact publication-head eligibility for read-only own-member snapshots.
+CREATE FUNCTION cortex_context.boot_publication_eligible(p_installation uuid,p_publication uuid,p_revision integer)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, cortex_context, cortex_auth, cortex_core, pg_temp
+AS $function$
+    SELECT EXISTS (SELECT 1 FROM cortex_context.boot_catalogue_publication_revisions AS publication
+        JOIN cortex_auth.installation_owners AS owner ON owner.installation_id=publication.installation_id AND owner.principal_id=publication.published_by_principal
+        JOIN cortex_auth.principals AS principal ON principal.principal_id=owner.principal_id
+        JOIN cortex_auth.installations AS installation ON installation.installation_id=publication.installation_id
+        JOIN cortex_core.scopes AS catalogue ON catalogue.scope_id=publication.catalogue_scope_id
+        JOIN cortex_auth.scope_grants AS curator ON curator.scope_id=catalogue.scope_id AND curator.principal_id=owner.principal_id
+        WHERE publication.revision=(SELECT max(head.revision) FROM cortex_context.boot_catalogue_publication_revisions AS head
+                                    WHERE head.installation_id=publication.installation_id AND head.publication_id=publication.publication_id)
+          AND publication.state='active' AND publication.installation_id=p_installation
+          AND publication.publication_id=p_publication AND publication.revision=p_revision
+          AND owner.revoked_at IS NULL AND principal.status='active' AND principal.installation_id=installation.installation_id
+          AND installation.status='active' AND catalogue.scope_kind='shared' AND catalogue.is_active
+          AND curator.can_read AND curator.can_publish AND curator.revoked_at IS NULL
+          AND cortex_context.boot_project_reader(publication.installation_id))
+$function$;
+REVOKE ALL ON FUNCTION cortex_context.boot_publication_eligible(uuid,uuid,integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION cortex_context.boot_publication_eligible(uuid,uuid,integer) TO cortex_v2_app;
