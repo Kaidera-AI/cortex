@@ -4,6 +4,7 @@ ARG KOS_VERSION
 ARG KOS_SOURCE_REVISION
 ARG KOS_IMAGE_SOURCE
 ARG KOS_EDITION
+ARG CORTEX_RELEASE_ID
 ARG CORTEX_RELEASE_LINEAGE
 ARG CORTEX_RELEASE_SEQUENCE
 ARG CORTEX_API_CONTRACT
@@ -64,7 +65,7 @@ RUN test -s ./main.py \
 
 # Legacy builds stay unqualified; a manual release must bake its public identity.
 RUN if [ -n "$CORTEX_RELEASE_SEQUENCE" ]; then \
-      python /app/release_identity.py "$KOS_VERSION" "$CORTEX_RELEASE_LINEAGE" \
+      python /app/release_identity.py "$CORTEX_RELEASE_ID" "$CORTEX_RELEASE_LINEAGE" \
         "$CORTEX_RELEASE_SEQUENCE" "$CORTEX_API_CONTRACT" "$KOS_SOURCE_REVISION"; \
     else \
       case "$KOS_VERSION" in *-manual.*) exit 1 ;; esac; \
