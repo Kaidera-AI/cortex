@@ -1,0 +1,115 @@
+{
+  "snapshot": "20260905T000000Z",
+  "keyring_provenance": {
+    "base": "sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6",
+    "platform": "sha256:810da6270e43d30a1f3e0e1eabbeb6fbd9d78ad9dd2e754d5297a3d6cb42df46",
+    "found": [
+      {
+        "layer": "sha256:6310eb16bf4251731feab01e8f633bf5e2d75a657ccad97f420b1f83cce457be",
+        "sha256": "506b815cbb32d9b6066b4a2aa524071e071761e7e7f68c3ac74f3061ba852017",
+        "size": 55918
+      }
+    ]
+  },
+  "signature_verifications": [
+    {
+      "suite": "trixie",
+      "command": [
+        "curl",
+        "--silent",
+        "--show-error",
+        "--fail",
+        "--location",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--max-time",
+        "40",
+        "--dump-header",
+        "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/design55/r421/2026-10-07/trixie.headers",
+        "--output",
+        "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/design55/r421/2026-10-07/trixie.InRelease",
+        "--write-out",
+        "%{url_effective}\n%{http_code}\n",
+        "https://snapshot.debian.org/archive/debian/20260905T000000Z/dists/trixie/InRelease"
+      ],
+      "fetch_exit": 0,
+      "fetch_output": "https://snapshot.debian.org/file/7a5d0114537288b0e5bd24b45456bef8024a780a/InRelease\n200\n",
+      "sha256": "98b25b5cd185c59d34aa6e4c3e9b5b8f01bbe9d104fe2dcfbcd30dc0a14a59ed",
+      "gpg_exit": 0,
+      "gpg_status": "[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8 0\n[GNUPG:] SIG_ID xtHOYiQBRrMeIqUuXZZ6GxwxsBI 2026-07-11 1783760579\n[GNUPG:] GOODSIG 6ED0E7B82643E131 Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG 4CB50190207B4758A3F73A796ED0E7B82643E131 2026-07-11 1783760579 0 4 0 1 8 01 B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 04B54C3CDCA79751B16BC6B5225629DF75B188BD 0\n[GNUPG:] SIG_ID cx9bkY6XtOXkZ3ePDbvTnumpwSc 2026-07-11 1783760580\n[GNUPG:] GOODSIG 78DBA3BC47EF2265 Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG B8E5F13176D2A7A75220028078DBA3BC47EF2265 2026-07-11 1783760580 0 4 0 1 8 01 04B54C3CDCA79751B16BC6B5225629DF75B188BD\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 41587F7DB8C774BCCF131416762F67A0B2C39DE4 0\n[GNUPG:] SIG_ID OaV50AQqLDSevBmINeZBoGMjPbw 2026-07-11 1783760652\n[GNUPG:] GOODSIG 762F67A0B2C39DE4 Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>\n[GNUPG:] VALIDSIG 41587F7DB8C774BCCF131416762F67A0B2C39DE4 2026-07-11 1783760652 0 4 0 22 8 01 41587F7DB8C774BCCF131416762F67A0B2C39DE4\n",
+      "gpg_stderr": "gpgv: Signature made Sat Jul 11 11:02:59 2026 CEST\ngpgv:                using RSA key 4CB50190207B4758A3F73A796ED0E7B82643E131\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\"\ngpgv: Signature made Sat Jul 11 11:03:00 2026 CEST\ngpgv:                using RSA key B8E5F13176D2A7A75220028078DBA3BC47EF2265\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\"\ngpgv: Signature made Sat Jul 11 11:04:12 2026 CEST\ngpgv:                using EDDSA key 41587F7DB8C774BCCF131416762F67A0B2C39DE4\ngpgv: Good signature from \"Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>\"\n"
+    },
+    {
+      "suite": "trixie-security",
+      "command": [
+        "curl",
+        "--silent",
+        "--show-error",
+        "--fail",
+        "--location",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--max-time",
+        "40",
+        "--dump-header",
+        "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/design55/r421/2026-10-07/trixie-security.headers",
+        "--output",
+        "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/design55/r421/2026-10-07/trixie-security.InRelease",
+        "--write-out",
+        "%{url_effective}\n%{http_code}\n",
+        "https://snapshot.debian.org/archive/debian-security/20260905T000000Z/dists/trixie-security/InRelease"
+      ],
+      "fetch_exit": 0,
+      "fetch_output": "https://snapshot.debian.org/file/ec67df183a24e25de73271ec3986f995e939947c/InRelease\n200\n",
+      "sha256": "19a20e3818e39ae271b114aa048a20d961b3f4604c013bed46c2e6c991d08dbb",
+      "gpg_exit": 0,
+      "gpg_status": "[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 05AB90340C0C5E797F44A8C8254CF3B5AEC0A8F0 0\n[GNUPG:] SIG_ID 6PLODBOU4k1GocgiqeszTdxz45A 2026-09-04 1788545080\n[GNUPG:] GOODSIG BDE6D2B9216EC7A8 Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG B0CAB9266E8C3929798B3EEEBDE6D2B9216EC7A8 2026-09-04 1788545080 0 4 0 1 8 01 05AB90340C0C5E797F44A8C8254CF3B5AEC0A8F0\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 5E04A1E3223A19A20706E20F9904613D4CCE68C6 0\n[GNUPG:] SIG_ID ONga+2QshMHeVTiMD5TqTw+PpFI 2026-09-04 1788545080\n[GNUPG:] GOODSIG 8E9F831205B4BA95 Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG 89C87ACEA5DD6B8E6A7068808E9F831205B4BA95 2026-09-04 1788545080 0 4 0 1 8 01 5E04A1E3223A19A20706E20F9904613D4CCE68C6\n",
+      "gpg_stderr": "gpgv: Signature made Fri Sep  4 20:04:40 2026 CEST\ngpgv:                using RSA key B0CAB9266E8C3929798B3EEEBDE6D2B9216EC7A8\ngpgv: Good signature from \"Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\"\ngpgv: Signature made Fri Sep  4 20:04:40 2026 CEST\ngpgv:                using RSA key 89C87ACEA5DD6B8E6A7068808E9F831205B4BA95\ngpgv: Good signature from \"Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\"\n"
+    },
+    {
+      "suite": "trixie-updates",
+      "command": [
+        "curl",
+        "--silent",
+        "--show-error",
+        "--fail",
+        "--location",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        "--max-time",
+        "40",
+        "--dump-header",
+        "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/design55/r421/2026-10-07/trixie-updates-repeat.headers",
+        "--output",
+        "/Volumes/WD-B-4TB/DevVault/helix/Program/Cortex/design55/r421/2026-10-07/trixie-updates-repeat.InRelease",
+        "--write-out",
+        "%{url_effective}\n%{http_code}\n",
+        "https://snapshot.debian.org/archive/debian/20260905T000000Z/dists/trixie-updates/InRelease"
+      ],
+      "fetch_exit": 0,
+      "fetch_output": "https://snapshot.debian.org/file/ce270107cd00c4329e27f045946a26cf49aec5a5/InRelease\n200\n",
+      "sha256": "5fec4fee5b084bff5ce5a46137cb6347b11393a02b81d2eed2e084ed62295048",
+      "gpg_exit": 0,
+      "gpg_status": "[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8 0\n[GNUPG:] SIG_ID 2PvEBNz28G+j9jNYONbYq4doy64 2026-09-04 1788553011\n[GNUPG:] GOODSIG 6ED0E7B82643E131 Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG 4CB50190207B4758A3F73A796ED0E7B82643E131 2026-09-04 1788553011 0 4 0 1 8 01 B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 04B54C3CDCA79751B16BC6B5225629DF75B188BD 0\n[GNUPG:] SIG_ID Ju2udv2dkKRSyE0RNtlOaxFIS3Q 2026-09-04 1788553021\n[GNUPG:] GOODSIG 78DBA3BC47EF2265 Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG B8E5F13176D2A7A75220028078DBA3BC47EF2265 2026-09-04 1788553021 0 4 0 1 8 01 04B54C3CDCA79751B16BC6B5225629DF75B188BD\n",
+      "gpg_stderr": "gpgv: Signature made Fri Sep  4 22:16:51 2026 CEST\ngpgv:                using RSA key 4CB50190207B4758A3F73A796ED0E7B82643E131\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\"\ngpgv: Signature made Fri Sep  4 22:17:01 2026 CEST\ngpgv:                using RSA key B8E5F13176D2A7A75220028078DBA3BC47EF2265\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\"\n"
+    },
+    {
+      "suite": "trixie-updates-original",
+      "sha256": "5fec4fee5b084bff5ce5a46137cb6347b11393a02b81d2eed2e084ed62295048",
+      "gpg_exit": 0,
+      "gpg_status": "[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8 0\n[GNUPG:] SIG_ID 2PvEBNz28G+j9jNYONbYq4doy64 2026-09-04 1788553011\n[GNUPG:] GOODSIG 6ED0E7B82643E131 Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG 4CB50190207B4758A3F73A796ED0E7B82643E131 2026-09-04 1788553011 0 4 0 1 8 01 B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 04B54C3CDCA79751B16BC6B5225629DF75B188BD 0\n[GNUPG:] SIG_ID Ju2udv2dkKRSyE0RNtlOaxFIS3Q 2026-09-04 1788553021\n[GNUPG:] GOODSIG 78DBA3BC47EF2265 Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG B8E5F13176D2A7A75220028078DBA3BC47EF2265 2026-09-04 1788553021 0 4 0 1 8 01 04B54C3CDCA79751B16BC6B5225629DF75B188BD\n",
+      "gpg_stderr": "gpgv: Signature made Fri Sep  4 22:16:51 2026 CEST\ngpgv:                using RSA key 4CB50190207B4758A3F73A796ED0E7B82643E131\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\"\ngpgv: Signature made Fri Sep  4 22:17:01 2026 CEST\ngpgv:                using RSA key B8E5F13176D2A7A75220028078DBA3BC47EF2265\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\"\n"
+    }
+  ],
+  "fixture_hashes": {
+    "trixie-security.InRelease": "19a20e3818e39ae271b114aa048a20d961b3f4604c013bed46c2e6c991d08dbb",
+    "trixie-updates.InRelease": "5fec4fee5b084bff5ce5a46137cb6347b11393a02b81d2eed2e084ed62295048",
+    "trixie.InRelease": "98b25b5cd185c59d34aa6e4c3e9b5b8f01bbe9d104fe2dcfbcd30dc0a14a59ed"
+  }
+}
