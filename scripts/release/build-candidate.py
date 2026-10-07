@@ -8,6 +8,7 @@ import os
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -304,7 +305,74 @@ def freeze_linux_programs(out: Path) -> dict:
     return programs
 
 
-def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = "macos-arm64") -> None:
+def freeze_linux_cm2_programs(out: Path) -> dict:
+    """Freeze the CM-2 helper separately from the legacy TEST installer."""
+    from linux_binaries import MAX_BINARY, verify_program
+    entries = (("cortex", "cortex_native.py", "cm2-host-archive-inventory.txt"),
+               ("cortex-agent", "agent_request.py", "agent-archive-inventory.txt"))
+    if (out / "bin").exists() or any((out / inventory).exists() for _, _, inventory in entries):
+        raise RuntimeError("CM-2 host output already exists")
+    for name, entrypoint, _ in entries:
+        run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--onefile", f"--name={name}",
+             "--paths", str(ROOT / "src"), "--distpath", str(out / "bin"),
+             "--workpath", str(out / "work" / name), "--specpath", str(out / "spec"),
+             str(ROOT / "scripts/release" / entrypoint)])
+
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_uid, info.st_mode, info.st_nlink,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+    def observe(binary):
+        before = binary.lstat()
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid() or before.st_nlink != 1
+                or not before.st_mode & 0o100 or before.st_mode & 0o7022
+                or not 0 < before.st_size <= MAX_BINARY):
+            raise RuntimeError("CM-2 executable custody invalid")
+        fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            if identity(os.fstat(stream.fileno())) != identity(before):
+                raise RuntimeError("CM-2 executable changed")
+            checksum = stream_digest(stream)
+            if identity(os.fstat(stream.fileno())) != identity(before):
+                raise RuntimeError("CM-2 executable changed")
+        if identity(binary.lstat()) != identity(before):
+            raise RuntimeError("CM-2 executable changed")
+        return identity(before), checksum
+
+    parent = identity((out / "bin").lstat())
+    bindings = {name: observe(out / "bin" / name) for name, _, _ in entries}
+
+    def recheck():
+        if identity((out / "bin").lstat()) != parent or any(
+                observe(out / "bin" / name) != bindings[name] for name, _, _ in entries):
+            raise RuntimeError("CM-2 host bytes changed during qualification")
+
+    programs, inventories = {}, {}
+    for name, _, _ in entries:
+        recheck()
+        programs[name] = verify_program(out / "bin" / name, run=run_linux_qualification)
+        recheck()
+        if programs[name]["sha256"] != bindings[name][1]:
+            raise RuntimeError("CM-2 qualification digest differs")
+    for name, _, inventory in entries:
+        recheck()
+        value = run([sys.executable, "-m", "PyInstaller.utils.cliutils.archive_viewer",
+                     "--recursive", "--brief", str(out / "bin" / name)], read=True)
+        recheck()
+        if not isinstance(value, str) or not value.strip() or "\0" in value or len(value.encode()) > 16 * 1024**2:
+            raise RuntimeError("CM-2 embedded archive inventory invalid")
+        inventories[inventory] = value + "\n"
+        programs[name]["archive_inventory"] = inventory
+    recheck()
+    for inventory, value in inventories.items():
+        with (out / inventory).open("x") as stream:
+            stream.write(value)
+    return programs
+
+
+def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = "macos-arm64", *, cm2: bool = False) -> None:
+    if cm2 and target != "linux-x86_64":
+        raise RuntimeError("CM-2 host freeze requires native Linux x86_64")
     architecture = native_target(target)
     expected_system, expected_machine = ("Linux", "x86_64") if architecture == "amd64" else ("Darwin", "arm64")
     if platform.system() != expected_system or platform.machine() != expected_machine:
@@ -326,7 +394,7 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
     out.mkdir(parents=True)
     run([sys.executable, "-m", "pip", "install", "--require-hashes", "--only-binary=:all:",
          "--requirement", str(lock)])
-    programs = freeze_linux_programs(out) if architecture == "amd64" else freeze_host_programs(out)
+    programs = freeze_linux_cm2_programs(out) if cm2 else (freeze_linux_programs(out) if architecture == "amd64" else freeze_host_programs(out))
     (out / "licenses").mkdir()
     for name, expected_digest in native["licenses"].items():
         if name != Path(name).name or digest(runtime / "licenses" / name) != expected_digest:
@@ -348,18 +416,19 @@ def host(out: Path, source_sha: str, version: str, runtime: Path, target: str = 
                                  "versionInfo": distribution.version, "downloadLocation": "NOASSERTION", "filesAnalyzed": False})
     packages = [{"SPDXID": "SPDXRef-python", "name": "CPython", "versionInfo": platform.python_version(),
                  "downloadLocation": "https://www.python.org/", "filesAnalyzed": False},
-                {"SPDXID": "SPDXRef-cortex-installer", "name": "Cortex TEST installer", "versionInfo": version,
+                {"SPDXID": "SPDXRef-cortex-helper" if cm2 else "SPDXRef-cortex-installer", "name": "Cortex CM-2 native helper" if cm2 else "Cortex TEST installer", "versionInfo": version,
                  "downloadLocation": f"https://github.com/Kaidera-AI/cortex/tree/{source_sha}", "filesAnalyzed": False},
                 {"SPDXID": "SPDXRef-cortex-agent", "name": "Cortex member agent bridge", "versionInfo": version,
                  "downloadLocation": f"https://github.com/Kaidera-AI/cortex/tree/{source_sha}", "filesAnalyzed": False}]
     packages.append({"SPDXID": "SPDXRef-openssl", "name": "OpenSSL", "versionInfo": native["inputs"]["openssl"]["version"],
                      "downloadLocation": native["inputs"]["openssl"]["url"], "filesAnalyzed": False})
     document = spdx_document("Cortex TEST native host inventory", f"{version}-host-{source_sha}", packages)
-    document["comment"] = "CPython/installer/agent runtime inventory. Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
+    document["comment"] = ("CPython/CM-2 helper/agent runtime inventory. " if cm2 else "CPython/installer/agent runtime inventory. ") + "Builder dependencies separately recorded; this does not assert all builder libraries are embedded."
     (out / "host.spdx.json").write_text(json.dumps(document, indent=2) + "\n")
     (out / "host-inventory.json").write_text(json.dumps({"source_sha": source_sha, "version": version, "target": target,
                 **({"maximum_glibc": "2.35"} if architecture == "amd64" else {"minimum_macos": "14"}), "python": platform.python_version(),
-                "dependencies": programs["cortex-test"]["dependencies"], "programs": programs,
+                "dependencies": programs["cortex" if cm2 else "cortex-test"]["dependencies"], "programs": programs,
+                **({"host_contract": "linux-cm2"} if cm2 else {}),
                 "builder_packages": builder_packages, "native_runtime_bootstrap": native,
                 "build_lock_sha256": digest(lock)}, indent=2) + "\n")
     shutil.rmtree(out / "work")
@@ -539,7 +608,7 @@ def assemble(out: Path, images_dir: Path, host_dir: Path, source_sha: str, versi
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=("macos-arm64", "linux-x86_64"), default="macos-arm64")
-    parser.add_argument("stage", choices=("images", "host", "assemble"))
+    parser.add_argument("stage", choices=("images", "host", "cm2-host", "assemble"))
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -554,10 +623,13 @@ def main() -> None:
         parser.error("output must be outside the source checkout")
     if args.stage == "images":
         images(args.output, args.source_sha, args.version, target=args.target)
-    elif args.stage == "host":
+    elif args.stage in ("host", "cm2-host"):
         if args.runtime is None:
             parser.error("host requires its compiled --runtime prefix")
-        host(args.output, args.source_sha, args.version, args.runtime, target=args.target)
+        if args.stage == "cm2-host":
+            host(args.output, args.source_sha, args.version, args.runtime, target=args.target, cm2=True)
+        else:
+            host(args.output, args.source_sha, args.version, args.runtime, target=args.target)
     else:
         if args.images is None or args.host is None:
             parser.error("assemble requires --images and --host")
