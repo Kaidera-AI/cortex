@@ -8,9 +8,11 @@ import platform
 import shutil
 import socket
 import time
+import sys
 import uuid
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 from cortex_v2.catalogue_contract import validate_migration_receipt
 
 from install_candidate import (INSTANCE, ROLES, Podman, Refusal, erase, names,
@@ -88,6 +90,11 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
                 source_root=ROOT / 'src', migration_root=ROOT / 'migrations')
             outcome['build_catalog'] = json.loads(initial_catalog)
             outcome['build_catalog_sha256'] = hashlib.sha256(initial_catalog).hexdigest()
+        version_destination = os.environ.get('CORTEX_CI_DATABASE_VERSION_RECEIPT')
+        if version_destination:
+            from database_version_receipt import observe
+            observe(engine, record, entries, target=target, source_root=ROOT,
+                    source_sha=source_sha, destination=Path(version_destination))
         # Readiness is reached from the host through the internal network's
         # loopback publication. The authenticated smoke then uses that same URL.
         smoke(root, record)
