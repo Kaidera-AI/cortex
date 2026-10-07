@@ -9,6 +9,7 @@ import platform
 import posixpath
 import re
 import ssl
+import shutil
 import subprocess
 import tarfile
 from urllib import request
@@ -25,7 +26,10 @@ def validate(value):
         raise ValueError('complete six-wheel closure required')
     if value['python'].get('version') != '3.12.15':
         raise ValueError('pinned CPython 3.12 required')
-    for entry in [value['python'], *wheels]:
+    minisign=value.get('minisign')
+    if not isinstance(minisign,dict) or minisign.get('version')!='0.12':
+        raise ValueError('pinned Minisign verifier required')
+    for entry in [value['python'], minisign, *wheels]:
         parsed = urlsplit(entry.get('url', ''))
         if (parsed.scheme != 'https' or parsed.username or parsed.password
                 or parsed.hostname not in {'github.com','files.pythonhosted.org'}
@@ -80,6 +84,35 @@ def unpack(path, destination):
         archive.extractall(destination,filter='data')
 
 
+def prune_acquisition(stage):
+    site=stage/'python/lib/python3.12/site-packages'
+    candidates=[site/'pip', *site.glob('pip-*.dist-info'),
+                stage/'python/lib/python3.12/ensurepip',
+                *[stage/'python/bin'/name for name in ('pip','pip3','pip3.12')]]
+    for path in candidates:
+        if path.is_symlink():path.unlink()
+        elif path.is_dir():shutil.rmtree(path)
+        elif path.is_file():path.unlink()
+    for path in stage.rglob('__pycache__'):
+        if path.is_dir() and not path.is_symlink():shutil.rmtree(path)
+
+
+def install_minisign(archive, stage):
+    with tarfile.open(archive,'r:*') as tar:
+        matches=[x for x in tar.getmembers() if x.name.endswith('/x86_64/minisign')]
+        if len(matches)!=1 or not matches[0].isfile() or matches[0].size>16*1024**2:
+            raise ValueError('exact native Minisign member required')
+        member=matches[0]
+        if '..' in PurePosixPath(member.name).parts or member.name.startswith('/'):
+            raise ValueError('unsafe verifier member')
+        with tar.extractfile(member) as stream:body=stream.read()
+        if body[:5]!=b'\x7fELF\x02' or body[18:20]!=b'\x3e\x00':
+            raise ValueError('native x86_64 ELF verifier required')
+    destination=stage/'bin/minisign';destination.parent.mkdir(mode=0o755)
+    destination.write_bytes(body);destination.chmod(0o755)
+    return destination
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--inputs',type=Path,required=True)
@@ -109,6 +142,13 @@ def main():
     check="import cryptography,yaml,dotenv,podman_compose,cffi,pycparser; assert cryptography.__version__=='45.0.7'; from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey; k=Ed25519PrivateKey.generate(); k.public_key().verify(k.sign(b'host-closure'),b'host-closure'); print('six native imports and synthetic Ed25519 PASS')"
     result=subprocess.run([str(python),'-I','-c',check],env=env,capture_output=True,text=True,check=True)
     (out/'native-import-proof.log').write_text(result.stdout+result.stderr)
+    prune_acquisition(stage)
+    absent=subprocess.run([str(python),'-I','-c',
+        "import importlib.util; assert importlib.util.find_spec('pip') is None; assert importlib.util.find_spec('ensurepip') is None"],env=env,check=True)
+    verifier_archive=downloads/'minisign.tar.gz';fetch(inputs['minisign'],verifier_archive)
+    verifier=install_minisign(verifier_archive,stage)
+    version=subprocess.run([str(verifier),'-v'],env=env,capture_output=True,text=True,check=True)
+    (out/'minisign-version.log').write_text(version.stdout+version.stderr)
     files={}
     for path in sorted(stage.rglob('*')):
         member=path.relative_to(stage).as_posix()
