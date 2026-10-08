@@ -117,7 +117,7 @@ async def test_current_authority_checked_before_effects_or_replay(when,revoke,st
   m,s,p=await inputs(f)
   if when=='replay':await m.import_snapshot(f['db'],s,p,idempotency_key='authority')
   if revoke=='principal':await f['db'].execute("UPDATE cortex_auth.principals SET status='revoked' WHERE principal_id=$1",f['principal'])
-  elif revoke=='installation':await f['db'].execute("UPDATE cortex_auth.installations SET status='retired' WHERE installation_id=$1",f['installation'])
+  elif revoke=='installation':await f['db'].execute("UPDATE cortex_auth.installations SET status='decommissioned' WHERE installation_id=$1",f['installation'])
   else:await f['db'].execute('UPDATE cortex_auth.scope_grants SET can_write=false WHERE principal_id=$1',f['principal'])
   before=await canonical_rows(f)
   with pytest.raises(RuntimeError):await m.import_snapshot(f['db'],s,p,idempotency_key='authority')
