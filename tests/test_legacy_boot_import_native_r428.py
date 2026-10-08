@@ -140,3 +140,69 @@ async def test_foreign_canonical_collision_is_never_overwritten(state_cluster,bo
   before=await canonical_rows(f)
   with pytest.raises(RuntimeError):await m.import_snapshot(f['db'],s,p,idempotency_key='collision')
   assert await canonical_rows(f)==before
+
+@native
+async def test_explicit_second_revision_preserves_prior_inverse_and_stable_ids(state_cluster,boot_database):
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f);first=await m.import_snapshot(f['db'],s,p,idempotency_key='revision-one');old={r.source_reference:r.original_bytes for r in s.records}
+  bodies=dict(f['bodies'])
+  for ref,case in f['cases'].items():
+   if case!='accepted':continue
+   table,identity=ref.split(':');row=json.loads(f['originals'][ref]);kind=KINDS[table]
+   if kind=='persona':await f['pair']['writer'].execute("UPDATE public.agent_profiles SET profile_text=profile_text || 'PUBLIC second revision',metadata=metadata || '{\"version\":\"2\"}'::jsonb WHERE id=$1",uuid.UUID(identity))
+   elif kind=='rule':await f['pair']['writer'].execute("UPDATE public.rules SET body=body || 'PUBLIC second revision',version='2' WHERE id=$1",uuid.UUID(identity))
+   else:
+    bodies[row['body_ref']]+='PUBLIC second revision'
+    await f['pair']['writer'].execute("UPDATE public.agent_skills SET body_hash=$1,version='2' WHERE id=$2",hashlib.sha256(bodies[row['body_ref']].encode()).hexdigest(),uuid.UUID(identity))
+  newer=await m.read_snapshot(f['pair']['source'],expected_database=f['pair']['source_name'],bodies=bodies);q=copy.deepcopy(p);q['source_snapshot_sha256']=newer.fingerprint
+  for ref,case in f['cases'].items():
+   if case=='accepted':q['records'][ref]['revision']=2
+  second=await m.import_snapshot(f['db'],newer,q,idempotency_key='revision-two')
+  assert await m.read_inverse(f['db'],first)==old
+  assert await m.read_inverse(f['db'],second)=={r.source_reference:r.original_bytes for r in newer.records}
+  actual=await canonical_rows(f)
+  for kind,rows in actual.items():
+   for identity in {str(r[kind+'_id']) for r in rows}:assert sorted(r['revision'] for r in rows if str(r[kind+'_id'])==identity)==[p['records'][next(k for k in p['records'] if k.endswith(identity))]['revision'],q['records'][next(k for k in q['records'] if k.endswith(identity))]['revision']]
+
+@native
+@pytest.mark.parametrize('damage',['metadata-list','bad-body-ref','empty-roles'])
+async def test_ambiguous_source_rows_quarantine_with_originals(damage,state_cluster,boot_database):
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f);kind='skill' if damage=='bad-body-ref' else 'persona';table=next(t for t,k in KINDS.items() if k==kind)
+  ref=next(ref for ref,case in f['cases'].items() if case=='accepted' and ref.startswith(table+':'));identity=uuid.UUID(ref.split(':')[1])
+  if damage=='metadata-list':await f['pair']['writer'].execute(f"UPDATE {table} SET metadata='[]'::jsonb WHERE id=$1",identity)
+  elif damage=='empty-roles':await f['pair']['writer'].execute(f"UPDATE {table} SET metadata='{{\"functional_roles\":[]}}'::jsonb WHERE id=$1",identity)
+  else:await f['pair']['writer'].execute(f"UPDATE {table} SET body_ref='../outside.md' WHERE id=$1",identity)
+  newer=await m.read_snapshot(f['pair']['source'],expected_database=f['pair']['source_name'],bodies=f['bodies']);p['source_snapshot_sha256']=newer.fingerprint
+  result=await m.import_snapshot(f['db'],newer,p,idempotency_key='ambiguous');item=next(x for x in result['rows'] if x['source_reference']==ref)
+  assert item['outcome']=='quarantined' and item['native'] is None and item['reason']
+  assert await m.read_inverse(f['db'],result)=={r.source_reference:r.original_bytes for r in newer.records}
+
+@native
+async def test_two_competing_keys_cannot_both_own_same_canonical_ids(state_cluster,boot_database):
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f);name=await f['db'].fetchval('SELECT current_database()');other=await f['pair']['connect'](name,'cortex_v2_migrator')
+  try:
+   results=await asyncio.gather(m.import_snapshot(f['db'],s,p,idempotency_key='compete-a'),m.import_snapshot(other,s,p,idempotency_key='compete-b'),return_exceptions=True)
+   good=[x for x in results if isinstance(x,dict)];bad=[x for x in results if isinstance(x,RuntimeError)]
+   assert len(good)==len(bad)==1 and await m.read_inverse(f['db'],good[0])==f['originals']
+   assert await f['db'].fetchval("SELECT count(*) FROM cortex_core.command_receipts WHERE operation='legacy.boot.import'")==len(good)
+  finally:await other.close()
+
+@native
+async def test_wrong_role_cannot_import_and_source_wrong_database_refuses(state_cluster,boot_database):
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f)
+  with pytest.raises(RuntimeError):await m.read_snapshot(f['pair']['source'],expected_database='PUBLIC-wrong',bodies=f['bodies'])
+  name=await f['db'].fetchval('SELECT current_database()');other=await f['pair']['connect'](name,'cortex_v2_app')
+  try:
+   with pytest.raises(RuntimeError):await m.import_snapshot(other,s,p,idempotency_key='wrong-role')
+  finally:await other.close()
+  assert all(not rows for rows in (await canonical_rows(f)).values())
+
+@native
+async def test_forged_receipt_inverse_cannot_relabel_originals(state_cluster,boot_database):
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f);result=await m.import_snapshot(f['db'],s,p,idempotency_key='inverse');forged=copy.deepcopy(result);forged['rows'][0]['original']='PUBLIC forgery'
+  with pytest.raises(RuntimeError):await m.read_inverse(f['db'],forged)
+  assert await m.read_inverse(f['db'],result)==f['originals']
