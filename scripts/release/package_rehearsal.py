@@ -71,7 +71,16 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
                "source_sha": source_sha, "version": version,
                "podman": engine.run(["version", "--format", "{{.Client.Version}}"], read=True),
                "image_ids": {r: entries[r]["config_id"] for r in ROLES}}
+    diagnostics = None
     try:
+        diagnosis_root = os.environ.get('CORTEX_CI_START_DIAGNOSTICS')
+        if diagnosis_root:
+            if target != 'linux-x86_64' or os.environ.get('GITHUB_ACTIONS') != 'true':
+                raise Refusal('owned CI start diagnosis refused')
+            from ci_start_diagnostics import attach
+            diagnostics = attach(engine, record, Path(os.path.expandvars(diagnosis_root)),
+                runtime_receipt=Path(os.environ['RUNNER_TEMP']) / 'runtime-preflight.json',
+                config=Path(os.environ['CONTAINERS_CONF']))
         if target == 'linux-x86_64':
             from linux_build_catalog import catalog_bytes, read_json
             provision(engine, manifest, root, record, build_catalog_source=source_sha)
@@ -120,5 +129,13 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
     finally:
         # Explicit CI-owned fixture retirement, never an automatic host install
         # rollback. Image bytes are retained for export/assembly in this job.
-        outcome["cleanup"] = erase(engine, root, record, installation)
+        try:
+            outcome["cleanup"] = erase(engine, root, record, installation)
+        except Exception as error:
+            if diagnostics is not None:
+                diagnostics.cleanup(error=error)
+            raise
+        else:
+            if diagnostics is not None:
+                diagnostics.cleanup(outcome['cleanup'])
     return outcome

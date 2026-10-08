@@ -41,6 +41,8 @@ jobs:
     needs: identity
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    env:
+      CORTEX_CI_START_DIAGNOSTICS: $RUNNER_TEMP/cortex-ci-diagnosis
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -91,6 +93,19 @@ jobs:
         with:
           name: cortex-linux-runtime-public-${{ github.sha }}
           path: ${{ runner.temp }}/runtime-preflight.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Require owned cleanup evidence even on failure
+        if: ${{ always() }}
+        run: test -s "$RUNNER_TEMP/cortex-ci-diagnosis/cleanup-receipt.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: cortex-linux-db-diagnosis-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/cortex-ci-diagnosis/start-diagnostic-*.json
+            ${{ runner.temp }}/cortex-ci-diagnosis/cleanup-receipt.json
           if-no-files-found: error
           retention-days: 14
 
