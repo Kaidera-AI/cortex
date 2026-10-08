@@ -2,11 +2,24 @@
 # Run once as rocky with the AMI's existing sudo authority.
 set -euo pipefail
 umask 077
-[ "$(id -un)" = rocky ] && ! id kos >/dev/null 2>&1
+if ! [ "$(id -un)" = rocky ]; then
+  echo "bootstrap_admin_guard_refused: STOP before account creation." >&2
+  exit 2
+fi
+if id kos >/dev/null 2>&1; then
+  echo "bootstrap_owner_exists: STOP before account creation." >&2
+  exit 2
+fi
 for kos_brew_parent in /home /home/linuxbrew; do
-  if [ -L "$kos_brew_parent" ] || { [ -e "$kos_brew_parent" ] && ! [ -d "$kos_brew_parent" ]; }; then
+  if [ -L "$kos_brew_parent" ]; then
+    echo "homebrew_parent_unsafe: symlink; STOP before account creation." >&2
+    exit 2
+  fi
+  if [ -e "$kos_brew_parent" ]; then
+    if ! [ -d "$kos_brew_parent" ]; then
     printf 'homebrew_parent_unsafe: %s; STOP before account creation.\n' "$kos_brew_parent" >&2
     exit 2
+    fi
   fi
 done
 if [ -e /home/linuxbrew/.linuxbrew ] || [ -L /home/linuxbrew/.linuxbrew ]; then
