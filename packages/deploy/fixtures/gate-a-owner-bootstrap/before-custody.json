@@ -1,0 +1,9 @@
+{
+  "source": "frozen 43-file fixture6e91f7c4 and exact COMMANDS",
+  "files": {
+    "prepare-host.py": "52696d7bc3eeeb4f0bccbda8e4a02dee954d8109e202458e3eb52e5fe71559ca",
+    "new-owner-setup.sh": "c35c5c44fa46cad4714c781d9be15ce7a834bcdf42f2a9d13c35c36e1b589515",
+    "host-tools-setup.sh": "2423f8040862cef8a60733b2e45e18b7bbcfa4cd888875ee5ea07375128fde98",
+    "COMMANDS.md": "1920cc2e0b84c6a42b117d508f8840f2f4f40dad1affb79ac6c09120b4d31696"
+  }
+}
