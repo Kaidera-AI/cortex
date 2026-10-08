@@ -1,0 +1,47 @@
+{
+  "source_sha": "e66e1e932891b031556762e2acaabd55f6f691c1",
+  "image_recipes": [
+    "deploy/release/Dockerfile.linux-amd64",
+    "deploy/release/Containerfile.db.linux-amd64"
+  ],
+  "recipe_sha256": {
+    "deploy/release/Dockerfile.linux-amd64": "bc5c9005068cd104693e267a410258f9f7b7c75132d320595966b06169dace4e",
+    "deploy/release/Containerfile.db.linux-amd64": "4f148f88f53fa9189bbf30fda67613c9c57aeb2f8300c6233920af33e74720ce"
+  },
+  "require_hashes_invocations": [
+    "RUN python -m pip install --no-cache-dir --require-hashes -r requirements-build.txt      && python -m venv /opt/venv",
+    "RUN python -m pip install --no-cache-dir --require-hashes -r requirements-build.txt"
+  ],
+  "lock_files": [
+    "requirements-build.txt"
+  ],
+  "lock_results": [
+    {
+      "lock": "requirements-build.txt",
+      "package": "uv",
+      "version": "0.12.19",
+      "existing_sha256": [
+        "a36d92c137098fdb9dce27261c5fa8ef5519ba82dcd15d70864c4676d889738d"
+      ],
+      "verified_x86_64_wheel": {
+        "role": "failed_native_amd64_observation",
+        "filename": "uv-0.12.19-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "url": "https://files.pythonhosted.org/packages/76/71/b47cec536d8ee7b09017c1d9db211dfc2e7ce5c87d0482918d8b3411ec48/uv-0.12.19-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "metadata_sha256": "a63d18a0aa38ee9f21a5406afbbaeb41303bcd954be9d6b7c1b95ac275e53958",
+        "measured_sha256": "a63d18a0aa38ee9f21a5406afbbaeb41303bcd954be9d6b7c1b95ac275e53958",
+        "measured_size": 20478749,
+        "yanked": false
+      },
+      "required_sha256": [
+        "a63d18a0aa38ee9f21a5406afbbaeb41303bcd954be9d6b7c1b95ac275e53958"
+      ],
+      "missing_sha256": [
+        "a63d18a0aa38ee9f21a5406afbbaeb41303bcd954be9d6b7c1b95ac275e53958"
+      ]
+    }
+  ],
+  "metadata_source_sha256": "25a0561cc3cd956e88013295b9d610c299dc87779d9d03dc4a6488853e7a7cad",
+  "wheel_verification_receipt_sha256": "a0a809ecf74c97543645cd96d4c7a075fbfb5d043167c819070f706a4a4a5b27",
+  "scope": "All explicit --require-hashes locks in native amd64 image recipes; uv.lock is separately --frozen and unchanged; host-only locks are not image inputs",
+  "installations": "NONE"
+}
