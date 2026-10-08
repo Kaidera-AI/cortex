@@ -179,7 +179,8 @@ async def _authority(target,policy):
     for project in sorted(policy['projects'].values(),key=lambda p:p['scope_id']):
         scope=_uuid(project['scope_id'])
         row=await target.fetchrow('''SELECT s.scope_kind,g.can_write FROM cortex_core.scopes s
-            JOIN cortex_auth.scope_grants g USING(scope_id) WHERE s.scope_id=$1 AND g.principal_id=$2 FOR SHARE OF s,g''',scope,principal)
+            JOIN cortex_auth.scope_grants g USING(scope_id) WHERE s.scope_id=$1 AND g.principal_id=$2
+            AND g.revoked_at IS NULL FOR SHARE OF s,g''',scope,principal)
         if row is None or not row['can_write'] or row['scope_kind']!=('shared' if project['scope']=='global' else 'project'):
             raise ImportRefused('legacy_boot_scope_unavailable')
         await target.execute("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",'legacy.boot.scope:'+str(scope))
