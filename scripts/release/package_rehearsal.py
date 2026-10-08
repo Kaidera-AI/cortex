@@ -86,6 +86,14 @@ def rehearse(entries: dict, source_sha: str, version: str, target="macos-arm64")
             provision(engine, manifest, root, record, build_catalog_source=source_sha)
         else:
             provision(engine, manifest, root, record)
+        cgroup_destination = os.environ.get('CORTEX_CI_CGROUP_RECEIPT')
+        if cgroup_destination:
+            if os.environ.get('GITHUB_ACTIONS') != 'true':
+                raise Refusal('owned CI cgroup check refused')
+            from linux_ci_cgroup import observe as cgroup_observe, require as cgroup_require, write_receipt
+            capability = cgroup_observe(source_root=ROOT)
+            write_receipt(Path(os.path.expandvars(cgroup_destination)), capability)
+            cgroup_require(capability)
         start_stack(engine, manifest, record, root)
         migration = (read_json(root / 'migration-receipt.json') if target == 'linux-x86_64'
                      else json.loads((root / "migration-receipt.json").read_text()))

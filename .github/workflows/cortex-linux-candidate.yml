@@ -42,11 +42,29 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     env:
+      CORTEX_CI_CGROUP_RECEIPT: $RUNNER_TEMP/cgroup-start.json
       CORTEX_CI_START_DIAGNOSTICS: $RUNNER_TEMP/cortex-ci-diagnosis
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+      - name: Execute native missing-controller RED before remedy
+        run: >-
+          python3 scripts/release/linux_ci_cgroup.py
+          --receipt "$RUNNER_TEMP/cgroup-before.json" --expect-missing cpu
+      - name: Enable delegated user manager on this ephemeral runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo loginctl enable-linger "$(id -un)"
+          manager=$(systemctl show "user@$(id -u).service" --property=ControlGroup --value)
+          test -n "$manager"
+          if ! grep -qw cpu "/sys/fs/cgroup$manager/cgroup.controllers"; then
+            test ! -e /etc/systemd/system/user@.service.d/delegate.conf
+            (set -C; printf '[Service]\nDelegate=cpu cpuset io memory pids\n' > "$RUNNER_TEMP/cortex-job-delegate.conf")
+            sudo install -D -m 0644 "$RUNNER_TEMP/cortex-job-delegate.conf" /etc/systemd/system/user@.service.d/delegate.conf
+            sudo systemctl daemon-reload
+          fi
       - name: Fresh job-owned rootless storage; inherited store is untouched
         run: >-
           python3 scripts/release/linux_ci_storage.py
@@ -78,7 +96,7 @@ jobs:
           CANDIDATE_SHA: ${{ github.sha }}
           CANDIDATE_VERSION: ${{ needs.identity.outputs.version }}
         run: >-
-          python3 scripts/release/build-candidate.py images --target linux-x86_64
+          env XDG_RUNTIME_DIR="/run/user/$(id -u)" systemd-run --user --scope -p Delegate=yes python3 scripts/release/build-candidate.py images --target linux-x86_64
           --source-sha "$CANDIDATE_SHA" --version "$CANDIDATE_VERSION"
           --output "$RUNNER_TEMP/cortex-images"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -108,6 +126,27 @@ jobs:
             ${{ runner.temp }}/cortex-ci-diagnosis/cleanup-receipt.json
           if-no-files-found: error
           retention-days: 14
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: cortex-linux-candidate-cgroup-${{ github.sha }}
+          path: ${{ runner.temp }}/cgroup-*.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retire job-owned delegation drop-in
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -f "$RUNNER_TEMP/cortex-job-delegate.conf"; then
+            if sudo cmp -s "$RUNNER_TEMP/cortex-job-delegate.conf" /etc/systemd/system/user@.service.d/delegate.conf; then
+              sudo rm /etc/systemd/system/user@.service.d/delegate.conf
+              sudo systemctl daemon-reload
+            else
+              exit 1
+            fi
+          fi
 
   host:
     needs: identity
