@@ -136,10 +136,13 @@ class Diagnosis:
             stream.flush(); os.fsync(stream.fileno())
         with raw_path.open('rb') as stream: raw = stream.read(65537)
         error, redacted, measured_category = self._error(raw, exit_code)
+        disclosure = self.disclose(raw, exit_code)
+        if exit_code != 0 and (disclosure['patterns'] or disclosure['redacted_line'] is None):
+            error, redacted = None, True
         value = {'schema': 'cortex.ci-start-diagnosis.v1', 'verb': 'start', 'exit': exit_code,
                  'category': category or measured_category, 'container': self.container,
                  **self.paths, 'first_error': error, 'redacted': redacted,
-                 **self.disclose(raw, exit_code)}
+                 **disclosure}
         _write(self.root / f'start-diagnostic-{self.ordinal:04d}.json', value)
         if exception:
             raise Refusal('Podman start unavailable or timed out; no cleanup performed') from None
