@@ -57,3 +57,27 @@ def test_workflow_native_red_then_ephemeral_remedy_and_scope():
  assert 'systemd-run --user --scope -p Delegate=yes' in runs[build]
  assert any('delegate.conf' in x and 'rm ' in x and 'always()' in steps[i].get('if','') for i,x in enumerate(runs))
  source=(ROOT/'scripts/release/package_rehearsal.py').read_text();assert 'CORTEX_CI_CGROUP_RECEIPT' in source and source.index('cgroup_require(')<source.index('        start_stack(')
+
+@pytest.mark.parametrize('flag,controller',[('--cpuset-cpus','cpuset'),('--blkio-weight','io')])
+def test_added_limit_requires_actual_delegation(flag,controller,tmp_path,monkeypatch):
+ m=load(monkeypatch);original=m.container_args
+ monkeypatch.setattr(m,'container_args',lambda role,record:original(role,record)+[flag,'1'])
+ root,proc,manager=fixture(tmp_path,'cpu memory pids')
+ r=m.observe(source_root=ROOT,cgroup_root=root,proc_cgroup=proc,manager_path=manager)
+ assert controller in r['required'] and r['category']=='cgroup_controller_not_delegated:'+controller
+ with pytest.raises(RuntimeError,match=controller):m.require(r)
+
+def test_current_job_cannot_hide_missing_manager_cpu(tmp_path,monkeypatch):
+ m=load(monkeypatch);root,proc,manager=fixture(tmp_path)
+ (root/manager.lstrip('/')/'cgroup.controllers').write_text('memory pids')
+ r=m.observe(source_root=ROOT,cgroup_root=root,proc_cgroup=proc,manager_path=manager)
+ assert 'cpu' in r['current']['controllers'] and r['category']=='cgroup_controller_not_delegated:cpu'
+
+def test_receipt_private_exclusive_and_symlink_refused(tmp_path,monkeypatch):
+ import stat
+ m=load(monkeypatch);p=tmp_path/'receipt.json';m.write_receipt(p,{'status':'FAIL','category':'cgroup_controller_not_delegated:cpu'})
+ assert stat.S_IMODE(p.stat().st_mode)==0o600
+ with pytest.raises(Exception):m.write_receipt(p,{'status':'PASS'})
+ linked=tmp_path/'linked.json';linked.symlink_to(p)
+ with pytest.raises(Exception):m.write_receipt(linked,{'status':'PASS'})
+ assert json.loads(p.read_text())['status']=='FAIL'
