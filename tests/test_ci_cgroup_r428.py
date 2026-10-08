@@ -93,3 +93,10 @@ def test_native_proc_self_uses_physical_current_pid_path(tmp_path,monkeypatch):
  r=m.observe(source_root=ROOT,cgroup_root=root,manager_path=manager)
  assert r['status']=='PASS' and Path('/proc/'+str(os.getpid())+'/cgroup') in reads
  assert Path('/proc/self/cgroup') not in reads
+
+def test_cgroup_cli_imports_in_clean_native_process(tmp_path):
+ import os,subprocess,sys
+ env=dict(os.environ);env.pop('PYTHONPATH',None);env['PYTHONDONTWRITEBYTECODE']='1'
+ result=subprocess.run([sys.executable,str(ROOT/'scripts/release/linux_ci_cgroup.py'),'--help'],cwd=tmp_path,env=env,capture_output=True,text=True)
+ assert result.returncode==0,result.stderr
+ assert '--expect-missing' in result.stdout
