@@ -4,7 +4,7 @@ set -euo pipefail
 umask 077
 [ "$(id -un)" = rocky ] && ! id kos >/dev/null 2>&1
 for kos_brew_parent in /home /home/linuxbrew; do
-  if [ -L "$kos_brew_parent" ] || { [ -e "$kos_brew_parent" ] && [ ! -d "$kos_brew_parent" ]; }; then
+  if [ -L "$kos_brew_parent" ] || { [ -e "$kos_brew_parent" ] && ! [ -d "$kos_brew_parent" ]; }; then
     printf 'homebrew_parent_unsafe: %s; STOP before account creation.\n' "$kos_brew_parent" >&2
     exit 2
   fi
@@ -24,7 +24,7 @@ awk -F: '$1=="kos" {print FILENAME":"$0}' /etc/subuid /etc/subgid
 sudo stat -c '%u %a %n' /home/kos "/run/user/$(id -u kos)"
 sudo test ! -e /home/kos/.config
 sudo test ! -e /home/kos/.local/share/containers/storage
-if [ ! -d /home/linuxbrew ]; then
+if ! [ -d /home/linuxbrew ]; then
   sudo install -d -o kos -g kos -m 0755 /home/linuxbrew /home/linuxbrew/.linuxbrew
 else
   sudo install -d -o kos -g kos -m 0755 /home/linuxbrew/.linuxbrew
