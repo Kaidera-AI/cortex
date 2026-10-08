@@ -38,3 +38,23 @@ def test_unsafe_unclassified_values_emit_no_line(raw,tmp_path,monkeypatch):
  m=load(monkeypatch);e,r,root,rt,conf,paths,calls=fixture(tmp_path);ctx=m.attach(e,r,root,runtime_receipt=rt,config=conf)
  assert hasattr(ctx,'disclose'),'safe fallback missing'
  value=ctx.disclose(raw,125);assert value['redacted_line'] is None and 'PRIVATE_VALUE' not in json.dumps(value)
+
+@pytest.mark.parametrize('line', ['Error: OCI start password="PRIVATE VALUE', "Error: OCI start token='PRIVATE VALUE", 'Error: runtime password: PRIVATE_VALUE', 'Error: OCI start '+ 'public '*100+'token=PRIVATE_VALUE'])
+def test_ambiguous_or_late_values_do_not_escape(line,tmp_path,monkeypatch):
+ m=load(monkeypatch);e,r,root,rt,conf,paths,calls=fixture(tmp_path);ctx=m.attach(e,r,root,runtime_receipt=rt,config=conf)
+ assert hasattr(ctx,'disclose'),'bounded disclosure missing'
+ value=ctx.disclose(line.encode(),125)
+ assert 'PRIVATE' not in json.dumps(value)
+ assert value['redacted_line'] is None or len(value['redacted_line'])<=400
+
+def test_actual_capture_receipt_emits_sanitized_line(tmp_path,monkeypatch):
+ from types import SimpleNamespace
+ m=load(monkeypatch);e,r,root,rt,conf,paths,calls=fixture(tmp_path);ctx=m.attach(e,r,root,runtime_receipt=rt,config=conf)
+ def child(command,**kwargs):
+  kwargs['stderr'].write(b'Error: OCI runtime start token=PRIVATE_VALUE failed');return SimpleNamespace(returncode=125)
+ monkeypatch.setattr(m.subprocess,'run',child)
+ with pytest.raises(RuntimeError):e.run(['start',ctx.container])
+ value=json.loads(next(root.glob('start-diagnostic-*.json')).read_text())
+ assert value['family']=='oci' and value['patterns']==['assignment']
+ assert value['redacted_line']=='Error: OCI runtime start <redacted:assignment> failed'
+ assert 'PRIVATE_VALUE' not in json.dumps(value)
