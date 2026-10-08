@@ -99,3 +99,38 @@ def test_both_amd64_workflows_upload_only_public_diagnosis_and_cleanup_always():
     source=(ROOT/'scripts/release/package_rehearsal.py').read_text()
     assert 'CORTEX_CI_START_DIAGNOSTICS' in source
     assert 'diagnostics.cleanup(' in source[source.index('    finally:'):]
+
+@pytest.mark.parametrize('cleanup_case',['success','failure'])
+def test_actual_rehearsal_finally_emits_cleanup_after_owned_start_failure(cleanup_case,tmp_path,monkeypatch):
+    m=load(monkeypatch);engine,record,root,runtime,config,paths,calls=fixture(tmp_path)
+    from test_cm2_build_catalog_rehearsal import load as product_load
+    rehearsal=product_load('package_rehearsal.py',monkeypatch)
+    monkeypatch.setattr(rehearsal,'NativeBuilder',lambda target:engine)
+    monkeypatch.setattr(rehearsal,'ROOT',tmp_path)
+    monkeypatch.setattr(rehearsal.Path,'home',classmethod(lambda cls:tmp_path))
+    monkeypatch.setattr(rehearsal,'names',lambda record:[])
+    monkeypatch.setattr(rehearsal,'private_root',lambda path,create:path.mkdir(parents=True,mode=0o700))
+    monkeypatch.setattr(rehearsal,'write_record',lambda *args:None)
+    monkeypatch.setattr(rehearsal,'prepare',lambda *args:None)
+    monkeypatch.setattr(rehearsal,'provision',lambda *args,**kwargs:None)
+    monkeypatch.setenv('GITHUB_ACTIONS','true');monkeypatch.setenv('RUNNER_TEMP',str(tmp_path));monkeypatch.setenv('CONTAINERS_CONF',str(config));monkeypatch.setenv('CORTEX_CI_START_DIAGNOSTICS',str(root))
+    def child(command,**kwargs):
+        kwargs['stderr'].write(b'Error: public network failure\n');return SimpleNamespace(returncode=1)
+    monkeypatch.setattr(m.subprocess,'run',child)
+    def start(engine,manifest,record,path):
+        engine.run(['start',rehearsal.namespace(record)+'_db'])
+        raise RuntimeError('public controlled start stop')
+    monkeypatch.setattr(rehearsal,'start_stack',start)
+    erased=[]
+    def erase(engine,path,record,installation):
+        erased.append(installation)
+        if cleanup_case=='failure':raise RuntimeError('PRIVATE_VALUE')
+        return {'status':'erased','installation':installation,'source_sha':record['source_sha'],'removed':[]}
+    monkeypatch.setattr(rehearsal,'erase',erase)
+    entries={role:{'config_id':'sha256:'+hashlib.sha256(role.encode()).hexdigest()} for role in rehearsal.ROLES}
+    with pytest.raises(RuntimeError):rehearsal.rehearse(entries,record['source_sha'],record['version'],target='linux-x86_64')
+    assert len(erased)==1
+    assert (root/'cleanup-receipt.json').is_file()
+    receipt=json.loads((root/'cleanup-receipt.json').read_text())
+    assert receipt['status']==('erased' if cleanup_case=='success' else 'FAIL')
+    assert 'PRIVATE_VALUE' not in (root/'cleanup-receipt.json').read_text()
