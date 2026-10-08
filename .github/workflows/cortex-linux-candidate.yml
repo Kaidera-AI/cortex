@@ -62,6 +62,15 @@ jobs:
           brew info --json=v2 podman
           echo /home/linuxbrew/.linuxbrew/bin >> "$GITHUB_PATH"
           echo /home/linuxbrew/.linuxbrew/sbin >> "$GITHUB_PATH"
+      - name: Bind job-owned Linuxbrew OCI runtime and helpers
+        run: >-
+          python3 scripts/release/linux_ci_runtime.py configure
+          --runner-temp "$RUNNER_TEMP" --github-env "$GITHUB_ENV"
+      - name: Qualify selected runtime on the pinned native base once
+        id: runtime_qualification
+        run: >-
+          python3 scripts/release/linux_ci_runtime.py qualify
+          --runner-temp "$RUNNER_TEMP" --receipt "$RUNNER_TEMP/runtime-preflight.json"
       - name: Build immutable OCI images and package inventory
         env:
           CANDIDATE_SHA: ${{ github.sha }}
@@ -74,6 +83,14 @@ jobs:
         with:
           name: cortex-linux-images-${{ github.sha }}
           path: ${{ runner.temp }}/cortex-images
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() && steps.runtime_qualification.outcome == 'success' }}
+        with:
+          name: cortex-linux-runtime-public-${{ github.sha }}
+          path: ${{ runner.temp }}/runtime-preflight.json
           if-no-files-found: error
           retention-days: 14
 
