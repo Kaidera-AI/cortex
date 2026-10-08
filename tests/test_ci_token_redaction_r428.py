@@ -58,3 +58,16 @@ def test_actual_capture_receipt_emits_sanitized_line(tmp_path,monkeypatch):
  assert value['family']=='oci' and value['patterns']==['assignment']
  assert value['redacted_line']=='Error: OCI runtime start <redacted:assignment> failed'
  assert 'PRIVATE_VALUE' not in json.dumps(value)
+
+@pytest.mark.parametrize('assignment',['key=PRIVATE_VALUE','dsn=PRIVATE_VALUE','key="PRIVATE VALUE"'])
+def test_no_legacy_field_bypasses_token_scan(assignment,tmp_path,monkeypatch):
+ from types import SimpleNamespace
+ m=load(monkeypatch);e,r,root,rt,conf,paths,calls=fixture(tmp_path);ctx=m.attach(e,r,root,runtime_receipt=rt,config=conf)
+ def child(command,**kwargs):
+  kwargs['stderr'].write(('Error: OCI runtime start '+assignment+' failed').encode());return SimpleNamespace(returncode=125)
+ monkeypatch.setattr(m.subprocess,'run',child)
+ with pytest.raises(RuntimeError):e.run(['start',ctx.container])
+ value=json.loads(next(root.glob('start-diagnostic-*.json')).read_text())
+ assert 'PRIVATE' not in json.dumps(value)
+ assert value['first_error'] is None and value['redacted'] is True
+ assert value['patterns']==['assignment']
