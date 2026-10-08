@@ -18,7 +18,7 @@ ssh -i /Users/amadmalik/.ssh/kaidera-k8s.pem -o BatchMode=yes -o StrictHostKeyCh
 ```
 
 Private transfer is the admitted TEST-only replacement for the guide download block; no public URL is invented.
-Bootstrap runs only as the existing AMI owner rocky. All remaining target commands run as kos.
+Administrator preparation runs as rocky. The Homebrew installer and brew install run as kos; the owner-helper preflight must pass before block 3. All runtime target commands run as kos.
 Fresh capacity requires4vCPU/16GiB, encrypted80GiB root, private bare HOME/config/store, unused8501/projectcortex; actual observations are retained before setup.
 
 ## Verify, extract, owner setup and cache all seven images
