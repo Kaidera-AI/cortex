@@ -42,7 +42,7 @@ async def inputs(f):
  m=module();s=await m.read_snapshot(f['pair']['source'],expected_database=f['pair']['source_name'],bodies=f['bodies'])
  assert {r.source_reference:r.original_bytes for r in s.records}==f['originals']
  p={'schema':'cortex.legacy-boot-policy.v1','source_database':s.database,'source_snapshot_sha256':s.fingerprint,
-    'target_installation_id':str(f['installation']),'principal_id':str(f['principal']),
+    'target_installation_id':str(f['installation']),'target_database':await f['db'].fetchval('SELECT current_database()'),'principal_id':str(f['principal']),
     'projects':{'public-project':{'scope_id':str(f['scope']),'scope':'project'},'_global':{'scope_id':str(f['global_scope']),'scope':'global'}},'records':{}}
  for ref,raw in f['originals'].items():
   row=json.loads(raw);p['records'][ref]={'kind':KINDS[ref.split(':')[0]],'id':row['id'],'revision':1,'audience':'agent_boot','obligation':'mandatory'}
@@ -206,3 +206,22 @@ async def test_forged_receipt_inverse_cannot_relabel_originals(state_cluster,boo
   m,s,p=await inputs(f);result=await m.import_snapshot(f['db'],s,p,idempotency_key='inverse');forged=copy.deepcopy(result);forged['rows'][0]['original']='PUBLIC forgery'
   with pytest.raises(RuntimeError):await m.read_inverse(f['db'],forged)
   assert await m.read_inverse(f['db'],result)==f['originals']
+
+@native
+async def test_wrong_target_database_binding_refuses_without_effects(state_cluster,boot_database):
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f);p['target_database']='PUBLIC-wrong'
+  with pytest.raises(RuntimeError):await m.import_snapshot(f['db'],s,p,idempotency_key='wrong-database')
+  assert all(not rows for rows in (await canonical_rows(f)).values())
+
+@native
+async def test_snapshot_tamper_and_out_of_order_revision_refuse(state_cluster,boot_database):
+ import dataclasses
+ async with fixture(state_cluster,boot_database) as f:
+  m,s,p=await inputs(f)
+  with pytest.raises(RuntimeError):await m.import_snapshot(f['db'],dataclasses.replace(s,fingerprint='0'*64),p,idempotency_key='tamper')
+  q=copy.deepcopy(p)
+  for ref in q['records']:
+   if f['cases'][ref]=='accepted':q['records'][ref]['revision']=2
+  with pytest.raises(RuntimeError):await m.import_snapshot(f['db'],s,q,idempotency_key='gap')
+  assert all(not rows for rows in (await canonical_rows(f)).values())
