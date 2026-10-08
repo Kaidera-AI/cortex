@@ -9,7 +9,7 @@ import stat
 import subprocess
 import tomllib
 import unicodedata
-from install_candidate import Refusal, namespace
+from install_candidate import Refusal, namespace, names
 from linux_ci_storage import physical_path
 
 MESSAGE = 'owned CI start diagnosis refused'
@@ -72,6 +72,51 @@ class Diagnosis:
             return None, True, category
         return line[:400], False, category
 
+    def disclose(self, raw, exit_code):
+        value = {'redacted_line': None, 'patterns': [], 'family': 'other'}
+        if exit_code == 0 or len(raw) > 65536: return value
+        try: text = raw.decode('utf-8')
+        except UnicodeError: return value
+        line = next((x.lstrip() for x in text.split('\n') if x.lstrip().startswith('Error:')), None)
+        if line is None: return value
+        folded = line.casefold()
+        families = [('secret', ('secret not found', 'secret unsupported', 'unsupported secret', 'no such secret')), ('oci', ('oci', 'runtime create', 'runtime start')),
+                    ('conmon', ('conmon',)), ('network', ('netavark', 'pasta')),
+                    ('cgroup', ('cgroup',)), ('permission', ('permission denied', 'eacces')),
+                    ('missing', ('no such file', 'enoent')), ('storage', ('storage', 'overlay')),
+                    ('userns', ('user namespace', 'userns', 'subuid'))]
+        value['family'] = next((name for name, words in families if any(w in folded for w in words)), 'other')
+        line = line.rstrip('\r')
+        if any(unicodedata.category(c).startswith('C') for c in line): return value
+        line = unicodedata.normalize('NFKC', line)
+        if line.count(chr(34)) % 2 or line.count(chr(39)) % 2: return value
+        if re.search(r'(?i)\b(?:bearer|authorization|credential)\b|-----BEGIN', line): return value
+        # Protect only complete source-owned object identifiers, never arbitrary prefixes.
+        public = [n for _, n in names(self.record)] + [self.namespace, self.record['installation']]
+        protected = {}
+        for i, name in enumerate(sorted(set(public), key=len, reverse=True)):
+            key = f'PUBLICOBJECT{i}X'
+            pattern = r'(?<![\w.-])' + re.escape(name) + r'(?![\w.-])'
+            if re.search(pattern, line):
+                line = re.sub(pattern, key, line); protected[key] = name
+        fired = []
+        def replace(pattern, name):
+            nonlocal line
+            def redact(match):
+                if name not in fired: fired.append(name)
+                return f'<redacted:{name}>'
+            line = re.sub(pattern, redact, line)
+        # Assignments consume quoted or unquoted complete values, including whitespace around =.
+        replace(r"(?i)\b[\w-]*(?:pass(?:word|wd)?|token|secret|key|dsn)[\w-]*\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s]+)", 'assignment')
+        replace(r'(?i)[a-z][a-z0-9+.-]*://[^\s]+', 'url')
+        replace(r'(?<![\w])[a-fA-F0-9]{20,}(?![\w])', 'hex')
+        replace(r'(?<![\w])[a-zA-Z0-9+/_-]{20,}={0,2}(?![\w])', 'base64')
+        # Unbalanced value delimiters and credential syntax remain fail closed.
+        if re.search(r"(?i)\b(?:password|passwd|pwd|token|secret|key|dsn)\s*[:=]", line): return value
+        for key, name in protected.items(): line = line.replace(key, name)
+        value.update(redacted_line=line[:400], patterns=fired)
+        return value
+
     def run(self, args, **kwargs):
         if list(args) != ['start', self.container] or kwargs:
             return self.original(args, **kwargs)
@@ -93,7 +138,8 @@ class Diagnosis:
         error, redacted, measured_category = self._error(raw, exit_code)
         value = {'schema': 'cortex.ci-start-diagnosis.v1', 'verb': 'start', 'exit': exit_code,
                  'category': category or measured_category, 'container': self.container,
-                 **self.paths, 'first_error': error, 'redacted': redacted}
+                 **self.paths, 'first_error': error, 'redacted': redacted,
+                 **self.disclose(raw, exit_code)}
         _write(self.root / f'start-diagnostic-{self.ordinal:04d}.json', value)
         if exception:
             raise Refusal('Podman start unavailable or timed out; no cleanup performed') from None
