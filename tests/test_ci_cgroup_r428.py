@@ -81,3 +81,15 @@ def test_receipt_private_exclusive_and_symlink_refused(tmp_path,monkeypatch):
  linked=tmp_path/'linked.json';linked.symlink_to(p)
  with pytest.raises(Exception):m.write_receipt(linked,{'status':'PASS'})
  assert json.loads(p.read_text())['status']=='FAIL'
+
+def test_native_proc_self_uses_physical_current_pid_path(tmp_path,monkeypatch):
+ import os
+ m=load(monkeypatch);root,proc,manager=fixture(tmp_path);original=m._read;reads=[]
+ def read(path):
+  path=Path(path);reads.append(path)
+  if str(path).startswith('/proc/'):return proc.read_text()
+  return original(path)
+ monkeypatch.setattr(m,'_read',read)
+ r=m.observe(source_root=ROOT,cgroup_root=root,manager_path=manager)
+ assert r['status']=='PASS' and Path('/proc/'+str(os.getpid())+'/cgroup') in reads
+ assert Path('/proc/self/cgroup') not in reads
