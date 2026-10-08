@@ -1,0 +1,6 @@
+{
+  "public/project/skill.md": "PUBLIC skill project λ\nsecond line\n",
+  "public/global/skill.md": "PUBLIC skill global λ\nsecond line\n",
+  "public/body-mismatch.md": "PUBLIC different body",
+  "public/agent-scope.md": "PUBLIC skill project λ\nsecond line\n"
+}

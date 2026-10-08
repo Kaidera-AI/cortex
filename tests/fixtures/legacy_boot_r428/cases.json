@@ -1,0 +1,14 @@
+{
+  "public.agent_profiles:42800000-0000-4000-8000-000000000001": "accepted",
+  "public.rules:42800000-0000-4000-8000-000000000002": "accepted",
+  "public.agent_skills:42800000-0000-4000-8000-000000000003": "accepted",
+  "public.agent_profiles:42800000-0000-4000-8000-000000000011": "accepted",
+  "public.rules:42800000-0000-4000-8000-000000000012": "accepted",
+  "public.agent_skills:42800000-0000-4000-8000-000000000013": "accepted",
+  "public.agent_profiles:42800000-0000-4000-8000-000000000021": "role-profile",
+  "public.rules:42800000-0000-4000-8000-000000000022": "draft",
+  "public.agent_skills:42800000-0000-4000-8000-000000000023": "missing-body",
+  "public.agent_skills:42800000-0000-4000-8000-000000000024": "body-mismatch",
+  "public.agent_skills:42800000-0000-4000-8000-000000000025": "agent-scope",
+  "public.rules:42800000-0000-4000-8000-000000000026": "unmapped-project"
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "public.legacy-boot-fixtures.v1",
+  "source_revision": "15aff361c9835f24d1e5eedba4be9b5f5168a87f",
+  "source_file": "packages/schema/cortex-schema-full.sql",
+  "source_file_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783",
+  "fixtures": {
+    "bodies.json": "d9b7a7818c26e41151a6b7be21a69ec035306f54fe191c300aa2912e3be8f8d6",
+    "cases.json": "6c7b6f10a775df064b3e57cc4692dd4110a902f587ff64eaa82e37d5cc7c2051",
+    "rows.json": "fe7e07e31ee19a2f70c5a26964b403cd9a4ceab7cb7b633c2e89acddf747ac73",
+    "source-schema.sql": "ec9b6a1fd4842daa8d80c910b9e82bbf79a727f14f4f636ec4158b5fc88d4dd2"
+  },
+  "parts": {
+    "public.agent_profiles": 3,
+    "public.rules": 4,
+    "public.agent_skills": 5
+  },
+  "total": 12
+}

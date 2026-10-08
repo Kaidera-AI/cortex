@@ -1,0 +1,240 @@
+[
+  {
+    "table": "public.agent_profiles",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000001",
+      "project": "public-project",
+      "agent_name": "public-worker",
+      "profile_kind": "identity",
+      "role": "public-role",
+      "source_file": "public/project/persona.md",
+      "profile_text": "PUBLIC persona project λ\nsecond line\n",
+      "metadata": {
+        "description": null,
+        "permission": null,
+        "functional_roles": [
+          "public-role"
+        ]
+      },
+      "updated_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.rules",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000002",
+      "project": "public-project",
+      "rule_slug": "public-rule",
+      "title": "PUBLIC rule",
+      "body": "PUBLIC rule project λ\nsecond line\n",
+      "source_file": "public/project/rule.md",
+      "version": "1",
+      "status": "active",
+      "metadata": {
+        "scope": "project"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_skills",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000003",
+      "project": "public-project",
+      "skill_slug": "public-skill",
+      "name": "PUBLIC skill",
+      "description": null,
+      "skill_type": "capability",
+      "scope": "project",
+      "permission": null,
+      "body_ref": "public/project/skill.md",
+      "body_hash": "350253fe2b58dfd0ea3833d7f0b5ac3509ce59b82001b3c9cadd526a7f9c56dd",
+      "version": "1",
+      "status": "active",
+      "trust_tier": "standard",
+      "metadata": {
+        "when_to_use": "PUBLIC synthetic task"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_profiles",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000011",
+      "project": "_global",
+      "agent_name": "public-worker",
+      "profile_kind": "identity",
+      "role": "public-role",
+      "source_file": "public/global/persona.md",
+      "profile_text": "PUBLIC persona global λ\nsecond line\n",
+      "metadata": {
+        "description": null,
+        "permission": null,
+        "functional_roles": [
+          "public-role"
+        ]
+      },
+      "updated_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.rules",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000012",
+      "project": "_global",
+      "rule_slug": "public-rule",
+      "title": "PUBLIC rule",
+      "body": "PUBLIC rule global λ\nsecond line\n",
+      "source_file": "public/global/rule.md",
+      "version": "1",
+      "status": "active",
+      "metadata": {
+        "scope": "global"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_skills",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000013",
+      "project": "_global",
+      "skill_slug": "public-skill",
+      "name": "PUBLIC skill",
+      "description": null,
+      "skill_type": "capability",
+      "scope": "global",
+      "permission": null,
+      "body_ref": "public/global/skill.md",
+      "body_hash": "9091dceff697caa73b2372bc9deffd7308b900eb44aa882817c840f1b792d78e",
+      "version": "1",
+      "status": "active",
+      "trust_tier": "standard",
+      "metadata": {
+        "when_to_use": "PUBLIC synthetic task"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_profiles",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000021",
+      "project": "public-project",
+      "agent_name": "public-role-profile",
+      "profile_kind": "role",
+      "role": "public-role",
+      "source_file": "public/project/persona.md",
+      "profile_text": "PUBLIC persona project λ\nsecond line\n",
+      "metadata": {
+        "description": null,
+        "permission": null,
+        "functional_roles": [
+          "public-role"
+        ]
+      },
+      "updated_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.rules",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000022",
+      "project": "public-project",
+      "rule_slug": "public-draft",
+      "title": "PUBLIC rule",
+      "body": "PUBLIC rule project λ\nsecond line\n",
+      "source_file": "public/project/rule.md",
+      "version": "1",
+      "status": "draft",
+      "metadata": {
+        "scope": "project"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_skills",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000023",
+      "project": "public-project",
+      "skill_slug": "public-missing-body",
+      "name": "PUBLIC skill",
+      "description": null,
+      "skill_type": "capability",
+      "scope": "project",
+      "permission": null,
+      "body_ref": "public/missing-body.md",
+      "body_hash": "350253fe2b58dfd0ea3833d7f0b5ac3509ce59b82001b3c9cadd526a7f9c56dd",
+      "version": "1",
+      "status": "active",
+      "trust_tier": "standard",
+      "metadata": {
+        "when_to_use": "PUBLIC synthetic task"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_skills",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000024",
+      "project": "public-project",
+      "skill_slug": "public-body-mismatch",
+      "name": "PUBLIC skill",
+      "description": null,
+      "skill_type": "capability",
+      "scope": "project",
+      "permission": null,
+      "body_ref": "public/body-mismatch.md",
+      "body_hash": "350253fe2b58dfd0ea3833d7f0b5ac3509ce59b82001b3c9cadd526a7f9c56dd",
+      "version": "1",
+      "status": "active",
+      "trust_tier": "standard",
+      "metadata": {
+        "when_to_use": "PUBLIC synthetic task"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.agent_skills",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000025",
+      "project": "public-project",
+      "skill_slug": "public-agent-scope",
+      "name": "PUBLIC skill",
+      "description": null,
+      "skill_type": "capability",
+      "scope": "agent",
+      "permission": null,
+      "body_ref": "public/agent-scope.md",
+      "body_hash": "350253fe2b58dfd0ea3833d7f0b5ac3509ce59b82001b3c9cadd526a7f9c56dd",
+      "version": "1",
+      "status": "active",
+      "trust_tier": "standard",
+      "metadata": {
+        "when_to_use": "PUBLIC synthetic task"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  },
+  {
+    "table": "public.rules",
+    "row": {
+      "id": "42800000-0000-4000-8000-000000000026",
+      "project": "public-unmapped",
+      "rule_slug": "public-unmapped-project",
+      "title": "PUBLIC rule",
+      "body": "PUBLIC rule project λ\nsecond line\n",
+      "source_file": "public/project/rule.md",
+      "version": "1",
+      "status": "active",
+      "metadata": {
+        "scope": "project"
+      },
+      "created_at": "2026-10-08T00:00:00+00:00"
+    }
+  }
+]
