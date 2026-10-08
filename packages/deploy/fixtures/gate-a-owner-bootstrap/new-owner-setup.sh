@@ -3,6 +3,12 @@
 set -euo pipefail
 umask 077
 [ "$(id -un)" = rocky ] && ! id kos >/dev/null 2>&1
+for kos_brew_parent in /home /home/linuxbrew; do
+  if [ -L "$kos_brew_parent" ] || { [ -e "$kos_brew_parent" ] && [ ! -d "$kos_brew_parent" ]; }; then
+    printf 'homebrew_parent_unsafe: %s; STOP before account creation.\n' "$kos_brew_parent" >&2
+    exit 2
+  fi
+done
 if [ -e /home/linuxbrew/.linuxbrew ] || [ -L /home/linuxbrew/.linuxbrew ]; then
   printf 'homebrew_prefix_foreign_owner: existing prefix owner %s; STOP. Use a fresh owner-owned prefix or consult its owner; no permissions are changed.\n' "$(stat -c %U /home/linuxbrew/.linuxbrew)" >&2
   exit 2
@@ -18,5 +24,9 @@ awk -F: '$1=="kos" {print FILENAME":"$0}' /etc/subuid /etc/subgid
 sudo stat -c '%u %a %n' /home/kos "/run/user/$(id -u kos)"
 sudo test ! -e /home/kos/.config
 sudo test ! -e /home/kos/.local/share/containers/storage
-sudo install -d -o kos -g kos -m 0755 /home/linuxbrew /home/linuxbrew/.linuxbrew
+if [ ! -d /home/linuxbrew ]; then
+  sudo install -d -o kos -g kos -m 0755 /home/linuxbrew /home/linuxbrew/.linuxbrew
+else
+  sudo install -d -o kos -g kos -m 0755 /home/linuxbrew/.linuxbrew
+fi
 sudo stat -c '%u %g %a %n' /home/linuxbrew /home/linuxbrew/.linuxbrew
