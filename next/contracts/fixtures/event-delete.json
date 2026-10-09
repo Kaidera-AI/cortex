@@ -1,0 +1,15 @@
+{
+  "event_id": "00000000-0000-4000-8000-000000000007",
+  "installation_id": "00000000-0000-4000-8000-000000000002",
+  "tenant_id": "00000000-0000-4000-8000-000000000003",
+  "project_id": "00000000-0000-4000-8000-000000000004",
+  "aggregate_id": "00000000-0000-4000-8000-000000000005",
+  "payload_ref": "00000000-0000-4000-8000-000000000006",
+  "aggregate_kind": "record",
+  "aggregate_revision": 2,
+  "schema_version": 1,
+  "operation": "delete",
+  "tombstone": true,
+  "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "occurred_at": "2026-10-09T19:06:00Z"
+}
