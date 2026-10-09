@@ -1,0 +1,8 @@
+{
+  "python": "3.12.13",
+  "actual_subtest_id": "test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing (rows=[{'id': 'same'}, {'id': 'same'}])",
+  "expected_id": "test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing",
+  "classification": "killed",
+  "raw_stdout": "mutations/fixture-ID-duplicates.stdout.txt",
+  "raw_stderr": "mutations/fixture-ID-duplicates.stderr.txt"
+}

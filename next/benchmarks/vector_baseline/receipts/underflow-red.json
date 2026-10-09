@@ -1,0 +1,5 @@
+{
+  "exit": 1,
+  "test_sha256": "eed8262186dc50625d1db882870f6f16e1d9ef7604496ce282f8e49c57d6090e",
+  "command": "test_vector_baseline_failures.FailureControls.test_float32_underflow_refused"
+}

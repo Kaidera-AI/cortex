@@ -1,0 +1,19 @@
+{
+  "command": [
+    "next/benchmarks/vector_baseline/.venv/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "next/tests/benchmarks",
+    "-v"
+  ],
+  "B01_PODMAN": "1",
+  "exit": 0,
+  "source_sha256": {
+    "next/src/vector_baseline/corpus.py": "24c0ef88a11545874f261a5e991efe8c2007085ceaee556f7a7901cf4d6e8773",
+    "next/src/vector_baseline/postgres.py": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704"
+  },
+  "stdout_sha256": "71cf7255e4906c20d06f47a010375daf1221e6e8d83b5716a746d1b806ec769d",
+  "stderr_sha256": "e4b326ee0648ea09594b26b66a1d8085f0935bc88a69f4ef3709d490128c88ed"
+}

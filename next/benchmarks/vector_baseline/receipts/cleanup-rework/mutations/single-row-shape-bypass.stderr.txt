@@ -1,0 +1,96 @@
+test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) ... 
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='cosine', vector=[[1, 0]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='cosine', vector=[[1, 0], [0, 1]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='cosine', vector=[[[1, 0]]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='dot', vector=[[1, 0]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='dot', vector=[[1, 0], [0, 1]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='dot', vector=[[[1, 0]]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='euclidean', vector=[[1, 0]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='euclidean', vector=[[1, 0], [0, 1]]) ... FAIL
+  test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='euclidean', vector=[[[1, 0]]]) ... FAIL
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='cosine', vector=[[1, 0]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='cosine', vector=[[1, 0], [0, 1]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='cosine', vector=[[[1, 0]]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='dot', vector=[[1, 0]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='dot', vector=[[1, 0], [0, 1]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='dot', vector=[[[1, 0]]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='euclidean', vector=[[1, 0]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='euclidean', vector=[[1, 0], [0, 1]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_nested_matrices_are_rejected_at_single_row_boundary (test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary) (metric='euclidean', vector=[[[1, 0]]])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_sanitized_row_shape.py", line 20, in test_nested_matrices_are_rejected_at_single_row_boundary
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=9)

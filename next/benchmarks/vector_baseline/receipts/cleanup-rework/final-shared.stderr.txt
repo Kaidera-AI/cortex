@@ -1,0 +1,25 @@
+test_async_case_sync_cleanup_reuse_is_inconclusive (test_async_fixture_reuse.AsyncFixtureReuse.test_async_case_sync_cleanup_reuse_is_inconclusive) ... ok
+test_async_teardown_reuse_is_inconclusive (test_async_fixture_reuse.AsyncFixtureReuse.test_async_teardown_reuse_is_inconclusive) ... ok
+test_genuine_async_body_helper_assertion_is_killed (test_async_fixture_reuse.AsyncFixtureReuse.test_genuine_async_body_helper_assertion_is_killed) ... ok
+test_mike_unchanged_reuse_probes (test_async_fixture_reuse.AsyncFixtureReuse.test_mike_unchanged_reuse_probes) ... ok
+test_async_body_assertion_is_killed (test_classifier.Classifier.test_async_body_assertion_is_killed) ... ok
+test_clean_suite_survives (test_classifier.Classifier.test_clean_suite_survives) ... ok
+test_cleanup_and_class_fixture_assertions_are_inconclusive (test_classifier.Classifier.test_cleanup_and_class_fixture_assertions_are_inconclusive) ... ok
+test_error_alongside_expected_assertion_is_inconclusive (test_classifier.Classifier.test_error_alongside_expected_assertion_is_inconclusive) ... ok
+test_expected_body_assertion_is_killed (test_classifier.Classifier.test_expected_body_assertion_is_killed) ... ok
+test_expected_subtest_assertion_is_killed (test_classifier.Classifier.test_expected_subtest_assertion_is_killed) ... ok
+test_import_body_and_runner_errors_are_inconclusive (test_classifier.Classifier.test_import_body_and_runner_errors_are_inconclusive) ... ok
+test_invalid_report_count_rows_or_assertion_evidence_are_inconclusive (test_classifier.Classifier.test_invalid_report_count_rows_or_assertion_evidence_are_inconclusive) ... ok
+test_malformed_missing_or_duplicate_reports_are_inconclusive (test_classifier.Classifier.test_malformed_missing_or_duplicate_reports_are_inconclusive) ... ok
+test_nemo_async_fixture_assertions_are_inconclusive (test_classifier.Classifier.test_nemo_async_fixture_assertions_are_inconclusive) ... ok
+test_nonassertion_failure_exception_is_inconclusive (test_classifier.Classifier.test_nonassertion_failure_exception_is_inconclusive) ... ok
+test_operational_exits_signals_and_exit_mismatch_are_inconclusive (test_classifier.Classifier.test_operational_exits_signals_and_exit_mismatch_are_inconclusive) ... ok
+test_sync_fixture_assertions_are_inconclusive (test_classifier.Classifier.test_sync_fixture_assertions_are_inconclusive) ... ok
+test_unrelated_assertion_is_inconclusive (test_classifier.Classifier.test_unrelated_assertion_is_inconclusive) ... ok
+test_isolated_c01_caller_imports_shared_helper (test_shared_location.SharedLocation.test_isolated_c01_caller_imports_shared_helper) ... ok
+test_old_copy_is_removed (test_shared_location.SharedLocation.test_old_copy_is_removed) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.903s
+
+OK

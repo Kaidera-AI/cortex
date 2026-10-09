@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/benchmarks/vector_baseline/receipts/cleanup-rework/verify-recipe-order.py", line 14, in <module>
+    assert verifiers[0] < producers[0], "verify the frozen packet before any mutation producer overwrites its receipts"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: verify the frozen packet before any mutation producer overwrites its receipts

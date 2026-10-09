@@ -1,0 +1,28 @@
+REVIEW_ANALYSIS_COMPLETE
+
+FILES_ANALYZED: 2
+ISSUES_FOUND: 1
+DURATION_MS: 97585
+
+SEVERITY_BREAKDOWN:
+  CRITICAL: 0
+  ERROR: 0
+  WARNING: 0
+  INFO: 0
+
+ISSUES:
+
+ISSUE_1:
+  file: next/tests/benchmarks/test_vector_baseline.py
+  line: 75
+  end_line: 75
+  severity: medium
+  category: bug
+  message: Potential `NameError: name 'c' is not defined` in `test_validation_rejects_poison_and_hash_drift`: the bare `fixture(p)` call discards the returned corpus object even though `c` may be referenced after line 75 (for example `c.validate()`). Restore `c = fixture(p)` unless `c` is unused in the remainder of the test method.
+  suggestion:             c = fixture(p)
+  fixable: false
+
+SUMMARY:
+Found 1 issue in 2 files
+
+END_REVIEW

@@ -1,0 +1,6 @@
+B01_CREATE_FAILURE_PROBE={"kind": "volume", "error": "TimeoutExpired", "created": ["volume"], "removed": true, "credential_discarded": true, "lock_released": true}
+B01_CREATE_FAILURE_PROBE={"kind": "volume", "error": "RuntimeError", "created": ["volume"], "removed": true, "credential_discarded": true, "lock_released": true}
+B01_CREATE_FAILURE_PROBE={"kind": "secret", "error": "TimeoutExpired", "created": ["volume", "secret"], "removed": true, "credential_discarded": true, "lock_released": true}
+B01_CREATE_FAILURE_PROBE={"kind": "secret", "error": "RuntimeError", "created": ["volume", "secret"], "removed": true, "credential_discarded": true, "lock_released": true}
+B01_CREATE_FAILURE_PROBE={"kind": "container", "error": "TimeoutExpired", "created": ["volume", "secret", "container"], "removed": true, "credential_discarded": true, "lock_released": true}
+B01_CREATE_FAILURE_PROBE={"kind": "container", "error": "RuntimeError", "created": ["volume", "secret", "container"], "removed": true, "credential_discarded": true, "lock_released": true}

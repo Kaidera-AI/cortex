@@ -1,0 +1,17 @@
+{
+  "head": "d0d6c29b4ff39d08e226162ae681b53b58fdd543",
+  "target_main": "565227e57724468382bace3d559bdaa85310432d",
+  "command": [
+    "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/benchmarks/vector_baseline/.venv/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "next/tests/contract",
+    "-v"
+  ],
+  "exit": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "6d1924efbfc47b3e4491fe9a27e71f56c4c386d6224422941e9b41fa5e0159c5",
+  "B01_PODMAN": false
+}

@@ -1,0 +1,5 @@
+{
+  "exit": 1,
+  "test_sha256": "03931b8f5e7636982dbf14f77d42447d130fad05b3a0429ab02548e81a74b00d",
+  "command": "PYTHONPATH=cortex/next/src:cortex/next/tests/benchmarks .venv/bin/python -m unittest test_vector_baseline_failures -v"
+}

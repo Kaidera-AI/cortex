@@ -1,0 +1,12 @@
+{
+  "source_head": "06fe40960fd3510effaabcd9e2c0dde3c8eb6525",
+  "test_sha256": "765f71109bd27ad43544e7a55c3fd6e35ece02a2677ed05cb4ae8e828547ac43",
+  "exit": 1,
+  "failures": 2,
+  "errors": 0,
+  "cases": [
+    "fixture setup incorrectly admitted",
+    "fixture teardown incorrectly admitted"
+  ],
+  "body_assertion_control": "accepted as expected"
+}

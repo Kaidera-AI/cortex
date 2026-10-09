@@ -1,0 +1,22 @@
+test_volume_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed) ... FAIL
+
+======================================================================
+FAIL: test_volume_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 122, in test_volume_create_then_timeout_is_removed
+    self.exercise("volume", subprocess.TimeoutExpired)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'con[19 chars]e': {'kaidera-dev-vector-baseline-872477761617[179 chars]: {}} != {'con[19 chars]e': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {},
+-  'volume': {'kaidera-dev-vector-baseline-8724777616175750110': {'id': 'volume-id-kaidera-dev-vector-baseline-8724777616175750110',
+-                                                                 'labels': {'kaidera.b01.lifecycle': 'f0b5218fc69b1095b8a4d1837ebbc3c0',
+-                                                                            'worker': 'mike'}}}} : created effects must be removed even when acknowledgement is lost
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)
