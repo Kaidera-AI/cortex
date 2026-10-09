@@ -1,0 +1,1 @@
+{"count": 5000000, "manifest_sha256": "3a160a6276b39af6ee24817645fe33aa1275cf27b5eb278cc76196ccea7ccb74", "query_hashes": {"heldout": "acc7fcd18eced80b0d7a217e526e261a724ab6d5bfd056a7c748b3527e7ffbab", "tuning": "bcdd77a30cf0bbf23199f304e189094163901ef2b581d7c92907e34ee79ebc60"}}

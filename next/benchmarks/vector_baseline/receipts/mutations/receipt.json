@@ -1,0 +1,58 @@
+[
+  {
+    "source": "corpus.py",
+    "mutation": "normalization",
+    "expected_test": "test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38"
+  },
+  {
+    "source": "corpus.py",
+    "mutation": "stored-cosine-admission",
+    "expected_test": "test_vector_baseline_failures.FailureControls.test_float32_underflow_refused",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38"
+  },
+  {
+    "source": "oracle.py",
+    "mutation": "tenant-leak",
+    "expected_test": "test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73"
+  },
+  {
+    "source": "oracle.py",
+    "mutation": "tombstone-leak",
+    "expected_test": "test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73"
+  },
+  {
+    "source": "oracle.py",
+    "mutation": "rrf-offset",
+    "expected_test": "test_vector_baseline.OracleTests.test_exact_branch_ties_precede_prefetch_and_full_fusion_separate",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73"
+  },
+  {
+    "source": "postgres.py",
+    "mutation": "cleanup-skips-volume",
+    "expected_test": "test_vector_baseline.PostgresContractTests.test_cleanup_attempts_all_owned_resources_after_failure",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "cc204b7810dbebc156ad1299aec1acccd9e869cc8d5130269c48a36a467961c8"
+  },
+  {
+    "source": "postgres.py",
+    "mutation": "unfiltered-SQL",
+    "expected_test": "test_vector_baseline.PostgresContractTests.test_query_uses_parameters_scope_and_dense_operator",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "cc204b7810dbebc156ad1299aec1acccd9e869cc8d5130269c48a36a467961c8"
+  }
+]

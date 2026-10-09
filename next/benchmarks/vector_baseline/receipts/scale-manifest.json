@@ -1,0 +1,33 @@
+{
+  "count": 5000000,
+  "dataset": "synthetic",
+  "deletion_revision": "frozen-1",
+  "distribution": {
+    "clustered": 3500000,
+    "diffuse": 1000000,
+    "ties": 500000
+  },
+  "dtype": "little-endian-float32",
+  "files": {
+    "records.npy": "a30f31173b30c29c1ab25380726d3ed2529b8e9156c2b514713bf4071eb75b31",
+    "sparse_indices.npy": "053bc1913bcf15bcdb24b5973721c02a40799737fd30c5502c22e42c12836256",
+    "sparse_offsets.npy": "59afdc5950031227d5abccd32359453f64725fe82a96f2b62d72f2414ace9f29",
+    "sparse_values.npy": "be5a13f31d7a34e9398c0feb3716fd842248b57fae0c4a1db3255b496f48f4a5",
+    "vectors.npy": "06daa45337be42636cf3f9bde3d7588ca02fa228f2cd39a276ba44eedf80c802"
+  },
+  "generator": "pcg64-row-v1",
+  "generator_sha256": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38",
+  "id_order": "ascii-ascending",
+  "identity": {
+    "dimension": 8,
+    "generation": "synthetic-v1",
+    "metric": "cosine",
+    "model": "b01-synthetic-fixture-8",
+    "provider": "synthetic"
+  },
+  "normalization": "stored-values",
+  "numpy": "2.3.4",
+  "schema": "cortex-b01-corpus-v1",
+  "seed": 447020,
+  "sparse": "positive-weighted-dot-v1"
+}
