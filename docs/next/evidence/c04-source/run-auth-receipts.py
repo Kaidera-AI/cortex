@@ -12,6 +12,10 @@ OUT.mkdir(parents=True, exist_ok=True)
 PHASE = sys.argv[1]
 TARGET = OUT / (PHASE + '.json')
 assert not TARGET.exists()
+TREE = subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+SOURCE = {str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest()
+          for p in (WT/'next').rglob('*') if p.is_file()}
+CONTRACT_SHARED = PHASE.startswith('contract-shared')
 NAME = 'kaidera-test-auth-receipts-1'
 IMAGE = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 NONCE = uuid.uuid4().hex
@@ -68,15 +72,29 @@ try:
              '--security-opt=no-new-privileges','--tmpfs','/tmp:rw,size=268435456,mode=1777',
              IMAGE,'sleep','900'])
     checked(['podman','cp',str(WT/'next'),NAME+':/tmp/next'])
-    checked(['podman','cp',str(WT/'tmp/wheels'),NAME+':/tmp/wheels'])
+    wheels=WT.parents[1]/'tmp/cox-contract-wheels-20261010' if CONTRACT_SHARED else WT/'tmp/wheels'
+    checked(['podman','cp',str(wheels),NAME+':/tmp/wheels'])
     checked(['podman','exec',NAME,'python','-m','pip','install','--no-index',
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps',
-             '-r','/tmp/next/requirements-db-test.txt'])
-    value, report = check()
+             '-r','/tmp/next/requirements-test.txt' if CONTRACT_SHARED else '/tmp/next/requirements-db-test.txt'])
+    if CONTRACT_SHARED:
+        env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src',
+             '--env','PYTHONDONTWRITEBYTECODE=1',NAME]
+        for directory,count in [('contract',33),('receipt',20)]:
+            value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory])
+            reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+            assert len(reports)==1 and reports[0]['tests_run']==count
+            assert not reports[0]['failures'] and not reports[0]['errors']
+        checked(env+['python','/tmp/next/scripts/mutate_contracts.py'])
+        checked(env+['python','/tmp/next/scripts/mutate_test_receipts.py'])
+        value=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({'next/'+str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
+        assert json.loads(value.stdout)==SOURCE
+    else:
+        value, report = check()
     if PHASE=='consumer-missing-red':
         assert value.returncode==1 and not report['failures'] and len(report['errors'])==5
         assert all("has no attribute 'mutation_status'" in row['traceback'] for row in report['errors'])
-    else:
+    elif not CONTRACT_SHARED:
         assert value.returncode==0 and not report['failures'] and not report['errors']
         before = 'def mutation_status(result, expected):\n    return classify(result, expected)'
         after = "def mutation_status(result, expected):\n    return 'killed' if result.returncode else 'survived'"
@@ -95,6 +113,7 @@ try:
         value, report = check()
         assert value.returncode==0 and not report['failures'] and not report['errors']
     passed = True
+    assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
 finally:
     if pending:
         exists = run(['podman','container','exists',NAME])
@@ -105,11 +124,11 @@ finally:
                 assert info['Name'].lstrip('/')==NAME and len(info['Id'])==64
                 checked(['podman','rm','-f',info['Id']])
         removed=run(['podman','container','exists',NAME]).returncode==1
-    TARGET.write_text(json.dumps({'phase':PHASE,'tree':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+    TARGET.write_text(json.dumps({'phase':PHASE,'tree':TREE,
         'passed':passed,'container_removed':removed,'results':results,'image_id':IMAGE,
         'lifecycle':NONCE,'limits':{'cpus':1,'memory':'256m'},'published_ports':[], 'bind_mounts':[],
         'database_tests_executed':False,'missing_adapter_red_is_operational_not_mutant_kill':PHASE=='consumer-missing-red',
-        'source_sha256':{p:hashlib.sha256((WT/p).read_bytes()).hexdigest() for p in FILES},
-        'wheel_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'tmp/wheels').iterdir()},
+        'source_sha256':SOURCE,
+        'wheel_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in wheels.iterdir() if p.suffix=='.whl'} if 'wheels' in globals() else {},
         'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()},indent=2)+'\n')
     assert removed, 'owned fixture cleanup is incomplete or a foreign name remains'
