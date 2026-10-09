@@ -64,7 +64,9 @@ def run():
             path.write_bytes(original)
             MANIFEST.write_bytes(original_manifest)
     print(json.dumps({"mutants": len(mutations), "killed": len(mutations) - len(survivors), "survivors": survivors}), flush=True)
-    if survivors or suite().returncode:
+    final = suite()
+    print(json.dumps({"restored_baseline_exit": final.returncode, "restored_baseline_output": final.stdout + final.stderr}), flush=True)
+    if survivors or final.returncode:
         raise SystemExit(1)
 
 
