@@ -50,7 +50,13 @@ The PR35 rework for **B01-CLEANUP-001** records creation as pending before invok
 
 `receipts/cleanup-rework/` preserves the reviewed-source RED (six lost acknowledgements, two lifecycle controls and nine nested-matrix subtest failures), the restored native suite, twelve actual mutation receipts, original assertion integrity and the refreshed-main checks. Its separate verifier keeps the initial `receipts/final-evidence.json` and five-million fixture receipts historical. The broad initial cleanup RED also contained one error; the focused six-case RED has six body assertion failures and zero errors. The collision fault-seed RED demonstrates test sensitivity, rather than claiming an additional bug in the reviewed source.
 
-Reproduce the bounded repair from the root of an owned worktree with no competing Mike fixture:
+Reproduce the bounded repair from the root of an owned worktree with no competing Mike fixture. First verify the published packet in an unchanged checkout:
+
+```sh
+python3 next/benchmarks/vector_baseline/receipts/cleanup-rework/verify-evidence.py
+```
+
+For a fresh reproduction, run the following commands separately after that verification:
 
 ```sh
 uv sync --project next/benchmarks/vector_baseline --frozen --python 3.12
@@ -58,7 +64,8 @@ B01_PODMAN=1 PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/pytho
   -m unittest discover -s next/tests/benchmarks -v
 PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
   next/tests/benchmarks/mutate_vector_baseline.py
-python3 next/benchmarks/vector_baseline/receipts/cleanup-rework/verify-evidence.py
 ```
 
-The mutation producer uses the vendored synchronous receipt helper for these synchronous `TestCase` targets; it does not qualify that copy for arbitrary async fixtures. C01/shared-helper integration checks additionally require the pinned `next/requirements-test.txt` packages in the same environment. Source and evidence hashes in the repair manifest bind the recorded run; regenerated receipts require a new manifest rather than silently reusing these hashes. Vera owns re-review and closure. Product-engine verdict remains UNDECIDED.
+The mutation producer replaces raw outputs with fresh timings and temporary paths. Freeze those fresh receipts into a new manifest before checking them; the published manifest verifies the original packet and will reject overwritten outputs. Keep the published packet available in an unchanged checkout for comparison.
+
+The mutation producer uses the vendored synchronous receipt helper for these synchronous `TestCase` targets; it does not qualify that copy for arbitrary async fixtures. C01/shared-helper integration checks additionally require the pinned `next/requirements-test.txt` packages in the same environment. Vera owns re-review and closure. Product-engine verdict remains UNDECIDED.

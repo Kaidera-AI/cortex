@@ -137,7 +137,19 @@
     "runner-path-red.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "test-integrity.json": "27201400272ed26669cc1da90be1a4d28787e16507c6662c01983b0df0dc1a7b",
     "verify-command-path.py": "65093af5f99a086cbc01aca53cb72a0757e5a12e5a09d0f470aa3d5e37907454",
-    "verify-evidence.py": "bd8c6d27db925edac25151093c72db00aee33929286f8660fb5046a2a2c991c1"
+    "verify-evidence.py": "019341956f82f519e32f5f4d0309dc868e420e4b1f153a0938270ebb6d2fe0a2",
+    "recipe-order-green.json": "bd1a4a545bf7fbdf38eb16e01fed2b18775fd972b05cb932290758896526b072",
+    "recipe-order-red.stderr.txt": "30552f165665eba6e421996493223bfaef93f364ebe3c78f79bcd33605339303",
+    "recipe-order-green.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "verification.stdout.txt": "ef50493eed0855d0b1edb9bb563ee1247b481df8336df48fb5eea1f3e4e27c8c",
+    "recipe-order-green.stdout.txt": "29aa637c7d5ae60818df68b36c2616116ee093a8aac6fa495c4c281abc778335",
+    "recipe-order-red.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verify-recipe-order.py": "106466d139c3a625906114f0ee1a79589d10b1fa86984c61e5d18b2d05c1fb0a",
+    "verification.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "recipe-order-red.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "recipe-order-green.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "recipe-order-red.json": "cda6611646ea21a0466996f426adfc0acf3b40367aec1725e7628725ebee85b1"
   },
   "old_assertion_ast_sha256": {
     "test_vector_baseline.py": {
@@ -155,5 +167,11 @@
     "Named volume deliberate external replacement between inspection and removal is unqualified.",
     "Twelve mutation targets are synchronous; vendored helper generic async qualification is not claimed."
   ],
-  "historical_evidence": "Initial receipts/final-evidence.json and original nine-mutant/5M-dimension8 receipts are unchanged."
+  "historical_evidence": "Initial receipts/final-evidence.json and original nine-mutant/5M-dimension8 receipts are unchanged.",
+  "preflight_doc_finding": {
+    "id": "B01-PREFLIGHT-DOC-001",
+    "disposition": "resolved by unchanged recipe-order check RED then GREEN",
+    "source_behavior_changed": false,
+    "frozen_packet_verified_before_fresh_production": true
+  }
 }

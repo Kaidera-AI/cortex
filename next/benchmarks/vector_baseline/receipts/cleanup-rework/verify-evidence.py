@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[4]
@@ -93,6 +95,15 @@ def main():
     assert int((HERE / "command-check-red.exit").read_text()) == 1
     assert "missing unittest discovery start directory" in (HERE / "command-check-red.stderr.txt").read_text()
     assert int((HERE / "command-check-green.exit").read_text()) == 0
+    assert int((HERE / "recipe-order-red.exit").read_text()) == 1
+    assert "before any mutation producer" in (HERE / "recipe-order-red.stderr.txt").read_text()
+    assert int((HERE / "recipe-order-green.exit").read_text()) == 0
+    recipe_red = json.loads((HERE / "recipe-order-red.json").read_text())
+    recipe_green = json.loads((HERE / "recipe-order-green.json").read_text())
+    assert sha(HERE / "verify-recipe-order.py") == recipe_red["check_sha256"] == recipe_green["check_sha256"]
+    assert sha(ROOT / "next/benchmarks/vector_baseline/README.md") == recipe_green["readme_sha256"]
+    subprocess.run([sys.executable, str(HERE / "verify-recipe-order.py")],
+                   capture_output=True, text=True, check=True)
     print(json.dumps({"result": "PASS", "tested_source_commit": evidence["tested_source_commit"],
                       "target_main": evidence["target_main"], "native_tests": 41,
                       "real_create_failure_cases": 6, "contract_tests": 33,
