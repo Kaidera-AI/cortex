@@ -30,6 +30,14 @@ MUTATIONS = [
 ]
 
 
+def semantic_kill(result, target):
+    output = result.stdout + result.stderr
+    method = target.rsplit(".", 1)[1]
+    return (result.returncode == 1 and f"FAIL: {method} (" in output
+            and "AssertionError:" in output
+            and "FAILED (failures=" in output and "ERROR:" not in output)
+
+
 def main():
     destination = NEXT / "benchmarks/vector_baseline/receipts/mutations"
     destination.mkdir(parents=True, exist_ok=True)
@@ -62,10 +70,7 @@ def main():
             output = r.stdout + r.stderr
             (destination / (label + ".stdout.txt")).write_text(r.stdout)
             (destination / (label + ".stderr.txt")).write_text(r.stderr)
-            method = test.rsplit(".", 1)[1]
-            killed = (r.returncode == 1 and f"FAIL: {method} (" in output
-                      and "AssertionError:" in output
-                      and "FAILED (failures=" in output and "ERROR:" not in output)
+            killed = semantic_kill(r, test)
             results.append({"source": filename, "mutation": label, "expected_test": test,
                             "exit": r.returncode, "killed": killed,
                             "source_sha256": hashlib.sha256(original).hexdigest()})

@@ -1,0 +1,6 @@
+{
+  "source": "PR30 0f651b91fc2ad73d906b425cc2d932896d36cc62 next/scripts/test_receipts.py",
+  "source_sha256": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4",
+  "adaptation": "named unittest target loader; remaining helper code unchanged",
+  "purpose": "test proof metadata only; no runtime dependency"
+}
