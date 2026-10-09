@@ -7,6 +7,11 @@ import sys
 NEXT = Path(__file__).resolve().parents[1]
 
 
+def classify(result, expected):
+    # Existing predicate extracted unchanged for the review regression probe.
+    return "killed" if result.returncode != 0 else "survived"
+
+
 def suite():
     return subprocess.run(
         [sys.executable, "-m", "unittest", "discover", "-s", str(NEXT / "tests/contract")],
