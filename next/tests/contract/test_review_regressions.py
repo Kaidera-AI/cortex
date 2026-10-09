@@ -24,7 +24,7 @@ class ReviewRegressions(unittest.TestCase):
                 validate_event(value)
 
     def result(self, code, failures=(), errors=(), stdout=None):
-        report={'tests_run':1,'failures':[{'id':name,'phase':'test','traceback':'AssertionError: synthetic probe'} for name in failures],
+        report={'tests_run':1,'failures':[{'id':name,'phase':'test','is_assertion':True,'traceback':'AssertionError: synthetic probe'} for name in failures],
                 'errors':[{'id':'setup','traceback':error} for error in errors]}
         body='CORTEX_TEST_RESULT='+json.dumps(report) if stdout is None else stdout
         return subprocess.CompletedProcess(['synthetic-unittest'],code,stdout=body,stderr='')
