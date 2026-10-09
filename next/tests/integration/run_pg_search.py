@@ -1,17 +1,18 @@
 """Run synthetic integration checks in ONE disposable, resource-bounded PG container."""
 
 import os
-from pathlib import Path
+import re
 import subprocess
 import sys
 import time
 import uuid
+from pathlib import Path
 
 IMAGE = "docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d"
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def main():
+def main(pattern="test_pg_search*.py"):
     label = "nemo-pg-search-" + uuid.uuid4().hex[:10]
     name = "kaidera-test-pg-search-1-" + uuid.uuid4().hex[:8]
     command = [
@@ -22,6 +23,8 @@ def main():
         name,
         "--label",
         "cortex.test=" + label,
+        "--label",
+        "cortex.worker=nemo",
         "--cpus",
         "2",
         "--memory",
@@ -57,6 +60,8 @@ def main():
                     "exec",
                     name,
                     "pg_isready",
+                    "-h",
+                    "127.0.0.1",
                     "-U",
                     "postgres",
                     "-d",
@@ -84,7 +89,13 @@ def main():
             os.environ,
             SEARCH_TEST_DSN=f"postgresql://postgres@127.0.0.1:{port}/search_test",
         )
-        env["PYTHONPATH"] = str(ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = os.pathsep.join(
+            [
+                str(ROOT / "src"),
+                str(ROOT / "tests/integration"),
+                env.get("PYTHONPATH", ""),
+            ]
+        )
         print(
             "Synthetic disposable PG:",
             IMAGE,
@@ -92,8 +103,13 @@ def main():
             sys.version.split()[0],
             flush=True,
         )
-        result = subprocess.run(
-            [
+        target = env.get("SEARCH_TEST_TARGET")
+        if target:
+            if not re.fullmatch(r"test_[a-z_]+\.[A-Za-z]+\.test_[a-z_]+", target):
+                raise ValueError("Invalid named mutation probe")
+            test_command = [sys.executable, "-m", "unittest", target, "-v"]
+        else:
+            test_command = [
                 sys.executable,
                 "-m",
                 "unittest",
@@ -101,11 +117,10 @@ def main():
                 "-s",
                 str(ROOT / "tests/integration"),
                 "-p",
-                "test_pg_search.py",
+                pattern,
                 "-v",
-            ],
-            env=env,
-        )
+            ]
+        result = subprocess.run(test_command, env=env)
         return result.returncode
     finally:
         removed = subprocess.run(
@@ -128,8 +143,10 @@ def main():
             "PASS" if removed.returncode == 0 and not remaining.strip() else "FAIL",
             flush=True,
         )
-        if remaining.strip():
-            raise RuntimeError("Disposable container remained after cleanup")
+        if removed.returncode != 0 or remaining.strip():
+            raise RuntimeError(
+                "Disposable container removal failed or inventory remained"
+            )
 
 
 if __name__ == "__main__":

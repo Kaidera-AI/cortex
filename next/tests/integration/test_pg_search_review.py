@@ -7,9 +7,9 @@ import unittest
 import asyncpg
 import test_pg_search as legacy
 from cortex_core.embeddings.pg_search import (
-    PostgresSearch,
-    EmbeddingIdentity,
     CapabilityUnavailable,
+    EmbeddingIdentity,
+    PostgresSearch,
     StaleEmbedding,
 )
 
