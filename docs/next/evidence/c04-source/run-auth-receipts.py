@@ -88,6 +88,18 @@ try:
         checked(env+['python','/tmp/next/scripts/mutate_contracts.py'])
         checked(env+['python','/tmp/next/scripts/mutate_test_receipts.py'])
         value=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({'next/'+str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
+        restored = json.loads(value.stdout)
+        assert all(restored.get(k)==v for k,v in SOURCE.items())
+        extras = set(restored)-set(SOURCE)
+        allowed = {'next/scripts/__pycache__/mutate_contracts.cpython-312.pyc',
+                   'next/tests/__pycache__/test_receipts.cpython-312.pyc'}
+        assert extras <= allowed, 'unexpected generated file in copied source tree'
+        # Isolated receipt probes create these two caches with their own environment.
+        # Keep the before-removal hashes in raw output; remove only known generated files.
+        if extras:
+            cleanup = "from pathlib import Path;names="+repr(sorted(extras))+";[(Path('/tmp')/name).unlink() for name in names]"
+            checked(env+['python','-c',cleanup])
+        value=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({'next/'+str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
         assert json.loads(value.stdout)==SOURCE
     else:
         value, report = check()
