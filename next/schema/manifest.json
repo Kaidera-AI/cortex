@@ -5,7 +5,7 @@
     {
       "id": "core-0001",
       "file": "core/001-core.sql",
-      "sha256": "7895b7e8bca49fe21df17351e65fc19e75a9c9e2e28307922df6edab9761bd22"
+      "sha256": "e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147"
     },
     {
       "id": "auth-0001",
@@ -15,7 +15,7 @@
     {
       "id": "coordination-0001",
       "file": "coordination/001-coordination.sql",
-      "sha256": "07ff597efd98c25f970c11a4fff220482b2ce4833430e1da4f911558b65d1e8c"
+      "sha256": "c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1"
     },
     {
       "id": "retrieval-0000",
