@@ -1,0 +1,23 @@
+test_every_create_has_same_fresh_identity_and_stacks_differ (test_postgres_lifecycle.LifecycleTests.test_every_create_has_same_fresh_identity_and_stacks_differ) ... FAIL
+test_one_stack_instance_cannot_reuse_its_creation_identity (test_postgres_lifecycle.LifecycleTests.test_one_stack_instance_cannot_reuse_its_creation_identity) ... FAIL
+
+======================================================================
+FAIL: test_every_create_has_same_fresh_identity_and_stacks_differ (test_postgres_lifecycle.LifecycleTests.test_every_create_has_same_fresh_identity_and_stacks_differ)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_lifecycle.py", line 34, in test_every_create_has_same_fresh_identity_and_stacks_differ
+    self.assertIn("kaidera.b01.lifecycle", labels)
+AssertionError: 'kaidera.b01.lifecycle' not found in {}
+
+======================================================================
+FAIL: test_one_stack_instance_cannot_reuse_its_creation_identity (test_postgres_lifecycle.LifecycleTests.test_one_stack_instance_cannot_reuse_its_creation_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_lifecycle.py", line 19, in test_one_stack_instance_cannot_reuse_its_creation_identity
+    self.assertEqual(len(engine.commands), before, "used lifecycle must refuse before any engine operation")
+AssertionError: 8 != 4 : used lifecycle must refuse before any engine operation
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+FAILED (failures=2)
