@@ -1,0 +1,11 @@
+# Final shared MOVE proof (Kai23:20)
+
+Source7699c27 rebased onto mainc134ab20. Shared helper is an exact100% rename from scripts/test_receipts.py to tests/test_receipts.py; suite/classify/report bytes unchanged. mutate_contracts import directory and helper mutation target use tests; two existing C01 test import paths change, all test-method ASTs unchanged. Two new single-location tests were committed RED-first; original14 shared probes unchanged. No wire/runtime/schema source bytes change.
+
+move-red.json atf243df16:16 tests/two expected body assertions/noerrors, oldcopy still present and isolated C01 caller resolves oldpath. move-green.json at7699c27: full33 contract tests and26 declaredexpected-body assertion mutantkills, restored33 pass; full16 shared tests and7 expected-body assertion mutantkills, restored16 pass. All raw outputs retained, explicit recipes/digests for shared mutations, final source manifest verified. Helper remains exactSHAad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4. Both real async fixtures retain inconclusive results. Earlier additive missing/faultseed RED/GREEN are historical evidence, not the finalMOVEscope proof.
+
+Recover source at7699c27 and run run-move.py move-green from an owned worktree after copying mutate-receipts.py into owned tmp. It copies next into nativeLinuxarm64 Python3.12 container2CPU/1GiB,tmpfs256MiB,readonly/nonroot/dropALL,noports/mounts. Six exact pinned C01 dependencies install into container temporary storage, then networking is disconnected BEFORE all tests. Full suites+both mutation runners execute sequentially in ONE owned container; removed. Runner output stored under phase-name JSON; adapt only local scratch/output paths. No live endpoints/DB/host test packages used.
+
+Exact PR30 mergedSHAc134ab20 was separately rerun33/26 with unchanged21 source hashes; receipts preserved in lane-A/evidence/c01-merge and append-only Program/Cortex/v2-v0.1.020/gates/merge-pr30-c134ab20.json. Main launcher CI succeeded. This does not assert platform/release qualification or global folder fitness green.
+
+Before finalpush refresh origin/main. Mike reviews THIS one PR34 finalMOVEhead. C03 future caller adoption follows shared merge in its own rebase, with Vera content re-check where required. No duplicate implementation or secondPR.
