@@ -1,0 +1,217 @@
+{
+  "phase": "red",
+  "tree": "361b8eea6aaa2bf61a5d52e3b299996ccba9013a",
+  "images": [
+    "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+    "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9"
+  ],
+  "native_arch": "arm64",
+  "network": "none; shared loopback only",
+  "published_ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "pod_cpus": 2,
+    "pod_memory": "1g",
+    "pg_memory": "768m",
+    "driver_memory": "256m"
+  },
+  "wheel_hashes": {
+    "psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl": "96a551e4683f1c307cfc3d9a05fec62c00a7264f320c9962a67a543e3ce0d8ff",
+    "psycopg-3.2.9-py3-none-any.whl": "01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6",
+    "typing_extensions-4.16.0-py3-none-any.whl": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+  },
+  "results": [
+    {
+      "command": [
+        "podman",
+        "pod",
+        "create",
+        "--name",
+        "kaidera-test-core-schema-1",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03"
+      ],
+      "exit_code": 0,
+      "stdout": "f1b093a0e319d61d8a8af2fa2e4850d42c9367832b29063586b49bc8ad963243\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-db-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "768m",
+        "--read-only",
+        "--user",
+        "70:70",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/var/lib/postgresql:rw,size=536870912,mode=1777",
+        "--tmpfs",
+        "/var/run/postgresql:rw,size=16777216,mode=1777",
+        "--tmpfs",
+        "/tmp:rw,size=16777216,mode=1777",
+        "--env",
+        "PGDATA=/var/lib/postgresql/18/data",
+        "--env",
+        "POSTGRES_HOST_AUTH_METHOD=trust",
+        "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d"
+      ],
+      "exit_code": 0,
+      "stdout": "071eea33e8361e5462e55cfdfdd4b83c786387fe7f940cfb968d4bd00b1a9ac3\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-driver-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=268435456,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "0cb462df6baddbcb2ce6e45559aa8fc7f5eacae80d21e0dcbd04effab0bd91bf\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/next",
+        "kaidera-test-core-driver-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/wheels",
+        "kaidera-test-core-driver-1:/tmp/wheels"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--find-links=/tmp/wheels",
+        "--no-cache-dir",
+        "--target=/tmp/deps",
+        "-r",
+        "/tmp/next/requirements-db-test.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "Looking in links: /tmp/wheels\nProcessing /tmp/wheels/psycopg-3.2.9-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 1))\nProcessing /tmp/wheels/psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (from -r /tmp/next/requirements-db-test.txt (line 2))\nProcessing /tmp/wheels/typing_extensions-4.16.0-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 3))\nInstalling collected packages: typing-extensions, psycopg-binary, psycopg\nSuccessfully installed psycopg-3.2.9 psycopg-binary-3.2.9 typing-extensions-4.16.0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "pg_isready",
+        "-U",
+        "postgres"
+      ],
+      "exit_code": 0,
+      "stdout": "/var/run/postgresql:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-c",
+        "SELECT version();"
+      ],
+      "exit_code": 0,
+      "stdout": "PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/tmp/next/tests/schema",
+        "-v"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "test_schema (unittest.loader._FailedTest.test_schema) ... ERROR\n\n======================================================================\nERROR: test_schema (unittest.loader._FailedTest.test_schema)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_schema\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.12/unittest/loader.py\", line 396, in _find_test_path\n    module = self._get_module_from_name(name)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/unittest/loader.py\", line 339, in _get_module_from_name\n    __import__(name)\n  File \"/tmp/next/tests/schema/test_schema.py\", line 11, in <module>\n    from cortex_core.migrations import apply_migrations, MigrationError\nModuleNotFoundError: No module named 'cortex_core.migrations'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "rm",
+        "-f",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "f1b093a0e319d61d8a8af2fa2e4850d42c9367832b29063586b49bc8ad963243\n",
+      "stderr": ""
+    }
+  ],
+  "stack_removed": true
+}
