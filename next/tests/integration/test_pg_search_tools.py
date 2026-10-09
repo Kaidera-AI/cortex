@@ -12,6 +12,33 @@ import run_pg_search
 
 
 class ToolTests(unittest.TestCase):
+    def test_shared_emitter_fixture_reuse_is_inconclusive_and_bodies_kill(self):
+        target = "test_fixture_probe.Probe.test_expected"
+        body = "    async def test_expected(self):\n        self.assertFalse(getattr(self, 'fixture', False))\n"
+        cases = [
+            ("async setup", "    async def asyncSetUp(self):\n        self.fail('fixture')\n" + body, "INCONCLUSIVE"),
+            ("async teardown", "    async def asyncTearDown(self):\n        self.fail('fixture')\n" + body, "INCONCLUSIVE"),
+            ("async setup reuse", "    async def asyncSetUp(self):\n        self.fixture = True\n        await self.test_expected()\n" + body, "INCONCLUSIVE"),
+            ("async teardown reuse", "    async def asyncTearDown(self):\n        self.fixture = True\n        await self.test_expected()\n" + body, "INCONCLUSIVE"),
+            ("async cleanup reuse", "    def setUp(self):\n        self.addAsyncCleanup(self.cleanup)\n    async def cleanup(self):\n        self.fixture = True\n        await self.test_expected()\n" + body, "INCONCLUSIVE"),
+            ("async body", "    async def test_expected(self):\n        self.fail('genuine body assertion')\n", "KILLED"),
+        ]
+        for label, methods, expected in cases:
+            with self.subTest(phase=label), tempfile.TemporaryDirectory() as directory:
+                Path(directory, "test_fixture_probe.py").write_text(
+                    "import unittest\nclass Probe(unittest.IsolatedAsyncioTestCase):\n" + methods
+                )
+                result = subprocess.run(
+                    [sys.executable, str(run_pg_search.ROOT / "tests/test_receipts.py"), directory],
+                    capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 1, label)
+                self.assertIn("CORTEX_TEST_RESULT=", result.stdout)
+                self.assertEqual(
+                    mutate_pg_search.classify_kill(result.returncode, result.stdout + result.stderr + "\ncleanup: PASS\n", target),
+                    expected, label + "\n" + result.stdout + result.stderr,
+                )
+
     def test_real_async_fixture_assertions_cannot_kill_expected_test(self):
         target = "test_fixture_probe.Probe.test_expected"
         for phase in ("asyncSetUp", "asyncTearDown"):
