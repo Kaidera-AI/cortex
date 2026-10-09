@@ -117,6 +117,16 @@ class TelemetryTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(response.json()["error"]["reason"], "loopback_required")
         self.assertEqual((self.health_calls, self.sample_calls), (0, 0))
 
+    async def test_external_scrape_is_refused_before_core_readers(self):
+        scraper = FakeScraper(self.gateway.app, ("198.51.100.7", 1234))
+        response = await scraper.pull("/metrics", headers={"X-Forwarded-For": "127.0.0.1"})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual((self.health_calls, self.sample_calls), (0, 0))
+
+    async def test_wildcard_binding_is_refused_at_construction(self):
+        with self.assertRaises(ValueError):
+            self.make(host="0.0.0.0")
+
     async def test_binding_is_literal_loopback_with_proxy_trust_disabled(self):
         for host in ("127.0.0.1", "127.4.3.2", "::1"):
             gateway = self.make(host=host, port=43210)
@@ -153,6 +163,13 @@ class TelemetryTests(unittest.IsolatedAsyncioTestCase):
                     gateway.serve(runner)
                 runner.assert_not_called()
 
+    async def test_reconfigured_wildcard_is_refused_before_server_call(self):
+        self.gateway.host = "0.0.0.0"
+        runner = Mock()
+        with self.assertRaises(ValueError):
+            self.gateway.serve(runner)
+        runner.assert_not_called()
+
     async def test_noop_or_invalid_core_sample_cannot_serve_old_success(self):
         self.metrics.update_core(999999, 123)
         for value in (None, {"db_bytes": 1, "embed_backlog": 1}, CoreSample(True, 1),
@@ -163,6 +180,13 @@ class TelemetryTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(response.status_code, 503)
                 self.assertEqual(response.json()["error"]["reason"], "sample_unavailable")
                 self.assertNotIn("999999", response.text)
+
+    async def test_missing_core_sample_refuses_cached_export(self):
+        self.metrics.update_core(999999, 123)
+        self.sample = None
+        response = await self.scraper.pull("/metrics")
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("999999", response.text)
 
     async def test_every_scrape_updates_actual_supplied_core_values(self):
         first = self.samples(await self.scraper.pull("/metrics"))
