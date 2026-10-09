@@ -166,6 +166,105 @@ class CacheTests(test_pg_search.SearchTests):
         )
         self.assertTrue(flags[0] and flags[1])
 
+    async def test_capacity_is_bounded_per_scope(self):
+        cache = QueryEmbeddingCache(
+            self.pool, self.authorize_cache, self.embed, max_entries=1
+        )
+        await cache.get("alice", IDENTITY, "first")
+        with self.assertRaises(CapabilityUnavailable):
+            await cache.get("alice", IDENTITY, "second")
+        self.assertTrue((await cache.get("alice", IDENTITY, "first")).cache_hit)
+        await cache.get("bob", IDENTITY, "second")
+        self.assertEqual(
+            await self.admin.fetchval(
+                "SELECT count(*) FROM retrieval.query_embeddings"
+            ),
+            2,
+        )
+
+    async def test_fence_rejects_old_response_during_successor_lease(self):
+        entered_old, entered_new = asyncio.Event(), asyncio.Event()
+        release_old, release_new = asyncio.Event(), asyncio.Event()
+
+        async def old_embed(text, identity):
+            entered_old.set()
+            await release_old.wait()
+            return VECTOR
+
+        new_vector = [0.0, 1.0] + [0.0] * 766
+
+        async def new_embed(text, identity):
+            entered_new.set()
+            await release_new.wait()
+            return new_vector
+
+        old = QueryEmbeddingCache(
+            self.pool,
+            self.authorize_cache,
+            old_embed,
+            lease_seconds=0.03,
+            wait_seconds=0.8,
+        )
+        new = QueryEmbeddingCache(
+            self.pool, self.authorize_cache, new_embed, wait_seconds=0.8
+        )
+        old_task = asyncio.create_task(old.get("alice", IDENTITY, "fence"))
+        new_task = None
+        try:
+            await entered_old.wait()
+            await asyncio.sleep(0.05)
+            new_task = asyncio.create_task(new.get("alice", IDENTITY, "fence"))
+            await entered_new.wait()
+            release_old.set()
+            await asyncio.sleep(0.04)
+            self.assertFalse(old_task.done())
+            self.assertEqual(
+                await self.admin.fetchval(
+                    "SELECT count(*) FROM retrieval.query_embeddings WHERE embedding IS NOT NULL"
+                ),
+                0,
+            )
+            release_new.set()
+            newer, older = await asyncio.gather(new_task, old_task)
+            self.assertEqual(older.vector, tuple(new_vector))
+            self.assertTrue(older.cache_hit)
+        finally:
+            release_old.set()
+            release_new.set()
+            for task in [old_task, new_task]:
+                if task is not None:
+                    await asyncio.gather(task, return_exceptions=True)
+
+    async def test_capacity_concurrent_distinct_queries(self):
+        arrived = asyncio.Event()
+        visits = 0
+
+        async def synchronized_authorize(conn, subject):
+            nonlocal visits
+            scope = await self.authorize_cache(conn, subject)
+            visits += 1
+            if visits <= 2:
+                if visits == 2:
+                    arrived.set()
+                await arrived.wait()
+            return scope
+
+        cache = QueryEmbeddingCache(
+            self.pool, synchronized_authorize, self.embed, max_entries=1
+        )
+        results = await asyncio.gather(
+            cache.get("alice", IDENTITY, "race-a"),
+            cache.get("alice", IDENTITY, "race-b"),
+            return_exceptions=True,
+        )
+        self.assertEqual(sum(isinstance(r, CapabilityUnavailable) for r in results), 1)
+        self.assertEqual(
+            await self.admin.fetchval(
+                "SELECT count(*) FROM retrieval.query_embeddings"
+            ),
+            1,
+        )
+
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
     async def test_existing_hosted_endpoint_and_snapshot(self):
