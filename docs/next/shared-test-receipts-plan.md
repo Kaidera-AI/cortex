@@ -16,3 +16,5 @@ Required fix: none
 Evidence needed before creation: fresh own-name absence and pinned image inspection; copied files only.
 
 Risks/open: moving imports later can shadow similarly named modules; use explicit tests-directory import path and remove the old C01 copy, source-hash verified. This PR introduces the exact helper only, not adoption on existing separate stacks. No global all-gates claim; existing folder fitness may remain RED. Reviewer closes Mike's finding; Kai adjudicates exact newhead.
+
+Kai23:12 exact probe pointer read: lane-F/pr29-fixture-probes.py at Nemo dcaf406. Both source patterns and body-execution assertions are reproduced through the shared suite; source provenance hashed in integrity.json.
