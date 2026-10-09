@@ -89,10 +89,11 @@ CREATE TABLE coordination.outbox (
     payload_sha256 text NOT NULL CHECK (payload_sha256 ~ '^[0-9a-f]{64}$'),
     occurred_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, project_id, event_id),
+    UNIQUE (installation_id, tenant_id, project_id, event_id),
     UNIQUE (tenant_id, project_id, aggregate_id, aggregate_revision),
     FOREIGN KEY (tenant_id, installation_id) REFERENCES core.tenants (id, installation_id),
     FOREIGN KEY (tenant_id, project_id, aggregate_id, aggregate_kind) REFERENCES core.records (tenant_id, project_id, id, kind),
-    FOREIGN KEY (tenant_id, project_id, aggregate_id, aggregate_revision, tombstone) REFERENCES core.record_revisions (tenant_id, project_id, record_id, revision, tombstone),
+    FOREIGN KEY (tenant_id, project_id, aggregate_id, aggregate_revision, tombstone, payload_ref) REFERENCES core.record_revisions (tenant_id, project_id, record_id, revision, tombstone, payload_ref),
     FOREIGN KEY (tenant_id, project_id, payload_ref, payload_sha256) REFERENCES core.payloads (tenant_id, project_id, id, sha256),
     CHECK ((operation = 'delete') = tombstone)
 );
@@ -106,7 +107,7 @@ CREATE TABLE coordination.published_events (
     event_id uuid NOT NULL UNIQUE,
     published_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (installation_id, cursor),
-    FOREIGN KEY (tenant_id, project_id, event_id) REFERENCES coordination.outbox (tenant_id, project_id, event_id)
+    FOREIGN KEY (installation_id, tenant_id, project_id, event_id) REFERENCES coordination.outbox (installation_id, tenant_id, project_id, event_id)
 );
 CREATE TABLE coordination.quarantine (
     tenant_id uuid NOT NULL,
