@@ -27,6 +27,10 @@ class LegacyMap(unittest.TestCase):
         source="CREATE TABLE public.alpha (\n id integer, note text DEFAULT '-- /* ( , ) */'::text,\n CONSTRAINT ok CHECK (id IN (1,2,3))\n);"
         self.assertEqual([name for name,_ in parse_fields(source)['public.alpha']],['id','note'])
 
+    def test_plain_backslash_does_not_escape_standard_sql_quote(self):
+        source="CREATE TABLE public.alpha (\n value text DEFAULT '\\'::text\n);"
+        self.assertEqual(parse_fields(source),{'public.alpha':[('value',"value text DEFAULT '\\'::text")]})
+
     def test_neighbor_declaration_cannot_be_borrowed(self):
         source=b'CREATE TABLE public.alpha (\n id integer\n);\nCREATE TABLE public.beta (\n id text\n);'
         mapping,inventory=self.fixture(source)
