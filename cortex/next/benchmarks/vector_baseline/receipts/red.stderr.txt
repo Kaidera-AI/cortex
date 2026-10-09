@@ -1,0 +1,21 @@
+test_vector_baseline (unittest.loader._FailedTest.test_vector_baseline) ... ERROR
+
+======================================================================
+ERROR: test_vector_baseline (unittest.loader._FailedTest.test_vector_baseline)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_vector_baseline
+Traceback (most recent call last):
+  File "/Users/amadmalik/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/cortex/next/tests/benchmarks/test_vector_baseline.py", line 11, in <module>
+    from vector_baseline import corpus, oracle, postgres
+ModuleNotFoundError: No module named 'vector_baseline'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (errors=1)
