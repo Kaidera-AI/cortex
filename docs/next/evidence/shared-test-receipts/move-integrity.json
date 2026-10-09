@@ -1,0 +1,70 @@
+{
+  "tested_source": "7699c273056f293feadf8a37bd517cdec3b5648c",
+  "main_base": "c134ab20e36ae074ae57d6057f53b6479fc5e91c",
+  "red_source": "f243df163d24344061d7c77f1bc3b8294d190875",
+  "source_sha256": {
+    "next/contracts/README.md": "690dd3870c7d47d8d22cc9d6f446843a1d5c899013ef48ea948c14d1e9b8177a",
+    "next/contracts/fixtures/capability-ready.json": "8146d58c3756d82790c50d947d1f37ce6f08197b423b768fb6032b46949e84c4",
+    "next/contracts/fixtures/capability-unavailable.json": "e7fa20b15f7cf7e6c6beb4c93e71c38cd6fdfe924894d4be000dbe3bdc2b0f3c",
+    "next/contracts/fixtures/core-unavailable.json": "7fa6dff23bd563b1b907248231f7d25b6f98527e10907ad5c2e879313a6a5b9e",
+    "next/contracts/fixtures/event-delete.json": "c29a770d680daf60dda33a3c71f51bae7ba36a0fbf176946bf8aea9121daaddc",
+    "next/contracts/fixtures/event-upsert.json": "1ba742369005bf5454b40546264082dd4c8c6179a51ab12fde7e41dd11ae9b09",
+    "next/contracts/fixtures/write-committed.json": "11bb8289934a4017c2861baff2b9da112cb7428c06d6acb755549e635b2548d0",
+    "next/contracts/openapi.json": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+    "next/contracts/outbox-event.schema.json": "5fa8789b346764a2dc319b0770ca362eff6c76c36d65fb21cd8f2ee46865055a",
+    "next/contracts/provenance.json": "c6ad94ffc41197fb3cc7e85b3c118341e1ff91c57fc6d0f2f7f87e3055aea050",
+    "next/contracts/route-matrix.md": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+    "next/requirements-test.txt": "ea127b6bd9e3bdbd4543b356ce8f2c71ee4ba731a38e7ec13ac20a4b11e92cc5",
+    "next/scripts/mutate_contracts.py": "062e7df49e67fde0d8eabde9b9aa8dbff3e224a0924241abc2625165a8506849",
+    "next/src/cortex_core/contracts.py": "294919224493e4edd5486493d8d3ce1fab312b29f7eb0bd081b08c1377ced72c",
+    "next/tests/contract/test_contracts.py": "0efa7498dab02e451437c6c93be15b033cb620774ec53adf3381b2f924e56180",
+    "next/tests/contract/test_receipt_shape.py": "760a8815a7adff072c0895b73bb44d5e5bdf39aecadbf63931657dbac4f33405",
+    "next/tests/contract/test_review_regressions.py": "0c69d749eb6ecb7d131c2d75f2cc90be18484dede9397285d6a5be3e07f8072c",
+    "next/tests/contract/test_rfc3339.py": "eebdc7d8aeaa1175e18bfb74b0fc7cc7c28fcfeaa13f5242c2a0db17eae6ed7a",
+    "next/tests/contract/test_runner_phases.py": "5149d65df61f2dd4d332c18aed84b0e77bf2389e340dd4e3cd81c00f03ce7374",
+    "next/tests/contract/test_schema_index.py": "aee4077b044d5b90a1f325066615ba21fb55c099de57bd379851f2470709710f",
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/receipt/test_shared_location.py": "1c64c4459433d9bee41218cf3443def1102f95b9237d9ceb52c012de406905ec",
+    "next/tests/test_receipts.py": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4"
+  },
+  "helper_exact_to_main_oldpath": true,
+  "helper_sha256": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4",
+  "old_copy_removed": true,
+  "original_shared_and_location_tests_unchanged_after_red": true,
+  "original_C01_test_bodies_AST_unchanged": true,
+  "prior_contract_source_bytes_unchanged_except_imports_and_move": true,
+  "contract_and_shared": {
+    "/tmp/next/scripts/mutate_contracts.py": {
+      "tests": 33,
+      "mutants": 26,
+      "expected_body_assertion_kills": 26,
+      "errors": 0,
+      "survivors": 0,
+      "inconclusive": 0,
+      "restored_clean": true
+    },
+    "/tmp/mutate-receipts.py": {
+      "tests": 16,
+      "mutants": 7,
+      "expected_body_assertion_kills": 7,
+      "errors": 0,
+      "survivors": 0,
+      "inconclusive": 0,
+      "restored_clean": true
+    }
+  },
+  "move_red": {
+    "tests": 16,
+    "test_body_assertions": 2,
+    "errors": 0
+  },
+  "container_removed": true,
+  "limits": {
+    "cpus": 2,
+    "memory": "1g"
+  },
+  "bootstrap": "pinned C01 dependencies installed in disposable container then networking disconnected before all checks",
+  "global_folder_fitness": "existing RED remains separate",
+  "earlier_additive_proof": "retained history, superseded for final MOVE scope",
+  "C03_followup": "after sharedmerge adapt C03 caller import/mutation target on its own branch before C03 merge; reviewer rechecks any content change"
+}

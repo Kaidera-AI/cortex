@@ -1,0 +1,25 @@
+{
+  "tested_source": "88835014d0fb1cec4887c61c87eb49b7acd12c69",
+  "main_base": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "source_sha256": {
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/test_receipts.py": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4"
+  },
+  "exact_prior_helper_ref": "0f651b91fc2ad73d906b425cc2d932896d36cc62:next/scripts/test_receipts.py",
+  "exact_prior_helper_sha256": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4",
+  "helper_bytes_unchanged": true,
+  "tests_unchanged_from_red": "e3aaa2f",
+  "tests": 14,
+  "mutants": 7,
+  "expected_test_body_assertion_kills": 7,
+  "inconclusive": 0,
+  "survivors": 0,
+  "errors": 0,
+  "restored_baseline_clean": true,
+  "container_removed": true,
+  "real_fixture_inconclusive_receipts": 5,
+  "nemo_probe_source": "docs/plans/cortex-v2-v0.1.020/lane-F/pr29-fixture-probes.py",
+  "nemo_probe_sha256": "3623cd9d635c1082fa682ed9a326ab7a5584149920da5ae7773c058379ac4945",
+  "red_distinction": "missing-red is implementation/import RED; fixture-red uses explicit disposable phase-forced faultseed and records5 causal outer assertion failures/noerrors incl both asynccases; prior C01 helper itself was already correct",
+  "consumers": "no callers modified here; PR30 and Nemo own PR29 adaptation after shared merge"
+}
