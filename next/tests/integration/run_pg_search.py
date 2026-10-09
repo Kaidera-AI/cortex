@@ -11,7 +11,7 @@ IMAGE = "docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def main():
+def main(pattern="test_pg_search.py"):
     label = "nemo-pg-search-" + uuid.uuid4().hex[:10]
     name = "kaidera-test-pg-search-1-" + uuid.uuid4().hex[:8]
     command = [
@@ -101,7 +101,7 @@ def main():
                 "-s",
                 str(ROOT / "tests/integration"),
                 "-p",
-                "test_pg_search.py",
+                pattern,
                 "-v",
             ],
             env=env,
