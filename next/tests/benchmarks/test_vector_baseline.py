@@ -220,7 +220,7 @@ class PostgresContractTests(unittest.TestCase):
         self.assertIn("999:999", args)
         self.assertIn("--cap-drop=ALL", args)
         self.assertIn("--security-opt=no-new-privileges", args)
-        self.assertIn("--memory=2g", args)
+        self.assertIn("--memory=1g", args)
         self.assertIn("--cpus=2", args)
         self.assertIn("127.0.0.1::5432", args)
         self.assertRegex(p.name, r"^kaidera-dev-vector-baseline-[0-9]+$")

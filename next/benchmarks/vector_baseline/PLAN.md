@@ -1,6 +1,6 @@
 # B01 implementation plan — H-D455 CODE GO
 
-Mike authors; Vera reviews. Target Kaidera-AI/cortex main, isolated SSD branch `mike/b01-postgres-baseline-20261009`; fresh `cortex/next/` only.
+Mike authors; Vera reviews. Target Kaidera-AI/cortex main, isolated SSD branch `mike/b01-postgres-baseline-20261009`; fresh `next/` only (helix `cortex/next/`).
 
 ```text
 corpus.py: deterministic 5M-default streaming generator + typed sanitized slot
@@ -20,3 +20,5 @@ Accepted draft: `79725eb52879e4c9bc637908e2536c0599a05730a4422a0eedd4d44e567ac2d
 Naming gate: PASS; `kaidera-dev-vector-baseline-<numeric-run-id>`; project helix/Cortex, dev diagnostic, fleet member, no region; role is vector baseline. Canonical form `kaidera-{env}-{role}-{n}` from helix `.agents/skills/infra-naming-gate/SKILL.md`; legacy SOP path currently absent. The suffix identifies one owned lifecycle, not a live platform resource.
 
 Local SQL/precomputed-vector timings are diagnostic. Product auth/provider/cache path, 5M/native full benchmark, real snapshot/query/sparse custody, cold host proof, crash/ACK, 16-worker concurrency, PITR, portability and 24h SELinux stay separate gates. The harness cannot decide Qdrant from synthetic or partial data; it emits UNDECIDED for those conditions. Complete per-cell real-data product evidence is required to retain Postgres or reopen Qdrant.
+
+H-D455 21:33 amendment: shared engine allows at most **1 GiB/2 CPUs**, label `worker=mike`. The original security assertion is tightened from 2 GiB to 1 GiB under this explicit steering; preserve original historical test hashes and bind the new test bytes. Verification-found startup cleanup/error classification controls are RED before fixes.

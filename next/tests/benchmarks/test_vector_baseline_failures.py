@@ -5,6 +5,11 @@ from vector_baseline import oracle, postgres
 
 
 class FailureControls(unittest.TestCase):
+    def test_shared_engine_constraint(self):
+        args = postgres.DisposablePostgres().run_args()
+        self.assertIn("--memory=1g", args)
+        self.assertIn("worker=mike", args)
+
     def test_search_error_and_bad_empty_are_failures(self):
         self.assertEqual(oracle.cells([{"cell": "tight", "status": "ERROR"}])["tight"]["verdict"], "FAIL")
         self.assertEqual(oracle.cells([{"cell": "empty", "status": "MEASURED", "safe": False,
