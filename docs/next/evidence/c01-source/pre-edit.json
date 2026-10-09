@@ -1,0 +1,640 @@
+{
+  "base": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "since": "2026-09-09",
+  "recent_ref_count": 76,
+  "refs_sha256": "afd4728fb760b3e3aa8c6d18dc3bdd3e02dd29b92fa6d8ec5175855723c43a38",
+  "declared_paths": [
+    "next/contracts",
+    "next/src/cortex_core/contracts.py",
+    "next/tests/contract",
+    "next/requirements-test.txt",
+    "next/scripts"
+  ],
+  "comparisons": [
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-1ce41a2f644a13330be56ca4bd18a7bf46bb2425",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-1ce41a2f644a13330be56ca4bd18a7bf46bb2425: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-477e49199c34cd3b9f8e3ae9d587f09b84895935",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-477e49199c34cd3b9f8e3ae9d587f09b84895935: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-62f68568741e34e512d1e79690606d923f2bc27a",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-62f68568741e34e512d1e79690606d923f2bc27a: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-6bfb6887b93c9d15a345d7a6c803d365923e35f8",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-6bfb6887b93c9d15a345d7a6c803d365923e35f8: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-ba35e8b5abd0327d8a162b30109a51a8d79f73f2",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-ba35e8b5abd0327d8a162b30109a51a8d79f73f2: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-c22cff32897889f23364347fa835418398db4d15",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-c22cff32897889f23364347fa835418398db4d15: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-da6dd8c503722ad69b7f6747c77736c405a63a80",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-da6dd8c503722ad69b7f6747c77736c405a63a80: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-eaf0d67fb6ceeb2bfe39362ceb9f3588fc7d64f9",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-eaf0d67fb6ceeb2bfe39362ceb9f3588fc7d64f9: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-eb130989d285a82c07c9d8e9edeeb0b017c3e352",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-eb130989d285a82c07c9d8e9edeeb0b017c3e352: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-eec94fc2da72cf489a9b957fe3822eeb051d1206",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/linux-package-build-admitted-eec94fc2da72cf489a9b957fe3822eeb051d1206: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-0995c2c027b9a90f6e7a1dbfa32d94a1e38fe4f9",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-build-admitted-0995c2c027b9a90f6e7a1dbfa32d94a1e38fe4f9: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-7bba356f2dfe602929d6a6dc53ac984edc170247",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-build-admitted-7bba356f2dfe602929d6a6dc53ac984edc170247: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-8d6eb12f4406d814831ddb02519809172303d7cd",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-build-admitted-8d6eb12f4406d814831ddb02519809172303d7cd: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-99d792d5e6e564f1917458000263174ca29bd324",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-build-admitted-99d792d5e6e564f1917458000263174ca29bd324: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-9e506953f7a7c1a6ee44c24d82830c8d98233be2",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-build-admitted-9e506953f7a7c1a6ee44c24d82830c8d98233be2: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-1538e988f50ae119923e5338202ce3c567df9f6b",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-1538e988f50ae119923e5338202ce3c567df9f6b: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-18b39f6575b538de1472b3b2f881ebc569ba6d14",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-18b39f6575b538de1472b3b2f881ebc569ba6d14: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-1928fe7fc314b031a8e8d199b08cc262cf6b35a7",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-1928fe7fc314b031a8e8d199b08cc262cf6b35a7: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-88f27146036a7137ca8e17c21b4eeffbb7690d20",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-88f27146036a7137ca8e17c21b4eeffbb7690d20: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-9e506953f7a7c1a6ee44c24d82830c8d98233be2",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-9e506953f7a7c1a6ee44c24d82830c8d98233be2: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-a630be83a505784939ad7ab610c3368f984d79ab",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-a630be83a505784939ad7ab610c3368f984d79ab: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-ab71dbcf44fc5133f3c59519a385ce5294af1145",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-ab71dbcf44fc5133f3c59519a385ce5294af1145: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-d719f39cb0160e2ddb46655a909ddaa07ab93cff",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-d719f39cb0160e2ddb46655a909ddaa07ab93cff: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-e66e1e932891b031556762e2acaabd55f6f691c1",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-e66e1e932891b031556762e2acaabd55f6f691c1: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-fbd7145cafb422da8ec9736427978e52e89a5968",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/package-rehearsal-fbd7145cafb422da8ec9736427978e52e89a5968: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r105-search-ingest-contract-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r105-search-ingest-contract-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r110-dynamic-caller-contract-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r110-dynamic-caller-contract-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r129-integrated-test-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r129-integrated-test-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r134-macos15-runner-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r134-macos15-runner-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r146-state-adapter-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r146-state-adapter-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r159-macho-floor-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r159-macho-floor-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r162-agent-rework-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r162-agent-rework-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r171-dispatch-guard-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r171-dispatch-guard-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r186-agent-checkpoints-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r186-agent-checkpoints-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r198-linux-package-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r198-linux-package-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r211-first-registration-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r211-first-registration-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r221-ci-publication-rework-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r221-ci-publication-rework-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r239-linux-tooling-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r239-linux-tooling-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r258-uv-wheel-hash-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r258-uv-wheel-hash-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r263-linux-db-diagnostics-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r263-linux-db-diagnostics-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r277-cpu-delegation-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r277-cpu-delegation-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r283-delegation-observability-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r283-delegation-observability-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r288-ubuntu2404-images-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r288-ubuntu2404-images-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r295-apparmor-userns-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r295-apparmor-userns-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r301-functional-userns-20261006",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r301-functional-userns-20261006: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r367-linux-cm2-recovery-20261007",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r367-linux-cm2-recovery-20261007: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r63-member-transport-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r63-member-transport-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r65-key-reader-20261004",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r65-key-reader-20261004: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r70-macos-bootstrap-20261004",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r70-macos-bootstrap-20261004: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r75-reader-rework-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r75-reader-rework-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r82-integrated-test-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r82-integrated-test-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r91-mcp-member-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r91-mcp-member-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r91-member-client-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r91-member-client-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r92-agent-shims-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r92-agent-shims-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r92-project-roots-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r92-project-roots-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r96-boot-context-contract-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r96-boot-context-contract-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/r98-coordination-write-contract-20261005",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/r98-coordination-write-contract-20261005: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/v2-converter-20260928",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/v2-converter-20260928: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/v2-d53-keys-20260928",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/v2-d53-keys-20260928: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/v2-d53-m-20261003",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/v2-d53-m-20261003: no merge base\n"
+    },
+    {
+      "ref": "origin/ren-cx/v2-r3-fixes-20260928",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/ren-cx/v2-r3-fixes-20260928: no merge base\n"
+    },
+    {
+      "ref": "origin/v2",
+      "status": "UNCHECKED",
+      "error": "fatal: 04a26d0bf40c07ed3082328d3cc42c5a72ca8411...origin/v2: no merge base\n"
+    }
+  ],
+  "worktrees": "/Users/amadmalik/DevVault/helix/cortex                                                  8b16cc6 [main]\n/Users/amadmalik/DevVault/helix/.worktrees/ren-cx-manual-cm1-20261003                   13481d7 [ren-cx/manual-cm1-20261003]\n/Users/amadmalik/DevVault/helix/.worktrees/ren-cx-r426-db-peer-init-20261009            db9181a [ren-cx/r426-db-peer-init-20261009]\n/Users/amadmalik/DevVault/helix/.worktrees/ren-cx-r426-graph-build-20261009             c7279d8 [ren-cx/r426-graph-build-20261009]\n/Users/amadmalik/DevVault/helix/.worktrees/ren-kos-r412-checkpoint-20261007             e70c3d1 (detached HEAD) locked\n/Users/amadmalik/DevVault/helix/.worktrees/ren-kos-r412-native-producer-20261007        7b4926a [ren-kos/r412-native-producer-20261007] locked\n/Users/amadmalik/DevVault/kaidera-os/cortex-worktrees/kai-cortex-docs-v01003            04a26d0 [kai/cortex-docs-v0.1.003-20260909] prunable\n/Users/amadmalik/DevVault/kaidera-os/cortex-worktrees/kai-installer-successor-candidate 640079b [kai/installer-successor-candidate-20260904] prunable\n/Users/amadmalik/DevVault/kaidera-os/cortex-worktrees/ren-cortex-design-review-20260905 8b16cc6 [ren/cortex-design-review-20260905] prunable\n/Users/amadmalik/DevVault/kaidera-os/cortex-worktrees/ren-cortex-v01003-qualification   8b16cc6 [ren/cortex-v01003-qualification] prunable\n/Volumes/WD-B-4TB/DevVault/helix/worktrees/ren-cx-r403-v1-manual-linux-20261007         15aff36 [ren-cx/r403-v1-manual-linux-20261007] locked\n",
+  "shared_checkout_status": "?? .DS_Store\n?? docs/.DS_Store\n?? docs/architecture-review-2026-09-24/\n?? docs/cortex-v2-v0.02.001-deployment-plan.md\n?? docs/cortex-v2-v0.02.001.md\n?? docs/cortex-v2-v0.02.001/\n?? packages/.DS_Store\n?? packages/api/__pycache__/\n?? v2/\n",
+  "scope": "C01 only; helix lane A; H-D455 accepted source go",
+  "unchecked_resolutions": [
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-1ce41a2f644a13330be56ca4bd18a7bf46bb2425",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-477e49199c34cd3b9f8e3ae9d587f09b84895935",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-62f68568741e34e512d1e79690606d923f2bc27a",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-6bfb6887b93c9d15a345d7a6c803d365923e35f8",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-ba35e8b5abd0327d8a162b30109a51a8d79f73f2",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-c22cff32897889f23364347fa835418398db4d15",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-da6dd8c503722ad69b7f6747c77736c405a63a80",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-eaf0d67fb6ceeb2bfe39362ceb9f3588fc7d64f9",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-eb130989d285a82c07c9d8e9edeeb0b017c3e352",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/linux-package-build-admitted-eec94fc2da72cf489a9b957fe3822eeb051d1206",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-0995c2c027b9a90f6e7a1dbfa32d94a1e38fe4f9",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-7bba356f2dfe602929d6a6dc53ac984edc170247",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-8d6eb12f4406d814831ddb02519809172303d7cd",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-99d792d5e6e564f1917458000263174ca29bd324",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-build-admitted-9e506953f7a7c1a6ee44c24d82830c8d98233be2",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-1538e988f50ae119923e5338202ce3c567df9f6b",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-18b39f6575b538de1472b3b2f881ebc569ba6d14",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-1928fe7fc314b031a8e8d199b08cc262cf6b35a7",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-88f27146036a7137ca8e17c21b4eeffbb7690d20",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-9e506953f7a7c1a6ee44c24d82830c8d98233be2",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-a630be83a505784939ad7ab610c3368f984d79ab",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-ab71dbcf44fc5133f3c59519a385ce5294af1145",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-d719f39cb0160e2ddb46655a909ddaa07ab93cff",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-e66e1e932891b031556762e2acaabd55f6f691c1",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/package-rehearsal-fbd7145cafb422da8ec9736427978e52e89a5968",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r105-search-ingest-contract-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r110-dynamic-caller-contract-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r129-integrated-test-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r134-macos15-runner-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r146-state-adapter-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r159-macho-floor-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r162-agent-rework-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r171-dispatch-guard-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r186-agent-checkpoints-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r198-linux-package-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r211-first-registration-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r221-ci-publication-rework-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r239-linux-tooling-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r258-uv-wheel-hash-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r263-linux-db-diagnostics-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r277-cpu-delegation-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r283-delegation-observability-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r288-ubuntu2404-images-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r295-apparmor-userns-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r301-functional-userns-20261006",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r367-linux-cm2-recovery-20261007",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r63-member-transport-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r65-key-reader-20261004",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r70-macos-bootstrap-20261004",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r75-reader-rework-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r82-integrated-test-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r91-mcp-member-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r91-member-client-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r92-agent-shims-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r92-project-roots-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r96-boot-context-contract-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/r98-coordination-write-contract-20261005",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/v2-converter-20260928",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/v2-d53-keys-20260928",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/v2-d53-m-20261003",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/ren-cx/v2-r3-fixes-20260928",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    },
+    {
+      "ref": "origin/v2",
+      "resolution": "full ref tree inspected; declared paths absent",
+      "exit_code": 0
+    }
+  ]
+}

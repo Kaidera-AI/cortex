@@ -1,0 +1,9 @@
+{
+  "code": "capability_unavailable",
+  "message": "Search is rebuilding",
+  "retryable": true,
+  "details": {
+    "capability": "search",
+    "state": "rebuilding"
+  }
+}

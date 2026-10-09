@@ -1,0 +1,11 @@
+# B01-PR34-1 bounded reproduction
+
+Base is merged PR34 main `8f08b5b4a94819c122f2f13cffe9fb833915c3dd`. RED is `95ce85ff4c8fda539c3d7a5b6986ab723922af2c`: all 20 shared checks run on the unchanged helper; three expected outer test-body AssertionErrors, no errors. Mike's exact 37-line reproducer SHA256 is `5665077dea98fae0219849cf6478495a2e4b0acd3b0370088a979e26ff253db8`. Its own executable bytes and all five classes/assertions remain unchanged. Only copied temporary directory layout supplies the helper it loads.
+
+From an owned worktree at the source commit, run `python3 run-async.py red` for the RED or `python3 run-async.py green` for the implementation. This host script orchestrates copied inputs and runs tests inside Podman; it installs no host packages. Adapt only canonical evidence output path/phase names for an independent run; it refuses to overwrite existing receipts.
+
+Native Python3.12 image is the exact inspected arm64 ID `sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9`. Container is nonroot/read-only/dropALL/no-new-privileges, 2CPU/1GiB, tmpfs256MiB, no ports or mounts. RED is network-none. GREEN installs six pinned C01 dependencies inside its disposable container and disconnects networking before every check. Only the owned test container is removed. This qualifies the bounded test helper, not platform parity or release readiness.
+
+GREEN runs all20 shared checks, eight helper semantic mutants with full raw outputs/explicit expected IDs, restored20 clean, all33 C01 checks and all26 C01 mutants, restored33 clean. Helper fixtures retain inconclusive; genuine body assertions remain killed; malformed reports, errors and operational exits remain inconclusive. The eighth mutant omits async wrapper code objects and must fail Mike's unchanged reuse control on an actual outer test-body AssertionError. Existing tests are frozen from RED and base. Private import/setup/runner failure is not a kill.
+
+The producer receipt records exact tested Git source and per-file hashes. The later proof-only commit changes no tested source bytes. Global Helix folder fitness independently remains RED for pre-existing tracked `dist` and `packaging`; no all-gates, live API, DB, installation or release claim. Mike's external SHA-bound review and Kai's merge ruling remain required after publication.
