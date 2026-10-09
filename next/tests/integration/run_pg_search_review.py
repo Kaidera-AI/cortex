@@ -2,6 +2,7 @@
 
 import subprocess
 from unittest.mock import patch
+
 import run_pg_search
 
 original_run = subprocess.run

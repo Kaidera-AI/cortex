@@ -2,17 +2,17 @@
 
 import math
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 from uuid import UUID
 
 import asyncpg
 from cortex_core.embeddings.pg_search import (
-    PostgresSearch,
-    Scope,
-    EmbeddingIdentity,
     CapabilityUnavailable,
     CoreUnavailable,
+    EmbeddingIdentity,
+    PostgresSearch,
+    Scope,
     StaleEmbedding,
 )
 
