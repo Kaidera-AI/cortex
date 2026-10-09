@@ -32,17 +32,19 @@ try:
     suite="""import sys,json,unittest
 sys.path.insert(0,'/tmp');sys.path.insert(0,'/tmp/proof')
 from test_receipts import AssertionResult,MARKER
-s=unittest.defaultTestLoader.discover('/tmp/proof',pattern='test_controller_guards.py')
+s=unittest.defaultTestLoader.discover('/tmp/proof',pattern='test_final_inventory.py' if PHASE.startswith('red-final') else 'test_controller_guards.py')
 r=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(s)
 print(MARKER+json.dumps({'tests_run':r.testsRun,'failures':r.assertions,'errors':[{'id':t.id(),'traceback':tb} for t,tb in r.errors]}),flush=True)
 raise SystemExit(0 if r.wasSuccessful() else 1)
 """
+    suite='PHASE='+repr(PHASE)+'\n'+suite
     value=run(['podman','exec','--env','PYTHONDONTWRITEBYTECODE=1',NAME,'python','-c',suite])
     reports=[json.loads(x.split('=',1)[1]) for x in value.stdout.splitlines() if x.startswith('CORTEX_TEST_RESULT=')]
-    assert len(reports)==1 and reports[0]['tests_run']==4 and not reports[0]['errors']
+    assert len(reports)==1 and reports[0]['tests_run']==(3 if PHASE.startswith('red-final') else 4) and not reports[0]['errors']
     if PHASE.startswith('red'):
         assert value.returncode==1
-        assert {x['id'].split(' (')[0] for x in reports[0]['failures']}=={'test_controller_guards.ControllerGuards.'+x for x in ('test_c03_cleanup_failure_cannot_return_green','test_graph_cleanup_failure_cannot_return_green','test_direct_podman_control_calls_are_bounded','test_tool_input_binding_precedes_resource_launch')}
+        expected={'test_final_inventory.FinalInventory.'+x for x in ('test_c03_inventory_timeout_retains_failed_receipt','test_graph_inventory_timeout_retains_failed_receipt','test_safety_inventory_timeout_retains_failed_receipt')} if PHASE.startswith('red-final') else {'test_controller_guards.ControllerGuards.'+x for x in ('test_c03_cleanup_failure_cannot_return_green','test_graph_cleanup_failure_cannot_return_green','test_direct_podman_control_calls_are_bounded','test_tool_input_binding_precedes_resource_launch')}
+        assert {x['id'].split(' (')[0] for x in reports[0]['failures']}==expected
         assert all(x['phase']=='test' and x['is_assertion'] for x in reports[0]['failures'])
     else:
         assert value.returncode==0 and not reports[0]['failures']
