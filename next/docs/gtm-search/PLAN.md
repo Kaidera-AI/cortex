@@ -61,3 +61,18 @@ with the existing mandatory final container-cleanup gate. Missing/malformed resu
 fixture assertions and errors are INCONCLUSIVE. Preserve the nine genuine search
 mutation recipes and raw receipts; rerun clean/full restored suites, publish PR29,
 then restack and reverify PR31 and PR33 before graph work. No product behavior changes.
+
+## Execution refinement — Kai 23:47, shared-helper adoption gate
+
+PR34 is a pure move. Adopt the shared helper once, only after Cox's separate
+B01-PR34-1 behavior fix (PR37) merges following Mike's review. Refresh PR29 on
+current main first, then restack PR31/33 and the graph branch in that order.
+The runner forwards its existing full-suite pattern or validated named test into
+the shared CLI through a temporary unittest load_tests selector; it owns no
+result emitter or phase classifier. Mutation admission delegates to shared
+classify/report while retaining the mandatory final container-cleanup gate.
+Keep dcaf406's actual raw fixture assertion regression unchanged. Add client-side
+structured suite controls for ordinary fixtures, async fixture reuse and genuine
+body assertions; malformed/missing packets remain inconclusive. Existing synthetic
+tool packets must follow the new protocol without weakening their expected
+target, error and cleanup checks. Preserve all nine product mutation recipes.
