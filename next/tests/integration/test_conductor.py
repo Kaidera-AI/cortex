@@ -98,6 +98,30 @@ class ConductorTests(test_pg_search.SearchTests):
         other = Supervisor(self.control_pool, INSTALLATION, lease_seconds=0.2)
         self.assertGreater(await other.acquire(), first)
 
+    async def test_stalled_control_cannot_hold_lease_lock_indefinitely(self):
+        supervisor = Supervisor(self.control_pool, INSTALLATION, lease_seconds=0.05)
+        first = await supervisor.acquire()
+        entered = asyncio.Event()
+
+        async def stalled(conn, fence):
+            await conn.execute("INSERT INTO public.test_controls VALUES($1)", fence)
+            entered.set()
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(supervisor.guarded(stalled))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            with self.assertRaises(StaleLease):
+                await asyncio.wait_for(task, 0.5)
+            self.assertEqual(
+                await self.admin.fetchval("SELECT count(*) FROM public.test_controls"), 0
+            )
+            other = Supervisor(self.control_pool, INSTALLATION, lease_seconds=0.2)
+            self.assertGreater(await asyncio.wait_for(other.acquire(), 0.5), first)
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
     async def test_heartbeat_stops_and_data_path_continues(self):
         stop = asyncio.Event()
         running = asyncio.create_task(self.supervisor.run(stop))
