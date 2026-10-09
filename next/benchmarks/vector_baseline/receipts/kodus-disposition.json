@@ -1,0 +1,36 @@
+{
+  "primary_head": "1e0f74750368012e13ecc44787e2646e2e9025f6",
+  "issue1": {
+    "disposition": "NOT_A_CONTRACT_DEFECT",
+    "authority": "accepted workload delta line27: reject zero cosine vectors; oracle over stored float32 values",
+    "reason": "Dot and Euclidean metrics define zero vectors; imposing a cosine-only prohibition on those metrics changes the frozen contract. Finite storage conversion and stored-value oracle remain consistent.",
+    "probes": [
+      {
+        "metric": "dot",
+        "explicit_zero_accepted": true,
+        "defined_zero_score": 0.0,
+        "stored_float32_truth": true
+      },
+      {
+        "metric": "euclidean",
+        "explicit_zero_accepted": true,
+        "defined_zero_score": -0.0,
+        "stored_float32_truth": true
+      }
+    ]
+  },
+  "issue2": {
+    "disposition": "FIXED_RED_FIRST",
+    "reason": "write_corpus requires explicit unique IDs before creating files.",
+    "red_commit": "b85db98"
+  },
+  "phase_followup": {
+    "head": "0f4316299503745e5f81adc94d43555c335211ef",
+    "issue": 1,
+    "severity": "HIGH",
+    "disposition": "REFUTED_BY_ACTUAL_RUNTIME_OUTPUT",
+    "reason": "Python3.12 _SubTest.id contains the complete parent dotted ID followed by subtest parameters. The existing duplicate-ID semantic mutant produces this exact structured receipt and classifies killed. Suggested case.id is optional simplification, not a demonstrated missing intersection.",
+    "evidence": "kodus-subtest-probe.json",
+    "adjudication": "Vera owns final review; author disposition only"
+  }
+}

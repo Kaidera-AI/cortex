@@ -1,12 +1,12 @@
 {
   "schema": "cortex-b01-author-evidence-v1",
   "base": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
-  "source_commit_before_receipts": "1d2c5044243d1fbf18a5b0fb568d9cf62a90d5bd",
+  "source_commit_before_receipts": "75279336d5a5342bd9c651f9152a68e3ff823e2b",
   "target_integration": "Already up to date; checks rerun afterward",
   "python": "3.12.13",
   "numpy": "2.3.4",
   "psycopg": "3.2.9",
-  "final_test_count": 20,
+  "final_test_count": 23,
   "final_test_exit": 0,
   "commands": [
     "B01_PODMAN=1 PYTHONPATH=next/src .venv/bin/python -m unittest discover -s next/tests/benchmarks -v",
@@ -16,26 +16,32 @@
     "python -m vector_baseline.postgres ... --per-cell1",
     "git diff --check"
   ],
-  "mutants": 7,
-  "killed": 7,
+  "mutants": 9,
+  "killed": 9,
   "covered_production_sources": [
     "corpus.py",
     "oracle.py",
     "postgres.py"
   ],
   "source_hashes": {
+    "next/benchmarks/vector_baseline/PLAN.md": "d3fb96caecbd9440dca7a5d8d97379b9cf794a45a743625b2d5c3d047f0043f7",
+    "next/benchmarks/vector_baseline/README.md": "1ac5549451505779b72ee0ebef4e64d2db244e5215c9032afb6103f4ac80371d",
     "next/benchmarks/vector_baseline/pyproject.toml": "9eeba4b29be1990ad5ba3e9c39e510900de4d9a6198842f0d796180b083a632a",
     "next/benchmarks/vector_baseline/uv.lock": "e8b9dbae40e9da7aea008ad4131dee144257cc8947e1641a58511f16da97ebe2",
-    "next/src/vector_baseline/corpus.py": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38",
+    "next/src/vector_baseline/corpus.py": "338d5a7c346c9f347eec12b644a43a45c0472a3d35f191bae68c7058e3bb82f8",
     "next/src/vector_baseline/oracle.py": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73",
     "next/src/vector_baseline/postgres.py": "cc204b7810dbebc156ad1299aec1acccd9e869cc8d5130269c48a36a467961c8",
-    "next/tests/benchmarks/mutate_vector_baseline.py": "fe11017b82b1b0ef13d8f4320b1d46026524c2ad82310e17d1704856e45de811",
-    "next/tests/benchmarks/test_vector_baseline.py": "9cf5064783f536c2d14c63264174b2ff27ae2a8c4df633863e3e94e137ec3f41",
-    "next/tests/benchmarks/test_vector_baseline_failures.py": "eed8262186dc50625d1db882870f6f16e1d9ef7604496ce282f8e49c57d6090e"
+    "next/tests/benchmarks/mutate_vector_baseline.py": "3ab45d288552d8f5205fe9ea8f6b6e2a03997c3b9477d7ce30833c3511eee3ed",
+    "next/tests/benchmarks/mutation_receipts.py": "9527eaba64b5269a41b22f02abaa1ba5204d97271249491aff0eca5b5423dd03",
+    "next/tests/benchmarks/test_vector_baseline.py": "fed47f721537185f646363d96d5aa8a758288a42165a52b486169527a03588e7",
+    "next/tests/benchmarks/test_vector_baseline_failures.py": "e6947e4def5c1b0ea032b9b9f0368265a1336f1ed1baaae3e7a952fbdd2d6f28"
   },
   "binding_changes": [
     "resource assertion2GiB\u21921GiB per H-D45521:33; original test hash remains in historical RED",
-    "verification-found extra tests committed RED-first"
+    "verification-found extra tests committed RED-first",
+    "Fixture ID preflight: unchanged RED2 subtest failures at b85db98; GREEN and9th named mutation",
+    "Fixture phase regression RED cbaedb4 then structured admission0f43162; exact test retained",
+    "Unused test imports/local removed7527933; every assertion AST unchanged"
   ],
   "sql_smoke": {
     "corpus_count": 24000,
@@ -43,7 +49,8 @@
     "errors": 0,
     "cell_count": 18,
     "engine_decision": "UNDECIDED",
-    "cleanup_verified": true
+    "cleanup_verified": true,
+    "report_sha256": "11e060cd9454fda0425ce824d2886bec7cda864614a80541d0411bc56b344b71"
   },
   "scale_fixture": {
     "count": 5000000,
@@ -53,5 +60,40 @@
   },
   "reviewer": "vera@helix",
   "review_gate": "PENDING",
-  "release_authorized": false
+  "release_authorized": false,
+  "kodus": {
+    "cli_version": "0.4.21",
+    "primary": "kodus/primary/kodus.json",
+    "followup": "kodus/followup/kodus.json",
+    "primary_findings": 2,
+    "followup_findings": 0,
+    "dispositions": "kodus-disposition.json",
+    "credential_values_printed": false,
+    "team_key_failed_attempt": "kodus/team-key-failed/",
+    "phase_followup": "kodus/phase/kodus.json",
+    "phase_followup_findings": 1,
+    "subtest_disposition": "kodus-subtest-probe.json",
+    "final_source_followup": "kodus/lint-final/kodus.json",
+    "final_source_followup_findings": 0
+  },
+  "final_test_native_actual": true,
+  "mutation_baseline_native_test": "NOT_RUN in mutation-only baseline; separately executed in final23 checks",
+  "mutation_admission": "structured expected test-body AssertionError only; setup/teardown controls RED2 subfailures then GREEN",
+  "global_helix_folder_fitness": {
+    "exit": 1,
+    "status": "RED_PREEXISTING",
+    "failures": [
+      "tracked top-level dist",
+      "tracked top-level packaging"
+    ],
+    "receipt": "helix-folder-fitness.stdout.txt",
+    "branch_folder_scope": "all authored tracked paths inside next; unrelated baseline not modified"
+  },
+  "lint": {
+    "rules": "E4,E7,E9,F",
+    "exit": 0,
+    "before": "lint-before.stdout.txt",
+    "after": "lint-after.stdout.txt",
+    "assertion_integrity": "lint-cleanup-integrity.json"
+  }
 }

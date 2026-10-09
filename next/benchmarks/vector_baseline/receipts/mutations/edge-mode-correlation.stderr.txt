@@ -4,13 +4,13 @@ test_each_edge_mode_covers_all_five_cardinalities (test_vector_baseline_failures
 FAIL: test_each_edge_mode_covers_all_five_cardinalities (test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 15, in test_each_edge_mode_covers_all_five_cardinalities
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 54, in test_each_edge_mode_covers_all_five_cardinalities
     self.assertEqual({x["eligible_count"] for x in q if x["stratum"] == "edges" and x["mode"] == mode},
 AssertionError: Items in the second set but not the first:
 10
 11
 
 ----------------------------------------------------------------------
-Ran 1 test in 0.281s
+Ran 1 test in 0.300s
 
 FAILED (failures=1)

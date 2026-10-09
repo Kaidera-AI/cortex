@@ -1,11 +1,19 @@
 [
   {
     "source": "corpus.py",
+    "mutation": "fixture-ID-duplicates",
+    "expected_test": "test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "338d5a7c346c9f347eec12b644a43a45c0472a3d35f191bae68c7058e3bb82f8"
+  },
+  {
+    "source": "corpus.py",
     "mutation": "edge-mode-correlation",
     "expected_test": "test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities",
     "exit": 1,
     "killed": true,
-    "source_sha256": "4ad2ba19d722ad4928ca1fa08597cdae3a57af808cf0559e2491c8d77c4c8436"
+    "source_sha256": "338d5a7c346c9f347eec12b644a43a45c0472a3d35f191bae68c7058e3bb82f8"
   },
   {
     "source": "corpus.py",
@@ -13,7 +21,7 @@
     "expected_test": "test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence",
     "exit": 1,
     "killed": true,
-    "source_sha256": "4ad2ba19d722ad4928ca1fa08597cdae3a57af808cf0559e2491c8d77c4c8436"
+    "source_sha256": "338d5a7c346c9f347eec12b644a43a45c0472a3d35f191bae68c7058e3bb82f8"
   },
   {
     "source": "corpus.py",
@@ -21,7 +29,7 @@
     "expected_test": "test_vector_baseline_failures.FailureControls.test_float32_underflow_refused",
     "exit": 1,
     "killed": true,
-    "source_sha256": "4ad2ba19d722ad4928ca1fa08597cdae3a57af808cf0559e2491c8d77c4c8436"
+    "source_sha256": "338d5a7c346c9f347eec12b644a43a45c0472a3d35f191bae68c7058e3bb82f8"
   },
   {
     "source": "oracle.py",

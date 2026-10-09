@@ -1,0 +1,47 @@
+REVIEW_ANALYSIS_COMPLETE
+
+FILES_ANALYZED: 61
+ISSUES_FOUND: 2
+DURATION_MS: 798604
+
+SEVERITY_BREAKDOWN:
+  CRITICAL: 0
+  ERROR: 0
+  WARNING: 0
+  INFO: 0
+
+ISSUES:
+
+ISSUE_1:
+  file: next/src/vector_baseline/corpus.py
+  line: 48
+  end_line: 52
+  severity: high
+  category: bug
+  message: Float32 underflow goes unrefused for non-cosine metrics: the zero-norm guard at line 51 is conditional on identity['metric'] == 'cosine', so vectors like [1e-100, 1e-100] with metric='dot' or 'euclidean' silently underflow to [0.0, 0.0] in float32 storage, losing all information and violating the contract tested by test_float32_underflow_refused. Hoist the underflow-to-zero check out of the cosine-only branch so any vector whose float32 cast produces an all-zero result is rejected regardless of metric.
+  suggestion:     stored = a.astype("<f4")
+    if not np.isfinite(stored).all():
+        raise ValueError("dense values exceed float32")
+    if np.any(np.all(stored == 0, axis=-1)):
+        raise ValueError("stored float32 vector underflowed to zero")
+    if identity["metric"] == "cosine" and np.any(np.linalg.norm(stored.astype(np.float64), axis=-1) == 0):
+        raise ValueError("stored float32 cosine vector is zero")
+  fixable: false
+
+ISSUE_2:
+  file: next/src/vector_baseline/corpus.py
+  line: 116
+  end_line: 117
+  severity: medium
+  category: bug
+  message: Duplicate IDs in write_corpus: rows omitting 'id' all receive the default 'p1', and the collision is only detected later inside load() (line 211) with a confusing 'duplicate or missing IDs/scope' error. Require an explicit 'id' in every row so the failure is rejected at write time with a clear message.
+  suggestion:         for field in ("id", "tenant", "project"):
+            if field == "id" and field not in row:
+                raise ValueError("fixture row missing required 'id' field")
+            value = row.get(field, "t1" if field == "tenant" else "p1")
+  fixable: false
+
+SUMMARY:
+Found 2 issues in 61 files
+
+END_REVIEW

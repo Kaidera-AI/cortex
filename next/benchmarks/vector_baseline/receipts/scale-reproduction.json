@@ -2,7 +2,9 @@
   "count": 5000000,
   "dimension": 8,
   "identity": "synthetic fixture only",
+  "generator_sha256": "338d5a7c346c9f347eec12b644a43a45c0472a3d35f191bae68c7058e3bb82f8",
   "files_identical": true,
+  "same_arrays_as_prior_source": true,
   "first_chunk_size": 4096,
   "second_chunk_size": 8192,
   "all_heldout_ready": true,
@@ -13,6 +15,29 @@
     "tight": 200,
     "very_tight": 200,
     "edges": 200
+  },
+  "edge_cardinalities_per_mode": {
+    "dense": [
+      0,
+      1,
+      9,
+      10,
+      11
+    ],
+    "hybrid": [
+      0,
+      1,
+      9,
+      10,
+      11
+    ],
+    "sparse": [
+      0,
+      1,
+      9,
+      10,
+      11
+    ]
   },
   "oracle_probes": [
     {
@@ -175,6 +200,6 @@
       }
     }
   ],
-  "elapsed_seconds": 59.06053608399816,
+  "elapsed_seconds": 113.74663216600311,
   "native_product_benchmark": "NOT_RUN"
 }

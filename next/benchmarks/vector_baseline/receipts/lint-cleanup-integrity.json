@@ -1,0 +1,17 @@
+{
+  "change": "remove unused imports and unused local assignment; fixture call and every assertion retained",
+  "files": [
+    {
+      "path": "next/tests/benchmarks/test_vector_baseline.py",
+      "before_sha256": "9cf5064783f536c2d14c63264174b2ff27ae2a8c4df633863e3e94e137ec3f41",
+      "after_sha256": "fed47f721537185f646363d96d5aa8a758288a42165a52b486169527a03588e7",
+      "all_assertion_asts_unchanged": true
+    },
+    {
+      "path": "next/tests/benchmarks/test_vector_baseline_failures.py",
+      "before_sha256": "765f71109bd27ad43544e7a55c3fd6e35ece02a2677ed05cb4ae8e828547ac43",
+      "after_sha256": "e6947e4def5c1b0ea032b9b9f0368265a1336f1ed1baaae3e7a952fbdd2d6f28",
+      "all_assertion_asts_unchanged": true
+    }
+  ]
+}

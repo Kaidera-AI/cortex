@@ -16,11 +16,13 @@ test_runtime_security_and_owned_names (test_vector_baseline.PostgresContractTest
 test_actual_hnsw_filters_ties_and_cleanup (test_vector_baseline.PostgresIntegrationTests.test_actual_hnsw_filters_ties_and_cleanup) ... ok
 test_each_edge_mode_covers_all_five_cardinalities (test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities) ... ok
 test_failed_start_removes_created_container_volume_and_secret (test_vector_baseline_failures.FailureControls.test_failed_start_removes_created_container_volume_and_secret) ... ok
+test_fixture_ids_are_explicit_unique_before_writing (test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing) ... ok
 test_float32_underflow_refused (test_vector_baseline_failures.FailureControls.test_float32_underflow_refused) ... ok
 test_search_error_and_bad_empty_are_failures (test_vector_baseline_failures.FailureControls.test_search_error_and_bad_empty_are_failures) ... ok
+test_semantic_kill_requires_expected_test_body_assertion (test_vector_baseline_failures.FailureControls.test_semantic_kill_requires_expected_test_body_assertion) ... ok
 test_shared_engine_constraint (test_vector_baseline_failures.FailureControls.test_shared_engine_constraint) ... ok
 
 ----------------------------------------------------------------------
-Ran 21 tests in 6.008s
+Ran 23 tests in 6.824s
 
 OK

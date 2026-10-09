@@ -4,7 +4,7 @@ test_full_scan_scopes_deletes_and_all_metrics (test_vector_baseline.OracleTests.
 FAIL: test_full_scan_scopes_deletes_and_all_metrics (test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline.py", line 112, in test_full_scan_scopes_deletes_and_all_metrics
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline.py", line 110, in test_full_scan_scopes_deletes_and_all_metrics
     self.assertEqual(t.ids("dense"), ["a", "b", "c", "d"])
 AssertionError: Lists differ: ['a', 'b', 'f', 'c', 'd'] != ['a', 'b', 'c', 'd']
 
@@ -22,6 +22,6 @@ First extra element 4:
 + ['a', 'b', 'c', 'd']
 
 ----------------------------------------------------------------------
-Ran 1 test in 0.062s
+Ran 1 test in 0.048s
 
 FAILED (failures=1)

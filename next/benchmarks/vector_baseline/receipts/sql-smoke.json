@@ -1,6 +1,6 @@
 {
   "binding": {
-    "container": "kaidera-dev-vector-baseline-13931679626791792045",
+    "container": "kaidera-dev-vector-baseline-8866034758489365195",
     "image": "docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d",
     "limits": {
       "cpus": 2,
@@ -32,7 +32,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.28596574,0.44166684,0.19708282,0.25736162,-0.24041109,-0.41529077,0.62273115,0.0043968265]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.28596574,0.44166684,0.19708282,0.25736162,-0.24041109,-0.41529077,0.62273115,0.0043968265]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [
               "s0000000000001ab4",
@@ -55,7 +55,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=606.25..619.22 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=605.72..606.22 rows=200 width=34)\n          ->  Sort  (cost=605.72..606.66 rows=375 width=34)\n                Sort Key: ((points.embedding <=> '[-0.28596574,0.44166684,0.19708282,0.25736162,-0.24041109,-0.41529077,0.62273115,0.0043968265]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..589.69 rows=375 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p0'::text) AND (ordinal >= '1275'::smallint) AND (ordinal <= '2023'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
-            "sql_diagnostic_ms": 1.3447920209728181
+            "sql_diagnostic_ms": 0.770624988945201
           },
           "eligible_count": 749,
           "expected_count": 10,
@@ -381,7 +381,7 @@
               "strict_recall": 1.0,
               "tie_recall": 1.0
             },
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.057637256,0.05493536,-0.26278776,-0.52757996,0.071389884,0.70986736,0.31385496,-0.19684738]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.057637256,0.05493536,-0.26278776,-0.52757996,0.071389884,0.70986736,0.31385496,-0.19684738]'::vector)",
             "full_fusion_candidate_coverage": 1.0,
             "ids": [
               "s0000000000000bff",
@@ -404,7 +404,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=602.25..615.22 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=601.72..602.22 rows=200 width=34)\n          ->  Sort  (cost=601.72..602.65 rows=372 width=34)\n                Sort Key: ((points.embedding <=> '[-0.057637256,0.05493536,-0.26278776,-0.52757996,0.071389884,0.70986736,0.31385496,-0.19684738]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..585.84 rows=372 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '748'::smallint) AND (ordinal <= '1497'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
-            "sql_diagnostic_ms": 1.8943329923786223
+            "sql_diagnostic_ms": 1.5063750033732504
           },
           "eligible_count": 749,
           "expected_count": 10,
@@ -1023,7 +1023,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.59887654,0.24460699,0.3610843,0.24495597,-0.29929778,-0.39962456,-0.35353273,0.12986402]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.59887654,0.24460699,0.3610843,0.24495597,-0.29929778,-0.39962456,-0.35353273,0.12986402]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [
               "s0000000000003721",
@@ -1041,7 +1041,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=35.41..36.36 rows=15 width=40)\n  CTE candidates\n    ->  Limit  (cost=35.35..35.38 rows=15 width=34)\n          ->  Sort  (cost=35.35..35.38 rows=15 width=34)\n                Sort Key: ((points.embedding <=> '[-0.59887654,0.24460699,0.3610843,0.24495597,-0.29929778,-0.39962456,-0.35353273,0.12986402]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..35.05 rows=15 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text) AND (ordinal >= '52'::smallint) AND (ordinal <= '104'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.98 rows=15 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.30 rows=15 width=40)",
-            "sql_diagnostic_ms": 1.7345829983241856
+            "sql_diagnostic_ms": 0.7936660258565098
           },
           "eligible_count": 53,
           "expected_count": 5,
@@ -1159,7 +1159,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.71930873,0.26005697,-0.5383755,0.16389804,-0.05102372,0.29635015,-0.08244557,-0.032100905]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.71930873,0.26005697,-0.5383755,0.16389804,-0.05102372,0.29635015,-0.08244557,-0.032100905]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [],
             "measurement": {
@@ -1171,7 +1171,7 @@
               "tie_recall": null
             },
             "natural_plan": "Limit  (cost=8.37..8.41 rows=2 width=40)\n  CTE candidates\n    ->  Limit  (cost=8.33..8.34 rows=1 width=34)\n          ->  Sort  (cost=8.33..8.34 rows=1 width=34)\n                Sort Key: ((points.embedding <=> '[-0.71930873,0.26005697,-0.5383755,0.16389804,-0.05102372,0.29635015,-0.08244557,-0.032100905]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..8.32 rows=1 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p0'::text) AND (ordinal >= '-1'::smallint) AND (ordinal <= '-1'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.08 rows=2 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.02 rows=1 width=40)",
-            "sql_diagnostic_ms": 0.5401669768616557
+            "sql_diagnostic_ms": 0.2355000178795308
           },
           "eligible_count": 0,
           "empty_exact": true,
@@ -1482,54 +1482,43 @@
     },
     "edges/hybrid": {
       "failed_queries": [],
-      "mean_recall": 1.0,
-      "minimum": 1.0,
+      "mean_recall": null,
+      "minimum": null,
       "queries": [
         {
-          "boundary_ties": 1,
           "cell": "edges/hybrid",
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": {
-              "boundary_ties": 1,
-              "eligible_count": 10,
-              "expected_count": 10,
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
               "safe": true,
-              "strict_recall": 1.0,
-              "tie_recall": 1.0
+              "strict_recall": null,
+              "tie_recall": null
             },
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.40352216,0.11712321,0.13457659,0.49019563,-0.54952806,0.45325577,0.1967332,-0.137563]'::vector)",
-            "full_fusion_candidate_coverage": 1.0,
-            "ids": [
-              "s0000000000001a0b",
-              "s00000000000019ff",
-              "s00000000000019fb",
-              "s0000000000001a0f",
-              "s00000000000019ef",
-              "s0000000000001a13",
-              "s0000000000001a03",
-              "s00000000000019f3",
-              "s0000000000001a07",
-              "s00000000000019f7"
-            ],
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.036743145,-0.1914133,-0.40770507,0.1183373,0.1359716,0.49527696,-0.5552244,0.4579542]'::vector)",
+            "full_fusion_candidate_coverage": 0.0,
+            "ids": [],
             "measurement": {
-              "boundary_ties": 1,
-              "eligible_count": 10,
-              "expected_count": 10,
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
               "safe": true,
-              "strict_recall": 1.0,
-              "tie_recall": 1.0
+              "strict_recall": null,
+              "tie_recall": null
             },
-            "natural_plan": "Limit  (cost=16.06..16.35 rows=5 width=40)\n  CTE candidates\n    ->  Limit  (cost=16.02..16.03 rows=5 width=34)\n          ->  Sort  (cost=16.02..16.03 rows=5 width=34)\n                Sort Key: ((points.embedding <=> '[-0.40352216,0.11712321,0.13457659,0.49019563,-0.54952806,0.45325577,0.1967332,-0.137563]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..15.96 rows=5 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '1659'::smallint) AND (ordinal <= '1668'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.33 rows=5 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.10 rows=5 width=40)",
-            "sql_diagnostic_ms": 1.2838750262744725
+            "natural_plan": "Limit  (cost=8.37..8.41 rows=2 width=40)\n  CTE candidates\n    ->  Limit  (cost=8.33..8.34 rows=1 width=34)\n          ->  Sort  (cost=8.33..8.34 rows=1 width=34)\n                Sort Key: ((points.embedding <=> '[0.036743145,-0.1914133,-0.40770507,0.1183373,0.1359716,0.49527696,-0.5552244,0.4579542]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..8.32 rows=1 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '-1'::smallint) AND (ordinal <= '-1'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.08 rows=2 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.02 rows=1 width=40)",
+            "sql_diagnostic_ms": 0.5885830032639205
           },
-          "eligible_count": 10,
-          "expected_count": 10,
+          "eligible_count": 0,
+          "empty_exact": true,
+          "expected_count": 0,
           "query_id": "heldout-edges-003",
           "safe": true,
           "status": "MEASURED",
-          "strict_recall": 1.0,
-          "tie_recall": 1.0
+          "strict_recall": null,
+          "tie_recall": null
         },
         {
           "cell": "edges/hybrid",
@@ -2131,38 +2120,36 @@
     },
     "edges/sparse": {
       "failed_queries": [],
-      "mean_recall": 1.0,
-      "minimum": 1.0,
+      "mean_recall": null,
+      "minimum": null,
       "queries": [
         {
-          "boundary_ties": 1,
           "cell": "edges/sparse",
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.68580025,-0.23219582,0.113079906,-0.15389428,0.15262732,0.62694895,-0.061899267,0.13820623]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.29368863,-0.29160956,0.5498079,0.0076854695,0.6644651,-0.22497225,0.10956201,-0.14910665]'::vector)",
             "full_fusion_candidate_coverage": null,
-            "ids": [
-              "s00000000000034d5"
-            ],
+            "ids": [],
             "measurement": {
-              "boundary_ties": 1,
-              "eligible_count": 11,
-              "expected_count": 1,
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
               "safe": true,
-              "strict_recall": 1.0,
-              "tie_recall": 1.0
+              "strict_recall": null,
+              "tie_recall": null
             },
-            "natural_plan": "Limit  (cost=12.20..12.37 rows=3 width=40)\n  CTE candidates\n    ->  Limit  (cost=12.16..12.17 rows=3 width=34)\n          ->  Sort  (cost=12.16..12.17 rows=3 width=34)\n                Sort Key: ((points.embedding <=> '[0.68580025,-0.23219582,0.113079906,-0.15389428,0.15262732,0.62694895,-0.061899267,0.13820623]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..12.14 rows=3 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text) AND (ordinal >= '47'::smallint) AND (ordinal <= '57'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.20 rows=3 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.06 rows=3 width=40)",
-            "sql_diagnostic_ms": 1.46191701060161
+            "natural_plan": "Limit  (cost=8.37..8.41 rows=2 width=40)\n  CTE candidates\n    ->  Limit  (cost=8.33..8.34 rows=1 width=34)\n          ->  Sort  (cost=8.33..8.34 rows=1 width=34)\n                Sort Key: ((points.embedding <=> '[-0.29368863,-0.29160956,0.5498079,0.0076854695,0.6644651,-0.22497225,0.10956201,-0.14910665]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..8.32 rows=1 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text) AND (ordinal >= '-1'::smallint) AND (ordinal <= '-1'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.08 rows=2 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.02 rows=1 width=40)",
+            "sql_diagnostic_ms": 0.822000001790002
           },
-          "eligible_count": 11,
-          "expected_count": 1,
+          "eligible_count": 0,
+          "empty_exact": true,
+          "expected_count": 0,
           "query_id": "heldout-edges-009",
           "safe": true,
           "status": "MEASURED",
-          "strict_recall": 1.0,
-          "tie_recall": 1.0
+          "strict_recall": null,
+          "tie_recall": null
         },
         {
           "cell": "edges/sparse",
@@ -2273,7 +2260,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.37314165,0.12464795,0.55995715,-0.03508086,-0.043308504,0.58005065,-0.14141686,-0.41486433]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.37314165,0.12464795,0.55995715,-0.03508086,-0.043308504,0.58005065,-0.14141686,-0.41486433]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [
               "s0000000000000494",
@@ -2296,7 +2283,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=78.68..81.05 rows=37 width=40)\n  CTE candidates\n    ->  Limit  (cost=78.56..78.65 rows=37 width=34)\n          ->  Sort  (cost=78.56..78.65 rows=37 width=34)\n                Sort Key: ((points.embedding <=> '[0.37314165,0.12464795,0.55995715,-0.03508086,-0.043308504,0.58005065,-0.14141686,-0.41486433]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..77.59 rows=37 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p0'::text) AND (ordinal >= '258'::smallint) AND (ordinal <= '331'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..2.41 rows=37 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.74 rows=37 width=40)",
-            "sql_diagnostic_ms": 0.7132920145522803
+            "sql_diagnostic_ms": 0.4199590184725821
           },
           "eligible_count": 74,
           "expected_count": 10,
@@ -2622,7 +2609,7 @@
               "strict_recall": 1.0,
               "tie_recall": 1.0
             },
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.40613905,-0.15959236,-0.21750744,0.012324725,0.22253339,-0.4898694,-0.5156036,-0.45473045]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.40613905,-0.15959236,-0.21750744,0.012324725,0.22253339,-0.4898694,-0.5156036,-0.45473045]'::vector)",
             "full_fusion_candidate_coverage": 1.0,
             "ids": [
               "s00000000000015af",
@@ -2645,7 +2632,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=78.68..81.05 rows=37 width=40)\n  CTE candidates\n    ->  Limit  (cost=78.56..78.65 rows=37 width=34)\n          ->  Sort  (cost=78.56..78.65 rows=37 width=34)\n                Sort Key: ((points.embedding <=> '[0.40613905,-0.15959236,-0.21750744,0.012324725,0.22253339,-0.4898694,-0.5156036,-0.45473045]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..77.59 rows=37 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '1373'::smallint) AND (ordinal <= '1446'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..2.41 rows=37 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.74 rows=37 width=40)",
-            "sql_diagnostic_ms": 1.887541002361104
+            "sql_diagnostic_ms": 0.8096660021692514
           },
           "eligible_count": 74,
           "expected_count": 10,
@@ -3264,7 +3251,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.48791245,0.076297216,0.5420098,-0.23160873,-0.12989408,-0.43324926,0.42625064,-0.14978653]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.48791245,0.076297216,0.5420098,-0.23160873,-0.12989408,-0.43324926,0.42625064,-0.14978653]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [
               "s0000000000001a11",
@@ -3284,7 +3271,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=78.68..81.05 rows=37 width=40)\n  CTE candidates\n    ->  Limit  (cost=78.56..78.65 rows=37 width=34)\n          ->  Sort  (cost=78.56..78.65 rows=37 width=34)\n                Sort Key: ((points.embedding <=> '[0.48791245,0.076297216,0.5420098,-0.23160873,-0.12989408,-0.43324926,0.42625064,-0.14978653]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..77.59 rows=37 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p1'::text) AND (ordinal >= '1653'::smallint) AND (ordinal <= '1726'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..2.41 rows=37 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.74 rows=37 width=40)",
-            "sql_diagnostic_ms": 2.0091659971512854
+            "sql_diagnostic_ms": 0.9744999988470227
           },
           "eligible_count": 74,
           "expected_count": 7,
@@ -3405,7 +3392,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.24784072,0.16390882,0.105610676,-0.20677236,-0.2547141,-0.22124551,0.7827929,-0.36222482]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.24784072,0.16390882,0.105610676,-0.20677236,-0.2547141,-0.22124551,0.7827929,-0.36222482]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [
               "s0000000000002d54",
@@ -3427,8 +3414,8 @@
               "strict_recall": 0.9,
               "tie_recall": 0.9
             },
-            "natural_plan": "Limit  (cost=776.78..789.75 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=325.68..776.75 rows=200 width=34)\n          ->  Index Scan using points_hnsw on points  (cost=325.68..7103.03 rows=3005 width=34)\n                Order By: (embedding <=> '[-0.24784072,0.16390882,0.105610676,-0.20677236,-0.2547141,-0.22124551,0.7827929,-0.36222482]'::vector)\n                Filter: ((NOT deleted) AND (tenant = 't00'::text) AND (project = 'p0'::text) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
-            "sql_diagnostic_ms": 7.426166994264349
+            "natural_plan": "Limit  (cost=776.19..789.16 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=325.33..776.16 rows=200 width=34)\n          ->  Index Scan using points_hnsw on points  (cost=325.33..7099.03 rows=3005 width=34)\n                Order By: (embedding <=> '[-0.24784072,0.16390882,0.105610676,-0.20677236,-0.2547141,-0.22124551,0.7827929,-0.36222482]'::vector)\n                Filter: ((NOT deleted) AND (tenant = 't00'::text) AND (project = 'p0'::text) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 5.6389170058537275
           },
           "eligible_count": 2997,
           "expected_count": 10,
@@ -3754,7 +3741,7 @@
               "strict_recall": 1.0,
               "tie_recall": 1.0
             },
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.08919931,-0.2186817,-0.036787495,0.46336862,0.36476174,0.26469487,0.63084906,-0.35647297]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.08919931,-0.2186817,-0.036787495,0.46336862,0.36476174,0.26469487,0.63084906,-0.35647297]'::vector)",
             "full_fusion_candidate_coverage": 1.0,
             "ids": [
               "s000000000000005f",
@@ -3776,8 +3763,8 @@
               "strict_recall": 1.0,
               "tie_recall": 1.0
             },
-            "natural_plan": "Limit  (cost=780.86..793.83 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=325.68..780.83 rows=200 width=34)\n          ->  Index Scan using points_hnsw on points  (cost=325.68..7102.89 rows=2978 width=34)\n                Order By: (embedding <=> '[0.08919931,-0.2186817,-0.036787495,0.46336862,0.36476174,0.26469487,0.63084906,-0.35647297]'::vector)\n                Filter: ((NOT deleted) AND (tenant = 't00'::text) AND (project = 'p3'::text) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
-            "sql_diagnostic_ms": 17.767249984899536
+            "natural_plan": "Limit  (cost=780.27..793.24 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=325.33..780.24 rows=200 width=34)\n          ->  Index Scan using points_hnsw on points  (cost=325.33..7098.89 rows=2978 width=34)\n                Order By: (embedding <=> '[0.08919931,-0.2186817,-0.036787495,0.46336862,0.36476174,0.26469487,0.63084906,-0.35647297]'::vector)\n                Filter: ((NOT deleted) AND (tenant = 't00'::text) AND (project = 'p3'::text) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 13.222083012806252
           },
           "eligible_count": 2997,
           "expected_count": 10,
@@ -4396,7 +4383,7 @@
           "diagnostic": {
             "branch_boundary_complete": true,
             "finite_prefetch_measurement": null,
-            "forced_hnsw_plan": "Limit  (cost=325.68..328.45 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.68..6968.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.39148417,-0.40704694,-0.22004955,-0.5773174,0.013088694,0.08461405,0.35192114,-0.4100688]'::vector)",
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.39148417,-0.40704694,-0.22004955,-0.5773174,0.013088694,0.08461405,0.35192114,-0.4100688]'::vector)",
             "full_fusion_candidate_coverage": null,
             "ids": [
               "s0000000000003059",
@@ -4419,7 +4406,7 @@
               "tie_recall": 1.0
             },
             "natural_plan": "Limit  (cost=377.19..390.16 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=376.66..377.16 rows=200 width=34)\n          ->  Sort  (cost=376.66..377.20 rows=214 width=34)\n                Sort Key: ((points.embedding <=> '[-0.39148417,-0.40704694,-0.22004955,-0.5773174,0.013088694,0.08461405,0.35192114,-0.4100688]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..368.38 rows=214 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
-            "sql_diagnostic_ms": 1.3753329985775054
+            "sql_diagnostic_ms": 1.1436670029070228
           },
           "eligible_count": 214,
           "expected_count": 10,
@@ -6577,7 +6564,7 @@
     }
   },
   "cleanup_verified": true,
-  "corpus_manifest_sha256": "3b7db5b7119ac07b75de91232e16e9c3f25bb2af2da862f8f72b18ff45f33465",
+  "corpus_manifest_sha256": "f2e042187a21d8e19cf3c959ee591c812263cc046cf1c54273769a78179b4991",
   "engine_decision": "UNDECIDED",
   "not_run": [
     "real-data",
@@ -6592,6 +6579,6 @@
     "SELinux-24h"
   ],
   "product_path": false,
-  "query_manifest_sha256": "a520f24c183919bce37b1adf870af29d0377940eab9e224a69a9cfa4324e6e24",
+  "query_manifest_sha256": "30a71236a214607a6bdaf8ef6884d3bfb6d55bcbc046fe1779e0f47f6020d393",
   "schema": "cortex-b01-sql-diagnostic-v1"
 }
