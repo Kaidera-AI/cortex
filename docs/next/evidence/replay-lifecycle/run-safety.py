@@ -106,8 +106,8 @@ finally:
     final_inventory_error=None
     try:
         gone=subprocess.run(['podman','container','exists',NAME],capture_output=True,timeout=30).returncode==1
-    except Exception as error:
-        final_inventory_error=type(error).__name__+': '+str(error);gone=None
+    except Exception as inventory_error:
+        final_inventory_error=type(inventory_error).__name__+': '+str(inventory_error);gone=None
     TARGET.write_text(json.dumps({'phase':PHASE,'variant':VARIANT,'results':results,'mutations':globals().get('mutation_rows',[]),'image_id':IMAGE,'container_removed':gone,
                                  'passed':bool(passed and life.cleanup_verified and gone),'final_inventory_error':final_inventory_error,'cleanup':life.receipt(),
                                  'lifecycle':life.lifecycle,'limits':{'cpus':2,'memory':'1g'},'ports':[],'bind_mounts':[],
