@@ -64,6 +64,7 @@ SET search_path=pg_catalog,auth,core,pg_temp AS $$
 BEGIN
     IF EXISTS(SELECT 1 FROM pg_catalog.pg_locks WHERE locktype='advisory'
         AND pid=pg_backend_pid() AND classid=1129271892 AND objid=pg_backend_pid()
+        AND database=(SELECT oid FROM pg_catalog.pg_database WHERE datname=current_database())
         AND objsubid=2 AND granted) THEN RETURN false; END IF;
     IF NOT pg_try_advisory_xact_lock(1129271892,pg_backend_pid()) THEN RETURN false; END IF;
     PERFORM 1 FROM auth.resolve_scope(p_digest,p_installation,p_project,p_action);
@@ -86,6 +87,7 @@ SET search_path=pg_catalog,auth,core,pg_temp AS $$
 BEGIN
     IF NOT auth.context_is_private() OR NOT EXISTS(SELECT 1 FROM pg_catalog.pg_locks
         WHERE locktype='advisory' AND pid=pg_backend_pid() AND classid=1129271892
+          AND database=(SELECT oid FROM pg_catalog.pg_database WHERE datname=current_database())
           AND objid=pg_backend_pid() AND objsubid=2 AND granted) THEN RETURN false; END IF;
     RETURN EXISTS(SELECT 1 FROM pg_temp.c04_request_context c
         WHERE (c.digest,c.installation,c.project,c.action)=(p_digest,p_installation,p_project,p_action));
@@ -98,7 +100,7 @@ SET search_path=pg_catalog,auth,core,pg_temp AS $$
 DECLARE resolved record; configured_action text;
 BEGIN
     configured_action:=current_setting('cortex.action',true);
-    IF p_need IS NULL OR configured_action IS NULL OR p_need NOT IN ('read','write') OR configured_action NOT IN ('read','write','control')
+    IF p_tenant IS NULL OR p_project IS NULL OR p_need IS NULL OR configured_action IS NULL OR p_need NOT IN ('read','write') OR configured_action NOT IN ('read','write','control')
        OR (p_need='write' AND configured_action<>'write') THEN RETURN false; END IF;
     IF NOT auth.context_is_bound(current_setting('cortex.credential_digest',true),
         NULLIF(current_setting('cortex.installation_id',true),'')::uuid,
