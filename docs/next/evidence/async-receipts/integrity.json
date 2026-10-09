@@ -1,0 +1,63 @@
+{
+  "tested_source": "6322b91b41a94716a6681384d01bb539a2dce0e0",
+  "red_source": "95ce85ff4c8fda539c3d7a5b6986ab723922af2c",
+  "verified_source_hashes": {
+    "next/contracts/README.md": "690dd3870c7d47d8d22cc9d6f446843a1d5c899013ef48ea948c14d1e9b8177a",
+    "next/contracts/fixtures/capability-ready.json": "8146d58c3756d82790c50d947d1f37ce6f08197b423b768fb6032b46949e84c4",
+    "next/contracts/fixtures/capability-unavailable.json": "e7fa20b15f7cf7e6c6beb4c93e71c38cd6fdfe924894d4be000dbe3bdc2b0f3c",
+    "next/contracts/fixtures/core-unavailable.json": "7fa6dff23bd563b1b907248231f7d25b6f98527e10907ad5c2e879313a6a5b9e",
+    "next/contracts/fixtures/event-delete.json": "c29a770d680daf60dda33a3c71f51bae7ba36a0fbf176946bf8aea9121daaddc",
+    "next/contracts/fixtures/event-upsert.json": "1ba742369005bf5454b40546264082dd4c8c6179a51ab12fde7e41dd11ae9b09",
+    "next/contracts/fixtures/write-committed.json": "11bb8289934a4017c2861baff2b9da112cb7428c06d6acb755549e635b2548d0",
+    "next/contracts/openapi.json": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+    "next/contracts/outbox-event.schema.json": "5fa8789b346764a2dc319b0770ca362eff6c76c36d65fb21cd8f2ee46865055a",
+    "next/contracts/provenance.json": "c6ad94ffc41197fb3cc7e85b3c118341e1ff91c57fc6d0f2f7f87e3055aea050",
+    "next/contracts/route-matrix.md": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+    "next/requirements-test.txt": "ea127b6bd9e3bdbd4543b356ce8f2c71ee4ba731a38e7ec13ac20a4b11e92cc5",
+    "next/scripts/mutate_contracts.py": "062e7df49e67fde0d8eabde9b9aa8dbff3e224a0924241abc2625165a8506849",
+    "next/scripts/mutate_test_receipts.py": "fabe129ac5d4dc37ec223b96719c01084400ebb7447718a9dfc86914489841d5",
+    "next/src/cortex_core/contracts.py": "294919224493e4edd5486493d8d3ce1fab312b29f7eb0bd081b08c1377ced72c",
+    "next/tests/contract/test_contracts.py": "0efa7498dab02e451437c6c93be15b033cb620774ec53adf3381b2f924e56180",
+    "next/tests/contract/test_receipt_shape.py": "760a8815a7adff072c0895b73bb44d5e5bdf39aecadbf63931657dbac4f33405",
+    "next/tests/contract/test_review_regressions.py": "0c69d749eb6ecb7d131c2d75f2cc90be18484dede9397285d6a5be3e07f8072c",
+    "next/tests/contract/test_rfc3339.py": "eebdc7d8aeaa1175e18bfb74b0fc7cc7c28fcfeaa13f5242c2a0db17eae6ed7a",
+    "next/tests/contract/test_runner_phases.py": "5149d65df61f2dd4d332c18aed84b0e77bf2389e340dd4e3cd81c00f03ce7374",
+    "next/tests/contract/test_schema_index.py": "aee4077b044d5b90a1f325066615ba21fb55c099de57bd379851f2470709710f",
+    "next/tests/receipt/fixture-reuse-probe.py": "5665077dea98fae0219849cf6478495a2e4b0acd3b0370088a979e26ff253db8",
+    "next/tests/receipt/test_async_fixture_reuse.py": "c54139607ce014d9bad0bc9a8b339870509472a2307ab7de69856b772cc25a8d",
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/receipt/test_shared_location.py": "1c64c4459433d9bee41218cf3443def1102f95b9237d9ceb52c012de406905ec",
+    "next/tests/test_receipts.py": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+  },
+  "tests_frozen_from_red": {
+    "next/tests/contract/test_contracts.py": "0efa7498dab02e451437c6c93be15b033cb620774ec53adf3381b2f924e56180",
+    "next/tests/contract/test_receipt_shape.py": "760a8815a7adff072c0895b73bb44d5e5bdf39aecadbf63931657dbac4f33405",
+    "next/tests/contract/test_review_regressions.py": "0c69d749eb6ecb7d131c2d75f2cc90be18484dede9397285d6a5be3e07f8072c",
+    "next/tests/contract/test_rfc3339.py": "eebdc7d8aeaa1175e18bfb74b0fc7cc7c28fcfeaa13f5242c2a0db17eae6ed7a",
+    "next/tests/contract/test_runner_phases.py": "5149d65df61f2dd4d332c18aed84b0e77bf2389e340dd4e3cd81c00f03ce7374",
+    "next/tests/contract/test_schema_index.py": "aee4077b044d5b90a1f325066615ba21fb55c099de57bd379851f2470709710f",
+    "next/tests/receipt/fixture-reuse-probe.py": "5665077dea98fae0219849cf6478495a2e4b0acd3b0370088a979e26ff253db8",
+    "next/tests/receipt/test_async_fixture_reuse.py": "c54139607ce014d9bad0bc9a8b339870509472a2307ab7de69856b772cc25a8d",
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/receipt/test_shared_location.py": "1c64c4459433d9bee41218cf3443def1102f95b9237d9ceb52c012de406905ec"
+  },
+  "mutant_summaries": [
+    {
+      "mutants": 8,
+      "killed": 8,
+      "survivors": [],
+      "inconclusive": []
+    },
+    {
+      "mutants": 26,
+      "killed": 26,
+      "survivors": [],
+      "inconclusive": []
+    }
+  ],
+  "actual_expected_assertion_kills": 34,
+  "container_removed": true,
+  "current_target": "8f08b5b4a94819c122f2f13cffe9fb833915c3dd",
+  "target_integrated": "Already up to date",
+  "no_required_proof_errors": true
+}

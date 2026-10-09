@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "purpose": "Bounded fresh-context verification under kaidera-sdlc section 4; not Mike review, Kai acceptance or merge approval",
+  "verifier": "cox internal verifier /root/c01_verify",
+  "source_tree": "6322b91b41a94716a6681384d01bb539a2dce0e0",
+  "red_tree": "95ce85ff4c8fda539c3d7a5b6986ab723922af2c",
+  "required_findings": [],
+  "inspection": {
+    "fixture_wrapper_code_objects": "TestCase and IsolatedAsyncioTestCase setup, teardown and cleanup wrappers inspected",
+    "suite_report_classify_unchanged": true,
+    "mike_probe_byte_identical": true,
+    "mike_probe_sha256": "5665077dea98fae0219849cf6478495a2e4b0acd3b0370088a979e26ff253db8",
+    "receipt_tests_and_probe_unchanged_after_red": true,
+    "c01_contracts_runtime_callers_and_tests_unchanged_from_base": "8f08b5b4a94819c122f2f13cffe9fb833915c3dd",
+    "helper_sha256": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+  },
+  "receipt_checks": {
+    "red_sha256": "9660a7695f1636568393f0206c2821da8674e2c04a61d724e7f3a2335a947611",
+    "green_sha256": "431ff361109856312b83a682328b68368c89b4830b6761265abc552ca11cc783",
+    "red_source_hashes_checked": 25,
+    "green_source_hashes_checked": 26,
+    "source_hash_mismatches": [],
+    "red_shared_tests": 20,
+    "red_expected_test_body_assertions": 3,
+    "red_errors": 0,
+    "green_shared_tests": 20,
+    "green_c01_tests": 33,
+    "helper_mutants_checked": 8,
+    "c01_mutants_checked": 26,
+    "all_mutants_expected_test_body_assertion": true,
+    "all_mutant_reports_match_raw_stdout": true,
+    "all_mutants_raw_stdout_stderr_retained": true,
+    "all_mutant_errors_zero": true,
+    "helper_mutation_recipes_source_and_output_hashes_checked": true,
+    "helper_restored_source_hash_matches": true,
+    "helper_restored_tests": 20,
+    "helper_restored_exit": 0,
+    "c01_restored_tests": 33,
+    "c01_restored_exit": 0,
+    "restored_failures_and_errors_empty": true,
+    "mike_unchanged_child_exit": 0,
+    "mike_five_cases_match_expected_classification": true,
+    "cleanup_command_exit": 0,
+    "receipt_container_removed": true
+  },
+  "limits": [
+    "Source, Git, AST/byte and recorded-output inspection only; no tests, services, containers, installs or mutations executed by verifier",
+    "Only this root verifier receipt was written; source was not edited",
+    "Standard unittest on the recorded native arm64 Python 3.12 environment; arbitrary custom framework wrappers and release platforms are not qualified",
+    "C03 and Nemo caller adoption are separate; no official review, finding closure, acceptance or merge ruling",
+    "Root canonical receipts checked; later published source-evidence copies have not yet been checked"
+  ]
+}
