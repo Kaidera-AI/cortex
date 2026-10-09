@@ -1,0 +1,8 @@
+{
+  "source_byte_identical_to_reviewed_head": true,
+  "checks": 2,
+  "nested_matrix_body_assertions": 9,
+  "errors": 0,
+  "exit": 1,
+  "test_sha256": "ddaee28a13b3394a19824378fc176f0bf2439687a597947efa492e43736d81aa"
+}

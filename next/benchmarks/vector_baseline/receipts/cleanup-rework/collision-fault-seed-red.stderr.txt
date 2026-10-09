@@ -1,0 +1,48 @@
+test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) ... 
+  test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) (kind='volume') ... FAIL
+  test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) (kind='secret') ... FAIL
+  test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) (kind='container') ... FAIL
+
+======================================================================
+FAIL: test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) (kind='volume')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_collision_guard.py", line 18, in test_same_name_different_lifecycle_is_never_deleted
+    self.assertEqual(engine.resources, before, "cleanup must preserve colliding external resources")
+AssertionError: {'con[19 chars]e': {}, 'secret': {}} != {'con[19 chars]e': {'kaidera-dev-vector-baseline-399159859748[139 chars]: {}}
+- {'container': {}, 'secret': {}, 'volume': {}}
++ {'container': {},
++  'secret': {},
++  'volume': {'kaidera-dev-vector-baseline-399159859748895000': {'id': 'volume-id-kaidera-dev-vector-baseline-399159859748895000',
++                                                                'labels': {'kaidera.b01.lifecycle': 'pre-existing'}}}} : cleanup must preserve colliding external resources
+
+======================================================================
+FAIL: test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) (kind='secret')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_collision_guard.py", line 18, in test_same_name_different_lifecycle_is_never_deleted
+    self.assertEqual(engine.resources, before, "cleanup must preserve colliding external resources")
+AssertionError: {'con[33 chars]t': {}} != {'con[33 chars]t': {'kaidera-dev-vector-baseline-119170318407[127 chars]6'}}}
+- {'container': {}, 'secret': {}, 'volume': {}}
++ {'container': {},
++  'secret': {'kaidera-dev-vector-baseline-1191703184071654856': {'id': 'secret-id-kaidera-dev-vector-baseline-1191703184071654856',
++                                                                 'labels': {'kaidera.b01.lifecycle': 'pre-existing'}}},
++  'volume': {}} : cleanup must preserve colliding external resources
+
+======================================================================
+FAIL: test_same_name_different_lifecycle_is_never_deleted (test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted) (kind='container')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_collision_guard.py", line 18, in test_same_name_different_lifecycle_is_never_deleted
+    self.assertEqual(engine.resources, before, "cleanup must preserve colliding external resources")
+AssertionError: {'container': {}, 'volume': {}, 'secret': {}} != {'container': {'kaidera-dev-vector-baseline-151902602063[160 chars]: {}}
+- {'container': {}, 'secret': {}, 'volume': {}}
++ {'container': {'kaidera-dev-vector-baseline-15190260206313723339': {'id': 'container-id-kaidera-dev-vector-baseline-15190260206313723339',
++                                                                     'labels': {'kaidera.b01.lifecycle': 'pre-existing'}}},
++  'secret': {},
++  'volume': {}} : cleanup must preserve colliding external resources
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=3)
