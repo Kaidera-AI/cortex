@@ -11,6 +11,7 @@ from cortex_core.embeddings.pg_search import (
     EmbeddingIdentity,
     PostgresSearch,
     StaleEmbedding,
+    vector_literal,
 )
 
 IDENTITY, VECTOR = legacy.IDENTITY, legacy.VECTOR
@@ -20,6 +21,46 @@ class ReviewTests(unittest.IsolatedAsyncioTestCase):
     asyncSetUp = legacy.SearchTests.asyncSetUp
     asyncTearDown = legacy.SearchTests.asyncTearDown
     record = legacy.SearchTests.record
+
+    async def test_mike_collinear_subnormal_cosine_probe(self):
+        a = [1e-22] + [0.0] * 767
+        b = [2.7e-23] + [0.0] * 767
+        try:
+            vector_literal(a, 768)
+            vector_literal(b, 768)
+        except ValueError:
+            return
+        await self.record(vector=a)
+        result = await self.store.search("alice", IDENTITY, b)
+        self.assertEqual(len(result.hits), 1)
+        distance = result.hits[0].distance
+        print("COLLINEAR_COSINE", distance, flush=True)
+        self.assertAlmostEqual(
+            distance,
+            0.0,
+            places=5,
+            msg="accepted collinear positive vectors must have zero cosine distance",
+        )
+
+    async def test_subnormal_norm_refused_for_storage_and_query(self):
+        await self.store.note_revision("alice", "subnormal", "memory", 1)
+        tiny = [2.0**-64] + [0.0] * 767
+        with self.assertRaises(ValueError):
+            await self.store.store_embedding("alice", "subnormal", 1, IDENTITY, tiny)
+        with self.assertRaises(ValueError):
+            await self.store.search("alice", IDENTITY, tiny)
+        self.assertEqual(
+            await self.admin.fetchval("SELECT count(*) FROM retrieval.search_vectors"),
+            0,
+        )
+
+    async def test_smallest_normal_norm_preserves_collinear_distance(self):
+        a = [2.0**-63] + [0.0] * 767
+        b = [2.0**-62] + [0.0] * 767
+        await self.record(vector=a)
+        result = await self.store.search("alice", IDENTITY, b)
+        self.assertEqual(len(result.hits), 1)
+        self.assertAlmostEqual(result.hits[0].distance, 0.0, places=5)
 
     async def test_float32_underflow_must_not_become_current_embedding(self):
         await self.store.note_revision("alice", "tiny", "memory", 1)
