@@ -1,5 +1,6 @@
 """Deterministic RED-first tool checks; subprocess responses are synthetic."""
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -128,24 +129,31 @@ class ToolTests(unittest.TestCase):
 
     def test_only_expected_behavioral_assertion_is_a_semantic_kill(self):
         target = "test_pg_search_review.ReviewTests.test_case"
-        good = (
-            "FAIL: test_case ("
-            + target
-            + ")\nAssertionError: behavior differs\nRan 1 test\nFAILED (failures=1)\ncleanup: PASS\n"
-        )
+        failure = {"id": target, "phase": "test", "is_assertion": True, "traceback": "AssertionError: behavior differs"}
+
+        def packet(failures, errors=(), cleanup="PASS"):
+            return "CORTEX_TEST_RESULT=" + json.dumps({"tests_run": 1, "failures": failures, "errors": list(errors)}) + "\ncleanup: " + cleanup + "\n"
+
+        good = packet([failure])
         self.assertEqual(mutate_pg_search.classify_kill(1, good, target), "KILLED")
         for bad in [
-            good.replace("FAIL:", "ERROR:"),
-            good.replace(target, "unrelated.Tests.test_case"),
-            good.replace("cleanup: PASS", "cleanup: FAIL"),
-            good.replace("AssertionError:", "RuntimeError:"),
+            packet([], errors=[{"id": target, "traceback": "RuntimeError: setup failed"}]),
+            packet([{**failure, "id": "unrelated.Tests.test_case"}]),
+            packet([failure], cleanup="FAIL"),
+            packet([{**failure, "is_assertion": False}]),
+            packet([{**failure, "phase": "fixture"}]),
+            packet([failure, failure]),
+            "FAIL: test_case (" + target + ")\nAssertionError: behavior differs\nRan 1 test\nFAILED (failures=1)\ncleanup: PASS\n",
+            good + good,
+            "CORTEX_TEST_RESULT={broken}\ncleanup: PASS\n",
         ]:
             self.assertEqual(
                 mutate_pg_search.classify_kill(1, bad, target), "INCONCLUSIVE"
             )
         self.assertEqual(
             mutate_pg_search.classify_kill(
-                0, "Ran 1 test\nOK\ncleanup: PASS\n", target
+                0, packet([]), target
             ),
             "SURVIVED",
         )
+        self.assertEqual(mutate_pg_search.classify_kill(-9, good, target), "INCONCLUSIVE")
