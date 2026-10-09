@@ -23,7 +23,7 @@ COPY fetch-qwen3-model.py /build/fetch-qwen3-model.py
 RUN HF_HUB_DISABLE_TELEMETRY=1 \
     /opt/bcrg/bin/python /build/fetch-qwen3-model.py \
  && test -s /opt/kaidera-qwen3/kaidera-qwen3-model-receipt.json \
- && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --builder-home \
+ && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --builder-home --cleanup-scope runtime \
  && rm -rf /build
 
 
@@ -75,7 +75,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends 'git=1:2.39.5-0+deb12u3'; \
     [ "$(dpkg-query -W -f='${Version}' git)" = '1:2.39.5-0+deb12u3' ]; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
-    /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only
+    /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --cleanup-scope system
 
 # Runtime calls this exact copied interpreter: no package installer, compiler,
 # resolver cache or network package-resolution path exists in the final stage.
@@ -146,7 +146,7 @@ USER 10001:10001
 # entrypoint repeats the receipt/hash check before Uvicorn can expose a healthy endpoint.
 RUN /usr/local/bin/python -I /usr/local/libexec/kaidera/verify-qwen3-model.py \
  && "$BCRG_PYTHON" -I -c "import os; import better_code_review_graph; from fastretrieval import TextEmbedding; cache=os.environ['QWEN3_EMBED_CACHE_PATH']; snapshot=cache+'/models--n24q02m--Qwen3-Embedding-0.6B-ONNX/snapshots/dc873d64d6143f27ad68dadbd1f0d9a4371b994e'; model=TextEmbedding(model_name='n24q02m/Qwen3-Embedding-0.6B-ONNX', cache_dir=cache, specific_model_path=snapshot, local_files_only=True, cuda=False); vector=next(model.embed(['Kaidera offline runtime probe'], dim=768)); assert tuple(vector.shape) == (768,)" \
- && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only
+ && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --cleanup-scope runtime
 RUN ! command -v curl && ! command -v uv && ! command -v cc && ! command -v gcc
 
 # Compile only after installed files and offline probes reach their final paths.
