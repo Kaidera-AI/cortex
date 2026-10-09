@@ -31,6 +31,14 @@ def mutation_killed(result):
     return result.returncode != 0
 
 
+def mutation_status(result, expected):
+    # RED-first extraction of the previous predicate before replacing it.
+    try:
+        return "killed" if mutation_killed(result) else "survived"
+    except SystemExit:
+        return "inconclusive"
+
+
 def run():
     baseline = suite()
     if baseline.returncode:
