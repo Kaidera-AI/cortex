@@ -1,0 +1,21 @@
+{
+  "source_tables": 71,
+  "source_fields": 915,
+  "independent_line_parser_agrees": true,
+  "changed_tables": [
+    {
+      "table": "public.decisions",
+      "before": 67,
+      "after": 29,
+      "removed": 38
+    },
+    {
+      "table": "public.messages",
+      "before": 31,
+      "after": 13,
+      "removed": 18
+    }
+  ],
+  "removed_total": 56,
+  "note": "45 declarations were outside their table;11 additional duplicate in-table declaration rows removed;targets/dispositions preserved"
+}
