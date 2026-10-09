@@ -76,9 +76,23 @@ class Supervisor:
             raise StaleLease("Supervisor has no active lease")
         return (self.installation_id, self.holder, self.fence)
 
+    async def _lock_live(self, conn, token):
+        # Qualification before a lock wait can survive an unchanged-row rollback.
+        # Match the token only; check expiry in a separate command after locking.
+        row = await conn.fetchrow(
+            """SELECT expires_at FROM coordination.supervisor_leases
+            WHERE installation_id=$1 AND holder=$2 AND fence=$3 FOR UPDATE""",
+            *token,
+        )
+        if row is None or not await conn.fetchval(
+            "SELECT $1::timestamptz > clock_timestamp()", row["expires_at"]
+        ):
+            raise StaleLease("Expired or replaced supervisor cannot change its lease")
+
     async def renew(self):
         token = self._token()
         async with self._transaction() as conn:
+            await self._lock_live(conn, token)
             updated = await conn.fetchval(
                 """UPDATE coordination.supervisor_leases
                 SET expires_at=clock_timestamp()+($4 * interval '1 second')
@@ -93,6 +107,7 @@ class Supervisor:
     async def release(self):
         token = self._token()
         async with self._transaction() as conn:
+            await self._lock_live(conn, token)
             updated = await conn.fetchval(
                 """UPDATE coordination.supervisor_leases
                 SET expires_at='-infinity' WHERE installation_id=$1 AND holder=$2 AND fence=$3
