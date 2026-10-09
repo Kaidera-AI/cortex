@@ -25,3 +25,13 @@ Worktree `/Volumes/WD-B-4TB/DevVault/helix/.worktrees/nemo-gtm-provider-20261009
 The unchanged cross-process singleflight test exposed REPEATABLE READ claim serialization; bounded retry uses a fresh grant snapshot and no provider call on a lost claim. A RED-first test (`8910589`) exposed unbounded credential lookup; one 8-second total hosted timeout now covers resolver, HTTP and streamed JSON. Response parsing stops above 256 KiB. The test runner gains a pattern argument so P01 runs the complete search + provider/cache suite. No search application code or search assertions changed.
 
 A second RED-first check (`b577247`) proves concurrent distinct cache keys can overflow capacity under stale REPEATABLE READ snapshots. The existing authorized PG context in `next/src/cortex_core/embeddings/pg_search.py` gains a private isolation argument (search default remains repeatable-read). Cache lookup/admission uses read-committed so the scoped count is read after its advisory lock; publishing still rechecks current authorization. Its semantic mutation forces the old isolation and must fail this unchanged check. Scope amendment includes only that shared context parameter, not search semantics or assertions.
+# Review re-run — Kai 21:58
+
+Restack on published PR29 ab84b7e, preserving P01's read_committed admission path.
+Add RED-first tool checks for a clean unmodified baseline and rejecting setup errors.
+Reuse PR29's named-assertion classifier: every mutation selects its expected test,
+keeps raw output, reports inconclusive failures separately, and verifies full suite
+restoration. Run full search/review/provider/cache checks, then the eight P01 mutants;
+push the same PR31 branch, return receipts to Kai for Mike, remove the parked worktree.
+No provider/cache behavior change is planned beyond inherited PR29 fixes.
+
