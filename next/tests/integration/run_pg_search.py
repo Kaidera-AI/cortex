@@ -22,6 +22,8 @@ def main(pattern="test_pg_search.py"):
         name,
         "--label",
         "cortex.test=" + label,
+        "--label",
+        "cortex.worker=nemo",
         "--cpus",
         "2",
         "--memory",
