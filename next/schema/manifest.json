@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "policy": "forward-only, explicitly invoked; fresh Core install, no live migration",
+  "migrations": [
+    {
+      "id": "core-0001",
+      "file": "core/001-core.sql",
+      "sha256": "7895b7e8bca49fe21df17351e65fc19e75a9c9e2e28307922df6edab9761bd22"
+    },
+    {
+      "id": "auth-0001",
+      "file": "auth/001-auth.sql",
+      "sha256": "97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e"
+    },
+    {
+      "id": "coordination-0001",
+      "file": "coordination/001-coordination.sql",
+      "sha256": "07ff597efd98c25f970c11a4fff220482b2ce4833430e1da4f911558b65d1e8c"
+    },
+    {
+      "id": "retrieval-0000",
+      "file": "retrieval/000-canonical.sql",
+      "sha256": "fe27f3bb1dca1924d7590f3f055abf8611a0a3a2c42e7687071363c38b8401a1"
+    }
+  ]
+}
