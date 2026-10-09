@@ -137,7 +137,7 @@
     "runner-path-red.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "test-integrity.json": "27201400272ed26669cc1da90be1a4d28787e16507c6662c01983b0df0dc1a7b",
     "verify-command-path.py": "65093af5f99a086cbc01aca53cb72a0757e5a12e5a09d0f470aa3d5e37907454",
-    "verify-evidence.py": "019341956f82f519e32f5f4d0309dc868e420e4b1f153a0938270ebb6d2fe0a2",
+    "verify-evidence.py": "5c64d91a9135df18c1de90d2201ad5dcf36bd606e30baac007120f54a0b0edf0",
     "recipe-order-green.json": "bd1a4a545bf7fbdf38eb16e01fed2b18775fd972b05cb932290758896526b072",
     "recipe-order-red.stderr.txt": "30552f165665eba6e421996493223bfaef93f364ebe3c78f79bcd33605339303",
     "recipe-order-green.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
@@ -149,7 +149,19 @@
     "recipe-order-red.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
     "recipe-order-green.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "verification.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
-    "recipe-order-red.json": "cda6611646ea21a0466996f426adfc0acf3b40367aec1725e7628725ebee85b1"
+    "recipe-order-red.json": "cda6611646ea21a0466996f426adfc0acf3b40367aec1725e7628725ebee85b1",
+    "handoff-contracts.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "handoff-shared.stderr.txt": "1057d397248d18b81f8a0607d90a0861127e53e786dac227937ef22babcf0735",
+    "handoff-b01-native.stdout.txt": "71cf7255e4906c20d06f47a010375daf1221e6e8d83b5716a746d1b806ec769d",
+    "handoff-shared.json": "74b81b1d480a84f5d600904f45f211810a8ab2dbd5e8ec7d96b30ce64ad2f4a0",
+    "handoff-b01-native.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "handoff-b01-native.json": "52db312cff90381f5c4973d8310cc14f1835de049e1398973c623eed751285cf",
+    "handoff-shared.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "handoff-shared.stdout.txt": "68bdbdf85a2fa11c0f83d92c0ae56f6740595797019f5b515430d670bc48239c",
+    "handoff-contracts.stderr.txt": "6d1924efbfc47b3e4491fe9a27e71f56c4c386d6224422941e9b41fa5e0159c5",
+    "handoff-contracts.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "handoff-b01-native.stderr.txt": "ed3f10d8525f75211b5ab4d2e53b5880a12a2c7ebc2165e071e326efb8f7882d",
+    "handoff-contracts.json": "790bfcdda5b269fffbf828e7f2d69fd2961798ab042f05c2dcc08757df2e086c"
   },
   "old_assertion_ast_sha256": {
     "test_vector_baseline.py": {
@@ -173,5 +185,11 @@
     "disposition": "resolved by unchanged recipe-order check RED then GREEN",
     "source_behavior_changed": false,
     "frozen_packet_verified_before_fresh_production": true
+  },
+  "handoff_refresh": {
+    "tested_source_commit": "d0d6c29b4ff39d08e226162ae681b53b58fdd543",
+    "target_main": "565227e57724468382bace3d559bdaa85310432d",
+    "B01_source_and_test_hashes_unchanged": true,
+    "mutation_evidence": "Original twelve actual mutations unchanged and source-bound; native/contracts/shared rerun after target refresh. No claim mutation rerun at new merge."
   }
 }

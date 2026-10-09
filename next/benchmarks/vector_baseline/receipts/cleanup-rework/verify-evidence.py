@@ -58,23 +58,29 @@ def main():
     suite("final-b01-native", 41)
     suite("final-contracts", 33)
     suite("final-shared", 20)
-    for label in ("final-b01-native", "final-contracts", "final-shared"):
+    suite("handoff-b01-native", 41)
+    suite("handoff-contracts", 33)
+    suite("handoff-shared", 20)
+    for label in ("final-b01-native", "final-contracts", "final-shared",
+                  "handoff-b01-native", "handoff-contracts", "handoff-shared"):
         meta = json.loads((HERE / f"{label}.json").read_text())
-        assert meta["head"] == evidence["tested_source_commit"], label
-        assert meta["target_main"] == evidence["target_main"], label
+        expected = evidence["handoff_refresh"] if label.startswith("handoff-") else evidence
+        assert meta["head"] == expected["tested_source_commit"], label
+        assert meta["target_main"] == expected["target_main"], label
         command = meta["command"]
         assert (ROOT / command[command.index("-s") + 1]).is_dir(), label
         for stream in ("stdout", "stderr"):
             assert sha(HERE / f"{label}.{stream}.txt") == meta[f"{stream}_sha256"], label
-    probes = [json.loads(line.split("=", 1)[1]) for line in
-              (HERE / "final-b01-native.stdout.txt").read_text().splitlines()
-              if line.startswith("B01_CREATE_FAILURE_PROBE=")]
-    assert {(p["kind"], p["error"]) for p in probes} == {
-        (kind, error) for kind in ("volume", "secret", "container")
-        for error in ("TimeoutExpired", "RuntimeError")}
-    assert len(probes) == 6
-    assert all(all(p[key] is True for key in
-                   ("removed", "credential_discarded", "lock_released")) for p in probes)
+    for label in ("final-b01-native", "handoff-b01-native"):
+        probes = [json.loads(line.split("=", 1)[1]) for line in
+                  (HERE / f"{label}.stdout.txt").read_text().splitlines()
+                  if line.startswith("B01_CREATE_FAILURE_PROBE=")]
+        assert {(p["kind"], p["error"]) for p in probes} == {
+            (kind, error) for kind in ("volume", "secret", "container")
+            for error in ("TimeoutExpired", "RuntimeError")}
+        assert len(probes) == 6
+        assert all(all(p[key] is True for key in
+                       ("removed", "credential_discarded", "lock_released")) for p in probes)
     suite("mutations/baseline", 41, skipped=2)
     mutations = json.loads((HERE / "mutations/receipt.json").read_text())
     assert len(mutations) == 12 and len({m["mutation"] for m in mutations}) == 12
@@ -106,6 +112,7 @@ def main():
                    capture_output=True, text=True, check=True)
     print(json.dumps({"result": "PASS", "tested_source_commit": evidence["tested_source_commit"],
                       "target_main": evidence["target_main"], "native_tests": 41,
+                      "handoff_refresh": evidence["handoff_refresh"],
                       "real_create_failure_cases": 6, "contract_tests": 33,
                       "shared_tests": 20, "actual_body_mutants_killed": 12,
                       "new_RED_tests_unchanged": True, "old_assertion_nodes_unchanged": 95}))
