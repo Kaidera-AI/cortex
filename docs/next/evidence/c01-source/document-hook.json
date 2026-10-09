@@ -1,0 +1,6 @@
+{
+  "file": "docs/plans/cortex-v2-v0.1.020/lane-A/C01_CONTRACT_DRAFT.md",
+  "sha256": "7b00c157ce1dfd9de298741b51d45244d0df3963078eec089fda241e196b6422",
+  "assertion": "CXV2-013 rollback before acceptance, fix forward after",
+  "scope": "wording correction separate from C01 code evidence"
+}

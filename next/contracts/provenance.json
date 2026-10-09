@@ -1,0 +1,18 @@
+{
+  "authority": "H-D455; accepted C01 and C02 rulings r426",
+  "source_kind": "accepted draft snapshot, not released compatibility freeze",
+  "openapi_sha256": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+  "route_matrix_sha256": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+  "api_inventory_source": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "C02": "WAITING_FOR_RELEASED_V0.1.003_PINS",
+  "GTM": "H-D455: Postgres search/graph; optional engine contracts retained; no engine introduced here",
+  "outbox_schema": "urn:kaidera:cortex:outbox:event:1",
+  "compatibility": "C01 validation only; runtime ACK/auth/feed/module behavior belongs to later slices",
+  "schema_index_version": 1,
+  "schemas": {
+    "outbox_event": {
+      "1": {"file": "outbox-event.schema.json", "schema_id": "urn:kaidera:cortex:outbox:event:1"}
+    },
+    "proposed_wire": {"file": "openapi.json"}
+  }
+}

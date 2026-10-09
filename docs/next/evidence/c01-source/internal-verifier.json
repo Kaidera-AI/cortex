@@ -1,0 +1,12 @@
+{
+  "kind": "internal SDLC fresh-context verification; not Mike review or Kai acceptance",
+  "first_checked_commit": "e7bb46eb085c49ed08e4f369aa3ee3d792846c45",
+  "findings": [
+    "invalid timezone offset normalization",
+    "manifest schema index bypassed"
+  ],
+  "red_commit": "502a10e",
+  "rechecked_commit": "3f66ac408eac5301418ca1d0418355436093c29a",
+  "result": "Both findings resolved in source; no new required defects in bounded recheck",
+  "limitations": "Read-only source check. Execution results are separate; 5bb5519 adds manifest mutations and README text only."
+}
