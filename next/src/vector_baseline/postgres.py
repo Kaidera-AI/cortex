@@ -37,34 +37,70 @@ class DisposablePostgres:
             raise ValueError("only the reviewed immutable image pin is admitted")
         self.image, self.runner = image, runner
         self.name = f"kaidera-dev-vector-baseline-{secrets.randbits(64)}"
-        self.owned, self.binding = set(), {}
+        self.lifecycle = secrets.token_hex(16)
+        self.owned, self.pending, self.binding = set(), set(), {}
         self.connection, self.lock = None, None
         self.cleanup_verified = False
         self.password = None
+        self.used = False
+
+    def labels(self):
+        return ["--label", "worker=mike", "--label", f"kaidera.b01.lifecycle={self.lifecycle}"]
 
     def run_args(self):
-        return ["create", "--name", self.name, "--label", "worker=mike", "--user", "999:999", "--cap-drop=ALL",
+        return ["create", "--name", self.name, *self.labels(), "--user", "999:999", "--cap-drop=ALL",
                 "--security-opt=no-new-privileges", "--cpus=2", "--memory=1g", "--pids-limit=256",
                 "--shm-size=256m", "-p", "127.0.0.1::5432", "--volume", f"{self.name}:/var/lib/postgresql",
                 "--secret", f"{self.name},type=mount,target=pgpass,uid=999,gid=999,mode=0400",
                 "--env", "POSTGRES_PASSWORD_FILE=/run/secrets/pgpass", self.image,
                 "postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=16"]
 
+    def owned_resource(self, resource):
+        inventory = (["ps", "-a", "--format", "{{.Names}}"] if resource == "container"
+                     else [resource, "ls", "--format", "{{.Name}}"])
+        if self.name not in self.runner(inventory).splitlines():
+            return None
+        rows = json.loads(self.runner([resource, "inspect", self.name]))
+        if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict):
+            raise RuntimeError("resource inspection did not establish identity")
+        row = rows[0]
+        if resource == "container":
+            name, labels, target = row["Name"].removeprefix("/"), row["Config"]["Labels"], row["Id"]
+        elif resource == "secret":
+            name, labels, target = row["Spec"]["Name"], row["Spec"].get("Labels"), row["ID"]
+        else:
+            name, labels, target = row["Name"], row.get("Labels"), row["Name"]
+        if name != self.name or (labels or {}).get("kaidera.b01.lifecycle") != self.lifecycle:
+            return None  # A pre-existing/colliding identity never becomes ours.
+        if not isinstance(target, str) or not target or any(c.isspace() for c in target):
+            raise RuntimeError("resource inspection did not establish removal target")
+        return target
+
+    def create(self, resource, args, **kwargs):
+        self.pending.add(resource)  # The external effect may precede any acknowledgement.
+        self.runner(args, **kwargs)
+        target = self.owned_resource(resource)
+        if target is None:
+            raise RuntimeError("create did not establish this lifecycle's ownership")
+        self.owned.add(resource)
+        self.pending.remove(resource)
+        return target
+
     def __enter__(self):
+        if self.used:
+            raise ValueError("a disposable lifecycle is single-use; create a fresh stack")
+        self.used = True
         lock_path = Path.home() / ".cache/kaidera/b01-podman.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock = lock_path.open("a")
         try:
             fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.password = secrets.token_urlsafe(32)
-            self.runner(["volume", "create", "--uid", "999", "--gid", "999", self.name])
-            self.owned.add("volume")
-            self.runner(["secret", "create", self.name, "-"], input=self.password)
-            self.owned.add("secret")
-            self.runner(self.run_args())
-            self.owned.add("container")
-            self.runner(["start", self.name])
-            endpoint = self.runner(["port", self.name, "5432/tcp"])
+            self.create("volume", ["volume", "create", "--uid", "999", "--gid", "999", *self.labels(), self.name])
+            self.create("secret", ["secret", "create", *self.labels(), self.name, "-"], input=self.password)
+            container = self.create("container", self.run_args())
+            self.runner(["start", container])
+            endpoint = self.runner(["port", container, "5432/tcp"])
             host, port = endpoint.split(":")
             if host != "127.0.0.1" or not port.isdigit() or int(port) in (5500, 8501):
                 raise RuntimeError("unexpected endpoint; refusing connection")
@@ -79,7 +115,7 @@ class DisposablePostgres:
                         raise RuntimeError("owned PostgreSQL startup timeout") from None
                     time.sleep(.25)
             self.connection.execute("CREATE EXTENSION vector")
-            self.binding = {"image": self.image, "container": self.name,
+            self.binding = {"image": self.image, "container": self.name, "lifecycle": self.lifecycle,
                             "postgres_version": self.connection.execute("SHOW server_version").fetchone()[0],
                             "pgvector_version": self.connection.execute("SELECT extversion FROM pg_extension WHERE extname='vector'").fetchone()[0],
                             "platform": json.loads(self.runner(["image", "inspect", self.image]))[0]["Architecture"],
@@ -92,34 +128,37 @@ class DisposablePostgres:
 
     def close(self):
         errors = []
-        if self.connection is not None:
-            try:
-                self.connection.close()
-            except Exception as e:
-                errors.append(type(e).__name__)
-            self.connection = None
-        for resource, args in (("container", ["rm", "-f", self.name]),
-                               ("volume", ["volume", "rm", self.name]), ("secret", ["secret", "rm", self.name])):
-            if resource in self.owned:
+        self.cleanup_verified = False
+        try:
+            if self.connection is not None:
                 try:
-                    self.runner(args)
-                    self.owned.remove(resource)
+                    self.connection.close()
                 except Exception as e:
-                    errors.append(f"{resource}: {type(e).__name__}")
-        if not self.owned:
+                    errors.append(type(e).__name__)
+                self.connection = None
+            for resource in ("container", "volume", "secret"):
+                if resource in self.owned | self.pending:
+                    try:
+                        target = self.owned_resource(resource)
+                        if target is not None:
+                            args = ["rm", "-f", target] if resource == "container" else [resource, "rm", target]
+                            self.runner(args)
+                        self.owned.discard(resource)
+                        self.pending.discard(resource)
+                    except Exception as e:
+                        errors.append(f"{resource}: {type(e).__name__}")
             try:
-                inventories = [self.runner(["ps", "-a", "--format", "{{.Names}}"]),
-                               self.runner(["volume", "ls", "--format", "{{.Name}}"]),
-                               self.runner(["secret", "ls", "--format", "{{.Name}}"])]
-                self.cleanup_verified = all(self.name not in names.splitlines() for names in inventories)
-                if not self.cleanup_verified:
+                remaining = [self.owned_resource(resource) for resource in ("container", "volume", "secret")]
+                self.cleanup_verified = not errors and not self.owned and not self.pending and not any(remaining)
+                if not self.cleanup_verified and not errors:
                     errors.append("owned resource remains")
             except Exception as e:
                 errors.append(f"cleanup inventory: {type(e).__name__}")
-        self.password = None
-        if self.lock is not None:
-            self.lock.close()
-            self.lock = None
+        finally:
+            self.password = None
+            if self.lock is not None:
+                self.lock.close()
+                self.lock = None
         if errors:
             raise RuntimeError("cleanup incomplete: " + "; ".join(errors))
 

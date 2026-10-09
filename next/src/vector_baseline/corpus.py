@@ -64,6 +64,8 @@ def validate_sanitized_row(row, identity):
         raise ValueError("mixed model or invalid tombstone")
     if any(type(row[k]) is not int for k in ("kind", "time", "ordinal")):
         raise ValueError("coarse fields require integers")
+    if np.asarray(row["vector"]).shape != (identity["dimension"],):
+        raise ValueError("sanitized row requires exactly one dense vector")
     vector_check(row["vector"], identity)
     sparse_check(row["sparse"])
     return dict(row)

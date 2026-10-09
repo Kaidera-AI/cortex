@@ -10,6 +10,8 @@ from mutation_receipts import classify
 
 NEXT = Path(__file__).resolve().parents[2]
 MUTATIONS = [
+    ("corpus.py", "single-row-shape-bypass", 'if np.asarray(row["vector"]).shape != (identity["dimension"],):',
+     'if False:', "test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary"),
     ("corpus.py", "fixture-ID-duplicates", 'if invalid_ids or len(set(ids)) != len(ids):',
      'if invalid_ids:', "test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing"),
     ("corpus.py", "edge-mode-correlation", '(0, 1, 9, 10, 11)[(j // 10) % 5]',
@@ -24,8 +26,12 @@ MUTATIONS = [
      '& np.ones(len(records), dtype=bool)', "test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics"),
     ("oracle.py", "rrf-offset", '1 / (2 + np.arange(len(selected), dtype=np.float64))',
      '1 / (60 + np.arange(len(selected), dtype=np.float64))', "test_vector_baseline.OracleTests.test_exact_branch_ties_precede_prefetch_and_full_fusion_separate"),
-    ("postgres.py", "cleanup-skips-volume", 'if resource in self.owned:',
-     'if resource in self.owned and resource != "volume":', "test_vector_baseline.PostgresContractTests.test_cleanup_attempts_all_owned_resources_after_failure"),
+    ("postgres.py", "cleanup-skips-volume", 'if resource in self.owned | self.pending:',
+     'if resource in self.owned | self.pending and resource != "volume":', "test_vector_baseline.PostgresContractTests.test_cleanup_attempts_all_owned_resources_after_failure"),
+    ("postgres.py", "pending-create-omitted", 'self.pending.add(resource)  # The external effect may precede any acknowledgement.',
+     'pass  # Fault seed: external effects have no pending ledger.', "test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed"),
+    ("postgres.py", "collision-identity-bypass", 'if name != self.name or (labels or {}).get("kaidera.b01.lifecycle") != self.lifecycle:',
+     'if False:', "test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted"),
     ("postgres.py", "unfiltered-SQL", '"tenant = %s", "project = %s", "NOT deleted", "generation = %s"',
      '"tenant = %s", "project = %s", "true", "generation = %s"', "test_vector_baseline.PostgresContractTests.test_query_uses_parameters_scope_and_dense_operator"),
 ]
@@ -36,7 +42,7 @@ def semantic_kill(result, target):
 
 
 def main():
-    destination = NEXT / "benchmarks/vector_baseline/receipts/mutations"
+    destination = NEXT / "benchmarks/vector_baseline/receipts/cleanup-rework/mutations"
     destination.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     test_path = str(NEXT / "tests/benchmarks")

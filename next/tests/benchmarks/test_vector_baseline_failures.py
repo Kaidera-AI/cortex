@@ -71,6 +71,8 @@ class Case(unittest.TestCase):
                                         "tie_recall": None}])["empty"]["verdict"], "FAIL")
 
     def test_failed_start_removes_created_container_volume_and_secret(self):
+        from test_postgres_cleanup import ResourceEngine
+        engine = ResourceEngine()
         commands = []
         def fake(args, **kw):
             commands.append(args)
@@ -78,7 +80,7 @@ class Case(unittest.TestCase):
                 raise RuntimeError("fixture startup failure")
             if args[0] == "run":
                 raise RuntimeError("fixture failed run after creating container")
-            return "created" if args[0] == "create" else ""
+            return engine(args, **kw)
         p = postgres.DisposablePostgres(runner=fake)
         with self.assertRaises(RuntimeError):
             with p:

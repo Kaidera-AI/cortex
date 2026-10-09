@@ -199,14 +199,18 @@ class PostgresContractTests(unittest.TestCase):
             postgres.require_synthetic({"dataset": "marlow-4oct"})
 
     def test_cleanup_attempts_all_owned_resources_after_failure(self):
+        from test_postgres_cleanup import ResourceEngine
+        engine = ResourceEngine()
         commands = []
         def fake(args, **kw):
             commands.append(args)
             if args[:2] == ["rm", "-f"]:
                 raise RuntimeError("fixture container removal error")
-            return ""
+            return engine(args, **kw)
         p = postgres.DisposablePostgres(runner=fake)
         p.owned = {"container", "volume", "secret"}
+        for resource in p.owned:
+            engine.seed(resource, p.name, {"kaidera.b01.lifecycle": p.lifecycle})
         with self.assertRaises(RuntimeError):
             p.close()
         self.assertTrue(any(c[:2] == ["volume", "rm"] for c in commands))
