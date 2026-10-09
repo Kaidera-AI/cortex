@@ -1,10 +1,20 @@
 """RED-first controls found while verifying B01, kept separate from original tests."""
 import unittest
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 from vector_baseline import corpus, oracle, postgres
 
 
 class FailureControls(unittest.TestCase):
+    def test_each_edge_mode_covers_all_five_cardinalities(self):
+        with tempfile.TemporaryDirectory() as d:
+            c = corpus.generate(Path(d) / "c", count=100000, dimension=2, model="fixture")
+            q = corpus.queries(c, "heldout")
+            for mode in ("dense", "hybrid", "sparse"):
+                self.assertEqual({x["eligible_count"] for x in q if x["stratum"] == "edges" and x["mode"] == mode},
+                                 {0, 1, 9, 10, 11})
+
     def test_float32_underflow_refused(self):
         identity = {"provider": "synthetic", "model": "fixture", "dimension": 2,
                     "metric": "cosine", "generation": "fixture"}

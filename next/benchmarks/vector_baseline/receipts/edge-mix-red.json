@@ -1,0 +1,5 @@
+{
+  "exit": 1,
+  "test_sha256": "9db5860bdadc6efb07c6e788e8866c83700252b7599a5dd0d882e3df7b0473af",
+  "trigger": "cardinality j%5 correlated with query mode j%10, missing edges per mode"
+}
