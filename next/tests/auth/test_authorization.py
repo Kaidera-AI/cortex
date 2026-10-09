@@ -1,6 +1,7 @@
 """C04 real-PG auth/RLS contract, committed before its implementation."""
 from dataclasses import asdict
 import hashlib
+import json
 import os
 from pathlib import Path
 import sys
@@ -245,3 +246,11 @@ class AuthorizationTests(unittest.TestCase):
         self.assertGreater(self.admin.execute('SELECT generation FROM auth.permission_generations WHERE tenant_id=%s AND project_id=%s',self.scope).fetchone()[0],before)
         with self.assertRaises(AuthError):
             with self.auth(): pass
+
+    def test_shared_negative_conformance_cases_are_refused(self):
+        fixture=json.loads((Path(__file__).resolve().parents[2]/'contracts/auth-conformance.json').read_text())
+        keys={'read_a':READ_A,'control_a':CONTROL_A,'unknown':b'synthetic-unknown-credential'}
+        for case in fixture['cases']:
+            with self.subTest(case=case['id']),self.assertRaises(AuthError):
+                with self.auth(keys[case['credential']],installation=case['installation'],
+                               project=case['project'],action=case['action']): pass
