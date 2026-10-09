@@ -90,3 +90,15 @@ new canonical fact. Existing full-build execution remains an injected C07 adapte
 not a fabricated receipt. User/CTO/Kai keep C02/C04/C07/C11 integration gates.
 Kai23:08: shared test-body classifier is owned by Cox's standalone PR; continue
 graph while it is reviewed, then adopt the merged helper before final mutation proof.
+
+## Final structured-proof gate — Kai 2026-10-10 00:24 GO
+
+PR37's async fixture fix merged on main d715d062. Adopt its ONE unchanged
+next/tests/test_receipts.py through PR29 914ee9e, PR31 c36318f and PR33 edea171,
+restacking in order before the graph proof. Graph source, thirty integration cases
+and twenty-one recipes are unchanged from draft2083f1c; the full baseline now
+includes the parent's two retained fixture-attribution cases as well.
+Commit this source/document tree before running baseline, named mutations and
+restoration. Every receipt binds that exact HEAD, all next/ bytes, actual mutant
+digests and raw output; independently reconcile literal recipes and use the shared
+classifier for admission. Keep PR36 draft until the completed receipts exist.

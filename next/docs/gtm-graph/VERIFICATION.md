@@ -31,6 +31,10 @@ before/after logs are in helix docs/plans/cortex-v2-v0.1.020/lane-F/gtm-graph-*.
 
 Final proof is run only after all source is committed, the current C08 target is
 merged, and Cox's ONE merged next/tests/test_receipts.py is adopted through PR29.
+The adopted helper is PR37's async-fixture fix from main d715d062, unchanged SHA256
+d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa.
+PR29's runner forwards suite/named selection to that shared CLI; graph inherits
+phase admission through PR33 edea171, without a copied emitter or classifier.
 The parent disposable runner executes the prior search/provider/Conductor stack
 plus graph integration cases. The graph mutation driver reuses the parent's bound
 proof driver; it changes no parent mutation recipe and implements no classifier.
