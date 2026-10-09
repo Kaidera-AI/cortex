@@ -13,6 +13,8 @@ OUT.mkdir(parents=True,exist_ok=True)
 PHASE=sys.argv[1]
 TARGET=OUT/(PHASE+'.json')
 assert not TARGET.exists()
+TREE=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+SOURCE={str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
 POD='kaidera-test-core-schema-1'
 DB='kaidera-test-core-db-1'
 DRIVER='kaidera-test-core-driver-1'
@@ -116,12 +118,28 @@ try:
          '--env','PYTHONDONTWRITEBYTECODE=1',
          '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/schema'],300)
-    checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth'],300)
-    checked(env+['python','/tmp/next/scripts/mutate_auth.py'],1200)
+    if PHASE.startswith('binding-red'):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth'],300)
+        reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+        assert len(reports)==1
+        report=reports[0]
+        expected={'test_transaction_binding.TransactionBindingTests.'+name for name in (
+            'test_temporary_action_elevation_restored_before_exit_cannot_commit',
+            'test_temporary_granted_project_restored_before_exit_cannot_read',
+            'test_temporary_other_credential_restored_before_exit_cannot_read',
+            'test_null_action_resolver_refuses_owner_scope','test_missing_action_direct_rls_refuses_owner_scope')}
+        assert value.returncode==1 and report['tests_run']==32 and not report['errors']
+        assert {row['id'] for row in report['failures']}==expected
+        assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+    else:
+        checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth'],300)
+        checked(env+['python','/tmp/next/scripts/mutate_auth.py'],1200)
     hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
     restored=json.loads(hashes.stdout)
     expected={str(p.relative_to(WT/'next')):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
     assert restored==expected, 'all copied source bytes must be restored'
+    assert SOURCE=={str(p.relative_to(WT)):digest for p,digest in ((WT/'next'/name,digest) for name,digest in expected.items())}
+    assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
     passed=True
 finally:
     if ('container',DB) in pending:
@@ -134,10 +152,10 @@ finally:
     cleanup()
     if pending:
         cleanup()
-    TARGET.write_text(json.dumps({'phase':PHASE,'tree':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+    TARGET.write_text(json.dumps({'phase':PHASE,'tree':TREE,
         'passed':passed,'stack_removed':not pending,'pending':pending,'cleanup_errors':cleanup_errors,
         'lifecycle':NONCE,'images':[PG,PY],'native_arch':'arm64','network':'none; private loopback',
         'published_ports':[],'bind_mounts':[],'limits':{'cpus':2,'memory':'1g','pg_memory':'768m','driver_memory':'256m'},
-        'results':results,'source_sha256':{str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()},
+        'results':results,'source_sha256':SOURCE,
         'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()},indent=2)+'\n')
     assert not pending, 'C04 lifecycle cleanup could not be verified; resource retained for reconciliation'
