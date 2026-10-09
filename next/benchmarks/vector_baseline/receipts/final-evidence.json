@@ -1,0 +1,57 @@
+{
+  "schema": "cortex-b01-author-evidence-v1",
+  "base": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "source_commit_before_receipts": "1d2c5044243d1fbf18a5b0fb568d9cf62a90d5bd",
+  "target_integration": "Already up to date; checks rerun afterward",
+  "python": "3.12.13",
+  "numpy": "2.3.4",
+  "psycopg": "3.2.9",
+  "final_test_count": 20,
+  "final_test_exit": 0,
+  "commands": [
+    "B01_PODMAN=1 PYTHONPATH=next/src .venv/bin/python -m unittest discover -s next/tests/benchmarks -v",
+    "PYTHONPATH=next/src .venv/bin/python next/tests/benchmarks/mutate_vector_baseline.py",
+    "python -m vector_baseline.corpus ... --dimension8 --model b01-synthetic-fixture-8 (default count5M)",
+    "independent 5M regeneration chunk8192 + exact full-corpus probes",
+    "python -m vector_baseline.postgres ... --per-cell1",
+    "git diff --check"
+  ],
+  "mutants": 7,
+  "killed": 7,
+  "covered_production_sources": [
+    "corpus.py",
+    "oracle.py",
+    "postgres.py"
+  ],
+  "source_hashes": {
+    "next/benchmarks/vector_baseline/pyproject.toml": "9eeba4b29be1990ad5ba3e9c39e510900de4d9a6198842f0d796180b083a632a",
+    "next/benchmarks/vector_baseline/uv.lock": "e8b9dbae40e9da7aea008ad4131dee144257cc8947e1641a58511f16da97ebe2",
+    "next/src/vector_baseline/corpus.py": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38",
+    "next/src/vector_baseline/oracle.py": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73",
+    "next/src/vector_baseline/postgres.py": "cc204b7810dbebc156ad1299aec1acccd9e869cc8d5130269c48a36a467961c8",
+    "next/tests/benchmarks/mutate_vector_baseline.py": "fe11017b82b1b0ef13d8f4320b1d46026524c2ad82310e17d1704856e45de811",
+    "next/tests/benchmarks/test_vector_baseline.py": "9cf5064783f536c2d14c63264174b2ff27ae2a8c4df633863e3e94e137ec3f41",
+    "next/tests/benchmarks/test_vector_baseline_failures.py": "eed8262186dc50625d1db882870f6f16e1d9ef7604496ce282f8e49c57d6090e"
+  },
+  "binding_changes": [
+    "resource assertion2GiB\u21921GiB per H-D45521:33; original test hash remains in historical RED",
+    "verification-found extra tests committed RED-first"
+  ],
+  "sql_smoke": {
+    "corpus_count": 24000,
+    "measured_queries": 12,
+    "errors": 0,
+    "cell_count": 18,
+    "engine_decision": "UNDECIDED",
+    "cleanup_verified": true
+  },
+  "scale_fixture": {
+    "count": 5000000,
+    "dimension": 8,
+    "byte_identical_different_chunks": true,
+    "product_dimension_or_latency_gate": "NOT_RUN"
+  },
+  "reviewer": "vera@helix",
+  "review_gate": "PENDING",
+  "release_authorized": false
+}
