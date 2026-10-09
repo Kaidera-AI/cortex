@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/benchmarks/vector_baseline/receipts/cleanup-rework/verify-command-path.py", line 11, in <module>
+    assert start.is_dir(), f"missing unittest discovery start directory: {start}"
+           ~~~~~~~~~~~~^^
+AssertionError: missing unittest discovery start directory: /Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/contracts

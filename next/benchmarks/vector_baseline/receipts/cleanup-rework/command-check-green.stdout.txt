@@ -1,0 +1,1 @@
+PASS discovery start directory and documented files exist

@@ -43,3 +43,22 @@ Oracle scoring is independent NumPy float64 over stored float32, with separate p
 Evidence in `receipts/` records initial new-surface RED, actual forbidden-hit behavioral RED, verification-found cleanup/error/float32/resource controls before their fixes, full GREEN and mutation-specific raw assertion failures. The original resource expectation was tightened from2GiB to1GiB under H-D45521:33; original historical RED hashes remain, and new bytes are separately bound. Five-million generation/reproduction evidence uses **dimension8**, explicitly a synthetic fixture and not production-scale dimension/performance proof. Vera must review the code/oracle independently; no author acceptance, merge or release follows from these receipts.
 
 Upstream references: [pgvector](https://github.com/pgvector/pgvector) for HNSW operators/iterative filtering, [PostgreSQL ORDER BY](https://www.postgresql.org/docs/current/indexes-ordering.html). Exact selective-filter plans are permitted and labelled; an HNSW witness does not prove the natural filtered plan.
+
+The PR35 rework for **B01-CLEANUP-001** records creation as pending before invoking Podman. Each single-use stack attaches a fresh 128-bit lifecycle label to its volume, secret and container. Cleanup reconciles that exact name and label after an ambiguous acknowledgement, retains failed removals for retry, and discards the password and releases the lock even when reconciliation fails. Container and secret deletion use verified immutable IDs. Volume deletion uses the verified name: deliberate external replacement between inspection and deletion is outside this fixture's qualified concurrency model. Pre-existing names with another lifecycle are preserved. The process lock bounds Mike's local stacks; it is not an engine-wide lock on other workers.
+
+**B01-ROW-002** adds an exact `(dimension,)` shape requirement at the typed single-row boundary. Batched matrix validation elsewhere and accepted non-unit vector geometry remain covered.
+
+`receipts/cleanup-rework/` preserves the reviewed-source RED (six lost acknowledgements, two lifecycle controls and nine nested-matrix subtest failures), the restored native suite, twelve actual mutation receipts, original assertion integrity and the refreshed-main checks. Its separate verifier keeps the initial `receipts/final-evidence.json` and five-million fixture receipts historical. The broad initial cleanup RED also contained one error; the focused six-case RED has six body assertion failures and zero errors. The collision fault-seed RED demonstrates test sensitivity, rather than claiming an additional bug in the reviewed source.
+
+Reproduce the bounded repair from the root of an owned worktree with no competing Mike fixture:
+
+```sh
+uv sync --project next/benchmarks/vector_baseline --frozen --python 3.12
+B01_PODMAN=1 PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
+  -m unittest discover -s next/tests/benchmarks -v
+PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
+  next/tests/benchmarks/mutate_vector_baseline.py
+python3 next/benchmarks/vector_baseline/receipts/cleanup-rework/verify-evidence.py
+```
+
+The mutation producer uses the vendored synchronous receipt helper for these synchronous `TestCase` targets; it does not qualify that copy for arbitrary async fixtures. C01/shared-helper integration checks additionally require the pinned `next/requirements-test.txt` packages in the same environment. Source and evidence hashes in the repair manifest bind the recorded run; regenerated receipts require a new manifest rather than silently reusing these hashes. Vera owns re-review and closure. Product-engine verdict remains UNDECIDED.

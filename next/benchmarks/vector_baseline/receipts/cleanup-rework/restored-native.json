@@ -1,0 +1,19 @@
+{
+  "command": [
+    "next/benchmarks/vector_baseline/.venv/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "next/tests/benchmarks",
+    "-v"
+  ],
+  "env": {
+    "PYTHONPATH": "next/src",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "B01_PODMAN": "1"
+  },
+  "exit": 0,
+  "stdout_sha256": "71cf7255e4906c20d06f47a010375daf1221e6e8d83b5716a746d1b806ec769d",
+  "stderr_sha256": "df67d2be71372f6c4ed61a194cd1c45cbe2182eb81daa118f269f1d9cc97eabc"
+}
