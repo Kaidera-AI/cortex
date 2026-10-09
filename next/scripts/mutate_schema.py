@@ -23,9 +23,10 @@ def checkpoint():
 
 
 def mutation_killed(result):
+    if result.returncode < 0:
+        raise SystemExit("Signal termination invalidates mutation proof")
     output = result.stdout + result.stderr
     if any(marker in output for marker in ("psycopg.OperationalError", "psycopg.errors.DiskFull", "psycopg.errors.OutOfMemory")):
-        print(output, flush=True)
         raise SystemExit("Operational failure invalidates mutation proof")
     return result.returncode != 0
 
@@ -55,6 +56,7 @@ def run():
         ("schema/retrieval/000-canonical.sql", "nonfinite embeddings admitted", "retrieval.finite_vector(embedding)", "true"),
         ("schema/retrieval/000-canonical.sql", "embedding dimensions unbound", "cardinality(embedding) = dimensions", "true"),
         ("schema/manifest.json", "unsupported manifest version", '"version": 1', '"version": 2'),
+        ("scripts/mutate_schema.py", "signal termination counted as kill", "if result.returncode < 0:", "if False:"),
     ]
     survivors = []
     for relative, label, before, after in mutations:
@@ -81,7 +83,11 @@ def run():
                         entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
                 MANIFEST.write_text(json.dumps(manifest))
             result = suite()
-            killed = mutation_killed(result)
+            try:
+                killed = mutation_killed(result)
+            except SystemExit:
+                print(result.stdout + result.stderr, flush=True)
+                raise
             print(json.dumps({"source": relative, "mutation": label, "killed": killed, "exit_code": result.returncode, "output_tail": (result.stdout + result.stderr)[-1800:]}), flush=True)
             if not killed:
                 survivors.append(label)
