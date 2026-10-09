@@ -1,10 +1,16 @@
 """RED-first controls found while verifying B01, kept separate from original tests."""
 import unittest
 from unittest.mock import patch
-from vector_baseline import oracle, postgres
+from vector_baseline import corpus, oracle, postgres
 
 
 class FailureControls(unittest.TestCase):
+    def test_float32_underflow_refused(self):
+        identity = {"provider": "synthetic", "model": "fixture", "dimension": 2,
+                    "metric": "cosine", "generation": "fixture"}
+        with self.assertRaises(ValueError):
+            corpus.vector_check([1e-100, 0], identity)
+
     def test_shared_engine_constraint(self):
         args = postgres.DisposablePostgres().run_args()
         self.assertIn("--memory=1g", args)
