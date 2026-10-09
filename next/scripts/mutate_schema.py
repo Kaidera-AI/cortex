@@ -22,6 +22,14 @@ def checkpoint():
         connection.execute("CHECKPOINT")
 
 
+def mutation_killed(result):
+    output = result.stdout + result.stderr
+    if any(marker in output for marker in ("psycopg.OperationalError", "psycopg.errors.DiskFull", "psycopg.errors.OutOfMemory")):
+        print(output, flush=True)
+        raise SystemExit("Operational failure invalidates mutation proof")
+    return result.returncode != 0
+
+
 def run():
     baseline = suite()
     if baseline.returncode:
@@ -73,11 +81,7 @@ def run():
                         entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
                 MANIFEST.write_text(json.dumps(manifest))
             result = suite()
-            output = result.stdout + result.stderr
-            if any(marker in output for marker in ("psycopg.OperationalError", "psycopg.errors.DiskFull", "psycopg.errors.OutOfMemory")):
-                print(output, flush=True)
-                raise SystemExit("Operational failure invalidates mutation proof")
-            killed = result.returncode != 0
+            killed = mutation_killed(result)
             print(json.dumps({"source": relative, "mutation": label, "killed": killed, "exit_code": result.returncode, "output_tail": (result.stdout + result.stderr)[-1800:]}), flush=True)
             if not killed:
                 survivors.append(label)
