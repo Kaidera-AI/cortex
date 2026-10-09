@@ -26,13 +26,15 @@ def mask_literals(sql):
                 else: index += 1
             if depth: raise ValueError('Unterminated SQL comment')
         elif sql[index] in "'\"":
-            quote = sql[index]; index += 1
+            quote = sql[index]
+            escapes = quote == "'" and index > 0 and sql[index-1] in 'Ee' and (index < 2 or not (sql[index-2].isalnum() or sql[index-2] == '_'))
+            index += 1
             while index < len(sql):
                 if sql[index] == quote:
                     index += 1
                     if index < len(sql) and sql[index] == quote: index += 1
                     else: break
-                elif quote == "'" and sql[index] == '\\': index += 2
+                elif escapes and sql[index] == '\\': index += 2
                 else: index += 1
             else: raise ValueError('Unterminated SQL quote')
         elif sql[index] == '$' and (tag := re.match(r'\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$', sql[index:])):
