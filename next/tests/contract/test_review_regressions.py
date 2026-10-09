@@ -3,7 +3,10 @@ import importlib.util
 import json
 from pathlib import Path
 import subprocess
+import shutil
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from test_contracts import fixture
 from cortex_core.contracts import ContractError, validate_event
@@ -21,7 +24,7 @@ class ReviewRegressions(unittest.TestCase):
                 validate_event(value)
 
     def result(self, code, failures=(), errors=(), stdout=None):
-        report={'failures':[{'id':name,'traceback':'AssertionError: synthetic probe'} for name in failures],
+        report={'tests_run':1,'failures':[{'id':name,'traceback':'AssertionError: synthetic probe'} for name in failures],
                 'errors':[{'id':'setup','traceback':error} for error in errors]}
         body='CORTEX_TEST_RESULT='+json.dumps(report) if stdout is None else stdout
         return subprocess.CompletedProcess(['synthetic-unittest'],code,stdout=body,stderr='')
@@ -39,3 +42,14 @@ class ReviewRegressions(unittest.TestCase):
 
     def test_clean_run_survives(self):
         self.assertEqual(mutator.classify(self.result(0),{'expected.test'}),'survived')
+
+    def test_schema_version_cannot_be_relabelled_by_index(self):
+        original=path.parents[1]/'contracts'
+        with tempfile.TemporaryDirectory() as d:
+            target=Path(d)/'contracts';shutil.copytree(original,target)
+            manifest=json.loads((target/'provenance.json').read_text())
+            manifest['schemas']['outbox_event']['2']=dict(manifest['schemas']['outbox_event']['1'])
+            (target/'provenance.json').write_text(json.dumps(manifest))
+            value=fixture('event-upsert.json');value['schema_version']=2
+            with patch('cortex_core.contracts.CONTRACTS',target),self.assertRaises(ContractError):
+                validate_event(value)
