@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from mutation_receipts import classify
 
 NEXT = Path(__file__).resolve().parents[2]
 MUTATIONS = [
@@ -31,11 +32,7 @@ MUTATIONS = [
 
 
 def semantic_kill(result, target):
-    output = result.stdout + result.stderr
-    method = target.rsplit(".", 1)[1]
-    return (result.returncode == 1 and f"FAIL: {method} (" in output
-            and "AssertionError:" in output
-            and "FAILED (failures=" in output and "ERROR:" not in output)
+    return classify(result, {target}) == "killed"
 
 
 def main():
@@ -64,10 +61,9 @@ def main():
                 if path == source:
                     data = data.decode().replace(before, after, 1).encode()
                 (root / path.name).write_bytes(data)
-            r = subprocess.run([sys.executable, "-m", "unittest", test, "-v"],
+            r = subprocess.run([sys.executable, str(NEXT / "tests/benchmarks/mutation_receipts.py"), "--target", test],
                                env={**env, "PYTHONPATH": str(Path(tmp)) + os.pathsep + test_path},
                                capture_output=True, text=True)
-            output = r.stdout + r.stderr
             (destination / (label + ".stdout.txt")).write_text(r.stdout)
             (destination / (label + ".stderr.txt")).write_text(r.stderr)
             killed = semantic_kill(r, test)
