@@ -82,6 +82,17 @@ class Extraction:
     edges: tuple[Edge, ...]
 
 
+def _kind_prefix(kind):
+    if kind not in KINDS:
+        raise ValueError("Invalid graph source kind")
+    return b'{"source_kind":' + json.dumps(kind).encode() + b','
+
+
+def encode_graph_fact(source, facts):
+    """C07 fact-sink codec: Core columns bind record/revision/extractor, bytes bind kind."""
+    return _kind_prefix(source.kind) + json.dumps(asdict(facts), separators=(",", ":")).encode()[1:]
+
+
 class GraphUnavailable(RuntimeError):
     code = "capability_unavailable"
     capability = "graph"
@@ -91,6 +102,15 @@ class StaleGraph(RuntimeError):
     def __init__(self, code):
         self.code = code
         super().__init__(code)
+
+
+def _publication_error(exc, fallback):
+    reason = exc.args[0] if isinstance(exc, GraphUnavailable) and exc.args else None
+    if type(reason) is str and reason in {
+        "entity_type_conflict", "invalid_canonical_fact_receipt", "canonical_fact_port_unavailable"
+    }:
+        return reason
+    return fallback
 
 
 def retry(operation):
@@ -369,8 +389,8 @@ class PostgresGraph:
                 current = await conn.fetchrow("SELECT current_revision,tombstone,kind FROM core.records WHERE tenant_id=$1 AND project_id=$2 AND id=$3", scope.tenant_id, scope.project_id, source.record_id)
                 if current is None or current["current_revision"] != source.revision or current["tombstone"] or current["kind"] != source.kind:
                     raise StaleGraph("stale_source")
-                applied = await conn.fetchval("SELECT source_revision FROM retrieval.graph_applied WHERE tenant_id=$1 AND project_id=$2 AND generation=$3 AND record_id=$4", scope.tenant_id, scope.project_id, generation, source.record_id)
-                if reprocess or applied != source.revision:
+                applied = await conn.fetchrow("SELECT source_revision,source_kind FROM retrieval.graph_applied WHERE tenant_id=$1 AND project_id=$2 AND generation=$3 AND record_id=$4", scope.tenant_id, scope.project_id, generation, source.record_id)
+                if reprocess or applied is None or (applied["source_revision"], applied["source_kind"]) != (source.revision, source.kind):
                     selected.append(source)
             return scope, generation, selected, before
 
@@ -413,7 +433,7 @@ class PostgresGraph:
                 canonical["source_revision"] != source.revision or canonical["extractor_identity"] != facts.identity):
                 raise GraphUnavailable("invalid_canonical_fact_receipt")
             try:
-                if len(canonical["body"]) > 4194304 or json.loads(bytes(canonical["body"])) != json.loads(json.dumps(asdict(facts))):
+                if len(canonical["body"]) > 4194304 or bytes(canonical["body"]) != encode_graph_fact(source, facts):
                     raise ValueError()
             except (ValueError, TypeError):
                 raise GraphUnavailable("invalid_canonical_fact_receipt") from None
@@ -434,14 +454,15 @@ class PostgresGraph:
                     JOIN core.payloads p ON (p.tenant_id,p.project_id,p.id)=(f.tenant_id,f.project_id,f.payload_ref)
                     WHERE f.tenant_id=$1 AND f.project_id=$2 AND f.record_id=$3
                       AND f.source_revision=$4 AND f.extractor_identity=$5 AND octet_length(p.body)<=4194304
+                      AND substring(p.body FROM 1 FOR octet_length($6::bytea))=$6
                     ORDER BY f.created_at DESC,f.id DESC LIMIT 1""", scope.tenant_id, scope.project_id,
-                    source.record_id, source.revision, self.identity)
+                    source.record_id, source.revision, self.identity, _kind_prefix(source.kind))
                 packets.append(packet)
             return packets
 
-    def _decode_facts(self, payload):
+    def _decode_facts(self, payload, source):
         value = json.loads(bytes(payload))
-        if not isinstance(value, dict) or set(value) != {"identity", "nodes", "edges"}:
+        if not isinstance(value, dict) or set(value) != {"source_kind", "identity", "nodes", "edges"} or value["source_kind"] != source.kind:
             raise ValueError("Invalid graph fact codec")
         if not isinstance(value["nodes"], list) or not isinstance(value["edges"], list):
             raise ValueError("Invalid graph fact codec")
@@ -461,15 +482,15 @@ class PostgresGraph:
             try:
                 if packet is None:
                     raise GraphUnavailable("canonical_fact_unavailable")
-                facts = self._decode_facts(packet["body"])
+                facts = self._decode_facts(packet["body"], source)
                 await self._publish(subject, scope, generation, source, facts, project, existing_fact_id=packet["id"])
                 processed += 1
             except PermissionError:
                 raise
             except StaleGraph as exc:
                 errors.append({"id": str(source.record_id), "error": exc.code})
-            except Exception:
-                errors.append({"id": str(source.record_id), "error": "canonical_fact_unavailable"})
+            except Exception as exc:
+                errors.append({"id": str(source.record_id), "error": _publication_error(exc, "canonical_fact_unavailable")})
         return {"project": scope.project_key, "selected": len(sources), "processed": processed,
                 "errors": errors, "stats_before": before, "stats": await self.stats(subject, project=project)}
 
@@ -496,8 +517,8 @@ class PostgresGraph:
                     processed += 1
                 except StaleGraph as exc:
                     errors.append({"source": KINDS[item.kind], "id": str(item.record_id), "error": exc.code})
-                except GraphUnavailable:
-                    errors.append({"source": KINDS[item.kind], "id": str(item.record_id), "error": "capability_unavailable"})
+                except GraphUnavailable as exc:
+                    errors.append({"source": KINDS[item.kind], "id": str(item.record_id), "error": _publication_error(exc, "capability_unavailable")})
                 except PermissionError:
                     raise
                 except Exception:

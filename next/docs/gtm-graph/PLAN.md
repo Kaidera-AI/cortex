@@ -82,12 +82,12 @@ applied records cannot starve pending records. All graph PG transactions have a
 whole two-second budget. Extraction/build awaits run outside these transactions.
 The fact port returns a persisted Core fact UUID: validate scope, source revision,
 extractor identity and immutable payload against the exact Extraction shape before
-publishing; graph_applied keeps its scoped fact FK. Fact payload codec is identity,
-nodes and edges (the Extraction dataclass JSON shape); C07 binds this named port.
+publishing; graph_applied keeps its scoped fact FK. The amended fact payload codec
+is source_kind plus identity/nodes/edges; C07 binds encode_graph_fact below.
 Retain RED-first selection, timeout and no-op fact-port checks. Add a canonical-fact
 rebuild hook and prove projection loss can be repaired without an extractor call or
 new canonical fact. Existing full-build execution remains an injected C07 adapter,
-not a fabricated receipt. User/CTO/Kai keep C02/C04/C07/C11 integration gates.
+not a fabricated receipt. Kai keeps C02/C04/C07/C11 integration gates.
 Kai23:08: shared test-body classifier is owned by Cox's standalone PR; continue
 graph while it is reviewed, then adopt the merged helper before final mutation proof.
 
@@ -102,3 +102,32 @@ Commit this source/document tree before running baseline, named mutations and
 restoration. Every receipt binds that exact HEAD, all next/ bytes, actual mutant
 digests and raw output; independently reconcile literal recipes and use the shared
 classifier for admission. Keep PR36 draft until the completed receipts exist.
+
+## Source-kind rework — Kai 2026-10-10 01:16 GO, shape A
+
+GRAPH-PG-002: one new ordinary-extraction control changes decision/revision1 to
+lesson/revision1, then consumes the pending record without reprocess or rotation.
+Both pending SQL and the hydrated-source applied check bind record/revision/kind.
+
+GRAPH-PG-001: one kind-dependent extractor control changes kind at revision1,
+rotates generation and refuses old-kind reuse; after ordinary extraction, matching
+kind facts must rebuild even when a newer other-kind fact exists. Core tables and
+their invariants remain unchanged. The graph-owned encode_graph_fact(Source,
+Extraction) codec adds source_kind as the first compact JSON field; the existing
+Core fact columns bind record/revision/extractor. Reuse filters the parameterized
+canonical kind-byte prefix before newest/LIMIT, without casting untrusted bytea
+to JSON. Decode and publication verify the kind and exact canonical payload bytes.
+Old unbound payloads are unavailable and require ordinary extraction; C07 owns the
+production sink binding to this codec. No new provider or Core migration.
+
+GRAPH-PG-003 is local: preserve only the three allowlisted publication causes
+entity_type_conflict, invalid_canonical_fact_receipt and
+canonical_fact_port_unavailable in the existing per-record error field. Unknown
+dependency text stays scrubbed. One RED control covers extraction and rebuild;
+the broader C02/C07 error contract remains gated.
+
+Commit this amendment, then the three controls before fixing source. Preserve
+existing test bodies; update the existing payload mutant only for the new codec,
+add kind-selection/reuse and safe-cause recipes, and rerun full clean/restored
+source-bound proof. Merge current main, push PR36, merge it into PR39 without
+rebasing or changing health-owned bytes, and rerun PR39 proof before handback.

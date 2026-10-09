@@ -41,7 +41,17 @@ proof driver; it changes no parent mutation recipe and implements no classifier.
 Every kill must be an expected test-body AssertionError from the shared structured
 result. Fixtures, setup/teardown, import, runner, signal, missing metadata and source
 drift are INCONCLUSIVE. Clean baseline/restored full suites and mandatory container
-cleanup gate every set of 21 graph mutation recipes (source, route and SQL).
+cleanup gate every set of 24 graph mutation recipes (source, route and SQL).
+
+Kai's 01:16 shape-A rework retains one control per Medium: ordinary extraction
+progress after a same-revision kind transition (GRAPH-PG-002), and a kind-dependent
+extractor followed by kind change/generation rotation (GRAPH-PG-001). The latter
+also proves matching-kind reuse before newest/LIMIT when a newer other-kind fact
+exists. One additional control covers local safe first-cause reporting
+(GRAPH-PG-003). All three are committed at222fe20 before implementation; each RED
+is exactly its expected test-body AssertionError, with source-bound raw receipts
+under lane-F/pr36-kind-red/. The fixed full stack has122 checks (33 graph +89
+parents); the final clean/restored proof binds the committed successor.
 
 ```sh
 uv venv --python 3.12 .venv
@@ -72,12 +82,23 @@ edges per record, with bounded names/descriptions and endpoint validation.
 extractor(Source, options) is the existing Cortex extraction adapter, bounded to
 five seconds outside PG; its complete registered identity must match the graph.
 fact_sink(conn, scope, Source, Extraction) persists the immutable Core payload and
-fact in that same transaction and returns its UUID. Payload JSON has exactly
-identity/nodes/edges (Extraction dataclass shape), <=4MiB. Publication verifies
-scope, source revision, identity and actual payload equality; a no-op, foreign or
+fact in that same transaction and returns its UUID. Persist the exact bytes from
+encode_graph_fact(Source, Extraction): compact JSON with source_kind first, then
+identity/nodes/edges, <=4MiB. Core fact columns bind record/revision/extractor;
+the graph-owned immutable payload binds kind, without changing Core tables.
+Publication verifies scope, source revision, kind, identity and exact canonical
+payload bytes; a no-op, foreign or
 mismatched receipt cannot authorize a projection. Rebuild reads current immutable
-facts and validates that same codec/identity; it never invokes the extractor or
-adds a new fact. All PG transactions have a whole two-second budget and bounded
+facts keyed by record/revision/kind/extractor. Its parameterized byte-prefix
+predicate selects kind before newest/LIMIT without casting untrusted bytea to
+JSON, then decode and publication validate the same codec/kind/identity. Unbound
+old three-field payloads are refused; ordinary extraction creates a bound fact.
+Rebuild never invokes the extractor or adds a new fact. Both pending selection
+decisions bind the full record/revision/kind snapshot. Existing per-record error
+fields retain only allowlisted publication causes (entity_type_conflict,
+invalid_canonical_fact_receipt, canonical_fact_port_unavailable); other dependency
+text stays scrubbed. Broader C02/C07 error-contract freezing remains gated.
+All PG transactions have a whole two-second budget and bounded
 whole-transaction serialization retries; callbacks must honor cancellation.
 
 enqueue_job(conn, scope, options) and read_job(conn, scope, UUID) are C03/C07 durable
