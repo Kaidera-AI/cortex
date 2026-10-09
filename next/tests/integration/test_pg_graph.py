@@ -430,6 +430,75 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.graph.memory("alice"))["nodes"], [])
         self.assertEqual((await self.graph.stats("alice"))["freshness"]["pending_records"], 1)
 
+    async def test_changed_kind_pending_record_progresses_by_ordinary_extraction(self):
+        rid = await self.record()
+        self.assertEqual((await self.graph.extract("alice", dry_run=False))["processed"], 1)
+        await self.admin.execute("UPDATE core.records SET kind='lesson' WHERE id=$1", rid)
+        result = await self.graph.extract("alice", dry_run=False)
+        self.assertEqual((result["selected"], result["processed"]), (1, 1))
+        self.assertEqual(result["errors"], [])
+        memory = await self.graph.memory("alice")
+        self.assertEqual(memory["sources"][0]["source_table"], "lessons")
+        self.assertEqual((await self.graph.stats("alice"))["freshness"]["pending_records"], 0)
+
+    async def test_rebuild_reuses_only_matching_source_kind_before_newest_limit(self):
+        calls = []
+        async def by_kind(source, options):
+            calls.append(source.kind)
+            return Extraction(IDENTITY, (Node(source.kind + "-only", "concept"),), ())
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": by_kind})
+        rid = await self.record()
+        self.assertEqual((await graph.extract("alice", dry_run=False))["processed"], 1)
+        await self.admin.execute("UPDATE core.records SET kind='lesson' WHERE id=$1", rid)
+        await graph.configure("alice", "ready")
+        rebuilder = PostgresGraph(self.pool, **{**self.options, "extractor": None, "fact_sink": None})
+        result = await rebuilder.rebuild("alice")
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual((await graph.memory("alice"))["nodes"], [])
+        self.assertEqual((await graph.stats("alice"))["freshness"]["pending_records"], 1)
+        self.assertEqual(calls, ["decision"])
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 1)
+        self.assertEqual((await graph.extract("alice", dry_run=False))["processed"], 1)
+        await self.admin.execute("UPDATE core.records SET kind='decision' WHERE id=$1", rid)
+        self.assertEqual((await graph.extract("alice", dry_run=False))["processed"], 1)
+        await self.admin.execute("UPDATE core.records SET kind='lesson' WHERE id=$1", rid)
+        await graph.configure("alice", "ready")
+        self.assertEqual((await rebuilder.rebuild("alice"))["processed"], 1)
+        memory = await graph.memory("alice")
+        self.assertEqual([n["name"] for n in memory["nodes"]], ["lesson-only"])
+        self.assertEqual(memory["sources"][0]["source_table"], "lessons")
+        self.assertEqual((await graph.stats("alice"))["freshness"]["pending_records"], 0)
+        self.assertEqual(calls, ["decision", "lesson", "decision"])
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 3)
+
+    async def test_per_record_publication_preserves_safe_first_cause(self):
+        async def by_kind(source, options):
+            return Extraction(IDENTITY, (Node(source.label, "file" if source.kind == "lesson" else "concept"),), ())
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": by_kind})
+        await self.record(kind="lesson", label="shared")
+        self.assertEqual((await graph.extract("alice", source="lessons", dry_run=False))["processed"], 1)
+        await graph.configure("alice", "ready")
+        await self.record(label="shared")
+        self.assertEqual((await graph.extract("alice", source="decisions", dry_run=False))["processed"], 1)
+        result = await graph.extract("alice", source="lessons", dry_run=False)
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual(result["errors"][0]["error"], "entity_type_conflict")
+        result = await graph.rebuild("alice")
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual(result["errors"][0]["error"], "entity_type_conflict")
+        await self.record(kind="knowledge", label="unique")
+        async def noop(*args):
+            return None
+        invalid = PostgresGraph(self.pool, **{**self.options, "extractor": by_kind, "fact_sink": noop})
+        result = await invalid.extract("alice", source="knowledge", dry_run=False)
+        self.assertEqual(result["errors"][0]["error"], "invalid_canonical_fact_receipt")
+        async def secret(*args):
+            raise GraphUnavailable("synthetic-provider-secret")
+        broken = PostgresGraph(self.pool, **{**self.options, "extractor": by_kind, "fact_sink": secret})
+        result = await broken.extract("alice", source="knowledge", dry_run=False)
+        self.assertEqual(result["errors"][0]["error"], "canonical_fact_port_unavailable")
+        self.assertNotIn("synthetic-provider-secret", json.dumps(result))
+
     async def test_reprocess_can_replace_its_own_entity_type(self):
         await self.project()
         async def corrected(source, options):
