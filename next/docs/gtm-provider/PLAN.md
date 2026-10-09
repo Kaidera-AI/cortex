@@ -41,3 +41,16 @@ restored full suites run 50 checks; eight P01 mutants each fail their named expe
 assertion. Raw target/status receipts live in lane-F/pr31-restack-mutations/.
 The cache admission isolation remains read_committed; search remains repeatable_read.
 
+## Review findings — Kai22:30, B01-PR31-1/2
+
+Commit Mike's typed-resolver sentinel and native scope-lock deadline probe RED-first.
+Scrub every dependency exception, including an already typed CapabilityUnavailable;
+only locally produced fixed refusal reasons may be outward errors. Cover transport
+typed exceptions too. Apply one total caller wait budget across PG lookup, provider,
+publication and bounded best-effort claim release. Check the deadline before warm
+and cold success; cancellation propagates, and unreleasable claims expire. Add a
+held-lock assertion proving the request ends before the holder releases, plus late
+publication/cancellation/generation checks. Named source mutation targets must fail
+the expected assertion. Keep raw receipts, push the same PR31 and restack PR33 before
+resuming graph. No other provider, schema or live credential change.
+
