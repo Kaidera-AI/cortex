@@ -13,6 +13,8 @@ def mutation(path, name, before, after, test):
 
 
 MUTATIONS = [
+    mutation(SOURCE, "reprocess_blocked_by_own_old_type", "AND a.record_id<>$4", "AND ($4::uuid IS NOT NULL)", "test_reprocess_can_replace_its_own_entity_type"),
+    mutation(SOURCE, "conflicting_source_type_accepted", 'if any(new_types[r["name"]] != r["entity_type"] for r in existing):', "if False:", "test_conflicting_type_from_another_source_cannot_alias_entity"),
     mutation(SOURCE, "changed_core_kind_ignored", " AND r.kind=a.source_kind\n", "", "test_changed_core_kind_does_not_serve_old_source_provenance"),
     mutation(SOURCE, "multiword_tokens_lost", 'tokens = [t.lower() for t in re.findall(r"[A-Za-z0-9_.:/-]+", query) if len(t)>2] or [query.lower()]', 'tokens = [query.lower()]', "test_existing_multiword_query_matches_any_current_token"),
     mutation(SOURCE, "stale_revision_reads", "AND r.current_revision=a.source_revision AND NOT r.tombstone", "AND TRUE", "test_revision_and_tombstone_never_serve_stale_graph"),

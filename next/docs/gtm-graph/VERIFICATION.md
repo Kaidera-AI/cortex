@@ -24,7 +24,9 @@ and no-op fact-port regressions: starvation and no-op receipts fail assertions;
 the original timeout RED is a behavioral error. Its subsequent named deadline
 probe explicitly asserts on an over-budget operation. 5e12ec3 pins the missing
 canonical-fact rebuild hook before implementation (AttributeError, not a kill).
-d1d3077 pins multiword-query and changed-Core-kind assertion regressions. Raw
+d1d3077 pins multiword-query and changed-Core-kind assertion regressions. A later
+own-source reprocess regression rejects a self-conflict before its correction;
+the companion cross-source conflict control preserves unambiguous entity names. Raw
 before/after logs are in helix docs/plans/cortex-v2-v0.1.020/lane-F/gtm-graph-*.log.
 
 Final proof is run only after all source is committed, the current C08 target is
@@ -35,7 +37,7 @@ proof driver; it changes no parent mutation recipe and implements no classifier.
 Every kill must be an expected test-body AssertionError from the shared structured
 result. Fixtures, setup/teardown, import, runner, signal, missing metadata and source
 drift are INCONCLUSIVE. Clean baseline/restored full suites and mandatory container
-cleanup gate every set of 19 graph mutation recipes (source, route and SQL).
+cleanup gate every set of 21 graph mutation recipes (source, route and SQL).
 
 ```sh
 uv venv --python 3.12 .venv

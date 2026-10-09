@@ -388,7 +388,10 @@ class PostgresGraph:
             current = await conn.fetchrow("SELECT current_revision,tombstone,kind FROM core.records WHERE tenant_id=$1 AND project_id=$2 AND id=$3 FOR UPDATE", scope.tenant_id, scope.project_id, source.record_id)
             if current is None or current["current_revision"] != source.revision or current["tombstone"] or current["kind"] != source.kind:
                 raise StaleGraph("stale_source")
-            existing = await conn.fetch(ACTIVE + "SELECT name,entity_type FROM nodes WHERE name=ANY($3::text[])", scope.tenant_id, scope.project_id, [n.name for n in facts.nodes])
+            existing = await conn.fetch(ACTIVE + """SELECT DISTINCT n.name,n.entity_type
+                FROM active a JOIN retrieval.graph_nodes n USING(tenant_id,project_id,generation,record_id)
+                WHERE n.name=ANY($3::text[]) AND a.record_id<>$4""",
+                scope.tenant_id, scope.project_id, [n.name for n in facts.nodes], source.record_id)
             new_types = {n.name: n.entity_type for n in facts.nodes}
             if any(new_types[r["name"]] != r["entity_type"] for r in existing):
                 raise GraphUnavailable("entity_type_conflict")
