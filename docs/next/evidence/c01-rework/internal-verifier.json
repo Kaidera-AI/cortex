@@ -1,0 +1,22 @@
+{
+  "kind": "internal SDLC fresh verifier; not Mike official review or Kai acceptance",
+  "agent": "/root/c01_verify",
+  "checked_source": "14ae0475144291c1f86c9d895e6e64e6c40e2c55",
+  "first_findings": [
+    "fixture assertion attribution",
+    "receipt shape/assertion evidence missing"
+  ],
+  "recheck": "No required source gaps in bounded source and recorded output inspection",
+  "execution": "No tests/services run by verifier; recorded output independently parsed",
+  "verified_receipts": {
+    "tests_per_mutant": 33,
+    "expected_assertion_kills": 26,
+    "errors": 0,
+    "survivors": 0,
+    "inconclusive": 0,
+    "full_raw_output": true,
+    "restored_baseline_exit": 0,
+    "cleanup": true
+  },
+  "limitations": "Read-only source/receipt check; official review remains separate"
+}
