@@ -74,7 +74,7 @@
     "phase_followup_findings": 1,
     "subtest_disposition": "kodus-subtest-probe.json",
     "final_source_followup": "kodus/lint-final/kodus.json",
-    "final_source_followup_findings": 0
+    "final_source_followup_findings": 1
   },
   "final_test_native_actual": true,
   "mutation_baseline_native_test": "NOT_RUN in mutation-only baseline; separately executed in final23 checks",

@@ -32,5 +32,15 @@
     "reason": "Python3.12 _SubTest.id contains the complete parent dotted ID followed by subtest parameters. The existing duplicate-ID semantic mutant produces this exact structured receipt and classifies killed. Suggested case.id is optional simplification, not a demonstrated missing intersection.",
     "evidence": "kodus-subtest-probe.json",
     "adjudication": "Vera owns final review; author disposition only"
+  },
+  "lint_followup": {
+    "head": "75279336d5a5342bd9c651f9152a68e3ff823e2b",
+    "issue": 1,
+    "severity": "MEDIUM",
+    "disposition": "REFUTED_BY_FULL_METHOD_AND_EXECUTION",
+    "reason": "The complete test method does not load name c after fixture(p). No NameError arises in the actual23-check final run. The removed local was unused, as Ruff independently reported.",
+    "full_method_sha256": "63a9153c235d163b221cc02b97275797a75dd13e22b77f90a589c109a0921bb6",
+    "evidence": "final-green.stderr.txt",
+    "adjudication": "Vera owns final review; author disposition only"
   }
 }
