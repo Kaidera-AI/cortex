@@ -2,7 +2,7 @@
 
 ```text
 restricted installation pool -> acquire singleton lease + monotonic fence
-  -> heartbeat/release
+  -> renewal/release: lock matching token first -> fresh server-clock expiry check
   -> locked PG-only control intent, bounded by remaining lease, rollback on expiry
 Core outage -> explicit health state
 request/search timers + Core bytes/backlog -> four closed Design59 metric families
@@ -12,15 +12,37 @@ RED: 96f4e2a commits the initial contract before implementation (missing module)
 d7547d5 adds the stalled-control regression before its timeout fix. Raw evidence
 is in helix docs lane-F/gtm-conductor-evidence/red.log and stalled-control-red.log.
 
-GREEN: 71 full-stack checks; 11 source/SQL mutants fail their expected named
-assertion, admitted by a clean baseline and followed by a restored full suite.
-Raw baseline, per-mutant logs and target/status JSON are under
-lane-F/gtm-conductor-evidence/mutations/. Run:
+The original slice retained 71-check / 11-mutant proof under
+lane-F/gtm-conductor-evidence/mutations/; subsequent parent restacks retained their
+own receipts. Those logs do not qualify this rework's source tree.
+
+C08-001 RED is committed at f43d697: both renewal and release queue on an observed
+PG row-lock wait while the lease is still live, then incorrectly succeed after
+the guarded action expires and rolls back. The source-drift receipt test also
+fails on its expected assertion. Raw output: lane-F/pr33-c08-001-red.log (87 checks,
+three assertion failures, cleanup PASS). After the lock-first and proof-driver
+changes, the initial full run passes 87 checks, cleanup PASS:
+lane-F/pr33-c08-001-green.log. The RED synchronization is retained in both tests.
+
+Final acceptance requires a committed, clean tree: full baseline and restored
+87-check suites, plus all 13 named source/SQL mutants killed only by their expected
+single assertion (exit 1; no setup/import/runner ERROR; mandatory cleanup PASS).
+The two new mutants restore pre-lock qualification separately for renew/release.
+Run:
 
 ```sh
 .venv/bin/python next/tests/integration/run_conductor.py
-.venv/bin/python next/tests/integration/mutate_conductor.py .worktrees/nemo-c08-mutation-proof
+.venv/bin/python next/tests/integration/mutate_conductor.py /absolute/proof/directory
 ```
+
+Each *.source.json binds pre/post Git HEAD, committed Git tree and a canonical
+SHA256 manifest of all tracked/nonignored files under next/, plus raw-output
+SHA256. Any source change during a child check is INCONCLUSIVE. Fresh Python cache
+paths prevent stale bytecode from substituting earlier source. mutations.json
+binds each literal mutation recipe, original/mutant file digests, entire mutant
+manifest digest, expected test and attribution. The restored manifest must equal
+baseline. Raw logs and these packets are retained in lane-F/pr33-c08-001-mutations/;
+the handback binds the published head to these completed receipts.
 
 Use conductor-requirements.txt with Python3.12. The runner uses one disposable
 PG18.4/pgvector0.8.2 container, <=1GiB/2CPUs, worker label nemo, tmpfs only, random
