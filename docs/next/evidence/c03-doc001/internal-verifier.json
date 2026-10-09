@@ -1,0 +1,10 @@
+{
+  "agent": "/root/c01_verify",
+  "inspected_source": "e0fcc1b8c78ad783fc8adea2a0cff0b1b3974ec3",
+  "mode": "independent read-only source and receipt inspection; no execution or official review",
+  "required_findings": [],
+  "independent_parser": "line-delimited CREATE TABLE body; 71 tables/915 ordered name+declaration pairs match; no duplicate or omitted fields",
+  "preservation": "only decisions 67 to29 and messages31 to13; metadata, targets and every retained row equal prior map",
+  "receipts": "actual-map RED expected body AssertionError/no errors; six GREEN tests; expected neighbor mutation AssertionError/no errors, restored clean, container removed",
+  "limits": "not Vera finding closure, Kai acceptance or merge approval"
+}
