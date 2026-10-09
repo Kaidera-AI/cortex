@@ -1,8 +1,8 @@
 CREATE SCHEMA retrieval;
-CREATE FUNCTION retrieval.finite_vector(values real[]) RETURNS boolean
+CREATE FUNCTION retrieval.finite_vector(vector_values real[]) RETURNS boolean
     LANGUAGE sql IMMUTABLE STRICT AS $$
     SELECT coalesce(bool_and(v IS NOT NULL AND v NOT IN ('NaN'::real, 'Infinity'::real, '-Infinity'::real)), false)
-    FROM unnest(values) AS v;
+    FROM unnest(vector_values) AS v;
 $$;
 CREATE TABLE retrieval.embedding_models (
     tenant_id uuid NOT NULL,
