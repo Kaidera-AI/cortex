@@ -1,0 +1,7 @@
+{
+  "record_id": "00000000-0000-4000-8000-000000000005",
+  "event_id": "00000000-0000-4000-8000-000000000001",
+  "aggregate_version": 1,
+  "durability": "canonical_committed",
+  "projection": "pending"
+}

@@ -1,9 +1,11 @@
 """Deterministic RED-first tool checks; subprocess responses are synthetic."""
 
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import mutate_pg_search
@@ -11,6 +13,49 @@ import run_pg_search
 
 
 class ToolTests(unittest.TestCase):
+    def test_shared_emitter_fixture_reuse_is_inconclusive_and_bodies_kill(self):
+        target = "test_fixture_probe.Probe.test_expected"
+        body = "    async def test_expected(self):\n        self.assertFalse(getattr(self, 'fixture', False))\n"
+        cases = [
+            ("async setup", "    async def asyncSetUp(self):\n        self.fail('fixture')\n" + body, "INCONCLUSIVE"),
+            ("async teardown", "    async def asyncTearDown(self):\n        self.fail('fixture')\n" + body, "INCONCLUSIVE"),
+            ("async setup reuse", "    async def asyncSetUp(self):\n        self.fixture = True\n        await self.test_expected()\n" + body, "INCONCLUSIVE"),
+            ("async teardown reuse", "    async def asyncTearDown(self):\n        self.fixture = True\n        await self.test_expected()\n" + body, "INCONCLUSIVE"),
+            ("async cleanup reuse", "    def setUp(self):\n        self.addAsyncCleanup(self.cleanup)\n    async def cleanup(self):\n        self.fixture = True\n        await self.test_expected()\n" + body, "INCONCLUSIVE"),
+            ("async body", "    async def test_expected(self):\n        self.fail('genuine body assertion')\n", "KILLED"),
+        ]
+        for label, methods, expected in cases:
+            with self.subTest(phase=label), tempfile.TemporaryDirectory() as directory:
+                Path(directory, "test_fixture_probe.py").write_text(
+                    "import unittest\nclass Probe(unittest.IsolatedAsyncioTestCase):\n" + methods
+                )
+                result = subprocess.run(
+                    [sys.executable, str(run_pg_search.ROOT / "tests/test_receipts.py"), directory],
+                    capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 1, label)
+                self.assertIn("CORTEX_TEST_RESULT=", result.stdout)
+                self.assertEqual(
+                    mutate_pg_search.classify_kill(result.returncode, result.stdout + result.stderr + "\ncleanup: PASS\n", target),
+                    expected, label + "\n" + result.stdout + result.stderr,
+                )
+
+    def test_real_async_fixture_assertions_cannot_kill_expected_test(self):
+        target = "test_fixture_probe.Probe.test_expected"
+        for phase in ("asyncSetUp", "asyncTearDown"):
+            with self.subTest(phase=phase), tempfile.TemporaryDirectory() as directory:
+                Path(directory, "test_fixture_probe.py").write_text(
+                    "import unittest\nclass Probe(unittest.IsolatedAsyncioTestCase):\n"
+                    f"    async def {phase}(self):\n        self.fail('fixture assertion')\n"
+                    "    async def test_expected(self):\n        print('BODY_EXECUTED', flush=True)\n        self.assertTrue(True)\n"
+                )
+                result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", directory, "-v"], capture_output=True, text=True)
+                output = result.stdout + result.stderr + "\ncleanup: PASS\n"
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual("BODY_EXECUTED" in output, phase == "asyncTearDown")
+                self.assertEqual(mutate_pg_search.classify_kill(result.returncode, output, target),
+                                 "INCONCLUSIVE", phase + "\n" + output)
+
     def test_readiness_checks_tcp_not_temporary_initialization_socket(self):
         def run(command, **kwargs):
             if command[:2] == ["podman", "exec"]:
@@ -84,24 +129,31 @@ class ToolTests(unittest.TestCase):
 
     def test_only_expected_behavioral_assertion_is_a_semantic_kill(self):
         target = "test_pg_search_review.ReviewTests.test_case"
-        good = (
-            "FAIL: test_case ("
-            + target
-            + ")\nAssertionError: behavior differs\nRan 1 test\nFAILED (failures=1)\ncleanup: PASS\n"
-        )
+        failure = {"id": target, "phase": "test", "is_assertion": True, "traceback": "AssertionError: behavior differs"}
+
+        def packet(failures, errors=(), cleanup="PASS"):
+            return "CORTEX_TEST_RESULT=" + json.dumps({"tests_run": 1, "failures": failures, "errors": list(errors)}) + "\ncleanup: " + cleanup + "\n"
+
+        good = packet([failure])
         self.assertEqual(mutate_pg_search.classify_kill(1, good, target), "KILLED")
         for bad in [
-            good.replace("FAIL:", "ERROR:"),
-            good.replace(target, "unrelated.Tests.test_case"),
-            good.replace("cleanup: PASS", "cleanup: FAIL"),
-            good.replace("AssertionError:", "RuntimeError:"),
+            packet([], errors=[{"id": target, "traceback": "RuntimeError: setup failed"}]),
+            packet([{**failure, "id": "unrelated.Tests.test_case"}]),
+            packet([failure], cleanup="FAIL"),
+            packet([{**failure, "is_assertion": False}]),
+            packet([{**failure, "phase": "fixture"}]),
+            packet([failure, failure]),
+            "FAIL: test_case (" + target + ")\nAssertionError: behavior differs\nRan 1 test\nFAILED (failures=1)\ncleanup: PASS\n",
+            good + good,
+            "CORTEX_TEST_RESULT={broken}\ncleanup: PASS\n",
         ]:
             self.assertEqual(
                 mutate_pg_search.classify_kill(1, bad, target), "INCONCLUSIVE"
             )
         self.assertEqual(
             mutate_pg_search.classify_kill(
-                0, "Ran 1 test\nOK\ncleanup: PASS\n", target
+                0, packet([]), target
             ),
             "SURVIVED",
         )
+        self.assertEqual(mutate_pg_search.classify_kill(-9, good, target), "INCONCLUSIVE")
