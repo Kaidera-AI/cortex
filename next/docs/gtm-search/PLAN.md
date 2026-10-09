@@ -49,3 +49,15 @@ regressions; keep prior probes. Add a named norm-floor rollback mutant so the ne
 assertion proves the fix. Full baseline/restoration and per-mutant raw output apply.
 Push the same PR29 branch, then restack/reverify PR31 and PR33 with their own receipts;
 only then resume the committed graph plan. Mike closes this reopened finding.
+
+## Review round 4 — Kai 23:04, reopened B01-PR29-4
+
+Retain real asyncSetUp/asyncTearDown assertion probes RED-first; body identity plus
+an AssertionError substring is insufficient attribution. Coordinate with Cox and
+adopt his C01 test-body result/classifier in one shared next/tests helper, preserving
+its phase metadata contract; no second classifier variant. Nemo's disposable runner
+uses that shared result emitter, and kill/clean admission delegates to its classifier
+with the existing mandatory final container-cleanup gate. Missing/malformed results,
+fixture assertions and errors are INCONCLUSIVE. Preserve the nine genuine search
+mutation recipes and raw receipts; rerun clean/full restored suites, publish PR29,
+then restack and reverify PR31 and PR33 before graph work. No product behavior changes.
