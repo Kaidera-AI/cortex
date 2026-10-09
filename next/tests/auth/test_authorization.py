@@ -254,3 +254,15 @@ class AuthorizationTests(unittest.TestCase):
             with self.subTest(case=case['id']),self.assertRaises(AuthError):
                 with self.auth(keys[case['credential']],installation=case['installation'],
                                project=case['project'],action=case['action']): pass
+
+    def test_changed_action_cannot_commit_outside_accepted_context(self):
+        with self.assertRaises(AuthError):
+            with self.auth(WRITE_A,action='read'):
+                self.request.execute("SELECT set_config('cortex.action','write',true)")
+                self.request.execute('INSERT INTO core.payloads(tenant_id,project_id,id,body,sha256) VALUES (%s,%s,%s,%s,%s)',(*self.scope,uid(40),self.body,self.digest))
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM core.payloads WHERE id=%s',(uid(40),)).fetchone()[0],0)
+
+    def test_session_scope_written_inside_request_is_cleared(self):
+        with self.auth():
+            self.request.execute("SELECT set_config('cortex.credential_digest',%s,false),set_config('cortex.installation_id',%s,false),set_config('cortex.project_id',%s,false),set_config('cortex.action','read',false)",(hashlib.sha256(READ_A).hexdigest(),uid(1),uid(3)))
+        self.assertEqual(self.request.execute('SELECT count(*) FROM core.records').fetchone()[0],0)
