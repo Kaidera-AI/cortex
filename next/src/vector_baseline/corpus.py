@@ -242,7 +242,7 @@ def queries(c, split):
                        if stratum in fractions else scopes)
             tenant, project, ordinals = (options or scopes)[j % len(options or scopes)]
             n = len(ordinals)
-            target = (n if stratum == "scope" else (0, 1, 9, 10, 11)[j % 5] if stratum == "edges"
+            target = (n if stratum == "scope" else (0, 1, 9, 10, 11)[(j // 10) % 5] if stratum == "edges"
                       else int(n * fractions[stratum]))
             ready = target <= n and (stratum in ("scope", "edges") or target > 11)
             first = int(rng.integers(0, max(1, n - target + 1))) if ready and target else 0

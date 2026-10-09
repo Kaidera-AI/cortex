@@ -9,6 +9,6 @@ Traceback (most recent call last):
 AssertionError: 0.03306010928961749 != 0.8333333333333333 within 7 places (0.8002732240437158 difference)
 
 ----------------------------------------------------------------------
-Ran 1 test in 0.055s
+Ran 1 test in 0.049s
 
 FAILED (failures=1)

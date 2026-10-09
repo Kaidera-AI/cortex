@@ -1,11 +1,19 @@
 [
   {
     "source": "corpus.py",
+    "mutation": "edge-mode-correlation",
+    "expected_test": "test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "4ad2ba19d722ad4928ca1fa08597cdae3a57af808cf0559e2491c8d77c4c8436"
+  },
+  {
+    "source": "corpus.py",
     "mutation": "normalization",
     "expected_test": "test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence",
     "exit": 1,
     "killed": true,
-    "source_sha256": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38"
+    "source_sha256": "4ad2ba19d722ad4928ca1fa08597cdae3a57af808cf0559e2491c8d77c4c8436"
   },
   {
     "source": "corpus.py",
@@ -13,7 +21,7 @@
     "expected_test": "test_vector_baseline_failures.FailureControls.test_float32_underflow_refused",
     "exit": 1,
     "killed": true,
-    "source_sha256": "8bfc6c3e4f7fdf7304ac4627f376d8d42fce60e259390f7e893fcf7f4ce3ee38"
+    "source_sha256": "4ad2ba19d722ad4928ca1fa08597cdae3a57af808cf0559e2491c8d77c4c8436"
   },
   {
     "source": "oracle.py",

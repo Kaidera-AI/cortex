@@ -22,6 +22,6 @@ First extra element 4:
 + ['a', 'b', 'c', 'd']
 
 ----------------------------------------------------------------------
-Ran 1 test in 0.048s
+Ran 1 test in 0.055s
 
 FAILED (failures=1)

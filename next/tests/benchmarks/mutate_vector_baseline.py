@@ -9,6 +9,8 @@ import tempfile
 
 NEXT = Path(__file__).resolve().parents[2]
 MUTATIONS = [
+    ("corpus.py", "edge-mode-correlation", '(0, 1, 9, 10, 11)[(j // 10) % 5]',
+     '(0, 1, 9, 10, 11)[j % 5]', "test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities"),
     ("corpus.py", "normalization", "        v /= np.sqrt(np.sum(v * v, axis=1))[:, None]",
      "        v *= 1.0", "test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence"),
     ("corpus.py", "stored-cosine-admission", 'if identity["metric"] == "cosine" and np.any(np.linalg.norm(stored.astype(np.float64), axis=-1) == 0):',
