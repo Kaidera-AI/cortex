@@ -24,15 +24,19 @@ def loopback(host):
         return False
 
 
+def validate_binding(host, port):
+    if not loopback(host):
+        raise ValueError("Telemetry binding must be literal loopback")
+    if type(port) is not int or not 0 <= port <= 65535:
+        raise ValueError("Invalid telemetry port")
+
+
 class TelemetryGateway:
     """Dedicated minimal surface; C11 supplies the existing server and Core ports."""
 
     def __init__(self, metrics, read_health, read_sample, *, host="127.0.0.1", port=0,
                  timeout_seconds=0.25):
-        if not loopback(host):
-            raise ValueError("Telemetry binding must be literal loopback")
-        if type(port) is not int or not 0 <= port <= 65535:
-            raise ValueError("Invalid telemetry port")
+        validate_binding(host, port)
         if (type(metrics) is not Metrics or not callable(read_health) or not callable(read_sample)):
             raise ValueError("Existing Metrics and both Core readers are required")
         if (isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float))
@@ -46,6 +50,7 @@ class TelemetryGateway:
 
     def serve(self, runner):
         """The integration owner calls this with the existing ASGI server; no default."""
+        validate_binding(self.host, self.port)
         return runner(self.app, host=self.host, port=self.port,
                       proxy_headers=False, forwarded_allow_ips="")
 
@@ -115,6 +120,7 @@ class TelemetryGateway:
                     raise ValueError("Invalid Core metric receipt")
                 self.metrics.update_core(sample.db_bytes, sample.embed_backlog)
                 text = self.metrics.export()
+                self._deadline(deadline)
             return Response(text, media_type="text/plain; version=0.0.4",
                             headers={"Cache-Control": "no-store"})
         except TimeoutError:

@@ -23,6 +23,8 @@ path outage. Only allowlisted health fields are serialized.
 external peers are refused before callbacks. Forwarded headers grant no access.
 Provide validated options for the injected existing ASGI server (proxy headers
 disabled); test that binding call with a fake runner, never start a listener.
+Revalidate bind settings at the actual server call. Check the deadline after
+metric serialization as well as after each Core await.
 4. A whole 250ms health/scrape budget is a bounded prototype default, not a measured
 SLO; test synchronized shorter budgets, cancellation and scrubbed dependency errors.
 Return no-store health JSON and Prometheus text using the existing four identity
