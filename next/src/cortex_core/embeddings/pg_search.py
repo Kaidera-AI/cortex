@@ -6,11 +6,14 @@ mutation methods are internal control/writer hooks, not public API operations.
 Cox must bind separate read/control/writer authorization at the API boundary.
 """
 
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
+import asyncio
 import hashlib
 import json
 import math
+import struct
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from functools import wraps
 from typing import Awaitable, Callable
 from uuid import UUID
 
@@ -99,20 +102,48 @@ Authorize = Callable[[asyncpg.Connection, str], Awaitable[Scope]]
 
 
 def vector_literal(vector, dimensions: int) -> str:
-    if (
-        len(vector) != dimensions
-        or any(
-            isinstance(v, bool)
-            or not isinstance(v, (int, float))
-            or not math.isfinite(v)
-            for v in vector
-        )
-        or not any(vector)
+    if len(vector) != dimensions or any(
+        isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v)
+        for v in vector
     ):
         raise ValueError(
             "Expected a finite, nonzero vector of the configured dimensions"
         )
-    return "[" + ",".join(str(float(v)) for v in vector) + "]"
+
+    def float32(value):
+        try:
+            return struct.unpack("!f", struct.pack("!f", value))[0]
+        except (OverflowError, struct.error) as exc:
+            raise ValueError("Vector exceeds float32 range") from exc
+
+    converted = []
+    norm = 0.0
+    for value in vector:
+        component = float32(float(value))
+        if not math.isfinite(component) or (value != 0 and component == 0):
+            raise ValueError("Vector component is not representable in float32")
+        converted.append(component)
+        # pgvector cosine accumulates products and norms in float32, not double.
+        norm = float32(norm + float32(component * component))
+    if not math.isfinite(norm) or norm <= 0:
+        raise ValueError("Vector requires a finite, nonzero float32 cosine norm")
+    return "[" + ",".join(str(v) for v in converted) + "]"
+
+
+def retry_authorized_transaction(operation):
+    """Retry the WHOLE operation after rollback, including fresh Core grants."""
+
+    @wraps(operation)
+    async def wrapped(*args, **kwargs):
+        for attempt in range(3):
+            try:
+                return await operation(*args, **kwargs)
+            except asyncpg.SerializationError:
+                if attempt == 2:
+                    raise CapabilityUnavailable("concurrent_update") from None
+                await asyncio.sleep(0.005 * (attempt + 1))
+
+    return wrapped
 
 
 class PostgresSearch:
@@ -162,6 +193,7 @@ class PostgresSearch:
         except asyncpg.QueryCanceledError as exc:
             raise CapabilityUnavailable("resource_timeout") from exc
 
+    @retry_authorized_transaction
     async def configure(self, subject: str, identity: EmbeddingIdentity, state: str):
         key = identity.key
         if state not in {"ready", "disabled", "rebuilding"}:
@@ -176,6 +208,7 @@ class PostgresSearch:
                 state,
             )
 
+    @retry_authorized_transaction
     async def note_revision(
         self, subject: str, record_id: str, kind: str, revision: int
     ):
@@ -227,6 +260,7 @@ class PostgresSearch:
             raise CapabilityUnavailable("identity_mismatch")
         return state["state"]
 
+    @retry_authorized_transaction
     async def store_embedding(
         self,
         subject: str,
@@ -275,6 +309,7 @@ class PostgresSearch:
         )
         return Freshness(key, row["indexed"], row["pending"])
 
+    @retry_authorized_transaction
     async def search(
         self, subject: str, identity: EmbeddingIdentity, vector, *, limit: int = 20
     ):

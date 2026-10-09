@@ -1,9 +1,11 @@
 """Bounded, reproducible semantic mutations; fresh PG and cleanup per mutant."""
 
 import json
-from pathlib import Path
+import os
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "src/cortex_core/embeddings/pg_search.py"
@@ -53,12 +55,75 @@ MUTATIONS = [
         "",
     ),
 ]
+TARGETS = {
+    "runtime_bypass": "test_pg_search.SearchTests.test_superuser_runtime_is_rejected",
+    "mixed_identity": "test_pg_search.SearchTests.test_generation_change_excludes_old_vectors",
+    "late_embedding": "test_pg_search.SearchTests.test_freshness_and_stale_response_rejection",
+    "revision_rollback": "test_pg_search_review.ReviewTests.test_revision_notice_advances_monotonically",
+    "disabled_empty": "test_pg_search.SearchTests.test_unavailable_is_distinct_from_empty",
+    "freshness_lie": "test_pg_search.SearchTests.test_freshness_and_stale_response_rejection",
+    "no_hnsw": "test_pg_search.SearchTests.test_hnsw_plan_and_distance",
+    "rls_not_forced": "test_pg_search.SearchTests.test_forced_rls_without_scope_and_wrong_tenant_write",
+}
+
+
+def clean_run(returncode, output):
+    cleanup = re.findall(r"^cleanup: (PASS|FAIL)$", output, re.MULTILINE)
+    return (
+        returncode == 0
+        and bool(cleanup)
+        and cleanup[-1] == "PASS"
+        and re.search(r"^Ran \d+ tests?", output, re.MULTILINE) is not None
+        and re.search(r"^OK$", output, re.MULTILINE) is not None
+    )
+
+
+def classify_kill(returncode, output, target):
+    if clean_run(returncode, output):
+        return "SURVIVED"
+    cleanup = re.findall(r"^cleanup: (PASS|FAIL)$", output, re.MULTILINE)
+    failures = re.findall(r"^FAIL: \w+ \(([^)]+)\)$", output, re.MULTILINE)
+    if (
+        returncode == 1
+        and cleanup
+        and cleanup[-1] == "PASS"
+        and failures == [target]
+        and re.search(r"^ERROR:", output, re.MULTILINE) is None
+        and re.search(r"^AssertionError", output, re.MULTILINE) is not None
+        and "FAILED (failures=1)" in output
+    ):
+        return "KILLED"
+    return "INCONCLUSIVE"
+
+
+def execute(evidence, name, target=None):
+    env = dict(os.environ)
+    env.pop("SEARCH_TEST_TARGET", None)
+    if target:
+        env["SEARCH_TEST_TARGET"] = target
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tests/integration/run_pg_search.py")],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = result.stdout + result.stderr
+    (evidence / (name + ".log")).write_text(
+        output + "\nexit=" + str(result.returncode) + "\n"
+    )
+    return result.returncode, output
 
 
 def run():
     evidence = Path(sys.argv[1])
     evidence.mkdir(parents=True, exist_ok=True)
     receipt = []
+    code, output = execute(evidence, "baseline")
+    if not clean_run(code, output):
+        (evidence / "baseline.json").write_text(
+            json.dumps({"status": "INCONCLUSIVE", "exit": code}) + "\n"
+        )
+        raise RuntimeError("INCONCLUSIVE: clean baseline required before any mutation")
     for path, name, before, after in MUTATIONS:
         original = path.read_bytes()
         text = original.decode()
@@ -66,35 +131,31 @@ def run():
             raise RuntimeError("Mutation target drift: " + name)
         try:
             path.write_text(text.replace(before, after))
-            result = subprocess.run(
-                [sys.executable, str(ROOT / "tests/integration/run_pg_search.py")],
-                capture_output=True,
-                text=True,
-            )
-            output = result.stdout + result.stderr
-            (evidence / (name + ".log")).write_text(
-                output + "\nexit=" + str(result.returncode) + "\n"
-            )
-            killed = (
-                result.returncode != 0
-                and "Ran 10 tests" in output
-                and "cleanup: PASS" in output
-                and "FAILED" in output
-            )
+            target = TARGETS[name]
+            code, output = execute(evidence, name, target)
+            status = classify_kill(code, output, target)
             receipt.append(
                 {
                     "mutation": name,
                     "file": str(path.relative_to(ROOT)),
-                    "exit": result.returncode,
-                    "killed": killed,
+                    "exit": code,
+                    "target": target,
+                    "status": status,
+                    "killed": status == "KILLED",
                 }
             )
-            print(name, "KILLED" if killed else "NOT PROVEN", flush=True)
-            if not killed:
-                raise RuntimeError("Mutation survived or environment failed: " + name)
+            (evidence / "mutations.json").write_text(
+                json.dumps(receipt, indent=2) + "\n"
+            )
+            print(name, status, flush=True)
+            if status != "KILLED":
+                raise RuntimeError(status + ": " + name)
         finally:
             path.write_bytes(original)
     (evidence / "mutations.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    code, output = execute(evidence, "restored")
+    if not clean_run(code, output):
+        raise RuntimeError("INCONCLUSIVE: restored full suite failed")
     print(
         str(len(receipt)) + "/" + str(len(MUTATIONS)) + " semantic mutants killed",
         flush=True,
