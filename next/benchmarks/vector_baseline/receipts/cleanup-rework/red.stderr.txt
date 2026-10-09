@@ -1,0 +1,227 @@
+test_actual_created_effects_removed_after_six_lost_acknowledgements (test_postgres_cleanup.NativeCreateFailureTests.test_actual_created_effects_removed_after_six_lost_acknowledgements) ... skipped 'explicit disposable Podman fixture'
+test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) ... 
+  test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) (kind='volume') ... FAIL
+  test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) (kind='secret') ... FAIL
+  test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) (kind='container') ... FAIL
+test_container_create_then_ack_error_is_removed (test_postgres_cleanup.PendingCleanupTests.test_container_create_then_ack_error_is_removed) ... FAIL
+test_container_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_container_create_then_timeout_is_removed) ... FAIL
+test_no_side_effect_create_errors_are_safe (test_postgres_cleanup.PendingCleanupTests.test_no_side_effect_create_errors_are_safe) ... ok
+test_pending_inspection_failure_refuses_success_and_is_retryable (test_postgres_cleanup.PendingCleanupTests.test_pending_inspection_failure_refuses_success_and_is_retryable) ... FAIL
+test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) ... 
+  test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) (kind='volume') ... FAIL
+  test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) (kind='secret') ... FAIL
+  test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) (kind='container') ... FAIL
+test_secret_create_then_ack_error_is_removed (test_postgres_cleanup.PendingCleanupTests.test_secret_create_then_ack_error_is_removed) ... FAIL
+test_secret_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_secret_create_then_timeout_is_removed) ... FAIL
+test_unrelated_resources_and_credentials_are_untouched (test_postgres_cleanup.PendingCleanupTests.test_unrelated_resources_and_credentials_are_untouched) ... ERROR
+test_unverified_identity_is_never_removed (test_postgres_cleanup.PendingCleanupTests.test_unverified_identity_is_never_removed) ... FAIL
+test_volume_create_then_ack_error_is_removed (test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_ack_error_is_removed) ... FAIL
+test_volume_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed) ... FAIL
+
+======================================================================
+ERROR: test_unrelated_resources_and_credentials_are_untouched (test_postgres_cleanup.PendingCleanupTests.test_unrelated_resources_and_credentials_are_untouched)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/src/vector_baseline/postgres.py", line 64, in __enter__
+    self.runner(self.run_args())
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 56, in __call__
+    self.fail()
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 35, in fail
+    raise subprocess.TimeoutExpired(["podman", "create"], 60)
+subprocess.TimeoutExpired: Command '['podman', 'create']' timed out after 60 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 166, in test_unrelated_resources_and_credentials_are_untouched
+    with stack:
+         ^^^^^
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/src/vector_baseline/postgres.py", line 90, in __enter__
+    self.close()
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/src/vector_baseline/postgres.py", line 124, in close
+    raise RuntimeError("cleanup incomplete: " + "; ".join(errors))
+RuntimeError: cleanup incomplete: owned resource remains
+
+======================================================================
+FAIL: test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) (kind='volume')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 157, in test_colliding_resources_are_preserved
+    self.assertTrue(stack.cleanup_verified, "verification concerns this lifecycle only")
+AssertionError: False is not true : verification concerns this lifecycle only
+
+======================================================================
+FAIL: test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) (kind='secret')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 157, in test_colliding_resources_are_preserved
+    self.assertTrue(stack.cleanup_verified, "verification concerns this lifecycle only")
+AssertionError: False is not true : verification concerns this lifecycle only
+
+======================================================================
+FAIL: test_colliding_resources_are_preserved (test_postgres_cleanup.PendingCleanupTests.test_colliding_resources_are_preserved) (kind='container')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 157, in test_colliding_resources_are_preserved
+    self.assertTrue(stack.cleanup_verified, "verification concerns this lifecycle only")
+AssertionError: False is not true : verification concerns this lifecycle only
+
+======================================================================
+FAIL: test_container_create_then_ack_error_is_removed (test_postgres_cleanup.PendingCleanupTests.test_container_create_then_ack_error_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 137, in test_container_create_then_ack_error_is_removed
+    self.exercise("container", RuntimeError)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'container': {'kaidera-dev-vector-baseline-127551529942[137 chars]: {}} != {'container': {}, 'volume': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {'kaidera-dev-vector-baseline-12755152994299496277': {'id': 'container-id-kaidera-dev-vector-baseline-12755152994299496277',
+-                                                                     'labels': {'worker': 'mike'}}},
+-  'secret': {},
+-  'volume': {}} : created effects must be removed even when acknowledgement is lost
+
+======================================================================
+FAIL: test_container_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_container_create_then_timeout_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 128, in test_container_create_then_timeout_is_removed
+    self.exercise("container", subprocess.TimeoutExpired)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'container': {'kaidera-dev-vector-baseline-636493961528[135 chars]: {}} != {'container': {}, 'volume': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {'kaidera-dev-vector-baseline-6364939615283929515': {'id': 'container-id-kaidera-dev-vector-baseline-6364939615283929515',
+-                                                                    'labels': {'worker': 'mike'}}},
+-  'secret': {},
+-  'volume': {}} : created effects must be removed even when acknowledgement is lost
+
+======================================================================
+FAIL: test_pending_inspection_failure_refuses_success_and_is_retryable (test_postgres_cleanup.PendingCleanupTests.test_pending_inspection_failure_refuses_success_and_is_retryable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 207, in test_pending_inspection_failure_refuses_success_and_is_retryable
+    self.assertEqual(engine.resources, {key: {} for key in engine.resources})
+AssertionError: {'con[19 chars]e': {'kaidera-dev-vector-baseline-184075203002[104 chars]: {}} != {'con[19 chars]e': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {},
+-  'volume': {'kaidera-dev-vector-baseline-18407520300228772127': {'id': 'volume-id-kaidera-dev-vector-baseline-18407520300228772127',
+-                                                                  'labels': {}}}}
+
+======================================================================
+FAIL: test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) (kind='volume')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 189, in test_removal_error_is_retained_and_retry_removes_every_effect
+    self.assertEqual(engine.resources, {key: {} for key in engine.resources})
+AssertionError: {'container': {'kaidera-dev-vector-baseline-163082595354[137 chars]: {}} != {'container': {}, 'volume': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {'kaidera-dev-vector-baseline-16308259535441807129': {'id': 'container-id-kaidera-dev-vector-baseline-16308259535441807129',
+-                                                                     'labels': {'worker': 'mike'}}},
+-  'secret': {},
+-  'volume': {}}
+
+======================================================================
+FAIL: test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) (kind='secret')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 189, in test_removal_error_is_retained_and_retry_removes_every_effect
+    self.assertEqual(engine.resources, {key: {} for key in engine.resources})
+AssertionError: {'container': {'kaidera-dev-vector-baseline-148878868272[137 chars]: {}} != {'container': {}, 'volume': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {'kaidera-dev-vector-baseline-14887886827287900216': {'id': 'container-id-kaidera-dev-vector-baseline-14887886827287900216',
+-                                                                     'labels': {'worker': 'mike'}}},
+-  'secret': {},
+-  'volume': {}}
+
+======================================================================
+FAIL: test_removal_error_is_retained_and_retry_removes_every_effect (test_postgres_cleanup.PendingCleanupTests.test_removal_error_is_retained_and_retry_removes_every_effect) (kind='container')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 189, in test_removal_error_is_retained_and_retry_removes_every_effect
+    self.assertEqual(engine.resources, {key: {} for key in engine.resources})
+AssertionError: {'container': {'kaidera-dev-vector-baseline-753473640288[135 chars]: {}} != {'container': {}, 'volume': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {'kaidera-dev-vector-baseline-7534736402884845786': {'id': 'container-id-kaidera-dev-vector-baseline-7534736402884845786',
+-                                                                    'labels': {'worker': 'mike'}}},
+-  'secret': {},
+-  'volume': {}}
+
+======================================================================
+FAIL: test_secret_create_then_ack_error_is_removed (test_postgres_cleanup.PendingCleanupTests.test_secret_create_then_ack_error_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 134, in test_secret_create_then_ack_error_is_removed
+    self.exercise("secret", RuntimeError)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'con[33 chars]t': {'kaidera-dev-vector-baseline-469231304557[88 chars]8'}}} != {'con[33 chars]t': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {'kaidera-dev-vector-baseline-4692313045578500368': {'id': 'secret-id-kaidera-dev-vector-baseline-4692313045578500368',
+-                                                                 'labels': {}}},
+-  'volume': {}} : created effects must be removed even when acknowledgement is lost
+
+======================================================================
+FAIL: test_secret_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_secret_create_then_timeout_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 125, in test_secret_create_then_timeout_is_removed
+    self.exercise("secret", subprocess.TimeoutExpired)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'con[33 chars]t': {'kaidera-dev-vector-baseline-173079072317[88 chars]1'}}} != {'con[33 chars]t': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {'kaidera-dev-vector-baseline-1730790723170986201': {'id': 'secret-id-kaidera-dev-vector-baseline-1730790723170986201',
+-                                                                 'labels': {}}},
+-  'volume': {}} : created effects must be removed even when acknowledgement is lost
+
+======================================================================
+FAIL: test_unverified_identity_is_never_removed (test_postgres_cleanup.PendingCleanupTests.test_unverified_identity_is_never_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 226, in test_unverified_identity_is_never_removed
+    self.assertEqual(engine.resources, {key: {} for key in engine.resources})
+AssertionError: {'con[19 chars]e': {'kaidera-dev-vector-baseline-690669839479[102 chars]: {}} != {'con[19 chars]e': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {},
+-  'volume': {'kaidera-dev-vector-baseline-6906698394791100380': {'id': 'volume-id-kaidera-dev-vector-baseline-6906698394791100380',
+-                                                                 'labels': {}}}}
+
+======================================================================
+FAIL: test_volume_create_then_ack_error_is_removed (test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_ack_error_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 131, in test_volume_create_then_ack_error_is_removed
+    self.exercise("volume", RuntimeError)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'con[19 chars]e': {'kaidera-dev-vector-baseline-913955077611[102 chars]: {}} != {'con[19 chars]e': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {},
+-  'volume': {'kaidera-dev-vector-baseline-9139550776110309524': {'id': 'volume-id-kaidera-dev-vector-baseline-9139550776110309524',
+-                                                                 'labels': {}}}} : created effects must be removed even when acknowledgement is lost
+
+======================================================================
+FAIL: test_volume_create_then_timeout_is_removed (test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 122, in test_volume_create_then_timeout_is_removed
+    self.exercise("volume", subprocess.TimeoutExpired)
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/tests/benchmarks/test_postgres_cleanup.py", line 113, in exercise
+    self.assertEqual(engine.resources, {kind: {} for kind in engine.resources},
+AssertionError: {'con[19 chars]e': {'kaidera-dev-vector-baseline-158304703004[104 chars]: {}} != {'con[19 chars]e': {}, 'secret': {}}
++ {'container': {}, 'secret': {}, 'volume': {}}
+- {'container': {},
+-  'secret': {},
+-  'volume': {'kaidera-dev-vector-baseline-15830470300469746433': {'id': 'volume-id-kaidera-dev-vector-baseline-15830470300469746433',
+-                                                                  'labels': {}}}} : created effects must be removed even when acknowledgement is lost
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.005s
+
+FAILED (failures=14, errors=1, skipped=1)

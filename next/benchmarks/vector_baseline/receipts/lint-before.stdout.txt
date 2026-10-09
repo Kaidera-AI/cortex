@@ -1,0 +1,44 @@
+next/tests/benchmarks/test_vector_baseline.py:2:8: F401 [*] `json` imported but unused
+  |
+1 | import inspect
+2 | import json
+  |        ^^^^ F401
+3 | import os
+4 | from pathlib import Path
+  |
+  = help: Remove unused import: `json`
+
+next/tests/benchmarks/test_vector_baseline.py:7:27: F401 [*] `unittest.mock.patch` imported but unused
+  |
+5 | import tempfile
+6 | import unittest
+7 | from unittest.mock import patch
+  |                           ^^^^^ F401
+8 |
+9 | import numpy as np
+  |
+  = help: Remove unused import: `unittest.mock.patch`
+
+next/tests/benchmarks/test_vector_baseline.py:77:13: F841 Local variable `c` is assigned to but never used
+   |
+75 |         with tempfile.TemporaryDirectory() as d:
+76 |             p = Path(d) / "c"
+77 |             c = fixture(p)
+   |             ^ F841
+78 |             with p.joinpath("vectors.npy").open("r+b") as f:
+79 |                 f.seek(-4, 2)
+   |
+   = help: Remove assignment to unused variable `c`
+
+next/tests/benchmarks/test_vector_baseline_failures.py:5:27: F401 [*] `unittest.mock.patch` imported but unused
+  |
+3 | import tempfile
+4 | from pathlib import Path
+5 | from unittest.mock import patch
+  |                           ^^^^^ F401
+6 | from vector_baseline import corpus, oracle, postgres
+  |
+  = help: Remove unused import: `unittest.mock.patch`
+
+Found 4 errors.
+[*] 3 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).

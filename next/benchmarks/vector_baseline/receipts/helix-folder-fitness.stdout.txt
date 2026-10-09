@@ -1,0 +1,3 @@
+     tracked top-level file not in the allowlist: dist
+     tracked top-level file not in the allowlist: packaging
+  ❌ folder-structure — top level outside the allowlist; see docs/FOLDER_STRUCTURE_SOP.md §1 and §3

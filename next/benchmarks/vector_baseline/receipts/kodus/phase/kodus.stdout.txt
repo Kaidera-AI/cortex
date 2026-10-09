@@ -1,0 +1,31 @@
+REVIEW_ANALYSIS_COMPLETE
+
+FILES_ANALYZED: 9
+ISSUES_FOUND: 1
+DURATION_MS: 310457
+
+SEVERITY_BREAKDOWN:
+  CRITICAL: 0
+  ERROR: 0
+  WARNING: 0
+  INFO: 0
+
+ISSUES:
+
+ISSUE_1:
+  file: next/tests/benchmarks/mutation_receipts.py
+  line: 49
+  end_line: 63
+  severity: high
+  category: bug
+  message: Incorrect assertion ID source: record_assertion uses test.id() instead of case.id(), which returns 'method_name (case_id) (subtest_desc)' for _SubTest failures, so classify's split(' (')[0] extracts 'method_name' instead of the full dotted case ID, leaving failed.intersection(expected) empty and classify returning 'inconclusive' instead of 'killed' for legitimate subtest assertion kills. Change test.id() to case.id() on line 60, since case already holds the parent TestCase for both regular and subtest failures (extracted on line 50).
+  suggestion: self.assertions.append({"id": case.id(), "phase": phase,
+                                "is_assertion": issubclass(err[0], AssertionError),
+                                "exception_type": err[0].__module__ + "." + err[0].__qualname__,
+                                "traceback": self._exc_info_to_string(err, test)})
+  fixable: false
+
+SUMMARY:
+Found 1 issue in 9 files
+
+END_REVIEW

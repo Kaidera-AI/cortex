@@ -1,0 +1,38 @@
+test_all_required_fields_refuse_omission (test_contracts.EventContract.test_all_required_fields_refuse_omission) ... ok
+test_bad_input_is_contract_error (test_contracts.EventContract.test_bad_input_is_contract_error) ... ok
+test_delete_and_tombstone_agree_in_both_directions (test_contracts.EventContract.test_delete_and_tombstone_agree_in_both_directions) ... ok
+test_payload_identity_kind_digest_and_timestamp_checked (test_contracts.EventContract.test_payload_identity_kind_digest_and_timestamp_checked) ... ok
+test_revision_positive_and_schema_supported (test_contracts.EventContract.test_revision_positive_and_schema_supported) ... ok
+test_scope_and_object_identifiers_are_canonical_uuids (test_contracts.EventContract.test_scope_and_object_identifiers_are_canonical_uuids) ... ok
+test_unknown_fields_refused (test_contracts.EventContract.test_unknown_fields_refused) ... ok
+test_upsert_and_delete_are_valid (test_contracts.EventContract.test_upsert_and_delete_are_valid) ... ok
+test_broken_reference_refused (test_contracts.OpenAPIContract.test_broken_reference_refused) ... ok
+test_c02_gaps_cannot_be_removed (test_contracts.OpenAPIContract.test_c02_gaps_cannot_be_removed) ... ok
+test_duplicate_operation_refused (test_contracts.OpenAPIContract.test_duplicate_operation_refused) ... ok
+test_inventory_and_references (test_contracts.OpenAPIContract.test_inventory_and_references) ... ok
+test_missing_operation_refused (test_contracts.OpenAPIContract.test_missing_operation_refused) ... ok
+test_unowned_route_refused (test_contracts.OpenAPIContract.test_unowned_route_refused) ... ok
+test_capability_state_and_error_codes_are_typed (test_contracts.WireContract.test_capability_state_and_error_codes_are_typed) ... ok
+test_minimal_valid_wire_fixtures (test_contracts.WireContract.test_minimal_valid_wire_fixtures) ... ok
+test_queued_delivery_is_not_a_commit_receipt (test_contracts.WireContract.test_queued_delivery_is_not_a_commit_receipt) ... ok
+test_unknown_schema_refused (test_contracts.WireContract.test_unknown_schema_refused) ... ok
+test_write_receipt_revision_bounds_and_projection (test_contracts.WireContract.test_write_receipt_revision_bounds_and_projection) ... ok
+test_custom_nonassertion_failure_is_inconclusive (test_receipt_shape.ReceiptShape.test_custom_nonassertion_failure_is_inconclusive) ... ok
+test_missing_traceback_or_assertion_evidence_is_inconclusive (test_receipt_shape.ReceiptShape.test_missing_traceback_or_assertion_evidence_is_inconclusive) ... ok
+test_clean_run_survives (test_review_regressions.ReviewRegressions.test_clean_run_survives) ... ok
+test_digest_and_kind_reject_final_newline (test_review_regressions.ReviewRegressions.test_digest_and_kind_reject_final_newline) ... ok
+test_expected_assertion_is_a_kill (test_review_regressions.ReviewRegressions.test_expected_assertion_is_a_kill) ... ok
+test_schema_version_cannot_be_relabelled_by_index (test_review_regressions.ReviewRegressions.test_schema_version_cannot_be_relabelled_by_index) ... ok
+test_setup_import_runner_and_wrong_test_are_inconclusive (test_review_regressions.ReviewRegressions.test_setup_import_runner_and_wrong_test_are_inconclusive) ... ok
+test_invalid_offsets_are_refused (test_rfc3339.TimestampContract.test_invalid_offsets_are_refused) ... ok
+test_valid_offsets_and_fractional_seconds (test_rfc3339.TimestampContract.test_valid_offsets_and_fractional_seconds) ... ok
+test_body_assertion_is_causal (test_runner_phases.RunnerPhases.test_body_assertion_is_causal) ... ok
+test_setup_and_teardown_assertions_are_inconclusive (test_runner_phases.RunnerPhases.test_setup_and_teardown_assertions_are_inconclusive) ... ok
+test_event_schema_identity_mismatch_refused (test_schema_index.SchemaIndexContract.test_event_schema_identity_mismatch_refused) ... ok
+test_manifest_routes_renamed_schema_files (test_schema_index.SchemaIndexContract.test_manifest_routes_renamed_schema_files) ... ok
+test_unknown_index_version_refused (test_schema_index.SchemaIndexContract.test_unknown_index_version_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 33 tests in 0.413s
+
+OK

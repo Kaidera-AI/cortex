@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-cleanup-20261009/next/benchmarks/vector_baseline/receipts/cleanup-rework/verify-command-path.py", line 15, in <module>
+    assert (root / path).is_file(), f"missing documented file: {path}"
+           ~~~~~~~~~~~~~~~~~~~~~^^
+AssertionError: missing documented file: next/tests/contract/requirements.lock.txt

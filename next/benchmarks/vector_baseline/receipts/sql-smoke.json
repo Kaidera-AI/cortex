@@ -1,0 +1,6584 @@
+{
+  "binding": {
+    "container": "kaidera-dev-vector-baseline-8866034758489365195",
+    "image": "docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d",
+    "limits": {
+      "cpus": 2,
+      "memory_bytes": 1073741824
+    },
+    "pgvector_version": "0.8.2",
+    "platform": "arm64",
+    "postgres_version": "18.4 (Debian 18.4-1.pgdg12+1)",
+    "scope": "synthetic-precomputed-SQL-diagnostic",
+    "settings": {
+      "ef_construction": 64,
+      "ef_search": 200,
+      "iterative_scan": "strict_order",
+      "m": 16,
+      "max_scan_tuples": 20000,
+      "scan_mem_multiplier": 2
+    },
+    "uid": 999
+  },
+  "cells": {
+    "broad/dense": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 1,
+          "cell": "broad/dense",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.28596574,0.44166684,0.19708282,0.25736162,-0.24041109,-0.41529077,0.62273115,0.0043968265]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [
+              "s0000000000001ab4",
+              "s00000000000016d4",
+              "s0000000000001e74",
+              "s0000000000001f64",
+              "s0000000000001424",
+              "s0000000000001b14",
+              "s0000000000001f54",
+              "s0000000000001c04",
+              "s0000000000001d04",
+              "s0000000000001ac4"
+            ],
+            "measurement": {
+              "boundary_ties": 1,
+              "eligible_count": 749,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=606.25..619.22 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=605.72..606.22 rows=200 width=34)\n          ->  Sort  (cost=605.72..606.66 rows=375 width=34)\n                Sort Key: ((points.embedding <=> '[-0.28596574,0.44166684,0.19708282,0.25736162,-0.24041109,-0.41529077,0.62273115,0.0043968265]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..589.69 rows=375 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p0'::text) AND (ordinal >= '1275'::smallint) AND (ordinal <= '2023'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 0.770624988945201
+          },
+          "eligible_count": 749,
+          "expected_count": 10,
+          "query_id": "heldout-broad-000",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-001",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-002",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-010",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-011",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-012",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-020",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-021",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-022",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-030",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-031",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-032",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-040",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-041",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-042",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-050",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-051",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-052",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-060",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-061",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-062",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-070",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-071",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-072",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-080",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-081",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-082",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-090",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-091",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-092",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-100",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-101",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-102",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-110",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-111",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-112",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-120",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-121",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-122",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-130",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-131",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-132",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-140",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-141",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-142",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-150",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-151",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-152",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-160",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-161",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-162",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-170",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-171",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-172",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-180",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-181",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-182",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-190",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-191",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/dense",
+          "query_id": "heldout-broad-192",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "broad/hybrid": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 1,
+          "cell": "broad/hybrid",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": {
+              "boundary_ties": 1,
+              "eligible_count": 749,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.057637256,0.05493536,-0.26278776,-0.52757996,0.071389884,0.70986736,0.31385496,-0.19684738]'::vector)",
+            "full_fusion_candidate_coverage": 1.0,
+            "ids": [
+              "s0000000000000bff",
+              "s000000000000146f",
+              "s0000000000000c7b",
+              "s0000000000000f5f",
+              "s0000000000000ccf",
+              "s0000000000000cf7",
+              "s000000000000159f",
+              "s0000000000000d73",
+              "s0000000000000c1f",
+              "s00000000000013bf"
+            ],
+            "measurement": {
+              "boundary_ties": 1,
+              "eligible_count": 749,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=602.25..615.22 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=601.72..602.22 rows=200 width=34)\n          ->  Sort  (cost=601.72..602.65 rows=372 width=34)\n                Sort Key: ((points.embedding <=> '[-0.057637256,0.05493536,-0.26278776,-0.52757996,0.071389884,0.70986736,0.31385496,-0.19684738]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..585.84 rows=372 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '748'::smallint) AND (ordinal <= '1497'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 1.5063750033732504
+          },
+          "eligible_count": 749,
+          "expected_count": 10,
+          "query_id": "heldout-broad-003",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-004",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-005",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-006",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-007",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-008",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-013",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-014",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-015",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-016",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-017",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-018",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-023",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-024",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-025",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-026",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-027",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-028",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-033",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-034",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-035",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-036",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-037",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-038",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-043",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-044",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-045",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-046",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-047",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-048",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-053",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-054",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-055",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-056",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-057",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-058",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-063",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-064",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-065",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-066",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-067",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-068",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-073",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-074",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-075",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-076",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-077",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-078",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-083",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-084",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-085",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-086",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-087",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-088",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-093",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-094",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-095",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-096",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-097",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-098",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-103",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-104",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-105",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-106",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-107",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-108",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-113",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-114",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-115",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-116",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-117",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-118",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-123",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-124",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-125",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-126",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-127",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-128",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-133",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-134",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-135",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-136",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-137",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-138",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-143",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-144",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-145",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-146",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-147",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-148",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-153",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-154",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-155",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-156",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-157",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-158",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-163",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-164",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-165",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-166",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-167",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-168",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-173",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-174",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-175",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-176",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-177",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-178",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-183",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-184",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-185",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-186",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-187",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-188",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-193",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-194",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-195",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-196",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-197",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/hybrid",
+          "query_id": "heldout-broad-198",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "broad/sparse": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 2,
+          "cell": "broad/sparse",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.59887654,0.24460699,0.3610843,0.24495597,-0.29929778,-0.39962456,-0.35353273,0.12986402]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [
+              "s0000000000003721",
+              "s00000000000034d5",
+              "s0000000000003839",
+              "s0000000000003695",
+              "s00000000000039f9"
+            ],
+            "measurement": {
+              "boundary_ties": 2,
+              "eligible_count": 53,
+              "expected_count": 5,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=35.41..36.36 rows=15 width=40)\n  CTE candidates\n    ->  Limit  (cost=35.35..35.38 rows=15 width=34)\n          ->  Sort  (cost=35.35..35.38 rows=15 width=34)\n                Sort Key: ((points.embedding <=> '[-0.59887654,0.24460699,0.3610843,0.24495597,-0.29929778,-0.39962456,-0.35353273,0.12986402]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..35.05 rows=15 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text) AND (ordinal >= '52'::smallint) AND (ordinal <= '104'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.98 rows=15 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.30 rows=15 width=40)",
+            "sql_diagnostic_ms": 0.7936660258565098
+          },
+          "eligible_count": 53,
+          "expected_count": 5,
+          "query_id": "heldout-broad-009",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-019",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-029",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-039",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-049",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-059",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-069",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-079",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-089",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-099",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-109",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-119",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-129",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-139",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-149",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-159",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-169",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-179",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-189",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "broad/sparse",
+          "query_id": "heldout-broad-199",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "edges/dense": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "edges/dense",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.71930873,0.26005697,-0.5383755,0.16389804,-0.05102372,0.29635015,-0.08244557,-0.032100905]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [],
+            "measurement": {
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
+              "safe": true,
+              "strict_recall": null,
+              "tie_recall": null
+            },
+            "natural_plan": "Limit  (cost=8.37..8.41 rows=2 width=40)\n  CTE candidates\n    ->  Limit  (cost=8.33..8.34 rows=1 width=34)\n          ->  Sort  (cost=8.33..8.34 rows=1 width=34)\n                Sort Key: ((points.embedding <=> '[-0.71930873,0.26005697,-0.5383755,0.16389804,-0.05102372,0.29635015,-0.08244557,-0.032100905]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..8.32 rows=1 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p0'::text) AND (ordinal >= '-1'::smallint) AND (ordinal <= '-1'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.08 rows=2 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.02 rows=1 width=40)",
+            "sql_diagnostic_ms": 0.2355000178795308
+          },
+          "eligible_count": 0,
+          "empty_exact": true,
+          "expected_count": 0,
+          "query_id": "heldout-edges-000",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": null,
+          "tie_recall": null
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-001",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-002",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-010",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-011",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-012",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-020",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-021",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-022",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-030",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-031",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-032",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-040",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-041",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-042",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-050",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-051",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-052",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-060",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-061",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-062",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-070",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-071",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-072",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-080",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-081",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-082",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-090",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-091",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-092",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-100",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-101",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-102",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-110",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-111",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-112",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-120",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-121",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-122",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-130",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-131",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-132",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-140",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-141",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-142",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-150",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-151",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-152",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-160",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-161",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-162",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-170",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-171",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-172",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-180",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-181",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-182",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-190",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-191",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/dense",
+          "query_id": "heldout-edges-192",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "edges/hybrid": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "edges/hybrid",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": {
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
+              "safe": true,
+              "strict_recall": null,
+              "tie_recall": null
+            },
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.036743145,-0.1914133,-0.40770507,0.1183373,0.1359716,0.49527696,-0.5552244,0.4579542]'::vector)",
+            "full_fusion_candidate_coverage": 0.0,
+            "ids": [],
+            "measurement": {
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
+              "safe": true,
+              "strict_recall": null,
+              "tie_recall": null
+            },
+            "natural_plan": "Limit  (cost=8.37..8.41 rows=2 width=40)\n  CTE candidates\n    ->  Limit  (cost=8.33..8.34 rows=1 width=34)\n          ->  Sort  (cost=8.33..8.34 rows=1 width=34)\n                Sort Key: ((points.embedding <=> '[0.036743145,-0.1914133,-0.40770507,0.1183373,0.1359716,0.49527696,-0.5552244,0.4579542]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..8.32 rows=1 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '-1'::smallint) AND (ordinal <= '-1'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.08 rows=2 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.02 rows=1 width=40)",
+            "sql_diagnostic_ms": 0.5885830032639205
+          },
+          "eligible_count": 0,
+          "empty_exact": true,
+          "expected_count": 0,
+          "query_id": "heldout-edges-003",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": null,
+          "tie_recall": null
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-004",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-005",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-006",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-007",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-008",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-013",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-014",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-015",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-016",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-017",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-018",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-023",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-024",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-025",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-026",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-027",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-028",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-033",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-034",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-035",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-036",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-037",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-038",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-043",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-044",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-045",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-046",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-047",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-048",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-053",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-054",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-055",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-056",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-057",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-058",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-063",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-064",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-065",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-066",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-067",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-068",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-073",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-074",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-075",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-076",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-077",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-078",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-083",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-084",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-085",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-086",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-087",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-088",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-093",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-094",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-095",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-096",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-097",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-098",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-103",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-104",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-105",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-106",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-107",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-108",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-113",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-114",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-115",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-116",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-117",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-118",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-123",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-124",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-125",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-126",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-127",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-128",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-133",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-134",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-135",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-136",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-137",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-138",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-143",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-144",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-145",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-146",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-147",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-148",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-153",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-154",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-155",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-156",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-157",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-158",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-163",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-164",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-165",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-166",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-167",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-168",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-173",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-174",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-175",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-176",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-177",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-178",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-183",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-184",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-185",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-186",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-187",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-188",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-193",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-194",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-195",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-196",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-197",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/hybrid",
+          "query_id": "heldout-edges-198",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "edges/sparse": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "edges/sparse",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.29368863,-0.29160956,0.5498079,0.0076854695,0.6644651,-0.22497225,0.10956201,-0.14910665]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [],
+            "measurement": {
+              "eligible_count": 0,
+              "empty_exact": true,
+              "expected_count": 0,
+              "safe": true,
+              "strict_recall": null,
+              "tie_recall": null
+            },
+            "natural_plan": "Limit  (cost=8.37..8.41 rows=2 width=40)\n  CTE candidates\n    ->  Limit  (cost=8.33..8.34 rows=1 width=34)\n          ->  Sort  (cost=8.33..8.34 rows=1 width=34)\n                Sort Key: ((points.embedding <=> '[-0.29368863,-0.29160956,0.5498079,0.0076854695,0.6644651,-0.22497225,0.10956201,-0.14910665]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..8.32 rows=1 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text) AND (ordinal >= '-1'::smallint) AND (ordinal <= '-1'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..0.08 rows=2 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.02 rows=1 width=40)",
+            "sql_diagnostic_ms": 0.822000001790002
+          },
+          "eligible_count": 0,
+          "empty_exact": true,
+          "expected_count": 0,
+          "query_id": "heldout-edges-009",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": null,
+          "tie_recall": null
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-019",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-029",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-039",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-049",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-059",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-069",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-079",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-089",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-099",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-109",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-119",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-129",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-139",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-149",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-159",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-169",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-179",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-189",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "edges/sparse",
+          "query_id": "heldout-edges-199",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "medium/dense": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 1,
+          "cell": "medium/dense",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.37314165,0.12464795,0.55995715,-0.03508086,-0.043308504,0.58005065,-0.14141686,-0.41486433]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [
+              "s0000000000000494",
+              "s0000000000000450",
+              "s0000000000000434",
+              "s00000000000004a4",
+              "s00000000000004c4",
+              "s0000000000000504",
+              "s0000000000000480",
+              "s00000000000004c0",
+              "s0000000000000514",
+              "s00000000000004d4"
+            ],
+            "measurement": {
+              "boundary_ties": 1,
+              "eligible_count": 74,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=78.68..81.05 rows=37 width=40)\n  CTE candidates\n    ->  Limit  (cost=78.56..78.65 rows=37 width=34)\n          ->  Sort  (cost=78.56..78.65 rows=37 width=34)\n                Sort Key: ((points.embedding <=> '[0.37314165,0.12464795,0.55995715,-0.03508086,-0.043308504,0.58005065,-0.14141686,-0.41486433]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..77.59 rows=37 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p0'::text) AND (ordinal >= '258'::smallint) AND (ordinal <= '331'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..2.41 rows=37 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.74 rows=37 width=40)",
+            "sql_diagnostic_ms": 0.4199590184725821
+          },
+          "eligible_count": 74,
+          "expected_count": 10,
+          "query_id": "heldout-medium-000",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-001",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-002",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-010",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-011",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-012",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-020",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-021",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-022",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-030",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-031",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-032",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-040",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-041",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-042",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-050",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-051",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-052",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-060",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-061",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-062",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-070",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-071",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-072",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-080",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-081",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-082",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-090",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-091",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-092",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-100",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-101",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-102",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-110",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-111",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-112",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-120",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-121",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-122",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-130",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-131",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-132",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-140",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-141",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-142",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-150",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-151",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-152",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-160",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-161",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-162",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-170",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-171",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-172",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-180",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-181",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-182",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-190",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-191",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/dense",
+          "query_id": "heldout-medium-192",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "medium/hybrid": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 2,
+          "cell": "medium/hybrid",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": {
+              "boundary_ties": 2,
+              "eligible_count": 74,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.40613905,-0.15959236,-0.21750744,0.012324725,0.22253339,-0.4898694,-0.5156036,-0.45473045]'::vector)",
+            "full_fusion_candidate_coverage": 1.0,
+            "ids": [
+              "s00000000000015af",
+              "s0000000000001637",
+              "s000000000000162b",
+              "s0000000000001617",
+              "s00000000000015cf",
+              "s00000000000015b7",
+              "s000000000000164b",
+              "s0000000000001677",
+              "s000000000000159f",
+              "s000000000000161b"
+            ],
+            "measurement": {
+              "boundary_ties": 2,
+              "eligible_count": 74,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=78.68..81.05 rows=37 width=40)\n  CTE candidates\n    ->  Limit  (cost=78.56..78.65 rows=37 width=34)\n          ->  Sort  (cost=78.56..78.65 rows=37 width=34)\n                Sort Key: ((points.embedding <=> '[0.40613905,-0.15959236,-0.21750744,0.012324725,0.22253339,-0.4898694,-0.5156036,-0.45473045]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..77.59 rows=37 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p3'::text) AND (ordinal >= '1373'::smallint) AND (ordinal <= '1446'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..2.41 rows=37 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.74 rows=37 width=40)",
+            "sql_diagnostic_ms": 0.8096660021692514
+          },
+          "eligible_count": 74,
+          "expected_count": 10,
+          "query_id": "heldout-medium-003",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-004",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-005",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-006",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-007",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-008",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-013",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-014",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-015",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-016",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-017",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-018",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-023",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-024",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-025",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-026",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-027",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-028",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-033",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-034",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-035",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-036",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-037",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-038",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-043",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-044",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-045",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-046",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-047",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-048",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-053",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-054",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-055",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-056",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-057",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-058",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-063",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-064",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-065",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-066",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-067",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-068",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-073",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-074",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-075",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-076",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-077",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-078",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-083",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-084",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-085",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-086",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-087",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-088",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-093",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-094",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-095",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-096",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-097",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-098",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-103",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-104",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-105",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-106",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-107",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-108",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-113",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-114",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-115",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-116",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-117",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-118",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-123",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-124",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-125",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-126",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-127",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-128",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-133",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-134",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-135",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-136",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-137",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-138",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-143",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-144",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-145",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-146",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-147",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-148",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-153",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-154",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-155",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-156",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-157",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-158",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-163",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-164",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-165",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-166",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-167",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-168",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-173",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-174",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-175",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-176",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-177",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-178",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-183",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-184",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-185",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-186",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-187",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-188",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-193",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-194",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-195",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-196",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-197",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/hybrid",
+          "query_id": "heldout-medium-198",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "medium/sparse": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 3,
+          "cell": "medium/sparse",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.48791245,0.076297216,0.5420098,-0.23160873,-0.12989408,-0.43324926,0.42625064,-0.14978653]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [
+              "s0000000000001a11",
+              "s0000000000001a8d",
+              "s0000000000001a31",
+              "s0000000000001aad",
+              "s0000000000001a01",
+              "s0000000000001a7d",
+              "s0000000000001af9"
+            ],
+            "measurement": {
+              "boundary_ties": 3,
+              "eligible_count": 74,
+              "expected_count": 7,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=78.68..81.05 rows=37 width=40)\n  CTE candidates\n    ->  Limit  (cost=78.56..78.65 rows=37 width=34)\n          ->  Sort  (cost=78.56..78.65 rows=37 width=34)\n                Sort Key: ((points.embedding <=> '[0.48791245,0.076297216,0.5420098,-0.23160873,-0.12989408,-0.43324926,0.42625064,-0.14978653]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..77.59 rows=37 width=34)\n                      Index Cond: ((tenant = 't00'::text) AND (project = 'p1'::text) AND (ordinal >= '1653'::smallint) AND (ordinal <= '1726'::smallint))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..2.41 rows=37 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..0.74 rows=37 width=40)",
+            "sql_diagnostic_ms": 0.9744999988470227
+          },
+          "eligible_count": 74,
+          "expected_count": 7,
+          "query_id": "heldout-medium-009",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-019",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-029",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-039",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-049",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-059",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-069",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-079",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-089",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-099",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-109",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-119",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-129",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-139",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-149",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-159",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-169",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-179",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-189",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "medium/sparse",
+          "query_id": "heldout-medium-199",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "scope/dense": {
+      "failed_queries": [
+        0
+      ],
+      "mean_recall": 0.9,
+      "minimum": 0.9,
+      "queries": [
+        {
+          "boundary_ties": 1,
+          "cell": "scope/dense",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.24784072,0.16390882,0.105610676,-0.20677236,-0.2547141,-0.22124551,0.7827929,-0.36222482]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [
+              "s0000000000002d54",
+              "s0000000000002454",
+              "s0000000000001ab4",
+              "s0000000000000994",
+              "s0000000000001374",
+              "s00000000000001c4",
+              "s0000000000002484",
+              "s00000000000022d4",
+              "s0000000000000b74",
+              "s0000000000002e14"
+            ],
+            "measurement": {
+              "boundary_ties": 1,
+              "eligible_count": 2997,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 0.9,
+              "tie_recall": 0.9
+            },
+            "natural_plan": "Limit  (cost=776.19..789.16 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=325.33..776.16 rows=200 width=34)\n          ->  Index Scan using points_hnsw on points  (cost=325.33..7099.03 rows=3005 width=34)\n                Order By: (embedding <=> '[-0.24784072,0.16390882,0.105610676,-0.20677236,-0.2547141,-0.22124551,0.7827929,-0.36222482]'::vector)\n                Filter: ((NOT deleted) AND (tenant = 't00'::text) AND (project = 'p0'::text) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 5.6389170058537275
+          },
+          "eligible_count": 2997,
+          "expected_count": 10,
+          "query_id": "heldout-scope-000",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 0.9,
+          "tie_recall": 0.9
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-001",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-002",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-010",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-011",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-012",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-020",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-021",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-022",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-030",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-031",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-032",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-040",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-041",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-042",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-050",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-051",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-052",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-060",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-061",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-062",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-070",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-071",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-072",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-080",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-081",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-082",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-090",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-091",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-092",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-100",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-101",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-102",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-110",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-111",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-112",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-120",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-121",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-122",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-130",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-131",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-132",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-140",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-141",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-142",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-150",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-151",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-152",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-160",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-161",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-162",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-170",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-171",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-172",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-180",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-181",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-182",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-190",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-191",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/dense",
+          "query_id": "heldout-scope-192",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "scope/hybrid": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 1,
+          "cell": "scope/hybrid",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": {
+              "boundary_ties": 2,
+              "eligible_count": 2997,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[0.08919931,-0.2186817,-0.036787495,0.46336862,0.36476174,0.26469487,0.63084906,-0.35647297]'::vector)",
+            "full_fusion_candidate_coverage": 1.0,
+            "ids": [
+              "s000000000000005f",
+              "s0000000000002a77",
+              "s00000000000000db",
+              "s0000000000000d27",
+              "s0000000000000157",
+              "s0000000000001dd7",
+              "s00000000000001d3",
+              "s0000000000000507",
+              "s000000000000024f",
+              "s00000000000012d7"
+            ],
+            "measurement": {
+              "boundary_ties": 1,
+              "eligible_count": 2997,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=780.27..793.24 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=325.33..780.24 rows=200 width=34)\n          ->  Index Scan using points_hnsw on points  (cost=325.33..7098.89 rows=2978 width=34)\n                Order By: (embedding <=> '[0.08919931,-0.2186817,-0.036787495,0.46336862,0.36476174,0.26469487,0.63084906,-0.35647297]'::vector)\n                Filter: ((NOT deleted) AND (tenant = 't00'::text) AND (project = 'p3'::text) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 13.222083012806252
+          },
+          "eligible_count": 2997,
+          "expected_count": 10,
+          "query_id": "heldout-scope-003",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-004",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-005",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-006",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-007",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-008",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-013",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-014",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-015",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-016",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-017",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-018",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-023",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-024",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-025",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-026",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-027",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-028",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-033",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-034",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-035",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-036",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-037",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-038",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-043",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-044",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-045",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-046",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-047",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-048",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-053",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-054",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-055",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-056",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-057",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-058",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-063",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-064",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-065",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-066",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-067",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-068",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-073",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-074",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-075",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-076",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-077",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-078",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-083",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-084",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-085",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-086",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-087",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-088",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-093",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-094",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-095",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-096",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-097",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-098",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-103",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-104",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-105",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-106",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-107",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-108",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-113",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-114",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-115",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-116",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-117",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-118",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-123",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-124",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-125",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-126",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-127",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-128",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-133",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-134",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-135",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-136",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-137",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-138",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-143",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-144",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-145",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-146",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-147",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-148",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-153",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-154",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-155",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-156",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-157",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-158",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-163",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-164",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-165",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-166",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-167",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-168",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-173",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-174",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-175",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-176",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-177",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-178",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-183",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-184",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-185",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-186",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-187",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-188",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-193",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-194",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-195",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-196",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-197",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/hybrid",
+          "query_id": "heldout-scope-198",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "scope/sparse": {
+      "failed_queries": [],
+      "mean_recall": 1.0,
+      "minimum": 1.0,
+      "queries": [
+        {
+          "boundary_ties": 7,
+          "cell": "scope/sparse",
+          "diagnostic": {
+            "branch_boundary_complete": true,
+            "finite_prefetch_measurement": null,
+            "forced_hnsw_plan": "Limit  (cost=325.33..328.10 rows=10 width=26)\n  ->  Index Scan using points_hnsw on points  (cost=325.33..6964.00 rows=24000 width=26)\n        Order By: (embedding <=> '[-0.39148417,-0.40704694,-0.22004955,-0.5773174,0.013088694,0.08461405,0.35192114,-0.4100688]'::vector)",
+            "full_fusion_candidate_coverage": null,
+            "ids": [
+              "s0000000000003059",
+              "s00000000000033bd",
+              "s0000000000003721",
+              "s0000000000003a85",
+              "s0000000000003de9",
+              "s000000000000414d",
+              "s00000000000044b1",
+              "s0000000000003171",
+              "s00000000000034d5",
+              "s0000000000003839"
+            ],
+            "measurement": {
+              "boundary_ties": 7,
+              "eligible_count": 214,
+              "expected_count": 10,
+              "safe": true,
+              "strict_recall": 1.0,
+              "tie_recall": 1.0
+            },
+            "natural_plan": "Limit  (cost=377.19..390.16 rows=200 width=40)\n  CTE candidates\n    ->  Limit  (cost=376.66..377.16 rows=200 width=34)\n          ->  Sort  (cost=376.66..377.20 rows=214 width=34)\n                Sort Key: ((points.embedding <=> '[-0.39148417,-0.40704694,-0.22004955,-0.5773174,0.013088694,0.08461405,0.35192114,-0.4100688]'::vector))\n                ->  Index Scan using points_scope on points  (cost=0.29..368.38 rows=214 width=34)\n                      Index Cond: ((tenant = 't07'::text) AND (project = 'p1'::text))\n                      Filter: ((NOT deleted) AND (generation = 'synthetic-v1'::text))\n  ->  Incremental Sort  (cost=0.03..13.00 rows=200 width=40)\n        Sort Key: candidates.distance, candidates.id\n        Presorted Key: candidates.distance\n        ->  CTE Scan on candidates  (cost=0.00..4.00 rows=200 width=40)",
+            "sql_diagnostic_ms": 1.1436670029070228
+          },
+          "eligible_count": 214,
+          "expected_count": 10,
+          "query_id": "heldout-scope-009",
+          "safe": true,
+          "status": "MEASURED",
+          "strict_recall": 1.0,
+          "tie_recall": 1.0
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-019",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-029",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-039",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-049",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-059",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-069",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-079",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-089",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-099",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-109",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-119",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-129",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-139",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-149",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-159",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-169",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-179",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-189",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "scope/sparse",
+          "query_id": "heldout-scope-199",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "tight/dense": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-000",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-001",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-002",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-010",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-011",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-012",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-020",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-021",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-022",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-030",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-031",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-032",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-040",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-041",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-042",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-050",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-051",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-052",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-060",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-061",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-062",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-070",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-071",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-072",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-080",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-081",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-082",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-090",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-091",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-092",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-100",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-101",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-102",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-110",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-111",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-112",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-120",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-121",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-122",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-130",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-131",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-132",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-140",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-141",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-142",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-150",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-151",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-152",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-160",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-161",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-162",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-170",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-171",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-172",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-180",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-181",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-182",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-190",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-191",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/dense",
+          "query_id": "heldout-tight-192",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "tight/hybrid": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-003",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-004",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-005",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-006",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-007",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-008",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-013",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-014",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-015",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-016",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-017",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-018",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-023",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-024",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-025",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-026",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-027",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-028",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-033",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-034",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-035",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-036",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-037",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-038",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-043",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-044",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-045",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-046",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-047",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-048",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-053",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-054",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-055",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-056",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-057",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-058",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-063",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-064",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-065",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-066",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-067",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-068",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-073",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-074",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-075",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-076",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-077",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-078",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-083",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-084",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-085",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-086",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-087",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-088",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-093",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-094",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-095",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-096",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-097",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-098",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-103",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-104",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-105",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-106",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-107",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-108",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-113",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-114",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-115",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-116",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-117",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-118",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-123",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-124",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-125",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-126",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-127",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-128",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-133",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-134",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-135",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-136",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-137",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-138",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-143",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-144",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-145",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-146",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-147",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-148",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-153",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-154",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-155",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-156",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-157",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-158",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-163",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-164",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-165",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-166",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-167",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-168",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-173",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-174",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-175",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-176",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-177",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-178",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-183",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-184",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-185",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-186",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-187",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-188",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-193",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-194",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-195",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-196",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-197",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/hybrid",
+          "query_id": "heldout-tight-198",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "tight/sparse": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-009",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-019",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-029",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-039",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-049",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-059",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-069",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-079",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-089",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-099",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-109",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-119",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-129",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-139",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-149",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-159",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-169",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-179",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-189",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "tight/sparse",
+          "query_id": "heldout-tight-199",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "very_tight/dense": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-000",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-001",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-002",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-010",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-011",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-012",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-020",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-021",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-022",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-030",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-031",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-032",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-040",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-041",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-042",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-050",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-051",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-052",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-060",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-061",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-062",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-070",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-071",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-072",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-080",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-081",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-082",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-090",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-091",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-092",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-100",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-101",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-102",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-110",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-111",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-112",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-120",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-121",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-122",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-130",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-131",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-132",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-140",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-141",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-142",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-150",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-151",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-152",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-160",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-161",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-162",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-170",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-171",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-172",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-180",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-181",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-182",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-190",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-191",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/dense",
+          "query_id": "heldout-very_tight-192",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "very_tight/hybrid": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-003",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-004",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-005",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-006",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-007",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-008",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-013",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-014",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-015",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-016",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-017",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-018",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-023",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-024",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-025",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-026",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-027",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-028",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-033",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-034",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-035",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-036",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-037",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-038",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-043",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-044",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-045",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-046",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-047",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-048",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-053",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-054",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-055",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-056",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-057",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-058",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-063",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-064",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-065",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-066",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-067",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-068",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-073",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-074",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-075",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-076",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-077",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-078",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-083",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-084",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-085",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-086",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-087",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-088",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-093",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-094",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-095",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-096",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-097",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-098",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-103",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-104",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-105",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-106",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-107",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-108",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-113",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-114",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-115",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-116",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-117",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-118",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-123",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-124",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-125",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-126",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-127",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-128",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-133",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-134",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-135",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-136",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-137",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-138",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-143",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-144",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-145",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-146",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-147",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-148",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-153",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-154",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-155",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-156",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-157",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-158",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-163",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-164",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-165",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-166",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-167",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-168",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-173",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-174",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-175",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-176",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-177",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-178",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-183",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-184",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-185",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-186",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-187",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-188",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-193",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-194",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-195",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-196",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-197",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/hybrid",
+          "query_id": "heldout-very_tight-198",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    },
+    "very_tight/sparse": {
+      "failed_queries": [],
+      "mean_recall": null,
+      "minimum": null,
+      "queries": [
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-009",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-019",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-029",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-039",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-049",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-059",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-069",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-079",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-089",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-099",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-109",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-119",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-129",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-139",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-149",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-159",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-169",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-179",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-189",
+          "status": "NOT_RUN"
+        },
+        {
+          "cell": "very_tight/sparse",
+          "query_id": "heldout-very_tight-199",
+          "status": "NOT_RUN"
+        }
+      ],
+      "verdict": "NOT_RUN"
+    }
+  },
+  "cleanup_verified": true,
+  "corpus_manifest_sha256": "f2e042187a21d8e19cf3c959ee591c812263cc046cf1c54273769a78179b4991",
+  "engine_decision": "UNDECIDED",
+  "not_run": [
+    "real-data",
+    "API/auth/provider/cache",
+    "eight-client-load",
+    "native-editions",
+    "OS-cold",
+    "crash-ACK",
+    "16-workers",
+    "PITR",
+    "snapshot-portability",
+    "SELinux-24h"
+  ],
+  "product_path": false,
+  "query_manifest_sha256": "30a71236a214607a6bdaf8ef6884d3bfb6d55bcbc046fe1779e0f47f6020d393",
+  "schema": "cortex-b01-sql-diagnostic-v1"
+}

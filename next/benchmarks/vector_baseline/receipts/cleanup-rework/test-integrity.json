@@ -1,0 +1,18 @@
+{
+  "new_RED_test_files_exact": {
+    "test_postgres_cleanup.py": "dface32cba63644ae0c6d3bd00ca4a2ed4cb0156fc82b92a33ba11cad2d2d4dd",
+    "test_postgres_lifecycle.py": "9b012054eb199c63d5f6343820943df0cb713a5678e3a5052ce97e0997c29d0c",
+    "test_sanitized_row_shape.py": "ddaee28a13b3394a19824378fc176f0bf2439687a597947efa492e43736d81aa"
+  },
+  "old_test_assertions": [
+    {
+      "file": "test_vector_baseline.py",
+      "assertion_nodes_unchanged": 80
+    },
+    {
+      "file": "test_vector_baseline_failures.py",
+      "assertion_nodes_unchanged": 15
+    }
+  ],
+  "stub_only_updates": "Existing fake runners now expose concrete labelled inventory/inspection effects; all original assertion ASTs unchanged."
+}

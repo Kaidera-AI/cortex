@@ -1,0 +1,27 @@
+{
+  "head": "0f4316299503745e5f81adc94d43555c335211ef",
+  "base": "352ef8674fda6837e46df0d7b8d353a999cd4198",
+  "command": [
+    "kodus",
+    "review",
+    "--branch",
+    "352ef8674fda6837e46df0d7b8d353a999cd4198",
+    "--prompt-only"
+  ],
+  "cli_version": "0.4.21",
+  "api_url": "https://kodus-api.adaptech.ai",
+  "exit": 0,
+  "elapsed_seconds": 315.20811200141907,
+  "output_sha256": {
+    "stdout": "f08d811db808f8d93882a5c1fd12ccd7c75428dd41417af6e5e6c7c3b45800f2",
+    "stderr": "ec8d60de2c273bfd1dcf9076a1b9d493084bdf494d4973d9f9d728a7933f95e2"
+  },
+  "analysis_complete": true,
+  "keys": [
+    "KUDOS_TEAM_KEY",
+    "KUDOS_API_KEY"
+  ],
+  "credential_alias": "KUDOS_API_KEY",
+  "values_printed": false,
+  "source_recheck": true
+}

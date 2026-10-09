@@ -1,0 +1,7 @@
+{
+  "phase": "RED-before-production-change",
+  "published_reviewed_head": "2be925038b358110d31fb5a29ec14c4ea2278550",
+  "current_source": "bb6d30a605752c5079bb3b7e285f16e84c2f3f7a",
+  "exit": 1,
+  "test_sha256": "dface32cba63644ae0c6d3bd00ca4a2ed4cb0156fc82b92a33ba11cad2d2d4dd"
+}

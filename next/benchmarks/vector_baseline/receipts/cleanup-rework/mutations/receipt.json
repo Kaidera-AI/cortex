@@ -1,0 +1,98 @@
+[
+  {
+    "source": "corpus.py",
+    "mutation": "single-row-shape-bypass",
+    "expected_test": "test_sanitized_row_shape.SanitizedRowShapeTests.test_nested_matrices_are_rejected_at_single_row_boundary",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "24c0ef88a11545874f261a5e991efe8c2007085ceaee556f7a7901cf4d6e8773"
+  },
+  {
+    "source": "corpus.py",
+    "mutation": "fixture-ID-duplicates",
+    "expected_test": "test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "24c0ef88a11545874f261a5e991efe8c2007085ceaee556f7a7901cf4d6e8773"
+  },
+  {
+    "source": "corpus.py",
+    "mutation": "edge-mode-correlation",
+    "expected_test": "test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "24c0ef88a11545874f261a5e991efe8c2007085ceaee556f7a7901cf4d6e8773"
+  },
+  {
+    "source": "corpus.py",
+    "mutation": "normalization",
+    "expected_test": "test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "24c0ef88a11545874f261a5e991efe8c2007085ceaee556f7a7901cf4d6e8773"
+  },
+  {
+    "source": "corpus.py",
+    "mutation": "stored-cosine-admission",
+    "expected_test": "test_vector_baseline_failures.FailureControls.test_float32_underflow_refused",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "24c0ef88a11545874f261a5e991efe8c2007085ceaee556f7a7901cf4d6e8773"
+  },
+  {
+    "source": "oracle.py",
+    "mutation": "tenant-leak",
+    "expected_test": "test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73"
+  },
+  {
+    "source": "oracle.py",
+    "mutation": "tombstone-leak",
+    "expected_test": "test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73"
+  },
+  {
+    "source": "oracle.py",
+    "mutation": "rrf-offset",
+    "expected_test": "test_vector_baseline.OracleTests.test_exact_branch_ties_precede_prefetch_and_full_fusion_separate",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "ce66a6b417f0e09384a68cba270a08e5b40235b3ddc3f43d9e3be38e01275a73"
+  },
+  {
+    "source": "postgres.py",
+    "mutation": "cleanup-skips-volume",
+    "expected_test": "test_vector_baseline.PostgresContractTests.test_cleanup_attempts_all_owned_resources_after_failure",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704"
+  },
+  {
+    "source": "postgres.py",
+    "mutation": "pending-create-omitted",
+    "expected_test": "test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704"
+  },
+  {
+    "source": "postgres.py",
+    "mutation": "collision-identity-bypass",
+    "expected_test": "test_postgres_collision_guard.CollisionGuardTests.test_same_name_different_lifecycle_is_never_deleted",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704"
+  },
+  {
+    "source": "postgres.py",
+    "mutation": "unfiltered-SQL",
+    "expected_test": "test_vector_baseline.PostgresContractTests.test_query_uses_parameters_scope_and_dense_operator",
+    "exit": 1,
+    "killed": true,
+    "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704"
+  }
+]

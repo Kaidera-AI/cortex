@@ -1,0 +1,14 @@
+test_byte_reproducibility_and_chunk_independence (test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence) ... FAIL
+
+======================================================================
+FAIL: test_byte_reproducibility_and_chunk_independence (test_vector_baseline.CorpusTests.test_byte_reproducibility_and_chunk_independence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline.py", line 49, in test_byte_reproducibility_and_chunk_independence
+    self.assertTrue(np.allclose(np.linalg.norm(a.vectors, axis=1), 1, atol=1e-6))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 0.107s
+
+FAILED (failures=1)

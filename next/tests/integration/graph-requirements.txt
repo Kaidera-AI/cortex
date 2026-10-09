@@ -1,0 +1,4 @@
+asyncpg==0.31.0
+httpx==0.28.1
+prometheus_client==0.22.1
+starlette==1.6.0

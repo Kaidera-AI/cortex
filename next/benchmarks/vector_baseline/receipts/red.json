@@ -1,0 +1,5 @@
+{
+  "exit": 1,
+  "command": "PYTHONPATH=cortex/next/src .venv/bin/python -m unittest discover -s cortex/next/tests/benchmarks -v",
+  "test_sha256": "4288d57261472e49aeb060a8d9ca34e06c937013ba717ff5b3bd69c25ba24bfd"
+}

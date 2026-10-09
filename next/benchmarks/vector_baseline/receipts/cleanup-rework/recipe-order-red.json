@@ -1,0 +1,8 @@
+{
+  "head": "4062277cfa98318b00ccc1ca6f6c9a7db4fe3553",
+  "readme_sha256": "025cef802367ae2bcfbfa2bc7b5bda206926db6533b78e1ed91d4cc20ed30341",
+  "check_sha256": "106466d139c3a625906114f0ee1a79589d10b1fa86984c61e5d18b2d05c1fb0a",
+  "finding": "B01-PREFLIGHT-DOC-001",
+  "failure": "frozen packet verification follows producer that replaces manifest-bound raw outputs",
+  "exit": 1
+}

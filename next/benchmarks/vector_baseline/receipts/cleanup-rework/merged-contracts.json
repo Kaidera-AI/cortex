@@ -1,0 +1,21 @@
+{
+  "head": "c4f9b8bd58ac9bd4779628774cb4ec6328dd2691",
+  "target_main": "8f08b5b4a94819c122f2f13cffe9fb833915c3dd",
+  "command": [
+    "next/benchmarks/vector_baseline/.venv/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "next/tests/contract",
+    "-v"
+  ],
+  "env": {
+    "PYTHONPATH": "next/src",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "exit": 0,
+  "client_platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "ec448bc1dc3a163fc0bd3743bc8540fc79e7cd8ecaa3716c0b72593f5ce794d4"
+}

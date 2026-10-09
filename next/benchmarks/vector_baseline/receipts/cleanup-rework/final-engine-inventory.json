@@ -1,0 +1,32 @@
+{
+  "owned_b01_names": {
+    "container": [],
+    "volume": [],
+    "secret": []
+  },
+  "removed": true,
+  "client_server_version": {
+    "Client": {
+      "APIVersion": "6.0.2",
+      "Version": "6.0.2",
+      "GoVersion": "go1.26.5",
+      "GitCommit": "b28edb9ad70ce4317dc762ee9ce0a6d081d154e9",
+      "BuiltTime": "Wed Jul 22 04:55:39 2026",
+      "Built": 1784688939,
+      "BuildOrigin": "pkginstaller",
+      "OsArch": "darwin/arm64",
+      "Os": "darwin"
+    },
+    "Server": {
+      "APIVersion": "6.0.2",
+      "Version": "6.0.2",
+      "GoVersion": "go1.26.5-X:nodwarf5",
+      "GitCommit": "b28edb9ad70ce4317dc762ee9ce0a6d081d154e9",
+      "BuiltTime": "Tue Jul 21 02:00:00 2026",
+      "Built": 1784592000,
+      "OsArch": "linux/arm64",
+      "Os": "linux"
+    }
+  },
+  "scope": "Only inspected B01-prefixed names; no mutation of existing resources."
+}
