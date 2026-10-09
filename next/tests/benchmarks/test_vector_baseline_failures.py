@@ -7,6 +7,35 @@ from vector_baseline import corpus, oracle, postgres
 
 
 class FailureControls(unittest.TestCase):
+    def test_semantic_kill_requires_expected_test_body_assertion(self):
+        import os
+        import subprocess
+        import sys
+        import mutate_vector_baseline as mutations
+        helper = Path(__file__).with_name("mutation_receipts.py")
+        target = "fixture_probe.Case.test_target"
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "fixture_probe.py").write_text('''import os, unittest
+class Case(unittest.TestCase):
+    def setUp(self):
+        if os.environ["B01_MUTATION_PROBE_PHASE"] == "setup":
+            self.fail("fixture setup assertion")
+    def tearDown(self):
+        if os.environ["B01_MUTATION_PROBE_PHASE"] == "teardown":
+            self.fail("fixture teardown assertion")
+    def test_target(self):
+        if os.environ["B01_MUTATION_PROBE_PHASE"] == "test":
+            self.fail("expected body assertion")
+''')
+            for phase in ("setup", "teardown", "test"):
+                with self.subTest(phase=phase):
+                    result = subprocess.run([sys.executable, str(helper), "--target", target],
+                        env={**os.environ, "PYTHONPATH": d, "B01_MUTATION_PROBE_PHASE": phase},
+                        capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(mutations.semantic_kill(result, target), phase == "test",
+                                     result.stdout + result.stderr)
+
     def test_fixture_ids_are_explicit_unique_before_writing(self):
         identity = {"provider": "synthetic", "model": "fixture", "dimension": 2,
                     "metric": "cosine", "generation": "fixture"}
