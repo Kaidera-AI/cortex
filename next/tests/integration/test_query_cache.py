@@ -9,9 +9,9 @@ import httpx
 import test_pg_search
 from cortex_core.embeddings.pg_search import CapabilityUnavailable
 from cortex_core.embeddings.query_cache import (
-    QueryEmbeddingCache,
-    CacheScope,
     CachedEmbedding,
+    CacheScope,
+    QueryEmbeddingCache,
 )
 from cortex_core.modules.providers.hosted import HostedProvider
 
@@ -20,6 +20,37 @@ VECTOR = test_pg_search.VECTOR
 
 
 class CacheTests(test_pg_search.SearchTests):
+    async def test_cached_expiry_rechecked_after_scope_lock(self):
+        cache = QueryEmbeddingCache(
+            self.pool,
+            self.authorize_cache,
+            self.embed,
+            ttl_seconds=0.04,
+            wait_seconds=0.5,
+        )
+        await cache.get("alice", IDENTITY, "expiry-under-lock")
+        lock = int.from_bytes(
+            hashlib.sha256(
+                (str(test_pg_search.TENANT_A) + str(test_pg_search.PROJECT_A)).encode()
+            ).digest()[:8],
+            "big",
+            signed=True,
+        )
+        pending = None
+        try:
+            async with self.admin.transaction():
+                await self.admin.execute("SELECT pg_advisory_xact_lock($1)", lock)
+                pending = asyncio.create_task(
+                    cache.get("alice", IDENTITY, "expiry-under-lock")
+                )
+                await asyncio.sleep(0.08)
+            result = await pending
+            self.assertFalse(result.cache_hit)
+            self.assertEqual(self.calls, 2)
+        finally:
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+
     async def test_late_lookup_cannot_return_success_before_timeout_callback_runs(self):
         cache = QueryEmbeddingCache(
             self.pool, self.authorize_cache, self.embed, wait_seconds=0.02
