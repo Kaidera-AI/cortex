@@ -143,6 +143,16 @@ class TelemetryTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn(SECRET, response.text)
             self.assertNotIn("RuntimeError", response.text)
 
+    async def test_binding_rechecks_reconfigured_host_and_port_before_runner(self):
+        for field, value in (("host", "0.0.0.0"), ("host", "collector.invalid"), ("port", True)):
+            with self.subTest(field=field, value=value):
+                gateway = self.make()
+                setattr(gateway, field, value)
+                runner = Mock()
+                with self.assertRaises(ValueError):
+                    gateway.serve(runner)
+                runner.assert_not_called()
+
     async def test_noop_or_invalid_core_sample_cannot_serve_old_success(self):
         self.metrics.update_core(999999, 123)
         for value in (None, {"db_bytes": 1, "embed_backlog": 1}, CoreSample(True, 1),
@@ -218,6 +228,17 @@ class TelemetryTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(asyncio.CancelledError):
             await task
         self.assertTrue(closed.is_set())
+
+    async def test_late_metric_serialization_cannot_return_success(self):
+        export = self.metrics.export
+        def slow():
+            time.sleep(0.04)
+            return export()
+        gateway = self.make(timeout_seconds=0.02)
+        with patch.object(self.metrics, "export", side_effect=slow):
+            response = await FakeScraper(gateway.app).pull("/metrics")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["error"]["reason"], "timeout")
 
     async def test_no_monitoring_credential_or_outbound_connection_is_used(self):
         with patch.dict(os.environ, {"KOS_MONITORING_TOKEN": SECRET}), patch.object(
