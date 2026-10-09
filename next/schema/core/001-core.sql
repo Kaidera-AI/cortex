@@ -58,6 +58,7 @@ CREATE TABLE core.record_revisions (
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, project_id, record_id, revision),
     UNIQUE (tenant_id, project_id, record_id, revision, tombstone),
+    UNIQUE (tenant_id, project_id, record_id, revision, tombstone, payload_ref),
     FOREIGN KEY (tenant_id, project_id, record_id) REFERENCES core.records (tenant_id, project_id, id),
     FOREIGN KEY (tenant_id, project_id, payload_ref) REFERENCES core.payloads (tenant_id, project_id, id)
 );

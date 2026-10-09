@@ -15,7 +15,7 @@ def apply_migrations(connection, directory=SCHEMA):
         raise MigrationError("Migration connection must use autocommit")
     directory = Path(directory).resolve()
     manifest = json.loads((directory / "manifest.json").read_text())
-    if manifest.get("version") != 1:
+    if type(manifest.get("version")) is not int or manifest["version"] != 1:
         raise MigrationError("Unsupported migration manifest")
     prepared = []
     seen = set()
@@ -38,10 +38,11 @@ def apply_migrations(connection, directory=SCHEMA):
         ledger = dict(connection.execute("SELECT migration_id,sha256 FROM core.schema_migrations").fetchall())
         if set(ledger) - seen:
             raise MigrationError("Applied migration is absent; downgrade refused")
+        for identity, digest, _ in prepared:
+            if identity in ledger and ledger[identity] != digest:
+                raise MigrationError("Applied migration checksum differs")
         for identity, digest, sql in prepared:
             if identity in ledger:
-                if ledger[identity] != digest:
-                    raise MigrationError("Applied migration checksum differs")
                 continue
             connection.execute(sql, prepare=False)
             connection.execute("INSERT INTO core.schema_migrations (migration_id,sha256) VALUES (%s,%s)", (identity, digest))
