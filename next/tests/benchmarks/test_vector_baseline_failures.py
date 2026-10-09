@@ -7,6 +7,17 @@ from vector_baseline import corpus, oracle, postgres
 
 
 class FailureControls(unittest.TestCase):
+    def test_fixture_ids_are_explicit_unique_before_writing(self):
+        identity = {"provider": "synthetic", "model": "fixture", "dimension": 2,
+                    "metric": "cosine", "generation": "fixture"}
+        with tempfile.TemporaryDirectory() as d:
+            for n, rows in enumerate(([{}], [{"id": "same"}, {"id": "same"}])):
+                with self.subTest(rows=rows):
+                    destination = Path(d) / str(n)
+                    with self.assertRaises(ValueError):
+                        corpus.write_corpus(destination, [[1, 0]] * len(rows), rows, identity)
+                    self.assertFalse(destination.exists(), "invalid IDs must fail before corpus creation")
+
     def test_each_edge_mode_covers_all_five_cardinalities(self):
         with tempfile.TemporaryDirectory() as d:
             c = corpus.generate(Path(d) / "c", count=100000, dimension=2, model="fixture")
