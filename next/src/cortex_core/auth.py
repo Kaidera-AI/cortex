@@ -60,6 +60,9 @@ def _resolve(connection, arguments):
 
 
 def _bind(connection, scope, digest):
+    if not connection.execute('SELECT auth.bind_scope(%s,%s,%s,%s)',
+                              (digest,scope.installation_id,scope.project_id,scope.action)).fetchone()[0]:
+        raise AuthError('forbidden')
     values = [digest, str(scope.installation_id), str(scope.project_id), scope.action,
               str(scope.tenant_id), str(scope.principal_id), str(scope.permission_generation)]
     connection.execute("SELECT set_config(name,value,true) FROM unnest(%s::text[],%s::text[]) AS bound(name,value)",
