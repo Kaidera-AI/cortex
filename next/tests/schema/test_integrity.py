@@ -33,13 +33,15 @@ class IntegrityTests(unittest.TestCase):
         with self.assertRaises(psycopg.errors.ForeignKeyViolation):
             self.db.execute("INSERT INTO coordination.published_events (installation_id,cursor,tenant_id,project_id,event_id) VALUES (%s,1,%s,%s,%s)",(test_schema.uid(20),*self.scope,test_schema.uid(7)))
 
-    def test_boolean_manifest_version_refused(self):
+    def test_noninteger_manifest_version_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'schema';shutil.copytree(test_schema.NEXT/'schema',path)
-            manifest=json.loads((path/'manifest.json').read_text());manifest['version']=True
-            (path/'manifest.json').write_text(json.dumps(manifest))
-            with self.assertRaises(MigrationError):
-                apply_migrations(self.db,path)
+            manifest=json.loads((path/'manifest.json').read_text())
+            for version in (True, 1.0):
+                manifest['version']=version
+                (path/'manifest.json').write_text(json.dumps(manifest))
+                with self.subTest(version=version), self.assertRaises(MigrationError):
+                    apply_migrations(self.db,path)
 
     def test_all_applied_hashes_checked_before_any_pending_sql(self):
         self.db.execute("CREATE SEQUENCE public.c03_preflight_probe")
