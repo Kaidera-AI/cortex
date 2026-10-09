@@ -10,10 +10,12 @@ import psycopg
 
 NEXT = Path(__file__).resolve().parents[1]
 MANIFEST = NEXT / "schema/manifest.json"
+sys.path.insert(0, str(NEXT / "scripts"))
+from test_receipts import classify, report, suite as receipt_suite
 
 
 def suite():
-    return subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(NEXT / "tests/schema")], capture_output=True, text=True)
+    return receipt_suite(NEXT / "tests/schema")
 
 
 def checkpoint():
@@ -22,26 +24,21 @@ def checkpoint():
         connection.execute("CHECKPOINT")
 
 
-def mutation_killed(result):
-    if result.returncode < 0:
-        raise SystemExit("Signal termination invalidates mutation proof")
-    output = result.stdout + result.stderr
-    if any(marker in output for marker in ("psycopg.OperationalError", "psycopg.errors.DiskFull", "psycopg.errors.OutOfMemory")):
-        raise SystemExit("Operational failure invalidates mutation proof")
-    return result.returncode != 0
+def mutation_killed(result, expected=()):
+    """Strict boolean adapter: an inconclusive result invalidates proof."""
+    status = mutation_status(result, expected)
+    if status == "inconclusive":
+        raise SystemExit("Inconclusive test receipt invalidates mutation proof")
+    return status == "killed"
 
 
 def mutation_status(result, expected):
-    # RED-first extraction of the previous predicate before replacing it.
-    try:
-        return "killed" if mutation_killed(result) else "survived"
-    except SystemExit:
-        return "inconclusive"
+    return classify(result, expected)
 
 
 def run():
     baseline = suite()
-    if baseline.returncode:
+    if mutation_status(baseline, set()) != "survived":
         print(baseline.stdout + baseline.stderr)
         raise SystemExit("Mutation baseline is RED")
     checkpoint()
@@ -64,9 +61,30 @@ def run():
         ("schema/retrieval/000-canonical.sql", "nonfinite embeddings admitted", "retrieval.finite_vector(embedding)", "true"),
         ("schema/retrieval/000-canonical.sql", "embedding dimensions unbound", "cardinality(embedding) = dimensions", "true"),
         ("schema/manifest.json", "unsupported manifest version", '"version": 1', '"version": 2'),
-        ("scripts/mutate_schema.py", "signal termination counted as kill", "if result.returncode < 0:", "if False:"),
+        ("scripts/mutate_schema.py", "runner failure counted as kill", "def mutation_status(result, expected):\n", "def mutation_status(result, expected):\n    return 'killed' if result.returncode else 'survived'\n"),
     ]
-    survivors = []
+    expected = {
+        "checksum validation removed": "test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl",
+        "applied drift accepted": "test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused",
+        "noninteger manifest accepted": "test_integrity.IntegrityTests.test_noninteger_manifest_version_refused",
+        "ledger preflight delayed": "test_integrity.IntegrityTests.test_all_applied_hashes_checked_before_any_pending_sql",
+        "transaction removed": "test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install",
+        "payload hash unbound": "test_schema.SchemaTests.test_payload_digest_and_immutability",
+        "head history unchecked": "test_schema.SchemaTests.test_head_without_history_fails_at_commit",
+        "history updates accepted": "test_schema.SchemaTests.test_revision_tombstone_and_history_immutable",
+        "untyped grants admitted": "test_schema.SchemaTests.test_principal_credential_and_project_grant_scope",
+        "fence regression accepted": "test_schema.SchemaTests.test_fence_never_regresses",
+        "tombstone mismatch admitted": "test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability",
+        "retention default changed": "test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity",
+        "consumer expiry shortened": "test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity",
+        "revision payload binding removed": "test_integrity.IntegrityTests.test_outbox_payload_matches_that_exact_revision",
+        "publication installation binding removed": "test_integrity.IntegrityTests.test_publication_installation_matches_event_installation",
+        "nonfinite embeddings admitted": "test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision",
+        "embedding dimensions unbound": "test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision",
+        "unsupported manifest version": "test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist",
+        "runner failure counted as kill": "test_causal_mutations.TeamRule.test_runner_errors_and_missing_receipts_inconclusive",
+    }
+    survivors, inconclusive = [], []
     for relative, label, before, after in mutations:
         path = NEXT / relative
         original = path.read_bytes()
@@ -91,22 +109,20 @@ def run():
                         entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
                 MANIFEST.write_text(json.dumps(manifest))
             result = suite()
-            try:
-                killed = mutation_killed(result)
-            except SystemExit:
-                print(result.stdout + result.stderr, flush=True)
-                raise
-            print(json.dumps({"source": relative, "mutation": label, "killed": killed, "exit_code": result.returncode, "output_tail": (result.stdout + result.stderr)[-1800:]}), flush=True)
-            if not killed:
+            status = mutation_status(result, {expected[label]})
+            print(json.dumps({"source": relative, "mutation": label, "expected_test": expected[label], "status": status, "exit_code": result.returncode, "receipt": report(result), "stdout": result.stdout, "stderr": result.stderr}), flush=True)
+            if status == "survived":
                 survivors.append(label)
+            elif status == "inconclusive":
+                inconclusive.append(label)
         finally:
             path.write_bytes(original)
             MANIFEST.write_bytes(original_manifest)
         checkpoint()
-    print(json.dumps({"mutants": len(mutations), "killed": len(mutations) - len(survivors), "survivors": survivors}), flush=True)
+    print(json.dumps({"mutants": len(mutations), "killed": len(mutations) - len(survivors) - len(inconclusive), "survivors": survivors, "inconclusive": inconclusive}), flush=True)
     final = suite()
     print(json.dumps({"restored_baseline_exit": final.returncode, "restored_baseline_output": final.stdout + final.stderr}), flush=True)
-    if survivors or final.returncode:
+    if survivors or inconclusive or mutation_status(final, set()) != "survived":
         raise SystemExit(1)
 
 
