@@ -45,8 +45,11 @@ def vector_check(vector, identity):
         raise ValueError("invalid dense vector")
     if identity["metric"] == "cosine" and np.any(np.linalg.norm(a, axis=-1) == 0):
         raise ValueError("zero cosine vector")
-    if not np.isfinite(a.astype("<f4")).all():
+    stored = a.astype("<f4")
+    if not np.isfinite(stored).all():
         raise ValueError("dense values exceed float32")
+    if identity["metric"] == "cosine" and np.any(np.linalg.norm(stored.astype(np.float64), axis=-1) == 0):
+        raise ValueError("stored float32 cosine vector is zero")
 
 
 def validate_sanitized_row(row, identity):

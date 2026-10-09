@@ -43,8 +43,8 @@ class DisposablePostgres:
         self.password = None
 
     def run_args(self):
-        return ["run", "-d", "--name", self.name, "--user", "999:999", "--cap-drop=ALL",
-                "--security-opt=no-new-privileges", "--cpus=2", "--memory=2g", "--pids-limit=256",
+        return ["create", "--name", self.name, "--label", "worker=mike", "--user", "999:999", "--cap-drop=ALL",
+                "--security-opt=no-new-privileges", "--cpus=2", "--memory=1g", "--pids-limit=256",
                 "--shm-size=256m", "-p", "127.0.0.1::5432", "--volume", f"{self.name}:/var/lib/postgresql",
                 "--secret", f"{self.name},type=mount,target=pgpass,uid=999,gid=999,mode=0400",
                 "--env", "POSTGRES_PASSWORD_FILE=/run/secrets/pgpass", self.image,
@@ -63,6 +63,7 @@ class DisposablePostgres:
             self.owned.add("secret")
             self.runner(self.run_args())
             self.owned.add("container")
+            self.runner(["start", self.name])
             endpoint = self.runner(["port", self.name, "5432/tcp"])
             host, port = endpoint.split(":")
             if host != "127.0.0.1" or not port.isdigit() or int(port) in (5500, 8501):
@@ -82,7 +83,7 @@ class DisposablePostgres:
                             "postgres_version": self.connection.execute("SHOW server_version").fetchone()[0],
                             "pgvector_version": self.connection.execute("SELECT extversion FROM pg_extension WHERE extname='vector'").fetchone()[0],
                             "platform": json.loads(self.runner(["image", "inspect", self.image]))[0]["Architecture"],
-                            "settings": SETTINGS, "limits": {"cpus": 2, "memory_bytes": 2147483648},
+                            "settings": SETTINGS, "limits": {"cpus": 2, "memory_bytes": 1073741824},
                             "uid": 999, "scope": "synthetic-precomputed-SQL-diagnostic"}
             return self
         except BaseException:

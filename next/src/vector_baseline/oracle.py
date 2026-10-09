@@ -147,8 +147,10 @@ def cells(rows):
         values = [r["tie_recall"] for r in measured if r["tie_recall"] is not None]
         safety = all(r["safe"] for r in measured)
         mean = float(np.mean(values)) if values else None
-        verdict = ("NOT_RUN" if len(measured) != len(group) or not values else
-                   "PASS" if safety and mean >= .95 else "FAIL")
+        errors = any(r["status"] == "ERROR" for r in group)
+        verdict = ("NOT_RUN" if any(r["status"] == "NOT_RUN" for r in group) else
+                   "FAIL" if errors or not safety else "NOT_RUN" if not values else
+                   "PASS" if mean >= .95 else "FAIL")
         result[name] = {"verdict": verdict, "mean_recall": mean, "minimum": min(values) if values else None,
                         "failed_queries": [i for i, r in enumerate(group) if r.get("status") == "MEASURED"
                                            and (not r["safe"] or (r["tie_recall"] is not None and r["tie_recall"] < .95))],
