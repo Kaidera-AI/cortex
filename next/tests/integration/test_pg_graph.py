@@ -418,6 +418,18 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 0)
         self.assertEqual((await graph.memory("alice"))["nodes"], [])
 
+    async def test_existing_multiword_query_matches_any_current_token(self):
+        await self.project()
+        result = await self.graph.search("alice", "unknown alpha")
+        self.assertEqual([n["name"] for n in result["high_level"]], ["alpha"])
+
+    async def test_changed_core_kind_does_not_serve_old_source_provenance(self):
+        rid = await self.record()
+        await self.graph.extract("alice", dry_run=False)
+        await self.admin.execute("UPDATE core.records SET kind='lesson' WHERE id=$1", rid)
+        self.assertEqual((await self.graph.memory("alice"))["nodes"], [])
+        self.assertEqual((await self.graph.stats("alice"))["freshness"]["pending_records"], 1)
+
     async def test_bounds_and_invalid_modes_are_refused(self):
         for kwargs in [{"depth": 4}, {"limit": 0}, {"limit": 1001}]:
             with self.assertRaises(ValueError):
