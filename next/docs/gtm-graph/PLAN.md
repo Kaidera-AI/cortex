@@ -82,12 +82,12 @@ applied records cannot starve pending records. All graph PG transactions have a
 whole two-second budget. Extraction/build awaits run outside these transactions.
 The fact port returns a persisted Core fact UUID: validate scope, source revision,
 extractor identity and immutable payload against the exact Extraction shape before
-publishing; graph_applied keeps its scoped fact FK. Fact payload codec is identity,
-nodes and edges (the Extraction dataclass JSON shape); C07 binds this named port.
+publishing; graph_applied keeps its scoped fact FK. The amended fact payload codec
+is source_kind plus identity/nodes/edges; C07 binds encode_graph_fact below.
 Retain RED-first selection, timeout and no-op fact-port checks. Add a canonical-fact
 rebuild hook and prove projection loss can be repaired without an extractor call or
 new canonical fact. Existing full-build execution remains an injected C07 adapter,
-not a fabricated receipt. User/CTO/Kai keep C02/C04/C07/C11 integration gates.
+not a fabricated receipt. Kai keeps C02/C04/C07/C11 integration gates.
 Kai23:08: shared test-body classifier is owned by Cox's standalone PR; continue
 graph while it is reviewed, then adopt the merged helper before final mutation proof.
 

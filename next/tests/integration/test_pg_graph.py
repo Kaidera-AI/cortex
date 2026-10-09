@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import unittest
-from dataclasses import asdict
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -12,7 +11,7 @@ import asyncpg
 import httpx
 from cortex_core.embeddings.pg_search import CoreUnavailable
 from cortex_core.modules.graph.pg_graph import (
-    Edge, Extraction, GraphScope, GraphUnavailable, Node, PostgresGraph, Source,
+    Edge, Extraction, GraphScope, GraphUnavailable, Node, PostgresGraph, Source, encode_graph_fact,
 )
 from cortex_core.modules.graph.routes import graph_routes
 
@@ -88,7 +87,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
                          (Edge(source.label, "file.py", "uses", "current relationship"),))
 
         async def sink(conn, scope, source, facts):
-            payload = json.dumps(asdict(facts)).encode()
+            payload = encode_graph_fact(source, facts)
             pid = uuid4()
             await conn.execute("INSERT INTO core.payloads VALUES($1,$2,$3,$4,$5)", scope.tenant_id, scope.project_id, pid, payload, hashlib.sha256(payload).hexdigest())
             fid = uuid4()
