@@ -100,6 +100,11 @@ def finish(path, identity, count, **extra):
 def write_corpus(path, vectors, rows, identity):
     """Public fixtures. Real conversion remains under the export owner's custody."""
     identity_check(identity)
+    ids = [row.get("id") if isinstance(row, dict) else None for row in rows]
+    invalid_ids = any(not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", value)
+                      for value in ids)
+    if invalid_ids or len(set(ids)) != len(ids):
+        raise ValueError("fixture rows require explicit unique comparison IDs")
     a = np.asarray(vectors, dtype="<f4")
     if a.ndim != 2 or len(a) != len(rows) or len(a) == 0:
         raise ValueError("invalid corpus shape")
@@ -114,7 +119,7 @@ def write_corpus(path, vectors, rows, identity):
         if set(row) - {"id", "tenant", "project", "kind", "time", "ordinal", "deleted", "sparse"}:
             raise ValueError("unexpected fixture fields")
         for field in ("id", "tenant", "project"):
-            value = row.get(field, "t1" if field == "tenant" else "p1")
+            value = row[field] if field == "id" else row.get(field, "t1" if field == "tenant" else "p1")
             if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", value):
                 raise ValueError("invalid comparison ID")
             records[field][i] = value.encode("ascii")

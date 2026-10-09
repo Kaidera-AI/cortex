@@ -9,6 +9,8 @@ import tempfile
 
 NEXT = Path(__file__).resolve().parents[2]
 MUTATIONS = [
+    ("corpus.py", "fixture-ID-duplicates", 'if invalid_ids or len(set(ids)) != len(ids):',
+     'if invalid_ids:', "test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing"),
     ("corpus.py", "edge-mode-correlation", '(0, 1, 9, 10, 11)[(j // 10) % 5]',
      '(0, 1, 9, 10, 11)[j % 5]', "test_vector_baseline_failures.FailureControls.test_each_edge_mode_covers_all_five_cardinalities"),
     ("corpus.py", "normalization", "        v /= np.sqrt(np.sum(v * v, axis=1))[:, None]",
@@ -35,6 +37,9 @@ def main():
     test_path = str(NEXT / "tests/benchmarks")
     baseline = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", test_path, "-v"],
                               env={**env, "PYTHONPATH": str(NEXT / "src")}, capture_output=True, text=True)
+    (destination / "baseline.stdout.txt").write_text(baseline.stdout)
+    (destination / "baseline.stderr.txt").write_text(baseline.stderr)
+    (destination / "baseline.exit").write_text(str(baseline.returncode) + "\n")
     if baseline.returncode:
         raise RuntimeError("mutation baseline is RED")
     results = []
@@ -59,12 +64,15 @@ def main():
             (destination / (label + ".stderr.txt")).write_text(r.stderr)
             method = test.rsplit(".", 1)[1]
             killed = (r.returncode == 1 and f"FAIL: {method} (" in output
+                      and "AssertionError:" in output
                       and "FAILED (failures=" in output and "ERROR:" not in output)
             results.append({"source": filename, "mutation": label, "expected_test": test,
                             "exit": r.returncode, "killed": killed,
                             "source_sha256": hashlib.sha256(original).hexdigest()})
             if not killed:
                 raise RuntimeError("mutation survived or failed for unrelated reason: " + label)
+            if source.read_bytes() != original:
+                raise RuntimeError("original source changed during temporary-copy mutation: " + label)
     (destination / "receipt.json").write_text(json.dumps(results, indent=2) + "\n")
     print(json.dumps({"mutants": len(results), "killed": sum(r["killed"] for r in results)}))
 
