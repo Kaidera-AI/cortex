@@ -72,3 +72,21 @@ Shared checkout's pre-existing untracked docs/v2/DS_Store paths remain untouched
 Existing C03/C01 next paths inspected by origin refs; graph module/migration paths
 are absent. Ren-CX's legacy graph build/repro branches are not edited or treated as
 v2 graph ownership. This plan records the source/route seam before any graph code.
+
+## Port/proof refinement after first execution
+
+Fresh C03 source f30e1d82 confirms the same Core keys; this fixture is an explicitly
+minimal subset, not an executed C03/C04 release stack. Core hydration receives exact
+SourceRef(record UUID, revision, kind) tuples selected before the limit, so already
+applied records cannot starve pending records. All graph PG transactions have a
+whole two-second budget. Extraction/build awaits run outside these transactions.
+The fact port returns a persisted Core fact UUID: validate scope, source revision,
+extractor identity and immutable payload against the exact Extraction shape before
+publishing; graph_applied keeps its scoped fact FK. Fact payload codec is identity,
+nodes and edges (the Extraction dataclass JSON shape); C07 binds this named port.
+Retain RED-first selection, timeout and no-op fact-port checks. Add a canonical-fact
+rebuild hook and prove projection loss can be repaired without an extractor call or
+new canonical fact. Existing full-build execution remains an injected C07 adapter,
+not a fabricated receipt. User/CTO/Kai keep C02/C04/C07/C11 integration gates.
+Kai23:08: shared test-body classifier is owned by Cox's standalone PR; continue
+graph while it is reviewed, then adopt the merged helper before final mutation proof.
