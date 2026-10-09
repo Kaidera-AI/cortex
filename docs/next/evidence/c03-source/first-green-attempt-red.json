@@ -1,0 +1,217 @@
+{
+  "phase": "green",
+  "tree": "c2626b3fe657fbbbf5d0b29d7a6f0c7ed1da36fb",
+  "images": [
+    "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+    "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9"
+  ],
+  "native_arch": "arm64",
+  "network": "none; shared loopback only",
+  "published_ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "pod_cpus": 2,
+    "pod_memory": "1g",
+    "pg_memory": "768m",
+    "driver_memory": "256m"
+  },
+  "wheel_hashes": {
+    "psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl": "96a551e4683f1c307cfc3d9a05fec62c00a7264f320c9962a67a543e3ce0d8ff",
+    "psycopg-3.2.9-py3-none-any.whl": "01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6",
+    "typing_extensions-4.16.0-py3-none-any.whl": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+  },
+  "results": [
+    {
+      "command": [
+        "podman",
+        "pod",
+        "create",
+        "--name",
+        "kaidera-test-core-schema-1",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03"
+      ],
+      "exit_code": 0,
+      "stdout": "e4ce6199d73422dd82d451a5d9c776319c57d94c70efcf63da0c82c589a6a766\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-db-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "768m",
+        "--read-only",
+        "--user",
+        "70:70",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/var/lib/postgresql:rw,size=536870912,mode=1777",
+        "--tmpfs",
+        "/var/run/postgresql:rw,size=16777216,mode=1777",
+        "--tmpfs",
+        "/tmp:rw,size=16777216,mode=1777",
+        "--env",
+        "PGDATA=/var/lib/postgresql/18/data",
+        "--env",
+        "POSTGRES_HOST_AUTH_METHOD=trust",
+        "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d"
+      ],
+      "exit_code": 0,
+      "stdout": "279021bff9deefc0efc32e015ed701700889a48c1faf7bef7f47b2103fb546dd\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-driver-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=268435456,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "fa47db65ab564110502dd33388530aaef681575886795b2c744690b604f18705\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/next",
+        "kaidera-test-core-driver-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/wheels",
+        "kaidera-test-core-driver-1:/tmp/wheels"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--find-links=/tmp/wheels",
+        "--no-cache-dir",
+        "--target=/tmp/deps",
+        "-r",
+        "/tmp/next/requirements-db-test.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "Looking in links: /tmp/wheels\nProcessing /tmp/wheels/psycopg-3.2.9-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 1))\nProcessing /tmp/wheels/psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (from -r /tmp/next/requirements-db-test.txt (line 2))\nProcessing /tmp/wheels/typing_extensions-4.16.0-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 3))\nInstalling collected packages: typing-extensions, psycopg-binary, psycopg\nSuccessfully installed psycopg-3.2.9 psycopg-binary-3.2.9 typing-extensions-4.16.0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "pg_isready",
+        "-U",
+        "postgres"
+      ],
+      "exit_code": 0,
+      "stdout": "/var/run/postgresql:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-c",
+        "SELECT version();"
+      ],
+      "exit_code": 0,
+      "stdout": "PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/tmp/next/tests/schema",
+        "-v"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "test_cross_project_payload_refused (test_schema.SchemaTests.test_cross_project_payload_refused) ... ERROR\ntest_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision) ... ERROR\ntest_fact_history_is_canonical_and_immutable (test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable) ... ERROR\ntest_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity) ... ERROR\ntest_fence_never_regresses (test_schema.SchemaTests.test_fence_never_regresses) ... ERROR\ntest_head_without_history_fails_at_commit (test_schema.SchemaTests.test_head_without_history_fails_at_commit) ... ERROR\ntest_jobs_attempts_results_and_idempotency (test_schema.SchemaTests.test_jobs_attempts_results_and_idempotency) ... ERROR\ntest_ledger_idempotence_and_applied_drift_refused (test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused) ... ERROR\ntest_legacy_alias_uniqueness_preserves_source_identity (test_schema.SchemaTests.test_legacy_alias_uniqueness_preserves_source_identity) ... ERROR\ntest_manifest_tamper_refused_before_ddl (test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl) ... ERROR\ntest_migration_failure_rolls_back_whole_install (test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install) ... ERROR\ntest_original_and_generated_blob_ownership (test_schema.SchemaTests.test_original_and_generated_blob_ownership) ... ERROR\ntest_outbox_shape_tombstone_digest_and_immutability (test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability) ... ERROR\ntest_payload_digest_and_immutability (test_schema.SchemaTests.test_payload_digest_and_immutability) ... ERROR\ntest_principal_credential_and_project_grant_scope (test_schema.SchemaTests.test_principal_credential_and_project_grant_scope) ... ERROR\ntest_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable) ... ERROR\ntest_schemas_and_future_fact_slots_exist (test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist) ... ERROR\ntest_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest) ... ERROR\n\n======================================================================\nERROR: test_cross_project_payload_refused (test_schema.SchemaTests.test_cross_project_payload_refused)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_fact_history_is_canonical_and_immutable (test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_fence_never_regresses (test_schema.SchemaTests.test_fence_never_regresses)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_head_without_history_fails_at_commit (test_schema.SchemaTests.test_head_without_history_fails_at_commit)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_jobs_attempts_results_and_idempotency (test_schema.SchemaTests.test_jobs_attempts_results_and_idempotency)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_ledger_idempotence_and_applied_drift_refused (test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_legacy_alias_uniqueness_preserves_source_identity (test_schema.SchemaTests.test_legacy_alias_uniqueness_preserves_source_identity)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_manifest_tamper_refused_before_ddl (test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_migration_failure_rolls_back_whole_install (test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_original_and_generated_blob_ownership (test_schema.SchemaTests.test_original_and_generated_blob_ownership)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_outbox_shape_tombstone_digest_and_immutability (test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_payload_digest_and_immutability (test_schema.SchemaTests.test_payload_digest_and_immutability)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_principal_credential_and_project_grant_scope (test_schema.SchemaTests.test_principal_credential_and_project_grant_scope)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_schemas_and_future_fact_slots_exist (test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n======================================================================\nERROR: test_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/schema/test_schema.py\", line 25, in setUp\n    apply_migrations(self.db)\n  File \"/tmp/next/src/cortex_core/migrations.py\", line 46, in apply_migrations\n    connection.execute(sql, prepare=False)\n  File \"/tmp/deps/psycopg/connection.py\", line 257, in execute\n    raise ex.with_traceback(None)\npsycopg.errors.SyntaxError: syntax error at or near \"values\"\nLINE 2: CREATE FUNCTION retrieval.finite_vector(values real[]) RETUR...\n                                                ^\n\n----------------------------------------------------------------------\nRan 18 tests in 1.024s\n\nFAILED (errors=18)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "rm",
+        "-f",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "e4ce6199d73422dd82d451a5d9c776319c57d94c70efcf63da0c82c589a6a766\n",
+      "stderr": ""
+    }
+  ],
+  "stack_removed": true
+}

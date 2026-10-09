@@ -1,0 +1,369 @@
+{
+  "phase": "location-fault-red",
+  "tree": "38a3a2c0224542d842d7065a2a46a60f89e8914c",
+  "images": [
+    "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+    "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9"
+  ],
+  "native_arch": "arm64",
+  "network": "none; shared loopback only",
+  "published_ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "pod_cpus": 2,
+    "pod_memory": "1g",
+    "pg_memory": "768m",
+    "driver_memory": "256m"
+  },
+  "wheel_hashes": {
+    "psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl": "96a551e4683f1c307cfc3d9a05fec62c00a7264f320c9962a67a543e3ce0d8ff",
+    "psycopg-3.2.9-py3-none-any.whl": "01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6",
+    "typing_extensions-4.16.0-py3-none-any.whl": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+  },
+  "results": [
+    {
+      "command": [
+        "podman",
+        "pod",
+        "create",
+        "--name",
+        "kaidera-test-core-schema-1",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03"
+      ],
+      "exit_code": 0,
+      "stdout": "53e95957192975737ab9636a1ff689d7c85d49aad1f24c185df21f325a35bc4d\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-db-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "768m",
+        "--read-only",
+        "--user",
+        "70:70",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/var/lib/postgresql:rw,size=536870912,mode=1777",
+        "--tmpfs",
+        "/var/run/postgresql:rw,size=16777216,mode=1777",
+        "--tmpfs",
+        "/tmp:rw,size=16777216,mode=1777",
+        "--env",
+        "PGDATA=/var/lib/postgresql/18/data",
+        "--env",
+        "POSTGRES_HOST_AUTH_METHOD=trust",
+        "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+        "-c",
+        "max_wal_size=64MB",
+        "-c",
+        "min_wal_size=32MB",
+        "-c",
+        "checkpoint_timeout=30s"
+      ],
+      "exit_code": 0,
+      "stdout": "9671c4a5eb0d519d95d944a520410b34a4f0665cd51cab2ce93901dbd9171418\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-driver-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=268435456,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "2fa9c59c35053456c7a8a0c455ea04ef6ae3228bcb18052c9c4393a13ac0cb19\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-adoption-20261010/next",
+        "kaidera-test-core-driver-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-adoption-20261010/tmp/wheels",
+        "kaidera-test-core-driver-1:/tmp/wheels"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-adoption-20261010/tmp/legacy-schema.sql",
+        "kaidera-test-core-driver-1:/tmp/legacy.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-adoption-20261010/docs/next/evidence/c03-source",
+        "kaidera-test-core-driver-1:/tmp/map"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--find-links=/tmp/wheels",
+        "--no-cache-dir",
+        "--target=/tmp/deps",
+        "-r",
+        "/tmp/next/requirements-db-test.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "Looking in links: /tmp/wheels\nProcessing /tmp/wheels/psycopg-3.2.9-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 1))\nProcessing /tmp/wheels/psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (from -r /tmp/next/requirements-db-test.txt (line 2))\nProcessing /tmp/wheels/typing_extensions-4.16.0-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 3))\nInstalling collected packages: typing-extensions, psycopg-binary, psycopg\nSuccessfully installed psycopg-3.2.9 psycopg-binary-3.2.9 typing-extensions-4.16.0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "pg_isready",
+        "-U",
+        "postgres"
+      ],
+      "exit_code": 0,
+      "stdout": "/var/run/postgresql:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-c",
+        "SELECT version();"
+      ],
+      "exit_code": 0,
+      "stdout": "PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/tmp/next/tests/schema",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_expected_assertion_and_clean_run (test_causal_mutations.TeamRule.test_expected_assertion_and_clean_run) ... ok\ntest_runner_errors_and_missing_receipts_inconclusive (test_causal_mutations.TeamRule.test_runner_errors_and_missing_receipts_inconclusive) ... ok\ntest_unrelated_fixture_and_malformed_failures_inconclusive (test_causal_mutations.TeamRule.test_unrelated_fixture_and_malformed_failures_inconclusive) ... ok\ntest_all_applied_hashes_checked_before_any_pending_sql (test_integrity.IntegrityTests.test_all_applied_hashes_checked_before_any_pending_sql) ... ok\ntest_noninteger_manifest_version_refused (test_integrity.IntegrityTests.test_noninteger_manifest_version_refused) ... ok\ntest_outbox_payload_matches_that_exact_revision (test_integrity.IntegrityTests.test_outbox_payload_matches_that_exact_revision) ... ok\ntest_publication_installation_matches_event_installation (test_integrity.IntegrityTests.test_publication_installation_matches_event_installation) ... ok\ntest_assertion_and_success_are_distinguished (test_mutation_receipts.MutationReceipts.test_assertion_and_success_are_distinguished) ... ok\ntest_postgres_failure_invalidates_proof (test_mutation_receipts.MutationReceipts.test_postgres_failure_invalidates_proof) ... ok\ntest_signal_failure_invalidates_proof (test_mutation_receipts.MutationReceipts.test_signal_failure_invalidates_proof) ... ok\ntest_cross_project_payload_refused (test_schema.SchemaTests.test_cross_project_payload_refused) ... ok\ntest_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision) ... ok\ntest_fact_history_is_canonical_and_immutable (test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable) ... ok\ntest_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity) ... ok\ntest_fence_never_regresses (test_schema.SchemaTests.test_fence_never_regresses) ... ok\ntest_head_without_history_fails_at_commit (test_schema.SchemaTests.test_head_without_history_fails_at_commit) ... ok\ntest_jobs_attempts_results_and_idempotency (test_schema.SchemaTests.test_jobs_attempts_results_and_idempotency) ... ok\ntest_ledger_idempotence_and_applied_drift_refused (test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused) ... ok\ntest_legacy_alias_uniqueness_preserves_source_identity (test_schema.SchemaTests.test_legacy_alias_uniqueness_preserves_source_identity) ... ok\ntest_manifest_tamper_refused_before_ddl (test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl) ... ok\ntest_migration_failure_rolls_back_whole_install (test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install) ... ok\ntest_original_and_generated_blob_ownership (test_schema.SchemaTests.test_original_and_generated_blob_ownership) ... ok\ntest_outbox_shape_tombstone_digest_and_immutability (test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability) ... ok\ntest_payload_digest_and_immutability (test_schema.SchemaTests.test_payload_digest_and_immutability) ... ok\ntest_principal_credential_and_project_grant_scope (test_schema.SchemaTests.test_principal_credential_and_project_grant_scope) ... ok\ntest_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable) ... ok\ntest_schemas_and_future_fact_slots_exist (test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist) ... ok\ntest_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest) ... ok\ntest_unknown_event_version_refused (test_semantic_probes.SemanticProbes.test_unknown_event_version_refused) ... ok\ntest_valid_sql_tamper_refused_without_side_effects (test_semantic_probes.SemanticProbes.test_valid_sql_tamper_refused_without_side_effects) ... ok\n\n----------------------------------------------------------------------\nRan 30 tests in 2.468s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-c",
+        "from pathlib import Path;p=Path('/tmp/next/scripts/mutate_schema.py');s=p.read_text();assert s.count('str(NEXT / \"tests\")')==1;p.with_suffix('.original').write_text(s);p.write_text(s.replace('str(NEXT / \"tests\")','str(NEXT / \"scripts\")',1))"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-core-driver-1",
+        "python",
+        "/tmp/next/tests/test_receipts.py",
+        "/tmp/next/tests/artifact"
+      ],
+      "exit_code": 1,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_c03_receipts.C03ReceiptLocation.test_c03_caller_imports_shared_helper\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_c03_receipts.py\\\", line 23, in test_c03_caller_imports_shared_helper\\n    self.assertEqual(result.returncode, 0, result.stderr)\\nAssertionError: 1 != 0 : Traceback (most recent call last):\\n  File \\\"<string>\\\", line 4, in <module>\\n  File \\\"/tmp/next/scripts/mutate_schema.py\\\", line 14, in <module>\\n    from test_receipts import classify, report, suite as receipt_suite\\nModuleNotFoundError: No module named 'test_receipts'\\n\\n\"}], \"errors\": []}\n",
+      "stderr": "test_c03_caller_imports_shared_helper (test_c03_receipts.C03ReceiptLocation.test_c03_caller_imports_shared_helper) ... FAIL\ntest_no_private_receipt_copy_remains (test_c03_receipts.C03ReceiptLocation.test_no_private_receipt_copy_remains) ... ok\ntest_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source) ... ok\ntest_constraint_commas_and_quoted_comments_do_not_create_fields (test_legacy_map.LegacyMap.test_constraint_commas_and_quoted_comments_do_not_create_fields) ... ok\ntest_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) ... ok\ntest_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed) ... ok\ntest_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote) ... ok\ntest_with_options_do_not_extend_table_body (test_legacy_map.LegacyMap.test_with_options_do_not_extend_table_body) ... ok\n\n======================================================================\nFAIL: test_c03_caller_imports_shared_helper (test_c03_receipts.C03ReceiptLocation.test_c03_caller_imports_shared_helper)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/artifact/test_c03_receipts.py\", line 23, in test_c03_caller_imports_shared_helper\n    self.assertEqual(result.returncode, 0, result.stderr)\nAssertionError: 1 != 0 : Traceback (most recent call last):\n  File \"<string>\", line 4, in <module>\n  File \"/tmp/next/scripts/mutate_schema.py\", line 14, in <module>\n    from test_receipts import classify, report, suite as receipt_suite\nModuleNotFoundError: No module named 'test_receipts'\n\n\n----------------------------------------------------------------------\nRan 8 tests in 0.301s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-c",
+        "from pathlib import Path;p=Path('/tmp/next/scripts/mutate_schema.py');q=p.with_suffix('.original');p.write_bytes(q.read_bytes());q.unlink()"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "logs",
+        "kaidera-test-core-db-1"
+      ],
+      "exit_code": 0,
+      "stdout": "The files belonging to this database system will be owned by user \"postgres\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"en_US.utf8\".\nThe default database encoding has accordingly been set to \"UTF8\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are enabled.\n\nfixing permissions on existing directory /var/lib/postgresql/18/data ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... UTC\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\n\nSuccess. You can now start the database server using:\n\n    pg_ctl -D /var/lib/postgresql/18/data -l logfile start\n\nwaiting for server to start....2026-10-09 22:12:31.474 UTC [24] LOG:  starting PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-09 22:12:31.475 UTC [24] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-09 22:12:31.476 UTC [30] LOG:  database system was shut down at 2026-10-09 22:12:31 UTC\n2026-10-09 22:12:31.477 UTC [24] LOG:  database system is ready to accept connections\n done\nserver started\n\n/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*\n\nwaiting for server to shut down....2026-10-09 22:12:31.575 UTC [24] LOG:  received fast shutdown request\n2026-10-09 22:12:31.576 UTC [24] LOG:  aborting any active transactions\n2026-10-09 22:12:31.577 UTC [24] LOG:  background worker \"logical replication launcher\" (PID 33) exited with exit code 1\n2026-10-09 22:12:31.577 UTC [28] LOG:  shutting down\n2026-10-09 22:12:31.577 UTC [28] LOG:  checkpoint starting: shutdown immediate\n2026-10-09 22:12:31.577 UTC [28] LOG:  checkpoint complete: wrote 0 buffers (0.0%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.001 s; sync files=2, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/1763ED0, redo lsn=0/1763ED0\n2026-10-09 22:12:31.580 UTC [24] LOG:  database system is shut down\n done\nserver stopped\n\nPostgreSQL init process complete; ready for start up.\n\n",
+      "stderr": "chmod: /var/run/postgresql: Operation not permitted\n********************************************************************************\nWARNING: POSTGRES_HOST_AUTH_METHOD has been set to \"trust\". This will allow\n         anyone with access to the Postgres port to access your database without\n         a password, even if POSTGRES_PASSWORD is set. See PostgreSQL\n         documentation about \"trust\":\n         https://www.postgresql.org/docs/current/auth-trust.html\n         In Docker's default configuration, this is effectively any other\n         container on the same system.\n\n         It is not recommended to use POSTGRES_HOST_AUTH_METHOD=trust. Replace\n         it with \"-e POSTGRES_PASSWORD=password\" instead to set a password in\n         \"docker run\".\n********************************************************************************\nsh: locale: not found\n2026-10-09 22:12:31.279 UTC [18] WARNING:  no usable system locales were found\ninitdb: warning: enabling \"trust\" authentication for local connections\ninitdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.\n2026-10-09 22:12:31.687 UTC [1] LOG:  starting PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-09 22:12:31.688 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432\n2026-10-09 22:12:31.688 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432\n2026-10-09 22:12:31.688 UTC [1] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-09 22:12:31.689 UTC [44] LOG:  database system was shut down at 2026-10-09 22:12:31 UTC\n2026-10-09 22:12:31.691 UTC [1] LOG:  database system is ready to accept connections\n2026-10-09 22:12:33.168 UTC [54] ERROR:  insert or update on table \"outbox\" violates foreign key constraint \"outbox_tenant_id_project_id_aggregate_id_aggregate_revisio_fkey\"\n2026-10-09 22:12:33.168 UTC [54] DETAIL:  Key (tenant_id, project_id, aggregate_id, aggregate_revision, tombstone, payload_ref)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 1, f, 00000000-0000-4000-8000-000000000009) is not present in table \"record_revisions\".\n2026-10-09 22:12:33.168 UTC [54] STATEMENT:  INSERT INTO coordination.outbox\n\t                (event_id,installation_id,tenant_id,project_id,aggregate_id,aggregate_kind,\n\t                 aggregate_revision,operation,tombstone,schema_version,payload_ref,payload_sha256)\n\t                VALUES ($1,$2,$3,$4,$5,'memory',1,'upsert',false,1,$6,$7)\n2026-10-09 22:12:33.263 UTC [55] ERROR:  insert or update on table \"published_events\" violates foreign key constraint \"published_events_installation_id_tenant_id_project_id_even_fkey\"\n2026-10-09 22:12:33.263 UTC [55] DETAIL:  Key (installation_id, tenant_id, project_id, event_id)=(00000000-0000-4000-8000-000000000020, 00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000007) is not present in table \"outbox\".\n2026-10-09 22:12:33.263 UTC [55] STATEMENT:  INSERT INTO coordination.published_events (installation_id,cursor,tenant_id,project_id,event_id) VALUES ($1,1,$2,$3,$4)\n2026-10-09 22:12:33.359 UTC [56] ERROR:  insert or update on table \"record_revisions\" violates foreign key constraint \"record_revisions_tenant_id_project_id_record_id_fkey\"\n2026-10-09 22:12:33.359 UTC [56] DETAIL:  Key (tenant_id, project_id, record_id)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000004, 00000000-0000-4000-8000-000000000006) is not present in table \"records\".\n2026-10-09 22:12:33.359 UTC [56] STATEMENT:  INSERT INTO core.record_revisions (tenant_id,project_id,record_id,revision,payload_ref,tombstone) VALUES ($1,$2,$3,2,$4,false)\n2026-10-09 22:12:33.462 UTC [57] ERROR:  new row for relation \"embeddings\" violates check constraint \"embeddings_check\"\n2026-10-09 22:12:33.462 UTC [57] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 1, 00000000-0000-4000-8000-000000000008, 3, {0.1,0.2}).\n2026-10-09 22:12:33.462 UTC [57] STATEMENT:  UPDATE retrieval.embeddings SET embedding=$1\n2026-10-09 22:12:33.462 UTC [57] ERROR:  new row for relation \"embeddings\" violates check constraint \"embeddings_check\"\n2026-10-09 22:12:33.462 UTC [57] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 1, 00000000-0000-4000-8000-000000000008, 3, {NaN,0.2,0.3}).\n2026-10-09 22:12:33.462 UTC [57] STATEMENT:  UPDATE retrieval.embeddings SET embedding=$1\n2026-10-09 22:12:33.462 UTC [57] ERROR:  insert or update on table \"embeddings\" violates foreign key constraint \"embeddings_tenant_id_project_id_record_id_source_revision_fkey\"\n2026-10-09 22:12:33.462 UTC [57] DETAIL:  Key (tenant_id, project_id, record_id, source_revision)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 99) is not present in table \"record_revisions\".\n2026-10-09 22:12:33.462 UTC [57] STATEMENT:  UPDATE retrieval.embeddings SET source_revision=99\n2026-10-09 22:12:33.568 UTC [58] ERROR:  canonical history is immutable\n2026-10-09 22:12:33.568 UTC [58] CONTEXT:  PL/pgSQL function core.refuse_update() line 3 at RAISE\n2026-10-09 22:12:33.568 UTC [58] STATEMENT:  UPDATE core.extraction_facts SET payload_ref=payload_ref\n2026-10-09 22:12:33.568 UTC [58] ERROR:  canonical history is immutable\n2026-10-09 22:12:33.568 UTC [58] CONTEXT:  PL/pgSQL function core.refuse_update() line 3 at RAISE\n2026-10-09 22:12:33.568 UTC [58] STATEMENT:  UPDATE core.analytics_facts SET payload_ref=payload_ref\n2026-10-09 22:12:33.668 UTC [59] ERROR:  new row for relation \"feed_state\" violates check constraint \"feed_state_check\"\n2026-10-09 22:12:33.668 UTC [59] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000001, 0, 2, 604800).\n2026-10-09 22:12:33.668 UTC [59] STATEMENT:  UPDATE coordination.feed_state SET retained_floor=2\n2026-10-09 22:12:33.669 UTC [59] ERROR:  duplicate key value violates unique constraint \"published_events_event_id_key\"\n2026-10-09 22:12:33.669 UTC [59] DETAIL:  Key (event_id)=(00000000-0000-4000-8000-000000000007) already exists.\n2026-10-09 22:12:33.669 UTC [59] STATEMENT:  INSERT INTO coordination.published_events (installation_id,cursor,tenant_id,project_id,event_id) VALUES ($1,2,$2,$3,$4)\n2026-10-09 22:12:33.772 UTC [60] ERROR:  fence regression\n2026-10-09 22:12:33.772 UTC [60] CONTEXT:  PL/pgSQL function coordination.refuse_fence_regression() line 4 at RAISE\n2026-10-09 22:12:33.772 UTC [60] STATEMENT:  UPDATE coordination.leases SET fence=1\n2026-10-09 22:12:33.873 UTC [61] ERROR:  insert or update on table \"records\" violates foreign key constraint \"record_head_has_history\"\n2026-10-09 22:12:33.873 UTC [61] DETAIL:  Key (tenant_id, project_id, id, current_revision, tombstone)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000008, 1, f) is not present in table \"record_revisions\".\n2026-10-09 22:12:33.873 UTC [61] STATEMENT:  COMMIT\n2026-10-09 22:12:33.973 UTC [62] ERROR:  duplicate key value violates unique constraint \"jobs_tenant_id_project_id_kind_idempotency_key_key\"\n2026-10-09 22:12:33.973 UTC [62] DETAIL:  Key (tenant_id, project_id, kind, idempotency_key)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, extract, same-request) already exists.\n2026-10-09 22:12:33.973 UTC [62] STATEMENT:  INSERT INTO coordination.jobs (tenant_id,project_id,id,kind,payload_ref,idempotency_key) VALUES ($1,$2,$3,'extract',$4,'same-request')\n2026-10-09 22:12:33.974 UTC [62] ERROR:  new row for relation \"job_attempts\" violates check constraint \"job_attempts_fence_check\"\n2026-10-09 22:12:33.974 UTC [62] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000009, 00000000-0000-4000-8000-000000000008, 1, 0, worker, 2026-10-09 22:12:33.973358+00).\n2026-10-09 22:12:33.974 UTC [62] STATEMENT:  UPDATE coordination.job_attempts SET fence=0\n2026-10-09 22:12:34.175 UTC [64] ERROR:  duplicate key value violates unique constraint \"record_aliases_pkey\"\n2026-10-09 22:12:34.175 UTC [64] DETAIL:  Key (tenant_id, project_id, source_namespace, external_id)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, public.messages, 42) already exists.\n2026-10-09 22:12:34.175 UTC [64] STATEMENT:  INSERT INTO core.record_aliases VALUES ($1,$2,$3,$4,$5)\n2026-10-09 22:12:34.467 UTC [66] ERROR:  function missing_c03_function() does not exist at character 8\n2026-10-09 22:12:34.467 UTC [66] HINT:  No function matches the given name and argument types. You might need to add explicit type casts.\n2026-10-09 22:12:34.467 UTC [66] STATEMENT:  SELECT missing_c03_function();\n\t\n2026-10-09 22:12:34.520 UTC [67] ERROR:  insert or update on table \"blob_manifests\" violates foreign key constraint \"blob_manifests_tenant_id_project_id_record_id_fkey\"\n2026-10-09 22:12:34.520 UTC [67] DETAIL:  Key (tenant_id, project_id, record_id)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000004, 00000000-0000-4000-8000-000000000006) is not present in table \"records\".\n2026-10-09 22:12:34.520 UTC [67] STATEMENT:  INSERT INTO core.blob_manifests (tenant_id,project_id,id,record_id,kind,object_key,sha256,byte_length,mime_type) VALUES ($1,$2,$3,$4,'original','objects/new',$5,10,'text/plain')\n2026-10-09 22:12:34.619 UTC [68] ERROR:  new row for relation \"outbox\" violates check constraint \"outbox_check\"\n2026-10-09 22:12:34.619 UTC [68] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000008, 00000000-0000-4000-8000-000000000001, 00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, memory, 1, delete, f, 1, 00000000-0000-4000-8000-000000000005, 244672407075cd6741726f05493232a906d777ab830f7f40a5b773a5358322b0, 2026-10-09 22:12:34.618967+00).\n2026-10-09 22:12:34.619 UTC [68] STATEMENT:  INSERT INTO coordination.outbox\n\t            (event_id,installation_id,tenant_id,project_id,aggregate_id,aggregate_kind,\n\t             aggregate_revision,operation,tombstone,schema_version,payload_ref,payload_sha256)\n\t            VALUES ($1,$2,$3,$4,$5,'memory',1,$6,$7,1,$8,$9)\n2026-10-09 22:12:34.619 UTC [68] ERROR:  canonical history is immutable\n2026-10-09 22:12:34.619 UTC [68] CONTEXT:  PL/pgSQL function core.refuse_update() line 3 at RAISE\n2026-10-09 22:12:34.619 UTC [68] STATEMENT:  UPDATE coordination.outbox SET aggregate_revision=2\n2026-10-09 22:12:34.619 UTC [68] ERROR:  insert or update on table \"quarantine\" violates foreign key constraint \"quarantine_tenant_id_project_id_event_id_fkey\"\n2026-10-09 22:12:34.619 UTC [68] DETAIL:  Key (tenant_id, project_id, event_id)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000004, 00000000-0000-4000-8000-000000000007) is not present in table \"outbox\".\n2026-10-09 22:12:34.619 UTC [68] STATEMENT:  INSERT INTO coordination.quarantine (tenant_id,project_id,event_id,module_id,error_code) VALUES ($1,$2,$3,'search','bad_payload')\n2026-10-09 22:12:34.722 UTC [69] ERROR:  new row for relation \"payloads\" violates check constraint \"payload_digest_matches\"\n2026-10-09 22:12:34.722 UTC [69] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000008, \\x7b2274657874223a2273796e7468657469632063616e6f6e6963616c20736f..., 0000000000000000000000000000000000000000000000000000000000000000, 2026-10-09 22:12:34.722363+00).\n2026-10-09 22:12:34.722 UTC [69] STATEMENT:  INSERT INTO core.payloads (tenant_id,project_id,id,body,sha256) VALUES ($1,$2,$3,$4,$5)\n2026-10-09 22:12:34.722 UTC [69] ERROR:  canonical history is immutable\n2026-10-09 22:12:34.722 UTC [69] CONTEXT:  PL/pgSQL function core.refuse_update() line 3 at RAISE\n2026-10-09 22:12:34.722 UTC [69] STATEMENT:  UPDATE core.payloads SET body='changed'::bytea\n2026-10-09 22:12:34.820 UTC [42] LOG:  checkpoints are occurring too frequently (3 seconds apart)\n2026-10-09 22:12:34.820 UTC [42] HINT:  Consider increasing the configuration parameter \"max_wal_size\".\n2026-10-09 22:12:34.820 UTC [42] LOG:  checkpoint starting: wal\n2026-10-09 22:12:34.826 UTC [70] ERROR:  new row for relation \"project_grants\" violates check constraint \"project_grants_permissions_check\"\n2026-10-09 22:12:34.826 UTC [70] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000008, {root-everywhere}).\n2026-10-09 22:12:34.826 UTC [70] STATEMENT:  INSERT INTO auth.project_grants (tenant_id,project_id,principal_id,permissions) VALUES ($1,$2,$3,ARRAY['root-everywhere'])\n2026-10-09 22:12:34.826 UTC [70] ERROR:  insert or update on table \"project_grants\" violates foreign key constraint \"project_grants_tenant_id_principal_id_fkey\"\n2026-10-09 22:12:34.826 UTC [70] DETAIL:  Key (tenant_id, principal_id)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000099) is not present in table \"principals\".\n2026-10-09 22:12:34.826 UTC [70] STATEMENT:  INSERT INTO auth.project_grants (tenant_id,project_id,principal_id,permissions) VALUES ($1,$2,$3,ARRAY['read'])\n2026-10-09 22:12:34.931 UTC [71] ERROR:  new row for relation \"records\" violates check constraint \"records_current_revision_check\"\n2026-10-09 22:12:34.931 UTC [71] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, memory, 0, f).\n2026-10-09 22:12:34.931 UTC [71] STATEMENT:  UPDATE core.records SET current_revision=0 WHERE id=$1\n2026-10-09 22:12:34.931 UTC [71] ERROR:  canonical history is immutable\n2026-10-09 22:12:34.931 UTC [71] CONTEXT:  PL/pgSQL function core.refuse_update() line 3 at RAISE\n2026-10-09 22:12:34.931 UTC [71] STATEMENT:  UPDATE core.record_revisions SET tombstone=true\n2026-10-09 22:12:34.932 UTC [71] ERROR:  insert or update on table \"records\" violates foreign key constraint \"record_head_has_history\"\n2026-10-09 22:12:34.932 UTC [71] DETAIL:  Key (tenant_id, project_id, id, current_revision, tombstone)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 1, t) is not present in table \"record_revisions\".\n2026-10-09 22:12:34.932 UTC [71] STATEMENT:  COMMIT\n2026-10-09 22:12:35.242 UTC [74] ERROR:  new row for relation \"outbox\" violates check constraint \"outbox_schema_version_check\"\n2026-10-09 22:12:35.242 UTC [74] DETAIL:  Failing row contains (00000000-0000-4000-8000-000000000030, 00000000-0000-4000-8000-000000000001, 00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, memory, 1, upsert, f, 2, 00000000-0000-4000-8000-000000000005, 244672407075cd6741726f05493232a906d777ab830f7f40a5b773a5358322b0, 2026-10-09 22:12:35.242238+00).\n2026-10-09 22:12:35.242 UTC [74] STATEMENT:  INSERT INTO coordination.outbox\n\t                (event_id,installation_id,tenant_id,project_id,aggregate_id,aggregate_kind,\n\t                 aggregate_revision,operation,tombstone,schema_version,payload_ref,payload_sha256)\n\t                VALUES ($1,$2,$3,$4,$5,'memory',1,'upsert',false,2,$6,$7)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "df",
+        "-h",
+        "/var/lib/postgresql"
+      ],
+      "exit_code": 0,
+      "stdout": "Filesystem                Size      Used Available Use% Mounted on\ntmpfs                   512.0M     84.5M    427.5M  17% /var/lib/postgresql\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "rm",
+        "-f",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "53e95957192975737ab9636a1ff689d7c85d49aad1f24c185df21f325a35bc4d\n",
+      "stderr": ""
+    }
+  ],
+  "stack_removed": true,
+  "source_sha256": {
+    "next/contracts/README.md": "690dd3870c7d47d8d22cc9d6f446843a1d5c899013ef48ea948c14d1e9b8177a",
+    "next/contracts/fixtures/capability-ready.json": "8146d58c3756d82790c50d947d1f37ce6f08197b423b768fb6032b46949e84c4",
+    "next/contracts/fixtures/capability-unavailable.json": "e7fa20b15f7cf7e6c6beb4c93e71c38cd6fdfe924894d4be000dbe3bdc2b0f3c",
+    "next/contracts/fixtures/core-unavailable.json": "7fa6dff23bd563b1b907248231f7d25b6f98527e10907ad5c2e879313a6a5b9e",
+    "next/contracts/fixtures/event-delete.json": "c29a770d680daf60dda33a3c71f51bae7ba36a0fbf176946bf8aea9121daaddc",
+    "next/contracts/fixtures/event-upsert.json": "1ba742369005bf5454b40546264082dd4c8c6179a51ab12fde7e41dd11ae9b09",
+    "next/contracts/fixtures/write-committed.json": "11bb8289934a4017c2861baff2b9da112cb7428c06d6acb755549e635b2548d0",
+    "next/contracts/openapi.json": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+    "next/contracts/outbox-event.schema.json": "5fa8789b346764a2dc319b0770ca362eff6c76c36d65fb21cd8f2ee46865055a",
+    "next/contracts/provenance.json": "c6ad94ffc41197fb3cc7e85b3c118341e1ff91c57fc6d0f2f7f87e3055aea050",
+    "next/contracts/route-matrix.md": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+    "next/requirements-db-test.txt": "b318285ac8359fbb745d54cb4fc54847477012e102f7bf928bc706706c778295",
+    "next/requirements-test.txt": "ea127b6bd9e3bdbd4543b356ce8f2c71ee4ba731a38e7ec13ac20a4b11e92cc5",
+    "next/schema/auth/001-auth.sql": "97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e",
+    "next/schema/coordination/001-coordination.sql": "c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1",
+    "next/schema/core/001-core.sql": "e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147",
+    "next/schema/manifest.json": "96a9a784e0ec0428f87d25f2f6cb54b7c732e64ea81dac20976f10663c05eee2",
+    "next/schema/retrieval/000-canonical.sql": "5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2",
+    "next/scripts/check_legacy_map.py": "733f58ee3ac80f4e98a865ecc6a71a61094e698e04f80e4dee2b7f09df994c98",
+    "next/scripts/mutate_contracts.py": "062e7df49e67fde0d8eabde9b9aa8dbff3e224a0924241abc2625165a8506849",
+    "next/scripts/mutate_schema.py": "d3bb422dd9507cd44ff8250cf4451922c82c2fab640ece63d0f6e35cf94f8aff",
+    "next/src/cortex_core/contracts.py": "294919224493e4edd5486493d8d3ce1fab312b29f7eb0bd081b08c1377ced72c",
+    "next/src/cortex_core/migrations.py": "15c6fe1472c78ba4ef34288cd26b9f0100d921cc0f77039f9b103ac4e8e8de8c",
+    "next/tests/artifact/test_c03_receipts.py": "a6a523239c2e5e3aca86747afd5e80aa75700855d268872e92819e3ccfd0c262",
+    "next/tests/artifact/test_legacy_map.py": "f6f9373f074be991a692bb20315fca24cc79779eede5f743d18b030b482ad5fd",
+    "next/tests/contract/test_contracts.py": "0efa7498dab02e451437c6c93be15b033cb620774ec53adf3381b2f924e56180",
+    "next/tests/contract/test_receipt_shape.py": "760a8815a7adff072c0895b73bb44d5e5bdf39aecadbf63931657dbac4f33405",
+    "next/tests/contract/test_review_regressions.py": "0c69d749eb6ecb7d131c2d75f2cc90be18484dede9397285d6a5be3e07f8072c",
+    "next/tests/contract/test_rfc3339.py": "eebdc7d8aeaa1175e18bfb74b0fc7cc7c28fcfeaa13f5242c2a0db17eae6ed7a",
+    "next/tests/contract/test_runner_phases.py": "5149d65df61f2dd4d332c18aed84b0e77bf2389e340dd4e3cd81c00f03ce7374",
+    "next/tests/contract/test_schema_index.py": "aee4077b044d5b90a1f325066615ba21fb55c099de57bd379851f2470709710f",
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/receipt/test_shared_location.py": "1c64c4459433d9bee41218cf3443def1102f95b9237d9ceb52c012de406905ec",
+    "next/tests/schema/test_causal_mutations.py": "4cf25b4f36447004f052d4eee69eac98c3e5f9e3a7d7ddf986546273e14fc863",
+    "next/tests/schema/test_integrity.py": "b9aa9be540aab2cb3d63e5cf738087f9760f41523a57a9b73e369955273ee266",
+    "next/tests/schema/test_mutation_receipts.py": "fcaa00c64cd5001a04b3aeae4c6a07a89cd5616c2f45df7783bac11c16498bb9",
+    "next/tests/schema/test_schema.py": "ea8bc174acafd0dffc1706b1ea3e0335ad051e25ef7dac517837ffea910abfde",
+    "next/tests/schema/test_semantic_probes.py": "5029009eac76918a21936ff4a36f8d006b1c8fbc5d7bfd4766103063408ec07b",
+    "next/tests/test_receipts.py": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4"
+  },
+  "legacy_source_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783"
+}

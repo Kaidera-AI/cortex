@@ -1,0 +1,188 @@
+{
+  "phase": "green",
+  "source_tree": "e0fcc1b8c78ad783fc8adea2a0cff0b1b3974ec3",
+  "legacy_source_ref": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "legacy_source_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783",
+  "map_sha256": "60ae122269f70a4153f556fa3d9c9e0dc0e2828e32bcc0f24b535bdbaa521bc1",
+  "image_id": "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+  "limits": {
+    "cpus": 1,
+    "memory": "256m",
+    "tmpfs": "128m"
+  },
+  "network": "none",
+  "bind_mounts": [],
+  "ports": [],
+  "results": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--name",
+        "kaidera-test-schema-map-1",
+        "--network",
+        "none",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03-DOC-001",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=134217728,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "fca8c14a502a5375b99f55883b339d6d96f5f64253acaba51078485149871629\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/next",
+        "kaidera-test-schema-map-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/legacy-schema.sql",
+        "kaidera-test-schema-map-1:/tmp/legacy.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-schema-map-1",
+        "python",
+        "-c",
+        "from pathlib import Path;Path('/tmp/map').mkdir()"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/docs/next/evidence/c03-source/legacy-schema-disposition.json",
+        "kaidera-test-schema-map-1:/tmp/map/legacy-schema-disposition.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/docs/next/evidence/c03-source/legacy-schema-inventory.json",
+        "kaidera-test-schema-map-1:/tmp/map/legacy-schema-inventory.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/next/scripts/check_legacy_map.py",
+        "/tmp/legacy.sql",
+        "/tmp/map/legacy-schema-disposition.json",
+        "/tmp/map/legacy-schema-inventory.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"source_sha256\": \"173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783\",\n  \"source_tables\": 71,\n  \"source_field_count\": 915,\n  \"mapped_fields\": 915,\n  \"problems\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/next/scripts/test_receipts.py",
+        "/tmp/next/tests/artifact"
+      ],
+      "exit_code": 0,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 6, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source) ... ok\ntest_constraint_commas_and_quoted_comments_do_not_create_fields (test_legacy_map.LegacyMap.test_constraint_commas_and_quoted_comments_do_not_create_fields) ... ok\ntest_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) ... ok\ntest_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed) ... ok\ntest_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote) ... ok\ntest_with_options_do_not_extend_table_body (test_legacy_map.LegacyMap.test_with_options_do_not_extend_table_body) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.028s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/mutate-map.py",
+        "kaidera-test-schema-map-1:/tmp/mutate-map.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/mutate-map.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"mutation\": \"neighbor field declarations admitted\", \"source\": \"scripts/check_legacy_map.py\", \"expected_test\": \"test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed\", \"status\": \"killed\", \"exit_code\": 1, \"receipt\": {\"tests_run\": 6, \"failures\": [{\"id\": \"test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail (change='missing_column')\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 47, in test_duplicate_or_missing_columns_and_tables_fail\\n    with self.subTest(change=change):self.assertTrue(inspect_artifacts(source,mapping,inventory)['problems'])\\n                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: [] is not true\\n\"}, {\"id\": \"test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 38, in test_neighbor_declaration_cannot_be_borrowed\\n    self.assertTrue(inspect_artifacts(source,mapping,inventory)['problems'])\\nAssertionError: [] is not true\\n\"}], \"errors\": []}, \"stdout\": \"CORTEX_TEST_RESULT={\\\"tests_run\\\": 6, \\\"failures\\\": [{\\\"id\\\": \\\"test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail (change='missing_column')\\\", \\\"phase\\\": \\\"test\\\", \\\"is_assertion\\\": true, \\\"exception_type\\\": \\\"builtins.AssertionError\\\", \\\"traceback\\\": \\\"Traceback (most recent call last):\\\\n  File \\\\\\\"/tmp/next/tests/artifact/test_legacy_map.py\\\\\\\", line 47, in test_duplicate_or_missing_columns_and_tables_fail\\\\n    with self.subTest(change=change):self.assertTrue(inspect_artifacts(source,mapping,inventory)['problems'])\\\\n                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\nAssertionError: [] is not true\\\\n\\\"}, {\\\"id\\\": \\\"test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed\\\", \\\"phase\\\": \\\"test\\\", \\\"is_assertion\\\": true, \\\"exception_type\\\": \\\"builtins.AssertionError\\\", \\\"traceback\\\": \\\"Traceback (most recent call last):\\\\n  File \\\\\\\"/tmp/next/tests/artifact/test_legacy_map.py\\\\\\\", line 38, in test_neighbor_declaration_cannot_be_borrowed\\\\n    self.assertTrue(inspect_artifacts(source,mapping,inventory)['problems'])\\\\nAssertionError: [] is not true\\\\n\\\"}], \\\"errors\\\": []}\\n\", \"stderr\": \"test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source) ... ok\\ntest_constraint_commas_and_quoted_comments_do_not_create_fields (test_legacy_map.LegacyMap.test_constraint_commas_and_quoted_comments_do_not_create_fields) ... ok\\ntest_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) ... \\n  test_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) (change='missing_column') ... FAIL\\ntest_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed) ... FAIL\\ntest_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote) ... ok\\ntest_with_options_do_not_extend_table_body (test_legacy_map.LegacyMap.test_with_options_do_not_extend_table_body) ... ok\\n\\n======================================================================\\nFAIL: test_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) (change='missing_column')\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 47, in test_duplicate_or_missing_columns_and_tables_fail\\n    with self.subTest(change=change):self.assertTrue(inspect_artifacts(source,mapping,inventory)['problems'])\\n                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: [] is not true\\n\\n======================================================================\\nFAIL: test_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 38, in test_neighbor_declaration_cannot_be_borrowed\\n    self.assertTrue(inspect_artifacts(source,mapping,inventory)['problems'])\\nAssertionError: [] is not true\\n\\n----------------------------------------------------------------------\\nRan 6 tests in 0.028s\\n\\nFAILED (failures=2)\\n\"}\n{\"mutants\": 1, \"killed\": 1, \"inconclusive\": [], \"survivors\": [], \"restored_baseline_exit\": 0, \"source_restored_sha256\": \"733f58ee3ac80f4e98a865ecc6a71a61094e698e04f80e4dee2b7f09df994c98\", \"stdout\": \"CORTEX_TEST_RESULT={\\\"tests_run\\\": 6, \\\"failures\\\": [], \\\"errors\\\": []}\\n\", \"stderr\": \"test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source) ... ok\\ntest_constraint_commas_and_quoted_comments_do_not_create_fields (test_legacy_map.LegacyMap.test_constraint_commas_and_quoted_comments_do_not_create_fields) ... ok\\ntest_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) ... ok\\ntest_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed) ... ok\\ntest_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote) ... ok\\ntest_with_options_do_not_extend_table_body (test_legacy_map.LegacyMap.test_with_options_do_not_extend_table_body) ... ok\\n\\n----------------------------------------------------------------------\\nRan 6 tests in 0.027s\\n\\nOK\\n\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "kaidera-test-schema-map-1"
+      ],
+      "exit_code": 0,
+      "stdout": "kaidera-test-schema-map-1\n",
+      "stderr": ""
+    }
+  ],
+  "container_removed": true
+}

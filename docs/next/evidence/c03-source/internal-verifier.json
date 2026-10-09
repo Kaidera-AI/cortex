@@ -1,0 +1,14 @@
+{
+  "kind": "internal fresh-context source verification; not Mike review or Kai acceptance",
+  "first_commit": "b1d32fb4ff838b1b65953ab509a13fde92e21a09",
+  "findings": [
+    "exact revision payload binding",
+    "event installation publication binding",
+    "applied ledger preflight before pending SQL",
+    "strict integer manifest version",
+    "negative signal exits must invalidate mutation proof"
+  ],
+  "rechecked_commit": "8314965f18872a4761576735a74aa522c6a8070c",
+  "result": "All required findings resolved in source; no other required defects in bounded check",
+  "limits": "Read-only source inspection. Execution receipts separate."
+}
