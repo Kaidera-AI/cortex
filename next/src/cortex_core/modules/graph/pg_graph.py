@@ -369,9 +369,9 @@ class PostgresGraph:
             return scope, generation, selected, before
 
     @retry
-    async def _publish(self, subject, original_scope, generation, source, facts, project):
+    async def _publish(self, subject, original_scope, generation, source, facts, project, *, existing_fact_id=None):
         self._facts_valid(facts)
-        if not callable(self.fact_sink):
+        if existing_fact_id is None and not callable(self.fact_sink):
             raise GraphUnavailable("canonical_fact_port_unavailable")
         async with self._tx(subject, "writer", project) as (conn, scope):
             if scope != original_scope:
@@ -386,12 +386,14 @@ class PostgresGraph:
             new_types = {n.name: n.entity_type for n in facts.nodes}
             if any(new_types[r["name"]] != r["entity_type"] for r in existing):
                 raise GraphUnavailable("entity_type_conflict")
-            try:
-                fact_id = await self.fact_sink(conn, scope, source, facts)
-            except (PermissionError, asyncpg.SerializationError):
-                raise
-            except Exception:
-                raise GraphUnavailable("canonical_fact_port_unavailable") from None
+            fact_id = existing_fact_id
+            if fact_id is None:
+                try:
+                    fact_id = await self.fact_sink(conn, scope, source, facts)
+                except (PermissionError, asyncpg.SerializationError):
+                    raise
+                except Exception:
+                    raise GraphUnavailable("canonical_fact_port_unavailable") from None
             if not isinstance(fact_id, UUID):
                 raise GraphUnavailable("invalid_canonical_fact_receipt")
             canonical = await conn.fetchrow("""SELECT f.record_id,f.source_revision,f.extractor_identity,p.body
@@ -411,6 +413,56 @@ class PostgresGraph:
             await conn.execute("INSERT INTO retrieval.graph_applied(tenant_id,project_id,generation,record_id,source_revision,source_kind,source_label,source_description,fact_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", *args, source.revision, source.kind, source.label, source.description, fact_id)
             await conn.executemany("INSERT INTO retrieval.graph_nodes VALUES($1,$2,$3,$4,$5,$6,$7)", [(*args, n.name, n.entity_type, n.description) for n in facts.nodes])
             await conn.executemany("INSERT INTO retrieval.graph_edges VALUES($1,$2,$3,$4,$5,$6,$7,$8)", [(*args, e.source, e.target, e.relationship_type, e.description) for e in facts.edges])
+
+    @retry
+    async def _rebuild_facts(self, subject, original_scope, generation, sources, project):
+        async with self._tx(subject, "control", project) as (conn, scope):
+            if scope != original_scope or await self._state(conn, scope) != generation:
+                raise StaleGraph("stale_generation")
+            packets = []
+            for source in sources:
+                packet = await conn.fetchrow("""SELECT f.id,p.body FROM core.extraction_facts f
+                    JOIN core.payloads p ON (p.tenant_id,p.project_id,p.id)=(f.tenant_id,f.project_id,f.payload_ref)
+                    WHERE f.tenant_id=$1 AND f.project_id=$2 AND f.record_id=$3
+                      AND f.source_revision=$4 AND f.extractor_identity=$5 AND octet_length(p.body)<=4194304
+                    ORDER BY f.created_at DESC,f.id DESC LIMIT 1""", scope.tenant_id, scope.project_id,
+                    source.record_id, source.revision, self.identity)
+                packets.append(packet)
+            return packets
+
+    def _decode_facts(self, payload):
+        value = json.loads(bytes(payload))
+        if not isinstance(value, dict) or set(value) != {"identity", "nodes", "edges"}:
+            raise ValueError("Invalid graph fact codec")
+        if not isinstance(value["nodes"], list) or not isinstance(value["edges"], list):
+            raise ValueError("Invalid graph fact codec")
+        bounded_int(len(value["nodes"]), 0, 1000)
+        bounded_int(len(value["edges"]), 0, 3000)
+        facts = Extraction(value["identity"], tuple(Node(**n) for n in value["nodes"]), tuple(Edge(**e) for e in value["edges"]))
+        self._facts_valid(facts)
+        return facts
+
+    async def rebuild(self, subject, *, limit=1000, project=None):
+        """C07 control hook: restore derived rows using immutable current facts."""
+        bounded_int(limit, 1, 1000)
+        scope, generation, sources, before = await self._select_sources(subject, list(KINDS), limit, False, project)
+        packets = await self._rebuild_facts(subject, scope, generation, sources, project)
+        processed, errors = 0, []
+        for source, packet in zip(sources, packets):
+            try:
+                if packet is None:
+                    raise GraphUnavailable("canonical_fact_unavailable")
+                facts = self._decode_facts(packet["body"])
+                await self._publish(subject, scope, generation, source, facts, project, existing_fact_id=packet["id"])
+                processed += 1
+            except PermissionError:
+                raise
+            except StaleGraph as exc:
+                errors.append({"id": str(source.record_id), "error": exc.code})
+            except Exception:
+                errors.append({"id": str(source.record_id), "error": "canonical_fact_unavailable"})
+        return {"project": scope.project_key, "selected": len(sources), "processed": processed,
+                "errors": errors, "stats_before": before, "stats": await self.stats(subject, project=project)}
 
     async def extract(self, subject, *, source="all", limit=20, dry_run=True, reprocess=False,
                       backfill=False, use_llm=False, model=None, project=None):

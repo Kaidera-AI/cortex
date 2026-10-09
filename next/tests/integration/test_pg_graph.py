@@ -40,7 +40,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             FOREIGN KEY(tenant_id,project_id,record_id) REFERENCES core.records(tenant_id,project_id,id),
             FOREIGN KEY(tenant_id,project_id,payload_ref) REFERENCES core.payloads(tenant_id,project_id,id));
           CREATE TABLE core.extraction_facts(tenant_id uuid,project_id uuid,id uuid,record_id uuid,source_revision bigint,
-            extractor_identity text,payload_ref uuid,PRIMARY KEY(tenant_id,project_id,id),
+            extractor_identity text,payload_ref uuid,created_at timestamptz DEFAULT now(),PRIMARY KEY(tenant_id,project_id,id),
             FOREIGN KEY(tenant_id,project_id,record_id,source_revision) REFERENCES core.record_revisions(tenant_id,project_id,record_id,revision),
             FOREIGN KEY(tenant_id,project_id,payload_ref) REFERENCES core.payloads(tenant_id,project_id,id));
           CREATE TABLE coordination.jobs(tenant_id uuid,project_id uuid,id uuid,kind text,payload_ref uuid,
@@ -397,6 +397,26 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["processed"], 1)
         self.assertEqual((await graph.stats("alice"))["entity_count"], 3)
         self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), count)
+
+    async def test_wrong_extractor_identity_is_unavailable(self):
+        await self.project()
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor_identity": "other:v2"})
+        with self.assertRaises(GraphUnavailable):
+            await graph.memory("alice")
+
+    async def test_canonical_payload_must_match_projected_facts(self):
+        await self.record()
+        async def wrong(conn, scope, source, facts):
+            pid, fid = uuid4(), uuid4()
+            payload = json.dumps({"identity": IDENTITY, "nodes": [], "edges": []}).encode()
+            await conn.execute("INSERT INTO core.payloads VALUES($1,$2,$3,$4,$5)", scope.tenant_id, scope.project_id, pid, payload, hashlib.sha256(payload).hexdigest())
+            await conn.execute("INSERT INTO core.extraction_facts(tenant_id,project_id,id,record_id,source_revision,extractor_identity,payload_ref) VALUES($1,$2,$3,$4,$5,$6,$7)", scope.tenant_id, scope.project_id, fid, source.record_id, source.revision, facts.identity, pid)
+            return fid
+        graph = PostgresGraph(self.pool, **{**self.options, "fact_sink": wrong})
+        result = await graph.extract("alice", dry_run=False)
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 0)
+        self.assertEqual((await graph.memory("alice"))["nodes"], [])
 
     async def test_bounds_and_invalid_modes_are_refused(self):
         for kwargs in [{"depth": 4}, {"limit": 0}, {"limit": 1001}]:
