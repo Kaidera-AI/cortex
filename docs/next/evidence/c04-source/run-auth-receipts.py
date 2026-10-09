@@ -78,7 +78,9 @@ try:
         assert all("has no attribute 'mutation_status'" in row['traceback'] for row in report['errors'])
     else:
         assert value.returncode==0 and not report['failures'] and not report['errors']
-        mutation = "from pathlib import Path;p=Path('/tmp/next/scripts/mutate_auth.py');s=p.read_text();assert s.count('return classify(result, expected)')==1;p.write_text(s.replace('return classify(result, expected)',\"return 'killed' if result.returncode else 'survived'\",1))"
+        before = 'def mutation_status(result, expected):\n    return classify(result, expected)'
+        after = "def mutation_status(result, expected):\n    return 'killed' if result.returncode else 'survived'"
+        mutation = "from pathlib import Path;p=Path('/tmp/next/scripts/mutate_auth.py');s=p.read_text();before="+repr(before)+";after="+repr(after)+";assert s.count(before)==1;p.write_text(s.replace(before,after,1))"
         checked(['podman','exec',NAME,'python','-c',mutation])
         try:
             value, report = check()

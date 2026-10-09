@@ -60,8 +60,8 @@ MUTATIONS = [
     (FIXTURE, 'wrong-installation negative fixture accepts authorized scope', None, None,
      'test_shared_negative_conformance_cases_are_refused'),
     (MUTATOR, 'exit-code-only consumer accepts inconclusive receipts',
-     'return classify(result, expected)',
-     "return 'killed' if result.returncode else 'survived'",
+     'def mutation_status(result, expected):\n    return classify(result, expected)',
+     "def mutation_status(result, expected):\n    return 'killed' if result.returncode else 'survived'",
      'test_auth_mutation_receipts.AuthMutationReceipts.test_operational_and_fixture_failures_are_inconclusive'),
 ]
 
