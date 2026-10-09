@@ -3426,6 +3426,196 @@
           "name": "compacted",
           "source_declaration": "compacted boolean DEFAULT false NOT NULL",
           "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": ")",
+          "source_declaration": ")",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "WITH",
+          "source_declaration": "WITH (autovacuum_vacuum_scale_factor='0.02', autovacuum_analyze_scale_factor='0.01');",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "CREATE",
+          "source_declaration": "CREATE TABLE public.handoffs (",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "id",
+          "source_declaration": "id uuid DEFAULT gen_random_uuid() NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "kind",
+          "source_declaration": "kind text DEFAULT 'task'::text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "reply_to_handoff_id",
+          "source_declaration": "reply_to_handoff_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "project",
+          "source_declaration": "project text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "from_agent",
+          "source_declaration": "from_agent text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "from_role",
+          "source_declaration": "from_role text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "to_role",
+          "source_declaration": "to_role text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "priority",
+          "source_declaration": "priority text DEFAULT 'medium'::text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "sprint_id",
+          "source_declaration": "sprint_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "branch",
+          "source_declaration": "branch text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "summary",
+          "source_declaration": "summary text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "files_changed",
+          "source_declaration": "files_changed text[]",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "verification",
+          "source_declaration": "verification text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "next_steps",
+          "source_declaration": "next_steps text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "context",
+          "source_declaration": "context text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "acceptance",
+          "source_declaration": "acceptance jsonb DEFAULT '{}'::jsonb NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "evidence",
+          "source_declaration": "evidence jsonb DEFAULT '{}'::jsonb NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "completion_report",
+          "source_declaration": "completion_report jsonb DEFAULT '{}'::jsonb NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "retry",
+          "source_declaration": "retry jsonb DEFAULT '{}'::jsonb NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "retry_count",
+          "source_declaration": "retry_count integer DEFAULT 0 NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "escalation",
+          "source_declaration": "escalation jsonb DEFAULT '{}'::jsonb NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "status",
+          "source_declaration": "status text DEFAULT 'pending'::text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "claimed_by",
+          "source_declaration": "claimed_by text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "claimed_at",
+          "source_declaration": "claimed_at timestamp with time zone",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "returned_at",
+          "source_declaration": "returned_at timestamp with time zone",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "completed_at",
+          "source_declaration": "completed_at timestamp with time zone",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "created_at",
+          "source_declaration": "created_at timestamp with time zone DEFAULT now()",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "invalidated_at",
+          "source_declaration": "invalidated_at timestamp with time zone",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "terminal_reason",
+          "source_declaration": "terminal_reason text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "to_agent",
+          "source_declaration": "to_agent text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "parent_goal_id",
+          "source_declaration": "parent_goal_id text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "project_id",
+          "source_declaration": "project_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "from_actor_id",
+          "source_declaration": "from_actor_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "to_actor_id",
+          "source_declaration": "to_actor_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "claimed_by_actor_id",
+          "source_declaration": "claimed_by_actor_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
         }
       ],
       "embedding_columns": "If present, authoritative values/model/source metadata move into retrieval.embeddings; derived indexes rebuilt separately",
@@ -3924,6 +4114,96 @@
         {
           "name": "distilled",
           "source_declaration": "distilled boolean DEFAULT false NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": ")",
+          "source_declaration": ")",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "WITH",
+          "source_declaration": "WITH (autovacuum_vacuum_scale_factor='0.02', autovacuum_analyze_scale_factor='0.01');",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "CREATE",
+          "source_declaration": "CREATE TABLE public.tasks (",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "id",
+          "source_declaration": "id uuid DEFAULT gen_random_uuid() NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "project",
+          "source_declaration": "project text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "sprint_id",
+          "source_declaration": "sprint_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "title",
+          "source_declaration": "title text NOT NULL",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "description",
+          "source_declaration": "description text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "assigned_role",
+          "source_declaration": "assigned_role text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "assigned_agent",
+          "source_declaration": "assigned_agent text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "status",
+          "source_declaration": "status text DEFAULT 'todo'::text",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "priority",
+          "source_declaration": "priority integer DEFAULT 50",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "tags",
+          "source_declaration": "tags text[]",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "blocked_by",
+          "source_declaration": "blocked_by uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "created_at",
+          "source_declaration": "created_at timestamp with time zone DEFAULT now()",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "updated_at",
+          "source_declaration": "updated_at timestamp with time zone DEFAULT now()",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "project_id",
+          "source_declaration": "project_id uuid",
+          "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
+        },
+        {
+          "name": "assigned_actor_id",
+          "source_declaration": "assigned_actor_id uuid",
           "disposition": "retain exact source field in canonical payload or preserved custody; C11 type serialization/real-data proof pending"
         }
       ],
@@ -5511,6 +5791,5 @@
       "embedding_columns": "If present, authoritative values/model/source metadata move into retrieval.embeddings; derived indexes rebuilt separately",
       "proof_boundary": "schema disposition only, no live transform/count/digest or released compatibility claimed"
     }
-  ],
-  "source_field_count": 915
+  ]
 }

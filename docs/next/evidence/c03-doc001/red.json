@@ -1,0 +1,159 @@
+{
+  "phase": "red",
+  "source_tree": "5073abd45bfca88e8818f856e68f6e8ef1f83b22",
+  "legacy_source_ref": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "legacy_source_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783",
+  "map_sha256": "b11eb556abba8633e5730ea1d35f6fea13b81a27c147e4e79b01b721501b9adc",
+  "image_id": "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+  "limits": {
+    "cpus": 1,
+    "memory": "256m",
+    "tmpfs": "128m"
+  },
+  "network": "none",
+  "bind_mounts": [],
+  "ports": [],
+  "results": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--name",
+        "kaidera-test-schema-map-1",
+        "--network",
+        "none",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03-DOC-001",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=134217728,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "142b1bde8be0beccd856cb3032d4f72094ccdd63c94b9360f4799158f8a686f0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/next",
+        "kaidera-test-schema-map-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/legacy-schema.sql",
+        "kaidera-test-schema-map-1:/tmp/legacy.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-schema-map-1",
+        "python",
+        "-c",
+        "from pathlib import Path;Path('/tmp/map').mkdir()"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/docs/next/evidence/c03-source/legacy-schema-disposition.json",
+        "kaidera-test-schema-map-1:/tmp/map/legacy-schema-disposition.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/docs/next/evidence/c03-source/legacy-schema-inventory.json",
+        "kaidera-test-schema-map-1:/tmp/map/legacy-schema-inventory.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/next/scripts/check_legacy_map.py",
+        "/tmp/legacy.sql",
+        "/tmp/map/legacy-schema-disposition.json",
+        "/tmp/map/legacy-schema-inventory.json"
+      ],
+      "exit_code": 1,
+      "stdout": "{\n  \"source_sha256\": \"173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783\",\n  \"source_tables\": 71,\n  \"source_field_count\": 915,\n  \"mapped_fields\": 971,\n  \"problems\": [\n    \"public.decisions: duplicate column names\",\n    \"public.decisions: field declarations differ from own table body\",\n    \"public.messages: duplicate column names\",\n    \"public.messages: field declarations differ from own table body\"\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/next/scripts/test_receipts.py",
+        "/tmp/next/tests/artifact"
+      ],
+      "exit_code": 1,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 6, \"failures\": [{\"id\": \"test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 53, in test_actual_map_matches_pinned_source\\n    self.assertEqual(result['problems'],[],result)\\nAssertionError: Lists differ: ['public.decisions: duplicate column names[173 chars]ody'] != []\\n\\nFirst list contains 4 additional elements.\\nFirst extra element 0:\\n'public.decisions: duplicate column names'\\n\\n+ []\\n- ['public.decisions: duplicate column names',\\n-  'public.decisions: field declarations differ from own table body',\\n-  'public.messages: duplicate column names',\\n-  'public.messages: field declarations differ from own table body'] : {'source_sha256': '173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783', 'source_tables': 71, 'source_field_count': 915, 'mapped_fields': 971, 'problems': ['public.decisions: duplicate column names', 'public.decisions: field declarations differ from own table body', 'public.messages: duplicate column names', 'public.messages: field declarations differ from own table body']}\\n\"}], \"errors\": []}\n",
+      "stderr": "test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source) ... FAIL\ntest_constraint_commas_and_quoted_comments_do_not_create_fields (test_legacy_map.LegacyMap.test_constraint_commas_and_quoted_comments_do_not_create_fields) ... ok\ntest_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) ... ok\ntest_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed) ... ok\ntest_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote) ... ok\ntest_with_options_do_not_extend_table_body (test_legacy_map.LegacyMap.test_with_options_do_not_extend_table_body) ... ok\n\n======================================================================\nFAIL: test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/artifact/test_legacy_map.py\", line 53, in test_actual_map_matches_pinned_source\n    self.assertEqual(result['problems'],[],result)\nAssertionError: Lists differ: ['public.decisions: duplicate column names[173 chars]ody'] != []\n\nFirst list contains 4 additional elements.\nFirst extra element 0:\n'public.decisions: duplicate column names'\n\n+ []\n- ['public.decisions: duplicate column names',\n-  'public.decisions: field declarations differ from own table body',\n-  'public.messages: duplicate column names',\n-  'public.messages: field declarations differ from own table body'] : {'source_sha256': '173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783', 'source_tables': 71, 'source_field_count': 915, 'mapped_fields': 971, 'problems': ['public.decisions: duplicate column names', 'public.decisions: field declarations differ from own table body', 'public.messages: duplicate column names', 'public.messages: field declarations differ from own table body']}\n\n----------------------------------------------------------------------\nRan 6 tests in 0.157s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "kaidera-test-schema-map-1"
+      ],
+      "exit_code": 0,
+      "stdout": "kaidera-test-schema-map-1\n",
+      "stderr": ""
+    }
+  ],
+  "container_removed": true
+}

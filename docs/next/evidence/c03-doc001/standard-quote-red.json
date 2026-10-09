@@ -1,0 +1,159 @@
+{
+  "phase": "red",
+  "source_tree": "03c41b8e7a63bccffb879c2270d8eaf2bb47e97d",
+  "legacy_source_ref": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "legacy_source_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783",
+  "map_sha256": "b11eb556abba8633e5730ea1d35f6fea13b81a27c147e4e79b01b721501b9adc",
+  "image_id": "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+  "limits": {
+    "cpus": 1,
+    "memory": "256m",
+    "tmpfs": "128m"
+  },
+  "network": "none",
+  "bind_mounts": [],
+  "ports": [],
+  "results": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--name",
+        "kaidera-test-schema-map-1",
+        "--network",
+        "none",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03-DOC-001",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=134217728,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "760767cb88c55494429ea86484a03aeba8ce7a48ceb7ecdda9ec2bf54a892370\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/next",
+        "kaidera-test-schema-map-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/legacy-schema.sql",
+        "kaidera-test-schema-map-1:/tmp/legacy.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-schema-map-1",
+        "python",
+        "-c",
+        "from pathlib import Path;Path('/tmp/map').mkdir()"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/docs/next/evidence/c03-source/legacy-schema-disposition.json",
+        "kaidera-test-schema-map-1:/tmp/map/legacy-schema-disposition.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/docs/next/evidence/c03-source/legacy-schema-inventory.json",
+        "kaidera-test-schema-map-1:/tmp/map/legacy-schema-inventory.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/next/scripts/check_legacy_map.py",
+        "/tmp/legacy.sql",
+        "/tmp/map/legacy-schema-disposition.json",
+        "/tmp/map/legacy-schema-inventory.json"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 110, in <module>\n    if __name__ == '__main__': raise SystemExit(main())\n                                                ^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 105, in main\n    result = inspect_artifacts(Path(sys.argv[1]).read_bytes(), json.loads(Path(sys.argv[2]).read_text()), json.loads(Path(sys.argv[3]).read_text()))\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 81, in inspect_artifacts\n    expected = parse_fields(source.decode())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 49, in parse_fields\n    masked = mask_literals(sql)\n             ^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 37, in mask_literals\n    else: raise ValueError('Unterminated SQL quote')\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: Unterminated SQL quote\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql",
+        "--env",
+        "LEGACY_MAP_DIRECTORY=/tmp/map",
+        "kaidera-test-schema-map-1",
+        "python",
+        "/tmp/next/scripts/test_receipts.py",
+        "/tmp/next/tests/artifact"
+      ],
+      "exit_code": 1,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 6, \"failures\": [], \"errors\": [{\"id\": \"test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 52, in test_actual_map_matches_pinned_source\\n    result=inspect_artifacts(source,json.loads((evidence/'legacy-schema-disposition.json').read_text()),json.loads((evidence/'legacy-schema-inventory.json').read_text()))\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/next/scripts/check_legacy_map.py\\\", line 81, in inspect_artifacts\\n    expected = parse_fields(source.decode())\\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/next/scripts/check_legacy_map.py\\\", line 49, in parse_fields\\n    masked = mask_literals(sql)\\n             ^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/next/scripts/check_legacy_map.py\\\", line 37, in mask_literals\\n    else: raise ValueError('Unterminated SQL quote')\\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nValueError: Unterminated SQL quote\\n\"}, {\"id\": \"test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/next/tests/artifact/test_legacy_map.py\\\", line 32, in test_plain_backslash_does_not_escape_standard_sql_quote\\n    self.assertEqual(parse_fields(source),{'public.alpha':[('value',\\\"value text DEFAULT '\\\\\\\\'::text\\\")]})\\n                     ^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/next/scripts/check_legacy_map.py\\\", line 49, in parse_fields\\n    masked = mask_literals(sql)\\n             ^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/next/scripts/check_legacy_map.py\\\", line 37, in mask_literals\\n    else: raise ValueError('Unterminated SQL quote')\\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nValueError: Unterminated SQL quote\\n\"}]}\n",
+      "stderr": "test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source) ... ERROR\ntest_constraint_commas_and_quoted_comments_do_not_create_fields (test_legacy_map.LegacyMap.test_constraint_commas_and_quoted_comments_do_not_create_fields) ... ok\ntest_duplicate_or_missing_columns_and_tables_fail (test_legacy_map.LegacyMap.test_duplicate_or_missing_columns_and_tables_fail) ... ok\ntest_neighbor_declaration_cannot_be_borrowed (test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed) ... ok\ntest_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote) ... ERROR\ntest_with_options_do_not_extend_table_body (test_legacy_map.LegacyMap.test_with_options_do_not_extend_table_body) ... ok\n\n======================================================================\nERROR: test_actual_map_matches_pinned_source (test_legacy_map.LegacyMap.test_actual_map_matches_pinned_source)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/artifact/test_legacy_map.py\", line 52, in test_actual_map_matches_pinned_source\n    result=inspect_artifacts(source,json.loads((evidence/'legacy-schema-disposition.json').read_text()),json.loads((evidence/'legacy-schema-inventory.json').read_text()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 81, in inspect_artifacts\n    expected = parse_fields(source.decode())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 49, in parse_fields\n    masked = mask_literals(sql)\n             ^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 37, in mask_literals\n    else: raise ValueError('Unterminated SQL quote')\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: Unterminated SQL quote\n\n======================================================================\nERROR: test_plain_backslash_does_not_escape_standard_sql_quote (test_legacy_map.LegacyMap.test_plain_backslash_does_not_escape_standard_sql_quote)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/next/tests/artifact/test_legacy_map.py\", line 32, in test_plain_backslash_does_not_escape_standard_sql_quote\n    self.assertEqual(parse_fields(source),{'public.alpha':[('value',\"value text DEFAULT '\\\\'::text\")]})\n                     ^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 49, in parse_fields\n    masked = mask_literals(sql)\n             ^^^^^^^^^^^^^^^^^^\n  File \"/tmp/next/scripts/check_legacy_map.py\", line 37, in mask_literals\n    else: raise ValueError('Unterminated SQL quote')\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: Unterminated SQL quote\n\n----------------------------------------------------------------------\nRan 6 tests in 0.018s\n\nFAILED (errors=2)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "kaidera-test-schema-map-1"
+      ],
+      "exit_code": 0,
+      "stdout": "kaidera-test-schema-map-1\n",
+      "stderr": ""
+    }
+  ],
+  "container_removed": true
+}
