@@ -11,6 +11,12 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "src/cortex_core/embeddings/pg_search.py"
 SQL = ROOT / "schema/retrieval/001-pg-search.sql"
 MUTATIONS = [
+    (
+        SOURCE,
+        "subnormal_norm_admitted",
+        "if not math.isfinite(norm) or norm < 2.0**-126:",
+        "if not math.isfinite(norm) or norm <= 0:",
+    ),
     (SOURCE, "runtime_bypass", "if bypass:", "if False and bypass:"),
     (
         SOURCE,
@@ -56,6 +62,7 @@ MUTATIONS = [
     ),
 ]
 TARGETS = {
+    "subnormal_norm_admitted": "test_pg_search_review.ReviewTests.test_mike_collinear_subnormal_cosine_probe",
     "runtime_bypass": "test_pg_search.SearchTests.test_superuser_runtime_is_rejected",
     "mixed_identity": "test_pg_search.SearchTests.test_generation_change_excludes_old_vectors",
     "late_embedding": "test_pg_search.SearchTests.test_freshness_and_stale_response_rejection",

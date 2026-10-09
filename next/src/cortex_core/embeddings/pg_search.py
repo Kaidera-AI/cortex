@@ -125,8 +125,9 @@ def vector_literal(vector, dimensions: int) -> str:
         converted.append(component)
         # pgvector cosine accumulates products and norms in float32, not double.
         norm = float32(norm + float32(component * component))
-    if not math.isfinite(norm) or norm <= 0:
-        raise ValueError("Vector requires a finite, nonzero float32 cosine norm")
+    # Subnormal accumulators lose enough relative precision to distort cosine.
+    if not math.isfinite(norm) or norm < 2.0**-126:
+        raise ValueError("Vector requires a finite, normal float32 cosine norm")
     return "[" + ",".join(str(v) for v in converted) + "]"
 
 
