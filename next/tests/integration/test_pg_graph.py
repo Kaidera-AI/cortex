@@ -254,10 +254,13 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         await self.graph.configure("alice", "ready")
         await self.graph.extract("alice", dry_run=False)
         facts = await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts")
+        generations = await self.admin.fetchval("SELECT count(*) FROM retrieval.graph_generations")
         preview = await self.graph.prune("alice")
         self.assertEqual(len(preview["candidates"]), 1)
         self.assertEqual(preview["pruned"], [])
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM retrieval.graph_generations"), generations)
         await self.graph.prune("alice", dry_run=False)
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM retrieval.graph_generations"), generations-1)
         self.assertEqual((await self.graph.stats("alice"))["entity_count"], 3)
         self.assertEqual((await self.graph.stats("bob"))["entity_count"], 3)
         self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), facts)
@@ -270,6 +273,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(queued["status"], "queued")
         restarted = PostgresGraph(self.pool, **self.options)
         status = await restarted.job("alice", queued["job_id"])
+        self.assertIsNotNone(status)
         self.assertEqual(status["status"], "queued")
         self.assertIsNone(await restarted.job("bob", queued["job_id"]))
         self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM coordination.jobs"), 1)
@@ -279,6 +283,105 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
     async def test_build_missing_executor_is_unavailable_not_fake_success(self):
         with self.assertRaises(GraphUnavailable):
             await self.graph.build("alice", {"repo": "alpha", "sync": True, "embed": False})
+
+    async def test_pending_selection_advances_past_already_applied_records(self):
+        await self.record(rid=UUID(int=100))
+        await self.record(rid=UUID(int=101), label="second")
+        first = await self.graph.extract("alice", dry_run=False, limit=1)
+        second = await self.graph.extract("alice", dry_run=False, limit=1)
+        self.assertEqual((first["processed"], second["processed"]), (1, 1))
+        self.assertEqual((await self.graph.stats("alice"))["freshness"]["pending_records"], 0)
+
+    async def test_whole_read_budget_bounds_stalled_core_hydration(self):
+        await self.record()
+        async def stalled(*args):
+            await asyncio.Event().wait()
+        graph = PostgresGraph(self.pool, **{**self.options, "source_reader": stalled})
+        start = asyncio.get_running_loop().time()
+        try:
+            with self.assertRaises(GraphUnavailable):
+                await asyncio.wait_for(graph.extract("alice"), 2.7)
+        except TimeoutError:
+            self.fail("Core hydration outlived the whole graph read budget")
+        self.assertLess(asyncio.get_running_loop().time()-start, 2.5)
+
+    async def test_serialization_retry_rechecks_writer_and_rolls_back_facts(self):
+        await self.record()
+        original = self.options["fact_sink"]
+        calls = 0
+        async def racing(conn, scope, source, facts):
+            nonlocal calls
+            calls += 1
+            await original(conn, scope, source, facts)
+            if calls == 1:
+                raise asyncpg.SerializationError("synthetic concurrent update")
+        graph = PostgresGraph(self.pool, **{**self.options, "fact_sink": racing})
+        self.assertEqual((await graph.extract("alice", dry_run=False))["processed"], 1)
+        self.assertEqual(calls, 2)
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 1)
+        self.assertGreaterEqual(self.auth_calls.count(("writer", "alice")), 2)
+
+    async def test_extraction_cancellation_releases_all_connections(self):
+        await self.record()
+        entered = asyncio.Event()
+        async def stalled(source, options):
+            entered.set()
+            await asyncio.Event().wait()
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": stalled})
+        task = asyncio.create_task(graph.extract("alice", dry_run=False))
+        await asyncio.wait_for(entered.wait(), 1)
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        async def use_connection():
+            async with self.pool.acquire(timeout=0.2) as conn:
+                return await conn.fetchval("SELECT 1")
+        self.assertEqual(await asyncio.gather(*(use_connection() for _ in range(3))), [1, 1, 1])
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 0)
+
+    async def test_sync_build_accepts_only_complete_count_bound_legacy_receipt(self):
+        await self.record(kind="code")
+        async def execute(subject, scope, options):
+            await self.graph.extract(subject, dry_run=False)
+            stats = await self.graph.stats(subject)
+            return {"status": "ok", "build_type": "full", "summary": "fixture Core records projected",
+                    "files_parsed": 1, "errors": [], "total_nodes": stats["entity_count"], "total_edges": stats["relationship_count"]}
+        graph = PostgresGraph(self.pool, **{**self.options, "build_executor": execute})
+        result = await graph.build("alice", {"repo": "alpha", "full": True, "sync": True, "embed": False})
+        self.assertEqual((result["status"], result["total_nodes"]), ("ok", 3))
+        async def partial(*args):
+            return {**result, "errors": ["synthetic parse failure"]}
+        broken = PostgresGraph(self.pool, **{**self.options, "build_executor": partial})
+        with self.assertRaises(GraphUnavailable):
+            await broken.build("alice", {"repo": "alpha", "full": True, "sync": True, "embed": False})
+
+    async def test_large_neighborhood_and_provenance_are_clipped_explicitly(self):
+        for rid in (UUID(int=201), UUID(int=202)):
+            await self.record(rid=rid)
+        async def large(source, options):
+            prefix = str(source.record_id)
+            names = [f"{prefix}:{i:04d}" for i in range(800)]
+            return Extraction(IDENTITY, tuple(Node(n, "concept") for n in names),
+                              tuple(Edge(names[0], n, "uses") for n in names[1:]))
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": large})
+        await graph.extract("alice", dry_run=False)
+        memory = await graph.memory("alice", limit=1000)
+        self.assertEqual(len(memory["nodes"]), 1000)
+        self.assertTrue(memory["truncated"])
+        names = {n["name"] for n in memory["nodes"]}
+        self.assertTrue(all(e["source"] in names and e["target"] in names for e in memory["edges"]))
+        result = await graph.search("alice", "0000", expand=True, depth=3, limit=1000)
+        self.assertLessEqual(len(result["high_level"])+len(result["low_level"]), 1000)
+        self.assertTrue(result["truncated"])
+
+    async def test_projection_requires_persisted_canonical_fact_receipt(self):
+        await self.record()
+        async def noop(*args):
+            return None
+        graph = PostgresGraph(self.pool, **{**self.options, "fact_sink": noop})
+        result = await graph.extract("alice", dry_run=False)
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual((await self.graph.memory("alice"))["nodes"], [])
 
     async def test_bounds_and_invalid_modes_are_refused(self):
         for kwargs in [{"depth": 4}, {"limit": 0}, {"limit": 1001}]:
