@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-import uuid
+from replay_lifecycle import Lifecycle
 
 ROOT = Path('/Users/amadmalik/DevVault/helix')
 OUT = Path(__file__).resolve().parent
@@ -15,9 +15,8 @@ assert not TARGET.exists()
 VARIANT = 'old' if PHASE.startswith('red') else 'safe'
 NAME = 'kaidera-test-replay-lifecycle-1'
 IMAGE = 'sha256:b4600cb7d697d46d382b9581a7c52fa76f32d19536309c5096994757e62f3700'
-NONCE = uuid.uuid4().hex
 results = []
-pending = False
+passed = False
 
 
 def run(args):
@@ -33,10 +32,11 @@ def checked(args):
     return r
 
 
+life=Lifecycle(ROOT,run)
+SOURCE={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in OUT.glob('*.py')}
 try:
-    assert subprocess.run(['podman','container','exists',NAME],capture_output=True).returncode == 1
-    pending = True
-    checked(['podman','run','-d','--name',NAME,'--label','owner=cox@helix','--label','kaidera.cox.lifecycle='+NONCE,
+    life.acquire()
+    life.create('container',NAME,['podman','run','-d','--name',NAME,*life.labels(),
              '--network','none','--cpus','2','--memory','1g','--read-only','--user','10001:10001',
              '--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp:rw,size=268435456,mode=1777',
              IMAGE,'sleep','infinity'])
@@ -47,7 +47,7 @@ try:
     records = [json.loads(line[len(marker):]) for line in r.stdout.splitlines() if line.startswith(marker)]
     assert len(records)==1
     value = records[0]
-    assert value['tests_run']==(6 if VARIANT=='old' else 14) and not value['errors']
+    assert value['tests_run']==(6 if VARIANT=='old' else 18) and not value['errors']
     if VARIANT=='old':
         expected = {'test_producer_lifecycle.ProducerLifecycle.'+name for name in (
             'test_c03_lost_ack_cleanup_reconciles_effect','test_c03_output_prepared_before_effect',
@@ -100,13 +100,14 @@ raise SystemExit(0 if r.wasSuccessful() else 1)
             finally:
                 checked(['podman','cp',str(OUT/filename),NAME+':/tmp/proof/'+filename])
         checked(['podman','exec','--env','REPLAY_VARIANT=safe','--env','PYTHONDONTWRITEBYTECODE=1',NAME,'python','/tmp/test_receipts.py','/tmp/proof'])
+    passed=True
 finally:
-    if pending and subprocess.run(['podman','container','exists',NAME],capture_output=True).returncode==0:
-        info=json.loads(checked(['podman','container','inspect',NAME]).stdout)[0]
-        if info['Config']['Labels'].get('kaidera.cox.lifecycle')==NONCE:
-            checked(['podman','rm','-f',info['Id']])
-    gone=subprocess.run(['podman','container','exists',NAME],capture_output=True).returncode==1
+    error=life.finish()
+    gone=subprocess.run(['podman','container','exists',NAME],capture_output=True,timeout=30).returncode==1
     TARGET.write_text(json.dumps({'phase':PHASE,'variant':VARIANT,'results':results,'mutations':globals().get('mutation_rows',[]),'image_id':IMAGE,'container_removed':gone,
-                                 'lifecycle':NONCE,'limits':{'cpus':2,'memory':'1g'},'ports':[],'bind_mounts':[],
+                                 'passed':passed and life.cleanup_verified and gone,'cleanup':life.receipt(),
+                                 'lifecycle':life.lifecycle,'limits':{'cpus':2,'memory':'1g'},'ports':[],'bind_mounts':[],
                                  'controller_safety_only':True,'application_tests_executed':False,
-                                 'source_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in OUT.iterdir() if p.is_file() and p.suffix=='.py'}},indent=2)+'\n')
+                                 'source_sha256':SOURCE},indent=2)+'\n')
+    if error:raise error
+    assert gone

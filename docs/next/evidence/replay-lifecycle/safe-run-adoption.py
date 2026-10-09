@@ -12,13 +12,14 @@ def run(cmd):
 def checked(cmd):
  r=run(cmd);assert r.returncode==0;return r
 
+TOOLS = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (Path(__file__),Path(__file__).with_name('replay_lifecycle.py'))}
 life=Lifecycle(root,run)
 TREE=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 SOURCE={str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()}
 try:
  life.acquire()
  for image in (pg,py):
-  info=json.loads(subprocess.check_output(['podman','image','inspect',image],text=True))[0];assert info['Architecture']=='arm64'
+  info=json.loads(subprocess.check_output(['podman','image','inspect',image],text=True,timeout=30))[0];assert info['Architecture']=='arm64'
  life.create('pod',pod,['podman','pod','create','--name',pod,'--network','none','--cpus','2','--memory','1g',*life.labels(),'--label','slice=C03'])
  life.create('container',db,['podman','run','-d',*life.labels(),'--pod',pod,'--name',db,'--cpus','1','--memory','768m','--read-only','--user','70:70','--cap-drop=ALL','--security-opt=no-new-privileges','--image-volume=ignore','--tmpfs','/var/lib/postgresql:rw,size=536870912,mode=1777','--tmpfs','/var/run/postgresql:rw,size=16777216,mode=1777','--tmpfs','/tmp:rw,size=16777216,mode=1777','--env','PGDATA=/var/lib/postgresql/18/data','--env','POSTGRES_HOST_AUTH_METHOD=trust',pg,'-c','max_wal_size=64MB','-c','min_wal_size=32MB','-c','checkpoint_timeout=30s'])
  life.create('container',driver,['podman','run','-d',*life.labels(),'--pod',pod,'--name',driver,'--cpus','1','--memory','256m','--read-only','--user','10001:10001','--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp:rw,size=268435456,mode=1777',py,'sleep','1800'])
@@ -67,6 +68,13 @@ try:
   checked(artifact_env+['python','/tmp/mutate-map.py'])
 
  restored=checked(env+['python','-c',"from pathlib import Path;import json,hashlib;p=Path('/tmp/next');print(json.dumps({'next/'+str(q.relative_to(p)):hashlib.sha256(q.read_bytes()).hexdigest() for q in p.rglob('*') if q.is_file()}))"])
+ copied=json.loads(restored.stdout)
+ assert all(copied.get(k)==v for k,v in SOURCE.items())
+ extras=set(copied)-set(SOURCE)
+ assert extras <= {'next/scripts/__pycache__/mutate_schema.cpython-312.pyc','next/tests/__pycache__/test_receipts.cpython-312.pyc'}
+ if extras:
+  checked(env+['python','-c',"from pathlib import Path;names="+repr(sorted(extras))+";[(Path('/tmp')/name).unlink() for name in names]"])
+ restored=checked(env+['python','-c',"from pathlib import Path;import json,hashlib;p=Path('/tmp/next');print(json.dumps({'next/'+str(q.relative_to(p)):hashlib.sha256(q.read_bytes()).hexdigest() for q in p.rglob('*') if q.is_file()}))"])
  assert json.loads(restored.stdout)==SOURCE
  passed=True
 finally:
@@ -74,7 +82,10 @@ finally:
  print('REPLAY_LIFECYCLE_RESULT='+json.dumps(life.receipt()),flush=True)
  remaining=subprocess.run(['podman','pod','exists',pod],capture_output=True,text=True,timeout=30)
  gone=remaining.returncode==1 and all(subprocess.run(['podman','container','exists',name],capture_output=True,timeout=30).returncode==1 for name in (db,driver))
- receipt={'phase':phase,'tree':TREE,'passed':passed,'cleanup':life.receipt(),'source_before_sha256':SOURCE,'images':[pg,py],'native_arch':'arm64','network':'none; shared loopback only','published_ports':[],'bind_mounts':[],'limits':{'pod_cpus':2,'pod_memory':'1g','pg_memory':'768m','driver_memory':'256m'},'wheel_hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (wt/'tmp/wheels').iterdir()},'results':results,'stack_removed':gone,'source_sha256':{str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()},'legacy_source_sha256':hashlib.sha256((wt/'tmp/legacy-schema.sql').read_bytes()).hexdigest()}
+ passed=passed and life.cleanup_verified and gone
+ receipt={'tool_input_sha256':TOOLS,'phase':phase,'tree':TREE,'passed':passed,'cleanup':life.receipt(),'source_before_sha256':SOURCE,'images':[pg,py],'native_arch':'arm64','network':'none; shared loopback only','published_ports':[],'bind_mounts':[],'limits':{'pod_cpus':2,'pod_memory':'1g','pg_memory':'768m','driver_memory':'256m'},'wheel_hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (wt/'tmp/wheels').iterdir()},'results':results,'stack_removed':gone,'source_sha256':{str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()},'legacy_source_sha256':hashlib.sha256((wt/'tmp/legacy-schema.sql').read_bytes()).hexdigest()}
  assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
  assert receipt['source_sha256']==SOURCE
- (out/(phase+'.json')).write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({'receipt':str(out/(phase+'.json')),'removed':True}),flush=True)
+ (out/(phase+'.json')).write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({'receipt':str(out/(phase+'.json')),'removed':gone}),flush=True)
+ if cleanup_error:raise cleanup_error
+ assert gone

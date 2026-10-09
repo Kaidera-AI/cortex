@@ -86,10 +86,11 @@ result=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(test
 print(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)
 raise SystemExit(0 if result.wasSuccessful() else 1)
 '''
+TOOLS = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (Path(__file__),Path(__file__).with_name('replay_lifecycle.py'))}
 life = Lifecycle(ROOT, run)
 try:
     life.acquire()
-    assert subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True).returncode == 1
+    assert subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True, timeout=30).returncode == 1
     life.create('container', NAME, ['podman', 'run', '-d', '--name', NAME, *life.labels(),
              '--label', 'purpose=H-D449-regression', '--network', 'none', '--cpus', '2', '--memory', '1g',
              '--user', '0:0', '--read-only', '--cap-drop=ALL', '--cap-add=CHOWN',
@@ -148,11 +149,12 @@ p=Path('/proof/graph/finalize-build.py');s=p.read_text();before="    if not args
 finally:
     cleanup_error = life.finish()
     print('REPLAY_LIFECYCLE_RESULT='+json.dumps(life.receipt()), flush=True)
-    removed = subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True).returncode == 1
+    removed = subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True, timeout=30).returncode == 1
     assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=WT, text=True).strip() == HEAD
+    passed = passed and life.cleanup_verified and removed
     source_hashes = {str(p.relative_to(WT)): hashlib.sha256(p.read_bytes()).hexdigest()
                      for p in GRAPH.rglob('*') if p.is_file()}
-    TARGET.write_text(json.dumps({'phase': PHASE, 'tree': HEAD, 'passed': passed, 'cleanup': life.receipt(), 'image': IMAGE, 'results': results,
+    TARGET.write_text(json.dumps({'tool_input_sha256':TOOLS, 'phase': PHASE, 'tree': HEAD, 'passed': passed, 'cleanup': life.receipt(), 'image': IMAGE, 'results': results,
                                  'source_sha256': source_hashes, 'limits': {'cpus': 2, 'memory': '1g'},
                                  'network': 'none', 'ports': [], 'bind_mounts': [],
                                  'container_removed': removed,
