@@ -1,0 +1,26 @@
+test_failed_start_removes_created_container_volume_and_secret (test_vector_baseline_failures.FailureControls.test_failed_start_removes_created_container_volume_and_secret) ... FAIL
+test_search_error_and_bad_empty_are_failures (test_vector_baseline_failures.FailureControls.test_search_error_and_bad_empty_are_failures) ... FAIL
+
+======================================================================
+FAIL: test_failed_start_removes_created_container_volume_and_secret (test_vector_baseline_failures.FailureControls.test_failed_start_removes_created_container_volume_and_secret)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/cortex/next/tests/benchmarks/test_vector_baseline_failures.py", line 26, in test_failed_start_removes_created_container_volume_and_secret
+    self.assertTrue(any(c[:2] == ["rm", "-f"] for c in commands))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_search_error_and_bad_empty_are_failures (test_vector_baseline_failures.FailureControls.test_search_error_and_bad_empty_are_failures)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/cortex/next/tests/benchmarks/test_vector_baseline_failures.py", line 9, in test_search_error_and_bad_empty_are_failures
+    self.assertEqual(oracle.cells([{"cell": "tight", "status": "ERROR"}])["tight"]["verdict"], "FAIL")
+AssertionError: 'NOT_RUN' != 'FAIL'
+- NOT_RUN
++ FAIL
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+FAILED (failures=2)
