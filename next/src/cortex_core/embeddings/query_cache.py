@@ -140,30 +140,46 @@ class QueryEmbeddingCache:
             )
             return result is not None
 
-    async def _release(self, subject, key, owner, fence):
+    async def _release(self, subject, key, owner, fence, deadline):
         # Best effort under the same current auth; an unreleasable claim expires.
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
         try:
-            async with self.db._request(subject) as (conn, scope):
-                if self._key(scope, key[3], key[4]) != key:
-                    return
-                await conn.execute(
-                    """DELETE FROM retrieval.query_embeddings
-                    WHERE tenant_id=$1 AND project_id=$2 AND permission_generation=$3 AND identity=$4
-                      AND query_digest=$5 AND owner=$6 AND fence=$7 AND embedding IS NULL""",
-                    *key,
-                    owner,
-                    fence,
-                )
+            async with asyncio.timeout(min(0.05, remaining)):
+                async with self.db._request(subject) as (conn, scope):
+                    if self._key(scope, key[3], key[4]) != key:
+                        return
+                    await conn.execute(
+                        """DELETE FROM retrieval.query_embeddings
+                        WHERE tenant_id=$1 AND project_id=$2 AND permission_generation=$3 AND identity=$4
+                          AND query_digest=$5 AND owner=$6 AND fence=$7 AND embedding IS NULL""",
+                        *key,
+                        owner,
+                        fence,
+                    )
         except Exception:
             pass  # Lease expiry is the recovery path; never converts a request to success.
 
     async def get(self, subject: str, identity, query: str):
+        deadline = time.monotonic() + self.wait_seconds
+        try:
+            async with asyncio.timeout(self.wait_seconds):
+                return await self._get(subject, identity, query, deadline)
+        except TimeoutError:
+            raise CapabilityUnavailable("query_embedding_wait_timeout") from None
+
+    @staticmethod
+    def _check_deadline(deadline):
+        if time.monotonic() >= deadline:
+            raise CapabilityUnavailable("query_embedding_wait_timeout")
+
+    async def _get(self, subject: str, identity, query: str, deadline):
         identity_key = identity.key
         if not isinstance(query, str) or not query or len(query.encode()) > 16 * 1024:
             raise ValueError("Query must be nonempty and at most 16 KiB UTF-8")
         digest = hashlib.sha256(query.encode()).hexdigest()
         owner = uuid4()
-        deadline = time.monotonic() + self.wait_seconds
         while time.monotonic() < deadline:
             try:
                 key, hit, fence = await self._lookup_claim(
@@ -174,6 +190,7 @@ class QueryEmbeddingCache:
                 # Retry with a fresh current grant/scope snapshot; no provider call.
                 await asyncio.sleep(0.02)
                 continue
+            self._check_deadline(deadline)
             if hit is not None:
                 return hit
             if fence is not None:
@@ -185,15 +202,16 @@ class QueryEmbeddingCache:
                     )
                     vector_literal(vector, identity.dimensions)
                     if await self._publish(subject, key, owner, fence, vector):
+                        self._check_deadline(deadline)
                         return CachedEmbedding(tuple(float(v) for v in vector), False)
                 except asyncpg.SerializationError:
-                    await self._release(subject, key, owner, fence)
+                    await self._release(subject, key, owner, fence, deadline)
                     # A concurrent winner may already have published a cached result.
                 except TimeoutError:
-                    await self._release(subject, key, owner, fence)
+                    await self._release(subject, key, owner, fence, deadline)
                     raise CapabilityUnavailable("provider_timeout") from None
                 except BaseException:
-                    await self._release(subject, key, owner, fence)
+                    await self._release(subject, key, owner, fence, deadline)
                     raise
             await asyncio.sleep(min(0.02, max(0, deadline - time.monotonic())))
         raise CapabilityUnavailable("query_embedding_wait_timeout")

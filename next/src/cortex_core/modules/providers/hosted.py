@@ -9,6 +9,10 @@ from cortex_core.embeddings.pg_search import CapabilityUnavailable, vector_liter
 ENDPOINT = "https://openrouter.ai/api/v1/embeddings"
 
 
+class _CredentialsUnavailable(Exception):
+    """Local refusal marker; its message is never forwarded."""
+
+
 class HostedProvider:
     def __init__(self, client: httpx.AsyncClient, resolve_key, *, timeout_seconds=8):
         if not callable(resolve_key) or not 0 < timeout_seconds <= 8:
@@ -30,7 +34,7 @@ class HostedProvider:
             async with asyncio.timeout(self.timeout_seconds):
                 key = await self.resolve_key(identity.provider)
                 if not isinstance(key, str) or not key.strip():
-                    raise CapabilityUnavailable("provider_credentials_unavailable")
+                    raise _CredentialsUnavailable
                 async with self.client.stream(
                     "POST",
                     ENDPOINT,
@@ -58,8 +62,8 @@ class HostedProvider:
                 vector = rows[0]["embedding"]
                 vector_literal(vector, identity.dimensions)
                 return [float(v) for v in vector]
-        except CapabilityUnavailable:
-            raise
+        except _CredentialsUnavailable:
+            raise CapabilityUnavailable("provider_credentials_unavailable") from None
         except Exception:
             # Credential/provider error bodies may contain secrets; never forward.
             raise CapabilityUnavailable("provider_unavailable") from None

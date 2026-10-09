@@ -15,6 +15,30 @@ SQL = ROOT / "schema/retrieval/002-query-cache.sql"
 CONTEXT = ROOT / "src/cortex_core/embeddings/pg_search.py"
 MUTATIONS = [
     (
+        HOSTED,
+        "typed_dependency_forwarded",
+        "        except Exception:\n            # Credential/provider error bodies",
+        "        except CapabilityUnavailable:\n            raise\n        except Exception:\n            # Credential/provider error bodies",
+    ),
+    (
+        CACHE,
+        "unbounded_total_wait",
+        "async with asyncio.timeout(self.wait_seconds):",
+        "async with asyncio.timeout(1000):",
+    ),
+    (
+        CACHE,
+        "late_success_admitted",
+        "if time.monotonic() >= deadline:",
+        "if False:",
+    ),
+    (
+        CACHE,
+        "unbounded_claim_release",
+        "async with asyncio.timeout(min(0.05, remaining)):",
+        "async with asyncio.timeout(1000):",
+    ),
+    (
         CONTEXT,
         "stale_admission_snapshot",
         "conn.transaction(isolation=isolation)",
@@ -64,6 +88,10 @@ MUTATIONS = [
     ),
 ]
 TARGETS = {
+    "typed_dependency_forwarded": "test_query_cache.ProviderTests.test_mike_typed_resolver_error_is_scrubbed",
+    "unbounded_total_wait": "test_query_cache.CacheTests.test_lock_wait_ends_before_holder_releases",
+    "late_success_admitted": "test_query_cache.CacheTests.test_late_lookup_cannot_return_success_before_timeout_callback_runs",
+    "unbounded_claim_release": "test_query_cache.CacheTests.test_cancellation_propagates_with_bounded_release",
     "stale_admission_snapshot": "test_query_cache.CacheTests.test_capacity_concurrent_distinct_queries",
     "ttl_ignored": "test_query_cache.CacheTests.test_ttl_and_failure_not_cached",
     "permission_cache_collision": "test_query_cache.CacheTests.test_cache_key_tenant_project_permission_identity",
@@ -135,7 +163,10 @@ def run():
     code, output = execute(evidence, "restored")
     if not clean_run(code, output):
         raise RuntimeError("INCONCLUSIVE: restored full suite failed")
-    print("8/8 semantic mutants killed", flush=True)
+    print(
+        f"{len(receipts)}/{len(MUTATIONS)} expected-assertion semantic mutants killed",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":
