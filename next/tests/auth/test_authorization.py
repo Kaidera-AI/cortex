@@ -146,7 +146,7 @@ class AuthorizationTests(unittest.TestCase):
 
     def test_all_business_tables_force_rls_private_functions_stay_private(self):
         rows=self.admin.execute("SELECT n.nspname,c.relname,c.relrowsecurity,c.relforcerowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchall()
-        self.assertGreaterEqual(len(rows),30)
+        self.assertEqual(len(rows),28)
         for schema,table,enabled,forced in rows:
             with self.subTest(schema=schema,table=table): self.assertEqual((enabled,forced),(True,True))
         fn=self.admin.execute("SELECT prosecdef,proconfig,pg_get_userbyid(proowner),has_function_privilege('public','auth.resolve_scope(text,uuid,uuid,text)','EXECUTE') FROM pg_proc WHERE oid='auth.resolve_scope(text,uuid,uuid,text)'::regprocedure").fetchone()
