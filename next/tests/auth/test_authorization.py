@@ -213,3 +213,35 @@ class AuthorizationTests(unittest.TestCase):
         with self.request.transaction():
             with self.assertRaises(AuthError):
                 with self.auth(): pass
+
+    def test_other_project_in_same_tenant_is_not_visible_or_writable(self):
+        self.admin.execute('INSERT INTO core.payloads(tenant_id,project_id,id,body,sha256) VALUES (%s,%s,%s,%s,%s)',(uid(2),uid(4),uid(5),self.body,self.digest))
+        with self.admin.transaction():
+            self.admin.execute("INSERT INTO core.records VALUES (%s,%s,%s,'memory',1,false)",(uid(2),uid(4),uid(6)))
+            self.admin.execute('INSERT INTO core.record_revisions(tenant_id,project_id,record_id,revision,payload_ref,tombstone) VALUES (%s,%s,%s,1,%s,false)',(uid(2),uid(4),uid(6),uid(5)))
+        with self.auth(WRITE_A,action='write'):
+            self.assertEqual(self.request.execute('SELECT project_id::text FROM core.records').fetchall(),[(uid(3),)])
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                with self.request.transaction():
+                    self.request.execute('INSERT INTO core.payloads(tenant_id,project_id,id,body,sha256) VALUES (%s,%s,%s,%s,%s)',(uid(2),uid(4),uid(40),self.body,self.digest))
+
+    def test_owner_force_rls_does_not_depend_on_api_role_guard(self):
+        self.admin.execute(f'ALTER TABLE core.records OWNER TO "{REQUEST}"')
+        self.assertEqual(self.request.execute('SELECT count(*) FROM core.records').fetchone()[0],0)
+
+    def test_idempotency_receipts_are_principal_scoped(self):
+        for principal in (8,10):
+            self.admin.execute("INSERT INTO coordination.idempotency(tenant_id,project_id,principal_id,request_key,request_sha256,outcome) VALUES (%s,%s,%s,'same',%s,'unresolved')",(*self.scope,uid(principal),self.digest))
+        with self.auth():
+            self.assertEqual(self.request.execute('SELECT principal_id::text FROM coordination.idempotency').fetchall(),[(uid(8),)])
+        with self.auth(WRITE_A,action='write'):
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                with self.request.transaction():
+                    self.request.execute("INSERT INTO coordination.idempotency(tenant_id,project_id,principal_id,request_key,request_sha256,outcome) VALUES (%s,%s,%s,'other',%s,'unresolved')",(*self.scope,uid(8),self.digest))
+
+    def test_principal_disable_invalidates_permission_generation(self):
+        with self.auth() as scope: before=scope.permission_generation
+        self.admin.execute('UPDATE auth.principals SET disabled=true WHERE tenant_id=%s AND id=%s',(uid(2),uid(8)))
+        self.assertGreater(self.admin.execute('SELECT generation FROM auth.permission_generations WHERE tenant_id=%s AND project_id=%s',self.scope).fetchone()[0],before)
+        with self.assertRaises(AuthError):
+            with self.auth(): pass
