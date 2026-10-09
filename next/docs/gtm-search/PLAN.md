@@ -25,3 +25,9 @@ Result: PASS. Name: kaidera-test-pg-search-1. Role: pg-search; project helix Cor
 ## Pre-edit evidence
 
 Base: `04a26d0bf40c07ed3082328d3cc42c5a72ca8411` from freshly fetched origin/main. Worktree owned by nemo; `git status --porcelain` was empty, rc 0. Shared Cortex checkout had only untracked legacy docs/v2/cache, no next paths. All recent refs were compared for declared search paths; disconnected refs were independently checked with ls-tree and contained no next paths. Full refs and overlap receipt live under main docs lane-F/gtm-search-pre-edit. Existing worktrees belong to ren-cx/ren-kos/Kai and are not edited. No open next/search PR observed. Python/environment versions captured by the runner.
+
+## Verification amendment (before acceptance)
+
+The first actual-engine run found permission-denial misclassification (PermissionError is an OSError) and a one-row HNSW fixture that legitimately planned a cheaper B-tree. The source error is fixed against unchanged auth assertions. The HNSW fixture is strengthened to 2,001 stored vectors plus ANALYZE; its exact HNSW assertion is retained. The original failing output is retained in lane-F/gtm-search-evidence/partial-green.log. This is synthetic index eligibility proof; production planner/recall acceptance still belongs to Mike.
+
+Verification tooling includes `next/tests/integration/mutate_pg_search.py` and a slice-local `search-requirements.txt` (asyncpg 0.31.0); Cox owns the shared next requirements file. Formatting is mechanical; no assertions or production acceptance thresholds are removed.
