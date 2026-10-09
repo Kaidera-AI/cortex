@@ -6,11 +6,27 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import run_pg_search
 import mutate_pg_search
+import run_pg_search
 
 
 class ToolTests(unittest.TestCase):
+    def test_readiness_checks_tcp_not_temporary_initialization_socket(self):
+        def run(command, **kwargs):
+            if command[:2] == ["podman", "exec"]:
+                self.assertIn("-h", command)
+                self.assertEqual(command[command.index("-h") + 1], "127.0.0.1")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        def output(command, **kwargs):
+            return "127.0.0.1:51234" if command[:2] == ["podman", "port"] else ""
+
+        with (
+            patch.object(run_pg_search.subprocess, "run", side_effect=run),
+            patch.object(run_pg_search.subprocess, "check_output", side_effect=output),
+        ):
+            self.assertEqual(run_pg_search.main(), 0)
+
     def test_removal_failure_is_not_success_with_empty_inventory(self):
         def run(command, **kwargs):
             return subprocess.CompletedProcess(
