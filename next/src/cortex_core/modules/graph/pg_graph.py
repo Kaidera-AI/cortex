@@ -6,7 +6,8 @@ are injected Core ports. Missing write/execution ports are explicitly unavailabl
 import asyncio
 import re
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import json
 from functools import wraps
 from uuid import UUID, uuid4, uuid5
 
@@ -49,6 +50,13 @@ class Source:
     label: str
     description: str
     content: str
+
+
+@dataclass(frozen=True)
+class SourceRef:
+    record_id: UUID
+    revision: int
+    kind: str
 
 
 @dataclass(frozen=True)
@@ -122,13 +130,16 @@ class PostgresGraph:
     @asynccontextmanager
     async def _tx(self, subject, operation="read", project=None):
         try:
-            async with self.adapters[operation]._request(subject) as (conn, scope):
-                if (not isinstance(scope, GraphScope) or not isinstance(scope.project_key, str)
-                    or not scope.project_key.strip() or not isinstance(scope.repo, str) or not scope.repo.strip()):
-                    raise PermissionError("Core registry scope required")
-                if project is not None and project != scope.project_key:
-                    raise PermissionError("Project selector does not match authorized scope")
-                yield conn, scope
+            async with asyncio.timeout(2):
+                async with self.adapters[operation]._request(subject) as (conn, scope):
+                    if (not isinstance(scope, GraphScope) or not isinstance(scope.project_key, str)
+                        or not scope.project_key.strip() or not isinstance(scope.repo, str) or not scope.repo.strip()):
+                        raise PermissionError("Core registry scope required")
+                    if project is not None and project != scope.project_key:
+                        raise PermissionError("Project selector does not match authorized scope")
+                    yield conn, scope
+        except TimeoutError:
+            raise GraphUnavailable("resource_timeout") from None
         except CapabilityUnavailable:
             raise GraphUnavailable("resource_timeout") from None
         except asyncpg.UndefinedTableError:
@@ -325,18 +336,28 @@ class PostgresGraph:
         async with self._tx(subject, "control", project) as (conn, scope):
             generation = await self._state(conn, scope)
             before = await self._stats(conn, scope, generation)
+            rows = await conn.fetch("""SELECT r.id,r.current_revision,r.kind FROM core.records r
+                LEFT JOIN retrieval.graph_applied a ON
+                 (a.tenant_id,a.project_id,a.generation,a.record_id,a.source_revision)=
+                 (r.tenant_id,r.project_id,$3,r.id,r.current_revision)
+                WHERE r.tenant_id=$1 AND r.project_id=$2 AND NOT r.tombstone AND r.kind=ANY($4::text[])
+                  AND ($5::boolean OR a.record_id IS NULL)
+                ORDER BY r.id LIMIT $6""", scope.tenant_id, scope.project_id, generation, kinds, reprocess, limit)
+            references = tuple(SourceRef(r["id"], r["current_revision"], r["kind"]) for r in rows)
             try:
-                sources = await self.source_reader(conn, scope, kinds, limit, reprocess)
+                sources = await self.source_reader(conn, scope, references)
             except (PermissionError, asyncpg.SerializationError):
                 raise
             except Exception:
                 raise GraphUnavailable("source_reader_unavailable") from None
-            if not isinstance(sources, (list, tuple)) or len(sources) > limit:
+            if not isinstance(sources, (list, tuple)) or len(sources) != len(references):
                 raise GraphUnavailable("invalid_source_receipt")
             selected, seen = [], set()
+            expected = {r.record_id: r for r in references}
             for source in sources:
                 self._source_valid(source)
-                if source.kind not in kinds or source.record_id in seen:
+                ref = expected.get(source.record_id)
+                if ref is None or (source.revision, source.kind) != (ref.revision, ref.kind) or source.record_id in seen:
                     raise GraphUnavailable("invalid_source_receipt")
                 seen.add(source.record_id)
                 current = await conn.fetchrow("SELECT current_revision,tombstone,kind FROM core.records WHERE tenant_id=$1 AND project_id=$2 AND id=$3", scope.tenant_id, scope.project_id, source.record_id)
@@ -366,14 +387,28 @@ class PostgresGraph:
             if any(new_types[r["name"]] != r["entity_type"] for r in existing):
                 raise GraphUnavailable("entity_type_conflict")
             try:
-                await self.fact_sink(conn, scope, source, facts)
+                fact_id = await self.fact_sink(conn, scope, source, facts)
             except (PermissionError, asyncpg.SerializationError):
                 raise
             except Exception:
                 raise GraphUnavailable("canonical_fact_port_unavailable") from None
+            if not isinstance(fact_id, UUID):
+                raise GraphUnavailable("invalid_canonical_fact_receipt")
+            canonical = await conn.fetchrow("""SELECT f.record_id,f.source_revision,f.extractor_identity,p.body
+                FROM core.extraction_facts f JOIN core.payloads p ON
+                 (p.tenant_id,p.project_id,p.id)=(f.tenant_id,f.project_id,f.payload_ref)
+                WHERE f.tenant_id=$1 AND f.project_id=$2 AND f.id=$3""", scope.tenant_id, scope.project_id, fact_id)
+            if (canonical is None or canonical["record_id"] != source.record_id or
+                canonical["source_revision"] != source.revision or canonical["extractor_identity"] != facts.identity):
+                raise GraphUnavailable("invalid_canonical_fact_receipt")
+            try:
+                if len(canonical["body"]) > 4194304 or json.loads(bytes(canonical["body"])) != json.loads(json.dumps(asdict(facts))):
+                    raise ValueError()
+            except (ValueError, TypeError):
+                raise GraphUnavailable("invalid_canonical_fact_receipt") from None
             args = (scope.tenant_id, scope.project_id, generation, source.record_id)
             await conn.execute("DELETE FROM retrieval.graph_applied WHERE tenant_id=$1 AND project_id=$2 AND generation=$3 AND record_id=$4", *args)
-            await conn.execute("INSERT INTO retrieval.graph_applied(tenant_id,project_id,generation,record_id,source_revision,source_kind,source_label,source_description) VALUES($1,$2,$3,$4,$5,$6,$7,$8)", *args, source.revision, source.kind, source.label, source.description)
+            await conn.execute("INSERT INTO retrieval.graph_applied(tenant_id,project_id,generation,record_id,source_revision,source_kind,source_label,source_description,fact_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", *args, source.revision, source.kind, source.label, source.description, fact_id)
             await conn.executemany("INSERT INTO retrieval.graph_nodes VALUES($1,$2,$3,$4,$5,$6,$7)", [(*args, n.name, n.entity_type, n.description) for n in facts.nodes])
             await conn.executemany("INSERT INTO retrieval.graph_edges VALUES($1,$2,$3,$4,$5,$6,$7,$8)", [(*args, e.source, e.target, e.relationship_type, e.description) for e in facts.edges])
 

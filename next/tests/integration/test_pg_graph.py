@@ -75,11 +75,11 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
                 return GraphScope(row["tenant_id"], row["project_id"], row["project_key"], row["repo"])
             return authorize
 
-        async def load(conn, scope, kinds, limit, reprocess):
+        async def load(conn, scope, references):
             rows = await conn.fetch("""SELECT r.*,p.body FROM core.records r JOIN core.record_revisions v
                 ON (v.tenant_id,v.project_id,v.record_id,v.revision)=(r.tenant_id,r.project_id,r.id,r.current_revision)
                 JOIN core.payloads p ON (p.tenant_id,p.project_id,p.id)=(v.tenant_id,v.project_id,v.payload_ref)
-                WHERE NOT r.tombstone AND r.kind=ANY($1::text[]) ORDER BY r.id LIMIT $2""", kinds, limit)
+                WHERE NOT r.tombstone AND r.id=ANY($1::uuid[]) ORDER BY r.id""", [r.record_id for r in references])
             return [Source(r["id"], r["current_revision"], r["kind"], **json.loads(bytes(r["body"]))) for r in rows]
 
         async def extractor(source, options):
@@ -91,7 +91,9 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             payload = json.dumps(asdict(facts)).encode()
             pid = uuid4()
             await conn.execute("INSERT INTO core.payloads VALUES($1,$2,$3,$4,$5)", scope.tenant_id, scope.project_id, pid, payload, hashlib.sha256(payload).hexdigest())
-            await conn.execute("INSERT INTO core.extraction_facts VALUES($1,$2,$3,$4,$5,$6,$7)", scope.tenant_id, scope.project_id, uuid4(), source.record_id, source.revision, facts.identity, pid)
+            fid = uuid4()
+            await conn.execute("INSERT INTO core.extraction_facts VALUES($1,$2,$3,$4,$5,$6,$7)", scope.tenant_id, scope.project_id, fid, source.record_id, source.revision, facts.identity, pid)
+            return fid
 
         async def enqueue(conn, scope, request):
             jid, pid = uuid4(), uuid4()
@@ -172,9 +174,11 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             await self.graph.memory("alice")
 
     async def test_unknown_core_revision_refused_by_fk(self):
+        await self.project()
+        fid = await self.admin.fetchval("SELECT id FROM core.extraction_facts LIMIT 1")
         state = await self.admin.fetchrow("SELECT active_generation FROM retrieval.graph_state WHERE tenant_id=$1 AND project_id=$2", TA, PA)
         with self.assertRaises(asyncpg.ForeignKeyViolationError):
-            await self.admin.execute("INSERT INTO retrieval.graph_applied(tenant_id,project_id,generation,record_id,source_revision,source_kind,source_label,source_description) VALUES($1,$2,$3,$4,1,'decision','bad','')", TA, PA, state[0], uuid4())
+            await self.admin.execute("INSERT INTO retrieval.graph_applied(tenant_id,project_id,generation,record_id,source_revision,source_kind,source_label,source_description,fact_id) VALUES($1,$2,$3,$4,1,'decision','bad','',$5)", TA, PA, state[0], uuid4(), fid)
 
     async def test_empty_and_missing_ports_are_distinct_from_unavailable(self):
         self.assertEqual((await self.graph.memory("alice"))["nodes"], [])
@@ -312,9 +316,10 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         async def racing(conn, scope, source, facts):
             nonlocal calls
             calls += 1
-            await original(conn, scope, source, facts)
+            fid = await original(conn, scope, source, facts)
             if calls == 1:
                 raise asyncpg.SerializationError("synthetic concurrent update")
+            return fid
         graph = PostgresGraph(self.pool, **{**self.options, "fact_sink": racing})
         self.assertEqual((await graph.extract("alice", dry_run=False))["processed"], 1)
         self.assertEqual(calls, 2)

@@ -20,12 +20,15 @@ CREATE TABLE retrieval.graph_applied (
     source_kind text NOT NULL CHECK(length(source_kind) BETWEEN 1 AND 64),
     source_label text NOT NULL CHECK(length(source_label) BETWEEN 1 AND 180),
     source_description text NOT NULL CHECK(length(source_description)<=420),
+    fact_id uuid NOT NULL,
     applied_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY(tenant_id,project_id,generation,record_id),
     FOREIGN KEY(tenant_id,project_id,generation)
         REFERENCES retrieval.graph_generations(tenant_id,project_id,id) ON DELETE CASCADE,
     FOREIGN KEY(tenant_id,project_id,record_id,source_revision)
-        REFERENCES core.record_revisions(tenant_id,project_id,record_id,revision)
+        REFERENCES core.record_revisions(tenant_id,project_id,record_id,revision),
+    FOREIGN KEY(tenant_id,project_id,fact_id)
+        REFERENCES core.extraction_facts(tenant_id,project_id,id)
 );
 CREATE TABLE retrieval.graph_nodes (
     tenant_id uuid NOT NULL, project_id uuid NOT NULL, generation uuid NOT NULL,
