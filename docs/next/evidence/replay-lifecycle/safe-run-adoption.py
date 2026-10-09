@@ -34,8 +34,10 @@ try:
  else:raise RuntimeError('disposable PG failed readiness')
  checked(['podman','exec',db,'psql','-U','postgres','-At','-c','SELECT version();'])
  env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src','--env','PYTHONDONTWRITEBYTECODE=1','--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',driver]
- test=run(env+['python','-m','unittest','discover','-s','/tmp/next/tests/schema','-v'])
- assert test.returncode==0
+ test=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/schema'])
+ schema_reports=[json.loads(x.split('=',1)[1]) for x in test.stdout.splitlines() if x.startswith('CORTEX_TEST_RESULT=')]
+ assert test.returncode==0 and len(schema_reports)==1 and schema_reports[0]['tests_run']==30
+ assert not schema_reports[0]['failures'] and not schema_reports[0]['errors']
  helper='/tmp/next/scripts/test_receipts.py' if phase=='red' else '/tmp/next/tests/test_receipts.py'
  artifact_env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src','--env','PYTHONDONTWRITEBYTECODE=1','--env','LEGACY_SCHEMA_SOURCE=/tmp/legacy.sql','--env','LEGACY_MAP_DIRECTORY=/tmp/map',driver]
  original_caller=None
@@ -64,15 +66,15 @@ try:
   checked(['podman','cp',str(wt/'tmp/mutate-map.py'),driver+':/tmp/mutate-map.py'])
   checked(artifact_env+['python','/tmp/mutate-map.py'])
 
+ restored=checked(env+['python','-c',"from pathlib import Path;import json,hashlib;p=Path('/tmp/next');print(json.dumps({'next/'+str(q.relative_to(p)):hashlib.sha256(q.read_bytes()).hexdigest() for q in p.rglob('*') if q.is_file()}))"])
+ assert json.loads(restored.stdout)==SOURCE
  passed=True
 finally:
  cleanup_error=life.finish()
  print('REPLAY_LIFECYCLE_RESULT='+json.dumps(life.receipt()),flush=True)
  remaining=subprocess.run(['podman','pod','exists',pod],capture_output=True,text=True,timeout=30)
- if cleanup_error:raise cleanup_error
- assert remaining.returncode==1
- for name in (db,driver):assert subprocess.run(['podman','container','exists',name],capture_output=True).returncode==1
- receipt={'phase':phase,'tree':TREE,'passed':passed,'cleanup':life.receipt(),'source_before_sha256':SOURCE,'images':[pg,py],'native_arch':'arm64','network':'none; shared loopback only','published_ports':[],'bind_mounts':[],'limits':{'pod_cpus':2,'pod_memory':'1g','pg_memory':'768m','driver_memory':'256m'},'wheel_hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (wt/'tmp/wheels').iterdir()},'results':results,'stack_removed':True,'source_sha256':{str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()},'legacy_source_sha256':hashlib.sha256((wt/'tmp/legacy-schema.sql').read_bytes()).hexdigest()}
+ gone=remaining.returncode==1 and all(subprocess.run(['podman','container','exists',name],capture_output=True,timeout=30).returncode==1 for name in (db,driver))
+ receipt={'phase':phase,'tree':TREE,'passed':passed,'cleanup':life.receipt(),'source_before_sha256':SOURCE,'images':[pg,py],'native_arch':'arm64','network':'none; shared loopback only','published_ports':[],'bind_mounts':[],'limits':{'pod_cpus':2,'pod_memory':'1g','pg_memory':'768m','driver_memory':'256m'},'wheel_hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (wt/'tmp/wheels').iterdir()},'results':results,'stack_removed':gone,'source_sha256':{str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()},'legacy_source_sha256':hashlib.sha256((wt/'tmp/legacy-schema.sql').read_bytes()).hexdigest()}
  assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
  assert receipt['source_sha256']==SOURCE
  (out/(phase+'.json')).write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({'receipt':str(out/(phase+'.json')),'removed':True}),flush=True)

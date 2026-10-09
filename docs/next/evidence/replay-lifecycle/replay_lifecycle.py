@@ -5,6 +5,7 @@ effects and a global engine lock are not. No application or host tests run here.
 """
 import fcntl
 import json
+import os
 from pathlib import Path
 import re
 import secrets
@@ -63,6 +64,9 @@ class Lifecycle:
         resource = kind, name
         self.pending.add(resource)  # BEFORE the external effect or acknowledgement.
         self.checked(args)
+        if os.environ.get('REPLAY_POST_CREATE_FAULT') == kind:
+            self.events.append({'event': 'completed-create-lost-ack-fault', 'kind': kind, 'name': name})
+            raise RuntimeError('declared post-create acknowledgement fault')
         row = self.inspect(kind, name)
         if row is None:
             raise RuntimeError('create did not establish this lifecycle ownership')

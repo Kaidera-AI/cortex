@@ -148,8 +148,6 @@ p=Path('/proof/graph/finalize-build.py');s=p.read_text();before="    if not args
 finally:
     cleanup_error = life.finish()
     print('REPLAY_LIFECYCLE_RESULT='+json.dumps(life.receipt()), flush=True)
-    if cleanup_error:
-        raise cleanup_error
     removed = subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True).returncode == 1
     assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=WT, text=True).strip() == HEAD
     source_hashes = {str(p.relative_to(WT)): hashlib.sha256(p.read_bytes()).hexdigest()
@@ -159,3 +157,6 @@ finally:
                                  'network': 'none', 'ports': [], 'bind_mounts': [],
                                  'container_removed': removed,
                                  'classifier_sha256': hashlib.sha256((OUT / 'test_receipts.py').read_bytes()).hexdigest()}, indent=2) + '\n')
+    if cleanup_error:
+        raise cleanup_error
+    assert removed
