@@ -1,0 +1,235 @@
+{
+  "phase": "green",
+  "tree": "3ee80e224316c88ec8b2492b8abf0214a6e8ccae",
+  "images": [
+    "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+    "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9"
+  ],
+  "native_arch": "arm64",
+  "network": "none; shared loopback only",
+  "published_ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "pod_cpus": 2,
+    "pod_memory": "1g",
+    "pg_memory": "768m",
+    "driver_memory": "256m"
+  },
+  "wheel_hashes": {
+    "psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl": "96a551e4683f1c307cfc3d9a05fec62c00a7264f320c9962a67a543e3ce0d8ff",
+    "psycopg-3.2.9-py3-none-any.whl": "01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6",
+    "typing_extensions-4.16.0-py3-none-any.whl": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+  },
+  "results": [
+    {
+      "command": [
+        "podman",
+        "pod",
+        "create",
+        "--name",
+        "kaidera-test-core-schema-1",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=C03"
+      ],
+      "exit_code": 0,
+      "stdout": "22624b03d55ffbae8d5ed0ae390ced1e27757b680a67cac1474110f34444de08\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-db-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "768m",
+        "--read-only",
+        "--user",
+        "70:70",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/var/lib/postgresql:rw,size=536870912,mode=1777",
+        "--tmpfs",
+        "/var/run/postgresql:rw,size=16777216,mode=1777",
+        "--tmpfs",
+        "/tmp:rw,size=16777216,mode=1777",
+        "--env",
+        "PGDATA=/var/lib/postgresql/18/data",
+        "--env",
+        "POSTGRES_HOST_AUTH_METHOD=trust",
+        "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d"
+      ],
+      "exit_code": 0,
+      "stdout": "9ba67f8e24eb31e9a9cfab0c10d35fea2e95f6f28102c1d2044bd5bef470bffa\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-driver-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=268435456,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "48d9bcc3aa868f49c76d34c50e64f328bc5694fceb693fdef68abe953bb66fd7\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/next",
+        "kaidera-test-core-driver-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c03-core-schema-20261009/tmp/wheels",
+        "kaidera-test-core-driver-1:/tmp/wheels"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--find-links=/tmp/wheels",
+        "--no-cache-dir",
+        "--target=/tmp/deps",
+        "-r",
+        "/tmp/next/requirements-db-test.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "Looking in links: /tmp/wheels\nProcessing /tmp/wheels/psycopg-3.2.9-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 1))\nProcessing /tmp/wheels/psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (from -r /tmp/next/requirements-db-test.txt (line 2))\nProcessing /tmp/wheels/typing_extensions-4.16.0-py3-none-any.whl (from -r /tmp/next/requirements-db-test.txt (line 3))\nInstalling collected packages: typing-extensions, psycopg-binary, psycopg\nSuccessfully installed psycopg-3.2.9 psycopg-binary-3.2.9 typing-extensions-4.16.0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "pg_isready",
+        "-U",
+        "postgres"
+      ],
+      "exit_code": 0,
+      "stdout": "/var/run/postgresql:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-core-db-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-c",
+        "SELECT version();"
+      ],
+      "exit_code": 0,
+      "stdout": "PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/tmp/next/tests/schema",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_cross_project_payload_refused (test_schema.SchemaTests.test_cross_project_payload_refused) ... ok\ntest_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision) ... ok\ntest_fact_history_is_canonical_and_immutable (test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable) ... ok\ntest_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity) ... ok\ntest_fence_never_regresses (test_schema.SchemaTests.test_fence_never_regresses) ... ok\ntest_head_without_history_fails_at_commit (test_schema.SchemaTests.test_head_without_history_fails_at_commit) ... ok\ntest_jobs_attempts_results_and_idempotency (test_schema.SchemaTests.test_jobs_attempts_results_and_idempotency) ... ok\ntest_ledger_idempotence_and_applied_drift_refused (test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused) ... ok\ntest_legacy_alias_uniqueness_preserves_source_identity (test_schema.SchemaTests.test_legacy_alias_uniqueness_preserves_source_identity) ... ok\ntest_manifest_tamper_refused_before_ddl (test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl) ... ok\ntest_migration_failure_rolls_back_whole_install (test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install) ... ok\ntest_original_and_generated_blob_ownership (test_schema.SchemaTests.test_original_and_generated_blob_ownership) ... ok\ntest_outbox_shape_tombstone_digest_and_immutability (test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability) ... ok\ntest_payload_digest_and_immutability (test_schema.SchemaTests.test_payload_digest_and_immutability) ... ok\ntest_principal_credential_and_project_grant_scope (test_schema.SchemaTests.test_principal_credential_and_project_grant_scope) ... ok\ntest_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable) ... ok\ntest_schemas_and_future_fact_slots_exist (test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist) ... ok\ntest_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest) ... ok\n\n----------------------------------------------------------------------\nRan 18 tests in 1.890s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONPATH=/tmp/deps:/tmp/next/src",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres",
+        "kaidera-test-core-driver-1",
+        "python",
+        "/tmp/next/scripts/mutate_schema.py"
+      ],
+      "exit_code": 1,
+      "stdout": "{\"source\": \"src/cortex_core/migrations.py\", \"mutation\": \"checksum validation removed\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \".........E........\\n======================================================================\\nERROR: test_manifest_tamper_refused_before_ddl (test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 186, in test_manifest_tamper_refused_before_ddl\\n    apply_migrations(self.db,path)\\n  File \\\"/tmp/next/src/cortex_core/migrations.py\\\", line 46, in apply_migrations\\n    connection.execute(sql, prepare=False)\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 257, in execute\\n    raise ex.with_traceback(None)\\npsycopg.errors.UndefinedTable: relation \\\"core.tenants\\\" does not exist\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.166s\\n\\nFAILED (errors=1)\\n\"}\n{\"source\": \"src/cortex_core/migrations.py\", \"mutation\": \"applied drift accepted\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \".......F..........\\n======================================================================\\nFAIL: test_ledger_idempotence_and_applied_drift_refused (test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 177, in test_ledger_idempotence_and_applied_drift_refused\\n    with self.assertRaises(MigrationError):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: MigrationError not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.125s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"src/cortex_core/migrations.py\", \"mutation\": \"transaction removed\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"..........F.......\\n======================================================================\\nFAIL: test_migration_failure_rolls_back_whole_install (test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 201, in test_migration_failure_rolls_back_whole_install\\n    self.assertIsNone(self.db.execute(\\\"SELECT to_regnamespace('core')\\\").fetchone()[0])\\nAssertionError: 'core' is not None\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.098s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/core/001-core.sql\", \"mutation\": \"payload hash unbound\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \".............F....\\n======================================================================\\nFAIL: test_payload_digest_and_immutability (test_schema.SchemaTests.test_payload_digest_and_immutability)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 88, in test_payload_digest_and_immutability\\n    with self.assertRaises(psycopg.errors.CheckViolation):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: CheckViolation not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.067s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/core/001-core.sql\", \"mutation\": \"head history unchecked\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \".....F.........F..\\n======================================================================\\nFAIL: test_head_without_history_fails_at_commit (test_schema.SchemaTests.test_head_without_history_fails_at_commit)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 69, in test_head_without_history_fails_at_commit\\n    with self.assertRaises(psycopg.errors.ForeignKeyViolation):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: ForeignKeyViolation not raised\\n\\n======================================================================\\nFAIL: test_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 83, in test_revision_tombstone_and_history_immutable\\n    with self.assertRaises(psycopg.errors.ForeignKeyViolation):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: ForeignKeyViolation not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.153s\\n\\nFAILED (failures=2)\\n\"}\n{\"source\": \"schema/core/001-core.sql\", \"mutation\": \"history updates accepted\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \", 244672407075cd6741726f05493232a906d777ab830f7f40a5b773a5358322b0, 2026-10-09 19:51:57.200081+00).\\n\\n======================================================================\\nERROR: test_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 82, in test_revision_tombstone_and_history_immutable\\n    self.db.execute(\\\"UPDATE core.record_revisions SET tombstone=true\\\")\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 257, in execute\\n    raise ex.with_traceback(None)\\npsycopg.errors.ForeignKeyViolation: update or delete on table \\\"record_revisions\\\" violates foreign key constraint \\\"record_head_has_history\\\" on table \\\"records\\\"\\nDETAIL:  Key (tenant_id, project_id, record_id, revision, tombstone)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 1, f) is still referenced from table \\\"records\\\".\\n\\n======================================================================\\nFAIL: test_fact_history_is_canonical_and_immutable (test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 112, in test_fact_history_is_canonical_and_immutable\\n    with self.assertRaises(psycopg.errors.ObjectNotInPrerequisiteState):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: ObjectNotInPrerequisiteState not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.155s\\n\\nFAILED (failures=1, errors=3)\\n\"}\n{\"source\": \"schema/auth/001-auth.sql\", \"mutation\": \"untyped grants admitted\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"..............F...\\n======================================================================\\nFAIL: test_principal_credential_and_project_grant_scope (test_schema.SchemaTests.test_principal_credential_and_project_grant_scope)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 118, in test_principal_credential_and_project_grant_scope\\n    with self.assertRaises(psycopg.errors.CheckViolation):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: CheckViolation not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.112s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/coordination/001-coordination.sql\", \"mutation\": \"fence regression accepted\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"....F.............\\n======================================================================\\nFAIL: test_fence_never_regresses (test_schema.SchemaTests.test_fence_never_regresses)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 135, in test_fence_never_regresses\\n    with self.assertRaises(psycopg.errors.ObjectNotInPrerequisiteState):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: ObjectNotInPrerequisiteState not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.056s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/coordination/001-coordination.sql\", \"mutation\": \"tombstone mismatch admitted\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"............E.....\\n======================================================================\\nERROR: test_outbox_shape_tombstone_digest_and_immutability (test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 142, in test_outbox_shape_tombstone_digest_and_immutability\\n    self.event(8, \\\"delete\\\", False)\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 43, in event\\n    self.db.execute(\\\"\\\"\\\"INSERT INTO coordination.outbox\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 257, in execute\\n    raise ex.with_traceback(None)\\npsycopg.errors.UniqueViolation: duplicate key value violates unique constraint \\\"outbox_tenant_id_project_id_aggregate_id_aggregate_revision_key\\\"\\nDETAIL:  Key (tenant_id, project_id, aggregate_id, aggregate_revision)=(00000000-0000-4000-8000-000000000002, 00000000-0000-4000-8000-000000000003, 00000000-0000-4000-8000-000000000006, 1) already exists.\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.875s\\n\\nFAILED (errors=1)\\n\"}\n{\"source\": \"schema/coordination/001-coordination.sql\", \"mutation\": \"retention default changed\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"...F..............\\n======================================================================\\nFAIL: test_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 154, in test_feed_retention_floor_and_publication_identity\\n    self.assertEqual(self.db.execute(\\\"SELECT retention_seconds FROM coordination.feed_state\\\").fetchone()[0],604800)\\nAssertionError: 3600 != 604800\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.873s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/coordination/001-coordination.sql\", \"mutation\": \"consumer expiry shortened\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"...F..............\\n======================================================================\\nFAIL: test_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 162, in test_feed_retention_floor_and_publication_identity\\n    self.assertEqual(seconds,604800)\\nAssertionError: Decimal('86400.000000') != 604800\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.354s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/retrieval/000-canonical.sql\", \"mutation\": \"nonfinite embeddings admitted\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \".F................\\n======================================================================\\nFAIL: test_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 169, in test_embedding_model_dimensions_and_source_revision\\n    with self.assertRaises(psycopg.errors.CheckViolation):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: CheckViolation not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.140s\\n\\nFAILED (failures=1)\\n\"}\n{\"source\": \"schema/retrieval/000-canonical.sql\", \"mutation\": \"embedding dimensions unbound\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is in recovery mode\\n\\n======================================================================\\nERROR: test_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is in recovery mode\\n\\n======================================================================\\nFAIL: test_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 169, in test_embedding_model_dimensions_and_source_revision\\n    with self.assertRaises(psycopg.errors.CheckViolation):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: CheckViolation not raised\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 2.273s\\n\\nFAILED (failures=1, errors=4)\\n\"}\n{\"source\": \"schema/manifest.json\", \"mutation\": \"unsupported manifest version\", \"killed\": true, \"exit_code\": 1, \"output_tail\": \"======================================================================\\nERROR: test_schemas_and_future_fact_slots_exist (test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 0.023s\\n\\nFAILED (errors=18)\\n\"}\n{\"mutants\": 14, \"killed\": 14, \"survivors\": []}\n{\"restored_baseline_exit\": 1, \"restored_baseline_output\": \"EEEEEEEEEEEEEEEEEE\\n======================================================================\\nERROR: test_cross_project_payload_refused (test_schema.SchemaTests.test_cross_project_payload_refused)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_embedding_model_dimensions_and_source_revision (test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_fact_history_is_canonical_and_immutable (test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_feed_retention_floor_and_publication_identity (test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_fence_never_regresses (test_schema.SchemaTests.test_fence_never_regresses)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_head_without_history_fails_at_commit (test_schema.SchemaTests.test_head_without_history_fails_at_commit)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_jobs_attempts_results_and_idempotency (test_schema.SchemaTests.test_jobs_attempts_results_and_idempotency)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_ledger_idempotence_and_applied_drift_refused (test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_legacy_alias_uniqueness_preserves_source_identity (test_schema.SchemaTests.test_legacy_alias_uniqueness_preserves_source_identity)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_manifest_tamper_refused_before_ddl (test_schema.SchemaTests.test_manifest_tamper_refused_before_ddl)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_migration_failure_rolls_back_whole_install (test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_original_and_generated_blob_ownership (test_schema.SchemaTests.test_original_and_generated_blob_ownership)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_outbox_shape_tombstone_digest_and_immutability (test_schema.SchemaTests.test_outbox_shape_tombstone_digest_and_immutability)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_payload_digest_and_immutability (test_schema.SchemaTests.test_payload_digest_and_immutability)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_principal_credential_and_project_grant_scope (test_schema.SchemaTests.test_principal_credential_and_project_grant_scope)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_revision_tombstone_and_history_immutable (test_schema.SchemaTests.test_revision_tombstone_and_history_immutable)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_schemas_and_future_fact_slots_exist (test_schema.SchemaTests.test_schemas_and_future_fact_slots_exist)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n======================================================================\\nERROR: test_stable_ids_count_and_payload_digest (test_schema.SchemaTests.test_stable_ids_count_and_payload_digest)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/tmp/next/tests/schema/test_schema.py\\\", line 22, in setUp\\n    self.db = psycopg.connect(os.environ[\\\"TEST_DATABASE_URL\\\"], autocommit=True)\\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/tmp/deps/psycopg/connection.py\\\", line 118, in connect\\n    raise last_ex.with_traceback(None)\\npsycopg.OperationalError: connection failed: connection to server at \\\"127.0.0.1\\\", port 5432 failed: FATAL:  the database system is not yet accepting connections\\nDETAIL:  Consistent recovery state has not been yet reached.\\n\\n----------------------------------------------------------------------\\nRan 18 tests in 0.035s\\n\\nFAILED (errors=18)\\n\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "rm",
+        "-f",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "22624b03d55ffbae8d5ed0ae390ced1e27757b680a67cac1474110f34444de08\n",
+      "stderr": ""
+    }
+  ],
+  "stack_removed": true
+}
