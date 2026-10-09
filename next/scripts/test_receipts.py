@@ -17,7 +17,8 @@ def report(result):
         if not isinstance(value, dict) or type(value.get("tests_run")) is not int or value["tests_run"] < 1:
             return None
         for key in ("failures", "errors"):
-            if not isinstance(value.get(key), list) or any(not isinstance(row, dict) or not isinstance(row.get("id"), str) for row in value[key]):
+            if not isinstance(value.get(key), list) or any(not isinstance(row, dict) or not isinstance(row.get("id"), str)
+                    or not row["id"] or not isinstance(row.get("traceback"), str) or not row["traceback"] for row in value[key]):
                 return None
         return value
     except (ValueError, TypeError):
@@ -28,7 +29,7 @@ def classify(result, expected):
     value = report(result)
     if result.returncode not in (0, 1) or value is None or value["errors"]:
         return "inconclusive"
-    if any(row.get("phase") != "test" for row in value["failures"]):
+    if any(row.get("phase") != "test" or row.get("is_assertion") is not True for row in value["failures"]):
         return "inconclusive"
     failed = {row["id"].split(" (")[0] for row in value["failures"]}
     if result.returncode == 0:
@@ -57,6 +58,8 @@ class AssertionResult(unittest.TextTestResult):
                       and frame.co_filename == unittest.case.__file__ for frame in frames)
         phase = "test" if code is not None and code in frames and not fixture else "fixture"
         self.assertions.append({"id": test.id(), "phase": phase,
+                                "is_assertion": issubclass(err[0], AssertionError),
+                                "exception_type": err[0].__module__ + "." + err[0].__qualname__,
                                 "traceback": self._exc_info_to_string(err, test)})
 
     def addFailure(self, test, err):
