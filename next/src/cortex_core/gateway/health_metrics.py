@@ -95,21 +95,23 @@ class TelemetryGateway:
 
     async def _health(self, request):
         deadline = time.monotonic() + self.timeout_seconds
+        budget = asyncio.timeout(self.timeout_seconds)
         try:
-            async with asyncio.timeout(self.timeout_seconds):
+            async with budget:
                 value = self._health_value(await self.read_health())
                 self._deadline(deadline)
             return JSONResponse(value, status_code=200 if value["core_available"] else 503,
                                 headers={"Cache-Control": "no-store"})
         except TimeoutError:
-            return self._health_error("timeout")
+            return self._health_error("timeout" if budget.expired() or time.monotonic() >= deadline else "core_unavailable")
         except Exception:
             return self._health_error("core_unavailable")
 
     async def _metrics(self, request):
         deadline = time.monotonic() + self.timeout_seconds
+        budget = asyncio.timeout(self.timeout_seconds)
         try:
-            async with asyncio.timeout(self.timeout_seconds):
+            async with budget:
                 health = self._health_value(await self.read_health())
                 self._deadline(deadline)
                 if not health["core_available"]:
@@ -124,6 +126,6 @@ class TelemetryGateway:
             return Response(text, media_type="text/plain; version=0.0.4",
                             headers={"Cache-Control": "no-store"})
         except TimeoutError:
-            return self._metrics_error("timeout")
+            return self._metrics_error("timeout" if budget.expired() or time.monotonic() >= deadline else "sample_unavailable")
         except Exception:
             return self._metrics_error("sample_unavailable")

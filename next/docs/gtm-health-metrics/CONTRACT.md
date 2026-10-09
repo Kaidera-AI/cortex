@@ -39,6 +39,10 @@ Health JSON has exactly `component: "cortex"`, `status`, boolean `core_available
 responses have a null reason. Metrics refusal JSON is
 `{"error":{"code":"capability_unavailable","capability":"metrics","reason":...}}`.
 Dependency exception text, credentials and supervisor fencing data are omitted.
+An immediate dependency TimeoutError before the whole-request deadline is a
+reader failure: core_unavailable for /health or sample_unavailable for /metrics.
+The timeout reason means the gateway's timeout context expired or its monotonic
+deadline actually elapsed; exception type alone does not establish that condition.
 Successful health/metrics and explicit refusal responses set `Cache-Control:
 no-store`. Caller cancellation propagates and cancels an awaited reader.
 

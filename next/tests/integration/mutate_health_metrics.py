@@ -4,6 +4,14 @@ import mutate_conductor as proof
 SOURCE = proof.ROOT / "src/cortex_core/gateway/health_metrics.py"
 PREFIX = "test_health_metrics.TelemetryTests."
 MUTATIONS = [
+    (SOURCE, "early_health_timeout_misclassified",
+     'return self._health_error("timeout" if budget.expired() or time.monotonic() >= deadline else "core_unavailable")',
+     'return self._health_error("timeout")',
+     "test_dependency_timeout.DependencyTimeoutTests.test_immediate_health_timeout_is_dependency_unavailable"),
+    (SOURCE, "early_sample_timeout_misclassified",
+     'return self._metrics_error("timeout" if budget.expired() or time.monotonic() >= deadline else "sample_unavailable")',
+     'return self._metrics_error("timeout")',
+     "test_dependency_timeout.DependencyTimeoutTests.test_immediate_sample_timeout_is_sample_unavailable"),
     (SOURCE, "wildcard_binding_admitted", "if not loopback(host):", "if False:",
      PREFIX + "test_wildcard_binding_is_refused_at_construction"),
     (SOURCE, "external_peer_admitted",
@@ -38,9 +46,9 @@ MUTATIONS = [
      PREFIX + "test_every_scrape_updates_actual_supplied_core_values"),
     (SOURCE, "whole_scrape_timeout_disabled",
      'async def _metrics(self, request):\n        deadline = time.monotonic() + self.timeout_seconds\n'
-     '        try:\n            async with asyncio.timeout(self.timeout_seconds):',
+     '        budget = asyncio.timeout(self.timeout_seconds)',
      'async def _metrics(self, request):\n        deadline = time.monotonic() + self.timeout_seconds\n'
-     '        try:\n            async with asyncio.timeout(10):',
+     '        budget = asyncio.timeout(10)',
      PREFIX + "test_stalled_sampler_is_cancelled_within_request_budget"),
     (SOURCE, "late_callback_admitted", "if time.monotonic() >= deadline:", "if False:",
      PREFIX + "test_late_callback_cannot_return_success_after_deadline"),
