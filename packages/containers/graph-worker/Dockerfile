@@ -8,9 +8,10 @@ FROM python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b60
 
 # Install only reviewed wheels into a relocatable, pip-free venv.  The copied
 # interpreter is the worker's sole BCRG execution path in the runtime stage.
+COPY finalize-build.py /usr/local/libexec/kaidera/finalize-build.py
 COPY requirements.bcrg.lock /build/requirements.bcrg.lock
 RUN python -m venv --without-pip /opt/bcrg \
- && python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
+ && python -m pip install --no-cache-dir --no-compile --only-binary=:all: --require-hashes \
       --target /opt/bcrg/lib/python3.13/site-packages \
       -r /build/requirements.bcrg.lock
 
@@ -22,6 +23,7 @@ COPY fetch-qwen3-model.py /build/fetch-qwen3-model.py
 RUN HF_HUB_DISABLE_TELEMETRY=1 \
     /opt/bcrg/bin/python /build/fetch-qwen3-model.py \
  && test -s /opt/kaidera-qwen3/kaidera-qwen3-model-receipt.json \
+ && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --builder-home \
  && rm -rf /build
 
 
@@ -41,6 +43,7 @@ RUN groupadd --gid 10001 kaidera \
  && useradd --uid 10001 --gid 10001 --create-home \
       --home-dir /home/kaidera --shell /usr/sbin/nologin kaidera
 
+COPY finalize-build.py /usr/local/libexec/kaidera/finalize-build.py
 COPY debian-snapshot.sources /build/debian-snapshot.sources
 RUN set -eux; \
     rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list \
@@ -71,7 +74,8 @@ RUN set -eux; \
     printf '%s  %s\n' "$package_sha256" "$1" | sha256sum -c -; \
     apt-get install -y --no-install-recommends 'git=1:2.39.5-0+deb12u3'; \
     [ "$(dpkg-query -W -f='${Version}' git)" = '1:2.39.5-0+deb12u3' ]; \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
+    /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only
 
 # Runtime calls this exact copied interpreter: no package installer, compiler,
 # resolver cache or network package-resolution path exists in the final stage.
@@ -80,7 +84,7 @@ COPY --from=bcrg-builder /opt/kaidera-qwen3 /opt/kaidera-qwen3
 
 # Worker runtime: FastAPI + DuckDB + sqlite-vec, wheel-only and hash-complete.
 COPY requirements.runtime.lock /build/requirements.runtime.lock
-RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
+RUN python -m pip install --no-cache-dir --no-compile --only-binary=:all: --require-hashes \
       -r /build/requirements.runtime.lock \
  && rm -rf /build
 
@@ -140,10 +144,16 @@ USER 10001:10001
 
 # Prove the receipt, exact cache and local-only inference path as the final user. Runtime
 # entrypoint repeats the receipt/hash check before Uvicorn can expose a healthy endpoint.
-RUN "$BCRG_PYTHON" -I -c "import better_code_review_graph"
 RUN /usr/local/bin/python -I /usr/local/libexec/kaidera/verify-qwen3-model.py \
- && "$BCRG_PYTHON" -I -c "import os; import better_code_review_graph; from fastretrieval import TextEmbedding; cache=os.environ['QWEN3_EMBED_CACHE_PATH']; snapshot=cache+'/models--n24q02m--Qwen3-Embedding-0.6B-ONNX/snapshots/dc873d64d6143f27ad68dadbd1f0d9a4371b994e'; model=TextEmbedding(model_name='n24q02m/Qwen3-Embedding-0.6B-ONNX', cache_dir=cache, specific_model_path=snapshot, local_files_only=True, cuda=False); vector=next(model.embed(['Kaidera offline runtime probe'], dim=768)); assert tuple(vector.shape) == (768,)"
+ && "$BCRG_PYTHON" -I -c "import os; import better_code_review_graph; from fastretrieval import TextEmbedding; cache=os.environ['QWEN3_EMBED_CACHE_PATH']; snapshot=cache+'/models--n24q02m--Qwen3-Embedding-0.6B-ONNX/snapshots/dc873d64d6143f27ad68dadbd1f0d9a4371b994e'; model=TextEmbedding(model_name='n24q02m/Qwen3-Embedding-0.6B-ONNX', cache_dir=cache, specific_model_path=snapshot, local_files_only=True, cuda=False); vector=next(model.embed(['Kaidera offline runtime probe'], dim=768)); assert tuple(vector.shape) == (768,)" \
+ && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only
 RUN ! command -v curl && ! command -v uv && ! command -v cc && ! command -v gcc
+
+# Compile only after installed files and offline probes reach their final paths.
+# A fixed hash seed also keeps marshalled constants stable between builds.
+USER 0
+RUN PYTHONHASHSEED=0 /usr/local/bin/python /usr/local/libexec/kaidera/finalize-build.py
+USER 10001:10001
 
 EXPOSE 9001
 
