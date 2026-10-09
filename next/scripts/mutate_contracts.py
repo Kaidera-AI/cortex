@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 NEXT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(NEXT / "scripts"))
+sys.path.insert(0, str(NEXT / "tests"))
 from test_receipts import classify, report, suite as receipt_suite
 
 
@@ -77,7 +77,7 @@ def run():
     ]
     for label, change in index_changes:
         mutants.append((manifest, label, changed_json(manifest, change)))
-    helper = NEXT / "scripts/test_receipts.py"
+    helper = NEXT / "tests/test_receipts.py"
     original_helper = helper.read_text()
     mutants.append((helper, "unrelated errors counted as kills", original_helper.replace('def classify(result, expected):\n', 'def classify(result, expected):\n    return "killed" if result.returncode != 0 else "survived"\n', 1).encode()))
     expected = {

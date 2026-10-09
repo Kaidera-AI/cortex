@@ -1,0 +1,12 @@
+{
+  "agent": "/root/c01_verify",
+  "inspected_sha": "88835014d0fb1cec4887c61c87eb49b7acd12c69",
+  "mode": "independent read-only source and receipt inspection; no execution or official acceptance",
+  "required_findings": [],
+  "checks": [
+    "helper exact to0f651b91;tests unchanged frome3aaa2f",
+    "Nemo realasync fixture bodymarkers/inconclusive classifications; REDs distinguished",
+    "GREEN/restored14 tests;7 expected test-body AssertionError kills,noerrors,rawoutputs/source+outputhashesmatch,cleanup recorded",
+    "no caller changes; adoption awaits shared merge"
+  ]
+}
