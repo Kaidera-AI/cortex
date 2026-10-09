@@ -123,6 +123,58 @@ class ConductorTests(test_pg_search.SearchTests):
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
 
+    async def queued_expiry_operation(self, method):
+        supervisor = Supervisor(self.control_pool, INSTALLATION, lease_seconds=1)
+        fence = await supervisor.acquire()
+        entered = asyncio.Event()
+
+        async def stalled(conn, token):
+            await conn.execute("INSERT INTO public.test_controls VALUES($1)", token)
+            entered.set()
+            await asyncio.Event().wait()
+
+        guard = asyncio.create_task(supervisor.guarded(stalled))
+        queued = None
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            queued = asyncio.create_task(getattr(supervisor, method)())
+            deadline = asyncio.get_running_loop().time() + 0.5
+            while not await self.admin.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE "
+                "usename='conductor_runtime' AND wait_event_type='Lock' AND state='active')"
+            ):
+                self.assertLess(asyncio.get_running_loop().time(), deadline,
+                                "Operation never queued on the guarded row lock")
+                await asyncio.sleep(0.002)
+            self.assertFalse(queued.done())
+            self.assertTrue(await self.admin.fetchval(
+                "SELECT expires_at > clock_timestamp() FROM coordination.supervisor_leases "
+                "WHERE installation_id=$1", INSTALLATION
+            ), "Operation must enter the lock wait before lease expiry")
+            with self.assertRaises(StaleLease):
+                await asyncio.wait_for(guard, 2)
+            with self.assertRaises(StaleLease):
+                await asyncio.wait_for(queued, 2)
+            row = await self.admin.fetchrow(
+                "SELECT fence,expires_at > clock_timestamp() AS live FROM "
+                "coordination.supervisor_leases WHERE installation_id=$1", INSTALLATION
+            )
+            self.assertEqual(row["fence"], fence)
+            self.assertFalse(row["live"])
+            self.assertEqual(await self.admin.fetchval(
+                "SELECT count(*) FROM public.test_controls"), 0)
+        finally:
+            tasks = [guard] + ([queued] if queued is not None else [])
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def test_renew_waiting_behind_guard_refuses_expired_lease(self):
+        await self.queued_expiry_operation("renew")
+
+    async def test_release_waiting_behind_guard_refuses_expired_lease(self):
+        await self.queued_expiry_operation("release")
+
     async def test_heartbeat_stops_and_data_path_continues(self):
         stop = asyncio.Event()
         running = asyncio.create_task(self.supervisor.run(stop))
