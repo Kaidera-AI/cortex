@@ -1,0 +1,8 @@
+{
+  "module": "search",
+  "state": "ready",
+  "complete": true,
+  "applied_cursor": "committed-feed:1",
+  "index_generation": "generation-1",
+  "model_revision": "fixture-model-v1"
+}

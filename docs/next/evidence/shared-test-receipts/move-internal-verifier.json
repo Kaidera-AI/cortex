@@ -1,0 +1,14 @@
+{
+  "agent": "/root/c01_verify",
+  "inspected_sha": "7699c273056f293feadf8a37bd517cdec3b5648c",
+  "mode": "independent read-only source and receipt inspection, no execution/official approval",
+  "required_findings": [],
+  "checks": [
+    "helper exact ad848893 main/priorC01;oldcopy absent;C01exact2mutatorpaths2testimports;testfunctionASTs unchanged",
+    "original14 shared+2locationtests equalREDbytes;moveRED16/twobodyAssertions/noerrors",
+    "all26C01+7shared expectedIDs/bodyphase/is_assertion/builtins.AssertionError/exit1;rawreceipt equalsstdoutmarker;errors[]",
+    "all23sourcehashes match;sharedsource/mutant/outputhashes verified;restored33+16 clean;owncontainerremoved",
+    "Nemoasyncfixtures inconclusive with bodymarker setupfalse/teardowntrue"
+  ],
+  "limits": "C03 adoption separate; no Mike finding closure/Kai acceptance/merge go claimed"
+}

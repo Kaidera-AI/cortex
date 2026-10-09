@@ -7,6 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import test_receipts as receipts  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "src/cortex_core/embeddings/pg_search.py"
 SQL = ROOT / "schema/retrieval/001-pg-search.sql"
@@ -77,30 +80,21 @@ TARGETS = {
 def clean_run(returncode, output):
     cleanup = re.findall(r"^cleanup: (PASS|FAIL)$", output, re.MULTILINE)
     return (
-        returncode == 0
-        and bool(cleanup)
+        bool(cleanup)
         and cleanup[-1] == "PASS"
-        and re.search(r"^Ran \d+ tests?", output, re.MULTILINE) is not None
-        and re.search(r"^OK$", output, re.MULTILINE) is not None
+        and receipts.classify(subprocess.CompletedProcess([], returncode, output, ""), set()) == "survived"
     )
 
 
 def classify_kill(returncode, output, target):
-    if clean_run(returncode, output):
-        return "SURVIVED"
     cleanup = re.findall(r"^cleanup: (PASS|FAIL)$", output, re.MULTILINE)
-    failures = re.findall(r"^FAIL: \w+ \(([^)]+)\)$", output, re.MULTILINE)
-    if (
-        returncode == 1
-        and cleanup
-        and cleanup[-1] == "PASS"
-        and failures == [target]
-        and re.search(r"^ERROR:", output, re.MULTILINE) is None
-        and re.search(r"^AssertionError", output, re.MULTILINE) is not None
-        and "FAILED (failures=1)" in output
-    ):
-        return "KILLED"
-    return "INCONCLUSIVE"
+    if not cleanup or cleanup[-1] != "PASS":
+        return "INCONCLUSIVE"
+    result = subprocess.CompletedProcess([], returncode, output, "")
+    status = receipts.classify(result, {target})
+    if status == "killed" and len(receipts.report(result)["failures"]) != 1:
+        return "INCONCLUSIVE"
+    return status.upper()
 
 
 def execute(evidence, name, target=None):

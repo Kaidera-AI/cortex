@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -92,6 +93,7 @@ def main(pattern="test_pg_search*.py"):
         env["PYTHONPATH"] = os.pathsep.join(
             [
                 str(ROOT / "src"),
+                str(ROOT / "tests"),
                 str(ROOT / "tests/integration"),
                 env.get("PYTHONPATH", ""),
             ]
@@ -107,20 +109,19 @@ def main(pattern="test_pg_search*.py"):
         if target:
             if not re.fullmatch(r"test_[a-z_]+\.[A-Za-z]+\.test_[a-z_]+", target):
                 raise ValueError("Invalid named mutation probe")
-            test_command = [sys.executable, "-m", "unittest", target, "-v"]
-        else:
-            test_command = [
-                sys.executable,
-                "-m",
-                "unittest",
-                "discover",
-                "-s",
-                str(ROOT / "tests/integration"),
-                "-p",
-                pattern,
-                "-v",
-            ]
-        result = subprocess.run(test_command, env=env)
+        # Selection belongs here; result emission and phase attribution stay shared.
+        with tempfile.TemporaryDirectory(prefix="nemo-test-selection-") as directory:
+            selection = (
+                f"loader.loadTestsFromName({target!r})" if target else
+                f"loader.discover({str(ROOT / 'tests/integration')!r}, pattern={pattern!r}, "
+                f"top_level_dir={str(ROOT / 'tests/integration')!r})"
+            )
+            Path(directory, "test_selection.py").write_text(
+                "def load_tests(loader, tests, pattern):\n    return " + selection + "\n"
+            )
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "tests/test_receipts.py"), directory], env=env
+            )
         return result.returncode
     finally:
         removed = subprocess.run(

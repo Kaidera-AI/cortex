@@ -1,0 +1,11 @@
+{
+  "target": "origin/main",
+  "target_sha": "04a26d0bf40c07ed3082328d3cc42c5a72ca8411",
+  "branch_head": "88835014d0fb1cec4887c61c87eb49b7acd12c69",
+  "merge_result": "Already up to date.",
+  "tested_source_unchanged": true,
+  "next_source_hashes": {
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/test_receipts.py": "ad8488931cb4da2ecf7e25a7ceefc05da5633a4d1b37ad66af417da6ba4d73f4"
+  }
+}
