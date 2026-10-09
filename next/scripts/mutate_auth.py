@@ -15,6 +15,7 @@ AUTH = 'src/cortex_core/auth.py'
 SQL = 'schema/auth/002-isolation.sql'
 MANIFEST = 'schema/manifest.json'
 FIXTURE = 'contracts/auth-conformance.json'
+MUTATOR = 'scripts/mutate_auth.py'
 PREFIX = 'test_authorization.AuthorizationTests.'
 PUBLIC = '\nGRANT EXECUTE ON FUNCTION auth.resolve_scope(text,uuid,uuid,text) TO PUBLIC;\n'
 MUTATIONS = [
@@ -58,7 +59,15 @@ MUTATIONS = [
      'test_all_business_tables_force_rls_private_functions_stay_private'),
     (FIXTURE, 'wrong-installation negative fixture accepts authorized scope', None, None,
      'test_shared_negative_conformance_cases_are_refused'),
+    (MUTATOR, 'exit-code-only consumer accepts inconclusive receipts',
+     'return classify(result, expected)',
+     "return 'killed' if result.returncode else 'survived'",
+     'test_auth_mutation_receipts.AuthMutationReceipts.test_operational_and_fixture_failures_are_inconclusive'),
 ]
+
+
+def mutation_status(result, expected):
+    return classify(result, expected)
 
 
 def checkpoint():
@@ -75,12 +84,12 @@ def capture(result):
 
 def run():
     originals = {relative: (NEXT / relative).read_bytes()
-                 for relative in (AUTH, SQL, MANIFEST, FIXTURE)}
+                 for relative in (AUTH, SQL, MANIFEST, FIXTURE, MUTATOR)}
     original_hashes = {relative: hashlib.sha256(data).hexdigest()
                        for relative, data in originals.items()}
     baseline = suite(NEXT / 'tests/auth')
     print(json.dumps({'baseline': capture(baseline)}), flush=True)
-    if classify(baseline, set()) != 'survived':
+    if mutation_status(baseline, set()) != 'survived':
         raise SystemExit('Auth mutation baseline is RED')
     rows = []
     auxiliary = NEXT / 'schema/auth/mutation-isolation.sql'
@@ -117,8 +126,8 @@ def run():
                     entry['sha256'] = hashlib.sha256(changed).hexdigest()
                     (NEXT / MANIFEST).write_text(json.dumps(manifest, indent=2) + '\n')
                 result = suite(NEXT / 'tests/auth')
-                expected = PREFIX + target
-                status = classify(result, {expected})
+                expected = target if '.' in target else PREFIX + target
+                status = mutation_status(result, {expected})
                 row = {'source': relative, 'mutation': label,
                        'recipe': {'before': before, 'after': after,
                                   'manifest': 'alternate valid migration + matching digest' if relative == MANIFEST else None,
@@ -154,7 +163,7 @@ def run():
     print(json.dumps(summary), flush=True)
     if len(rows) != len(MUTATIONS) or any(row['status'] != 'killed' for row in rows):
         raise SystemExit('Auth semantic mutation proof is incomplete')
-    if final_hashes != original_hashes or classify(restored, set()) != 'survived':
+    if final_hashes != original_hashes or mutation_status(restored, set()) != 'survived':
         raise SystemExit('Auth source or baseline restoration failed')
 
 
