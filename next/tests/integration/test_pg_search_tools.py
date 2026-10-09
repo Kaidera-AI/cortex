@@ -65,3 +65,27 @@ class ToolTests(unittest.TestCase):
         ):
             with self.assertRaises(RuntimeError):
                 mutate_pg_search.run()
+
+    def test_only_expected_behavioral_assertion_is_a_semantic_kill(self):
+        target = "test_pg_search_review.ReviewTests.test_case"
+        good = (
+            "FAIL: test_case ("
+            + target
+            + ")\nAssertionError: behavior differs\nRan 1 test\nFAILED (failures=1)\ncleanup: PASS\n"
+        )
+        self.assertEqual(mutate_pg_search.classify_kill(1, good, target), "KILLED")
+        for bad in [
+            good.replace("FAIL:", "ERROR:"),
+            good.replace(target, "unrelated.Tests.test_case"),
+            good.replace("cleanup: PASS", "cleanup: FAIL"),
+            good.replace("AssertionError:", "RuntimeError:"),
+        ]:
+            self.assertEqual(
+                mutate_pg_search.classify_kill(1, bad, target), "INCONCLUSIVE"
+            )
+        self.assertEqual(
+            mutate_pg_search.classify_kill(
+                0, "Ran 1 test\nOK\ncleanup: PASS\n", target
+            ),
+            "SURVIVED",
+        )
