@@ -54,8 +54,10 @@ class AssertionResult(unittest.TextTestResult):
         while tb is not None:
             frames.append(tb.tb_frame.f_code)
             tb = tb.tb_next
-        fixture = any(frame.co_name in ("_callSetUp", "_callTearDown", "_callCleanup")
-                      and frame.co_filename == unittest.case.__file__ for frame in frames)
+        fixture_codes = {getattr(cls, name).__code__
+                         for cls in (unittest.TestCase, unittest.IsolatedAsyncioTestCase)
+                         for name in ("_callSetUp", "_callTearDown", "_callCleanup")}
+        fixture = any(frame in fixture_codes for frame in frames)
         phase = "test" if code is not None and code in frames and not fixture else "fixture"
         self.assertions.append({"id": test.id(), "phase": phase,
                                 "is_assertion": issubclass(err[0], AssertionError),
