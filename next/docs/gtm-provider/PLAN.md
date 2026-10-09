@@ -35,3 +35,9 @@ restoration. Run full search/review/provider/cache checks, then the eight P01 mu
 push the same PR31 branch, return receipts to Kai for Mike, remove the parked worktree.
 No provider/cache behavior change is planned beyond inherited PR29 fixes.
 
+Tool RED commit f26be4e reproduces both unsafe mutation admissions; raw output is
+lane-F/pr31-mutation-rule-red.log. After the tool change, the clean baseline and
+restored full suites run 50 checks; eight P01 mutants each fail their named expected
+assertion. Raw target/status receipts live in lane-F/pr31-restack-mutations/.
+The cache admission isolation remains read_committed; search remains repeatable_read.
+
