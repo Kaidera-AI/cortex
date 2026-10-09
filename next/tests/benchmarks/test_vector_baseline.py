@@ -1,10 +1,8 @@
 import inspect
-import json
 import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
 
 import numpy as np
 
@@ -74,7 +72,7 @@ class CorpusTests(unittest.TestCase):
     def test_validation_rejects_poison_and_hash_drift(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "c"
-            c = fixture(p)
+            fixture(p)
             with p.joinpath("vectors.npy").open("r+b") as f:
                 f.seek(-4, 2)
                 f.write(b"xxxx")
