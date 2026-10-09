@@ -48,3 +48,19 @@ real collector scraping/forwarding, Linux release qualification or live deployme
 Files: this PLAN, CONTRACT.md, gateway/health_metrics.py, integration test and
 mutation recipe module only. Parent source/recipes remain unchanged. Pre-edit
 worktree is clean at b78d383; no gateway health module exists there.
+
+## HEALTH-PR39-001 — Kai 2026-10-10 01:35 FIX
+
+Preserve Mike's frozen test_dependency_timeout.py byte-for-byte as one additional
+integration file (SHA256 aa9b3f6fd777a3c74d790246a79c2b8fc2cf30cacfcb1d555b19ebd5abe44978).
+Commit and run its two expected body-assertion REDs before changing the gateway.
+Keep the timeout context handle; classify TimeoutError as exhausted budget only
+when that context expired or the monotonic deadline elapsed. An earlier dependency
+TimeoutError stays a sanitized503 with core_unavailable (/health) or
+sample_unavailable (/metrics). Preserve whole-budget, late-callback/export and
+caller-cancellation controls. Add two named regression recipes against the frozen
+methods, update only the existing timer recipe for the context-handle syntax, then
+run full clean/restored source-bound proof and independent receipt audit. Merge
+the current graph target if changed; push a new commit without rebasing, fold the
+receipt/docs, remove the parked worktree, and return to Kai for Mike's closure.
+No new endpoint, reader, Core/provider/collector or live deployment scope.
