@@ -221,3 +221,32 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
             )
             with self.assertRaises(CapabilityUnavailable):
                 await provider.embed("query", changed)
+
+    async def test_response_bound_and_total_timeout(self):
+        async def key(provider):
+            return "synthetic-test-key"
+
+        async def too_large(request):
+            return httpx.Response(200, content=b"x" * (256 * 1024 + 1))
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(too_large)
+        ) as client:
+            with self.assertRaises(CapabilityUnavailable):
+                await HostedProvider(client, key).embed("query", IDENTITY)
+
+        async def slow_key(provider):
+            await asyncio.sleep(0.05)
+            return "synthetic-test-key"
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200, json={"data": [{"embedding": VECTOR}]}
+                )
+            )
+        ) as client:
+            with self.assertRaises(CapabilityUnavailable):
+                await HostedProvider(client, slow_key, timeout_seconds=0.01).embed(
+                    "query", IDENTITY
+                )
