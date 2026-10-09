@@ -56,13 +56,57 @@ try:
         assert all(row['phase']=='test' and row['is_assertion'] for row in value['failures'])
     else:
         assert r.returncode==0 and not value['failures']
+        suite = """import sys,json,unittest
+sys.path.insert(0,'/tmp');sys.path.insert(0,'/tmp/proof')
+from test_receipts import AssertionResult,MARKER
+s=unittest.defaultTestLoader.discover('/tmp/proof',pattern='test_producer_lifecycle.py')
+r=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(s)
+print(MARKER+json.dumps({'tests_run':r.testsRun,'failures':r.assertions,'errors':[{'id':t.id(),'traceback':tb} for t,tb in r.errors]}),flush=True)
+raise SystemExit(0 if r.wasSuccessful() else 1)
+"""
+        recipes = [
+            ('pending-after-ack', 'replay_lifecycle.py',
+             '        self.pending.add(resource)  # BEFORE the external effect or acknowledgement.\n        self.checked(args)',
+             '        self.checked(args)\n        self.pending.add(resource)',
+             ['test_c03_lost_ack_cleanup_reconciles_effect','test_graph_lost_ack_cleanup_reconciles_effect','test_graph_removal_uses_reconciled_immutable_id']),
+            ('foreign-nonce-ignored', 'replay_lifecycle.py',
+             " or (labels or {}).get('kaidera.cox.lifecycle') != self.lifecycle", '',
+             ['test_c03_foreign_lifecycle_preserved','test_graph_same_owner_foreign_lifecycle_preserved']),
+            ('remove-by-name', 'replay_lifecycle.py',
+             "args = ['podman', 'pod', 'rm', '-f', row['Id']] if kind == 'pod' else ['podman', 'rm', '-f', row['Id']]",
+             "args = ['podman', 'pod', 'rm', '-f', name] if kind == 'pod' else ['podman', 'rm', '-f', name]",
+             ['test_graph_removal_uses_reconciled_immutable_id']),
+            ('output-not-prepared', 'safe-run-adoption.py',
+             'out.mkdir(parents=True,exist_ok=True)', '# deliberate omitted output preparation',
+             ['test_c03_output_prepared_before_effect'])]
+        mutation_rows = []
+        for name, filename, before, after, expected in recipes:
+            original = (OUT/filename).read_text()
+            assert original.count(before)==1
+            changed = original.replace(before, after, 1)
+            patch = "from pathlib import Path;p=Path('/tmp/proof/"+filename+"');assert p.read_text()=="+repr(original)+";p.write_text("+repr(changed)+")"
+            checked(['podman','exec',NAME,'python','-c',patch])
+            try:
+                fault = run(['podman','exec','--env','REPLAY_VARIANT=safe','--env','PYTHONDONTWRITEBYTECODE=1',NAME,'python','-c',suite])
+                rows=[json.loads(x.split('=',1)[1]) for x in fault.stdout.splitlines() if x.startswith('CORTEX_TEST_RESULT=')]
+                assert len(rows)==1 and rows[0]['tests_run']==6 and not rows[0]['errors']
+                ids={'test_producer_lifecycle.ProducerLifecycle.'+x for x in expected}
+                assert fault.returncode==1 and {x['id'] for x in rows[0]['failures']}==ids
+                assert all(x['phase']=='test' and x['is_assertion'] for x in rows[0]['failures'])
+                mutation_rows.append({'name':name,'file':filename,'before':before,'after':after,
+                                      'source_sha256':hashlib.sha256(original.encode()).hexdigest(),
+                                      'mutated_sha256':hashlib.sha256(changed.encode()).hexdigest(),
+                                      'expected_ids':sorted(ids),'status':'killed','raw':results[-1]})
+            finally:
+                checked(['podman','cp',str(OUT/filename),NAME+':/tmp/proof/'+filename])
+        checked(['podman','exec','--env','REPLAY_VARIANT=safe','--env','PYTHONDONTWRITEBYTECODE=1',NAME,'python','/tmp/test_receipts.py','/tmp/proof'])
 finally:
     if pending and subprocess.run(['podman','container','exists',NAME],capture_output=True).returncode==0:
         info=json.loads(checked(['podman','container','inspect',NAME]).stdout)[0]
         if info['Config']['Labels'].get('kaidera.cox.lifecycle')==NONCE:
             checked(['podman','rm','-f',info['Id']])
     gone=subprocess.run(['podman','container','exists',NAME],capture_output=True).returncode==1
-    TARGET.write_text(json.dumps({'phase':PHASE,'variant':VARIANT,'results':results,'image_id':IMAGE,'container_removed':gone,
+    TARGET.write_text(json.dumps({'phase':PHASE,'variant':VARIANT,'results':results,'mutations':globals().get('mutation_rows',[]),'image_id':IMAGE,'container_removed':gone,
                                  'lifecycle':NONCE,'limits':{'cpus':2,'memory':'1g'},'ports':[],'bind_mounts':[],
                                  'controller_safety_only':True,'application_tests_executed':False,
                                  'source_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in OUT.iterdir() if p.is_file() and p.suffix=='.py'}},indent=2)+'\n')
