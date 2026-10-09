@@ -1,12 +1,18 @@
 """Synthetic provider transport and real disposable-PG cache tests."""
 
 import asyncio
+import hashlib
+import time
 import unittest
 
 import httpx
 import test_pg_search
 from cortex_core.embeddings.pg_search import CapabilityUnavailable
-from cortex_core.embeddings.query_cache import QueryEmbeddingCache, CacheScope
+from cortex_core.embeddings.query_cache import (
+    QueryEmbeddingCache,
+    CacheScope,
+    CachedEmbedding,
+)
 from cortex_core.modules.providers.hosted import HostedProvider
 
 IDENTITY = test_pg_search.IDENTITY
@@ -14,6 +20,172 @@ VECTOR = test_pg_search.VECTOR
 
 
 class CacheTests(test_pg_search.SearchTests):
+    async def test_late_lookup_cannot_return_success_before_timeout_callback_runs(self):
+        cache = QueryEmbeddingCache(
+            self.pool, self.authorize_cache, self.embed, wait_seconds=0.02
+        )
+
+        async def late(*args):
+            time.sleep(
+                0.05
+            )  # Deliberately blocks the loop; deadline must be checked explicitly.
+            return None, CachedEmbedding(tuple(VECTOR), True), None
+
+        cache._lookup_claim = late
+        with self.assertRaises(CapabilityUnavailable) as caught:
+            await cache.get("alice", IDENTITY, "late")
+        self.assertEqual(caught.exception.reason, "query_embedding_wait_timeout")
+
+    async def test_publication_authorization_stays_within_total_budget(self):
+        calls = 0
+
+        async def authorize(conn, subject):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                await asyncio.sleep(0.12)
+            return await self.authorize_cache(conn, subject)
+
+        async def instant(text, identity):
+            return VECTOR
+
+        cache = QueryEmbeddingCache(self.pool, authorize, instant, wait_seconds=0.03)
+        with self.assertRaises(CapabilityUnavailable) as caught:
+            await cache.get("alice", IDENTITY, "publish-deadline")
+        self.assertEqual(caught.exception.reason, "query_embedding_wait_timeout")
+        self.assertEqual(
+            await self.admin.fetchval(
+                "SELECT count(*) FROM retrieval.query_embeddings WHERE embedding IS NOT NULL"
+            ),
+            0,
+        )
+
+    async def test_cancellation_propagates_with_bounded_release(self):
+        entered = asyncio.Event()
+        calls = 0
+
+        async def authorize(conn, subject):
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                await asyncio.Event().wait()
+            return await self.authorize_cache(conn, subject)
+
+        async def pending_provider(text, identity):
+            entered.set()
+            await asyncio.Event().wait()
+
+        cache = QueryEmbeddingCache(
+            self.pool, authorize, pending_provider, lease_seconds=0.2, wait_seconds=0.5
+        )
+        task = asyncio.create_task(cache.get("alice", IDENTITY, "cancel"))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            task.cancel()
+            await asyncio.sleep(0.12)
+            self.assertTrue(
+                task.done(), "cancellation retained an unbounded release wait"
+            )
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            await asyncio.sleep(0.12)
+            self.assertFalse(
+                (await self.cache.get("alice", IDENTITY, "cancel")).cache_hit
+            )
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_permission_generation_change_midflight_cannot_publish(self):
+        async def change_generation(text, identity):
+            await self.admin.execute(
+                "UPDATE public.test_grants SET permission_generation='g2' WHERE subject='alice'"
+            )
+            return VECTOR
+
+        cache = QueryEmbeddingCache(self.pool, self.authorize_cache, change_generation)
+        with self.assertRaises(PermissionError):
+            await cache.get("alice", IDENTITY, "generation")
+        self.assertEqual(
+            await self.admin.fetchval(
+                "SELECT count(*) FROM retrieval.query_embeddings WHERE embedding IS NOT NULL"
+            ),
+            0,
+        )
+
+    async def test_mike_warm_hit_respects_wait_budget(self):
+        await self.cache.get("alice", IDENTITY, "deadline-probe")
+        cache = QueryEmbeddingCache(
+            self.pool, self.authorize_cache, self.embed, wait_seconds=0.02
+        )
+        lock = int.from_bytes(
+            hashlib.sha256(
+                (str(test_pg_search.TENANT_A) + str(test_pg_search.PROJECT_A)).encode()
+            ).digest()[:8],
+            "big",
+            signed=True,
+        )
+        pending = None
+        try:
+            async with self.admin.transaction():
+                await self.admin.execute("SELECT pg_advisory_xact_lock($1)", lock)
+                started = time.monotonic()
+                pending = asyncio.create_task(
+                    cache.get("alice", IDENTITY, "deadline-probe")
+                )
+                await asyncio.sleep(0.12)
+            try:
+                result = await asyncio.wait_for(pending, 2)
+            except CapabilityUnavailable as exc:
+                self.assertEqual(exc.reason, "query_embedding_wait_timeout")
+                return
+            print(
+                "CACHE_DEADLINE",
+                "budget",
+                0.02,
+                "elapsed",
+                time.monotonic() - started,
+                "successful_warm_hit",
+                result.cache_hit,
+                flush=True,
+            )
+            self.fail(
+                "cache returned a successful warm hit after its caller wait deadline"
+            )
+        finally:
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+
+    async def test_lock_wait_ends_before_holder_releases(self):
+        cache = QueryEmbeddingCache(
+            self.pool, self.authorize_cache, self.embed, wait_seconds=0.02
+        )
+        lock = int.from_bytes(
+            hashlib.sha256(
+                (str(test_pg_search.TENANT_A) + str(test_pg_search.PROJECT_A)).encode()
+            ).digest()[:8],
+            "big",
+            signed=True,
+        )
+        pending = None
+        try:
+            async with self.admin.transaction():
+                await self.admin.execute("SELECT pg_advisory_xact_lock($1)", lock)
+                pending = asyncio.create_task(cache.get("alice", IDENTITY, "blocked"))
+                await asyncio.sleep(0.12)
+                self.assertTrue(
+                    pending.done(),
+                    "caller still waiting after budget while lock holder remains",
+                )
+                with self.assertRaises(CapabilityUnavailable) as caught:
+                    await pending
+                self.assertEqual(
+                    caught.exception.reason, "query_embedding_wait_timeout"
+                )
+        finally:
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+
     async def asyncSetUp(self):
         await super().asyncSetUp()
         await self.admin.execute(
@@ -267,6 +439,54 @@ class CacheTests(test_pg_search.SearchTests):
 
 
 class ProviderTests(unittest.IsolatedAsyncioTestCase):
+    async def check_resolver_error(self, error):
+        marker = "synthetic-resolver-secret"
+
+        async def resolve(provider):
+            raise error(marker)
+
+        async def forbidden_http(request):
+            self.fail("resolver failed; HTTP must not run")
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(forbidden_http)
+        ) as client:
+            with self.assertRaises(CapabilityUnavailable) as captured:
+                await HostedProvider(client, resolve).embed("query", IDENTITY)
+        outward = str(captured.exception) + captured.exception.reason
+        print(
+            "RESOLVER_ERROR",
+            error.__name__,
+            "sentinel_exposed",
+            marker in outward,
+            flush=True,
+        )
+        self.assertNotIn(
+            marker,
+            outward,
+            "credential resolver errors must be scrubbed at hosted boundary",
+        )
+
+    async def test_mike_typed_resolver_error_is_scrubbed(self):
+        await self.check_resolver_error(CapabilityUnavailable)
+
+    async def test_mike_untyped_resolver_error_is_scrubbed(self):
+        await self.check_resolver_error(RuntimeError)
+
+    async def test_typed_transport_exception_is_scrubbed(self):
+        marker = "synthetic-transport-secret"
+
+        async def key(provider):
+            return "synthetic-test-key"
+
+        async def failed(request):
+            raise CapabilityUnavailable(marker)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(failed)) as client:
+            with self.assertRaises(CapabilityUnavailable) as caught:
+                await HostedProvider(client, key).embed("query", IDENTITY)
+        self.assertNotIn(marker, str(caught.exception) + caught.exception.reason)
+
     async def test_existing_hosted_endpoint_and_snapshot(self):
         requests = []
 
