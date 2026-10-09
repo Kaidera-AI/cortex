@@ -10,3 +10,4 @@
 !requirements.bcrg.lock
 !requirements.runtime.in
 !requirements.runtime.lock
+!finalize-build.py
