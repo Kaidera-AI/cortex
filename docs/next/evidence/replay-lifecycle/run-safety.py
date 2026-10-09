@@ -22,7 +22,7 @@ passed = False
 def run(args):
     r = subprocess.run(args, capture_output=True, text=True, timeout=60)
     results.append({'command': args, 'exit_code': r.returncode, 'stdout': r.stdout, 'stderr': r.stderr})
-    print(json.dumps({'command': args[:6], 'exit_code': r.returncode, 'output': (r.stdout+r.stderr)[-1600:]}), flush=True)
+    print(json.dumps({'command': args[:4], 'exit_code': r.returncode, 'output': (r.stdout+r.stderr)[-1600:]}), flush=True)
     return r
 
 
@@ -47,7 +47,7 @@ try:
     records = [json.loads(line[len(marker):]) for line in r.stdout.splitlines() if line.startswith(marker)]
     assert len(records)==1
     value = records[0]
-    assert value['tests_run']==(6 if VARIANT=='old' else 18) and not value['errors']
+    assert value['tests_run']==(6 if VARIANT=='old' else 21) and not value['errors']
     if VARIANT=='old':
         expected = {'test_producer_lifecycle.ProducerLifecycle.'+name for name in (
             'test_c03_lost_ack_cleanup_reconciles_effect','test_c03_output_prepared_before_effect',
@@ -103,11 +103,16 @@ raise SystemExit(0 if r.wasSuccessful() else 1)
     passed=True
 finally:
     error=life.finish()
-    gone=subprocess.run(['podman','container','exists',NAME],capture_output=True,timeout=30).returncode==1
+    final_inventory_error=None
+    try:
+        gone=subprocess.run(['podman','container','exists',NAME],capture_output=True,timeout=30).returncode==1
+    except Exception as error:
+        final_inventory_error=type(error).__name__+': '+str(error);gone=None
     TARGET.write_text(json.dumps({'phase':PHASE,'variant':VARIANT,'results':results,'mutations':globals().get('mutation_rows',[]),'image_id':IMAGE,'container_removed':gone,
-                                 'passed':passed and life.cleanup_verified and gone,'cleanup':life.receipt(),
+                                 'passed':bool(passed and life.cleanup_verified and gone),'final_inventory_error':final_inventory_error,'cleanup':life.receipt(),
                                  'lifecycle':life.lifecycle,'limits':{'cpus':2,'memory':'1g'},'ports':[],'bind_mounts':[],
                                  'controller_safety_only':True,'application_tests_executed':False,
                                  'source_sha256':SOURCE},indent=2)+'\n')
     if error:raise error
+    if final_inventory_error:raise RuntimeError('final inventory unverified: '+final_inventory_error)
     assert gone

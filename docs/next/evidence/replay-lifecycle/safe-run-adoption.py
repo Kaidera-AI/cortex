@@ -80,12 +80,17 @@ try:
 finally:
  cleanup_error=life.finish()
  print('REPLAY_LIFECYCLE_RESULT='+json.dumps(life.receipt()),flush=True)
- remaining=subprocess.run(['podman','pod','exists',pod],capture_output=True,text=True,timeout=30)
- gone=remaining.returncode==1 and all(subprocess.run(['podman','container','exists',name],capture_output=True,timeout=30).returncode==1 for name in (db,driver))
- passed=passed and life.cleanup_verified and gone
- receipt={'tool_input_sha256':TOOLS,'phase':phase,'tree':TREE,'passed':passed,'cleanup':life.receipt(),'source_before_sha256':SOURCE,'images':[pg,py],'native_arch':'arm64','network':'none; shared loopback only','published_ports':[],'bind_mounts':[],'limits':{'pod_cpus':2,'pod_memory':'1g','pg_memory':'768m','driver_memory':'256m'},'wheel_hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (wt/'tmp/wheels').iterdir()},'results':results,'stack_removed':gone,'source_sha256':{str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()},'legacy_source_sha256':hashlib.sha256((wt/'tmp/legacy-schema.sql').read_bytes()).hexdigest()}
+ final_inventory_error=None
+ try:
+  remaining=subprocess.run(['podman','pod','exists',pod],capture_output=True,text=True,timeout=30)
+  gone=remaining.returncode==1 and all(subprocess.run(['podman','container','exists',name],capture_output=True,timeout=30).returncode==1 for name in (db,driver))
+ except Exception as error:
+  final_inventory_error=type(error).__name__+': '+str(error);gone=None
+ passed=bool(passed and life.cleanup_verified and gone)
+ receipt={'final_inventory_error':final_inventory_error,'tool_input_sha256':TOOLS,'phase':phase,'tree':TREE,'passed':passed,'cleanup':life.receipt(),'source_before_sha256':SOURCE,'images':[pg,py],'native_arch':'arm64','network':'none; shared loopback only','published_ports':[],'bind_mounts':[],'limits':{'pod_cpus':2,'pod_memory':'1g','pg_memory':'768m','driver_memory':'256m'},'wheel_hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (wt/'tmp/wheels').iterdir()},'results':results,'stack_removed':gone,'source_sha256':{str(p.relative_to(wt)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((wt/'next').rglob('*')) if p.is_file()},'legacy_source_sha256':hashlib.sha256((wt/'tmp/legacy-schema.sql').read_bytes()).hexdigest()}
  assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
  assert receipt['source_sha256']==SOURCE
  (out/(phase+'.json')).write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({'receipt':str(out/(phase+'.json')),'removed':gone}),flush=True)
  if cleanup_error:raise cleanup_error
+ if final_inventory_error:raise RuntimeError('final inventory unverified: '+final_inventory_error)
  assert gone

@@ -149,16 +149,23 @@ p=Path('/proof/graph/finalize-build.py');s=p.read_text();before="    if not args
 finally:
     cleanup_error = life.finish()
     print('REPLAY_LIFECYCLE_RESULT='+json.dumps(life.receipt()), flush=True)
-    removed = subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True, timeout=30).returncode == 1
+    final_inventory_error = None
+    try:
+        removed = subprocess.run(['podman', 'container', 'exists', NAME], capture_output=True, timeout=30).returncode == 1
+    except Exception as error:
+        final_inventory_error = type(error).__name__+': '+str(error)
+        removed = None
     assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=WT, text=True).strip() == HEAD
-    passed = passed and life.cleanup_verified and removed
+    passed = bool(passed and life.cleanup_verified and removed)
     source_hashes = {str(p.relative_to(WT)): hashlib.sha256(p.read_bytes()).hexdigest()
                      for p in GRAPH.rglob('*') if p.is_file()}
-    TARGET.write_text(json.dumps({'tool_input_sha256':TOOLS, 'phase': PHASE, 'tree': HEAD, 'passed': passed, 'cleanup': life.receipt(), 'image': IMAGE, 'results': results,
+    TARGET.write_text(json.dumps({'final_inventory_error':final_inventory_error, 'tool_input_sha256':TOOLS, 'phase': PHASE, 'tree': HEAD, 'passed': passed, 'cleanup': life.receipt(), 'image': IMAGE, 'results': results,
                                  'source_sha256': source_hashes, 'limits': {'cpus': 2, 'memory': '1g'},
                                  'network': 'none', 'ports': [], 'bind_mounts': [],
                                  'container_removed': removed,
                                  'classifier_sha256': hashlib.sha256((OUT / 'test_receipts.py').read_bytes()).hexdigest()}, indent=2) + '\n')
     if cleanup_error:
         raise cleanup_error
+    if final_inventory_error:
+        raise RuntimeError('final inventory unverified: '+final_inventory_error)
     assert removed
