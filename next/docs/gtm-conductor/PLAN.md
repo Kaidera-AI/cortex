@@ -30,3 +30,17 @@ remaining server-clock lease, return StaleLease and roll back on timeout. Pass t
 captured token to the action. No external side effects are authorized by this port.
 H-D460 reopens monitoring stack selection; this slice exports the existing closed
 Design59 metric families only. It installs/selects no monitoring agent or backend.
+
+## Vera C08-001 review rework
+
+On the published P01 a5413024 stack, first retain synchronized RED regressions
+for renewal and release queued behind a stalled guarded action. Observe both the
+row-lock wait and a still-live lease before expiry; require StaleLease afterwards.
+Lock the token-matching row first, then check a fresh server clock while holding
+that lock. Preserve existing expiry, heartbeat, timeout and fencing controls.
+Add a RED source-drift check to the proof driver. Bind every run to Git HEAD/tree
+and SHA256 of every next/ source file; bind each mutation to its literal recipe,
+original and mutant file digests, named assertion and raw output digest. Freeze
+the source commit before the final clean baseline, mutants and restored suite.
+Publish the updated PR33 and return the bound receipts to Kai for Vera's ruling;
+then resume the graph plan. No live services or release integration changes.
