@@ -213,6 +213,22 @@ class TelemetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["error"]["reason"], "timeout")
 
+    async def test_stalled_sampler_is_cancelled_within_request_budget(self):
+        closed = asyncio.Event()
+        async def sample():
+            try:
+                await asyncio.Event().wait()
+            finally:
+                closed.set()
+        gateway = TelemetryGateway(self.metrics, self.read_health, sample, timeout_seconds=0.02)
+        try:
+            response = await asyncio.wait_for(FakeScraper(gateway.app).pull("/metrics"), 0.08)
+        except TimeoutError:
+            self.fail("The gateway failed to bound the stalled sampler")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["error"]["reason"], "timeout")
+        self.assertTrue(closed.is_set())
+
     async def test_cancellation_propagates_and_fake_scraper_closes(self):
         started, closed = asyncio.Event(), asyncio.Event()
         async def sample():
