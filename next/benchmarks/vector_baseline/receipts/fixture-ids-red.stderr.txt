@@ -1,0 +1,25 @@
+test_fixture_ids_are_explicit_unique_before_writing (test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing) ... 
+  test_fixture_ids_are_explicit_unique_before_writing (test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing) (rows=[{}]) ... FAIL
+  test_fixture_ids_are_explicit_unique_before_writing (test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing) (rows=[{'id': 'same'}, {'id': 'same'}]) ... FAIL
+
+======================================================================
+FAIL: test_fixture_ids_are_explicit_unique_before_writing (test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing) (rows=[{}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 17, in test_fixture_ids_are_explicit_unique_before_writing
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_fixture_ids_are_explicit_unique_before_writing (test_vector_baseline_failures.FailureControls.test_fixture_ids_are_explicit_unique_before_writing) (rows=[{'id': 'same'}, {'id': 'same'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 19, in test_fixture_ids_are_explicit_unique_before_writing
+    self.assertFalse(destination.exists(), "invalid IDs must fail before corpus creation")
+AssertionError: True is not false : invalid IDs must fail before corpus creation
+
+----------------------------------------------------------------------
+Ran 1 test in 0.101s
+
+FAILED (failures=2)

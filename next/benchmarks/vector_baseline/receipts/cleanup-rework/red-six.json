@@ -1,0 +1,21 @@
+{
+  "command": [
+    "next/benchmarks/vector_baseline/.venv/bin/python",
+    "-m",
+    "unittest",
+    "-v",
+    "test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_timeout_is_removed",
+    "test_postgres_cleanup.PendingCleanupTests.test_volume_create_then_ack_error_is_removed",
+    "test_postgres_cleanup.PendingCleanupTests.test_secret_create_then_timeout_is_removed",
+    "test_postgres_cleanup.PendingCleanupTests.test_secret_create_then_ack_error_is_removed",
+    "test_postgres_cleanup.PendingCleanupTests.test_container_create_then_timeout_is_removed",
+    "test_postgres_cleanup.PendingCleanupTests.test_container_create_then_ack_error_is_removed"
+  ],
+  "exit": 1,
+  "checks": 6,
+  "expected_body_failures": 6,
+  "errors": 0,
+  "production_byte_identical_to_reviewed_head": true,
+  "production_sha256": "cc204b7810dbebc156ad1299aec1acccd9e869cc8d5130269c48a36a467961c8",
+  "new_test_sha256": "dface32cba63644ae0c6d3bd00ca4a2ed4cb0156fc82b92a33ba11cad2d2d4dd"
+}

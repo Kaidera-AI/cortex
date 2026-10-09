@@ -1,0 +1,54 @@
+test_semantic_kill_requires_expected_test_body_assertion (test_vector_baseline_failures.FailureControls.test_semantic_kill_requires_expected_test_body_assertion) ... 
+  test_semantic_kill_requires_expected_test_body_assertion (test_vector_baseline_failures.FailureControls.test_semantic_kill_requires_expected_test_body_assertion) (phase='setup') ... FAIL
+  test_semantic_kill_requires_expected_test_body_assertion (test_vector_baseline_failures.FailureControls.test_semantic_kill_requires_expected_test_body_assertion) (phase='teardown') ... FAIL
+
+======================================================================
+FAIL: test_semantic_kill_requires_expected_test_body_assertion (test_vector_baseline_failures.FailureControls.test_semantic_kill_requires_expected_test_body_assertion) (phase='setup')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 36, in test_semantic_kill_requires_expected_test_body_assertion
+    self.assertEqual(mutations.semantic_kill(result, target), phase == "test",
+AssertionError: True != False : CORTEX_TEST_RESULT={"tests_run": 1, "failures": [{"id": "fixture_probe.Case.test_target", "phase": "fixture", "is_assertion": true, "exception_type": "builtins.AssertionError", "traceback": "Traceback (most recent call last):\n  File \"/var/folders/w7/tjk3sl6x0ln1ydnsp3yxpvvw0000gn/T/tmpi3nneu8z/fixture_probe.py\", line 5, in setUp\n    self.fail(\"fixture setup assertion\")\nAssertionError: fixture setup assertion\n"}], "errors": []}
+test_target (fixture_probe.Case.test_target) ... FAIL
+
+======================================================================
+FAIL: test_target (fixture_probe.Case.test_target)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/var/folders/w7/tjk3sl6x0ln1ydnsp3yxpvvw0000gn/T/tmpi3nneu8z/fixture_probe.py", line 5, in setUp
+    self.fail("fixture setup assertion")
+AssertionError: fixture setup assertion
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)
+
+
+======================================================================
+FAIL: test_semantic_kill_requires_expected_test_body_assertion (test_vector_baseline_failures.FailureControls.test_semantic_kill_requires_expected_test_body_assertion) (phase='teardown')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 36, in test_semantic_kill_requires_expected_test_body_assertion
+    self.assertEqual(mutations.semantic_kill(result, target), phase == "test",
+AssertionError: True != False : CORTEX_TEST_RESULT={"tests_run": 1, "failures": [{"id": "fixture_probe.Case.test_target", "phase": "fixture", "is_assertion": true, "exception_type": "builtins.AssertionError", "traceback": "Traceback (most recent call last):\n  File \"/var/folders/w7/tjk3sl6x0ln1ydnsp3yxpvvw0000gn/T/tmpi3nneu8z/fixture_probe.py\", line 8, in tearDown\n    self.fail(\"fixture teardown assertion\")\nAssertionError: fixture teardown assertion\n"}], "errors": []}
+test_target (fixture_probe.Case.test_target) ... FAIL
+
+======================================================================
+FAIL: test_target (fixture_probe.Case.test_target)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/var/folders/w7/tjk3sl6x0ln1ydnsp3yxpvvw0000gn/T/tmpi3nneu8z/fixture_probe.py", line 8, in tearDown
+    self.fail("fixture teardown assertion")
+AssertionError: fixture teardown assertion
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.099s
+
+FAILED (failures=2)

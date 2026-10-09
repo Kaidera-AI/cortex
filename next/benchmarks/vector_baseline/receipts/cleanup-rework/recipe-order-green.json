@@ -1,0 +1,9 @@
+{
+  "RED_commit": "dac51d64ac588ccd73e248f041f06d9cd4accce3",
+  "readme_sha256": "fd79842e869ce0340ebc1340ecc4310490f7708a40114670367fb3c1733b9696",
+  "check_sha256": "106466d139c3a625906114f0ee1a79589d10b1fa86984c61e5d18b2d05c1fb0a",
+  "finding": "B01-PREFLIGHT-DOC-001",
+  "disposition": "resolved author preflight; reviewer acceptance pending",
+  "exit": 0,
+  "check_unchanged_from_RED": true
+}

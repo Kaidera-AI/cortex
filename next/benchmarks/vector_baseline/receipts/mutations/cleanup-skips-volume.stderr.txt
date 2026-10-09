@@ -1,0 +1,14 @@
+test_cleanup_attempts_all_owned_resources_after_failure (test_vector_baseline.PostgresContractTests.test_cleanup_attempts_all_owned_resources_after_failure) ... FAIL
+
+======================================================================
+FAIL: test_cleanup_attempts_all_owned_resources_after_failure (test_vector_baseline.PostgresContractTests.test_cleanup_attempts_all_owned_resources_after_failure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline.py", line 212, in test_cleanup_attempts_all_owned_resources_after_failure
+    self.assertTrue(any(c[:2] == ["volume", "rm"] for c in commands))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

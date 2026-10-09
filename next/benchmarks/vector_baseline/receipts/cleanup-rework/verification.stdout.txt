@@ -1,0 +1,1 @@
+{"result": "PASS", "tested_source_commit": "c830b0642c5c43b1bde583de504b759f06baccfb", "target_main": "d715d0622bc81def163854c9236a51bbfb107ee2", "native_tests": 41, "real_create_failure_cases": 6, "contract_tests": 33, "shared_tests": 20, "actual_body_mutants_killed": 12, "new_RED_tests_unchanged": true, "old_assertion_nodes_unchanged": 95}

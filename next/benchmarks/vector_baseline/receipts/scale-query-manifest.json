@@ -1,0 +1,7 @@
+{
+  "corpus_manifest": "3c6b6820b65e96792b5663c29f36c66bd54ffc46c2719e4c8b8aeb64e946adfa",
+  "queries": {
+    "heldout": "e193c2b2d0473e97d9c97980fe2363c74854254ce4dda7c9d2d14315cfbdc655",
+    "tuning": "8343967a8cc85e9f569cb672db47752451ad56410e9848976c5691855b7e670f"
+  }
+}

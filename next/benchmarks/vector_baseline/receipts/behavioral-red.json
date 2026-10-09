@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "command": "PYTHONPATH=cortex/next/src:cortex/next/tests/benchmarks .venv/bin/python -m unittest test_vector_baseline.OracleTests.test_full_scan_scopes_deletes_and_all_metrics -v",
+  "test_sha256": "4288d57261472e49aeb060a8d9ca34e06c937013ba717ff5b3bd69c25ba24bfd",
+  "trigger": "pre-implementation oracle includes wrong-tenant and deleted rows"
+}

@@ -1,0 +1,15 @@
+test_float32_underflow_refused (test_vector_baseline_failures.FailureControls.test_float32_underflow_refused) ... FAIL
+
+======================================================================
+FAIL: test_float32_underflow_refused (test_vector_baseline_failures.FailureControls.test_float32_underflow_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline_failures.py", line 60, in test_float32_underflow_refused
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

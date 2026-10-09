@@ -1,0 +1,13 @@
+{
+  "command": [
+    "ruff",
+    "check",
+    "--select",
+    "E4,E7,E9,F",
+    "next/src/vector_baseline",
+    "next/tests/benchmarks"
+  ],
+  "exit": 0,
+  "ruff_version": "ruff 0.9.10",
+  "client_platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O"
+}

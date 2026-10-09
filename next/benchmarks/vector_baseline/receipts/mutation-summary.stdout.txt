@@ -1,0 +1,1 @@
+{"mutants": 9, "killed": 9}

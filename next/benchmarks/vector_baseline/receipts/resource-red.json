@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "test_sha256": "d976d13fbb21da93de47313687a56af874e9ee162f0e346ad882783e21c5be71",
+  "authority": "INBOX_mike H-D455 21:33",
+  "test_change": "new <=1GiB + worker=mike assertion, original 2GiB assertion tightened to1GiB"
+}

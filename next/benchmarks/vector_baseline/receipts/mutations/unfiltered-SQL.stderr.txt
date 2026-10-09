@@ -1,0 +1,14 @@
+test_query_uses_parameters_scope_and_dense_operator (test_vector_baseline.PostgresContractTests.test_query_uses_parameters_scope_and_dense_operator) ... FAIL
+
+======================================================================
+FAIL: test_query_uses_parameters_scope_and_dense_operator (test_vector_baseline.PostgresContractTests.test_query_uses_parameters_scope_and_dense_operator)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/tests/benchmarks/test_vector_baseline.py", line 186, in test_query_uses_parameters_scope_and_dense_operator
+    self.assertIn("NOT deleted", sql)
+AssertionError: 'NOT deleted' not found in 'WITH candidates AS MATERIALIZED (SELECT id, embedding <=> %s::vector AS distance FROM points WHERE tenant = %s AND project = %s AND true AND generation = %s ORDER BY embedding <=> %s::vector FETCH FIRST %s ROWS WITH TIES) SELECT id, distance FROM candidates ORDER BY distance, id LIMIT %s'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

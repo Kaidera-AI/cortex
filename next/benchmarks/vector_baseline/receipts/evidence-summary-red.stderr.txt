@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-b01-postgres-baseline-20261009/next/benchmarks/vector_baseline/receipts/verify-evidence.py", line 16, in <module>
+    assert len(counts) == 1 and int(counts[0]) == value['kodus'][count_name], ('Kodus count mismatch', count_name, counts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('Kodus count mismatch', 'final_source_followup_findings', ['1'])

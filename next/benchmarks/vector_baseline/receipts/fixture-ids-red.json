@@ -1,0 +1,11 @@
+{
+  "source_head": "1e0f74750368012e13ecc44787e2646e2e9025f6",
+  "test_sha256": "68073b6dc61720ca3e7914dbb71a7f892d513dbb458d25a49870918849cd937a",
+  "exit": 1,
+  "failures": 2,
+  "errors": 0,
+  "cases": [
+    "missing ID was admitted",
+    "duplicate ID caused writes before refusal"
+  ]
+}
