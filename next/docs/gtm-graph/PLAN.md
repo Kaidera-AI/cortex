@@ -102,3 +102,32 @@ Commit this source/document tree before running baseline, named mutations and
 restoration. Every receipt binds that exact HEAD, all next/ bytes, actual mutant
 digests and raw output; independently reconcile literal recipes and use the shared
 classifier for admission. Keep PR36 draft until the completed receipts exist.
+
+## Source-kind rework — Kai 2026-10-10 01:16 GO, shape A
+
+GRAPH-PG-002: one new ordinary-extraction control changes decision/revision1 to
+lesson/revision1, then consumes the pending record without reprocess or rotation.
+Both pending SQL and the hydrated-source applied check bind record/revision/kind.
+
+GRAPH-PG-001: one kind-dependent extractor control changes kind at revision1,
+rotates generation and refuses old-kind reuse; after ordinary extraction, matching
+kind facts must rebuild even when a newer other-kind fact exists. Core tables and
+their invariants remain unchanged. The graph-owned encode_graph_fact(Source,
+Extraction) codec adds source_kind as the first compact JSON field; the existing
+Core fact columns bind record/revision/extractor. Reuse filters the parameterized
+canonical kind-byte prefix before newest/LIMIT, without casting untrusted bytea
+to JSON. Decode and publication verify the kind and exact canonical payload bytes.
+Old unbound payloads are unavailable and require ordinary extraction; C07 owns the
+production sink binding to this codec. No new provider or Core migration.
+
+GRAPH-PG-003 is local: preserve only the three allowlisted publication causes
+entity_type_conflict, invalid_canonical_fact_receipt and
+canonical_fact_port_unavailable in the existing per-record error field. Unknown
+dependency text stays scrubbed. One RED control covers extraction and rebuild;
+the broader C02/C07 error contract remains gated.
+
+Commit this amendment, then the three controls before fixing source. Preserve
+existing test bodies; update the existing payload mutant only for the new codec,
+add kind-selection/reuse and safe-cause recipes, and rerun full clean/restored
+source-bound proof. Merge current main, push PR36, merge it into PR39 without
+rebasing or changing health-owned bytes, and rerun PR39 proof before handback.
