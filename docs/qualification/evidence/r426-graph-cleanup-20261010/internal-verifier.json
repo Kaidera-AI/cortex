@@ -1,0 +1,301 @@
+{
+  "kind": "bounded_fresh_context_internal_sdlc_verification",
+  "created_utc": "2026-10-09T22:52:15.744980+00:00",
+  "source_worktree": "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010",
+  "inspected_source": "e3a2e0032675b12425387b66699079f913a8f5e3",
+  "pinned_predecessor": "c7279d86741759eff2207695276e6042bba92769",
+  "required_findings": [],
+  "method": "Read-only Git/filesystem/AST/JSON/hash inspection and in-memory OCI tar inspection. No author programs, tests, builds, containers, services, credentials, forge calls, source mutations or official coordination executed.",
+  "source_scope": {
+    "changed_paths": [
+      "docs/qualification/r426-graph-cleanup-20261010.md",
+      "packages/containers/graph-worker/Dockerfile",
+      "packages/containers/graph-worker/finalize-build.py",
+      "packages/containers/graph-worker/tests/test_cleanup_ownership.py",
+      "packages/containers/graph-worker/tests/test_finalizer_guard.py"
+    ],
+    "worktree_clean": true,
+    "original_four_tests_byte_identical_to_predecessor": true,
+    "primary_regression_byte_identical_to_red": "bd20824afe356e3ca70a9aa77487b3638948dbe1",
+    "primary_regression_lines": 86,
+    "primary_regression_sha256": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "compile_loop_byte_identical_to_predecessor": true,
+    "final_docker_compile_command_unchanged": true,
+    "production_hooks": {
+      "builder": "/usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --builder-home --cleanup-scope runtime",
+      "system": "/usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --cleanup-scope system",
+      "runtime": "/usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --cleanup-scope runtime",
+      "compile": "PYTHONHASHSEED=0 /usr/local/bin/python /usr/local/libexec/kaidera/finalize-build.py"
+    },
+    "permission_error_suppression_in_source": false,
+    "permission_widening_in_source": false,
+    "default_final_cli": "verify_clean first; compile with cleanup_scope none",
+    "all_other_worker_context_lockfile_model_base_inputs_unchanged": true
+  },
+  "source_sha256": {
+    "packages/containers/graph-worker/worker.py": "493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4",
+    "packages/containers/graph-worker/verify-qwen3-model.py": "968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473",
+    "packages/containers/graph-worker/Dockerfile": "58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4",
+    "packages/containers/graph-worker/finalize-build.py": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    "packages/containers/graph-worker/.dockerignore": "3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232",
+    "packages/containers/graph-worker/requirements.bcrg.in": "afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf",
+    "packages/containers/graph-worker/worker-entrypoint": "db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312",
+    "packages/containers/graph-worker/requirements.bcrg.lock": "e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018",
+    "packages/containers/graph-worker/qwen3-model-pins.json": "84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea",
+    "packages/containers/graph-worker/requirements.runtime.lock": "bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9",
+    "packages/containers/graph-worker/requirements.runtime.in": "c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b",
+    "packages/containers/graph-worker/fetch-qwen3-model.py": "a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb",
+    "packages/containers/graph-worker/debian-snapshot.sources": "34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017",
+    "packages/containers/graph-worker/tests/test_finalize_build.py": "d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24",
+    "packages/containers/graph-worker/tests/test_cleanup_ownership.py": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "packages/containers/graph-worker/tests/test_fetch_qwen3_model.py": "e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42",
+    "packages/containers/graph-worker/tests/test_finalizer_guard.py": "a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3",
+    "packages/containers/graph-worker/tests/test_worker_prune.py": "387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c"
+  },
+  "red": {
+    "receipt": "red-attempt-002.json",
+    "source": "bd20824afe356e3ca70a9aa77487b3638948dbe1",
+    "source_hashes_verified": 17,
+    "suite": {
+      "result_index": 5,
+      "exit_code": 1,
+      "tests_run": 7,
+      "error_count": 0,
+      "expected_assertion_ids": [
+        "test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile",
+        "test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent"
+      ],
+      "assertion_count": 2,
+      "raw_stdout_stderr_preserved": true
+    },
+    "raw_child_permission_error_in_expected_assertion": true,
+    "owned_container_removal_exit": 0
+  },
+  "green": {
+    "receipt": "green-attempt-002.json",
+    "source_hashes_verified": 18,
+    "raw_suites": [
+      {
+        "result_index": 5,
+        "exit_code": 0,
+        "tests_run": 8,
+        "error_count": 0,
+        "expected_assertion_ids": [],
+        "assertion_count": 0,
+        "raw_stdout_stderr_preserved": true
+      },
+      {
+        "result_index": 7,
+        "exit_code": 1,
+        "tests_run": 8,
+        "error_count": 0,
+        "expected_assertion_ids": [
+          "test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile",
+          "test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent"
+        ],
+        "assertion_count": 2,
+        "raw_stdout_stderr_preserved": true
+      },
+      {
+        "result_index": 10,
+        "exit_code": 1,
+        "tests_run": 8,
+        "error_count": 0,
+        "expected_assertion_ids": [
+          "test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup",
+          "test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor"
+        ],
+        "assertion_count": 2,
+        "raw_stdout_stderr_preserved": true
+      },
+      {
+        "result_index": 13,
+        "exit_code": 1,
+        "tests_run": 8,
+        "error_count": 0,
+        "expected_assertion_ids": [
+          "test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup"
+        ],
+        "assertion_count": 1,
+        "raw_stdout_stderr_preserved": true
+      },
+      {
+        "result_index": 15,
+        "exit_code": 0,
+        "tests_run": 8,
+        "error_count": 0,
+        "expected_assertion_ids": [],
+        "assertion_count": 0,
+        "raw_stdout_stderr_preserved": true
+      }
+    ],
+    "semantic_mutants": 3,
+    "expected_assertion_failures_across_mutants": 5,
+    "suite_errors": 0,
+    "restored_file_hashes_verified": 18,
+    "restored_clean_tests": 8,
+    "owned_container_removal_exit": 0,
+    "classifier_sha256": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+  },
+  "coverage": [
+    "Original four controls: exact cleanup and neighbor/model preservation; checked-hash final-path compilation and fixture byte equality across source timestamps; refusal on invalid source; Dockerfile compilation/hook invariants.",
+    "Frozen three ownership controls: real UID/GID10001 and mode0700 root-owned system parent; exact production runtime argv success with runtime removal/preservation; correct three creating scopes and unchanged final compile/user; unscoped PermissionError visibility.",
+    "Separate final-entrypoint control: refuses stale earlier-layer byproduct with expected RuntimeError text and preserves stale bytes; creator removes fixture in finally."
+  ],
+  "actual_runtime": {
+    "uid": 10001,
+    "gid": 10001,
+    "python": "3.13.15",
+    "arch": "aarch64",
+    "capability_fields": {
+      "CapInh": 0,
+      "CapPrm": 0,
+      "CapEff": 0,
+      "CapBnd": 1,
+      "CapAmb": 0
+    },
+    "effective_capabilities_zero": true,
+    "bounding_set_retains_CHOWN_bit": true,
+    "root_fixture_parent_mode": "0700",
+    "mode_not_claimed_as_measured_on_original_failed_host": true
+  },
+  "oci_fixture": {
+    "receipt": "layers-green-attempt-003.json",
+    "receipt_source": "ff4e29d201b7bf12ee5a750744cde515eb24689e",
+    "source_inputs_byte_equal_to_final": true,
+    "production_hook_argv_exact": true,
+    "creating_run_raw_attestations": {
+      "CREATING_ROOT_RUN": {
+        "uid": 0,
+        "removed": [
+          "var/log/apt/history.log",
+          "var/log/apt/term.log",
+          "var/log/dpkg.log",
+          "var/cache/ldconfig/aux-cache",
+          "root/.cache/Microsoft/DeveloperTools/.onnxruntime/deviceid",
+          "root/.cache/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db",
+          "tmp/.ses"
+        ],
+        "parent_mode": "0700"
+      },
+      "CREATING_RUNTIME_RUN": {
+        "uid": 10001,
+        "gid": 10001,
+        "removed": [
+          "home/kaidera/.cache/Microsoft/DeveloperTools/.onnxruntime/deviceid",
+          "home/kaidera/.cache/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db",
+          "tmp/.ses"
+        ],
+        "parent_inaccessible": true
+      }
+    },
+    "archive_path": "/Users/amadmalik/DevVault/helix/tmp/cox-r426-graph-cleanup-20261010/layers-green-attempt-003/fixture.oci.tar",
+    "archive_sha256": "303c7962f8a93cb966015f1649429307c4b5fdddf0f301b696d8c705d51630f4",
+    "descriptor_digests_and_sizes_checked": true,
+    "base_layer_count": 4,
+    "new_layer_count": 4,
+    "ruled_paths_checked": [
+      "home/kaidera/.cache/Microsoft/DeveloperTools/.onnxruntime/deviceid",
+      "home/kaidera/.cache/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db",
+      "root/.cache/Microsoft/DeveloperTools/.onnxruntime/deviceid",
+      "root/.cache/Microsoft/DeveloperTools/.onnxruntime/onnxruntime.db",
+      "tmp/.ses",
+      "var/cache/ldconfig/aux-cache",
+      "var/log/apt/history.log",
+      "var/log/apt/term.log",
+      "var/log/dpkg.log"
+    ],
+    "new_layer_byproduct_file_data": [],
+    "historic_base_entries": [
+      {
+        "layer": 1,
+        "digest": "sha256:b21a725b5bb49aa9714d49b1a5de1af5e9db9a20a2b2721967dd0c0e3caf4297",
+        "immutable_base": true,
+        "ruled_file_data": [
+          "var/cache/ldconfig/aux-cache",
+          "var/log/apt/history.log",
+          "var/log/apt/term.log",
+          "var/log/dpkg.log"
+        ]
+      },
+      {
+        "layer": 2,
+        "digest": "sha256:f5258e3128d505bb1467d44e7c601ab98007a9908ba893d4f3c3c96dce1de211",
+        "immutable_base": true,
+        "ruled_file_data": [
+          "var/cache/ldconfig/aux-cache",
+          "var/log/apt/history.log",
+          "var/log/apt/term.log",
+          "var/log/dpkg.log"
+        ]
+      }
+    ],
+    "all_archive_absence_claim": false,
+    "copied_finalizer_sha256": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    "final_user": "10001:10001",
+    "jp_bytecode_header_and_tar_hash_verified": {
+      "layer": 7,
+      "path": "opt/bcrg/lib/python3.13/site-packages/bin/__pycache__/jp.cpython-313.pyc",
+      "flags": 3,
+      "sha256": "095451d41ad14e9ac5bd16fd37c6f73b41747969cfb0b109eb8887d4dd96ea9c"
+    },
+    "jp_co_filename_recorded_by_author": "/opt/bcrg/lib/python3.13/site-packages/bin/jp.py",
+    "jp_co_filename_independently_marshal_decoded": false,
+    "owned_final_image_removal_exit": 0
+  },
+  "separate_build_negative": {
+    "receipt": "red-layers-runtime-scope.json",
+    "build_exit": 1,
+    "actual_permission_error_and_path": true,
+    "counted_as_test_body_mutation_kill": false,
+    "cleanup_exit": 0
+  },
+  "recipe_output_mkdir_before_launch": {
+    "run-graph.py": 11,
+    "run-layers.py": 17
+  },
+  "repository_target_guard": {
+    "source_sha256": "56c5d0c99425ff4e9782f76934f632e4bf7de39ede67b4df75cc2839e313974b",
+    "recorded_actual_wrong_repository_read_only_refusal": true,
+    "recorded_actual_correct_repository_read_only_pass": true,
+    "independent_forge_execution": false,
+    "not_graph_acceptance": true
+  },
+  "history": {
+    "operational_failures_retained_not_counted": [
+      "red.json",
+      "layers-green-attempt-001.json",
+      "layers-green-attempt-002.json"
+    ],
+    "historical_green_not_used_as_final": [
+      "green-attempt-001.json"
+    ],
+    "all_existing_receipts_preserved": true
+  },
+  "raw_members_sha256": {
+    "red-attempt-002.json": "11d81e3d1d51f2fde11076f1f47d6ca5e76b417f39ace9f19064c3c29ef2583d",
+    "green-attempt-002.json": "8326d36aa219f880531684be0cab40a2bf4fed63a486c102cfd6b8ffc2415ef4",
+    "layers-green-attempt-003.json": "e79020bb413011c369caff17315e3ee26aa8f7b3769f17d7a03c0e6983651be5",
+    "red-layers-runtime-scope.json": "b82404e4496c66a4342f79c00090ad34c061c581fff93e3bba8414f5843581c9",
+    "run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+    "run-layers.py": "98311bbd4215f0c97a450e7e4c6e4684f39b6519ae69cd004b6afd043628c07e",
+    "test_receipts.py": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa",
+    "pr-target-guard.py": "56c5d0c99425ff4e9782f76934f632e4bf7de39ede67b4df75cc2839e313974b",
+    "pr-target-guard-red-green.json": "811cc342fc270daec89812f005f9d288040d659fe5800636fb2628941f2978f7",
+    "integrity.json": "0f7d07b06f7596ad45cc20b81ccbe257aff4742c23a16647a8adf7ea7a019344",
+    "folder-fitness.json": "60bb2a8c817f939c3acd7aa2c7568ad77640e693fa40bce9d69930c6ec6d09ad",
+    "red.json": "5b950b8629cb0178e3fd91be7acea485445925dc5f916465585b1abae7e01fd6",
+    "green-attempt-001.json": "279175aed579cf4dc31c9e0a84e7783926f867321ce7ad8178a48478d64ab3d9",
+    "layers-green-attempt-001.json": "f6e46cf5052943541fea1b8c037d9d5f9eb57ea785469442e485f92a3685edbf",
+    "layers-green-attempt-002.json": "7ece021c7375fc3566c252851330095c487c43b382e500bac6c46d148ab6e88e"
+  },
+  "plan_sha256": "598efe31c121b94c0132440b87d1ff334fcff0cde71d9bb6e706d5cab844a0c4",
+  "limitations": [
+    "Independent review inspected captured output; it did not rerun any tests/builds or native graph/model operations.",
+    "OCI proof is an arm64 offline fixture with seeded producers and four new layers; historic pinned base byproducts remain. It is not an all-base/archive absence, whole graph image, native Linuxamd64, model inference, full repeatability, signed-image or release qualification.",
+    "Pyc flags, tar path, content hash and copied helper bytes were independently checked; co_filename is the authored receipt result, not independently marshal-decoded.",
+    "The omitted-final-guard mutant reaches fixture read-only compile failure after bypassing verification; its declared test-body assertion fails on the missing guard error. It is a bounded refusal-order probe, not successful full final compilation.",
+    "Global folder-fitness receipt remains exit1 for tracked dist/packaging; it is a separate gate.",
+    "Internal SDLC verification supplies no official Vera/Ren-KOS/CTO acceptance, merge, deployment or gate ruling."
+  ]
+}

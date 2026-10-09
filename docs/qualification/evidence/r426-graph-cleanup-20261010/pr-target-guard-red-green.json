@@ -1,0 +1,20 @@
+{
+  "purpose": "prevent the wrong-repository PR-description error found in C03 return; actual read-only forge targets, no mutation",
+  "script_sha256": "56c5d0c99425ff4e9782f76934f632e4bf7de39ede67b4df75cc2839e313974b",
+  "results": [
+    {
+      "repo": "Kaidera-AI/kaideraos",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/output/Cortex/design55-r426/2026-10-10/graph-cleanup/pr-target-guard.py\", line 9, in <module>\n    assert value['url'] == 'https://github.com/Kaidera-AI/cortex/pull/' + number, 'wrong repository target'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: wrong repository target\n",
+      "read_only": true
+    },
+    {
+      "repo": "Kaidera-AI/cortex",
+      "exit_code": 0,
+      "stdout": "{\"target_guard\": \"PASS\", \"baseRefName\": \"main\", \"headRefName\": \"cox/c03-core-schema-20261009\", \"headRefOid\": \"47b42cbd73bc84f78e999e5abf8e1e1f49362d2d\", \"url\": \"https://github.com/Kaidera-AI/cortex/pull/32\"}\n",
+      "stderr": "",
+      "read_only": true
+    }
+  ]
+}

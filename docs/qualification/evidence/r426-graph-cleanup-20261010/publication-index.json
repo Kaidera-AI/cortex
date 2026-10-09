@@ -1,0 +1,26 @@
+{
+  "canonical_root": "output/Cortex/design55-r426/2026-10-10/graph-cleanup",
+  "tested_source": "e3a2e0032675b12425387b66699079f913a8f5e3",
+  "product_snapshot_members_sha256": {
+    "green-attempt-002.json": "8326d36aa219f880531684be0cab40a2bf4fed63a486c102cfd6b8ffc2415ef4",
+    "run-layers.py": "98311bbd4215f0c97a450e7e4c6e4684f39b6519ae69cd004b6afd043628c07e",
+    "red-layers-runtime-scope.json": "b82404e4496c66a4342f79c00090ad34c061c581fff93e3bba8414f5843581c9",
+    "run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+    "preedit-ownership.json": "29e6364bf6fc114a004f36d26598f4648ad663eb16799a60a0a001c7e4f8054f",
+    "red.json": "5b950b8629cb0178e3fd91be7acea485445925dc5f916465585b1abae7e01fd6",
+    "pr-target-guard-red-green.json": "811cc342fc270daec89812f005f9d288040d659fe5800636fb2628941f2978f7",
+    "pr-target-guard.py": "56c5d0c99425ff4e9782f76934f632e4bf7de39ede67b4df75cc2839e313974b",
+    "test_receipts.py": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa",
+    "layers-green-attempt-001.json": "f6e46cf5052943541fea1b8c037d9d5f9eb57ea785469442e485f92a3685edbf",
+    "red-attempt-002.json": "11d81e3d1d51f2fde11076f1f47d6ca5e76b417f39ace9f19064c3c29ef2583d",
+    "layers-green-attempt-002.json": "7ece021c7375fc3566c252851330095c487c43b382e500bac6c46d148ab6e88e",
+    "reproduce.md": "53c34ea7e69ef6b9cab657e6ab6e2a462b8f38adcb6dd86a1d7fe893596dc063",
+    "layers-green-attempt-003.json": "e79020bb413011c369caff17315e3ee26aa8f7b3769f17d7a03c0e6983651be5",
+    "internal-verifier.json": "d7aec862d5bbb16bcac62364d51839f14e2e61f1af67258b108afde30c762370",
+    "folder-fitness.json": "60bb2a8c817f939c3acd7aa2c7568ad77640e693fa40bce9d69930c6ec6d09ad",
+    "green-attempt-001.json": "279175aed579cf4dc31c9e0a84e7783926f867321ce7ad8178a48478d64ab3d9",
+    "integrity.json": "0f7d07b06f7596ad45cc20b81ccbe257aff4742c23a16647a8adf7ea7a019344"
+  },
+  "fixture_oci_archive": "tmp/cox-r426-graph-cleanup-20261010/layers-green-attempt-003/fixture.oci.tar",
+  "fixture_oci_sha256": "303c7962f8a93cb966015f1649429307c4b5fdddf0f301b696d8c705d51630f4"
+}

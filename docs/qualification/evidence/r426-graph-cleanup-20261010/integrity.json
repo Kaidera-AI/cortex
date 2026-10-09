@@ -1,0 +1,73 @@
+{
+  "tested_source": "e3a2e0032675b12425387b66699079f913a8f5e3",
+  "pinned_predecessor": "c7279d86741759eff2207695276e6042bba92769",
+  "fresh_tests": 8,
+  "semantic_mutants": 3,
+  "expected_body_assertion_failures": [
+    2,
+    2,
+    1
+  ],
+  "error_count": 0,
+  "source_sha256": {
+    "packages/containers/graph-worker/worker.py": "493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4",
+    "packages/containers/graph-worker/verify-qwen3-model.py": "968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473",
+    "packages/containers/graph-worker/Dockerfile": "58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4",
+    "packages/containers/graph-worker/finalize-build.py": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    "packages/containers/graph-worker/.dockerignore": "3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232",
+    "packages/containers/graph-worker/requirements.bcrg.in": "afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf",
+    "packages/containers/graph-worker/worker-entrypoint": "db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312",
+    "packages/containers/graph-worker/requirements.bcrg.lock": "e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018",
+    "packages/containers/graph-worker/qwen3-model-pins.json": "84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea",
+    "packages/containers/graph-worker/requirements.runtime.lock": "bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9",
+    "packages/containers/graph-worker/requirements.runtime.in": "c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b",
+    "packages/containers/graph-worker/fetch-qwen3-model.py": "a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb",
+    "packages/containers/graph-worker/debian-snapshot.sources": "34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017",
+    "packages/containers/graph-worker/tests/test_finalize_build.py": "d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24",
+    "packages/containers/graph-worker/tests/test_cleanup_ownership.py": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "packages/containers/graph-worker/tests/test_fetch_qwen3_model.py": "e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42",
+    "packages/containers/graph-worker/tests/test_finalizer_guard.py": "a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3",
+    "packages/containers/graph-worker/tests/test_worker_prune.py": "387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c"
+  },
+  "frozen_original_and_primary_tests": true,
+  "layer_receipt_source_inputs_equal_final": true,
+  "new_fixture_layers": 4,
+  "new_layer_byproduct_file_data": 0,
+  "base_historical_byproducts_retained_and_disclosed": true,
+  "fixture_jp": [
+    {
+      "layer": 7,
+      "path": "opt/bcrg/lib/python3.13/site-packages/bin/__pycache__/jp.cpython-313.pyc",
+      "flags": 3,
+      "co_filename": "/opt/bcrg/lib/python3.13/site-packages/bin/jp.py",
+      "sha256": "095451d41ad14e9ac5bd16fd37c6f73b41747969cfb0b109eb8887d4dd96ea9c"
+    }
+  ],
+  "runtime_uid": 10001,
+  "runtime_effective_capabilities": "0",
+  "root_fixture_parent_mode": "0700",
+  "resource_cleanup_checked": true,
+  "raw_members_sha256": {
+    "green-attempt-002.json": "8326d36aa219f880531684be0cab40a2bf4fed63a486c102cfd6b8ffc2415ef4",
+    "run-layers.py": "98311bbd4215f0c97a450e7e4c6e4684f39b6519ae69cd004b6afd043628c07e",
+    "red-layers-runtime-scope.json": "b82404e4496c66a4342f79c00090ad34c061c581fff93e3bba8414f5843581c9",
+    "run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+    "preedit-ownership.json": "29e6364bf6fc114a004f36d26598f4648ad663eb16799a60a0a001c7e4f8054f",
+    "red.json": "5b950b8629cb0178e3fd91be7acea485445925dc5f916465585b1abae7e01fd6",
+    "pr-target-guard-red-green.json": "811cc342fc270daec89812f005f9d288040d659fe5800636fb2628941f2978f7",
+    "pr-target-guard.py": "56c5d0c99425ff4e9782f76934f632e4bf7de39ede67b4df75cc2839e313974b",
+    "test_receipts.py": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa",
+    "layers-green-attempt-001.json": "f6e46cf5052943541fea1b8c037d9d5f9eb57ea785469442e485f92a3685edbf",
+    "red-attempt-002.json": "11d81e3d1d51f2fde11076f1f47d6ca5e76b417f39ace9f19064c3c29ef2583d",
+    "layers-green-attempt-002.json": "7ece021c7375fc3566c252851330095c487c43b382e500bac6c46d148ab6e88e",
+    "layers-green-attempt-003.json": "e79020bb413011c369caff17315e3ee26aa8f7b3769f17d7a03c0e6983651be5",
+    "green-attempt-001.json": "279175aed579cf4dc31c9e0a84e7783926f867321ce7ad8178a48478d64ab3d9"
+  },
+  "limits": [
+    "Native arm64 source/fixture proof only; no full graph/model build, amd64 qualification, repeatability or signed-image acceptance",
+    "Original98 graph-worker host proof is historical, not rerun/claimed by Cox; full changed helper8-unit suite and every creating cleanup hook exercised",
+    "Initial launch/malformed fixture attempts retained as operational failures; never mutation kills",
+    "Pre-existing root folder fitness RED remains a separate estate gate; no all-gates PASS",
+    "Official Vera source acceptance and Ren-KOS native re-entry/CTO artifact gates remain required"
+  ]
+}
