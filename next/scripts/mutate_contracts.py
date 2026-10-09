@@ -28,6 +28,7 @@ def run():
     module = NEXT / "src/cortex_core/contracts.py"
     event = NEXT / "contracts/outbox-event.schema.json"
     api = NEXT / "contracts/openapi.json"
+    manifest = NEXT / "contracts/provenance.json"
     source = module.read_text()
     replacements = [
         ("validation bypass", "    try:\n        Draft202012Validator", "    return value\n    try:\n        Draft202012Validator"),
@@ -64,6 +65,13 @@ def run():
     ]
     for label, change in api_changes:
         mutants.append((api, label, changed_json(api, change)))
+    index_changes = [
+        ("unsupported index version", lambda v: v.update(schema_index_version=2)),
+        ("event index identity changed", lambda v: v["schemas"]["outbox_event"]["1"].update(schema_id="urn:other:1")),
+        ("wire index redirected", lambda v: v["schemas"]["proposed_wire"].update(file="outbox-event.schema.json")),
+    ]
+    for label, change in index_changes:
+        mutants.append((manifest, label, changed_json(manifest, change)))
     survivors = []
     for path, label, data in mutants:
         original = path.read_bytes()
