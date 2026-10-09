@@ -155,12 +155,12 @@ class PostgresSearch:
         self.authorize = authorize
 
     @asynccontextmanager
-    async def _request(self, subject: str):
+    async def _request(self, subject: str, *, isolation="repeatable_read"):
         if not subject:
             raise PermissionError("Authenticated principal required")
         try:
             async with self.pool.acquire(timeout=2) as conn:
-                async with conn.transaction(isolation="repeatable_read"):
+                async with conn.transaction(isolation=isolation):
                     bypass = await conn.fetchval(
                         "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user"
                     )
