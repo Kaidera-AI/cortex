@@ -1,0 +1,10 @@
+{
+  "exit_code": 1,
+  "command": [
+    "bash",
+    "scripts/fitness/check-folder-structure.sh"
+  ],
+  "stdout": "     tracked top-level file not in the allowlist: dist\n     tracked top-level file not in the allowlist: packaging\n  \u274c folder-structure \u2014 top level outside the allowlist; see docs/FOLDER_STRUCTURE_SOP.md \u00a71 and \u00a73\n",
+  "stderr": "",
+  "scope": "global helix; C03 changes neither dist nor packaging"
+}
