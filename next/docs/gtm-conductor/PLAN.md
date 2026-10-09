@@ -18,3 +18,15 @@ The pool is a restricted installation-supervisor service role, never an end-user
 ## Pre-edit evidence
 
 Own SSD worktree nemo-gtm-conductor-20261009 based on P01 b54218c8; clean at creation. Fresh worktree/ref scan finds no Conductor paths in other task branches. Cox's C03 has coordination.leases scoped to tenant/project and core.installations(id UUID); those files are read-only/excluded. This new c08-supervisor-leases.sql avoids collisions. Current Design62 section4.3 and Design59 sections8.3/8.7/8.9 checked. H-D458 applies: only the shared kos-e020-uat engine, one stack per worker, each container <=1GiB/2 CPUs, explicit worker=nemo label, no prune/live-container action, cleanup each run. Existing synthetic PG runner adds only that owner label; no source mounts.
+
+## Resume after search/provider review rework
+
+Base restacked on published P01 d70618c (contains fixed PR29 ab84b7e); full stack
+70 checks passes locally. Apply the team named-assertion mutation rule to C08, with
+clean baseline, raw outputs, inconclusive failures and full restored suite.
+Add a RED-first stalled-control regression: a callback cannot retain the singleton
+row lock indefinitely after its lease expires. Bound the PG-only callback by the
+remaining server-clock lease, return StaleLease and roll back on timeout. Pass the
+captured token to the action. No external side effects are authorized by this port.
+H-D460 reopens monitoring stack selection; this slice exports the existing closed
+Design59 metric families only. It installs/selects no monitoring agent or backend.
