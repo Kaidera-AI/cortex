@@ -13,6 +13,8 @@ def mutation(path, name, before, after, test):
 
 
 MUTATIONS = [
+    mutation(SOURCE, "changed_core_kind_ignored", " AND r.kind=a.source_kind\n", "", "test_changed_core_kind_does_not_serve_old_source_provenance"),
+    mutation(SOURCE, "multiword_tokens_lost", 'tokens = [t.lower() for t in re.findall(r"[A-Za-z0-9_.:/-]+", query) if len(t)>2] or [query.lower()]', 'tokens = [query.lower()]', "test_existing_multiword_query_matches_any_current_token"),
     mutation(SOURCE, "stale_revision_reads", "AND r.current_revision=a.source_revision AND NOT r.tombstone", "AND TRUE", "test_revision_and_tombstone_never_serve_stale_graph"),
     mutation(SOURCE, "wrong_extractor_admitted", 'if row["extractor_identity"] != self.identity:', 'if False and row["extractor_identity"] != self.identity:', "test_wrong_extractor_identity_is_unavailable"),
     mutation(SOURCE, "writer_grant_not_checked", 'self._tx(subject, "writer", project)', 'self._tx(subject, "read", project)', "test_revoked_writer_during_extraction_cannot_publish"),

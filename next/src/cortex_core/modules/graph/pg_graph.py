@@ -24,6 +24,7 @@ ACTIVE = """WITH active AS (
  JOIN core.records r ON (r.tenant_id,r.project_id,r.id)=(a.tenant_id,a.project_id,a.record_id)
  WHERE a.tenant_id=$1 AND a.project_id=$2
  AND r.current_revision=a.source_revision AND NOT r.tombstone
+ AND r.kind=a.source_kind
 ), nodes AS (
  SELECT n.name,min(n.entity_type) AS entity_type,min(n.description) AS description,
         count(DISTINCT a.record_id)::int AS source_count,max(a.applied_at)::text AS updated_at
@@ -176,7 +177,7 @@ class PostgresGraph:
             count(*) FILTER(WHERE a.record_id IS NULL)::int AS pending
             FROM core.records r LEFT JOIN retrieval.graph_applied a ON
              (a.tenant_id,a.project_id,a.generation,a.record_id,a.source_revision)=
-             (r.tenant_id,r.project_id,$3,r.id,r.current_revision)
+             (r.tenant_id,r.project_id,$3,r.id,r.current_revision) AND a.source_kind=r.kind
             WHERE r.tenant_id=$1 AND r.project_id=$2 AND NOT r.tombstone AND r.kind=ANY($4::text[])
             GROUP BY r.kind""", scope.tenant_id, scope.project_id, generation, list(KINDS))
         source_counts = {v: 0 for k, v in KINDS.items() if k != "code"}
@@ -255,6 +256,7 @@ class PostgresGraph:
     @retry
     async def search(self, subject, query, *, limit=100, expand=False, high=False, low=False, depth=1, project=None):
         text(query, 512)
+        tokens = [t.lower() for t in re.findall(r"[A-Za-z0-9_.:/-]+", query) if len(t)>2] or [query.lower()]
         bounded_int(limit, 1, 1000)
         bounded_int(depth, 0, 3)
         mode = "high" if high and not low else "low" if low and not high else "both"
@@ -262,8 +264,9 @@ class PostgresGraph:
         async with self._tx(subject, project=project) as (conn, scope):
             generation = await self._state(conn, scope)
             seeds = await conn.fetch(ACTIVE + """SELECT * FROM nodes WHERE
-                strpos(lower(name || ' ' || description),lower($3))>0 AND entity_type=ANY($4::text[])
-                ORDER BY name LIMIT $5""", scope.tenant_id, scope.project_id, query, types_allowed, limit+1)
+                EXISTS(SELECT 1 FROM unnest($3::text[]) token WHERE strpos(lower(name || ' ' || description),token)>0)
+                AND entity_type=ANY($4::text[])
+                ORDER BY name LIMIT $5""", scope.tenant_id, scope.project_id, tokens, types_allowed, limit+1)
             truncated = len(seeds) > limit
             selected = {r["name"]: r for r in seeds[:limit]}
             frontier, relationships = list(selected), {}
@@ -339,7 +342,7 @@ class PostgresGraph:
             rows = await conn.fetch("""SELECT r.id,r.current_revision,r.kind FROM core.records r
                 LEFT JOIN retrieval.graph_applied a ON
                  (a.tenant_id,a.project_id,a.generation,a.record_id,a.source_revision)=
-                 (r.tenant_id,r.project_id,$3,r.id,r.current_revision)
+                 (r.tenant_id,r.project_id,$3,r.id,r.current_revision) AND a.source_kind=r.kind
                 WHERE r.tenant_id=$1 AND r.project_id=$2 AND NOT r.tombstone AND r.kind=ANY($4::text[])
                   AND ($5::boolean OR a.record_id IS NULL)
                 ORDER BY r.id LIMIT $6""", scope.tenant_id, scope.project_id, generation, kinds, reprocess, limit)
@@ -355,7 +358,10 @@ class PostgresGraph:
             selected, seen = [], set()
             expected = {r.record_id: r for r in references}
             for source in sources:
-                self._source_valid(source)
+                try:
+                    self._source_valid(source)
+                except (ValueError, TypeError):
+                    raise GraphUnavailable("invalid_source_receipt") from None
                 ref = expected.get(source.record_id)
                 if ref is None or (source.revision, source.kind) != (ref.revision, ref.kind) or source.record_id in seen:
                     raise GraphUnavailable("invalid_source_receipt")
