@@ -388,6 +388,16 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["processed"], 0)
         self.assertEqual((await self.graph.memory("alice"))["nodes"], [])
 
+    async def test_rebuild_uses_canonical_facts_without_extractor_or_new_fact(self):
+        await self.project()
+        count = await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts")
+        await self.graph.configure("alice", "ready")
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": None, "fact_sink": None})
+        result = await graph.rebuild("alice")
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual((await graph.stats("alice"))["entity_count"], 3)
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), count)
+
     async def test_bounds_and_invalid_modes_are_refused(self):
         for kwargs in [{"depth": 4}, {"limit": 0}, {"limit": 1001}]:
             with self.assertRaises(ValueError):
