@@ -1,0 +1,93 @@
+{
+  "phase": "missing-red",
+  "source_tree": "e3aaa2f45ae03035313946241d83fa6ff4bcb62a",
+  "source_sha256": {
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002"
+  },
+  "image_id": "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+  "network": "none",
+  "ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "cpus": 1,
+    "memory": "256m",
+    "tmpfs": "128m"
+  },
+  "container_removed": true,
+  "fault_seed": null,
+  "results": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--name",
+        "kaidera-test-receipts-1",
+        "--network",
+        "none",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "slice=shared-test-receipts",
+        "--cpus",
+        "1",
+        "--memory",
+        "256m",
+        "--read-only",
+        "--user",
+        "10001:10001",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--tmpfs",
+        "/tmp:rw,size=134217728,mode=1777",
+        "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9",
+        "sleep",
+        "1800"
+      ],
+      "exit_code": 0,
+      "stdout": "bab0ceec6d3bd0ec85c4e81d05948ad4cbd7da534383b4c6346685baa5250899\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-shared-test-receipts-20261009/next",
+        "kaidera-test-receipts-1:/tmp/next"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "kaidera-test-receipts-1",
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/tmp/next/tests/receipt",
+        "-v"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "test_classifier (unittest.loader._FailedTest.test_classifier) ... ERROR\n\n======================================================================\nERROR: test_classifier (unittest.loader._FailedTest.test_classifier)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_classifier\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.12/unittest/loader.py\", line 396, in _find_test_path\n    module = self._get_module_from_name(name)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/unittest/loader.py\", line 339, in _get_module_from_name\n    __import__(name)\n  File \"/tmp/next/tests/receipt/test_classifier.py\", line 10, in <module>\n    from test_receipts import MARKER, classify, report, suite\nModuleNotFoundError: No module named 'test_receipts'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "kaidera-test-receipts-1"
+      ],
+      "exit_code": 0,
+      "stdout": "kaidera-test-receipts-1\n",
+      "stderr": ""
+    }
+  ]
+}
