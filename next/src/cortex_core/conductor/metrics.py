@@ -1,11 +1,11 @@
 """Design59 v1.2's closed Cortex metric families and four identity labels."""
 
-from contextlib import contextmanager
-from dataclasses import dataclass
 import math
 import re
-from threading import Lock
 import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from threading import Lock
 from uuid import UUID
 
 

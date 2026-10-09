@@ -115,7 +115,19 @@ class Supervisor:
             )
             if valid is None:
                 raise StaleLease("Stale supervisor cannot issue control intent")
-            result = await action(conn, self.fence)
+            remaining = await conn.fetchval(
+                """SELECT EXTRACT(EPOCH FROM (expires_at-clock_timestamp()))
+                FROM coordination.supervisor_leases WHERE installation_id=$1 AND holder=$2 AND fence=$3""",
+                *token,
+            )
+            try:
+                result = await asyncio.wait_for(
+                    action(conn, token[2]), timeout=max(0, float(remaining))
+                )
+            except TimeoutError:
+                raise StaleLease(
+                    "Control action outlived its lease; transaction rolled back"
+                ) from None
             live = await conn.fetchval(
                 """SELECT expires_at > clock_timestamp()
                 FROM coordination.supervisor_leases WHERE installation_id=$1 AND holder=$2 AND fence=$3""",

@@ -6,10 +6,10 @@ import unittest
 from uuid import UUID
 
 import asyncpg
-from prometheus_client.parser import text_string_to_metric_families
 import test_pg_search
-from cortex_core.conductor.supervisor import Supervisor, LeaseBusy, StaleLease
-from cortex_core.conductor.metrics import Metrics, MetricIdentity
+from cortex_core.conductor.metrics import MetricIdentity, Metrics
+from cortex_core.conductor.supervisor import LeaseBusy, StaleLease, Supervisor
+from prometheus_client.parser import text_string_to_metric_families
 
 INSTALLATION = UUID("00000000-0000-0000-0000-000000000101")
 
@@ -114,7 +114,8 @@ class ConductorTests(test_pg_search.SearchTests):
             with self.assertRaises(StaleLease):
                 await asyncio.wait_for(task, 0.5)
             self.assertEqual(
-                await self.admin.fetchval("SELECT count(*) FROM public.test_controls"), 0
+                await self.admin.fetchval("SELECT count(*) FROM public.test_controls"),
+                0,
             )
             other = Supervisor(self.control_pool, INSTALLATION, lease_seconds=0.2)
             self.assertGreater(await asyncio.wait_for(other.acquire(), 0.5), first)
@@ -144,6 +145,10 @@ class ConductorTests(test_pg_search.SearchTests):
         self.assertEqual(health["state"], "core_unavailable")
 
     async def test_private_control_table_and_installation_binding(self):
+        flags = await self.admin.fetchrow(
+            "SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid='coordination.supervisor_leases'::regclass"
+        )
+        self.assertTrue(flags[0] and flags[1])
         async with self.pool.acquire() as conn:
             with self.assertRaises(asyncpg.InsufficientPrivilegeError):
                 await conn.fetchval(
