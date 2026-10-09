@@ -118,7 +118,16 @@ try:
          '--env','PYTHONDONTWRITEBYTECODE=1',
          '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/schema'],300)
-    if PHASE.startswith('binding-red'):
+    if PHASE.startswith('private-red'):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth'],300)
+        reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+        assert len(reports)==1
+        report=reports[0]
+        assert value.returncode==1 and report['tests_run']==39 and not report['errors']
+        assert len(report['failures'])==2
+        assert all(row['id'].split(' (')[0]=='test_private_binding.PrivateBindingTests.test_null_policy_targets_and_need_are_refused'
+                   and row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+    elif PHASE.startswith('binding-red'):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1
