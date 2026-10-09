@@ -10,7 +10,7 @@ import psycopg
 
 NEXT = Path(__file__).resolve().parents[1]
 MANIFEST = NEXT / "schema/manifest.json"
-sys.path.insert(0, str(NEXT / "scripts"))
+sys.path.insert(0, str(NEXT / "tests"))
 from test_receipts import classify, report, suite as receipt_suite
 
 
