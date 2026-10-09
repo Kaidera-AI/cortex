@@ -1,0 +1,322 @@
+{
+  "phase": "green-attempt-002",
+  "tree": "e3a2e0032675b12425387b66699079f913a8f5e3",
+  "image": "docker.io/library/python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e",
+  "results": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--name",
+        "kaidera-test-graph-cleanup-1",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "purpose=H-D449-regression",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--user",
+        "0:0",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--cap-add=CHOWN",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/proof:rw,size=33554432,mode=0755",
+        "--tmpfs",
+        "/tmp:rw,size=67108864,mode=1777",
+        "--tmpfs",
+        "/var/cache:rw,size=16777216,mode=0755",
+        "--tmpfs",
+        "/var/log:rw,size=16777216,mode=0755",
+        "--tmpfs",
+        "/home:rw,size=1048576,mode=0755",
+        "--tmpfs",
+        "/opt:rw,size=1048576,mode=0755",
+        "docker.io/library/python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e",
+        "sleep",
+        "infinity"
+      ],
+      "exit_code": 0,
+      "stdout": "0d0cbc5766dfd04fad66c5a81c13f09ccc01a489dfa145945c7612f7fa31c432\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker",
+        "kaidera-test-graph-cleanup-1:/proof/graph"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/output/Cortex/design55-r426/2026-10-10/graph-cleanup/test_receipts.py",
+        "kaidera-test-graph-cleanup-1:/proof/test_receipts.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,os,shlex,subprocess\nfrom pathlib import Path\np=Path('/var/cache/ldconfig');p.mkdir(parents=True,exist_ok=True);p.chmod(0o700)\nsystem=['/var/log/apt/history.log','/var/log/apt/term.log','/var/log/dpkg.log','/var/cache/ldconfig/aux-cache']\nfor name in system:\n p=Path(name);p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'root-build-byproduct')\nsource=Path('/proof/graph/Dockerfile').read_text().replace(chr(92)+chr(10),'')\nline=next(x for x in source.splitlines() if x.startswith('RUN ') and 'apt-get update;' in x)\ncommand=line[line.index('/usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py'):].strip()\nargv=shlex.split(command);argv=[('/proof/graph/finalize-build.py' if x.endswith('/finalize-build.py') else x) for x in argv]\nresult=subprocess.run(argv,capture_output=True,text=True);print(result.stdout,end='');print(result.stderr,end='')\nassert result.returncode==0\nassert all(not Path(x).exists() for x in system)\nPath('/proof/system-cleanup.json').write_text(json.dumps({'uid':os.getuid(),'command':argv,'all_system_byproducts_absent':True,'root_only_parent_mode':oct(Path('/var/cache/ldconfig').stat().st_mode&0o777)}))\nhome=Path('/home/kaidera');home.mkdir();os.chown(home,10001,10001)\nmodel=Path('/opt/kaidera-qwen3');model.mkdir();(model/'model.onnx').write_bytes(b'fixture-weights')\n"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "import os,platform,json; from pathlib import Path; print(json.dumps({\"uid\":os.getuid(),\"gid\":os.getgid(),\"python\":platform.python_version(),\"arch\":platform.machine(),\"capability_fields\":[x for x in Path(\"/proc/self/status\").read_text().splitlines() if x.startswith(\"Cap\")]}))"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"uid\": 10001, \"gid\": 10001, \"python\": \"3.13.15\", \"arch\": \"aarch64\", \"capability_fields\": [\"CapInh:\\t0000000000000000\", \"CapPrm:\\t0000000000000000\", \"CapEff:\\t0000000000000000\", \"CapBnd:\\t0000000000000001\", \"CapAmb:\\t0000000000000000\"]}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 0,
+      "stdout": "*** Error compiling '/tmp/tmph2bb16z4/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.187s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "from pathlib import Path\np=Path('/proof/graph/Dockerfile');s=p.read_text();a=s.index('USER 10001:10001');head,tail=s[:a],s[a:];assert tail.count('--cleanup-scope runtime')==1;p.write_text(head+tail.replace('--cleanup-scope runtime','--cleanup-scope all',1))"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 1,
+      "stdout": "*** Error compiling '/tmp/tmpt_gnqck2/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_cleanup_ownership.py\\\", line 74, in test_creating_runs_select_their_own_paths_and_keep_hash_compile\\n    self.assertEqual(argv[argv.index('--cleanup-scope') + 1], scope)\\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: 'all' != 'runtime'\\n- all\\n+ runtime\\n\\n\"}, {\"id\": \"test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_cleanup_ownership.py\\\", line 63, in test_real_runtime_uid_cleans_without_visiting_system_parent\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: 1 != 0 : Traceback (most recent call last):\\n  File \\\"/proof/graph/finalize-build.py\\\", line 72, in <module>\\n    finalize('/', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             builder_home=args.builder_home,\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else 'none')\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/proof/graph/finalize-build.py\\\", line 33, in finalize\\n    if path.is_symlink() or path.is_file():\\n       ~~~~~~~~~~~~~~~^^\\n  File \\\"/usr/local/lib/python3.13/pathlib/_abc.py\\\", line 518, in is_symlink\\n    return S_ISLNK(self.lstat().st_mode)\\n                   ~~~~~~~~~~^^\\n  File \\\"/usr/local/lib/python3.13/pathlib/_abc.py\\\", line 437, in lstat\\n    return self.stat(follow_symlinks=False)\\n           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/usr/local/lib/python3.13/pathlib/_local.py\\\", line 515, in stat\\n    return os.stat(self, follow_symlinks=follow_symlinks)\\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nPermissionError: [Errno 13] Permission denied: '/var/cache/ldconfig/aux-cache'\\n\\n\"}], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... FAIL\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... FAIL\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n======================================================================\nFAIL: test_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_cleanup_ownership.py\", line 74, in test_creating_runs_select_their_own_paths_and_keep_hash_compile\n    self.assertEqual(argv[argv.index('--cleanup-scope') + 1], scope)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'all' != 'runtime'\n- all\n+ runtime\n\n\n======================================================================\nFAIL: test_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_cleanup_ownership.py\", line 63, in test_real_runtime_uid_cleans_without_visiting_system_parent\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 1 != 0 : Traceback (most recent call last):\n  File \"/proof/graph/finalize-build.py\", line 72, in <module>\n    finalize('/', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n             builder_home=args.builder_home,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else 'none')\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/proof/graph/finalize-build.py\", line 33, in finalize\n    if path.is_symlink() or path.is_file():\n       ~~~~~~~~~~~~~~~^^\n  File \"/usr/local/lib/python3.13/pathlib/_abc.py\", line 518, in is_symlink\n    return S_ISLNK(self.lstat().st_mode)\n                   ~~~~~~~~~~^^\n  File \"/usr/local/lib/python3.13/pathlib/_abc.py\", line 437, in lstat\n    return self.stat(follow_symlinks=False)\n           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.13/pathlib/_local.py\", line 515, in stat\n    return os.stat(self, follow_symlinks=follow_symlinks)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 13] Permission denied: '/var/cache/ldconfig/aux-cache'\n\n\n----------------------------------------------------------------------\nRan 8 tests in 0.255s\n\nFAILED (failures=2)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker/Dockerfile",
+        "kaidera-test-graph-cleanup-1:/proof/graph/Dockerfile"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "from pathlib import Path\np=Path('/proof/graph/finalize-build.py');s=p.read_text();before=\"        if path.is_symlink() or path.is_file():\";assert s.count(before)==1;s=s.replace(before,\"        if name == 'var/cache/ldconfig/aux-cache':\\n            continue\\n\"+before);p.write_text(s)"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 1,
+      "stdout": "*** Error compiling '/tmp/tmpteeljwav/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_finalize_build.py\\\", line 38, in test_cleanup_exact_paths_preserves_model_and_neighbor\\n    self.assertTrue(all(not (root/x).exists() for x in finalizer.BYPRODUCTS))\\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: False is not true\\n\"}, {\"id\": \"test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_cleanup_ownership.py\\\", line 81, in test_permission_errors_remain_visible_for_unscoped_cleanup\\n    with self.assertRaises(PermissionError):\\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\\nAssertionError: PermissionError not raised\\n\"}], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... FAIL\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... FAIL\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n======================================================================\nFAIL: test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_finalize_build.py\", line 38, in test_cleanup_exact_paths_preserves_model_and_neighbor\n    self.assertTrue(all(not (root/x).exists() for x in finalizer.BYPRODUCTS))\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n\n======================================================================\nFAIL: test_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_cleanup_ownership.py\", line 81, in test_permission_errors_remain_visible_for_unscoped_cleanup\n    with self.assertRaises(PermissionError):\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\nAssertionError: PermissionError not raised\n\n----------------------------------------------------------------------\nRan 8 tests in 0.247s\n\nFAILED (failures=2)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker/finalize-build.py",
+        "kaidera-test-graph-cleanup-1:/proof/graph/finalize-build.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "from pathlib import Path\np=Path('/proof/graph/finalize-build.py');s=p.read_text();before=\"    if not args.cleanup_only:\\n        verify_clean('/')\";assert s.count(before)==1;p.write_text(s.replace(before,\"    if False and not args.cleanup_only:\\n        verify_clean('/')\"))"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 1,
+      "stdout": "*** Error compiling '/tmp/tmpfjbibh0f/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_finalizer_guard.py\\\", line 20, in test_final_entrypoint_refuses_late_cleanup\\n    self.assertIn('RuntimeError: byproduct remained after creating RUN:', result.stderr)\\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: 'RuntimeError: byproduct remained after creating RUN:' not found in 'Traceback (most recent call last):\\\\n  File \\\"/proof/graph/finalize-build.py\\\", line 72, in <module>\\\\n    finalize(\\\\'/\\\\', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\\\\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\n             builder_home=args.builder_home,\\\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else \\\\'none\\\\')\\\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\n  File \\\"/proof/graph/finalize-build.py\\\", line 50, in finalize\\\\n    raise RuntimeError(f\\\\'bytecode compilation failed: {name}\\\\')\\\\nRuntimeError: bytecode compilation failed: usr/local/lib/python3.13\\\\n'\\n\"}], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... FAIL\n\n======================================================================\nFAIL: test_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_finalizer_guard.py\", line 20, in test_final_entrypoint_refuses_late_cleanup\n    self.assertIn('RuntimeError: byproduct remained after creating RUN:', result.stderr)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'RuntimeError: byproduct remained after creating RUN:' not found in 'Traceback (most recent call last):\\n  File \"/proof/graph/finalize-build.py\", line 72, in <module>\\n    finalize(\\'/\\', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             builder_home=args.builder_home,\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else \\'none\\')\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"/proof/graph/finalize-build.py\", line 50, in finalize\\n    raise RuntimeError(f\\'bytecode compilation failed: {name}\\')\\nRuntimeError: bytecode compilation failed: usr/local/lib/python3.13\\n'\n\n----------------------------------------------------------------------\nRan 8 tests in 1.293s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker/finalize-build.py",
+        "kaidera-test-graph-cleanup-1:/proof/graph/finalize-build.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 0,
+      "stdout": "*** Error compiling '/tmp/tmpxy5pbiyk/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.174s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "import hashlib,json;from pathlib import Path;p=Path(\"/proof/graph\");print(json.dumps({str(x.relative_to(p)):hashlib.sha256(x.read_bytes()).hexdigest() for x in p.rglob(\"*\") if x.is_file() and \"__pycache__\" not in x.parts}))"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"finalize-build.py\": \"77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3\", \"Dockerfile\": \"58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4\", \"worker.py\": \"493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4\", \"worker-entrypoint\": \"db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312\", \"verify-qwen3-model.py\": \"968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473\", \"requirements.runtime.lock\": \"bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9\", \"requirements.runtime.in\": \"c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b\", \"requirements.bcrg.lock\": \"e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018\", \"requirements.bcrg.in\": \"afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf\", \"qwen3-model-pins.json\": \"84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea\", \"fetch-qwen3-model.py\": \"a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb\", \"debian-snapshot.sources\": \"34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017\", \".dockerignore\": \"3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232\", \"tests/test_worker_prune.py\": \"387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c\", \"tests/test_finalizer_guard.py\": \"a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3\", \"tests/test_finalize_build.py\": \"d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24\", \"tests/test_fetch_qwen3_model.py\": \"e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42\", \"tests/test_cleanup_ownership.py\": \"d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "kaidera-test-graph-cleanup-1"
+      ],
+      "exit_code": 0,
+      "stdout": "kaidera-test-graph-cleanup-1\n",
+      "stderr": ""
+    }
+  ],
+  "source_sha256": {
+    "packages/containers/graph-worker/worker.py": "493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4",
+    "packages/containers/graph-worker/verify-qwen3-model.py": "968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473",
+    "packages/containers/graph-worker/Dockerfile": "58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4",
+    "packages/containers/graph-worker/finalize-build.py": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    "packages/containers/graph-worker/.dockerignore": "3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232",
+    "packages/containers/graph-worker/requirements.bcrg.in": "afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf",
+    "packages/containers/graph-worker/worker-entrypoint": "db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312",
+    "packages/containers/graph-worker/requirements.bcrg.lock": "e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018",
+    "packages/containers/graph-worker/qwen3-model-pins.json": "84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea",
+    "packages/containers/graph-worker/requirements.runtime.lock": "bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9",
+    "packages/containers/graph-worker/requirements.runtime.in": "c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b",
+    "packages/containers/graph-worker/fetch-qwen3-model.py": "a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb",
+    "packages/containers/graph-worker/debian-snapshot.sources": "34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017",
+    "packages/containers/graph-worker/tests/test_finalize_build.py": "d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24",
+    "packages/containers/graph-worker/tests/test_cleanup_ownership.py": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "packages/containers/graph-worker/tests/test_fetch_qwen3_model.py": "e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42",
+    "packages/containers/graph-worker/tests/test_finalizer_guard.py": "a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3",
+    "packages/containers/graph-worker/tests/test_worker_prune.py": "387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c"
+  },
+  "limits": {
+    "cpus": 2,
+    "memory": "1g"
+  },
+  "network": "none",
+  "ports": [],
+  "bind_mounts": [],
+  "container_removed": true,
+  "classifier_sha256": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+}
