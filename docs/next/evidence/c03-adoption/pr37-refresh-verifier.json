@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "purpose": "Fresh read-only SDLC section 4 verification; not official review, acceptance, finding closure or merge approval",
+  "verifier": "cox internal verifier /root/c01_verify",
+  "source_tree": "eb00c63b95d3f31a1015e9086e2a85550533f903",
+  "merged_main_tree": "d715d0622bc81def163854c9236a51bbfb107ee2",
+  "prior_published_c03_tree": "0ba1aeaabd191febd561c8424d47bbc993f675ed",
+  "required_findings": [],
+  "source_checks": {
+    "c03_sql_manifest_migration_port_caller_schema_and_artifact_tests_map_unchanged": true,
+    "preserved_files_checked_including_c03_source_evidence": 30,
+    "preserved_file_mismatches": [],
+    "inherited_c01_shared_input_files_equal_merged_main_and_receipt": 26,
+    "inherited_input_mismatches": [],
+    "shared_helper_sha256": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa",
+    "private_scripts_helper_absent": true,
+    "source_changes_from_prior_next_tree": [
+      "Inherited next/tests/test_receipts.py async fixture-wrapper recognition",
+      "Inherited next/tests/receipt/fixture-reuse-probe.py",
+      "Inherited next/tests/receipt/test_async_fixture_reuse.py",
+      "Inherited next/scripts/mutate_test_receipts.py"
+    ]
+  },
+  "receipt_checks": {
+    "c03_refresh_receipt": "pr37-refresh-green.json",
+    "c03_refresh_sha256": "674400579f96a70bb07358de680d3a507580e2f721cacbbd5a2fe1b8bba1024c",
+    "merged_shared_receipt": "../async-receipts/merge-green.json",
+    "merged_shared_sha256": "3270d4af1471ccd6b936689436b29cbc491879b7f9cd2d68db43f6b7b1b06e0f",
+    "c03_refresh_source_hashes_checked": 42,
+    "merged_shared_source_hashes_checked": 26,
+    "source_hash_mismatches": [],
+    "c03_schema_tests": 30,
+    "c03_artifact_tests": 8,
+    "c03_mutants_checked": 19,
+    "map_mutants_checked": 1,
+    "merged_shared_tests": 20,
+    "merged_c01_tests": 33,
+    "merged_helper_mutants_checked": 8,
+    "merged_c01_mutants_checked": 26,
+    "all_54_mutants_expected_test_body_assertion": true,
+    "all_mutant_errors_empty": true,
+    "all_mutant_reports_match_raw_stdout": true,
+    "all_mutant_raw_stdout_stderr_retained": true,
+    "helper_mutation_recipes_source_and_output_hashes_checked": true,
+    "all_restored_suites_clean_exit_zero": true,
+    "helper_and_map_restored_source_hashes_match": true,
+    "cleanup_commands_exit_zero": true,
+    "receipts_report_owned_stacks_removed": true
+  },
+  "limits": [
+    "Filesystem/Git/byte and recorded-output inspection only; no tests, services, containers, installs or mutations executed by verifier",
+    "Only this new root verifier receipt was written; prior verifier and proof history were not edited",
+    "Recorded proof is native arm64/Python 3.12 with disposable PostgreSQL; no release-platform or live-migration qualification",
+    "Vera content review and C03-DOC-001 closure remain separate; no official acceptance or merge claim"
+  ]
+}
