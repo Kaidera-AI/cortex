@@ -16,7 +16,7 @@ def _rfc3339(value):
     # jsonschema's optional date-time extra must not silently decide validation.
     if not isinstance(value, str):
         return True  # The declared JSON type handles non-strings.
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})", value):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)", value):
         return False
     return datetime.fromisoformat(value.replace("Z", "+00:00")).tzinfo is not None
 
@@ -35,15 +35,30 @@ def _validate(schema, value):
     return value
 
 
+def _schema_index():
+    manifest = json.loads((CONTRACTS / "provenance.json").read_text())
+    if type(manifest.get("schema_index_version")) is not int or manifest["schema_index_version"] != 1:
+        raise ContractError("Unsupported schema index version")
+    return manifest["schemas"]
+
+
 def validate_event(value):
     """Validate immutable envelope v1. Scope authorization is a Core concern."""
-    schema = json.loads((CONTRACTS / "outbox-event.schema.json").read_text())
+    if not isinstance(value, dict) or type(value.get("schema_version")) is not int:
+        raise ContractError("Unsupported event schema version")
+    entry = _schema_index()["outbox_event"].get(str(value["schema_version"]))
+    if entry is None:
+        raise ContractError("Unsupported event schema version")
+    schema = json.loads((CONTRACTS / entry["file"]).read_text())
+    if schema.get("$id") != entry["schema_id"]:
+        raise ContractError("Event schema identity differs from index")
     return _validate(schema, value)
 
 
 def validate_wire(name, value):
     """Validate C01's proposed wire types; not a legacy compatibility assertion."""
-    document = json.loads((CONTRACTS / "openapi.json").read_text())
+    entry = _schema_index()["proposed_wire"]
+    document = json.loads((CONTRACTS / entry["file"]).read_text())
     schemas = document["components"]["schemas"]
     if not name.startswith("Proposed") or name not in schemas:
         raise ContractError("Unsupported wire schema")

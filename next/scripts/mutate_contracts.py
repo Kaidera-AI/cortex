@@ -35,7 +35,10 @@ def run():
         ("duplicate IDs accepted", " or len(set(ids)) != len(ids)", ""),
         ("references unchecked", "    for node in _walk(document):", "    return len(ids)\n    for node in _walk(document):"),
         ("C02 gaps ignored", 'if "x-c02-freeze-gaps" not in operation:', "if False:"),
-        ("unknown wire names accepted", 'if not name.startswith("Proposed") or name not in schemas:', "if False:"),
+        ("unknown wire error normalization removed", 'if not name.startswith("Proposed") or name not in schemas:', "if False:"),
+        ("invalid timestamp offsets accepted", r"(?:[01]\d|2[0-3]):[0-5]\d", r"\d{2}:\d{2}"),
+        ("schema index version ignored", 'if type(manifest.get("schema_index_version")) is not int or manifest["schema_index_version"] != 1:', "if False:"),
+        ("event schema identity unchecked", 'if schema.get("$id") != entry["schema_id"]:', "if False:"),
     ]
     mutants = []
     for label, before, after in replacements:
@@ -45,7 +48,7 @@ def run():
         ("event identity optional", lambda v: v["required"].remove("event_id")),
         ("scope optional", lambda v: v["required"].remove("tenant_id")),
         ("zero revision accepted", lambda v: v["properties"]["aggregate_revision"].update(minimum=0)),
-        ("unknown version accepted", lambda v: v["properties"]["schema_version"].pop("const")),
+        ("event schema version changed", lambda v: v["properties"]["schema_version"].update(const=2)),
         ("unknown fields accepted", lambda v: v.update(additionalProperties=True)),
         ("delete rule removed", lambda v: v.pop("allOf")),
         ("payload digest unchecked", lambda v: v["properties"]["payload_sha256"].pop("pattern")),
