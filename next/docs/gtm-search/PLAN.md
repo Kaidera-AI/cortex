@@ -39,3 +39,13 @@ Mike reviewed c42cd05a; Kai requires these fixes FIRST, then restack P01, then C
 Fix `run_pg_search.py`: any removal failure or remaining labelled resource is a failing run. Allow only the internal fixed mutation test-target seam; final acceptance still runs the full search suite. Fix `mutate_pg_search.py`: clean full baseline first, then named single-case semantic probes; require the expected behavioral assertion failure, reject setup/infrastructure/unrelated errors; final unchanged full suite confirms restoration. Record per-mutant targets and outputs. Add a monotonic-revision assertion probe so revision mutation gives an explicit assertion rather than an unexpected downstream error.
 
 Scope: these source/tool files, two regression test files, and this plan only. New findings use same original PR/branch, no self-closure; Mike re-reviews exact new head. Fetch/merge target main, rerun RED/GREEN/mutations, push, restack PR31 and rerun its full suite. Check inbox before resuming paused C08 checkpoint 3aabb8e. H-D458 applies; explicit worker label, one <=1GiB/2CPU disposable PG per run, cleanup each time.
+
+## Review round 3 — Kai 22:24, reopened B01-PR29-1
+
+Retain Mike's collinear subnormal-norm probe RED-first. Reject canonical float32
+cosine norm accumulators below 2**-126 (smallest normal float32), not only zero or
+nonfinite values. Add direct storage/query refusal and ordinary collinear-distance
+regressions; keep prior probes. Add a named norm-floor rollback mutant so the new
+assertion proves the fix. Full baseline/restoration and per-mutant raw output apply.
+Push the same PR29 branch, then restack/reverify PR31 and PR33 with their own receipts;
+only then resume the committed graph plan. Mike closes this reopened finding.
