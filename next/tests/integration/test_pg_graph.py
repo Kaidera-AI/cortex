@@ -430,6 +430,26 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.graph.memory("alice"))["nodes"], [])
         self.assertEqual((await self.graph.stats("alice"))["freshness"]["pending_records"], 1)
 
+    async def test_reprocess_can_replace_its_own_entity_type(self):
+        await self.project()
+        async def corrected(source, options):
+            return Extraction(IDENTITY, (Node("alpha", "file", "corrected classification"),), ())
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": corrected})
+        result = await graph.extract("alice", dry_run=False, reprocess=True)
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual([(n["name"], n["entity_type"]) for n in (await graph.memory("alice"))["nodes"]], [("alpha", "file")])
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 2)
+
+    async def test_conflicting_type_from_another_source_cannot_alias_entity(self):
+        await self.project()
+        await self.record(label="second")
+        async def conflicting(source, options):
+            return Extraction(IDENTITY, (Node("alpha", "file"),), ())
+        graph = PostgresGraph(self.pool, **{**self.options, "extractor": conflicting})
+        result = await graph.extract("alice", dry_run=False)
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual(await self.admin.fetchval("SELECT count(*) FROM core.extraction_facts"), 1)
+
     async def test_bounds_and_invalid_modes_are_refused(self):
         for kwargs in [{"depth": 4}, {"limit": 0}, {"limit": 1001}]:
             with self.assertRaises(ValueError):
