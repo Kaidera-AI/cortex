@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import psycopg
 
 from .auth import AuthError, authorized, _resolve
+from .identity import lookup_bound
 from .records import RecordError, _payload, _request, _save_request, _scope, _validate, MAX_PAYLOAD_BYTES
 
 _LEASE_DEADLINE = ContextVar('c05_verified_lease_deadline',default=None)
@@ -28,6 +29,8 @@ class JobView:
     body: bytes
     cancel_requested: bool
     recipient_principal: UUID | None
+    recipient_role: str | None = None
+    human_review: bool = False
 
 
 @dataclass(frozen=True)
@@ -104,6 +107,13 @@ class Jobs:
                     if control:
                         self._control(scope)
                     saved = _request(self.connection,scope,key,digest)
+                    if operation in ('job.claim','job.complete','job.return','job.release','job.abandon',
+                                     'job.fail','job.accept','job.rework'):
+                        # Keep request-key -> job lock ordering, and recheck identity
+                        # even when a historical receipt will be replayed.
+                        row = self._load(scope,job_id,True)
+                        self._identity_policy(scope,self._metadata(scope,row),
+                                              review=operation in ('job.accept','job.rework'))
                     if saved is None:
                         try:
                             saved = callback(scope)
@@ -126,6 +136,19 @@ class Jobs:
                 'SELECT %s::timestamptz>clock_timestamp()', (deadline,)).fetchone()[0]:
             raise JobError('conflict')
 
+    def _identity_policy(self, scope, meta, review=False):
+        role = meta.get('recipient_role')
+        human = meta.get('human_review',False)
+        if (review and human) or (not review and role is not None):
+            actor = lookup_bound(self.connection,scope.principal_id)
+            if actor is None or not actor.adopted:
+                raise JobError('forbidden')
+            if review:
+                if actor.kind != 'human':
+                    raise JobError('forbidden')
+            elif role not in actor.roles:
+                raise JobError('forbidden')
+
     def _load(self, scope, job_id, lock=False):
         row = self.connection.execute('''SELECT id,kind,payload_ref,state,cancel_requested FROM coordination.jobs
             WHERE tenant_id=%s AND project_id=%s AND id=%s'''+(' FOR UPDATE' if lock else ''),
@@ -147,25 +170,34 @@ class Jobs:
         body = self.connection.execute('SELECT body FROM core.payloads WHERE tenant_id=%s AND project_id=%s AND id=%s',
             (*_scope(scope),UUID(meta['body_payload']))).fetchone()[0]
         recipient = None if meta['recipient'] is None else UUID(meta['recipient'])
-        return JobView(row[0],row[1],row[3],body,row[4],recipient)
+        return JobView(row[0],row[1],row[3],body,row[4],recipient,
+                       meta.get('recipient_role'),meta.get('human_review',False))
 
-    def create(self, job_id, kind, body, request_key, recipient_principal=None):
+    def create(self, job_id, kind, body, request_key, recipient_principal=None, *,
+               recipient_role=None, human_review=False):
         _bytes(body)
         if (not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None
-                or (recipient_principal is not None and not isinstance(recipient_principal,UUID))):
+                or (recipient_principal is not None and not isinstance(recipient_principal,UUID))
+                or (recipient_role is not None and (not isinstance(recipient_role,str)
+                    or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',recipient_role) is None))
+                or type(human_review) is not bool or (human_review and kind != 'handoff')):
             raise JobError('invalid_input')
         def create(scope):
             body_id,_ = _payload(self.connection,scope,body)
             meta = dict(version=1,body_payload=str(body_id),creator=str(scope.principal_id),
-                recipient=None if recipient_principal is None else str(recipient_principal),review=None)
+                recipient=None if recipient_principal is None else str(recipient_principal),review=None,
+                recipient_role=recipient_role,human_review=human_review)
             intent_id,_ = _payload(self.connection,scope,json.dumps(meta,separators=(',',':')).encode())
             dedupe = hashlib.sha256(json.dumps([str(scope.principal_id),request_key],separators=(',',':')).encode()).hexdigest()
             self.connection.execute('''INSERT INTO coordination.jobs
                 (tenant_id,project_id,id,kind,payload_ref,idempotency_key) VALUES (%s,%s,%s,%s,%s,%s)''',
                 (*_scope(scope),job_id,kind,intent_id,dedupe))
             return _result(job_id,'pending','created')
-        return self._execute('job.create',job_id,request_key,[kind,hashlib.sha256(body).hexdigest(),
-            None if recipient_principal is None else str(recipient_principal)],create,control=True)
+        arguments = [kind,hashlib.sha256(body).hexdigest(),
+                     None if recipient_principal is None else str(recipient_principal)]
+        if recipient_role is not None or human_review:
+            arguments.append(dict(recipient_role=recipient_role,human_review=human_review))
+        return self._execute('job.create',job_id,request_key,arguments,create,control=True)
 
     def get(self, job_id):
         if not isinstance(job_id,UUID):

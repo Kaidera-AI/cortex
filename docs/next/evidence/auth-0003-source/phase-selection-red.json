@@ -1,0 +1,7 @@
+{
+  "guard_sha256": "89305705f3152fecfb3d5d50360c1d47c0b1dbccbfeb26e0d6667bd649fc3a38",
+  "exit_code": 1,
+  "stdout": "{\"controller_sha256\": \"1a8394bd06d6cfe5a8ef01d57a131f9e577fcec6355aa99fd3537bc9e6589689\", \"phase\": \"identity-red\", \"selected\": [\"acceptance_guards\", \"auth\", \"auth_identity\", \"records\", \"schema\"], \"missing\": [\"coordination\", \"core_adapters\"]}\n",
+  "stderr": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/verify-phase-selection.py\", line 35, in <module>\n    assert not missing, ('missing_predecessor_suite', sorted(missing))\n           ^^^^^^^^^^^\nAssertionError: ('missing_predecessor_suite', ['coordination', 'core_adapters'])\n",
+  "scope": "AST inspection only"
+}

@@ -1,0 +1,17 @@
+{
+  "gate": "plan-acceptance",
+  "authority": "Kai H-D470 inbox02:42",
+  "slice": "C04a auth-0003",
+  "owner": "cox",
+  "reviewer": "vera",
+  "day": 5,
+  "reserve_days_consumed": 1,
+  "remaining_integration_reserve_days": 1,
+  "critical_path_growth_days": 0,
+  "plan": "docs/plans/cortex-v2-v0.1.020/lane-A/AUTH_0003_IMPLEMENTATION_PLAN.md",
+  "plan_sha256": "b09ba80b4db0415b10b9e237a3a8d8fe7907dcdddc303964adf0e44666913343",
+  "inbox_sha256": "26bf501a5800e94bde154e96aeb05dd2fe775c0508cc0808d98219f6e2d48674",
+  "quote": "**\u25b6 DO NOW (H-D470, 2026-10-10 02:42):** (r426, H-D470: the `auth-0003` PLAN is ACCEPTED as C04a, Day 5, using ONE of your two reserved integration days, so the critical path does not grow) Finish the C05 records, jobs and fencing proof first (mutations and review owed). Then BUILD `auth-0003` RED-first exactly per the plan. Note in the adoption manifest that `cortex-add-agent` TIGHTENS to owner/admin, so the lead's registration path needs owner/admin. Vera's PR #40 and #41 findings come first. ",
+  "go": "source build RED-first after C05 records/jobs/fencing proof",
+  "live_issuer_adoption_release_go": false
+}
