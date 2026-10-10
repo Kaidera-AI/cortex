@@ -92,6 +92,13 @@ def scan_source(file,source):
             statement_sha256=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
     def known_existing_input(owner,node,tree):
         """Only these source-proved existing indirect inputs bypass fail-closed."""
+        def local_bindings(function,name):
+            """Every local write/delete form, including walrus and augmented assignment."""
+            stores=[part for part in ast.walk(function) if isinstance(part,ast.Name)
+                    and part.id==name and isinstance(part.ctx,(ast.Store,ast.Del))]
+            declarations=[part for part in ast.walk(function) if isinstance(part,(ast.Global,ast.Nonlocal))
+                          and name in part.names]
+            return stores,declarations
         if file=='src/cortex_core/coordination.py' and owner=='Jobs._load':
             return (isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add)
                     and (static_text(node.left) or '').lstrip().upper().startswith('SELECT')
@@ -104,21 +111,36 @@ def scan_source(file,source):
             assignments=[n for n in ast.walk(tree) if isinstance(n,(ast.Assign,ast.AnnAssign))
                          and any(isinstance(t,ast.Name) and t.id==name for t in
                                  (n.targets if isinstance(n,ast.Assign) else [n.target]))]
+            all_stores=[n for n in ast.walk(tree) if isinstance(n,ast.Name) and n.id==name
+                        and isinstance(n.ctx,(ast.Store,ast.Del))]
+            declarations=[n for n in ast.walk(tree) if isinstance(n,(ast.Global,ast.Nonlocal))
+                          and name in n.names]
+            if declarations:return False
             if file.endswith('/auth.py'):
-                return len(assignments)==1 and (static_text(assignments[0].value) or '').lstrip().upper().startswith('SELECT')
-            return (not assignments and any(isinstance(n,ast.ImportFrom) and n.module=='auth'
+                return (len(assignments)==len(all_stores)==1
+                        and all_stores[0] is assignments[0].targets[0]
+                        and (static_text(assignments[0].value) or '').lstrip().upper().startswith('SELECT'))
+            return (not assignments and not all_stores and any(isinstance(n,ast.ImportFrom) and n.module=='auth'
                         and any(a.name=='_ROLE_QUERY' for a in n.names) for n in tree.body))
         if file=='src/cortex_core/identity.py' and owner=='Identity._register' and name=='query':
             methods=[n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=='_register']
             assignments=[n for n in ast.walk(methods[0]) if isinstance(n,ast.Assign)
                          and any(isinstance(t,ast.Name) and t.id=='query' for t in n.targets)] if len(methods)==1 else []
-            return len(assignments)==2 and all((static_text(n.value) or '').lstrip().upper().startswith('SELECT') for n in assignments)
+            if len(methods)!=1:return False
+            stores,declarations=local_bindings(methods[0],name)
+            return (not declarations and len(assignments)==len(stores)==2
+                    and {id(n.targets[0]) for n in assignments}=={id(n) for n in stores}
+                    and all((static_text(n.value) or '').lstrip().upper().startswith('SELECT') for n in assignments))
         if file=='src/cortex_core/records.py' and owner=='_private' and name=='query':
+            methods=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_private']
+            if len(methods)!=1:return False
+            function=methods[0]
+            parameters=[arg.arg for arg in (function.args.posonlyargs+function.args.args+
+                                           function.args.kwonlyargs)]
+            stores,declarations=local_bindings(function,name)
             calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name)
                    and n.func.id=='_private']
-            assignments=[n for n in ast.walk(tree) if isinstance(n,ast.Assign)
-                         and any(isinstance(t,ast.Name) and t.id=='query' for t in n.targets)]
-            return bool(calls) and not assignments and all(len(n.args)>1 and
+            return parameters.count(name)==1 and not stores and not declarations and bool(calls) and all(len(n.args)>1 and
                    (static_text(n.args[1]) or '').lstrip().upper().startswith('SELECT') for n in calls)
         if file=='src/cortex_core/migrations.py' and owner=='apply_migrations' and name=='sql':
             functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='apply_migrations']
@@ -132,7 +154,9 @@ def scan_source(file,source):
             other_assignments=[n for n in ast.walk(fn) if isinstance(n,(ast.Assign,ast.AnnAssign,ast.NamedExpr))
                                and any(isinstance(t,ast.Name) and t.id=='sql' for t in
                                        (n.targets if isinstance(n,ast.Assign) else [n.target]))]
+            stores,declarations=local_bindings(fn,name)
             return (len(loops)==1 and len(appends)==1 and not other_assignments
+                    and not declarations and len(stores)==1 and stores[0] is loops[0].target.elts[2]
                     and 'hashlib.sha256(data).hexdigest() != entry["sha256"]' in source
                     and ast.unparse(appends[0].args[0])=="(entry['id'], entry['sha256'], data.decode('utf-8'))")
         return False
