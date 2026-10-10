@@ -15947,6 +15947,9 @@ async def execute_embedding_backfill(
         project_filter = cfg["project_filter"]
         order_col = cfg["order_col"]
         error_count_sql = embedding_error_count_expr()
+        eligible_error_count_sql = error_count_sql.replace(
+            "COALESCE(metadata, '{}'::jsonb)", f"({METADATA_AS_OBJECT_SQL})"
+        )
         async with acquire_scoped(project) as conn:
             if table == "work_products":
                 await ensure_work_products_schema(conn)
@@ -16019,7 +16022,7 @@ async def execute_embedding_backfill(
                               AND {content_sql} = $5
                               AND embedding IS NULL
                               AND COALESCE(metadata->>'embedding_skip', 'false') <> 'true'
-                              AND {error_count_sql} < $6""",
+                              AND {eligible_error_count_sql} < $6""",
                         vec_str,
                         json.dumps(patch),
                         row_id,
@@ -16052,7 +16055,7 @@ async def execute_embedding_backfill(
                               AND {content_sql} = $4
                               AND embedding IS NULL
                               AND COALESCE(metadata->>'embedding_skip', 'false') <> 'true'
-                              AND {error_count_sql} < $5""",
+                              AND {eligible_error_count_sql} < $5""",
                         json.dumps(patch),
                         row_id,
                         project,
