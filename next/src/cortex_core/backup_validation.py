@@ -14,8 +14,8 @@ import tarfile
 import tempfile
 
 from cortex_core.backup import (BackupError, _lsn, _validated_metadata,
-                                _wal_filename, build_manifest,
-                                seal_encrypted_bundle)
+                                _wal_filename, _seal_validated_manifest,
+                                build_manifest)
 
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
@@ -93,9 +93,9 @@ def seal_complete_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
     _verify_native_contents((Path(base_dir)/"backup_manifest").read_bytes(),
                             preliminary["base_files"])
     _validate_native_pg(Path(base_dir), Path(archive_dir), preliminary)
-    return seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata,
-                                 segment_bytes=segment_bytes, blob_root=blob_root,
-                                 recipient=recipient, destination=destination)
+    return _seal_validated_manifest(base_dir, archive_dir, preliminary,
+                                    blob_root=blob_root, recipient=recipient,
+                                    destination=destination)
 
 
 def _verify_native_contents(body, base_files):

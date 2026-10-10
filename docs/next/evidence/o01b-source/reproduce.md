@@ -1,7 +1,19 @@
 # O01b complete-data and corruption validation — synthetic proof
 
-Base: O01a PR #71 `8c2bcd93dd747b93d4ec15bb8380f89db4b73856`.
-Source-tested commit: `1b0ee6a699e96e72abdff9dc560a90f3b0d95790`.
+Current base: O01a PR #71 `111968971dd46459d098aeb9bca97fd2b09a6d08`.
+Original native source-tested commit: `1b0ee6a699e96e72abdff9dc560a90f3b0d95790`.
+PR72-1 native source-tested commit: `aed5a1045aa3134fe274cf17840b2c40e8b949c0`.
+
+## PR #72 post-validation drift repair
+
+`seal_complete_bundle` now passes the manifest that survived native PostgreSQL
+validation directly to the private sealer. It never rebuilds a manifest from
+later staged bytes. The sealer compares every streamed base, WAL and blob
+member to that manifest and removes temporary ciphertext without publishing
+when a digest changes. Two RED controls mutate a base or WAL file after the
+native-check seam; the digest-guard-removal mutant fails both in their test
+bodies. The renewed native proof repeats those two drift cases on real staged
+PostgreSQL files and records that no ciphertext was published.
 
 O01b extends O01a's encrypted bundle with actual content-addressed blob bytes.
 Before sealing, it verifies PostgreSQL's native backup-manifest checksum and
@@ -19,14 +31,18 @@ before it returns `recoverable: true`. Missing or bad age identity refuses.
 The independent manifest digest is a custody input, not a signature. Release
 trust and key custody remain Ren-TK/integration work.
 
-The local checks are:
+The current local checks are:
 
 ```sh
+PYTHONPATH=next/src python3.12 next/tests/test_receipts.py next/tests/backup_producer
 PYTHONPATH=next/src python3.12 next/tests/test_receipts.py next/tests/backup_validation
 PYTHONPATH=next/src python3.14 next/tests/test_receipts.py next/tests/backup_validation
-python3.12 next/scripts/mutate_backup_validation.py
-python3.12 docs/next/evidence/o01b-source/verify-o01b.py "$PWD"
+python3 docs/next/evidence/o01b-source/verify-pr72-1.py "$PWD"
 ```
+
+The original eight-fault matrix and `verify-o01b.py` remain historical at
+their source-tested commit. The current RED, GREEN, mutant and native receipts
+are `postcheck-drift-*.json` and `native-pg-pr72-1-001.json`.
 
 The committed `run-native-pg.py` source creates one exact-owned, network-none
 arm64 PostgreSQL 18.4 container, two CPUs/1 GiB, no ports or host bind mounts.
@@ -36,10 +52,10 @@ backup is still running. It archives WAL, recovers a second cluster inside the
 same disposable container to a paused LSN, and reads all four after values in
 one MVCC statement. It seals two synthetic blob objects using a disposable
 age identity and refuses mixed metadata, missing blob, altered vector/schema/
-WAL files, wrong key and wrong manifest digest. PostgreSQL tools on the test
+WAL files, post-validation base/WAL drift, wrong key and wrong manifest digest. PostgreSQL tools on the test
 host are 18.6, the same major as the pinned server image; edition packaging
-must pin the client-tool build. `native-pg-final-004.json` is the final raw
-receipt. The initial recovery-socket failure and the earlier boundary-mismatch
+must pin the client-tool build. `native-pg-pr72-1-001.json` is the current raw
+receipt; `native-pg-final-004.json` is historical. The initial recovery-socket failure and the earlier boundary-mismatch
 proof remain visible but are not counted as the final pass. The controller
 removes the exact-owned container and temporary plaintext stage in `finally`.
 

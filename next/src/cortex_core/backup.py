@@ -191,7 +191,7 @@ def build_manifest(base_dir, archive_dir, archive_end_lsn, metadata, *, segment_
         "segment_bytes": segment_bytes,
         "backup_start_lsn": start_text, "backup_end_lsn": end_text,
         "archive_end_lsn": archive_end_lsn,
-        "metadata": metadata,
+        "metadata": json.loads(canonical_metadata),
         "metadata_sha256": hashlib.sha256(canonical_metadata).hexdigest(),
         "base_files": base_files, "wal_segments": segments,
     }
@@ -209,12 +209,22 @@ def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
         raise BackupError("age recipient is required")
     manifest = build_manifest(base_dir, archive_dir, archive_end_lsn, metadata,
                               segment_bytes=segment_bytes)
+    return _seal_validated_manifest(base_dir, archive_dir, manifest,
+                                    recipient=recipient, destination=destination,
+                                    age_binary=age_binary, blob_root=blob_root)
+
+
+def _seal_validated_manifest(base_dir, archive_dir, manifest, *, recipient,
+                             destination, age_binary="age", blob_root=None):
+    """Seal exactly the supplied manifest; any staged-member drift aborts."""
+    if not isinstance(recipient, str) or not recipient.startswith("age1"):
+        raise BackupError("age recipient is required")
     blobs = []
     if blob_root is not None:
         root = Path(blob_root)
         if not root.is_dir() or root.is_symlink():
             raise BackupError("blob root is missing or linked")
-        for entry in metadata["blob_inventory"]:
+        for entry in manifest["metadata"]["blob_inventory"]:
             key = PurePosixPath(entry["object_key"])
             if (key.is_absolute() or not key.parts or
                     any(part in ("", ".", "..") for part in key.parts)):
