@@ -86,7 +86,7 @@ services:
     image: localhost/cortex/api:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     restart: 'no'
     command: [python, /app/standalone/migrate.py]
-    environment: *api-env
+    environment: {<<: *api-env, PYTHONPATH: /app}
     depends_on: {cortex-pg: {condition: service_healthy}}
     volumes:
       - cortex-tls-admin:/tls/admin:ro
