@@ -193,8 +193,11 @@ class Jobs:
                 (tenant_id,project_id,id,kind,payload_ref,idempotency_key) VALUES (%s,%s,%s,%s,%s,%s)''',
                 (*_scope(scope),job_id,kind,intent_id,dedupe))
             return _result(job_id,'pending','created')
-        return self._execute('job.create',job_id,request_key,[kind,hashlib.sha256(body).hexdigest(),
-            None if recipient_principal is None else str(recipient_principal),recipient_role,human_review],create,control=True)
+        arguments = [kind,hashlib.sha256(body).hexdigest(),
+                     None if recipient_principal is None else str(recipient_principal)]
+        if recipient_role is not None or human_review:
+            arguments.append(dict(recipient_role=recipient_role,human_review=human_review))
+        return self._execute('job.create',job_id,request_key,arguments,create,control=True)
 
     def get(self, job_id):
         if not isinstance(job_id,UUID):
