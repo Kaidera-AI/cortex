@@ -116,6 +116,14 @@ try:
         assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
+    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_private_namespace'],300)
+    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+    assert report['tests_run']==2 and not report['errors']
+    if PHASE.startswith('private-namespace-red'):
+        assert value.returncode==1 and len(report['failures'])==2
+        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+    else:
+        assert value.returncode==0 and not report['failures']
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run']==32 and not report['errors']

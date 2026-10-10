@@ -138,3 +138,30 @@ record/revision and xmin=current transaction, returning only the event UUID.
 Keep the public read boundary unchanged and preserve receipt/effect hooks.
 Add actual guard removals for public-read fallback, private binding and current
 transaction predicate. New baseline309; full planned BODY matrix152.
+
+
+### Reserved Core fact decision after private C05 header updates
+
+The independent source check at f72a55f found the C06 revision trigger reads
+kind through public read permission, while the private C05 header update runs
+as verifier. Preserve that rework report; do not claim runtime confirmation.
+This repair enforces the accepted C06 reserved Core fact invariant and changes
+only C06 source, never held C04/C04a review or immutable C05 migration bytes.
+
+Freeze two additional job/identity conformance cases before implementation.
+Each creates a legitimate Core fact, gives the ordinary caller write-only
+permission, performs a private header advance and raw next revision without a
+request receipt, and requires typed core_unavailable refusal plus unchanged
+header/history/event counts and business state. Run all309 existing controls
+plus the two expected BODY assertions before repair, with owned absence.
+
+If confirmed, add VOLATILE verifier-owned c06_record_reserved(uuid), deriving
+fresh bound c05_scope and returning only reserved-kind existence in that scope.
+The existing invoker revision trigger calls it after its trusted-capture check.
+Pin search_path, revoke PUBLIC execute, grant request execute explicitly, and
+retain all ordinary CAS/sequential checks. Do not use an additional CAS lookup
+for this kind decision; old guard-removal attribution must remain causal.
+Freeze an actual predicate removal requiring both new BODY assertions, then
+run the complete311baseline/153fault matrix, qualify auxiliary controls, prove
+all copied source restored and cleanup/password/unlock. Preserve all old tests
+and receipts. Official Vera review remains separate and main merge held.
