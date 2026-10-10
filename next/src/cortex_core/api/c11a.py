@@ -271,20 +271,11 @@ class ConsumerGateway:
             return await _respond(send, 404, _packet("not_found", retryable=False))
         if row is not None and row["effect"] == "retired_sql":
             return await _respond(send, 410, _packet("retired_route", retryable=False))
-        d2 = False
-        if row['id'] == 'C01-R022' and self.parse_search_body:
-            try:
-                scope['_c11b_body'] = await _memory_body(receive)
-            except GatewayError:
-                return await _respond(send, 400, _packet('invalid_input', retryable=False))
-            body = scope['_c11b_body']
-            d2 = any(key in body for key in ('after', 'wait_ms', 'min_revision'))
-            if d2:
-                scope['_c11b_receive'] = receive
+        principal_error = None
         try:
             principal = await self.principal_resolver(scope)
         except Exception as error:
-            if row['id'] == 'C11-D1' or d2:
+            if row['id'] == 'C11-D1':
                 status, packet = self._d1_refusal(error)
                 return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'unauthenticated':
@@ -292,8 +283,26 @@ class ConsumerGateway:
                 return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'core_unavailable':
                 return await _respond(send, 503, _packet('core_unavailable'))
+            principal_error = error
             principal = None
-        if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
+        principal_valid = (isinstance(principal, dict) and principal.get('principal_id')
+                           and principal.get('project_id'))
+        d2 = False
+        if row['id'] == 'C01-R022' and self.parse_search_body:
+            try:
+                scope['_c11b_body'] = await _memory_body(receive)
+            except GatewayError:
+                if not principal_valid:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+                return await _respond(send, 400, _packet('invalid_input', retryable=False))
+            body = scope['_c11b_body']
+            d2 = any(key in body for key in ('after', 'wait_ms', 'min_revision'))
+            if d2:
+                scope['_c11b_receive'] = receive
+        if principal_error is not None and d2:
+            status, packet = self._d1_refusal(principal_error)
+            return await _respond(send, status, packet)
+        if not principal_valid:
             if row['id'] == 'C11-D1' or d2:
                 return await _respond(send, 404, _packet('not_found', retryable=False))
             return await _respond(send, 403, _packet("forbidden", retryable=False))
