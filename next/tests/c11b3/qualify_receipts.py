@@ -29,18 +29,18 @@ def receipt(path):
 def qualify(root):
     green, clean = receipt(root / 'green.jsonl')
     assert green['mutation'] is None and green['exit_code'] == 0
-    assert clean == {'tests_run': 14, 'failures': [], 'errors': []}
+    assert clean == {'tests_run': 18, 'failures': [], 'errors': []}
     killed = {}
     for name, expected_id in EXPECTED.items():
         run, result = receipt(root / f'mutant-{name}.jsonl')
         assert run['mutation'] == name and run['exit_code'] == 1
-        assert result['tests_run'] == 14 and result['errors'] == []
+        assert result['tests_run'] == 18 and result['errors'] == []
         failures = result['failures']
         assert failures and all(f['phase'] == 'test' and f['is_assertion'] is True
                                 for f in failures), name
         assert expected_id in {f['id'] for f in failures}, name
         killed[name] = [f['id'] for f in failures]
-    print(json.dumps({'green_tests': 14, 'mutants_killed': killed,
+    print(json.dumps({'green_tests': 18, 'mutants_killed': killed,
                       'cleanup': 'pass', 'limits': '2cpu/1GiB/no-network'}, sort_keys=True))
 
 
