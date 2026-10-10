@@ -22,11 +22,57 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
     ('src/cortex_core/migrations.py','apply_migrations'): '7dbe9e12eaea949645208137e8db565874622c0af7d625529816e30aea3b5df3',
 }
 
+# The function pins alone cannot see an aliased caller elsewhere in the module.
+# Every source change in a module that owns an exception requires a reviewed pin.
+KNOWN_INPUT_FILE_SHA256 = {
+    'src/cortex_core/coordination.py': '56c709da4e5caf8d5baceba92d08d60239d1aa07c85d61c1568bb74320d4a70b',
+    'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
+    'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
+    'src/cortex_core/records.py': '3f361acf476741724e4f8544e7235314c798104e64f54107020f83bb9325db9d',
+    'src/cortex_core/migrations.py': 'b225584cbc1cd0e8c44af3e2861fd5f4c7f96f4107abade24f0dea38b80df1d7',
+}
+EXEMPT_SYMBOL_FILES = {
+    '_private': {'src/cortex_core/records.py'},
+    '_ROLE_QUERY': {'src/cortex_core/auth.py','src/cortex_core/identity.py'},
+    '_register': {'src/cortex_core/identity.py'},
+    'apply_migrations': {'src/cortex_core/migrations.py'},
+    '_load': {'src/cortex_core/coordination.py'},
+}
+
 
 def normalized_function_digest(function):
     # 3.14 changed ast.dump's default to hide empty fields; keep the 3.12 form.
     options={'show_empty':True} if sys.version_info >= (3,14) else {}
     return hashlib.sha256(ast.dump(function,include_attributes=False,**options).encode()).hexdigest()
+
+
+def source_reference_flags(file,source):
+    """Unreviewed exempt-name references and dynamic reflection in NEXT source."""
+    tree=ast.parse(source);flags=[];ordinals={}
+    def flag(kind,node):
+        ordinal=ordinals.get(kind,0);ordinals[kind]=ordinal+1
+        flags.append(dict(file=file,owner=kind,verb='DYNAMIC',table='<dynamic_or_unsupported>',
+                          ordinal=ordinal,statement_sha256=hashlib.sha256(
+                              ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
+    for node in ast.walk(tree):
+        symbols=[]
+        if isinstance(node,ast.Name):symbols=[node.id]
+        elif isinstance(node,ast.Attribute):symbols=[node.attr]
+        elif isinstance(node,ast.alias):symbols=[node.name,node.asname]
+        elif isinstance(node,ast.Constant) and isinstance(node.value,str):symbols=[node.value]
+        for symbol in symbols:
+            if symbol in EXEMPT_SYMBOL_FILES and file not in EXEMPT_SYMBOL_FILES[symbol]:
+                flag('cross_file:'+symbol,node)
+        if isinstance(node,ast.Call):
+            function=node.func;index=None;label=None
+            if isinstance(function,ast.Name) and function.id in ('getattr','setattr','exec','eval','__import__'):
+                label=function.id;index=1 if label in ('getattr','setattr') else 0
+            elif (isinstance(function,ast.Attribute) and function.attr=='import_module'
+                  and isinstance(function.value,ast.Name) and function.value.id=='importlib'):
+                label='importlib.import_module';index=0
+            if label is not None and (len(node.args)<=index or static_text(node.args[index]) is None):
+                flag('dynamic_name:'+label,node)
+    return flags
 
 
 def static_text(node):
@@ -120,6 +166,9 @@ def scan_source(file,source):
             statement_sha256=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
     def known_existing_input(owner,node,tree,function):
         """Only these source-proved existing indirect inputs bypass fail-closed."""
+        file_pin=KNOWN_INPUT_FILE_SHA256.get(file)
+        if file_pin is None or normalized_function_digest(tree)!=file_pin:
+            return False
         pin=KNOWN_INPUT_FUNCTION_SHA256.get((file,owner))
         if function is None or pin is None or normalized_function_digest(function)!=pin:
             return False
@@ -220,6 +269,8 @@ def scan(root,overrides=None):
     paths=sorted(list((root/'src/cortex_core').rglob('*.py'))+list((root/'schema').rglob('*.sql')))
     for path in paths:
         name=str(path.relative_to(root));rows.extend(scan_source(name,overrides.get(name,path.read_text())))
+    for path in sorted((root/'src').rglob('*.py')):
+        name=str(path.relative_to(root));rows.extend(source_reference_flags(name,overrides.get(name,path.read_text())))
     return sorted(rows,key=lambda r:(r['file'],r['owner'],r['verb'],r['table'],r['ordinal']))
 
 

@@ -123,3 +123,39 @@ class WriterInventory(unittest.TestCase):
         self.assertTrue(self._captured_private_query(changed).startswith('SELECT'))
         result=checker.audit(NEXT,overrides={name:changed})
         self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
+
+    def test_private_alias_caller_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        source=(NEXT/name).read_text()
+        probe="\ndef _probe_writer(connection):\n    helper = _private\n    statement = ''.join(('DE', 'LETE FROM core.records WHERE true'))\n    return helper(connection, statement, ())\n"
+        base=ast.parse(source);private=next(n for n in base.body if isinstance(n,ast.FunctionDef) and n.name=='_private')
+        helper=ast.parse(probe).body[0]
+        namespace={'psycopg':SimpleNamespace(errors=SimpleNamespace(UniqueViolation=RuntimeError)),
+                   'RecordError':RuntimeError}
+        exec(compile(ast.Module(body=[private,helper],type_ignores=[]),'isolated-alias-probe','exec'),namespace)
+        class Connection:
+            def execute(self,query,arguments):return query
+        self.assertEqual(namespace['_probe_writer'](Connection()),'DELETE FROM core.records WHERE true')
+        direct=probe.replace('helper = _private','pass').replace('return helper(connection','return _private(connection')
+        self.assertFalse(checker.audit(NEXT,overrides={name:source+direct})['passed'])
+        result=checker.audit(NEXT,overrides={name:source+probe})
+        self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
+
+    def test_cross_file_private_import_alias_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/outbox.py'
+        source=(NEXT/name).read_text()
+        probe="\nfrom .records import _private as imported_private\ndef accidental_writer(connection):\n    statement = ''.join(('DE', 'LETE FROM core.records WHERE true'))\n    return imported_private(connection, statement, ())\n"
+        self.assertTrue(any(isinstance(n,ast.alias) and n.name=='_private' and n.asname=='imported_private'
+                            for n in ast.walk(ast.parse(probe))))
+        result=checker.audit(NEXT,overrides={name:source+probe})
+        self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
+
+    def test_dynamic_name_primitives_fail_closed(self):
+        checker=self.checker();name='src/cortex_core/outbox.py';source=(NEXT/name).read_text()
+        calls=("getattr(object(), name)","setattr(object(), name, None)","exec(name)",
+               "eval(name)","__import__(name)","importlib.import_module(name)")
+        for call in calls:
+            with self.subTest(call=call):
+                changed=source+"\ndef accidental_dynamic_name(name):\n    "+call+"\n"
+                result=checker.audit(NEXT,overrides={name:changed})
+                self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])

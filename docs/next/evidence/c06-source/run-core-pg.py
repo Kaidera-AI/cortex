@@ -156,7 +156,7 @@ try:
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
-    for directory,count in [('outbox_retention',5),('outbox_inventory',14),('outbox_late_publication',1)]:
+    for directory,count in [('outbox_retention',5),('outbox_inventory',17),('outbox_late_publication',1)]:
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==count and not report['errors']
@@ -185,6 +185,9 @@ try:
             matrices=[('mutate_outbox.py',['--identity','--attribution-red'],1)]
         if 'dense-check' in PHASE:
             matrices=[('mutate_outbox.py',['--only-label=journal allocation skips dense cursor'],1)]
+        if 'inventory-repair' in PHASE:
+            matrices=[('mutate_outbox.py',['--only-label=inventory checker admits unknown writer'],1),
+                      ('mutate_outbox.py',['--only-label=quoted and unqualified writer forms ignored'],1)]
         for script,arguments,count in matrices:
             value=run(env+['python','/tmp/next/scripts/'+script,*arguments],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]
