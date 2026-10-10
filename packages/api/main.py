@@ -16917,15 +16917,14 @@ async def project_transfer_dependencies(
     ]
 
 
-async def order_project_transfer_self_fk_rows(
+async def project_transfer_self_fk_constraints(
     conn: Any,
     key: tuple[str, str],
-    rows: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Order payload parents before children without attempting failing INSERTs."""
+) -> list[Any]:
+    """Read the exact self-FK identities and columns for an import table."""
     qualified = ".".join(quote_ident(name) for name in key)
-    constraints = await conn.fetch(
-        """SELECT fk.confmatchtype::text AS match_type,
+    return await conn.fetch(
+        """SELECT fk.conname::text AS name, fk.confmatchtype::text AS match_type,
                   ARRAY(SELECT a.attname FROM unnest(fk.conkey) WITH ORDINALITY k(attnum, ord)
                         JOIN pg_attribute a ON a.attrelid=fk.conrelid AND a.attnum=k.attnum
                         ORDER BY k.ord) AS child_columns,
@@ -16938,6 +16937,16 @@ async def order_project_transfer_self_fk_rows(
             ORDER BY fk.oid""",
         qualified,
     )
+
+
+async def order_project_transfer_self_fk_rows(
+    conn: Any,
+    key: tuple[str, str],
+    rows: list[dict[str, Any]],
+    constraints: list[Any],
+) -> list[dict[str, Any]]:
+    """Order parents first; SQL alone decides conflicts and FK validity."""
+    qualified = ".".join(quote_ident(name) for name in key)
     edges: list[set[int]] = [set() for _ in rows]
     incoming = [0] * len(rows)
 
@@ -17004,27 +17013,30 @@ async def order_project_transfer_self_fk_rows(
             if binding["prior_ordinal"] is not None or binding["own_present"]:
                 continue
             if constraint["match_type"] == "f" and binding["any_null"] and not binding["all_null"]:
-                raise HTTPException(409, "Project import has partially null self-reference")
+                incoming[child] += 1  # Unresolved rows follow the ready DAG.
+                continue
             inactive = binding["all_null"] if constraint["match_type"] == "f" else binding["any_null"]
             if inactive or binding["present"]:
                 continue
             if binding["parent_ordinal"] is None:
-                raise HTTPException(409, "Project import has missing self-referenced parent")
+                incoming[child] += 1
+                continue
             edge(int(binding["parent_ordinal"]), child)
 
     ready = [i for i, count in enumerate(incoming) if not count]
     heapq.heapify(ready)
-    ordered: list[dict[str, Any]] = []
+    ordered: list[int] = []
     while ready:
         parent = heapq.heappop(ready)
-        ordered.append(rows[parent])
+        ordered.append(parent)
         for child in edges[parent]:
             incoming[child] -= 1
             if not incoming[child]:
                 heapq.heappush(ready, child)
-    if len(ordered) != len(rows):
-        raise HTTPException(409, "Project import has cyclic self-references")
-    return ordered
+    # A conflicting unresolved row may be skipped by ON CONFLICT, and a
+    # single self-parent is valid SQL. Never pre-reject either case here.
+    ordered.extend(i for i, count in enumerate(incoming) if count)
+    return [rows[i] for i in ordered]
 
 
 async def lock_shared_message_transfer(conn: Any) -> tuple[list[str], bool]:
@@ -18004,55 +18016,68 @@ async def import_project(
         order = project_transfer_order(set(requested), dependencies)
         results: dict[str, dict[str, int]] = {}
         imported_tables: set[tuple[str, str]] = set()
-        async with conn.transaction():
-            if {("public", "messages"), ("public", "archive_messages")} & requested.keys():
-                await lock_shared_message_transfer(conn)
-            for key in order:
-                transfer = requested[key]
-                if not transfer.rows:
-                    continue
-                entry = catalog[key]
-                target_columns = set(entry["insertable_columns"])
-                inserted = 0
-                skipped = 0
-                source_rows = transfer.rows
-                if (key, key) in dependencies:
-                    source_rows = await order_project_transfer_self_fk_rows(
-                        conn, key, [remap_project_transfer_row(
-                            row, target_columns=target_columns,
+        self_fk_names: set[tuple[str, str, str]] = set()
+        try:
+            async with conn.transaction():
+                if {("public", "messages"), ("public", "archive_messages")} & requested.keys():
+                    await lock_shared_message_transfer(conn)
+                for key in order:
+                    transfer = requested[key]
+                    if not transfer.rows:
+                        continue
+                    entry = catalog[key]
+                    target_columns = set(entry["insertable_columns"])
+                    inserted = 0
+                    skipped = 0
+                    source_rows = transfer.rows
+                    if (key, key) in dependencies:
+                        constraints = await project_transfer_self_fk_constraints(conn, key)
+                        self_fk_names.update((key[0], key[1], str(c["name"])) for c in constraints)
+                        source_rows = await order_project_transfer_self_fk_rows(
+                            conn, key, [remap_project_transfer_row(
+                                row, target_columns=target_columns,
+                                target_project_key=target_project_key,
+                                target_project_id=target_project_id,
+                            ) for row in source_rows], constraints,
+                        )
+                    for source_row in source_rows:
+                        mapped = remap_project_transfer_row(
+                            source_row,
+                            target_columns=target_columns,
                             target_project_key=target_project_key,
                             target_project_id=target_project_id,
-                        ) for row in source_rows],
-                    )
-                for source_row in source_rows:
-                    mapped = remap_project_transfer_row(
-                        source_row,
-                        target_columns=target_columns,
-                        target_project_key=target_project_key,
-                        target_project_id=target_project_id,
-                    )
-                    columns = [
-                        column
-                        for column in entry["insertable_columns"]
-                        if column in mapped
-                    ]
-                    if not columns:
-                        skipped += 1
-                        continue
-                    status = await conn.execute(
-                        project_transfer_insert_sql(key[0], key[1], columns),
-                        json.dumps(mapped, default=str),
-                    )
-                    if affected_count(status):
-                        inserted += 1
-                    else:
-                        skipped += 1
-                results[f"{key[0]}.{key[1]}"] = {
-                    "inserted": inserted,
-                    "skipped": skipped,
-                }
-                imported_tables.add(key)
-            reset_sequences = await reset_project_transfer_sequences(conn, imported_tables)
+                        )
+                        columns = [
+                            column
+                            for column in entry["insertable_columns"]
+                            if column in mapped
+                        ]
+                        if not columns:
+                            skipped += 1
+                            continue
+                        status = await conn.execute(
+                            project_transfer_insert_sql(key[0], key[1], columns),
+                            json.dumps(mapped, default=str),
+                        )
+                        if affected_count(status):
+                            inserted += 1
+                        else:
+                            skipped += 1
+                    results[f"{key[0]}.{key[1]}"] = {
+                        "inserted": inserted,
+                        "skipped": skipped,
+                    }
+                    imported_tables.add(key)
+                reset_sequences = await reset_project_transfer_sequences(conn, imported_tables)
+
+        except asyncpg.ForeignKeyViolationError as exc:
+            # This handler runs only after the outer import transaction rolls back.
+            if (exc.schema_name, exc.table_name, exc.constraint_name) in self_fk_names:
+                raise HTTPException(409, {
+                    "code": "project_import_self_fk_violation",
+                    "constraint": exc.constraint_name,
+                }) from exc
+            raise
 
     return {
         "ok": True,
