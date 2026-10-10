@@ -34,6 +34,12 @@ EXCEPTION WHEN invalid_text_representation THEN RETURN;
 END;
 $$;
 
+CREATE FUNCTION auth.identity_binding_valid() RETURNS boolean
+LANGUAGE sql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+    SELECT EXISTS(SELECT 1 FROM auth.identity_scope(true));
+$$;
+
 CREATE FUNCTION auth.identity_lookup(p_target uuid)
 RETURNS TABLE(principal_id uuid,name text,kind text,adopted boolean,roles text[],generation bigint)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
@@ -244,7 +250,7 @@ DO $$ DECLARE f record; BEGIN
 END $$;
 ALTER VIEW auth.project_role_memberships OWNER TO "kaidera-runtime-core-verifier";
 REVOKE CREATE ON SCHEMA auth FROM "kaidera-runtime-core-verifier";
-GRANT EXECUTE ON FUNCTION auth.identity_lookup(uuid),auth.identity_register_agent(uuid,text,text[],text[],uuid,text,integer,text,text),
+GRANT EXECUTE ON FUNCTION auth.identity_binding_valid(),auth.identity_lookup(uuid),auth.identity_register_agent(uuid,text,text[],text[],uuid,text,integer,text,text),
     auth.identity_register_human(uuid,text,text[],text[],uuid,text,integer,text,text,text),auth.identity_set_roles(uuid,text[],text,text),
     auth.identity_rotate(uuid,uuid,uuid,text,integer,text,text),auth.identity_revoke(uuid,text,text),
     auth.identity_adoption_check(uuid,text),auth.identity_adopt(text,text,text,text) TO "kaidera-runtime-core-request";

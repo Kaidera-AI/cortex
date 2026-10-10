@@ -33,6 +33,8 @@ MUTATIONS = [
  (IDENTITY,'donor hash and registration authority substituted',[("if manifest['donor'] != {'released_sha': pin.released_sha, 'source_sha256': pin.source_sha256} or manifest['legacy_registration_authority'] != _AUTHORITY:",'if False:',1)],'auth_identity',I+'test_manifest_donor_and_scope_hashes_cannot_be_substituted'),
  (IDENTITY,'final credential authority uses initial snapshot',[("after = _resolve(c, arguments)",'after = before',1)],'auth_identity',I+'test_owner_expiry_after_actual_registration_rolls_back_before_plaintext_delivery'),
  (IDENTITY,'legacy lead role discarded',[("return self.register_agent(principal_id, name, (role,), permissions", "return self.register_agent(principal_id, name, ('ignored',), permissions",1)],'auth_identity',I+'test_legacy_add_agent_maps_kind_and_role_but_tightens_lead_to_owner_admin'),
+ (IDENTITY,'final private binding survival check omitted',[("if not c.execute('SELECT auth.identity_binding_valid()').fetchone()[0]:",'if False:',1)],'identity_binding','test_identity_binding.IdentityBinding.test_private_binding_loss_after_actual_registration_refuses_and_rolls_back'),
+ (SQL,'private final binding function accepts missing context',[("SELECT EXISTS(SELECT 1 FROM auth.identity_scope(true));",'SELECT true;',1)],'identity_binding','test_identity_binding.IdentityBinding.test_private_binding_loss_after_actual_adoption_refuses_and_rolls_back'),
  (SQL,'default collation replaces byte ordering',[( 'p_roles COLLATE "C"=ARRAY(SELECT DISTINCT r COLLATE "C" FROM unnest(p_roles) r ORDER BY r COLLATE "C")','p_roles=ARRAY(SELECT DISTINCT r FROM unnest(p_roles) r ORDER BY r)',1)],'identity_portability','test_identity_portability.IdentityPortability.test_python_role_order_is_valid_under_real_non_c_collation'),
  (SQL,'private coordination schema usage removed',[( 'GRANT USAGE ON SCHEMA coordination TO "kaidera-runtime-core-verifier";','',1)],'auth_identity_guards',G+'test_actual_registration_commits_without_private_resource_privilege_failure'),
  (SQL,'direct SQL adoption manifest digest ignored',[("OR p_manifest_sha IS DISTINCT FROM encode(sha256(convert_to(p_manifest,'UTF8')),'hex')",'',1)],'auth_identity_guards',G+'test_sql_adoption_digest_binds_exact_manifest_bytes'),
@@ -80,7 +82,7 @@ def run():
     paths = (IDENTITY, SQL, MANIFEST, JOBS, CONTRACT, DB_FIXTURE, CALLER)
     originals = {p:(NEXT/p).read_bytes() for p in paths}
     original_hashes = {p:hashlib.sha256(b).hexdigest() for p,b in originals.items()}
-    directories = ('auth_identity','auth_identity_guards','identity_coordination','identity_portability','identity_receipts','identity_transition','identity_policy_faults')
+    directories = ('auth_identity','auth_identity_guards','identity_coordination','identity_portability','identity_receipts','identity_transition','identity_policy_faults','identity_binding')
     baseline = {p:capture(suite(NEXT/'tests'/p)) for p in directories}
     print(json.dumps({'baseline':baseline}), flush=True)
     if any(r['exit_code']!=0 or r['receipt'] is None or r['receipt']['errors'] or r['receipt']['failures'] for r in baseline.values()):

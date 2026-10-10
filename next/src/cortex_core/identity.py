@@ -169,6 +169,8 @@ class Identity:
                 yield before
                 if not _context_intact(c, arguments):
                     raise AuthError('scope_mismatch')
+                if not c.execute('SELECT auth.identity_binding_valid()').fetchone()[0]:
+                    raise AuthError('forbidden')
                 after = _resolve(c, arguments)
                 stable = lambda s: (s.installation_id, s.tenant_id, s.project_id, s.principal_id, s.action)
                 if stable(after) != stable(before) or after.permission_generation < before.permission_generation:
