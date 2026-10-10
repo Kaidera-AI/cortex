@@ -12,7 +12,7 @@ import asyncpg
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core_db_fixture import Fixture, API, READ_A, REQUEST, uid
-from cortex_core.api.c11a import ConsumerGateway
+from cortex_core.api.c11a import ConsumerGateway, load_routes
 from cortex_core.api.c11b import C11bRecordPort
 from cortex_core.api.c11b2 import C11b2ReadPort, PROBE_VECTOR
 from cortex_core.embeddings.pg_search import CapabilityUnavailable, EmbeddingIdentity
@@ -83,6 +83,72 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         status = next(x['status'] for x in messages if x['type'] == 'http.response.start')
         data = json.loads(next(x['body'] for x in messages if x['type'] == 'http.response.body'))
         return status, data
+
+    def _insert_pending_head(self):
+        body = b'{"label":"pending-after-ready"}'
+        payload, rid = uuid4(), uuid4()
+        self.admin.execute('INSERT INTO core.payloads VALUES (%s,%s,%s,%s,%s)',
+                           (*self.scope, payload, body, hashlib.sha256(body).hexdigest()))
+        with self.admin.transaction():
+            self.admin.execute("INSERT INTO core.records VALUES (%s,%s,%s,'decision',1,false)",
+                               (*self.scope, rid))
+            self.admin.execute('INSERT INTO core.record_revisions VALUES (%s,%s,%s,1,%s,false)',
+                               (*self.scope, rid, payload))
+
+    async def _gateway_lagging_after_ready(self):
+        scope = {'method': 'GET', 'path': '/search',
+                 'headers': [(b'authorization', b'Bearer ' + READ_A), (b'x-project', b'3')],
+                 'query_string': b'q=fixture'}
+        principal = await self.read_port.principal(scope)
+        ready = {name: await self.read_port.capability_source(name, principal)
+                 for name in ('pg_search', 'pg_graph')}
+        self.assertEqual({name: value['state'] for name, value in ready.items()},
+                         {'pg_search': 'ready', 'pg_graph': 'ready'})
+        injected = []
+        async def capability(name, _principal):
+            if not injected:
+                self._insert_pending_head()
+                injected.append(name)
+            return ready[name]
+        async def core(): return True
+        async def health(): return {'component': 'cortex', 'status': 'ok'}
+        gateway = ConsumerGateway(core_probe=core, principal_resolver=self.read_port.principal,
+            permission_recheck=self.read_port.permission_recheck, capability_source=capability,
+            health=health, handlers=self.read_port.handlers, parse_search_body=True)
+        return gateway, injected
+
+    async def _assert_stats_lag_after_ready(self, path):
+        gateway, injected = await self._gateway_lagging_after_ready()
+        status, packet = await self.call('GET', path, gateway=gateway)
+        self.assertEqual(injected, ['pg_graph'])
+        self.assertEqual((status, packet.get('error', {}).get('code')),
+                         (503, 'capability_unavailable'), (path, packet))
+
+    async def test_graph_stats_lag_arrives_after_real_pg_ready_gate(self):
+        await self._assert_stats_lag_after_ready('/cortex-graph/stats')
+
+    async def test_repository_stats_lag_arrives_after_real_pg_ready_gate(self):
+        await self._assert_stats_lag_after_ready('/graph/stats')
+
+    async def test_every_capability_read_route_refuses_lag_after_gate(self):
+        rows = [row for row in load_routes() if row['capability'] in
+                {'pg_search', 'pg_graph'} and row['effect'] == 'read']
+        self.assertEqual({row['id'] for row in rows},
+                         {'C01-R021', 'C01-R022', 'C01-R023', 'C01-R024',
+                          'C01-R025', 'C01-R034', 'C01-R037'})
+        self.assertEqual(set(self.read_port.handlers) & {row['id'] for row in rows},
+                         {row['id'] for row in rows} - {'C01-R037'})
+        gateway, injected = await self._gateway_lagging_after_ready()
+        for row in rows:
+            path = row['path'].replace('{job_id}', str(uuid4()))
+            query = b'q=fixture' if row['id'] in {'C01-R021', 'C01-R023'} else b''
+            body = {'query': 'fixture'} if row['id'] == 'C01-R022' else None
+            with self.subTest(route=row['id']):
+                status, packet = await self.call(row['method'], path, query=query,
+                                                 body=body, gateway=gateway)
+                self.assertEqual((status, packet.get('error', {}).get('code')),
+                                 (503, 'capability_unavailable'), (row['id'], packet))
+        self.assertEqual(len(injected), 1)
 
     async def test_real_search_envelopes_paging_and_lag_refusal(self):
         flags = self.admin.execute("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid='retrieval.search_state'::regclass").fetchone()
