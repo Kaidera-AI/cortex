@@ -98,7 +98,7 @@ class DisposableQdrant:
                   self.secret_name+',type=mount,target=qdrant.yaml,uid=10001,gid=10001,mode=0400']
         if role == 'qdrant':
             return [*common, '--network-alias', 'qdrant', '--memory=768m', '--cpus=1.5',
-                    '--tmpfs', '/qdrant/storage:rw,size=512m,uid=10001,gid=10001,mode=0700',
+                    '--mount', 'type=tmpfs,destination=/qdrant/storage,tmpfs-size=536870912,tmpfs-mode=0700,U=true',
                     PINS[self.architecture], '/qdrant/qdrant', '--config-path', '/run/secrets/qdrant.yaml']
         return [*common, '--memory=256m', '--cpus=0.5', CLIENT_PINS[self.architecture],
                 'python', '-c', 'import time;time.sleep(86400)']

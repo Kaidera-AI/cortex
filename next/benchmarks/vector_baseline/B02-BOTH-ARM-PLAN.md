@@ -55,3 +55,8 @@ Verification amendments: three further frozen REDs precede separating readiness 
 ### Recovery verification additions
 
 The exact stored-vector/payload-index/count upload control is frozen at7c74ae7 before mutation recipes; first execution was GREEN because the implementation already supplied it. This is additional sensitivity evidence, not a fabricated RED. The original19 new controls and all earlier repair REDs remain unchanged. Solo completion gates are retained in the canonical author GATES.md. The both-arm producer binds all NEXT inputs and imports all9 modules; the parent producer changes only that collector, retaining23 recipes/27 controls. README documents the explicit custodian interchange, adapter boundaries, native admission and unqualified141511-row capacity of the bounded author fixture.
+
+
+### Observed Podman storage compatibility repair
+
+The first synthetic768 Qdrant create refused unsupported `uid/gid` options in `--tmpfs` (Podman6.0.2). Original failure/setup/absence receipts retained. `ce3c6cf` freezes the new body-assertion RED before replacing it with documented `--mount type=tmpfs,...tmpfs-mode=0700,U=true`; same512MiB bound and nonroot10001 ownership. Reference: https://raw.githubusercontent.com/containers/podman/v6.0.2/docs/source/markdown/options/mount.md . Literal ownership mutant and actual owned storage stat verify the correction. No added volume, root process, permission relaxation or host mount.

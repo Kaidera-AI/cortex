@@ -42,6 +42,8 @@ MUTATIONS = [
      "['network', 'create', *self.labels(), self.network_name]", Q+'test_pins_nonroot_private_network_and_resource_envelope', 1),
     ('qdrant.py', 'qdrant-memory-doubled', "'--memory=768m', '--cpus=1.5'", "'--memory=1536m', '--cpus=1.5'",
      Q+'test_pins_nonroot_private_network_and_resource_envelope', 1),
+    ('qdrant.py', 'tmpfs-nonroot-ownership-disabled', 'tmpfs-mode=0700,U=true', 'tmpfs-mode=0700,U=false',
+     Q+'test_storage_mount_uses_supported_nonroot_tmpfs_ownership', 1),
     ('qdrant.py', 'below-memory-floor-admitted', 'free_percent < 35', 'free_percent < 34',
      Q+'test_memory_and_team_slot_gate_refuse_before_effect', 1),
     ('qdrant.py', 'pending-create-after-ack',
