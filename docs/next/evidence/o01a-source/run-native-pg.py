@@ -19,7 +19,7 @@ from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-o01a-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE / 'native-pg-001.json'
+OUT = HERE / 'native-pg-002.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01a-source/run-native-pg.py'])
@@ -33,9 +33,9 @@ errors = []
 passed = False
 
 
-def run(args, timeout=120):
+def run(args, timeout=120, env=None):
     try:
-        result = subprocess.run(args, text=True, capture_output=True, timeout=timeout)
+        result = subprocess.run(args, text=True, capture_output=True, timeout=timeout, env=env)
     except subprocess.TimeoutExpired as error:
         results.append({'command': args, 'timeout': True})
         raise error
@@ -55,8 +55,10 @@ life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'),
                  lambda args: subprocess.run(args, text=True, capture_output=True))
 native = {}
 try:
+    local_env = os.environ.copy()
+    local_env['PYTHONPATH'] = str(WT/'next/src')
     local = run(['python3.12', str(WT/'next/tests/test_receipts.py'),
-                 str(WT/'next/tests/backup_producer')])
+                 str(WT/'next/tests/backup_producer')], env=local_env)
     report = json.loads(next(line.split('=', 1)[1] for line in local.stdout.splitlines()
                              if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run'] == 5 and not report['failures'] and not report['errors']
