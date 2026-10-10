@@ -6,11 +6,13 @@ import json
 import sys
 from pathlib import Path
 from uuid import UUID
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core_db_fixture import Fixture, WRITE_A, READ_A, READ_B, REQUEST, API, uid
+from core_db_fixture import Fixture, WRITE_A, READ_A, READ_B, OWNER_A, REQUEST, API, uid
 from cortex_core.api.c11a import ConsumerGateway
 from cortex_core.api.c11b import C11bRecordPort
+from cortex_core.records import Records
 
 
 class MemoryAPI(Fixture):
@@ -39,7 +41,8 @@ class MemoryAPI(Fixture):
         headers = [(b'authorization', b'Bearer ' + key),
                    (b'x-project', project.encode()), (b'x-agent-name', agent.encode())]
         if request_key is not None:
-            headers.append((b'idempotency-key', request_key.encode()))
+            headers.append((b'idempotency-key', request_key if isinstance(request_key, bytes)
+                            else request_key.encode()))
         scope = {'type': 'http', 'method': method, 'path': path, 'headers': headers,
                  'query_string': b'', 'client': ('127.0.0.1', 10001)}
         messages = []
@@ -91,3 +94,38 @@ class MemoryAPI(Fixture):
                            (hashlib.sha256(WRITE_A).hexdigest(),))
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body)[0], 403)
         self.assertEqual(self.call('GET', '/records/' + created['id'], WRITE_A)[0], 403)
+
+    def test_released_tokenless_cli_shape_is_refused_by_c04(self):
+        body = {'section': 'decisions', 'content': 'CLI memory', 'category': 'operational'}
+        before = self.admin.execute('SELECT count(*) FROM core.records WHERE kind=%s',
+                                    ('memory',)).fetchone()[0]
+        status, response = self.call('POST', '/memory', b'', body)
+        self.assertEqual((status, response['error']['code']), (403, 'forbidden'))
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM core.records WHERE kind=%s',
+                                            ('memory',)).fetchone()[0], before)
+
+    def test_same_key_concurrent_requests_one_revision_and_default_source(self):
+        body = {'section': 'learnings', 'content': 'parallel write', 'category': 'operational'}
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            responses = list(pool.map(lambda _: self.call('POST', '/memory', WRITE_A, body,
+                                                           request_key='parallel'), range(2)))
+        self.assertEqual(responses[0], responses[1])
+        self.assertEqual(responses[0][0], 200)
+        record_id = responses[0][1]['id']
+        self.assertEqual(self.call('GET', '/records/' + record_id, READ_A)[1]['source'], 'manual:10')
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM core.record_revisions WHERE record_id=%s',
+                                            (record_id,)).fetchone()[0], 1)
+
+    def test_private_request_lookup_is_principal_scoped(self):
+        body = {'section': 'learnings', 'content': 'bound to writer ten',
+                'source': 'openkai/learning/scope'}
+        self.assertEqual(self.call('POST', '/memory', WRITE_A, body, request_key='scoped-key')[0], 200)
+        owner = Records(self.request, OWNER_A, UUID(uid(1)), UUID(uid(3)))
+        self.assertIsNone(owner.lookup_request('scoped-key'))
+
+    def test_invalid_key_and_forged_project_refuse_before_write(self):
+        body = {'section': 'learnings', 'content': 'never written', 'source': 'invalid-key'}
+        before = self.admin.execute('SELECT count(*) FROM coordination.outbox').fetchone()[0]
+        self.assertEqual(self.call('POST', '/memory', WRITE_A, body, request_key=b'\xff')[0], 400)
+        self.assertEqual(self.call('POST', '/memory', WRITE_A, body, project='other')[0], 403)
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM coordination.outbox').fetchone()[0], before)

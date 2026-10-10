@@ -21,6 +21,7 @@ class C05Committed:
     request_key: str
     receipt: object
     committed: bool
+    response: dict | None = None
 
 
 CONTRACTS = Path(__file__).resolve().parents[3] / "contracts"
@@ -150,6 +151,44 @@ def _packet(code, *, capability=None, reason=None, retryable=True):
     return {"error": error}
 
 
+def _error_status(error):
+    code = getattr(error, 'code', None)
+    if code in {'forbidden', 'scope_mismatch', 'unauthenticated'}:
+        return 403, _packet('forbidden', retryable=False)
+    if code == 'conflict':
+        return 409, _packet('conflict', retryable=False)
+    if code == 'invalid_input':
+        return 400, _packet('invalid_input', retryable=False)
+    return 503, _packet('core_unavailable')
+
+
+async def _memory_body(receive):
+    body = bytearray()
+    while True:
+        message = await receive()
+        if message.get('type') != 'http.request':
+            raise GatewayError('request body interrupted')
+        body.extend(message.get('body', b''))
+        if len(body) > 1024 * 1024:
+            raise GatewayError('request body too large')
+        if not message.get('more_body', False):
+            break
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise GatewayError('duplicate JSON key')
+            result[key] = value
+        return result
+    try:
+        value = json.loads(body.decode('utf-8'), object_pairs_hook=unique)
+    except (UnicodeError, ValueError) as error:
+        raise GatewayError('invalid JSON body') from error
+    if not isinstance(value, dict):
+        raise GatewayError('JSON object required')
+    return value
+
+
 async def _respond(send, status, body):
     data = json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     await send({"type": "http.response.start", "status": status,
@@ -198,9 +237,10 @@ class ConsumerGateway:
             return await _respond(send, 503, _packet("core_unavailable"))
         row = next((row for row, pattern in self.routes
                     if method == row["method"] and pattern.fullmatch(path or "")), None)
-        if row is None:
+        record_id = re.fullmatch(r'/records/([0-9a-fA-F-]{36})', path or '') if method == 'GET' else None
+        if row is None and (record_id is None or self.record_reader is None):
             return await _respond(send, 404, _packet("not_found", retryable=False))
-        if row["effect"] == "retired_sql":
+        if row is not None and row["effect"] == "retired_sql":
             return await _respond(send, 410, _packet("retired_route", retryable=False))
         try:
             principal = await self.principal_resolver(scope)
@@ -208,6 +248,17 @@ class ConsumerGateway:
             principal = None
         if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
             return await _respond(send, 403, _packet("forbidden", retryable=False))
+        if record_id is not None and row is None:
+            try:
+                value = await self.record_reader(principal, scope, record_id.group(1))
+                if value is None:
+                    return await _respond(send, 404, _packet('not_found', retryable=False))
+                if not isinstance(value, dict):
+                    raise GatewayError('record read receipt is invalid')
+                return await _respond(send, 200, value)
+            except Exception as error:
+                status, packet = _error_status(error)
+                return await _respond(send, status, packet)
         if row["capability"]:
             state = await capability_state(row["capability"], self.capability_source,
                                            self.permission_recheck, principal)
@@ -231,7 +282,20 @@ class ConsumerGateway:
             try:
                 request_key = raw_key.decode("utf-8") if raw_key is not None else None
             except UnicodeError:
-                request_key = None
+                return await _respond(send, 400, _packet('invalid_input', retryable=False))
+            if row['id'] == 'C01-R102' and self.allow_legacy_idempotency:
+                try:
+                    scope['_c11b_body'] = await _memory_body(receive)
+                except GatewayError:
+                    return await _respond(send, 400, _packet('invalid_input', retryable=False))
+                if request_key is None:
+                    try:
+                        writer = headers.get(b'x-agent-name', b'').decode('utf-8', 'strict')
+                    except UnicodeError:
+                        return await _respond(send, 400, _packet('invalid_input', retryable=False))
+                    canonical = json.dumps([scope['_c11b_body'], writer],
+                        sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+                    request_key = 'legacy-memory:' + hashlib.sha256(canonical).hexdigest()
             if (not request_key or not 1 <= len(request_key) <= 256
                     or any(ord(char) < 32 for char in request_key)):
                 return await _respond(send, 400, _packet("idempotency_key_required", retryable=False))
@@ -242,11 +306,16 @@ class ConsumerGateway:
                         or value.request_key != request_key or not isinstance(value.receipt, dict)
                         or not value.receipt):
                     raise GatewayError("write did not commit through C05")
+                if value.response is not None:
+                    if not isinstance(value.response, dict):
+                        raise GatewayError('write response is invalid')
+                    return await _respond(send, 200, value.response)
                 return await _respond(send, 200, {"receipt": value.receipt})
             if not isinstance(value, dict):
                 raise GatewayError("read receipt is invalid")
             return await _respond(send, 200, value)
         except PermissionError:
             return await _respond(send, 403, _packet("forbidden", retryable=False))
-        except Exception:
-            return await _respond(send, 503, _packet("core_unavailable"))
+        except Exception as error:
+            status, packet = _error_status(error)
+            return await _respond(send, status, packet)

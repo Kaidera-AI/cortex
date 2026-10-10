@@ -14,6 +14,26 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[2]
 PG = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
+MUTANTS = {
+    'writer_guard': ('src/cortex_core/api/c11b.py',
+                     'if row is None or row[0] is not True:', 'if False:'),
+    'legacy_action': ('src/cortex_core/api/c11b.py',
+                      'created = receipt.revision == 1', 'created = False'),
+    'replay_lookup': ('src/cortex_core/api/c11b.py',
+                      'saved = records.lookup_request(request_key)', 'saved = None'),
+    'principal_scope': ('schema/coordination/004-api-replay.sql',
+                        'AND i.principal_id=scope.principal_id AND i.request_key=p_key',
+                        'AND i.request_key=p_key'),
+    'writer_sql': ('schema/coordination/004-api-replay.sql',
+                   'AND p.name=p_name AND p.disabled=false',
+                   'AND p.disabled=false'),
+    'lookup_wrong_action': ('src/cortex_core/records.py',
+                            "with self._authorized('write'):\n            row = _private(self.connection,",
+                            "with self._authorized('read'):\n            row = _private(self.connection,"),
+    'malformed_key': ('src/cortex_core/api/c11a.py',
+                      "except UnicodeError:\n                return await _respond(send, 400, _packet('invalid_input', retryable=False))",
+                      "except UnicodeError:\n                request_key = None"),
+}
 
 
 def run(*args, check=True, timeout=180):
@@ -54,6 +74,14 @@ def main():
               'memory_gib': 1, 'network': 'none', 'published_ports': [],
               'wheels_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                 for p in sorted(wheels.glob('*.whl'))}}
+    mutation = os.environ.get('C11B_MUTATION')
+    if mutation and mutation not in MUTANTS:
+        raise RuntimeError('unknown C11b mutation')
+    output['mutation'] = mutation
+    suite = os.environ.get('C11B_SUITE', 'c11b')
+    if suite not in {'c11b', 'records', 'auth'} or mutation and suite != 'c11b':
+        raise RuntimeError('unknown C11b suite selection')
+    output['suite'] = suite
     try:
         run('podman', 'pod', 'create', '--name', pod, '--network', 'none',
             '--cpus', '2', '--memory', '1g', *labels)
@@ -72,6 +100,22 @@ def main():
             '--tmpfs', '/tmp:rw,size=268435456,mode=1777', PY, 'sleep', '1800')
         run('podman', 'cp', str(ROOT), driver + ':/tmp/next')
         run('podman', 'cp', str(wheels), driver + ':/tmp/wheels')
+        if mutation:
+            path, before, after = MUTANTS[mutation]
+            mutate = (
+                'import hashlib,json,sys;from pathlib import Path;'
+                'p=Path("/tmp/next")/sys.argv[1];b=p.read_text();'
+                'assert b.count(sys.argv[2])==1;'
+                'p.write_text(b.replace(sys.argv[2],sys.argv[3]));'
+                'm=Path("/tmp/next/schema/manifest.json");'
+                'v=json.loads(m.read_text());'
+                '[(x.__setitem__("sha256",hashlib.sha256(p.read_bytes()).hexdigest())) '
+                'for x in v["migrations"] if x["file"]=="coordination/004-api-replay.sql"] '
+                'if sys.argv[1].endswith("004-api-replay.sql") else None;'
+                'm.write_text(json.dumps(v)) '
+                'if sys.argv[1].endswith("004-api-replay.sql") else None'
+            )
+            run('podman', 'exec', driver, 'python', '-c', mutate, path, before, after)
         run('podman', 'exec', driver, 'python', '-m', 'pip', 'install', '--no-index',
             '--find-links=/tmp/wheels', '--no-cache-dir', '--target=/tmp/deps',
             '-r', '/tmp/next/requirements-db-test.txt', timeout=300)
@@ -86,7 +130,7 @@ def main():
         command = ['podman', 'exec', '--env', 'PYTHONPATH=/tmp/deps:/tmp/next/src',
                    '--env', 'PYTHONDONTWRITEBYTECODE=1',
                    '--env', 'TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',
-                   driver, 'python', '/tmp/next/tests/test_receipts.py', '/tmp/next/tests/c11b']
+                   driver, 'python', '/tmp/next/tests/test_receipts.py', '/tmp/next/tests/' + suite]
         result = run(*command, check=False, timeout=300)
         output.update(exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
         print(json.dumps(output, sort_keys=True), flush=True)
