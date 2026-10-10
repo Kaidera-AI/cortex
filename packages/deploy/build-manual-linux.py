@@ -14,12 +14,15 @@ import os
 from pathlib import Path
 import platform
 import re
+import stat
 import subprocess
 import oci_archive
 
 VERSION = '0.1.003-manual.1'
 RELEASE = 'v' + VERSION
 SOURCE = 'https://github.com/Kaidera-AI/cortex'
+# Kai H-D449 2026-10-10 09:04: frozen e9a19f14 committer epoch, not wall time.
+SOURCE_DATE_EPOCH = 1791586380
 ROLES = {
     'tls': ('packages/deploy/tls', 'Containerfile'),
     'db': ('packages', 'deploy/Containerfile.db'),
@@ -52,14 +55,19 @@ def manifest_digest(raw):
 def make_plan(root, sha):
     if re.fullmatch('[0-9a-f]{40}', sha) is None or not root.is_absolute():
         raise ValueError('exact source SHA and absolute source root required')
-    args = {'KOS_VERSION': VERSION, 'KOS_SOURCE_REVISION': sha,
+    args = {'SOURCE_DATE_EPOCH': str(SOURCE_DATE_EPOCH),
+            'KOS_VERSION': VERSION, 'KOS_SOURCE_REVISION': sha,
             'KOS_IMAGE_SOURCE': SOURCE, 'KOS_EDITION': 'open-source',
             'CORTEX_RELEASE_ID': RELEASE, 'CORTEX_RELEASE_LINEAGE': 'cortex-v1-manual',
             'CORTEX_RELEASE_SEQUENCE': '1', 'CORTEX_API_CONTRACT': 'cortex-kos-v02009.v1'}
     images = []
     for role, (context, recipe) in ROLES.items():
         tag = 'ghcr.io/kaidera-ai/cortex-' + role + ':' + RELEASE
-        argv = ['build', '--platform', 'linux/amd64', '--format', 'oci',
+        # Podman 5.8.2 forbids combining --timestamp and --source-date-epoch.
+        # --timestamp stamps image metadata AND newly committed layer files;
+        # the explicit build arg supplies stages without the conflicting CLI.
+        argv = ['build', '--timestamp', str(SOURCE_DATE_EPOCH),
+                '--platform', 'linux/amd64', '--format', 'oci',
                 '--tag', tag, '--file', str(root/context/recipe)]
         for name, value in args.items():
             argv += ['--build-arg', name + '=' + value]
@@ -67,11 +75,53 @@ def make_plan(root, sha):
         images.append({'role': role, 'tag': tag, 'argv': argv})
     return {'schema': 'cortex.manual.build-plan.v1', 'source_revision': sha,
             'platform': 'linux/amd64', 'version': VERSION, 'images': images,
+            'source_date_epoch': SOURCE_DATE_EPOCH,
             'gate_order': ORDER, 'qualification': False, 'published': False}
 
 
 def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+
+
+def normalize_checkout_mtimes(root):
+    """Prepare tracked COPY inputs only; preserve bytes/modes/owners and Git data.
+
+    This happens before production, in its separate clean disposable checkout.
+    Symlink timestamps are set without touching their targets. Ignored files and
+    .git are never traversed. Exact ns verification refuses unsupported behavior.
+    """
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError('physical source checkout required')
+    names = subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z']).split(b'\0')
+    paths, directories = [], {root}
+    for raw in names:
+        if not raw:
+            continue
+        path = root/os.fsdecode(raw)
+        before = path.lstat()
+        if not (stat.S_ISREG(before.st_mode) or stat.S_ISLNK(before.st_mode)):
+            raise ValueError('tracked COPY input must be a file or symlink')
+        paths.append(path)
+        parent = path.parent
+        while parent != root:
+            if parent.is_symlink():
+                raise ValueError('tracked COPY parent must not be a symlink')
+            directories.add(parent)
+            parent = parent.parent
+    records = []
+    epoch_ns = SOURCE_DATE_EPOCH * 1_000_000_000
+    for path in paths + sorted(directories, key=lambda x: len(x.parts), reverse=True):
+        before = path.lstat()
+        os.utime(path, ns=(before.st_atime_ns, epoch_ns), follow_symlinks=False)
+        after = path.lstat()
+        if (after.st_mtime_ns != epoch_ns or
+                (before.st_mode, before.st_uid, before.st_gid, before.st_size) !=
+                (after.st_mode, after.st_uid, after.st_gid, after.st_size)):
+            raise ValueError('COPY timestamp preparation changed other metadata')
+        records.append({'path': str(path.relative_to(root)), 'mtime_ns': after.st_mtime_ns,
+                        'mode': stat.S_IMODE(after.st_mode), 'uid': after.st_uid, 'gid': after.st_gid})
+    return {'source_date_epoch': SOURCE_DATE_EPOCH, 'tracked_inputs_only': True,
+            'symlink_targets_followed': False, 'records': records}
 
 
 def main():
@@ -110,6 +160,8 @@ def main():
                 or not admission.get('decision_id')):
             raise ValueError('admission receipt does not authorize this source/pipeline')
     out = options.output.absolute()
+    if out == root or root in out.parents:
+        raise ValueError('output must be outside source checkout')
     if out.exists():
         raise ValueError('output must be a new isolated directory')
     out.mkdir(mode=0o700, parents=True)
@@ -122,6 +174,11 @@ def main():
     engine = [str(options.podman), '--root', str(out/'store'), '--runroot', str(out/'runroot')]
     env = {key: os.environ[key] for key in ('PATH', 'HOME', 'XDG_RUNTIME_DIR') if key in os.environ}
     env.update(REGISTRY_AUTH_FILE=str(out/'auth.json'), LANG='C.UTF-8')
+    # Intentionally keep SOURCE_DATE_EPOCH out of the Podman process environment:
+    # 5.8.2 turns it into --source-date-epoch, conflicting with --timestamp.
+    # Its fixed value is bound in the plan and passed explicitly as a build arg.
+    timestamps = normalize_checkout_mtimes(root)
+    (out/'source-mtime-preparation.json').write_text(json.dumps(timestamps, indent=2)+'\n')
     (out/'native-tools.json').write_text(json.dumps({str(tool): hashlib.sha256(tool.read_bytes()).hexdigest() for tool in (options.podman,)}, indent=2)+'\n')
     inventory = {'schema': 'cortex.images.v1', 'version': VERSION,
                  'source_revision': options.source_sha, 'platforms': {'linux/amd64': {}}}
