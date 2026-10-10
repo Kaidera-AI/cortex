@@ -81,7 +81,7 @@ names = sys.argv[1:] or ["test_b02_load", "test_b02_report"]
 suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(n) for n in names)
 result = unittest.TextTestRunner(verbosity=2, resultclass=AssertionResult).run(suite)
 sources = {}
-for name in ["load", "report", "benchmark"]:
+for name in ["load", "report", "benchmark", "corpus", "oracle", "postgres"]:
     module = importlib.import_module("vector_baseline." + name)
     path = pathlib.Path(module.__file__).resolve()
     sources[name + ".py"] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
@@ -94,6 +94,13 @@ sys.exit(0 if result.wasSuccessful() else 1)
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def source_custody(observed, expected, root):
+    return (set(observed) == set(expected)
+            and all(row["sha256"] == expected[name]
+                    and Path(row["path"]).resolve().is_relative_to(Path(root).resolve())
+                    for name, row in observed.items()))
 
 
 def main():
@@ -119,19 +126,18 @@ def main():
         parsed = report(child)
         if parsed is None:
             raise RuntimeError("missing structured result: " + label)
-        for name, row in parsed["executed_sources"].items():
-            if row["sha256"] != expected_source[name] or not Path(row["path"]).is_relative_to(root):
-                raise RuntimeError("executed-source custody mismatch: " + label)
+        if not source_custody(parsed["executed_sources"], expected_source, root):
+            raise RuntimeError("executed-source custody mismatch: " + label)
         return child, parsed
 
     original_hashes = {name: sha(raw) for name, raw in originals.items()}
     child, parsed = execute("baseline", NEXT / "src", expected_source=original_hashes)
-    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 26:
+    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 27:
         raise RuntimeError("B02 mutation baseline not clean")
     for filename, label, before, after, target, bodies in MUTATIONS:
         if originals[filename].decode().count(before) != 1:
             raise RuntimeError("mutation anchor drift: " + label)
-        with tempfile.TemporaryDirectory(prefix="b02-mutant-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="b02-mutant-", dir=args.destination) as temporary:
             root = Path(temporary)
             package = root / "vector_baseline"
             package.mkdir()
@@ -159,13 +165,13 @@ def main():
         if {path.name: sha(path.read_bytes()) for path in source.glob("*.py")} != original_hashes:
             raise RuntimeError("original source drift")
     child, parsed = execute("restored", NEXT / "src", expected_source=original_hashes)
-    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 26:
+    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 27:
         raise RuntimeError("restored source not clean")
     (args.destination / "mutations.json").write_text(json.dumps({"mutations": results, "tests": tests,
                                                                  "recipe_file_sha256": recipe_hash,
-                                                                 "baseline_restored": 26,
+                                                                 "baseline_restored": 27,
                                                                  "source_hashes": original_hashes}, indent=2) + "\n")
-    print(json.dumps({"mutants": len(results), "actual_body_kills": len(results), "baseline_restored": 26}))
+    print(json.dumps({"mutants": len(results), "actual_body_kills": len(results), "baseline_restored": 27}))
 
 
 if __name__ == "__main__":
