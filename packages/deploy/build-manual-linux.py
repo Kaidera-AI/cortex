@@ -17,6 +17,7 @@ import re
 import stat
 import subprocess
 import oci_archive
+import deterministic_oci_export
 
 VERSION = '0.1.003-manual.1'
 RELEASE = 'v' + VERSION
@@ -123,6 +124,39 @@ def normalize_checkout_mtimes(root):
             'symlink_targets_followed': False, 'records': records}
 
 
+def export_image(engine, tag, archive, env):
+    """Export unchanged OCI bytes to a directory, then create a fixed-header archive."""
+    directory = archive.with_suffix('.dir')
+    receipt_path = archive.with_suffix('.export-verification.json')
+    log_path = archive.with_suffix('.export.log')
+    if directory.exists() or archive.exists() or receipt_path.exists() or log_path.exists():
+        raise ValueError('new OCI export directory and archive required')
+    command = engine+['save', '--format', 'oci-dir', '--output', str(directory), tag]
+    failure = None
+    exit_code = 0
+    with log_path.open('x') as log:
+        try:
+            subprocess.run(command, env=env, check=True, timeout=180,
+                           stdout=log, stderr=subprocess.STDOUT)
+        except subprocess.SubprocessError as error:
+            failure = error
+            exit_code = error.returncode if isinstance(error, subprocess.CalledProcessError) else None
+    custody = {'save_command': command, 'save_exit_code': exit_code,
+               'raw_log': {'path': str(log_path), 'size': log_path.stat().st_size,
+                           'sha256': deterministic_oci_export.digest(log_path)}}
+    if failure is not None:
+        with receipt_path.open('x') as stream:
+            json.dump({'result': 'RED', **custody, 'failure': type(failure).__name__}, stream, indent=2)
+            stream.write('\n')
+        raise failure
+    receipt = deterministic_oci_export.write_archive(directory, archive)
+    receipt.update(custody)
+    with receipt_path.open('x') as stream:
+        json.dump(receipt, stream, indent=2)
+        stream.write('\n')
+    return receipt
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
@@ -186,7 +220,7 @@ def main():
         with (out/(role+'.build.log')).open('w') as log:
             subprocess.run(engine+image['argv'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         archive = out/('cortex-'+role+'-'+VERSION+'-linux-amd64.oci.tar')
-        subprocess.run(engine+['save', '--format', 'oci-archive', '--output', str(archive), image['tag']], env=env, check=True)
+        export_image(engine, image['tag'], archive, env)
         inspection = oci_archive.verify(archive, options.source_sha)
         digest = inspection['manifest_digest']
         (out/(role+'.archive-verification.json')).write_text(json.dumps(inspection, indent=2)+'\n')
