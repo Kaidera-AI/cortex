@@ -12,7 +12,7 @@ import time
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
-PG = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
+PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
     'writer_guard': ('src/cortex_core/api/c11b.py',
@@ -79,7 +79,8 @@ def main():
         raise RuntimeError('unknown C11b mutation')
     output['mutation'] = mutation
     suite = os.environ.get('C11B_SUITE', 'c11b')
-    if suite not in {'c11b', 'records', 'auth'} or mutation and suite != 'c11b':
+    if suite not in {'c11b', 'records', 'auth', 'auth_identity', 'outbox',
+                     'module_consumer', 'schema'} or mutation and suite != 'c11b':
         raise RuntimeError('unknown C11b suite selection')
     output['suite'] = suite
     try:

@@ -117,11 +117,11 @@ def main():
                 'p.write_text(b.replace(sys.argv[2],sys.argv[3]));'
                 'm=Path("/tmp/next/schema/manifest.json");'
                 'v=json.loads(m.read_text());'
+                'file=sys.argv[1][7:] if sys.argv[1].startswith("schema/") else None;'
                 '[(x.__setitem__("sha256",hashlib.sha256(p.read_bytes()).hexdigest())) '
-                'for x in v["migrations"] if x["file"]=="coordination/004-api-replay.sql"] '
-                'if sys.argv[1].endswith("004-api-replay.sql") else None;'
+                'for x in v["migrations"] if x["file"]==file] if file and file!="manifest.json" else None;'
                 'm.write_text(json.dumps(v)) '
-                'if sys.argv[1].endswith("004-api-replay.sql") else None'
+                'if file and file!="manifest.json" else None'
             )
             run('podman', 'exec', driver, 'python', '-c', mutate, path, before, after)
         run('podman', 'exec', driver, 'python', '-m', 'pip', 'install', '--no-index',

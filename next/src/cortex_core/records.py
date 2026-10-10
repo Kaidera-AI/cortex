@@ -110,11 +110,15 @@ def _receipt(data):
 
 class Records:
     """Own each private request transaction; no result escapes before auth commit."""
-    def __init__(self, connection, credential, installation_id, project_id):
+    def __init__(self, connection, credential, installation_id, project_id,
+                 before_commit=None):
+        if before_commit is not None and not callable(before_commit):
+            raise RecordError('invalid_input')
         self.connection = connection
         self.credential = credential
         self.installation_id = installation_id
         self.project_id = project_id
+        self.before_commit = before_commit
 
     def _authorized(self, action):
         return authorized(self.connection,self.credential,self.installation_id,self.project_id,action)
@@ -193,6 +197,8 @@ class Records:
                         raise RecordError('core_unavailable')
                     data['event_id'] = str(event[0])
                     data['request_json'] = request_json
+                    if self.before_commit is not None:
+                        self.before_commit(self.connection, scope, record_id, kind)
                     _save_request(self.connection,scope,key,digest,data)
                     result = _receipt(data)
                 except psycopg.errors.UniqueViolation:
