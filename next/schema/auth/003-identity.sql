@@ -194,17 +194,24 @@ BEGIN
     RETURN p.id=p_target AND p.name=p_name AND p.kind='agent' AND NOT p.disabled AND NOT p.identity_adopted;
 END;
 $$;
-CREATE FUNCTION auth.identity_adopt(p_manifest jsonb,p_manifest_sha text,p_key text,p_sha text) RETURNS jsonb
+CREATE FUNCTION auth.identity_adopt(p_manifest text,p_manifest_sha text,p_key text,p_sha text) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
-DECLARE s record; replay jsonb; item jsonb; target uuid; roles text[]; permissions text[];
+DECLARE s record; replay jsonb; item jsonb; target uuid; roles text[]; permissions text[]; manifest jsonb;
 BEGIN
-    replay:=auth.identity_begin(p_key,p_sha); IF replay IS NOT NULL THEN RETURN replay; END IF;
-    SELECT * INTO s FROM auth.identity_scope(true);
-    IF p_manifest IS NULL OR jsonb_typeof(p_manifest->'agents')<>'array'
-       OR jsonb_array_length(p_manifest->'agents') NOT BETWEEN 1 AND 1000
-       OR p_manifest_sha IS NULL OR length(p_manifest_sha)<>64 OR p_manifest_sha ~ '[^0-9a-f]'
+    SELECT * INTO s FROM auth.identity_scope(true); IF NOT FOUND THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
+    IF p_manifest IS NULL OR octet_length(p_manifest)>1048576 OR p_manifest_sha IS NULL
+       OR p_manifest_sha IS DISTINCT FROM encode(sha256(convert_to(p_manifest,'UTF8')),'hex')
        THEN RAISE EXCEPTION 'identity_invalid_input'; END IF;
-    FOR item IN SELECT * FROM jsonb_array_elements(p_manifest->'agents') LOOP
+    manifest:=p_manifest::jsonb;
+    IF manifest->>'installation_id' IS DISTINCT FROM s.installation_id::text
+       OR manifest->>'project_id' IS DISTINCT FROM s.project_id::text THEN RAISE EXCEPTION 'identity_scope_mismatch'; END IF;
+    IF manifest->>'version' IS DISTINCT FROM '1' OR jsonb_typeof(manifest->'agents') IS DISTINCT FROM 'array'
+       OR jsonb_array_length(manifest->'agents') NOT BETWEEN 1 AND 1000
+       OR manifest->'legacy_registration_authority' IS DISTINCT FROM
+          jsonb_build_object('cortex-add-agent','owner_or_admin','lead_registration_requires','owner_or_admin')
+       THEN RAISE EXCEPTION 'identity_invalid_input'; END IF;
+    replay:=auth.identity_begin(p_key,p_sha); IF replay IS NOT NULL THEN RETURN replay; END IF;
+    FOR item IN SELECT * FROM jsonb_array_elements(manifest->'agents') LOOP
         target:=(item->>'principal_id')::uuid;
         roles:=ARRAY(SELECT jsonb_array_elements_text(item->'roles'));
         permissions:=ARRAY(SELECT jsonb_array_elements_text(item->'permissions'));
@@ -218,11 +225,12 @@ BEGIN
           VALUES(s.tenant_id,s.project_id,target,permissions,roles)
           ON CONFLICT(tenant_id,project_id,principal_id) DO UPDATE SET permissions=EXCLUDED.permissions,roles=EXCLUDED.roles;
     END LOOP;
-    RETURN auth.identity_finish(p_key,p_sha,jsonb_build_object('manifest_sha256',p_manifest_sha,'count',jsonb_array_length(p_manifest->'agents')),
-                               jsonb_build_object('operation','adopt','manifest_sha256',p_manifest_sha,'manifest',p_manifest));
+    RETURN auth.identity_finish(p_key,p_sha,jsonb_build_object('manifest_sha256',p_manifest_sha,'count',jsonb_array_length(manifest->'agents')),
+                               jsonb_build_object('operation','adopt','manifest_sha256',p_manifest_sha,'manifest',manifest));
 END;
 $$;
 
+GRANT USAGE ON SCHEMA coordination TO "kaidera-runtime-core-verifier";
 GRANT INSERT ON auth.principals,auth.project_grants,auth.credentials TO "kaidera-runtime-core-verifier";
 GRANT SELECT,INSERT ON core.payloads,coordination.idempotency TO "kaidera-runtime-core-verifier";
 CREATE POLICY c04a_identity_private ON core.payloads TO "kaidera-runtime-core-verifier" USING(true) WITH CHECK(true);
@@ -239,4 +247,4 @@ REVOKE CREATE ON SCHEMA auth FROM "kaidera-runtime-core-verifier";
 GRANT EXECUTE ON FUNCTION auth.identity_lookup(uuid),auth.identity_register_agent(uuid,text,text[],text[],uuid,text,integer,text,text),
     auth.identity_register_human(uuid,text,text[],text[],uuid,text,integer,text,text,text),auth.identity_set_roles(uuid,text[],text,text),
     auth.identity_rotate(uuid,uuid,uuid,text,integer,text,text),auth.identity_revoke(uuid,text,text),
-    auth.identity_adoption_check(uuid,text),auth.identity_adopt(jsonb,text,text,text) TO "kaidera-runtime-core-request";
+    auth.identity_adoption_check(uuid,text),auth.identity_adopt(text,text,text,text) TO "kaidera-runtime-core-request";

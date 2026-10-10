@@ -169,6 +169,10 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
+    if PHASE.startswith(('identity-green','mutation')):
+        value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth_identity_guards'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==6 and not report['failures'] and not report['errors']
     if PHASE.startswith('mutation'):
         for directory,count in [('contract',33),('receipt',20)]:
             value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)

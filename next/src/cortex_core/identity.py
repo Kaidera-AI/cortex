@@ -177,7 +177,7 @@ class Identity:
             raise
         except psycopg.errors.RaiseException as error:
             code = {'identity_forbidden': 'forbidden', 'identity_conflict': 'conflict',
-                    'identity_invalid_input': 'invalid_input'}.get(error.diag.message_primary)
+                    'identity_invalid_input': 'invalid_input', 'identity_scope_mismatch': 'scope_mismatch'}.get(error.diag.message_primary)
             raise IdentityError(code or 'core_unavailable') from None
         except psycopg.errors.UniqueViolation:
             raise IdentityError('conflict') from None
@@ -268,7 +268,7 @@ class Identity:
         pin = self.donor_pin
         if not isinstance(pin, DonorPin) or pin.released is not True:
             return None
-        if not isinstance(pin.source_bytes, bytes) or len(pin.source_bytes) > 1024 * 1024 or re.fullmatch('[0-9a-f]{40}', pin.released_sha) is None:
+        if not isinstance(pin.source_bytes, bytes) or len(pin.source_bytes) > 1024 * 1024 or not isinstance(pin.released_sha, str) or re.fullmatch('[0-9a-f]{40}', pin.released_sha) is None:
             raise IdentityError('invalid_input')
         data = _canonical(manifest)
         # Make a private normalized snapshot before any DB operation.
@@ -281,11 +281,20 @@ class Identity:
             raise IdentityError('invalid_input')
         try:
             donor = json.loads(pin.source_bytes)
-            source = {x['source_id']: x for x in donor['agents']}
+            if not isinstance(donor, dict) or not isinstance(donor.get('project'), str) or not isinstance(donor.get('agents'), list):
+                raise IdentityError('invalid_input')
+            _text(donor['project'], 256)
+            source = {}
+            for original in donor['agents']:
+                if not isinstance(original, dict):
+                    raise IdentityError('invalid_input')
+                source_id = _text(original['source_id'], 256)
+                _text(original['name'], 256); _roles((original['role'],))
+                if source_id in source:
+                    raise IdentityError('invalid_input')
+                source[source_id] = original
         except (ValueError, TypeError, KeyError, RecursionError):
             raise IdentityError('invalid_input') from None
-        if len(source) != len(donor['agents']) or not isinstance(donor['project'], str):
-            raise IdentityError('invalid_input')
         agents = manifest['agents']
         if not isinstance(agents, list) or not 1 <= len(agents) <= 1000:
             raise IdentityError('invalid_input')
@@ -293,6 +302,7 @@ class Identity:
         for item in agents:
             if not isinstance(item, dict) or set(item) != {'source_project', 'source_id', 'principal_id', 'name', 'kind', 'roles', 'permissions'}:
                 raise IdentityError('invalid_input')
+            _text(item['source_id'], 256); _text(item['source_project'], 256)
             original = source.get(item['source_id'])
             try:
                 target = UUID(item['principal_id'])
@@ -333,6 +343,6 @@ class Identity:
             raise IdentityError('conflict')
         request_sha = _digest(dict(operation='adopt', manifest_sha256=digest))
         with self._control():
-            raw = self.connection.execute('SELECT auth.identity_adopt(%s::jsonb,%s,%s,%s)',
+            raw = self.connection.execute('SELECT auth.identity_adopt(%s,%s,%s,%s)',
                                           (_canonical(snapshot).decode(), digest, request_key, request_sha)).fetchone()[0]
         return AdoptionReceipt(raw['manifest_sha256'], raw['count'], UUID(raw['audit_id']), raw['replayed'])
