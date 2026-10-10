@@ -51,6 +51,12 @@ MUTANTS = {
         ['test_operation_race.py',
          'OperationRace.test_paused_advance_drains_before_rollback_restores'],
         'AssertionError'),
+    'accept_operation_lock_removed': (
+        [('    @_serialized\n    def accept(self):',
+          '    def accept(self):')],
+        ['test_operation_race.py',
+         'OperationRace.test_paused_rollback_excludes_accept_until_restore_completes'],
+        'accept completed while rollback was in flight'),
 }
 
 
