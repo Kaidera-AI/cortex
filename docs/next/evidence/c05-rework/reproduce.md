@@ -32,3 +32,5 @@ The corrected auth-0003 planning metadata names each file's exact main or C04
 commit. It does not claim released issuer/adoption admission. Security review,
 main merge, live installation, source admission, x86, donor/signing/release and
 external event acknowledgement remain separately held.
+
+Classifier requalification: after merging PR55 from main, the receipt suite has 29 tests (the prior 20 plus nine classifier controls). `mutation-reclassified-001.json` is retained FAILED because the old controller expected 20. Use a new phase after updating the controller count; all remaining frozen C05 suites and fault recipes stay unchanged.
