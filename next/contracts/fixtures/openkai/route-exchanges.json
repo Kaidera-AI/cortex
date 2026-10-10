@@ -1,0 +1,367 @@
+{
+  "cases": [
+    {
+      "authorization": "read",
+      "binding": "ruled_status_read",
+      "error": {
+        "body": {
+          "error": {
+            "code": "forbidden",
+            "retryable": false
+          }
+        },
+        "status": 403
+      },
+      "id": "route-C01-R072_get_beat_embedding_backlog",
+      "kind": "route_exchange",
+      "method": "GET",
+      "operation_id": "C01-R072_get_beat_embedding_backlog",
+      "path": "/beat/embeddings/backlog",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "X-Project": "fixture-project"
+        },
+        "method": "GET",
+        "path": "/beat/embeddings/backlog"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "model_id": "fixture-model",
+          "pending": 0
+        },
+        "status": 200
+      }
+    },
+    {
+      "authorization": "read",
+      "binding": "ruled_status_read",
+      "error": {
+        "body": {
+          "error": {
+            "code": "core_unavailable",
+            "retryable": true
+          }
+        },
+        "status": 503
+      },
+      "id": "route-C01-R006_get_get_degradation",
+      "kind": "route_exchange",
+      "method": "GET",
+      "operation_id": "C01-R006_get_get_degradation",
+      "path": "/degradation",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "X-Project": "fixture-project"
+        },
+        "method": "GET",
+        "path": "/degradation"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "capabilities": [
+            {
+              "capability": "pg_search",
+              "complete": true,
+              "state": "ready"
+            }
+          ]
+        },
+        "status": 200
+      }
+    },
+    {
+      "binding": "proposed_new_consumer",
+      "error": {
+        "body": {
+          "error": {
+            "code": "core_unavailable",
+            "retryable": true
+          }
+        },
+        "status": 503
+      },
+      "id": "route-C01-R002_get_health",
+      "kind": "route_exchange",
+      "method": "GET",
+      "operation_id": "C01-R002_get_health",
+      "path": "/health",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/health"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "component": "cortex",
+          "status": "ok"
+        },
+        "status": 200
+      }
+    },
+    {
+      "binding": "proposed_new_consumer",
+      "error": {
+        "body": {
+          "error": {
+            "code": "forbidden",
+            "retryable": false
+          }
+        },
+        "status": 403
+      },
+      "id": "route-C01-R082_get_get_project",
+      "kind": "route_exchange",
+      "method": "GET",
+      "operation_id": "C01-R082_get_get_project",
+      "path": "/projects/{project_key}",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "X-Project": "fixture-project"
+        },
+        "method": "GET",
+        "path": "/projects/{project_key}",
+        "project_key": "fixture-project"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "name": "fixture-project",
+          "project_id": "00000000-0000-4000-8000-000000000003"
+        },
+        "status": 200
+      }
+    },
+    {
+      "authorization": "read",
+      "binding": "ruled_status_read",
+      "error": {
+        "body": {
+          "error": {
+            "code": "core_unavailable",
+            "retryable": true
+          }
+        },
+        "status": 503
+      },
+      "id": "route-C01-R030_get_workers_health",
+      "kind": "route_exchange",
+      "method": "GET",
+      "operation_id": "C01-R030_get_workers_health",
+      "path": "/workers/health",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "X-Project": "fixture-project"
+        },
+        "method": "GET",
+        "path": "/workers/health"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "supervisor": "ready",
+          "workers": []
+        },
+        "status": 200
+      }
+    },
+    {
+      "binding": "proposed_new_consumer",
+      "error": {
+        "body": {
+          "error": {
+            "code": "conflict",
+            "retryable": false
+          }
+        },
+        "status": 409
+      },
+      "id": "route-C01-R015_post_ingest_artifact",
+      "kind": "route_exchange",
+      "method": "POST",
+      "operation_id": "C01-R015_post_ingest_artifact",
+      "path": "/artifacts",
+      "request": {
+        "body": {
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": "openkai/fusion"
+        },
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "Content-Type": "application/json",
+          "X-Project": "fixture-project"
+        },
+        "idempotency_key": "fusion-run-001",
+        "method": "POST",
+        "path": "/artifacts"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "receipt": {
+            "aggregate_version": 2,
+            "durability": "canonical_committed",
+            "event_id": "00000000-0000-4000-8000-000000000012",
+            "projection": "pending",
+            "record_id": "00000000-0000-4000-8000-000000000011",
+            "request_key": "fusion-run-001"
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "binding": "proposed_new_consumer",
+      "error": {
+        "body": {
+          "error": {
+            "code": "conflict",
+            "retryable": false
+          }
+        },
+        "status": 409
+      },
+      "id": "route-C01-R102_post_write_memory",
+      "kind": "route_exchange",
+      "method": "POST",
+      "operation_id": "C01-R102_post_write_memory",
+      "path": "/memory",
+      "request": {
+        "body": {
+          "category": "workflow",
+          "content": "synthetic lesson",
+          "section": "learnings",
+          "source": "openkai/learn"
+        },
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "Content-Type": "application/json",
+          "X-Project": "fixture-project"
+        },
+        "idempotency_key": "openkai-write-001",
+        "method": "POST",
+        "path": "/memory"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "receipt": {
+            "aggregate_version": 2,
+            "durability": "canonical_committed",
+            "event_id": "00000000-0000-4000-8000-000000000012",
+            "projection": "pending",
+            "record_id": "00000000-0000-4000-8000-000000000011",
+            "request_key": "openkai-write-001"
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "binding": "proposed_new_consumer",
+      "error": {
+        "body": {
+          "error": {
+            "code": "capability_unavailable",
+            "retryable": true,
+            "state": "pending"
+          }
+        },
+        "status": 503
+      },
+      "id": "route-C01-R022_post_search_post",
+      "kind": "route_exchange",
+      "method": "POST",
+      "operation_id": "C01-R022_post_search_post",
+      "path": "/search",
+      "request": {
+        "body": {
+          "min_revision": 2,
+          "query": "synthetic query",
+          "top_k": 5,
+          "wait_ms": 10000
+        },
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "Content-Type": "application/json",
+          "X-Project": "fixture-project"
+        },
+        "method": "POST",
+        "path": "/search"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "complete": true,
+          "freshness": {
+            "complete": true,
+            "state": "current"
+          },
+          "results": [],
+          "state": "ready_empty"
+        },
+        "status": 200
+      }
+    },
+    {
+      "binding": "proposed_new_consumer",
+      "error": {
+        "body": {
+          "error": {
+            "code": "conflict",
+            "retryable": false
+          }
+        },
+        "status": 409
+      },
+      "id": "route-C01-R013_post_ingest_session",
+      "kind": "route_exchange",
+      "method": "POST",
+      "operation_id": "C01-R013_post_ingest_session",
+      "path": "/sessions/ingest",
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "synthetic",
+              "role": "user",
+              "timestamp": "2026-10-10T21:00:00Z"
+            }
+          ],
+          "session_uuid": "00000000-0000-4000-8000-000000000031",
+          "source_path": "/synthetic/openkai/session-31.jsonl"
+        },
+        "headers": {
+          "Authorization": "Bearer <fixture-scoped-token>",
+          "Content-Type": "application/json",
+          "X-Project": "fixture-project"
+        },
+        "idempotency_key": "session-31",
+        "method": "POST",
+        "path": "/sessions/ingest"
+      },
+      "runtime_state": "not_executed",
+      "success": {
+        "body": {
+          "receipt": {
+            "aggregate_version": 2,
+            "durability": "canonical_committed",
+            "event_id": "00000000-0000-4000-8000-000000000012",
+            "projection": "pending",
+            "record_id": "00000000-0000-4000-8000-000000000011",
+            "request_key": "session-31"
+          },
+          "session_id": "00000000-0000-4000-8000-000000000031"
+        },
+        "status": 200
+      }
+    }
+  ],
+  "format": "openkai-c02-fixtures-v1"
+}
