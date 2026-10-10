@@ -357,10 +357,9 @@ class C11b2ReadPort:
                                       'version': self.identity.version,
                                       'dimensions': self.identity.dimensions,
                                       'preprocessing': self.identity.preprocessing}}}
-            if target is not None:
-                response['complete'] = True
-                response['state'] = 'ready_empty' if not response['results'] else 'ready'
-                response['freshness']['complete'] = True
+            response['complete'] = True
+            response['state'] = 'ready_empty' if not response['results'] else 'ready'
+            response['freshness']['complete'] = True
             return response
         finally:
             if watcher is not None:

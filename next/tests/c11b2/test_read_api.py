@@ -184,7 +184,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((status, post['results'][0]['id']), (200, uid(6)))
         status, unfused = await self.call('POST', '/search',
                                            body={'query': 'fixture', 'enable_graph': True})
-        self.assertEqual((status, unfused['error']['code']), (503, 'capability_unavailable'))
+        self.assertEqual((status, unfused.get('error', {}).get('code')),
+                         (503, 'capability_unavailable'))
         self.assertNotIn('results', unfused)
         self.assertEqual((await self.call('GET', '/search', query=b'q=fixture&limit=101'))[0], 400)
         self.admin.execute('UPDATE retrieval.search_sources SET source_revision=2 WHERE record_id=%s', (uid(6),))
