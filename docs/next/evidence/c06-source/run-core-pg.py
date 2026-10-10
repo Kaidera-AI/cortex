@@ -147,6 +147,8 @@ try:
         matrices=[('mutate_outbox.py',[],42),('mutate_outbox.py',['--identity'],32),('mutate_outbox.py',['--adapters'],30),('mutate_contracts.py',[],26),('mutate_test_receipts.py',[],8)]
         if 'repair' in PHASE:
             matrices=[('mutate_outbox.py',['--repair'],3),('mutate_outbox.py',['--identity','--repair'],6),('mutate_outbox.py',['--adapters','--repair'],9)]
+        if 'attribution-red' in PHASE:
+            matrices=[('mutate_outbox.py',['--identity','--attribution-red'],1)]
         for script,arguments,count in matrices:
             value=run(env+['python','/tmp/next/scripts/'+script,*arguments],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]

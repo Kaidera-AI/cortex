@@ -18,7 +18,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "human registration silently becomes agent",
@@ -37,7 +38,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "roles implicitly elevate permissions",
@@ -56,7 +58,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "fresh identity generation hidden",
@@ -75,7 +78,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "unreleased donor pin admitted",
@@ -94,7 +98,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "approved adoption digest ignored",
@@ -113,7 +118,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "donor hash and registration authority substituted",
@@ -132,7 +138,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "both final credential authority checks use initial snapshot",
@@ -165,7 +172,8 @@
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
         "bypass the new deferred identity freshness guard, preserving the original authority fault"
-      ]
+      ],
+      "original_change_count": 2
     },
     {
       "label": "legacy lead role discarded",
@@ -184,7 +192,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "final private binding survival check omitted",
@@ -211,7 +220,8 @@
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
         "bypass the new deferred identity freshness guard, preserving the original authority fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "private final binding function accepts missing context",
@@ -238,7 +248,8 @@
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
         "bypass the new deferred identity freshness guard, preserving the original authority fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "default collation replaces byte ordering",
@@ -257,7 +268,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "private coordination schema usage removed",
@@ -284,7 +296,8 @@
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
         "C06 trigger functions alone use the trusted installer owner in this fault so bootstrap seed reaches the original frozen runtime authority probe without a new-trigger setup error; original verifier still loses coordination USAGE"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "direct SQL adoption manifest digest ignored",
@@ -303,7 +316,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "direct SQL adoption scope ignored",
@@ -322,7 +336,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "fixed agent SQL path attempts human registration",
@@ -341,7 +356,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "duplicate project roles accepted",
@@ -360,7 +376,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "PUBLIC function execution retained",
@@ -379,7 +396,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "unadopted principal has identity routing authority",
@@ -398,7 +416,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "project role membership leaks across projects",
@@ -417,7 +436,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "identity entry no longer binds actual SQL",
@@ -436,7 +456,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "worker membership requirement omitted",
@@ -455,7 +476,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "human kind check omitted",
@@ -474,7 +496,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "historical replay skips current identity policy",
@@ -493,7 +516,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "persisted role and human policy silently discarded",
@@ -512,7 +536,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "optional policy omitted from request digest",
@@ -539,7 +564,8 @@
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "human kind bypasses independent holder review",
@@ -566,7 +592,8 @@
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "default policy changes published C05 digest",
@@ -585,7 +612,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "roles asserted to grant permissions",
@@ -604,7 +632,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "real released adoption falsely qualified",
@@ -623,7 +652,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "fixture read principal elevated to owner",
@@ -642,7 +672,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "caller accepts nonzero exit without body attribution",
@@ -661,7 +692,8 @@
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     }
   ],
   "frozen_original_script": "mutate_identity.py",

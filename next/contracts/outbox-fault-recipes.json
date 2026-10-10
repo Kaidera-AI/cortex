@@ -124,7 +124,8 @@
         "test_outbox_guards.OutboxGuards.test_history_without_matching_head_cannot_commit_extra_event"
       ],
       "kind": "guard",
-      "composition": "Both deferred coupling and new immediate order guard must be removed to expose an unheaded history fault."
+      "composition": "Both deferred coupling and new immediate order guard must be removed to expose an unheaded history fault.",
+      "original_change_count": 1
     },
     {
       "label": "job capture accepts no actual business change",
@@ -561,7 +562,8 @@
         "test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected"
       ],
       "kind": "artifact",
-      "composition": "Unknown records writer reaches the records-specific category branch; bypass it along with original generic default."
+      "composition": "Unknown records writer reaches the records-specific category branch; bypass it along with original generic default.",
+      "original_change_count": 1
     },
     {
       "label": "retention age starts at capture instead of publication",

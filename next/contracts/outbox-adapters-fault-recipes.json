@@ -26,7 +26,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new exact request JSON replay check as well as original digest check"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "tombstone exposed by default",
@@ -45,7 +46,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "delete stored as live revision",
@@ -78,7 +80,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 2
     },
     {
       "label": "original byte zero discarded",
@@ -105,7 +108,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "record kind changes accepted",
@@ -132,7 +136,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new immediate immutable-kind/head guard as well as the original adapter kind check"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "bool accepted as revision",
@@ -151,7 +156,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "trailing newline silently normalized",
@@ -170,7 +176,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "stale expected revision ignored",
@@ -203,7 +210,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 2
     },
     {
       "label": "owner control omitted for creation",
@@ -222,7 +230,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "explicit recipient ignored",
@@ -241,7 +250,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "running job reclaimed automatically",
@@ -260,7 +270,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "new attempt reuses previous fence",
@@ -279,7 +290,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "expired completion accepted",
@@ -304,7 +316,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 2
     },
     {
       "label": "holder and independent reviewer checks omitted",
@@ -331,7 +344,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "handoff completed without review",
@@ -350,7 +364,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "canceled job eligible for retry",
@@ -377,7 +392,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "successful outcome mislabeled failed",
@@ -404,7 +420,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "pagination descending rather than stable ascending",
@@ -423,7 +440,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "claim holder receipt forged as creator",
@@ -450,7 +468,8 @@
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
         "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
-      ]
+      ],
+      "original_change_count": 1
     },
     {
       "label": "fixture original bytes changed",
@@ -469,7 +488,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "eventless API acceptance asserted",
@@ -488,7 +508,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "handoff bypass mapped to complete",
@@ -507,7 +528,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "budget enforcement claimed",
@@ -526,7 +548,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "fixture reader silently elevated to owner",
@@ -545,7 +568,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "final deadline acceptance omitted",
@@ -564,7 +588,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "fence validation before encoding omitted",
@@ -583,7 +608,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "unencodable request key admitted",
@@ -602,7 +628,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "private record byte bound omitted",
@@ -621,7 +648,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "private intent result byte bound omitted",
@@ -640,7 +668,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     },
     {
       "label": "caller accepts exit-code-only faults",
@@ -659,7 +688,8 @@
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
-      "c06_composition": []
+      "c06_composition": [],
+      "original_change_count": 1
     }
   ],
   "frozen_original_script": "mutate_core_adapters.py",
