@@ -18,7 +18,7 @@ class Body(unittest.TestCase):
  def test_three_real_reference_bodies_exact_after_actual_compiler_RUN(self):
   pairs=json.loads((FIX/'pairs.json').read_text())
   run=next(x for x in order.instructions((order.ROOT/'packages/api/Dockerfile').read_text()) if x.startswith('RUN ') and 'compileall.compile_dir' in x)
-  argv=shlex.split(run.removeprefix('RUN '));self.assertEqual(argv[:2],['python','-c'])
+  argv,environment=order.compiler_command(run);self.assertEqual(argv[:2],['python','-c'])
   for row in pairs:
    with self.subTest(cache=row['cache']),tempfile.TemporaryDirectory() as temp:
     root=Path(temp);rel=Path(row['source_filename']).relative_to('/usr/local/lib/python3.14/site-packages');source=root/rel;source.parent.mkdir(parents=True,exist_ok=True);source.write_bytes((FIX/row['source_file']).read_bytes());os.utime(source,(order.EPOCH,order.EPOCH))
@@ -26,7 +26,7 @@ class Body(unittest.TestCase):
     # Declared path adapter: source stays physical; only compiler filename maps
     # the temporary fixture to the real retained final runtime filename.
     prefix='import builtins,sysconfig; _actual_compile=builtins.compile; builtins.compile=lambda data,filename,*a,**kw:_actual_compile(data, '+repr(row['source_filename'])+' if filename=='+repr(str(source))+' else filename,*a,**kw); sysconfig.get_path=lambda name:'+repr(str(root))+'; '
-    subprocess.run([sys.executable,'-c',prefix+argv[2]],check=True)
+    subprocess.run([sys.executable,'-c',prefix+argv[2]],check=True,env=environment)
     self.assertEqual(cache.read_bytes()[16:],gold,'actual compiler changed retained raw body')
 
 if __name__=='__main__':unittest.main()
