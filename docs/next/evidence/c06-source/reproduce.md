@@ -1,6 +1,30 @@
 # C06 copied PostgreSQL source proof
 
-## PR #51 writer-inventory rework r2 — current proof
+## PR #51 writer-inventory rework r3 — current proof
+
+Mike's `match ...: case query:` capture and a harmless no-op inside
+`records._private` both passed the old allowlist. The two committed controls
+fail in the test body before repair (`pr51-002-r3-red.json`). Every known
+indirect SQL exception is now pinned to the normalized AST hash of its entire
+enclosing function. Any function change fails closed; this covers binding
+forms that do not use `ast.Name(Store)`. The normalization includes empty
+AST fields under Python 3.14 to match the pinned Python 3.12 runtime.
+The 11 earlier inventory methods are AST-byte-identical; the imported manifest
+test is also unchanged. All 14 inventory controls pass; removing the hash
+comparison yields four BODY failures (`pr51-002-r3-mutant.json`).
+
+`mutation-pr51-002-r3-full-002.json` at tested source
+`e749432d390860ced54805662f430ece8b108f7e` records 26 clean suites/320
+tests, all 154 primary faults killed with 367 expected BODY assertions, zero
+errors/inconclusive, 426 copied NEXT files restored and the three owned
+resources removed. `verify-pr51-002-r3.py` checks raw source and classifier
+receipts against Git. `publication-index-005.json` and the independent
+Git-bound `publication-expected.json` cover the exact published source and
+evidence inventory. The first native r3 attempt is retained as
+`mutation-pr51-002-r3-full-001.json`: it exposed the Python AST empty-field
+format difference, failed inventory, and removed its owned stack.
+
+## PR #51 writer-inventory rework r2 — historical proof
 
 Mike's walrus override of `records._private(query)` and an augmented
 assignment control failed in the test body before repair

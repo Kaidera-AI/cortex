@@ -11,6 +11,23 @@ IDENTIFIER = r'(?:"(?:""|[^"])+"|[a-z_][a-z0-9_$]*)'
 TARGET = re.compile(r'\s*('+IDENTIFIER+r'(?:\s*\.\s*'+IDENTIFIER+r')?)',re.I)
 FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.]*).*?\bAS\s+\$\$(.*?)\$\$;',re.I|re.S)
 
+# Source-reviewed, normalized ASTs of the complete enclosing functions. A change
+# anywhere in one of these functions invalidates its indirect-SQL exception.
+KNOWN_INPUT_FUNCTION_SHA256 = {
+    ('src/cortex_core/coordination.py','Jobs._load'): 'e10eddc8f089d9ccc97e60e576dedbfe3d39541e3eb8bee0414db28b29407ade',
+    ('src/cortex_core/auth.py','authorized'): '479d115551dc48de8bbc2e9fba943d21879bf0497f05a5d65610a97dc282ae46',
+    ('src/cortex_core/identity.py','Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
+    ('src/cortex_core/identity.py','Identity._register'): 'f837fa6fdcc01e32d12b74eb9b8a1390a3305bd8ef256fdf28b6b3b460e820b8',
+    ('src/cortex_core/records.py','_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
+    ('src/cortex_core/migrations.py','apply_migrations'): '7dbe9e12eaea949645208137e8db565874622c0af7d625529816e30aea3b5df3',
+}
+
+
+def normalized_function_digest(function):
+    # 3.14 changed ast.dump's default to hide empty fields; keep the 3.12 form.
+    options={'show_empty':True} if sys.version_info >= (3,14) else {}
+    return hashlib.sha256(ast.dump(function,include_attributes=False,**options).encode()).hexdigest()
+
 
 def static_text(node):
     """Fold source-known SQL without executing application expressions."""
@@ -101,15 +118,11 @@ def scan_source(file,source):
         key=(owner,'DYNAMIC','<dynamic_or_unsupported>');ordinal=ordinals.get(key,0);ordinals[key]=ordinal+1
         rows.append(dict(file=file,owner=owner,verb='DYNAMIC',table='<dynamic_or_unsupported>',ordinal=ordinal,
             statement_sha256=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
-    def known_existing_input(owner,node,tree):
+    def known_existing_input(owner,node,tree,function):
         """Only these source-proved existing indirect inputs bypass fail-closed."""
-        def local_bindings(function,name):
-            """Every local write/delete form, including walrus and augmented assignment."""
-            stores=[part for part in ast.walk(function) if isinstance(part,ast.Name)
-                    and part.id==name and isinstance(part.ctx,(ast.Store,ast.Del))]
-            declarations=[part for part in ast.walk(function) if isinstance(part,(ast.Global,ast.Nonlocal))
-                          and name in part.names]
-            return stores,declarations
+        pin=KNOWN_INPUT_FUNCTION_SHA256.get((file,owner))
+        if function is None or pin is None or normalized_function_digest(function)!=pin:
+            return False
         if file=='src/cortex_core/coordination.py' and owner=='Jobs._load':
             return (isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add)
                     and (static_text(node.left) or '').lstrip().upper().startswith('SELECT')
@@ -138,9 +151,7 @@ def scan_source(file,source):
             assignments=[n for n in ast.walk(methods[0]) if isinstance(n,ast.Assign)
                          and any(isinstance(t,ast.Name) and t.id=='query' for t in n.targets)] if len(methods)==1 else []
             if len(methods)!=1:return False
-            stores,declarations=local_bindings(methods[0],name)
-            return (not declarations and len(assignments)==len(stores)==2
-                    and {id(n.targets[0]) for n in assignments}=={id(n) for n in stores}
+            return (len(assignments)==2
                     and all((static_text(n.value) or '').lstrip().upper().startswith('SELECT') for n in assignments))
         if file=='src/cortex_core/records.py' and owner=='_private' and name=='query':
             methods=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_private']
@@ -148,10 +159,9 @@ def scan_source(file,source):
             function=methods[0]
             parameters=[arg.arg for arg in (function.args.posonlyargs+function.args.args+
                                            function.args.kwonlyargs)]
-            stores,declarations=local_bindings(function,name)
             calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name)
                    and n.func.id=='_private']
-            return parameters.count(name)==1 and not stores and not declarations and bool(calls) and all(len(n.args)>1 and
+            return parameters.count(name)==1 and bool(calls) and all(len(n.args)>1 and
                    (static_text(n.args[1]) or '').lstrip().upper().startswith('SELECT') for n in calls)
         if file=='src/cortex_core/migrations.py' and owner=='apply_migrations' and name=='sql':
             functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='apply_migrations']
@@ -165,26 +175,26 @@ def scan_source(file,source):
             other_assignments=[n for n in ast.walk(fn) if isinstance(n,(ast.Assign,ast.AnnAssign,ast.NamedExpr))
                                and any(isinstance(t,ast.Name) and t.id=='sql' for t in
                                        (n.targets if isinstance(n,ast.Assign) else [n.target]))]
-            stores,declarations=local_bindings(fn,name)
             return (len(loops)==1 and len(appends)==1 and not other_assignments
-                    and not declarations and len(stores)==1 and stores[0] is loops[0].target.elts[2]
                     and 'hashlib.sha256(data).hexdigest() != entry["sha256"]' in source
                     and ast.unparse(appends[0].args[0])=="(entry['id'], entry['sha256'], data.decode('utf-8'))")
         return False
     if file.endswith('.py'):
         tree=ast.parse(source)
         class Visitor(ast.NodeVisitor):
-            def __init__(self):self.owners=[]
+            def __init__(self):self.owners=[];self.functions=[]
             def visit_ClassDef(self,node):
                 self.owners.append(node.name);self.generic_visit(node);self.owners.pop()
             def visit_FunctionDef(self,node):
-                self.owners.append(node.name);self.generic_visit(node);self.owners.pop()
+                self.owners.append(node.name);self.functions.append(node)
+                self.generic_visit(node)
+                self.functions.pop();self.owners.pop()
             visit_AsyncFunctionDef=visit_FunctionDef
             def visit_Call(self,node):
                 if (isinstance(node.func,ast.Attribute) and node.func.attr in ('execute','executemany')
                     and node.args and static_text(node.args[0]) is None):
                     owner='.'.join(self.owners) or '<module>'
-                    if not known_existing_input(owner,node.args[0],tree):
+                    if not known_existing_input(owner,node.args[0],tree,self.functions[-1] if self.functions else None):
                         add_dynamic(owner,node.args[0],force=True)
                 self.generic_visit(node)
             def visit_BinOp(self,node):
