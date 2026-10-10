@@ -111,6 +111,22 @@ class MemoryAPI(Fixture):
                 self.assertEqual((status, result['error']['code']),
                                  (401, 'credential_required'))
 
+    def test_d1_revoked_and_forged_match_unknown_without_existence_leak(self):
+        body = {'section': 'decisions', 'content': 'D1 refusal',
+                'source': 'openkai/d1/refusal'}
+        status, ack = self.call('POST', '/memory', WRITE_A, body)
+        self.assertEqual(status, 200)
+        unknown = self.call('GET', '/records/' + uid(1234), READ_A, raw=True)
+        self.assertEqual(unknown[0], 404)
+        self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
+                           (hashlib.sha256(READ_A).hexdigest(),))
+        for key in (READ_A, b'synthetic-forged-d1-credential'):
+            with self.subTest(key=key):
+                self.assertEqual(self.call('GET', '/records/' + ack['id'], key, raw=True),
+                                 unknown, 'refusal and unknown must match status, body and headers')
+        status, result = self.call('GET', '/records/' + ack['id'], b'')
+        self.assertEqual((status, result['error']['code']), (401, 'credential_required'))
+
     def test_released_shape_commit_read_and_headerless_replay(self):
         body = {'section': 'decisions', 'content': 'one exact memory',
                 'category': 'operational', 'source': 'openkai/decision/one'}
