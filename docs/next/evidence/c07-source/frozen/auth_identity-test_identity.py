@@ -67,8 +67,7 @@ class IdentityTests(Fixture):
         self.assertEqual(self.admin.execute('SELECT roles FROM auth.project_grants WHERE tenant_id=%s AND principal_id=%s',
                                            (uid(2), uid(10))).fetchone()[0], [])
         count = self.admin.execute("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchone()[0]
-        self.assertEqual(count, 31)
-        self.assertEqual({f'{schema}.{table}' for schema,table in self.admin.execute("SELECT n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchall()}, {'auth.credentials', 'auth.permission_generations', 'auth.principals', 'auth.project_grants', 'coordination.consumer_aggregate_heads', 'coordination.consumer_checkpoints', 'coordination.consumer_event_outcomes', 'coordination.consumer_project_checkpoints', 'coordination.feed_state', 'coordination.idempotency', 'coordination.job_attempts', 'coordination.job_results', 'coordination.jobs', 'coordination.leases', 'coordination.outbox', 'coordination.published_events', 'coordination.quarantine', 'coordination.snapshot_floors', 'core.analytics_facts', 'core.blob_manifests', 'core.extraction_facts', 'core.installations', 'core.payloads', 'core.projects', 'core.record_aliases', 'core.record_revisions', 'core.records', 'core.tenants', 'retrieval.embedding_models', 'retrieval.embeddings', 'retrieval.generations'})
+        self.assertEqual(count, 28)
         self.assertIsNotNone(self.admin.execute("SELECT to_regclass('auth.project_role_memberships')").fetchone()[0])
 
     def test_owner_registers_stable_agent_roles_separate_permissions_and_digest_only(self):

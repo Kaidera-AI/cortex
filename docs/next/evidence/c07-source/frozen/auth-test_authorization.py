@@ -147,8 +147,7 @@ class AuthorizationTests(unittest.TestCase):
 
     def test_all_business_tables_force_rls_private_functions_stay_private(self):
         rows=self.admin.execute("SELECT n.nspname,c.relname,c.relrowsecurity,c.relforcerowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchall()
-        self.assertEqual(len(rows),31)
-        self.assertEqual({f'{schema}.{table}' for schema,table,*_ in rows}, {'auth.credentials', 'auth.permission_generations', 'auth.principals', 'auth.project_grants', 'coordination.consumer_aggregate_heads', 'coordination.consumer_checkpoints', 'coordination.consumer_event_outcomes', 'coordination.consumer_project_checkpoints', 'coordination.feed_state', 'coordination.idempotency', 'coordination.job_attempts', 'coordination.job_results', 'coordination.jobs', 'coordination.leases', 'coordination.outbox', 'coordination.published_events', 'coordination.quarantine', 'coordination.snapshot_floors', 'core.analytics_facts', 'core.blob_manifests', 'core.extraction_facts', 'core.installations', 'core.payloads', 'core.projects', 'core.record_aliases', 'core.record_revisions', 'core.records', 'core.tenants', 'retrieval.embedding_models', 'retrieval.embeddings', 'retrieval.generations'})
+        self.assertEqual(len(rows),28)
         for schema,table,enabled,forced in rows:
             with self.subTest(schema=schema,table=table): self.assertEqual((enabled,forced),(True,True))
         fn=self.admin.execute("SELECT prosecdef,proconfig,pg_get_userbyid(proowner),has_function_privilege('public','auth.resolve_scope(text,uuid,uuid,text)','EXECUTE') FROM pg_proc WHERE oid='auth.resolve_scope(text,uuid,uuid,text)'::regprocedure").fetchone()

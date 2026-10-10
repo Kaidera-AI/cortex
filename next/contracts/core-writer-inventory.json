@@ -342,6 +342,114 @@
       "classification": "trigger_capture_and_sequential_head_guard"
     },
     {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_expire",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_project_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "a0f4eaaa5ff9a34e891def978fb17e60ddbad8c433c779e08a0a776180d3908c",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_record",
+      "verb": "INSERT",
+      "table": "coordination.consumer_aggregate_heads",
+      "ordinal": 0,
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_record",
+      "verb": "INSERT",
+      "table": "coordination.consumer_event_outcomes",
+      "ordinal": 0,
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_record",
+      "verb": "INSERT",
+      "table": "coordination.quarantine",
+      "ordinal": 0,
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_record",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_project_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_record",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_project_checkpoints",
+      "ordinal": 1,
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_record",
+      "verb": "UPDATE",
+      "table": "coordination.quarantine",
+      "ordinal": 0,
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_register",
+      "verb": "INSERT",
+      "table": "coordination.consumer_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "597f8409f4f4757054f880cd44ca9d30a1699715d0bbafc7c322bd9ee497a8d6",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_register",
+      "verb": "INSERT",
+      "table": "coordination.consumer_project_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "597f8409f4f4757054f880cd44ca9d30a1699715d0bbafc7c322bd9ee497a8d6",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_register",
+      "verb": "INSERT",
+      "table": "coordination.feed_state",
+      "ordinal": 0,
+      "statement_sha256": "597f8409f4f4757054f880cd44ca9d30a1699715d0bbafc7c322bd9ee497a8d6",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_register",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_project_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "597f8409f4f4757054f880cd44ca9d30a1699715d0bbafc7c322bd9ee497a8d6",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/003-module-consumers.sql",
+      "owner": "coordination.c07_scan",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_project_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "0335aa989ef927c79f0e12516af3b7b477e8ee405ed7f6577c843211dba96f73",
+      "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
       "file": "src/cortex_core/conductor/supervisor.py",
       "owner": "Supervisor.acquire",
       "verb": "INSERT",
