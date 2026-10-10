@@ -80,7 +80,7 @@ def main():
         for key in ('stdout','stderr'):(args.destination/(label+'.'+key+'.txt')).write_text(getattr(result,key))
         after=snapshot();assert before==after==baseline
         report=receipts.report(result);assert report is not None
-        imported=report['executed_sources']['qdrant.py'];assert Path(imported['path']).resolve()==source_root/'cortex_core/modules/vector/qdrant.py'
+        imported=report['executed_sources']['qdrant.py'];assert Path(imported['path']).resolve()==(source_root/'cortex_core/modules/vector/qdrant.py').resolve()
         assert imported['sha256']==sha(expected or original)
         packet={'before':before,'after':after,'target':target,'exit':result.returncode,'result':report,
                 'stdout_sha256':sha(result.stdout.encode()),'stderr_sha256':sha(result.stderr.encode()),
