@@ -54,6 +54,27 @@ class OpenKaiConsumer(unittest.TestCase):
         self.assertEqual(packet['upgrade_origin']['first_signed_candidate'],
                          'v0.1.003')
         self.assertEqual(packet['upgrade_origin']['v0.1.002'], 'not_signed_origin')
+        self.assertEqual(packet.get('ruled_contract_deltas'), {
+            'D1': {'method':'GET', 'path':'/records/{id}',
+                   'implementation_state':'ruled_unimplemented',
+                   'not_found':404, 'unauthorized':404, 'tombstone':410,
+                   'body_fields':['revision','payload_sha256']},
+            'D2': {'method':'POST', 'path':'/search', 'placement':'parameters',
+                   'implementation_state':'ruled_unimplemented',
+                   'min_revision':'non_negative_integer',
+                   'wait_ms':{'default':0,'maximum':10000},
+                   'deadline':{'status':503,'code':'capability_unavailable',
+                               'state':'pending'}},
+            'D3': {'status_scope':'read', 'status_binding':'bound_now',
+                   'status_paths':['/beat/embeddings/backlog','/degradation',
+                                   '/workers/health'],
+                   'control_jobs_state':'ruled_unimplemented',
+                   'future_control_scope':'owner_admin'},
+            'D4': {'implementation_state':'ruled_unimplemented',
+                   'lag_partial':{'status':503,'code':'capability_unavailable',
+                                  'results':'omitted'},
+                   'ready_empty':{'status':200,'state':'ready_empty','results':[]}},
+        })
         for key, bad in (('commit', '0'*40), ('evidence_sha256', '0'*64)):
             altered = copy.deepcopy(packet)
             altered['source'][key] = bad
@@ -91,6 +112,16 @@ class OpenKaiConsumer(unittest.TestCase):
         for case in cases:
             with self.subTest(route=case['id']):
                 self.assertEqual(validate_case(case), case['id'])
+        status_paths = {'/beat/embeddings/backlog', '/degradation', '/workers/health'}
+        for case in cases:
+            if case['path'] in status_paths:
+                self.assertEqual((case.get('binding'), case.get('authorization')),
+                                 ('ruled_status_read', 'read'))
+        search = next(case for case in cases if case['path'] == '/search')
+        self.assertEqual(search['request']['body'].get('min_revision'), 2)
+        self.assertEqual(search['request']['body'].get('wait_ms'), 10000)
+        self.assertEqual(search['error']['body']['error'].get('state'), 'pending')
+        self.assertEqual(search['success']['body'].get('state'), 'ready_empty')
         missing_error = copy.deepcopy(cases[0])
         del missing_error['error']
         with self.assertRaises(refusal):
@@ -112,6 +143,13 @@ class OpenKaiConsumer(unittest.TestCase):
         for case in cases:
             with self.subTest(case=case['id']):
                 self.assertEqual(validate_case(case), case['id'])
+        read = next(x for x in cases if x['id'] == 'ack-read')['read']
+        self.assertEqual((read.get('binding'), read.get('method'), read.get('path')),
+                         ('ruled_unimplemented', 'GET', '/records/{id}'))
+        self.assertEqual(read.get('payload_sha256'), 'a'*64)
+        self.assertEqual(read.get('not_found_status'), 404)
+        self.assertEqual(read.get('unauthorized_status'), 404)
+        self.assertEqual(read.get('tombstone_status'), 410)
         bad = copy.deepcopy(next(x for x in cases if x['id'] == 'ack-read'))
         bad['read']['revision'] += 1
         with self.assertRaises(refusal):
@@ -136,6 +174,11 @@ class OpenKaiConsumer(unittest.TestCase):
                          {'ready_empty', 'pending', 'partial', 'unavailable'})
         for case in cases:
             self.assertEqual(validate_case(case), case['id'])
+        partial_wire = next(x for x in cases if x['state'] == 'partial')
+        self.assertEqual((partial_wire['status'], partial_wire.get('wire_state'),
+                          partial_wire['error']['code']),
+                         (503, 'ruled_unimplemented', 'capability_unavailable'))
+        self.assertNotIn('results', partial_wire)
         pending = copy.deepcopy(next(x for x in cases if x['state'] == 'pending'))
         pending['results'] = []
         with self.assertRaises(refusal):
