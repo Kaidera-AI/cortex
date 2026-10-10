@@ -127,12 +127,33 @@ def normalize_checkout_mtimes(root):
 def export_image(engine, tag, archive, env):
     """Export unchanged OCI bytes to a directory, then create a fixed-header archive."""
     directory = archive.with_suffix('.dir')
-    if directory.exists() or archive.exists():
+    receipt_path = archive.with_suffix('.export-verification.json')
+    log_path = archive.with_suffix('.export.log')
+    if directory.exists() or archive.exists() or receipt_path.exists() or log_path.exists():
         raise ValueError('new OCI export directory and archive required')
-    subprocess.run(engine+['save', '--format', 'oci-dir', '--output', str(directory), tag],
-                   env=env, check=True, timeout=180)
+    command = engine+['save', '--format', 'oci-dir', '--output', str(directory), tag]
+    failure = None
+    exit_code = 0
+    with log_path.open('x') as log:
+        try:
+            subprocess.run(command, env=env, check=True, timeout=180,
+                           stdout=log, stderr=subprocess.STDOUT)
+        except subprocess.SubprocessError as error:
+            failure = error
+            exit_code = error.returncode if isinstance(error, subprocess.CalledProcessError) else None
+    custody = {'save_command': command, 'save_exit_code': exit_code,
+               'raw_log': {'path': str(log_path), 'size': log_path.stat().st_size,
+                           'sha256': deterministic_oci_export.digest(log_path)}}
+    if failure is not None:
+        with receipt_path.open('x') as stream:
+            json.dump({'result': 'RED', **custody, 'failure': type(failure).__name__}, stream, indent=2)
+            stream.write('\n')
+        raise failure
     receipt = deterministic_oci_export.write_archive(directory, archive)
-    (archive.with_suffix('.export-verification.json')).write_text(json.dumps(receipt, indent=2)+'\n')
+    receipt.update(custody)
+    with receipt_path.open('x') as stream:
+        json.dump(receipt, stream, indent=2)
+        stream.write('\n')
     return receipt
 
 
