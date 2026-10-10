@@ -33,7 +33,7 @@ class TargetSink:
             if existing[0] > env['aggregate_revision']:
                 return self.receipt(event,generation,stale=True)
             if existing[0] == env['aggregate_revision']:
-                if existing[1] != env['event_id'] or existing[2] != env['payload_sha256']:
+                if existing[1] != UUID(env['event_id']) or existing[2] != env['payload_sha256']:
                     raise ValueError('target_conflict')
                 return self.receipt(event,generation)
         with self.connection.transaction():
