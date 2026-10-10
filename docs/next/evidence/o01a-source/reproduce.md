@@ -12,8 +12,9 @@ decoded from those canonical bytes. The added focused test decrypts the result
 and requires its embedded metadata to match the digest and retain the original
 model version; restoring the caller-object assignment fails that test in its
 body. The RED, GREEN and mutant receipts are `metadata-mutation-*.json`.
-`verify-pr71-1.py` binds those receipts and the new source to the current Git
-head while checking the original native proof at its historical tested commit.
+`verify-pr71-1.py` runs at PR #71's exact head, binding those receipts and the
+new source while checking the original native proof at its historical tested
+commit. Descendants such as PR #72 use their own verifier (`verify-pr72-1.py`).
 
 The producer stages a PostgreSQL plain base backup with `-X none` and SHA-256
 native manifest checksums. A caller provides an owned, completed continuous WAL
