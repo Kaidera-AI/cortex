@@ -26,9 +26,10 @@ def podman(args, *, input=None):
     return r.stdout.strip()
 
 
-def require_synthetic(manifest):
+def require_synthetic(manifest, admission=None):
     if manifest["dataset"] != "synthetic":
-        raise ValueError("B01 local harness accepts public synthetic inputs only; real custody/product gate pending")
+        from .geometry import admit_artifact
+        admit_artifact(manifest, admission)
 
 
 class DisposablePostgres:
@@ -43,9 +44,14 @@ class DisposablePostgres:
         self.cleanup_verified = False
         self.password = None
         self.used = False
+        self.worker = "mike"
+        self.preflights = []
 
     def labels(self):
-        return ["--label", "worker=mike", "--label", f"kaidera.b01.lifecycle={self.lifecycle}"]
+        labels = ["--label", "worker=" + self.worker, "--label", f"kaidera.b01.lifecycle={self.lifecycle}"]
+        if self.worker == "nemo":
+            labels.extend(["--label", "cortex.worker=nemo", "--label", "cortex.test=" + self.lifecycle])
+        return labels
 
     def run_args(self):
         return ["create", "--name", self.name, *self.labels(), "--user", "999:999", "--cap-drop=ALL",
@@ -95,10 +101,15 @@ class DisposablePostgres:
         self.lock = lock_path.open("a")
         try:
             fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if self.worker == "nemo":
+                from .qdrant import preflight
+                self.preflights.append(preflight(self.runner))
             self.password = secrets.token_urlsafe(32)
             self.create("volume", ["volume", "create", "--uid", "999", "--gid", "999", *self.labels(), self.name])
             self.create("secret", ["secret", "create", *self.labels(), self.name, "-"], input=self.password)
             container = self.create("container", self.run_args())
+            if self.worker == "nemo":
+                self.preflights.append(preflight(self.runner, allowed_names=(self.name,)))
             self.runner(["start", container])
             endpoint = self.runner(["port", container, "5432/tcp"])
             host, port = endpoint.split(":")
@@ -120,7 +131,8 @@ class DisposablePostgres:
                             "pgvector_version": self.connection.execute("SELECT extversion FROM pg_extension WHERE extname='vector'").fetchone()[0],
                             "platform": json.loads(self.runner(["image", "inspect", self.image]))[0]["Architecture"],
                             "settings": SETTINGS, "limits": {"cpus": 2, "memory_bytes": 1073741824},
-                            "uid": 999, "scope": "synthetic-precomputed-SQL-diagnostic"}
+                            "uid": 999, "scope": "synthetic-precomputed-SQL-diagnostic",
+                            "preflights": self.preflights}
             return self
         except BaseException:
             self.close()
@@ -191,8 +203,8 @@ def dense_query(q, metric, *, limit=200):
     return sql, [vector, *params, vector, limit, limit]
 
 
-def install(connection, c):
-    require_synthetic(c.manifest)
+def install(connection, c, *, admission=None):
+    require_synthetic(c.manifest, admission)
     dimension = c.identity["dimension"]
     connection.execute(f"CREATE TABLE points(id text PRIMARY KEY, tenant text NOT NULL, project text NOT NULL, "
                        f"kind integer NOT NULL, occurred bigint NOT NULL, ordinal bigint NOT NULL, deleted boolean NOT NULL, "

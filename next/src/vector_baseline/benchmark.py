@@ -3,12 +3,14 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import psycopg
 
-from . import corpus, load, oracle, postgres, report
+from . import corpus, geometry, load, oracle, postgres, qdrant, report
 
 OBSERVATION_TIMEOUT_SECONDS = 5
 
@@ -78,12 +80,34 @@ async def observe_owned(stack):
             "missing": ["API", "provider/cache", "Conductor", "backup/rebuild", "native8GB-stack"]}
 
 
-def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60, budget_ms=100):
+async def observe_qdrant(stack):
+    q = await observe_owned(stack)
+    adapter = SimpleNamespace(lifecycle=stack.lifecycle,
+                              owned_resource=lambda resource: stack.owned_resource(resource, stack.client_name))
+    client = await observe_owned(adapter)
+    q["scope"], client["scope"] = "owned-synthetic-Qdrant-only", "owned-synthetic-client-only"
+    return {"scope": "owned-Qdrant-and-proxy-diagnostic", "whole_product_stack_complete": False,
+            "components": {"qdrant": q, "client": client}, "lifecycle": stack.lifecycle}
+
+
+def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60, budget_ms=100,
+            engine="postgres", admission=None):
+    if engine not in ("postgres", "qdrant"):
+        raise ValueError("explicit supported benchmark engine required")
+    if type(budget_ms) not in (int, float) or not math.isfinite(budget_ms) or budget_ms <= 0:
+        raise ValueError("positive finite latency budget required before input access")
     output = Path(output)
     if output.exists():
         raise ValueError("existing evidence cannot be overwritten")
-    c = corpus.load(corpus_path)
-    admit(c.manifest)
+    c = corpus.load(corpus_path) if admission is None else corpus.load(corpus_path, geometry_admission=admission)
+    if "geometry" in c.manifest:
+        c = geometry.load(corpus_path, admission=admission)
+    if admission is None:
+        admit(c.manifest)
+    else:
+        geometry.admit_native(c.manifest, admission)
+    if c.manifest.get("remote", False) is not False:
+        raise ValueError("existing remote services are never admitted")
     if cell not in {s + "/dense" for s in corpus.STRATA}:
         raise ValueError("geometry diagnostic supports explicit dense cells only")
     query_path = c.path / "heldout.jsonl"
@@ -98,26 +122,49 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
     truth = {q["id"]: oracle.rank(c, q) for q in selected}
     config = load.RunConfig(duration_seconds=duration, warmup_seconds=warmup)
     config.validate()
-    stack = postgres.DisposablePostgres()
+    stack = postgres.DisposablePostgres() if engine == "postgres" else qdrant.DisposableQdrant()
+    if engine == "postgres":
+        stack.worker = "nemo"
     result = None
     failed = None
     try:
         with stack:
-            postgres.install(stack.connection, c)
-            sql, params = postgres.dense_query(selected[0], c.identity["metric"])
-            natural_plan = [row[0] for row in stack.connection.execute("EXPLAIN " + sql, params)]
-            db_bytes = stack.connection.execute("SELECT pg_database_size(current_database())").fetchone()[0]
-            run = asyncio.run(load.run(selected, lambda _: SQLClient(stack, c.identity["metric"]), config,
-                                      observer=lambda: observe_owned(stack)))
+            if engine == "postgres":
+                if admission is None:
+                    postgres.install(stack.connection, c)
+                else:
+                    postgres.install(stack.connection, c, admission=admission)
+                sql, params = postgres.dense_query(selected[0], c.identity["metric"])
+                natural_plan = [row[0] for row in stack.connection.execute("EXPLAIN " + sql, params)]
+                db_bytes = stack.connection.execute("SELECT pg_database_size(current_database())").fetchone()[0]
+                factory = lambda _: SQLClient(stack, c.identity["metric"])
+                observer = lambda: observe_owned(stack)
+                boundary = "scheduled-arrival-to-SQL-response"
+            else:
+                qdrant.install(stack, c, admission=admission)
+                natural_plan, db_bytes = [], None
+                factory = lambda _: qdrant.Client(stack)
+                observer = lambda: observe_qdrant(stack)
+                boundary = "scheduled-arrival-to-proxy-HTTP-response-including-IPC"
+            run = asyncio.run(load.run(selected, factory, config, observer=observer))
             attach_truth(run, truth)
             result = report.summarize(run, latency_budget_ms=budget_ms,
-                                      bindings={"dataset": "synthetic", "boundary": "scheduled-arrival-to-SQL-response",
+                                      bindings={"dataset": c.manifest["dataset"], "boundary": boundary, "engine": engine,
                                                 "cell": cell, "identity": c.identity, "corpus_count": c.manifest["count"],
                                                 "corpus_manifest_sha256": corpus.digest(c.path / "manifest.json"),
                                                 "query_manifest_sha256": corpus.digest(c.path / "query-manifest.json"),
                                                 "heldout_queries_in_cell": len(selected),
                                                 "heldout_query_ids": [q["id"] for q in selected], "stack": stack.binding,
                                                 "natural_plan": natural_plan, "database_bytes": db_bytes})
+            if engine == "qdrant":
+                result["qualification"] = "SYNTHETIC_QDRANT_PROXY_DIAGNOSTIC"
+            if "geometry" in c.manifest:
+                result["bindings"]["geometry"] = c.manifest["geometry"]
+                result["not_run"].extend("geometry-category:" + json.dumps(row["category"])
+                                         for row in c.manifest["geometry"]["coverage"] if row["status"] == "NOT_RUN")
+            if admission is not None:
+                result["qualification"] = "ADMITTED_GEOMETRY_ENGINE_DIAGNOSTIC"
+                result["bindings"]["native_admission"] = admission
     except BaseException as error:
         failed = type(error).__name__
         if not isinstance(error, Exception):
@@ -146,9 +193,12 @@ def main():
     parser.add_argument("--duration", type=float, default=300)
     parser.add_argument("--warmup", type=float, default=60)
     parser.add_argument("--latency-budget-ms", type=float, default=100)
+    parser.add_argument("--engine", choices=("postgres", "qdrant"), default="postgres")
+    parser.add_argument("--admission", type=Path)
     args = parser.parse_args()
+    admission = json.loads(args.admission.read_text()) if args.admission else None
     result = execute(args.corpus, args.output, cell=args.cell, duration=args.duration,
-                     warmup=args.warmup, budget_ms=args.latency_budget_ms)
+                     warmup=args.warmup, budget_ms=args.latency_budget_ms, engine=args.engine, admission=admission)
     print(json.dumps({"engine_decision": "UNDECIDED", "diagnostic": result["diagnostic"]["verdict"],
                       "cleanup_verified": result["cleanup_verified"],
                       "report_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest()}))
