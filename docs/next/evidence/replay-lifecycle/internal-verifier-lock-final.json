@@ -1,0 +1,95 @@
+{
+  "kind": "independent_internal_final_verification",
+  "verdict": "PASS for bounded local REPLAY-LOCK-001 source and fixture proof",
+  "tested_commit": "55001797ec738571870d31c26fedc693986aa5fe",
+  "predecessor_commit": "0028cc418d7e2920763e1f48ba98d803fd5370b5",
+  "required_findings": [],
+  "findings_count": 0,
+  "closed_findings": [
+    {
+      "id": "LOCK-VERIFY-001",
+      "source_closure": "_read_marker now refuses any owned resource not represented in the validated immutable bindings. Unbound pending entries retain the lost-ack reconciliation path.",
+      "actual_red": "lock-red-003.json: test_dirty_owned_marker_requires_immutable_binding fails in its BODY with builtins.AssertionError and no errors.",
+      "actual_removal": "lock-mutant-002.json: owned-binding-required removes only that decision and reproduces that sole BODY AssertionError among 24 cases."
+    },
+    {
+      "id": "LOCK-VERIFY-002",
+      "source_closure": "When the recorded name is absent, inspect checks the bound immutable ID. A present ID or an unverified existence result raises before pending/owned state or the durable marker can be cleared.",
+      "actual_red": "lock-red-003.json: test_renamed_bound_id_prevents_name_only_absence fails in its BODY with builtins.AssertionError and no errors.",
+      "actual_removal": "lock-mutant-002.json: bound-id-absence-required removes only that decision and reproduces that sole BODY AssertionError among 24 cases."
+    }
+  ],
+  "source_custody": {
+    "replay_lifecycle.py": "cf3a84a187c1f3d15861eaad755b5ce38099a935d446a537b27d4e21b2fdb310",
+    "test_lock_barrier.py": "7ef61253317e204da4a77b1c86db4292fa68b01a182528a23db0bdf36cea9864",
+    "run-lock-barrier.py": "f8f9be6b9990e307aff3aaec0e5b3d562c3bc2b70feeba176e775a90f4e81129",
+    "canonical_files_match_pinned_git_worktree": true,
+    "all_15_final_receipt_python_input_hashes_match_canonical_files": true,
+    "new_three_case_fixture_unchanged_between_red_and_repaired_receipts": true,
+    "original_four_test_files_and_21_cases_unchanged_against_predecessor": true,
+    "binding_method": "Raw receipts bind file SHA256s rather than a Git tree field; fresh pinned Git source and canonical byte comparisons establish the stated commit binding.",
+    "non_source_worktree_updates_observed": ["integrity-lock-001.json", "replay-lock-reproduce.md"]
+  },
+  "source_invariants": {
+    "pending_marker_fsynced_before_external_create": true,
+    "acknowledged_owned_immutable_binding_persisted": true,
+    "failed_cleanup_marker_persisted_before_unlock": true,
+    "close_marker_persistence_failure_retains_existing_lock": true,
+    "next_acquire_reconciles_under_lock_or_refuses": true,
+    "marker_checks_nofollow_regular_file_mode_uid_size_authority_shape_unique_resources_and_bindings": true,
+    "every_owned_entry_requires_binding": true,
+    "missing_recorded_name_requires_known_id_absence": true,
+    "foreign_lifecycles_and_foreign_pod_children_preserved": true
+  },
+  "raw_proof": {
+    "lock-red-003.json": {
+      "sha256": "3399edf8ff2c70e5c140801c505d24d3822bb90163b29967e6af043a6efc0d37",
+      "tests": 24,
+      "exit_code": 1,
+      "expected_body_assertion_errors": 2,
+      "errors": 0
+    },
+    "lock-green-002.json": {
+      "sha256": "9e0fccbd8b24783e47900bb94eeced4d19a7999ee7d49170a366b4a3d361643a",
+      "tests": 24,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    "lock-mutant-002.json": {
+      "sha256": "775af2b7bb2608356592c8ef6fc563e87e0f4199e6d9c1940595ed165c16b548",
+      "initial_baseline": {"tests": 24, "exit_code": 0, "failures": 0, "errors": 0},
+      "separate_mutants": 2,
+      "each_has_only_its_expected_body_assertion_error": true,
+      "mutant_errors": 0,
+      "actual_patch_commands_exit_zero": true,
+      "original_source_asserted_before_each_patch": true,
+      "actual_restore_copy_commands_exit_zero": true,
+      "restored_baseline": {"tests": 24, "exit_code": 0, "failures": 0, "errors": 0}
+    },
+    "lock-red-001.json": "Preserved wrong fixture variant; excluded from product qualification."
+  },
+  "cleanup": {
+    "all_three_qualified_receipts_record_cleanup_verified": true,
+    "all_pending_and_owned_sets_empty": true,
+    "all_passwords_discarded_and_locks_released": true,
+    "green_and_final_mutant_creation_cleanup_inspections_match_owner_lifecycle_and_immutable_id": true,
+    "green_and_final_mutant_removal_commands_use_exact_bound_id": true,
+    "green_and_final_mutant_name_and_id_absence_commands_exit_one": true,
+    "native_fixture": "linux arm64 Python image b4600cb7d697d46d382b9581a7c52fa76f32d19536309c5096994757e62f3700",
+    "user": "10001:10001",
+    "readonly": true,
+    "network": "none",
+    "limits": {"cpus": 2, "memory": "1g"},
+    "ports": [],
+    "bind_mounts": []
+  },
+  "limits": [
+    "The 24-case suite runs natively in a bounded copied container, with a synthetic Engine modeling producer effects. Its temporary marker files and file locks are real; the competing-producer and renamed-ID cases do not operate live application containers.",
+    "Actual Podman receipts qualify the outer test container ownership/removal/absence. They do not establish arbitrary delayed daemon effects, process-crash recovery, an engine-wide lock, or unrelated producers that omit this helper.",
+    "Marker type/ownership/shape rejection beyond the two new cases is source-inspected; no exhaustive malformed-marker or filesystem-failure matrix is claimed.",
+    "No live service, product import, application build, application test, x86 qualification, installation, signing, deployment, main merge or release was performed by this verifier."
+  ],
+  "audit_method": "Fresh read-only Git, source, raw JSON, SHA256 and canonical byte comparison. Sole authorized write is this canonical internal verification record.",
+  "official_review_still_owns": "Vera/Kai disposition of the exact published PR40 candidate, its historical failed/wrong-fixture attempts and scope; acceptance and subsequent producer-reuse authority remain separate from this internal verification."
+}
