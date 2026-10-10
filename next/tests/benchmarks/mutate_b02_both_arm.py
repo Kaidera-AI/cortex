@@ -15,6 +15,7 @@ sys.path.insert(0, str(NEXT / 'tests'))
 receipts = importlib.import_module('test_receipts')
 G = 'test_b02_geometry.GeometryTests.'
 Q = 'test_b02_qdrant.QdrantTests.'
+R = 'test_b02_review_rework.ReviewRework.'
 MUTATIONS = [
     ('geometry.py', 'unknown-provenance-invented', "{'provider': 'unknown', 'model': 'unknown', 'dimension': dimension,",
      "{'provider': 'synthetic', 'model': 'unknown', 'dimension': dimension,",
@@ -31,8 +32,8 @@ MUTATIONS = [
      G+'test_null_joint_coverage_and_small_groups_are_never_discarded', 1),
     ('geometry.py', 'marginal-count-not-aggregated', 'counts[name] += category[name]', 'counts[name] = category[name]',
      G+'test_joint_and_marginal_split_coverage_reconcile_including_nulls', 1),
-    ('geometry.py', 'query-hash-drift-admitted', 'if binding[\'queries\'][name] != corpus.digest(target):', 'if False:',
-     G+'test_input_count_and_query_hash_drift_are_refused', 1),
+    ('geometry.py', 'frozen-lineage-admitted', '    validate_frozen(c, frozen_input_sha256)', '    pass',
+     R+'test_rehashed_candidate_query_source_is_refused', 1),
     ('geometry.py', 'mac-cold-admitted', "or (admission['edition'] == 'mac' and admission['cache_mode'] != 'warm')", 'or False',
      G+'test_native_bindings_cannot_admit_mac_cold_or_missing_gates', 1),
     ('qdrant.py', 'root-containers-admitted', "'--user', '10001:10001', '--init'", "'--user', '0:0', '--init'",
@@ -87,6 +88,23 @@ MUTATIONS = [
      'if False:', Q+'test_invalid_latency_budget_refuses_before_input_read', 1),
     ('postgres.py', 'nemo-pg-precreate-gate-skipped', '                self.preflights.append(preflight(self.runner))',
      '                pass', Q+'test_pg_arm_preserves_default_and_applies_nemo_slot_gate', 1),
+    ('benchmark.py', 'missing-cell-has-no-receipt',
+     '        result = not_run(c, cell, engine, selected, "unpopulated-filter-cell", frozen_input_sha256)',
+     '        raise ValueError("unpopulated filter cell, NOT_RUN")',
+     R+'test_missing_cell_writes_bound_not_run_without_engine', 1),
+    ('benchmark.py', 'missing-cell-false-pass', '"diagnostic": {"verdict": "NOT_RUN", "recall_status": "NOT_RUN",',
+     '"diagnostic": {"verdict": "PASS", "recall_status": "NOT_RUN",',
+     R+'test_missing_cell_writes_bound_not_run_without_engine', 1),
+    ('qdrant.py', 'readback-differences-admitted', '    verify_import(c, sample, response, info, distance)', '    pass',
+     R+'test_count_only_wrong_payload_vector_config_or_index_is_refused', 7),
+    ('qdrant.py', 'point-readback-omitted',
+     "    response = await client.call('POST', '/collections/b02/points',\n                                {'ids': sample, 'with_payload': True, 'with_vector': True})\n    verify_import(c, sample, response, info, distance)",
+     '    pass  # Simulate count-only import qualification.',
+     R+'test_readback_is_bounded_complete_and_handles_cosine_storage', 1),
+    ('benchmark.py', 'parity-refusal-recorded-fail',
+     '        result = not_run(c, cell, engine, selected, "qdrant-import-parity-mismatch", frozen_input_sha256)',
+     '        result = {"diagnostic": {"verdict": "FAIL"}}',
+     R+'test_import_parity_refusal_writes_not_run_and_never_times_queries', 1),
 ]
 
 CHILD = r'''

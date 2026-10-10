@@ -91,3 +91,6 @@ Each fix has a named body RED and a literal mutant. Full clean/restored suites p
 
 
 Fixture-context amendment: the original upload test's minimal successful fake response lacked all readback data. Only its fake storage/config/index/retrieve responses were extended; every original assertion node is unchanged. Initial full-suite error is retained INCONCLUSIVE. Six new review controls produced13 named body/subtest RED failures before the fixes; later parity-receipt/anchor-tamper controls add coverage and first ran against the already implemented boundaries, not claimed as new causal REDs.
+
+
+Literal-recipe evolution: the preserved old query-hash-drift-admitted probe survives (exit0,0failures/errors) because the independent freeze boundary still refuses changed bytes; this is retained INCONCLUSIVE/survivor evidence, not a kill. Replace that redundant single mutable-hash check recipe with frozen-lineage-admitted against the new rehashed candidate-query causal control. Remaining32 prior literal recipes unchanged; each new receipt/parity boundary has a new named literal recipe. No test assertion was weakened to make a kill.
