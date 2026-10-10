@@ -28,8 +28,12 @@ class D4Complete(IsolatedAsyncioTestCase):
                            (uid(2), uid(3)))
         self.admin.execute('DELETE FROM retrieval.search_sources WHERE tenant_id=%s AND project_id=%s',
                            (uid(2), uid(3)))
-        self.admin.execute('UPDATE core.records SET tombstone=true WHERE tenant_id=%s AND project_id=%s',
-                           (uid(2), uid(3)))
+        with self.admin.transaction():
+            self.admin.execute('INSERT INTO core.record_revisions VALUES (%s,%s,%s,2,%s,true)',
+                               (uid(2), uid(3), uid(6), uid(5)))
+            self.admin.execute('UPDATE core.records SET current_revision=2,tombstone=true '
+                               'WHERE tenant_id=%s AND project_id=%s AND id=%s',
+                               (uid(2), uid(3), uid(6)))
 
     async def test_ready_empty_get_post_and_nonempty_b_are_explicit_and_isolated(self):
         self.make_empty_a()
@@ -60,8 +64,9 @@ class D4Complete(IsolatedAsyncioTestCase):
 
     async def test_lag_and_missing_canonical_head_never_become_empty_success(self):
         self.make_empty_a()
-        self.admin.execute('UPDATE core.records SET tombstone=false WHERE tenant_id=%s AND project_id=%s',
-                           (uid(2), uid(3)))
+        self.admin.execute('UPDATE core.records SET current_revision=1,tombstone=false '
+                           'WHERE tenant_id=%s AND project_id=%s AND id=%s',
+                           (uid(2), uid(3), uid(6)))
         for method, kwargs in (('GET', {'query': b'q=empty'}),
                                ('POST', {'body': {'query': 'empty'}})):
             status, body = await self.call(method, '/search', **kwargs)
