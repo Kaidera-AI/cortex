@@ -153,16 +153,24 @@ def test_refusal_is_explicit_bounded_and_rolls_back_other_table(api, scratch_con
             if kind == "self_cycle":
                 rows = [row(first, first)]
             extra = [api.ProjectTransferTable(schema_name="public", table_name="a_transfer", rows=[row(uuid4())])]
-            error = None
+            error, result = None, None
             try:
-                await __import__("asyncio").wait_for(import_rows(rows, extra=extra), 3)
+                result = await __import__("asyncio").wait_for(import_rows(rows, extra=extra), 3)
             except (asyncpg.PostgresError, api.HTTPException) as caught:
                 error = caught
+            if kind == "self_cycle":
+                assert error is None, "PostgreSQL-valid self-parent must be inserted"
+                assert result["inserted"] == 2 and result["skipped"] == 0
+                assert await conn.fetchval("SELECT parent_id FROM transfer_nodes WHERE id=$1", first) == first
+                assert await conn.fetchval("SELECT count(*) FROM a_transfer") == 1
+                return
             assert isinstance(error, api.HTTPException) and error.status_code == 409
-            assert ("missing self-referenced parent" if kind == "missing" else "cyclic self-references") in error.detail
+            assert isinstance(error.detail, dict)
+            assert error.detail["code"] == "project_import_self_fk_violation"
+            assert error.detail["constraint"] == "transfer_nodes_parent_id_fkey"
             assert await conn.fetchval("SELECT count(*) FROM transfer_nodes") == 0
             assert await conn.fetchval("SELECT count(*) FROM a_transfer") == 0
-            assert len(attempts) == 1, "self-FK refusal must precede any INSERT into that table"
+            assert len(attempts) == 2, "FK decides after the attempted INSERT; outer import rolls back"
     run(case())
 
 
@@ -211,7 +219,10 @@ def test_composite_partial_null_preserves_match_semantics(api, scratch_conn, mon
                 assert error is None and result["inserted"] == 1
             else:
                 assert isinstance(error, api.HTTPException) and error.status_code == 409
-                assert attempts == [] and await conn.fetchval("SELECT count(*) FROM transfer_nodes") == 0
+                assert isinstance(error.detail, dict)
+                assert error.detail["code"] == "project_import_self_fk_violation"
+                assert error.detail["constraint"] == "transfer_nodes_pa_pb_fkey"
+                assert len(attempts) == 1 and await conn.fetchval("SELECT count(*) FROM transfer_nodes") == 0
     run(case())
 
 
