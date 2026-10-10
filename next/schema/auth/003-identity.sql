@@ -5,7 +5,7 @@ LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,auth,core,coordination,pg_temp
       AND array_position(p_roles,NULL) IS NULL
       AND NOT EXISTS(SELECT 1 FROM unnest(p_roles) r
           WHERE length(r) NOT BETWEEN 1 AND 64 OR r !~ '^[a-z][a-z0-9_.-]{0,63}$' OR r ~ '[^a-z0-9_.-]')
-      AND p_roles=ARRAY(SELECT DISTINCT r FROM unnest(p_roles) r ORDER BY r);
+      AND p_roles COLLATE "C"=ARRAY(SELECT DISTINCT r COLLATE "C" FROM unnest(p_roles) r ORDER BY r COLLATE "C");
 $$;
 ALTER TABLE auth.principals ADD COLUMN kind text NOT NULL DEFAULT 'agent' CHECK(kind IN ('agent','human'));
 ALTER TABLE auth.principals ADD COLUMN identity_adopted boolean NOT NULL DEFAULT false;
