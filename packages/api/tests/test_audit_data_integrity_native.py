@@ -258,6 +258,152 @@ def test_api4_004_transfer_reset_keeps_shared_sequence_above_archive(api, scratc
     run(case())
 
 
+@pytest.mark.parametrize(
+    ("hot_id", "archive_id", "prior", "imported"),
+    [
+        (100, 5, 10, {("public", "messages"), ("public", "archive_messages")}),
+        (5, 100, 10, {("public", "messages"), ("public", "archive_messages")}),
+        (5, 10, 101, {("public", "messages"), ("public", "archive_messages")}),
+        (5, 100, 10, {("public", "messages")}),
+        (5, 100, 10, {("public", "archive_messages")}),
+    ],
+)
+def test_api4_004_reset_uses_all_shared_sequence_high_water_marks(
+    api, scratch_conn, hot_id, archive_id, prior, imported,
+):
+    async def case():
+        conn = await asyncpg.connect(**scratch_conn)
+        try:
+            await conn.execute("CREATE SEQUENCE messages_id_seq")
+            await conn.execute("CREATE TABLE messages(id bigint PRIMARY KEY DEFAULT nextval('messages_id_seq'))")
+            await conn.execute("ALTER SEQUENCE messages_id_seq OWNED BY messages.id")
+            await conn.execute("CREATE TABLE archive_messages(id bigint PRIMARY KEY DEFAULT nextval('messages_id_seq'))")
+            await conn.execute("INSERT INTO messages(id) VALUES($1)", hot_id)
+            await conn.execute("INSERT INTO archive_messages(id) VALUES($1)", archive_id)
+            await conn.fetchval("SELECT setval('messages_id_seq', $1, true)", prior)
+            await api.reset_project_transfer_sequences(conn, imported)
+            assert await conn.fetchval("SELECT nextval('messages_id_seq')") > max(hot_id, archive_id, prior)
+        finally:
+            await conn.close()
+    run(case())
+
+
+def test_api4_004_reset_holds_sequence_fence_through_import_transaction(api, scratch_conn):
+    async def case():
+        first = await asyncpg.connect(**scratch_conn)
+        second = await asyncpg.connect(**scratch_conn)
+        try:
+            await first.execute("CREATE SEQUENCE messages_id_seq")
+            await first.execute("CREATE TABLE messages(id bigint PRIMARY KEY DEFAULT nextval('messages_id_seq'))")
+            await first.execute("ALTER SEQUENCE messages_id_seq OWNED BY messages.id")
+            await first.execute("CREATE TABLE archive_messages(id bigint PRIMARY KEY DEFAULT nextval('messages_id_seq'))")
+            await first.execute("INSERT INTO messages(id) VALUES(5)")
+            await first.execute("INSERT INTO archive_messages(id) VALUES(100)")
+            await first.fetchval("SELECT setval('messages_id_seq', 101, true)")
+            transaction = first.transaction()
+            await transaction.start()
+            try:
+                await api.reset_project_transfer_sequences(
+                    first, {("public", "messages"), ("public", "archive_messages")},
+                )
+                started = asyncio.Event()
+
+                async def concurrent_nextval():
+                    started.set()
+                    return await second.fetchval("SELECT nextval('messages_id_seq')")
+
+                waiting = asyncio.create_task(concurrent_nextval())
+                await started.wait()
+                await asyncio.sleep(0.1)
+                blocked_until_commit = not waiting.done()
+            finally:
+                await transaction.commit()
+            next_id = await asyncio.wait_for(waiting, 2)
+            assert blocked_until_commit, "concurrent nextval bypassed the import high-water fence"
+            assert next_id > 101
+        finally:
+            await first.close()
+            await second.close()
+    run(case())
+
+
+def test_api4_lock001_partial_imports_finish_without_deadlock(api, scratch_conn, monkeypatch):
+    async def case():
+        setup = await asyncpg.connect(**scratch_conn)
+        try:
+            await setup.execute("CREATE SEQUENCE public.messages_id_seq")
+            await setup.execute("CREATE TABLE public.cortex_projects(id uuid PRIMARY KEY, project_key text, status text)")
+            await setup.execute("CREATE TABLE public.messages(id bigint PRIMARY KEY DEFAULT nextval('public.messages_id_seq'), project text)")
+            await setup.execute("ALTER SEQUENCE public.messages_id_seq OWNED BY public.messages.id")
+            await setup.execute("CREATE TABLE public.archive_messages(id bigint PRIMARY KEY DEFAULT nextval('public.messages_id_seq'), project text)")
+            await setup.execute("INSERT INTO public.cortex_projects VALUES('00000000-0000-0000-0000-000000000003','dest','active')")
+            await setup.fetchval("SELECT setval('public.messages_id_seq', 100, true)")
+        finally:
+            await setup.close()
+
+        @asynccontextmanager
+        async def acquired():
+            conn = await asyncpg.connect(**scratch_conn)
+            try:
+                await conn.execute("SET deadlock_timeout = '100ms'")
+                yield conn
+            finally:
+                await conn.close()
+
+        class ScratchPool:
+            def acquire(self):
+                return acquired()
+
+        monkeypatch.setattr(api, "pool_admin", ScratchPool())
+        monkeypatch.setattr(api, "require_admin_access", lambda request: None)
+        actual_reset = api.reset_project_transfer_sequences
+        release_reset = asyncio.Event()
+        reached = {name: asyncio.Event() for name in ("messages", "archive_messages")}
+
+        async def paused_reset(conn, tables):
+            name = next(iter(tables))[1]
+            reached[name].set()  # The caller's INSERT has already run in its outer transaction.
+            await release_reset.wait()
+            return await actual_reset(conn, tables)
+
+        monkeypatch.setattr(api, "reset_project_transfer_sequences", paused_reset)
+        request = Request({"type": "http", "method": "POST", "path": "/", "headers": []})
+
+        def payload(table_name, message_id):
+            return api.ProjectImportRequest(
+                format="kaidera.cortex-project.v1",
+                source_project={"project_key": "source", "project_id": "00000000-0000-0000-0000-000000000002"},
+                tables=[api.ProjectTransferTable(
+                    schema_name="public", table_name=table_name,
+                    rows=[{"id": message_id, "project": "source"}],
+                )],
+                allow_existing=True,
+            )
+
+        first = asyncio.create_task(api.import_project("dest", payload("messages", 5), request))
+        await asyncio.wait_for(reached["messages"].wait(), 3)
+        second = asyncio.create_task(api.import_project("dest", payload("archive_messages", 101), request))
+        try:
+            await asyncio.wait_for(reached["archive_messages"].wait(), 1.0)
+            both_inserted_before_reset = True
+        except asyncio.TimeoutError:
+            both_inserted_before_reset = False
+        release_reset.set()
+        outcomes = await asyncio.wait_for(asyncio.gather(first, second, return_exceptions=True), 5)
+        assert all(isinstance(item, dict) and item.get("ok") for item in outcomes), (
+            f"partial imports failed; both_inserted_before_reset={both_inserted_before_reset}; "
+            f"sqlstates={[getattr(item, 'sqlstate', None) for item in outcomes]}"
+        )
+        check = await asyncpg.connect(**scratch_conn)
+        try:
+            assert await check.fetchval("SELECT count(*) FROM public.messages WHERE project='dest'") == 1
+            assert await check.fetchval("SELECT count(*) FROM public.archive_messages WHERE project='dest'") == 1
+            assert await check.fetchval("SELECT nextval('public.messages_id_seq')") > 101
+        finally:
+            await check.close()
+    run(case())
+
+
 def test_api4_005_transfer_accepts_child_before_parent_in_same_table(api, scratch_conn, monkeypatch):
     async def case():
         conn = await asyncpg.connect(**scratch_conn)
