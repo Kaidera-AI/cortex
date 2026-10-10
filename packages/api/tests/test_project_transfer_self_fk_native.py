@@ -256,3 +256,32 @@ def test_skipped_duplicate_does_not_validate_its_unused_reference(api, scratch_c
             assert await conn.fetchval("SELECT marker FROM transfer_nodes WHERE id=$1", parent) == "first"
             assert await conn.fetchval("SELECT parent_id FROM transfer_nodes WHERE id=$1", child) == parent
     run(case())
+
+
+def test_secondary_unique_conflict_skips_unused_missing_parent_full_route(api, scratch_conn, monkeypatch):
+    async def case():
+        ddl = """CREATE TABLE transfer_nodes(id uuid PRIMARY KEY,project text NOT NULL,
+                 parent_id uuid REFERENCES transfer_nodes(id),marker text UNIQUE NOT NULL)"""
+        async with case_context(api, scratch_conn, monkeypatch, ddl) as (conn, attempts, import_rows):
+            existing, incoming, absent = uuid4(), uuid4(), uuid4()
+            await conn.execute("INSERT INTO transfer_nodes(id,project,marker) VALUES($1,'audit','duplicate')", existing)
+            error, result = None, None
+            try:
+                result = await import_rows([row(incoming, absent, marker="duplicate")], allow_existing=True)
+            except (asyncpg.PostgresError, api.HTTPException) as caught:
+                error = type(caught).__name__
+            assert error is None, f"unused FK of secondary-unique conflict was evaluated: {error}"
+            assert result["inserted"] == 0 and result["skipped"] == 1
+            assert await conn.fetchval("SELECT count(*) FROM transfer_nodes") == 1
+            assert await conn.fetchval("SELECT id FROM transfer_nodes") == existing
+            assert await conn.fetchval("SELECT count(*) FROM transfer_nodes c LEFT JOIN transfer_nodes p ON p.id=c.parent_id WHERE c.parent_id IS NOT NULL AND p.id IS NULL") == 0
+    run(case())
+
+
+def test_pg_self_reference_is_valid_input_policy_control(api, scratch_conn, monkeypatch):
+    async def case():
+        async with case_context(api, scratch_conn, monkeypatch) as (conn, attempts, import_rows):
+            identifier = uuid4()
+            await conn.execute("INSERT INTO transfer_nodes(id,project,parent_id) VALUES($1,'audit',$1)", identifier)
+            assert await conn.fetchval("SELECT count(*) FROM transfer_nodes WHERE id=parent_id") == 1
+    run(case())
