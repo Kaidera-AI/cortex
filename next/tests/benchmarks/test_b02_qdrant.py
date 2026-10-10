@@ -308,3 +308,22 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
                 caught = type(error)
         self.assertIs(caught, ValueError)
         self.assertEqual(reader.call_count, 0)
+
+    def test_observed_container_contract_rejects_root_ports_and_env_keys(self):
+        import copy
+        module = self.surface()
+        self.assertTrue(callable(getattr(module, 'verify_container', None)), 'observed container contract missing')
+        row = {'Config': {'User': '10001:10001', 'Env': ['PATH=/usr/bin']},
+               'HostConfig': {'PortBindings': {}, 'ReadonlyRootfs': True, 'Memory': 805306368,
+                              'NanoCpus': 1500000000, 'CapDrop': ['ALL'], 'SecurityOpt': ['no-new-privileges']}}
+        checked = module.verify_container(row, memory_bytes=805306368, cpus=1.5)
+        self.assertEqual(checked['uid'], 10001)
+        self.assertEqual(checked['published_ports'], False)
+        for field, value in [('User', '0:0'), ('Env', ['QDRANT__SERVICE__API_KEY=SYNTHETIC-NEVER-LOG'])]:
+            bad = copy.deepcopy(row); bad['Config'][field] = value
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                module.verify_container(bad, memory_bytes=805306368, cpus=1.5)
+        for field, value in [('PortBindings', {'6333/tcp': [{'HostPort': '6333'}]}), ('ReadonlyRootfs', False), ('Memory', 2147483648)]:
+            bad = copy.deepcopy(row); bad['HostConfig'][field] = value
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                module.verify_container(bad, memory_bytes=805306368, cpus=1.5)
