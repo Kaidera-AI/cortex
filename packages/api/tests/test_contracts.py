@@ -1,6 +1,7 @@
 import contextlib
 import importlib.util
 import io
+import re
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -633,7 +634,7 @@ def test_openapi_exposes_cortex_doctor_route(cortex_api):
     assert "/admin/cortex/doctor" in paths
 
 
-def test_claude_local_state_defaults_to_local_hall(monkeypatch, tmp_path):
+def test_claude_local_state_defaults_to_shared_project(monkeypatch, tmp_path):
     helper = load_module(CLAUDE_LOCAL_STATE_PATH, "cortex_claude_local_state_test")
     todo_file = tmp_path / "todo.json"
     todo_file.write_text('[{"content": "Review importer default"}]')
@@ -660,7 +661,11 @@ def test_claude_local_state_defaults_to_local_hall(monkeypatch, tmp_path):
         helper.main()
 
     sql_text = output_sql.read_text()
-    assert "_local_state" in sql_text
+    projects = re.findall(
+        r"(?m)^DELETE FROM knowledge WHERE project = '((?:''|[^'])*)' ",
+        sql_text,
+    )
+    assert projects == ["_global"]
 
 
 def test_openapi_exposes_layer4_graph_routes(cortex_api):
