@@ -274,6 +274,9 @@ class Jobs:
             row = self._load(scope,job_id,True)
             if row[3] not in ('pending','running'):
                 raise JobError('conflict')
+            if row[3] == 'pending':
+                self._state(scope,job_id,'canceled',True)
+                return _result(job_id,'canceled','canceled')
             attempt = self._attempt(scope,job_id)
             if attempt is None:
                 self._state(scope,job_id,'canceled',True)

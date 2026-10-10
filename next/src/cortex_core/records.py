@@ -63,11 +63,17 @@ def _payload(connection, scope, body):
     return payload_id,digest
 
 
+def _private(connection, query, arguments):
+    # Map private decision conflicts before authorized() maps dependency errors.
+    try:
+        return connection.execute(query, arguments)
+    except psycopg.errors.UniqueViolation:
+        raise RecordError('conflict') from None
+
+
 def _request(connection, scope, key, digest):
     _lock(connection,'request',(*_scope(scope),scope.principal_id,key))
-    row = connection.execute('''SELECT request_sha256,outcome,receipt FROM coordination.idempotency
-        WHERE tenant_id=%s AND project_id=%s AND principal_id=%s AND request_key=%s''',
-        (*_scope(scope),scope.principal_id,key)).fetchone()
+    row = _private(connection,'SELECT * FROM coordination.c05_request(%s,%s)',(key,digest)).fetchone()
     if row is None:
         return None
     if row[0] != digest or row[1] != 'committed':
@@ -140,19 +146,16 @@ class Records:
                 result = _receipt(saved)
             else:
                 _lock(self.connection,'record',(*_scope(scope),record_id))
-                row = self.connection.execute('''SELECT kind,current_revision FROM core.records
-                    WHERE tenant_id=%s AND project_id=%s AND id=%s FOR UPDATE''',(*_scope(scope),record_id)).fetchone()
+                row = _private(self.connection,'SELECT * FROM coordination.c05_record_head(%s,%s,%s,%s)',
+                    (record_id,operation,kind,expected)).fetchone()
                 if (row is None and (expected != 0 or operation == 'delete')) or (row is not None and
                         (row[1] != expected or (operation == 'put' and row[0] != kind))):
                     raise RecordError('conflict')
                 revision = expected + 1
                 tombstone = operation == 'delete'
                 if tombstone:
-                    payload_id,payload_digest = self.connection.execute('''SELECT p.id,p.sha256
-                        FROM core.record_revisions v JOIN core.payloads p
-                        ON (p.tenant_id,p.project_id,p.id)=(v.tenant_id,v.project_id,v.payload_ref)
-                        WHERE v.tenant_id=%s AND v.project_id=%s AND v.record_id=%s AND v.revision=%s''',
-                        (*_scope(scope),record_id,expected)).fetchone()
+                    payload_id,payload_digest = _private(self.connection,
+                        'SELECT * FROM coordination.c05_record_payload(%s,%s)',(record_id,expected)).fetchone()
                 else:
                     payload_id,payload_digest = _payload(self.connection,scope,body)
                 try:
@@ -161,9 +164,8 @@ class Records:
                             (tenant_id,project_id,id,kind,current_revision,tombstone) VALUES (%s,%s,%s,%s,%s,%s)''',
                             (*_scope(scope),record_id,kind,revision,tombstone))
                     else:
-                        self.connection.execute('''UPDATE core.records SET current_revision=%s,tombstone=%s
-                            WHERE tenant_id=%s AND project_id=%s AND id=%s''',
-                            (revision,tombstone,*_scope(scope),record_id))
+                        _private(self.connection,'SELECT coordination.c05_update_head(%s,%s,%s,%s)',
+                            (record_id,expected,revision,tombstone))
                     _append_revision(self.connection,scope,record_id,revision,payload_id,tombstone)
                     data = dict(record_id=str(record_id),revision=revision,tombstone=tombstone,payload_sha256=payload_digest)
                     _save_request(self.connection,scope,key,digest,data)
