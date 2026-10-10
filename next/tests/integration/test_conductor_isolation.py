@@ -344,7 +344,7 @@ class FixtureLifecycle(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manager.children, [])
 
     async def test_late_heartbeat_failure_survives_pool_cleanup(self):
-        from unittest.mock import patch
+        from unittest.mock import AsyncMock, patch
         import x02_process_fixture as fixture_module
 
         class Pool:
@@ -363,7 +363,7 @@ class FixtureLifecycle(unittest.IsolatedAsyncioTestCase):
             return
         loop = asyncio.get_running_loop()
         with patch.dict(os.environ, {'SEARCH_TEST_DSN': 'postgresql://conductor_runtime@127.0.0.1:12345/search_test'}), \
-             patch.object(fixture_module.asyncpg, 'create_pool', return_value=pool), \
+             patch.object(fixture_module.asyncpg, 'create_pool', new=AsyncMock(return_value=pool)), \
              patch.object(fixture_module, 'Supervisor', SupervisorDouble), \
              patch.object(fixture_module, 'commands', commands), \
              patch.object(fixture_module, 'emit'), \
