@@ -425,7 +425,7 @@ BEGIN
             WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))
           THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;
     ELSE
-        IF jsonb_array_length(arguments) IS DISTINCT FROM CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END
+        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)
            OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'
           THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;
         IF operation='job.return' THEN
