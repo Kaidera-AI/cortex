@@ -89,3 +89,12 @@ is two-way; blast radius **diagnostics**. Verification above is **PROPOSED / NOT
 Kai accepted this bounded source unit, endpoint/default binding boundary,
 exit mapping and proposed limits at02:14. Release packaging,
 signing, native-host proof and publication remain their existing gates.
+
+## Build refinements
+
+The body is UTF-8 JSON with no duplicate keys. Request identity encoding and refuse
+compressed responses so the 16KiB limit cannot become an unbounded decompression.
+The source-only unit has no default endpoint: the accepted C11 binding is still
+required. Usage and endpoint refusals share the finite `endpoint_refused` code;
+exit64 identifies either refusal and no untrusted argument is echoed.
+The original 28 test methods remain frozen at RED commit `2ffd6cf`.
