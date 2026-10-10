@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 wt = Path(sys.argv[1]).resolve()
+root = wt.parent.parent if wt.parent.name == '.worktrees' else wt
 base = Path('docs/next/evidence/c05-rework')
 expected_path = wt / base / 'publication-expected-reclassified.json'
 index_path = wt / base / 'publication-index-reclassified-001.json'
@@ -29,7 +30,7 @@ for relative, meta in expected['members'].items():
     if relative.startswith('next/'):
         bound = subprocess.check_output(['git', '-C', str(wt), 'show', expected['tested_commit'] + ':' + relative])
     else:
-        bound = (wt / meta['canonical_source']).read_bytes()
+        bound = (root / meta['canonical_source']).read_bytes()
     assert sha(bound) == meta['sha256'], ('canonical_digest', relative)
 assert expected['source_files'] == len([p for p in actual if p.startswith('next/')]) == 406
 print(json.dumps({'index_sha256':sha(index_path.read_bytes()),'expected_sha256':sha(expected_bytes),

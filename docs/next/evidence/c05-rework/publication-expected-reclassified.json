@@ -126,9 +126,9 @@
       "sha256": "3d731f24e67cb4a2a6e78308f08ea4a484f750dcbc5b64f7f908a0483a20ef33"
     },
     "docs/next/evidence/c05-rework/verify-publication-reclassified.py": {
-      "bytes": 2339,
+      "bytes": 2407,
       "canonical_source": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c05-rework/verify-publication-reclassified.py",
-      "sha256": "c1e39819f3d8f10e562d7c0b2df4f4c2791d03b38cf57d780e18db313b5e4b49"
+      "sha256": "1abc37d2aec71eecdfa2f3684b3536978dfd16e04e9420634d63fd2f61a86483"
     },
     "docs/next/evidence/c05-rework/verify-publication.py": {
       "bytes": 1213,
