@@ -334,12 +334,29 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
         class API:
             def __init__(self, count=2):
                 self.calls, self.count = [], count
+                self.points, self.indexes, self.config = {}, {}, None
             async def call(self, method, path, body=None):
                 self.calls.append((method, path, body))
                 if path == '/':
                     return {'version': '1.19.2'}
                 if path.endswith('/count'):
                     return {'result': {'count': self.count}}
+                if method == 'PUT' and path == '/collections/b02':
+                    self.config = body
+                elif '/index?' in path:
+                    self.indexes[body['field_name']] = {'data_type': body['field_schema']}
+                elif method == 'PUT' and '/points?' in path:
+                    import copy
+                    import math
+                    for point in body['points']:
+                        row = copy.deepcopy(point)
+                        norm = math.sqrt(sum(value * value for value in row['vector']))
+                        row['vector'] = [value / norm for value in row['vector']]
+                        self.points[row['id']] = row
+                elif method == 'GET' and path == '/collections/b02':
+                    return {'result': {'config': self.config, 'payload_schema': self.indexes}}
+                elif method == 'POST' and path == '/collections/b02/points':
+                    return {'result': [self.points[point_id] for point_id in body['ids']]}
                 return {'result': {'status': 'green'}}
         with tempfile.TemporaryDirectory() as tmp:
             c = corpus.write_corpus(Path(tmp)/'corpus', [[3, 4], [1, 0]],

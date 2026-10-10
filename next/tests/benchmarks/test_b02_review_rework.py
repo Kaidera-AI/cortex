@@ -178,3 +178,40 @@ class ReviewRework(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(binding['import_parity_verified'])
             self.assertEqual(binding['readback_sample_count'], 3)
             self.assertFalse(binding['hnsw_use_qualified'])
+
+    def test_import_parity_refusal_writes_not_run_and_never_times_queries(self):
+        self.assertTrue(hasattr(qdrant, 'ImportParityError'), 'typed parity refusal missing')
+        class Stack:
+            password = lock = None
+            cleanup_verified = False
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                self.cleanup_verified = True
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); c = prepared(root); output = root / 'parity.json'
+            run = Mock(side_effect=AssertionError('queries must not be timed'))
+            with patch.object(qdrant, 'DisposableQdrant', return_value=Stack()), \
+                    patch.object(qdrant, 'install', side_effect=qdrant.ImportParityError('synthetic mismatch')), \
+                    patch.object(benchmark.load, 'run', run):
+                result = benchmark.execute(c.path, output, engine='qdrant', duration=1, warmup=0,
+                                           **anchor_kwargs(benchmark.execute, c))
+            self.assertEqual(result['diagnostic']['verdict'], 'NOT_RUN')
+            self.assertEqual(result['cells'][0]['reason'], 'qdrant-import-parity-mismatch')
+            self.assertTrue(result['cleanup_verified'])
+            self.assertEqual(run.call_count, 0)
+
+    def test_altered_freeze_record_cannot_replace_retained_anchor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            c = prepared(Path(directory))
+            target = c.path / 'frozen-input.json'
+            self.assertTrue(target.is_file(), 'independent frozen record missing')
+            record = json.loads(target.read_text())
+            record['input_count'] += 1
+            target.write_text(json.dumps(record, sort_keys=True))
+            caught = None
+            try:
+                geometry.load(c.path, **anchor_kwargs(geometry.load, c))
+            except Exception as error:
+                caught = type(error)
+            self.assertIs(caught, ValueError)
