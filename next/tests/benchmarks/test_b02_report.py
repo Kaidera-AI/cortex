@@ -114,7 +114,7 @@ class ReportTests(unittest.TestCase):
                     "metric": "dot", "generation": "synthetic-v1"}
         with tempfile.TemporaryDirectory() as tmp:
             c = corpus.write_corpus(Path(tmp) / "c", [[1, 0], [2, 0]], [{"id": "a"}, {"id": "b"}], identity)
-            q = {"id": "q", "mode": "dense", "tenant": "t1", "project": "p1",
+            q = {"id": "q", "status": "READY", "mode": "dense", "tenant": "t1", "project": "p1",
                  "generation": "synthetic-v1", "vector": [1, 0], "lo": None, "hi": None,
                  "kind": None, "time_lo": None, "time_hi": None, "sparse": None}
             truth = oracle.rank(c, q)
@@ -123,3 +123,11 @@ class ReportTests(unittest.TestCase):
             benchmark.attach_truth(run, {"q": truth})
             self.assertTrue(run["records"][0]["measurement"]["safe"])
             self.assertFalse(run["records"][1]["measurement"]["safe"])
+
+    def test_warmup_failure_is_visible_and_prevents_diagnostic_pass(self):
+        run = fixture()
+        run["warmup_records"] = copy.deepcopy(run["records"])
+        run["warmup_records"][0]["status"] = "ERROR"
+        result = self.summarize(run)
+        self.assertEqual(result["diagnostic"]["warmup_errors"], 1)
+        self.assertEqual(result["diagnostic"]["verdict"], "FAIL")

@@ -60,3 +60,5 @@ Main risk is misleading measurement boundary/accounting, controlled by unchanged
 ## Amendment custody
 
 2026-10-10 02:05: Kai accepts BUILD and supersedes original two-dataset/full-freeze B02 proposal with Postgres-only141511×768 geometry, both editions and confidence windows. Explicitly retains remote/data/sudo CTO gates. This source amendment follows that instruction; it does not claim new approval for host execution. Permanent historical preflight remains sealed and unchanged.
+
+2026-10-10 verification amendment: initial19-test surface RED retained22 body assertions including4 subcases. One oracle fixture lacked status READY and raised KeyError in the first implementation run; add that field without changing any original assertion. Three additional frozen RED controls cover fast-error deadline accounting, blocking resource observation and warmup failure. Their pre-fix source bytes/raw RED3 are retained; these controls precede the respective source fixes. Scope stays within the accepted eight paths.

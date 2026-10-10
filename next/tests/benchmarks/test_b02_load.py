@@ -149,3 +149,38 @@ class LoadTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(ValueError):
                     await load.run([{"id": "q"}], lambda i: calls.append(i), config)
         self.assertEqual(calls, [])
+
+    async def test_fast_errors_get_deadline_or_later_latency_accounting(self):
+        load = self.surface()
+        config = load.RunConfig(duration_seconds=.2, warmup_seconds=0, deadline_seconds=.1)
+        run = await load.run([{"id": "q"}], lambda i: Client(i, error=True), config)
+        self.assertEqual(len(run["records"]), 8)
+        self.assertTrue(all(r["status"] == "ERROR" for r in run["records"]))
+        self.assertTrue(all(r["latency_seconds"] >= config.deadline_seconds for r in run["records"]))
+
+    async def test_owned_resource_poll_does_not_block_the_arrival_loop(self):
+        load = self.surface()
+        from vector_baseline import benchmark
+        from unittest.mock import AsyncMock, patch
+        import time
+
+        class Stack:
+            lifecycle = "fixture"
+
+            def owned_resource(self, kind):
+                time.sleep(.1)
+                return "owned-fixture-id"
+
+        class Process:
+            returncode = 0
+
+            async def communicate(self):
+                return b"[]", b""
+
+        with patch.object(benchmark.asyncio, "create_subprocess_exec", AsyncMock(return_value=Process())):
+            run = await load.run([{"id": "q"}], lambda i: Client(i),
+                                 load.RunConfig(duration_seconds=1.2, warmup_seconds=0),
+                                 observer=lambda: benchmark.observe_owned(Stack()))
+        self.assertEqual(len(run["records"]), 48)
+        self.assertTrue(all(r["status"] == "OK" for r in run["records"]))
+        self.assertGreaterEqual(len(run["observations"]), 3)
