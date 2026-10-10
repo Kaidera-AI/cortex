@@ -8760,6 +8760,7 @@ async def health():
         "event_store": "postgres" if pg_ok else "postgres-disconnected",
         "event_backend": CORTEX_EVENT_BACKEND,
         "event_bus": event_bus,
+        "event_listener_ready": event_listener_ready,
         "pg_notification_queue_usage": notification_queue_usage,
         "version": CORTEX_API_VERSION,
         "surface_version": CORTEX_SURFACE_VERSION,
