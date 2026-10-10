@@ -351,6 +351,14 @@ class CliStatusTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((code, packet["health"], packet["client_error"]), (2, None, "invalid_response"))
         self.assertNotIn(SECRET, json.dumps(packet))
 
+    async def test_all_mutation_targets_are_selectable_existing_controls(self):
+        import mutate_cli_status
+
+        for path, name, before, after, target in mutate_cli_status.MUTATIONS:
+            self.assertRegex(target, r"^test_[a-z_]+\.[A-Za-z]+\.test_[a-z_]+$")
+            self.assertTrue(callable(getattr(type(self), target.split(".")[-1], None)), name)
+            self.assertEqual(path.read_text().count(before), 1, name)
+
 
 if __name__ == "__main__":
     unittest.main()

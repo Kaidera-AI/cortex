@@ -104,3 +104,5 @@ An additive wrapper exposes the original interruption assertion to the existing
 named runner's letters/underscores restriction, preserving that frozen method.
 A RED-first depth-limit control requires excessive JSON nesting to remain a safe
 protocol refusal, rather than a transport-failure classification.
+An automatic RED-first check rejects unselectable/missing named mutation targets
+and drifting source recipes before their individual disposable-PG runs.
