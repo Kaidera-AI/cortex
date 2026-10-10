@@ -412,15 +412,31 @@ async def listen_for_team_events() -> None:
 
     while True:
         conn: asyncpg.Connection | None = None
+        on_terminated = None
         try:
             conn = await asyncpg.connect(
                 PG_DSN_ADMIN, **database_connection_kwargs(PG_DSN_ADMIN, "admin")
             )
             event_listener_conn = conn
+            terminated = asyncio.Event()
+
+            def on_terminated(closed_connection):
+                global event_listener_ready, event_listener_error
+                # A delayed callback from an old connection cannot invalidate a
+                # healthy replacement connection or wake its termination Event.
+                if event_listener_conn is closed_connection:
+                    event_listener_ready = False
+                    event_listener_error = "LISTEN connection closed"
+                    terminated.set()
+
+            conn.add_termination_listener(on_terminated)
             await conn.add_listener(EVENT_WAKE_CHANNEL, event_notification_callback)
+            if terminated.is_set():
+                raise ConnectionError("LISTEN connection closed")
             event_listener_ready = True
             event_listener_error = None
-            await asyncio.Future()
+            await terminated.wait()
+            raise ConnectionError("LISTEN connection closed")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -429,6 +445,9 @@ async def listen_for_team_events() -> None:
             await asyncio.sleep(2)
         finally:
             if conn is not None:
+                if on_terminated is not None:
+                    with suppress(Exception):
+                        conn.remove_termination_listener(on_terminated)
                 with suppress(Exception):
                     await conn.remove_listener(EVENT_WAKE_CHANNEL, event_notification_callback)
                 with suppress(Exception):
@@ -1711,11 +1730,15 @@ async def prometheus_middleware(request: Request, call_next):
     if request.url.path == "/metrics":
         return await call_next(request)
     method = request.method
-    # Normalise path: collapse UUIDs and agent names to reduce cardinality
-    path = request.url.path
     start = time.monotonic()
     response = await call_next(request)
     duration = time.monotonic() - start
+    # Routing resolves inside call_next. Only the server-owned route template is
+    # a bounded label; unmatched/auth-early responses never use their raw path.
+    scope = getattr(request, "scope", {})
+    route = scope.get("route") if isinstance(scope, dict) else None
+    template = getattr(route, "path", None)
+    path = template if isinstance(template, str) and template else "unmatched"
     REQUEST_DURATION.labels(method=method, endpoint=path).observe(duration)
     return response
 

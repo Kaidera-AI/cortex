@@ -1,4 +1,4 @@
-"""Seven source-bound data-integrity regressions on an owned scratch PostgreSQL.
+"""Source-bound data-integrity regressions on an owned scratch PostgreSQL.
 
 Run with CORTEX_AUDIT_PG_DSN pointing at a disposable loopback PostgreSQL server.
 Every test creates and destroys its own database. These are intentionally RED against
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+import hashlib
 import importlib.util
 import os
 from pathlib import Path
@@ -26,7 +27,10 @@ from starlette.requests import Request
 
 ROOT = Path(__file__).resolve().parents[3]
 API_ROOT = ROOT / "packages" / "api"
-MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-07-29-01-archive-messages-shared-id-sequence.sql"
+JULY_MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-07-29-01-archive-messages-shared-id-sequence.sql"
+FORWARD_MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-10-10-01-archive-messages-sequence-high-water.sql"
+MIGRATION = FORWARD_MIGRATION
+SHIPPED_JULY_SHA256 = "1a03ff6e61cf8f21ca127288b696a1a350bd9a3b2ac18f759e4a8f1eeb18bdae"
 SCHEMA = ROOT / "packages" / "schema" / "schema.sql"
 DSN = os.environ.get("CORTEX_AUDIT_PG_DSN", "")
 
@@ -514,4 +518,102 @@ def test_schema_3_001_migration_does_not_rewind_concurrent_message_ids(scratch_c
         finally:
             await first.close()
             await second.close()
+    run(case())
+
+
+def test_schema_3_001_migration_fences_nextval_and_all_existing_ids(scratch_conn):
+    async def case():
+        first = await asyncpg.connect(**scratch_conn)
+        second = await asyncpg.connect(**scratch_conn)
+        try:
+            await first.execute("CREATE SEQUENCE public.messages_id_seq")
+            await first.execute("CREATE TABLE public.messages(id bigint PRIMARY KEY DEFAULT nextval('public.messages_id_seq'))")
+            await first.execute("CREATE TABLE public.archive_messages(id bigint PRIMARY KEY)")
+            await first.execute("INSERT INTO public.messages(id) VALUES(200)")
+            await first.execute("INSERT INTO public.archive_messages(id) VALUES(150)")
+            await first.fetchval("SELECT setval('public.messages_id_seq', 100, true)")
+            source = MIGRATION.read_text()
+            started = asyncio.Event()
+
+            async def concurrent_nextval():
+                started.set()
+                return await second.fetchval("SELECT nextval('public.messages_id_seq')")
+
+            async with first.transaction():
+                await first.execute(source)
+                waiting = asyncio.create_task(concurrent_nextval())
+                await started.wait()
+                await asyncio.sleep(0.1)
+                assert not waiting.done(), "concurrent nextval bypassed the migration's sequence fence"
+            next_id = await asyncio.wait_for(waiting, 2)
+            assert next_id > 200
+            await first.execute(source)
+            rerun_id = await second.fetchval("SELECT nextval('public.messages_id_seq')")
+            assert rerun_id > next_id
+        finally:
+            await first.close()
+            await second.close()
+    run(case())
+
+
+def schema3_delivery_files(tmp_path):
+    directory = tmp_path / "migrations"
+    directory.mkdir()
+    for source in (JULY_MIGRATION, FORWARD_MIGRATION):
+        if source.exists():
+            (directory / source.name).write_bytes(source.read_bytes())
+    return directory
+
+
+async def schema3_delivery_tables(conn):
+    await conn.execute("CREATE SEQUENCE public.messages_id_seq")
+    await conn.execute("CREATE TABLE public.messages(id bigint PRIMARY KEY DEFAULT nextval('public.messages_id_seq'))")
+    await conn.execute("CREATE TABLE public.archive_messages(id bigint PRIMARY KEY)")
+    await conn.execute("INSERT INTO public.messages(id) VALUES(200)")
+    await conn.execute("INSERT INTO public.archive_messages(id) VALUES(150)")
+    await conn.fetchval("SELECT setval('public.messages_id_seq', 100, true)")
+
+
+def test_schema3_forward_upgrade_accepts_shipped_july_ledger(api, scratch_conn, tmp_path):
+    async def case():
+        conn = await asyncpg.connect(**scratch_conn)
+        try:
+            await schema3_delivery_tables(conn)
+            await api.ensure_schema_migrations_table(conn)
+            await conn.execute("""INSERT INTO cortex_schema_migrations
+                (migration_id,checksum_sha256,source_path,applied_by)
+                VALUES($1,$2,$3,'audit-prior-ledger')""",
+                JULY_MIGRATION.name, SHIPPED_JULY_SHA256, str(JULY_MIGRATION))
+            directory = schema3_delivery_files(tmp_path)
+            plan = await api.schema_migration_plan(conn, migration_dir=directory)
+            statuses = {item["id"]: item["status"] for item in plan["migrations"]}
+            assert statuses[JULY_MIGRATION.name] == "applied", statuses
+            assert statuses[FORWARD_MIGRATION.name] == "pending", statuses
+            assert hashlib.sha256(JULY_MIGRATION.read_bytes()).hexdigest() == SHIPPED_JULY_SHA256
+            result = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=directory)
+            assert result["applied_count"] == 1
+            assert await conn.fetchval("SELECT count(*) FROM cortex_schema_migrations") == 2
+            rerun = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=directory)
+            assert rerun["applied_count"] == 0
+            assert await conn.fetchval("SELECT nextval('public.messages_id_seq')") > 200
+        finally:
+            await conn.close()
+    run(case())
+
+
+def test_schema3_forward_fresh_install_applies_both_once(api, scratch_conn, tmp_path):
+    async def case():
+        conn = await asyncpg.connect(**scratch_conn)
+        try:
+            await schema3_delivery_tables(conn)
+            directory = schema3_delivery_files(tmp_path)
+            assert len(list(directory.glob("*.sql"))) == 2
+            result = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=directory)
+            assert result["applied_count"] == 2
+            assert await conn.fetchval("SELECT count(*) FROM cortex_schema_migrations") == 2
+            rerun = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=directory)
+            assert rerun["applied_count"] == 0
+            assert await conn.fetchval("SELECT nextval('public.messages_id_seq')") > 200
+        finally:
+            await conn.close()
     run(case())

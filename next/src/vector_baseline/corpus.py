@@ -200,11 +200,14 @@ def generate(path, *, count=5_000_000, dimension, model, metric="cosine", seed=4
                   distribution={"clustered": clustered, "diffuse": diffuse, "ties": count - clustered - diffuse})
 
 
-def load(path):
+def load(path, *, geometry_admission=None):
     path = Path(path)
     m = json.loads((path / "manifest.json").read_text())
-    if m["schema"] != "cortex-b01-corpus-v1" or m["dataset"] != "synthetic" or set(m["files"]) != set(FILES):
+    if m["schema"] != "cortex-b01-corpus-v1" or set(m["files"]) != set(FILES):
         raise ValueError("unapproved corpus; real custody is separate")
+    if m["dataset"] != "synthetic":
+        from .geometry import admit_artifact
+        admit_artifact(m, geometry_admission)
     identity_check(m["identity"])
     if any(digest(path / f) != m["files"][f] for f in FILES):
         raise ValueError("corpus hash drift")
