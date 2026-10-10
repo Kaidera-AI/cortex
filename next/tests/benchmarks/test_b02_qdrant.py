@@ -222,3 +222,76 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
         self.surface()
         with self.assertRaises(ValueError):
             benchmark.execute('never-read', 'never-created', engine='foreign')
+
+    def test_partial_import_failure_is_not_retried(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock, patch
+        from vector_baseline import corpus
+        module = self.surface()
+        opened = []
+        class API:
+            def __init__(self, stack):
+                pass
+            async def open(self):
+                opened.append('open')
+            async def aclose(self):
+                pass
+            async def call(self, method, path, body=None):
+                if path == '/':
+                    return {'version': '1.19.2'}
+                if '/points?' in path:
+                    raise RuntimeError('controlled partial import failure')
+                return {'result': True}
+        with tempfile.TemporaryDirectory() as tmp:
+            c = corpus.write_corpus(Path(tmp)/'corpus', [[1, 0]], [{'id': 'a'}],
+                                    {'provider': 'synthetic', 'model': 'fixture', 'dimension': 2, 'metric': 'cosine', 'generation': 'g'})
+            stack = SimpleNamespace(id_map={}, binding={})
+            clock = SimpleNamespace(monotonic=Mock(side_effect=[0, 0, 46]), sleep=Mock())
+            with patch.object(module, 'Client', API), patch.object(module, 'time', clock):
+                with self.assertRaises(RuntimeError):
+                    module.install(stack, c)
+        self.assertEqual(opened, ['open'], 'retry must not replay a partially applied import')
+
+    async def test_dual_observation_includes_both_owned_containers(self):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, patch
+        self.assertTrue(callable(getattr(benchmark, 'observe_qdrant', None)), 'both-container observer missing')
+        stack = SimpleNamespace(client_name='owned-client', lifecycle='lifecycle', owned_resource=lambda *args: 'owned')
+        with patch.object(benchmark, 'observe_owned', new=AsyncMock(return_value={'stats': ['owned-stats']})) as observe:
+            result = await benchmark.observe_qdrant(stack)
+        self.assertEqual(observe.await_count, 2)
+        self.assertEqual(set(result['components']), {'qdrant', 'client'})
+        self.assertFalse(result['whole_product_stack_complete'])
+
+    def test_pg_arm_preserves_default_and_applies_nemo_slot_gate(self):
+        from unittest.mock import patch
+        from vector_baseline import postgres
+        from test_postgres_cleanup import ResourceEngine
+        module = self.surface()
+        stack = postgres.DisposablePostgres(runner=ResourceEngine())
+        stack.worker = 'nemo'
+        labels = dict(stack.labels()[i+1].split('=', 1) for i, v in enumerate(stack.labels()) if v == '--label')
+        self.assertEqual(labels['worker'], 'nemo')
+        self.assertIn('cortex.test', labels)
+        engine = ResourceEngine(); stack = postgres.DisposablePostgres(runner=engine); stack.worker = 'nemo'
+        with patch.object(module, 'preflight', side_effect=RuntimeError('controlled memory gate')):
+            with self.assertRaises(RuntimeError):
+                stack.__enter__()
+        self.assertFalse(engine.created, 'Nemo PG memory gate must precede create effects')
+        self.assertTrue(stack.cleanup_verified)
+
+    async def test_proxy_cancellation_reaps_pending_response_child(self):
+        module = self.surface()
+        class Stack:
+            client_name = 'owned-double'
+            def proxy_command(self):
+                return [sys.executable, '-u', '-c', 'import os,json,time;print(json.dumps({"kind":"ready","pid":os.getpid()}),flush=True);time.sleep(60)']
+            async def stop_proxy(self, pid):
+                os.kill(pid, signal.SIGTERM)
+        client = module.Client(Stack())
+        await client.open()
+        child = client.process
+        with self.assertRaises(TimeoutError):
+            await asyncio.wait_for(client.call('GET', '/'), .05)
+        self.assertIsNotNone(child.returncode, 'cancelled response must reap the owned process')
+        self.assertTrue(client.closed)
