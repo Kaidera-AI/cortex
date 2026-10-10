@@ -35,6 +35,9 @@ RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
  && useradd --system --uid 10001 --gid 10001 --no-create-home \
       --shell /usr/sbin/nologin kaidera
 
+# Recompile after the install layer has stamped source mtimes. Keep timestamp caches.
+RUN python -c "import compileall, py_compile, sysconfig; assert compileall.compile_dir(sysconfig.get_path('purelib'), force=True, quiet=1, optimize=0, invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)"
+
 # Build from packages so the one canonical schema inventory is in context.
 # Explicit API allowlist; tests, caches and recipes are never runtime payload.
 COPY api/main.py \
