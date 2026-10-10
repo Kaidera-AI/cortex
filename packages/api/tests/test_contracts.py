@@ -13,7 +13,7 @@ from starlette.requests import Request
 
 API_MAIN_PATH = Path(__file__).resolve().parents[1] / "main.py"
 CLAUDE_LOCAL_STATE_PATH = (
-    Path(__file__).resolve().parents[2] / "scripts" / "_cortex_claude_local_state.py"
+    Path(__file__).resolve().parents[2] / "cli" / "_cortex_claude_local_state.py"
 )
 TEST_ADMIN_TOKEN = "unit-test-admin-token"
 
