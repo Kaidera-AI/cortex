@@ -1,0 +1,14 @@
+{
+  "red": {
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c05-rework-20261010/docs/next/evidence/c05-rework/verify-publication.py\", line 13, in <module>\n    assert hashlib.sha256(published).hexdigest() == member['sha256'], ('published_digest', relative)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: ('published_digest', 'docs/next/evidence/c05-rework/reproduce.md')\n"
+  },
+  "green": {
+    "exit_code": 0,
+    "stdout": "{\"index_sha256\": \"3c7713d61354054820a04d8b6c7603d9a13e49c99516a3e5deb43297b1aaeac7\", \"members\": 449, \"all_digests_sizes_canonical_pointers_match\": true}\n",
+    "stderr": ""
+  },
+  "restored": true,
+  "resource_operations": 0
+}
