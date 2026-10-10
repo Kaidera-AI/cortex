@@ -46,6 +46,7 @@ MATRICES = {
     'adapters': (NEXT/'contracts/outbox-adapters-fault-recipes.json', ('records','coordination','core_adapters','acceptance_guards')),
     'c05': (NEXT/'contracts/outbox-c05-fault-recipes.json', ('c05_review','c05_private')),
     'write_only': (NEXT/'contracts/outbox-write-only-fault-recipes.json', ('outbox_write_only',)),
+    'private_namespace': (NEXT/'contracts/outbox-private-namespace-fault-recipes.json', ('outbox_private_namespace',)),
 }
 
 

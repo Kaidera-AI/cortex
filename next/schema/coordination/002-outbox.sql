@@ -4,6 +4,21 @@ LANGUAGE sql STABLE SET search_path=pg_catalog,pg_temp AS $$
     SELECT rolsuper FROM pg_roles WHERE rolname=session_user;
 $$;
 
+-- The request trigger must classify a scoped Core fact even for a write-only
+-- principal; the public read policy intentionally hides that record.
+CREATE FUNCTION coordination.c06_record_reserved(p_record uuid) RETURNS boolean
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE s record; reserved boolean;
+BEGIN
+    SELECT * INTO STRICT s FROM coordination.c05_scope();
+    SELECT EXISTS(SELECT 1 FROM core.records r
+      WHERE r.tenant_id=s.tenant_id AND r.project_id=s.project_id AND r.id=p_record
+        AND (r.kind='core' OR r.kind LIKE 'core.%')) INTO reserved;
+    RETURN reserved;
+END;
+$$;
+
 CREATE FUNCTION coordination.c06_reserved() RETURNS trigger
 LANGUAGE plpgsql SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE reserved boolean;
@@ -16,8 +31,7 @@ BEGIN
         reserved:=NEW.kind='core' OR NEW.kind LIKE 'core.%';
         IF TG_OP='UPDATE' THEN reserved:=reserved OR OLD.kind='core' OR OLD.kind LIKE 'core.%'; END IF;
     ELSE
-        SELECT kind='core' OR kind LIKE 'core.%' INTO reserved FROM core.records
-          WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.record_id);
+        reserved:=coordination.c06_record_reserved(NEW.record_id);
     END IF;
     IF reserved THEN RAISE EXCEPTION 'reserved Core fact' USING ERRCODE='42501'; END IF;
     RETURN NEW;
@@ -573,6 +587,6 @@ DO $$ DECLARE f record; BEGIN
 END; $$;
 REVOKE CREATE ON SCHEMA coordination FROM "kaidera-runtime-core-verifier";
 REVOKE ALL ON FUNCTION auth.identity_finish(text,text,jsonb,jsonb) FROM PUBLIC,"kaidera-runtime-core-request";
-GRANT EXECUTE ON FUNCTION coordination.c06_bootstrap(),coordination.c06_reserved(),coordination.capture_job(uuid),coordination.c06_record_event(uuid,bigint),
+GRANT EXECUTE ON FUNCTION coordination.c06_bootstrap(),coordination.c06_reserved(),coordination.c06_record_reserved(uuid),coordination.capture_job(uuid),coordination.c06_record_event(uuid,bigint),
   coordination.publish_outbox(integer),coordination.outbox_page(bigint,integer),coordination.prune_outbox()
   TO "kaidera-runtime-core-request";
