@@ -43,6 +43,12 @@ MUTANTS = {
     'session_replay': ('src/cortex_core/api/c11b.py',
                        'saved = records.lookup_request(request_key)\n            digest = hashlib.sha256(payload).hexdigest()',
                        'saved = None\n            digest = hashlib.sha256(payload).hexdigest()'),
+    'upgrade_through': ('src/cortex_core/migrations.py',
+        'for identity, digest, sql in prepared[:prepared_target + 1]:',
+        'for identity, digest, sql in prepared:'),
+    'upgrade_prefix': ('src/cortex_core/migrations.py',
+        'if ledger_ids != {item[0] for item in prepared[:len(ledger_ids)]}:',
+        'if False:'),
 }
 
 
@@ -88,7 +94,9 @@ def main():
     if mutation and mutation not in MUTANTS:
         raise RuntimeError('unknown C11b2 mutation')
     output['mutation'] = mutation
-    suite = 'c11b2'
+    suite = os.environ.get('C11B2_SUITE', 'c11b2')
+    if suite not in ('c11b2', 'core_upgrade', 'schema'):
+        raise RuntimeError('unknown bounded PG suite')
     output['suite'] = suite
     try:
         run('podman', 'pod', 'create', '--name', pod, '--network', 'none',
