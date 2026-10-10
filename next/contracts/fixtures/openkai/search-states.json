@@ -13,7 +13,8 @@
       "complete": false,
       "error": {
         "code": "capability_unavailable",
-        "retryable": true
+        "retryable": true,
+        "state": "pending"
       },
       "freshness": "lagging",
       "id": "pending",
@@ -24,27 +25,23 @@
     {
       "complete": false,
       "error": {
-        "code": "partial_result",
-        "retryable": true
+        "code": "capability_unavailable",
+        "retryable": true,
+        "state": "partial"
       },
       "freshness": "lagging",
       "id": "partial",
       "kind": "search_state",
-      "results": [
-        {
-          "id": "00000000-0000-4000-8000-000000000011",
-          "source_revision": 1
-        }
-      ],
       "state": "partial",
-      "status": null,
-      "wire_state": "proposed_unbound"
+      "status": 503,
+      "wire_state": "ruled_unimplemented"
     },
     {
       "complete": false,
       "error": {
         "code": "capability_unavailable",
-        "retryable": false
+        "retryable": false,
+        "state": "unavailable"
       },
       "freshness": "disabled",
       "id": "unavailable",

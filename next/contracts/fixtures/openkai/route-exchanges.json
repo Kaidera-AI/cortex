@@ -1,7 +1,8 @@
 {
   "cases": [
     {
-      "binding": "proposed_new_consumer",
+      "authorization": "read",
+      "binding": "ruled_status_read",
       "error": {
         "body": {
           "error": {
@@ -34,7 +35,8 @@
       }
     },
     {
-      "binding": "proposed_new_consumer",
+      "authorization": "read",
+      "binding": "ruled_status_read",
       "error": {
         "body": {
           "error": {
@@ -136,7 +138,8 @@
       }
     },
     {
-      "binding": "proposed_new_consumer",
+      "authorization": "read",
+      "binding": "ruled_status_read",
       "error": {
         "body": {
           "error": {
@@ -266,7 +269,8 @@
         "body": {
           "error": {
             "code": "capability_unavailable",
-            "retryable": true
+            "retryable": true,
+            "state": "pending"
           }
         },
         "status": 503
@@ -278,8 +282,10 @@
       "path": "/search",
       "request": {
         "body": {
+          "min_revision": 2,
           "query": "synthetic query",
-          "top_k": 5
+          "top_k": 5,
+          "wait_ms": 10000
         },
         "headers": {
           "Authorization": "Bearer <fixture-scoped-token>",
@@ -297,7 +303,8 @@
             "complete": true,
             "state": "current"
           },
-          "results": []
+          "results": [],
+          "state": "ready_empty"
         },
         "status": 200
       }

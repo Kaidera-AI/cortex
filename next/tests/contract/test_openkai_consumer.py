@@ -77,6 +77,10 @@ class OpenKaiConsumer(unittest.TestCase):
                                   'results':'omitted'},
                    'ready_empty':{'status':200,'state':'ready_empty','results':[]}},
         })
+        altered = copy.deepcopy(packet)
+        altered['ruled_contract_deltas']['D2']['wait_ms']['maximum'] = 10001
+        with self.assertRaises(refusal):
+            validate_packet(altered, openapi)
         for key, bad in (('commit', '0'*40), ('evidence_sha256', '0'*64)):
             altered = copy.deepcopy(packet)
             altered['source'][key] = bad
@@ -124,6 +128,14 @@ class OpenKaiConsumer(unittest.TestCase):
         self.assertEqual(search['request']['body'].get('wait_ms'), 10000)
         self.assertEqual(search['error']['body']['error'].get('state'), 'pending')
         self.assertEqual(search['success']['body'].get('state'), 'ready_empty')
+        unbounded_wait = copy.deepcopy(search)
+        unbounded_wait['request']['body']['wait_ms'] = 10001
+        with self.assertRaises(refusal):
+            validate_case(unbounded_wait)
+        false_pending = copy.deepcopy(search)
+        false_pending['error']['body']['error']['state'] = 'ready_empty'
+        with self.assertRaises(refusal):
+            validate_case(false_pending)
         missing_error = copy.deepcopy(cases[0])
         del missing_error['error']
         with self.assertRaises(refusal):
@@ -152,6 +164,10 @@ class OpenKaiConsumer(unittest.TestCase):
         self.assertEqual(read.get('not_found_status'), 404)
         self.assertEqual(read.get('unauthorized_status'), 404)
         self.assertEqual(read.get('tombstone_status'), 410)
+        no_leak = copy.deepcopy(next(x for x in cases if x['id'] == 'ack-read'))
+        no_leak['read']['unauthorized_status'] = 403
+        with self.assertRaises(refusal):
+            validate_case(no_leak)
         bad = copy.deepcopy(next(x for x in cases if x['id'] == 'ack-read'))
         bad['read']['revision'] += 1
         with self.assertRaises(refusal):
@@ -181,6 +197,10 @@ class OpenKaiConsumer(unittest.TestCase):
                           partial_wire['error']['code']),
                          (503, 'ruled_unimplemented', 'capability_unavailable'))
         self.assertNotIn('results', partial_wire)
+        partial_success = copy.deepcopy(partial_wire)
+        partial_success['status'] = 206
+        with self.assertRaises(refusal):
+            validate_case(partial_success)
         pending = copy.deepcopy(next(x for x in cases if x['state'] == 'pending'))
         pending['results'] = []
         with self.assertRaises(refusal):

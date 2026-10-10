@@ -281,6 +281,65 @@
       "scope": "project_write"
     }
   ],
+  "ruled_contract_deltas": {
+    "D1": {
+      "body_fields": [
+        "revision",
+        "payload_sha256"
+      ],
+      "implementation_state": "ruled_unimplemented",
+      "method": "GET",
+      "not_found": 404,
+      "path": "/records/{id}",
+      "tombstone": 410,
+      "unauthorized": 404
+    },
+    "D2": {
+      "deadline": {
+        "code": "capability_unavailable",
+        "state": "pending",
+        "status": 503
+      },
+      "implementation_state": "ruled_unimplemented",
+      "method": "POST",
+      "min_revision": "non_negative_integer",
+      "path": "/search",
+      "placement": "parameters",
+      "wait_ms": {
+        "default": 0,
+        "maximum": 10000
+      }
+    },
+    "D3": {
+      "control_jobs_state": "ruled_unimplemented",
+      "future_control_scope": "owner_admin",
+      "gtm_response": {
+        "code": "capability_unavailable",
+        "state": "unimplemented",
+        "status": 503
+      },
+      "status_binding": "bound_now",
+      "status_paths": [
+        "/beat/embeddings/backlog",
+        "/degradation",
+        "/workers/health"
+      ],
+      "status_scope": "read"
+    },
+    "D4": {
+      "implementation_state": "ruled_unimplemented",
+      "lag_partial": {
+        "code": "capability_unavailable",
+        "results": "omitted",
+        "status": 503
+      },
+      "ready_empty": {
+        "results": [],
+        "state": "ready_empty",
+        "status": 200
+      }
+    }
+  },
   "sdk_only": [
     {
       "behavior_ids": [
@@ -430,11 +489,6 @@
     "source_files_sha256": "f9a4979dc569211e0605d6b30abe1001a316f3c8c126ceea8bdb0699511ee645",
     "tag": "openkai/v0.1.15"
   },
-  "unbound_contract_deltas": [
-    "authorized_core_record_read_by_id",
-    "indexed_revision_wait",
-    "standalone_status_control_jobs"
-  ],
   "upgrade_origin": {
     "first_signed_candidate": "v0.1.003",
     "pre_signed_path": "backup_fresh_install_restore",

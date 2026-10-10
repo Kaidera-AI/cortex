@@ -16,11 +16,17 @@
       "kind": "write_ack_read",
       "read": {
         "authorized": true,
-        "binding": "UNBOUND_CONTRACT_DELTA",
+        "binding": "ruled_unimplemented",
+        "method": "GET",
+        "not_found_status": 404,
+        "path": "/records/{id}",
+        "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "project_id": "00000000-0000-4000-8000-000000000003",
         "record_id": "00000000-0000-4000-8000-000000000011",
         "revision": 2,
-        "status": 200
+        "status": 200,
+        "tombstone_status": 410,
+        "unauthorized_status": 404
       },
       "request": {
         "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
