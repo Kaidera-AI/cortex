@@ -15,6 +15,7 @@ TARGET=OUT/(PHASE+'.json')
 assert not TARGET.exists()
 TREE=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 SOURCE={str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
+TOOLS={Path(__file__).name:hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 POD='kaidera-test-core-schema-1'
 DB='kaidera-test-core-db-1'
 DRIVER='kaidera-test-core-driver-1'
@@ -162,9 +163,9 @@ finally:
     if pending:
         cleanup()
     TARGET.write_text(json.dumps({'phase':PHASE,'tree':TREE,
-        'passed':passed,'stack_removed':not pending,'pending':pending,'cleanup_errors':cleanup_errors,
+        'passed':bool(passed and not pending),'stack_removed':not pending,'pending':pending,'cleanup_errors':cleanup_errors,
         'lifecycle':NONCE,'images':[PG,PY],'native_arch':'arm64','network':'none; private loopback',
         'published_ports':[],'bind_mounts':[],'limits':{'cpus':2,'memory':'1g','pg_memory':'768m','driver_memory':'256m'},
         'results':results,'source_sha256':SOURCE,
-        'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()},indent=2)+'\n')
+        'tool_input_sha256':TOOLS,'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()},indent=2)+'\n')
     assert not pending, 'C04 lifecycle cleanup could not be verified; resource retained for reconciliation'

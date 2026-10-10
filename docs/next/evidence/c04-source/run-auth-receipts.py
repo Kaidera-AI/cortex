@@ -15,6 +15,7 @@ assert not TARGET.exists()
 TREE = subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 SOURCE = {str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest()
           for p in (WT/'next').rglob('*') if p.is_file()}
+TOOLS = {Path(__file__).name:hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 CONTRACT_SHARED = PHASE.startswith('contract-shared')
 NAME = 'kaidera-test-auth-receipts-1'
 IMAGE = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
@@ -127,20 +128,34 @@ try:
     passed = True
     assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
 finally:
-    if pending:
-        exists = run(['podman','container','exists',NAME])
-        if exists.returncode==0:
-            info = json.loads(checked(['podman','container','inspect',NAME]).stdout)[0]
-            labels = info['Config']['Labels']
-            if labels.get('owner')=='cox@helix' and labels.get('kaidera.cox.lifecycle')==NONCE:
+    final_inventory_error=None
+    cleanup_errors=[]
+    for attempt in range(2):
+        if not pending:break
+        try:
+            exists = run(['podman','container','exists',NAME])
+            if exists.returncode==0:
+                info = json.loads(checked(['podman','container','inspect',NAME]).stdout)[0]
+                labels = info['Config']['Labels']
+                if labels.get('owner')!='cox@helix' or labels.get('kaidera.cox.lifecycle')!=NONCE:
+                    raise RuntimeError('foreign lifecycle preserved: '+NAME)
                 assert info['Name'].lstrip('/')==NAME and len(info['Id'])==64
                 checked(['podman','rm','-f',info['Id']])
-        removed=run(['podman','container','exists',NAME]).returncode==1
+            elif exists.returncode!=1:
+                raise RuntimeError('resource inventory unverified: '+str(exists.returncode))
+            removed=run(['podman','container','exists',NAME]).returncode==1
+            if removed:pending=False
+        except Exception as cleanup_error:
+            cleanup_errors.append(type(cleanup_error).__name__+': '+str(cleanup_error))
+    if pending:
+        final_inventory_error='; '.join(cleanup_errors) or 'owned fixture cleanup unverified'
     TARGET.write_text(json.dumps({'phase':PHASE,'tree':TREE,
-        'passed':passed,'container_removed':removed,'results':results,'image_id':IMAGE,
+        'passed':bool(passed and removed and not pending),'container_removed':removed,
+        'final_inventory_error':final_inventory_error,'cleanup_errors':cleanup_errors,'pending':pending,'results':results,'image_id':IMAGE,
         'lifecycle':NONCE,'limits':{'cpus':1,'memory':'256m'},'published_ports':[], 'bind_mounts':[],
         'database_tests_executed':False,'missing_adapter_red_is_operational_not_mutant_kill':PHASE=='consumer-missing-red',
         'source_sha256':SOURCE,
         'wheel_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in wheels.iterdir() if p.suffix=='.whl'} if 'wheels' in globals() else {},
-        'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()},indent=2)+'\n')
+        'tool_input_sha256':TOOLS,'controller_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()},indent=2)+'\n')
+    if final_inventory_error:raise RuntimeError(final_inventory_error)
     assert removed, 'owned fixture cleanup is incomplete or a foreign name remains'
