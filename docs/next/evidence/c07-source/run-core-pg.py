@@ -19,6 +19,12 @@ assert not TARGET.exists()
 TREE=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 SOURCE={str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
 TOOLS={Path(__file__).name:hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+for old_guard_input in ('run-old-table-guards.py','frozen/auth-test_authorization.py',
+                        'frozen/auth_identity-test_identity.py','frozen/outbox-test_outbox.py'):
+    local=(OUT/old_guard_input).read_bytes()
+    committed=subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/'+old_guard_input])
+    assert local==committed,('old_guard_input_not_git_bound',old_guard_input)
+    TOOLS[old_guard_input]=hashlib.sha256(local).hexdigest()
 POD='kaidera-test-core-schema-1'
 DB='kaidera-test-core-db-1'
 DRIVER='kaidera-test-core-driver-1'
@@ -83,6 +89,8 @@ try:
         '--tmpfs','/tmp:rw,size=268435456,mode=1777',PY,'sleep','1800'])
     checked(['podman','cp',str(WT/'next'),DRIVER+':/tmp/next'])
     checked(['podman','cp',str(WT/'tmp/wheels'),DRIVER+':/tmp/wheels'])
+    checked(['podman','cp',str(OUT/'frozen'),DRIVER+':/tmp/c07-frozen'])
+    checked(['podman','cp',str(OUT/'run-old-table-guards.py'),DRIVER+':/tmp/run-old-table-guards.py'])
 
     copied_wheels=checked(['podman','exec',DRIVER,'python','-c',"from pathlib import Path;import hashlib,json;print(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('/tmp/wheels').iterdir() if p.is_file()}))"])
     assert json.loads(copied_wheels.stdout)==expected_wheels
@@ -104,6 +112,15 @@ try:
          '--env','PYTHONDONTWRITEBYTECODE=1',
          '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','-c',"import os,psycopg;from cortex_core.migrations import apply_migrations;c=psycopg.connect(os.environ['TEST_DATABASE_URL'],autocommit=True);print('CORTEX_MIGRATION_CHECK='+str(apply_migrations(c)));c.close()"])
+    old=run(env+['python','/tmp/run-old-table-guards.py'],300)
+    old_report=json.loads(next(line.split('=',1)[1] for line in old.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+    expected_old={'test_authorization.AuthorizationTests.test_all_business_tables_force_rls_private_functions_stay_private',
+                  'test_identity.IdentityTests.test_additive_kind_roles_defaults_private_memberships_and_frozen_table_count',
+                  'test_outbox.OutboxTests.test_additive_manifest_and_frozen_business_table_boundary'}
+    assert old.returncode==1 and old_report['tests_run']==3 and not old_report['errors']
+    assert {row['id'] for row in old_report['failures']}==expected_old
+    assert all(row['phase']=='test' and row['is_assertion'] and
+               row['phase_attribution']=='traceback+active-unittest-v2' for row in old_report['failures'])
     if not PHASE.startswith('c07-debug'):
         for directory,count in SUITES:
             if PHASE.startswith('write-only-event-red') and directory in ('c05_review','c05_private'):continue
