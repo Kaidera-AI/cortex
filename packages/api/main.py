@@ -10,6 +10,7 @@ import base64
 import collections
 import difflib
 import hashlib
+import heapq
 import hmac
 import json
 import math
@@ -16916,6 +16917,130 @@ async def project_transfer_dependencies(
     ]
 
 
+async def project_transfer_self_fk_constraints(
+    conn: Any,
+    key: tuple[str, str],
+) -> list[Any]:
+    """Read the exact self-FK identities and columns for an import table."""
+    qualified = ".".join(quote_ident(name) for name in key)
+    return await conn.fetch(
+        """SELECT fk.conname::text AS name, fk.confmatchtype::text AS match_type,
+                  ARRAY(SELECT a.attname FROM unnest(fk.conkey) WITH ORDINALITY k(attnum, ord)
+                        JOIN pg_attribute a ON a.attrelid=fk.conrelid AND a.attnum=k.attnum
+                        ORDER BY k.ord) AS child_columns,
+                  ARRAY(SELECT a.attname FROM unnest(fk.confkey) WITH ORDINALITY k(attnum, ord)
+                        JOIN pg_attribute a ON a.attrelid=fk.confrelid AND a.attnum=k.attnum
+                        ORDER BY k.ord) AS parent_columns
+             FROM pg_constraint fk
+            WHERE fk.contype='f' AND fk.conrelid=fk.confrelid
+              AND fk.conrelid=to_regclass($1)
+            ORDER BY fk.oid""",
+        qualified,
+    )
+
+
+async def order_project_transfer_self_fk_rows(
+    conn: Any,
+    key: tuple[str, str],
+    rows: list[dict[str, Any]],
+    constraints: list[Any],
+) -> list[dict[str, Any]]:
+    """Order parents first; SQL alone decides conflicts and FK validity."""
+    qualified = ".".join(quote_ident(name) for name in key)
+    edges: list[set[int]] = [set() for _ in rows]
+    incoming = [0] * len(rows)
+
+    def edge(parent: int, child: int) -> None:
+        if parent == child:
+            return
+        if child not in edges[parent]:
+            edges[parent].add(child)
+            incoming[child] += 1
+
+    for constraint in constraints:
+        parents = list(constraint["parent_columns"])
+        children = list(constraint["child_columns"])
+        # PostgreSQL performs record conversion, FK equality and composite-key
+        # grouping. Python never guesses UUID, numeric or collation equality.
+        parent_aliases = [f"p{i}" for i in range(len(parents))]
+        ref_aliases = [f"r{i}" for i in range(len(children))]
+        projections = [
+            f"t.{quote_ident(column)} AS {alias}"
+            for columns, aliases in ((parents, parent_aliases), (children, ref_aliases))
+            for column, alias in zip(columns, aliases)
+        ]
+        parent_keys = ", ".join(parent_aliases)
+        payload_match = " AND ".join(
+            f"p.{parent} = c.{ref}" for parent, ref in zip(parent_aliases, ref_aliases)
+        )
+        database_match = " AND ".join(
+            f"existing.{quote_ident(column)} = c.{ref}"
+            for column, ref in zip(parents, ref_aliases)
+        )
+        own_database_match = " AND ".join(
+            f"existing.{quote_ident(column)} = c.{parent}"
+            for column, parent in zip(parents, parent_aliases)
+        )
+        any_null = " OR ".join(f"c.{ref} IS NULL" for ref in ref_aliases)
+        all_null = " AND ".join(f"c.{ref} IS NULL" for ref in ref_aliases)
+        parent_not_null = " AND ".join(f"c.{parent} IS NOT NULL" for parent in parent_aliases)
+        bindings = await conn.fetch(
+            f"""WITH typed AS MATERIALIZED (
+                    SELECT e.ordinality - 1 AS ordinal, {', '.join(projections)}
+                      FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY e(value, ordinality)
+                      CROSS JOIN LATERAL jsonb_populate_record(NULL::{qualified}, e.value) t
+                ), parent_keys AS (
+                    SELECT {parent_keys}, min(ordinal) AS parent_ordinal
+                      FROM typed GROUP BY {parent_keys}
+                ), indexed AS (
+                    SELECT typed.*, lag(ordinal) OVER (
+                        PARTITION BY {parent_keys} ORDER BY ordinal) AS prior_ordinal
+                      FROM typed
+                )
+                SELECT c.ordinal, p.parent_ordinal,
+                       CASE WHEN {parent_not_null} THEN c.prior_ordinal END AS prior_ordinal,
+                       ({any_null}) AS any_null, ({all_null}) AS all_null,
+                       EXISTS(SELECT 1 FROM {qualified} existing WHERE {database_match}) AS present,
+                       EXISTS(SELECT 1 FROM {qualified} existing WHERE {own_database_match}) AS own_present
+                  FROM indexed c LEFT JOIN parent_keys p ON {payload_match}
+                 ORDER BY c.ordinal""",
+            json.dumps(rows, default=str),
+        )
+        for binding in bindings:
+            child = int(binding["ordinal"])
+            # Preserve the first payload row for a duplicate referenced key.
+            if binding["prior_ordinal"] is not None:
+                edge(int(binding["prior_ordinal"]), child)
+            # ON CONFLICT skips this duplicate without checking its unused FK.
+            if binding["prior_ordinal"] is not None or binding["own_present"]:
+                continue
+            if constraint["match_type"] == "f" and binding["any_null"] and not binding["all_null"]:
+                incoming[child] += 1  # Unresolved rows follow the ready DAG.
+                continue
+            inactive = binding["all_null"] if constraint["match_type"] == "f" else binding["any_null"]
+            if inactive or binding["present"]:
+                continue
+            if binding["parent_ordinal"] is None:
+                incoming[child] += 1
+                continue
+            edge(int(binding["parent_ordinal"]), child)
+
+    ready = [i for i, count in enumerate(incoming) if not count]
+    heapq.heapify(ready)
+    ordered: list[int] = []
+    while ready:
+        parent = heapq.heappop(ready)
+        ordered.append(parent)
+        for child in edges[parent]:
+            incoming[child] -= 1
+            if not incoming[child]:
+                heapq.heappush(ready, child)
+    # A conflicting unresolved row may be skipped by ON CONFLICT, and a
+    # single self-parent is valid SQL. Never pre-reject either case here.
+    ordered.extend(i for i, count in enumerate(incoming) if count)
+    return [rows[i] for i in ordered]
+
+
 async def lock_shared_message_transfer(conn: Any) -> tuple[list[str], bool]:
     """Fence both message tables, then their sequence, for the caller transaction."""
     present_tables = []
@@ -17893,46 +18018,68 @@ async def import_project(
         order = project_transfer_order(set(requested), dependencies)
         results: dict[str, dict[str, int]] = {}
         imported_tables: set[tuple[str, str]] = set()
-        async with conn.transaction():
-            if {("public", "messages"), ("public", "archive_messages")} & requested.keys():
-                await lock_shared_message_transfer(conn)
-            for key in order:
-                transfer = requested[key]
-                if not transfer.rows:
-                    continue
-                entry = catalog[key]
-                target_columns = set(entry["insertable_columns"])
-                inserted = 0
-                skipped = 0
-                for source_row in transfer.rows:
-                    mapped = remap_project_transfer_row(
-                        source_row,
-                        target_columns=target_columns,
-                        target_project_key=target_project_key,
-                        target_project_id=target_project_id,
-                    )
-                    columns = [
-                        column
-                        for column in entry["insertable_columns"]
-                        if column in mapped
-                    ]
-                    if not columns:
-                        skipped += 1
+        self_fk_names: set[tuple[str, str, str]] = set()
+        try:
+            async with conn.transaction():
+                if {("public", "messages"), ("public", "archive_messages")} & requested.keys():
+                    await lock_shared_message_transfer(conn)
+                for key in order:
+                    transfer = requested[key]
+                    if not transfer.rows:
                         continue
-                    status = await conn.execute(
-                        project_transfer_insert_sql(key[0], key[1], columns),
-                        json.dumps(mapped, default=str),
-                    )
-                    if affected_count(status):
-                        inserted += 1
-                    else:
-                        skipped += 1
-                results[f"{key[0]}.{key[1]}"] = {
-                    "inserted": inserted,
-                    "skipped": skipped,
-                }
-                imported_tables.add(key)
-            reset_sequences = await reset_project_transfer_sequences(conn, imported_tables)
+                    entry = catalog[key]
+                    target_columns = set(entry["insertable_columns"])
+                    inserted = 0
+                    skipped = 0
+                    source_rows = transfer.rows
+                    if (key, key) in dependencies:
+                        constraints = await project_transfer_self_fk_constraints(conn, key)
+                        self_fk_names.update((key[0], key[1], str(c["name"])) for c in constraints)
+                        source_rows = await order_project_transfer_self_fk_rows(
+                            conn, key, [remap_project_transfer_row(
+                                row, target_columns=target_columns,
+                                target_project_key=target_project_key,
+                                target_project_id=target_project_id,
+                            ) for row in source_rows], constraints,
+                        )
+                    for source_row in source_rows:
+                        mapped = remap_project_transfer_row(
+                            source_row,
+                            target_columns=target_columns,
+                            target_project_key=target_project_key,
+                            target_project_id=target_project_id,
+                        )
+                        columns = [
+                            column
+                            for column in entry["insertable_columns"]
+                            if column in mapped
+                        ]
+                        if not columns:
+                            skipped += 1
+                            continue
+                        status = await conn.execute(
+                            project_transfer_insert_sql(key[0], key[1], columns),
+                            json.dumps(mapped, default=str),
+                        )
+                        if affected_count(status):
+                            inserted += 1
+                        else:
+                            skipped += 1
+                    results[f"{key[0]}.{key[1]}"] = {
+                        "inserted": inserted,
+                        "skipped": skipped,
+                    }
+                    imported_tables.add(key)
+                reset_sequences = await reset_project_transfer_sequences(conn, imported_tables)
+
+        except asyncpg.ForeignKeyViolationError as exc:
+            # This handler runs only after the outer import transaction rolls back.
+            if (exc.schema_name, exc.table_name, exc.constraint_name) in self_fk_names:
+                raise HTTPException(409, {
+                    "code": "project_import_self_fk_violation",
+                    "constraint": exc.constraint_name,
+                }) from exc
+            raise
 
     return {
         "ok": True,
