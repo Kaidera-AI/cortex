@@ -114,3 +114,31 @@ class SessionAPI(Fixture):
         oversized = {**body, 'session_uuid': uid(86),
                      'messages': [{'role': 'user', 'content': 'x' * 65536} for _ in range(140)]}
         self.assertEqual(self.call(oversized)[0], 400)
+
+    def test_non_iso_separator_refuses_without_core_or_source_writes(self):
+        tables = ('core.records', 'core.record_revisions',
+                  'coordination.outbox', 'coordination.session_sources')
+        before = tuple(self.admin.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+                       for table in tables)
+        body = {'session_uuid': uid(89), 'agent': '10',
+                'source_path': '/synthetic/non-iso-separator.jsonl',
+                'provider': 'codex',
+                'messages': [{'role': 'user', 'content': 'bad',
+                              'ts': '2026-10-10Q20:14:00'}]}
+        status, error = self.call(body)
+        self.assertEqual(status, 400)
+        self.assertEqual(error['error']['code'], 'invalid_input')
+        after = tuple(self.admin.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+                      for table in tables)
+        self.assertEqual(after, before)
+
+    def test_valid_iso_offsets_and_fractions_are_preserved(self):
+        for number, timestamp in enumerate(('2026-10-10T20:14:00Z',
+                                            '2026-10-10T20:14:00+02:00',
+                                            '2026-10-10T20:14:00.123456-03:30'), 90):
+            body = {'session_uuid': uid(number), 'agent': '10',
+                    'source_path': f'/synthetic/valid-iso-{number}.jsonl',
+                    'provider': 'codex',
+                    'messages': [{'role': 'user', 'content': 'valid', 'ts': timestamp}]}
+            status, result = self.call(body)
+            self.assertEqual((status, result['messages_inserted']), (200, 1))
