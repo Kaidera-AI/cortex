@@ -16901,6 +16901,7 @@ async def reset_project_transfer_sequences(
     tables: set[tuple[str, str]],
 ) -> list[str]:
     reset: list[str] = []
+    shared_messages = bool({("public", "messages"), ("public", "archive_messages")} & tables)
     for schema_name, table_name in sorted(tables):
         rows = await conn.fetch(
             """SELECT column_name
@@ -16921,6 +16922,10 @@ async def reset_project_transfer_sequences(
             )
             if not sequence:
                 continue
+            if shared_messages and sequence == "public.messages_id_seq":
+                # Both hot and archived message IDs use this sequence. Reset it
+                # once, after collecting the high-water mark from both tables.
+                continue
             maximum = await conn.fetchval(
                 f"SELECT MAX({quote_ident(column)})::bigint FROM {qualified}"
             )
@@ -16928,6 +16933,39 @@ async def reset_project_transfer_sequences(
                 continue
             await conn.fetchval("SELECT setval($1::regclass, $2::bigint, true)", sequence, maximum)
             reset.append(f"{schema_name}.{table_name}.{column}")
+
+    if shared_messages and await conn.fetchval("SELECT to_regclass('public.messages_id_seq') IS NOT NULL"):
+        async with conn.transaction():
+            present_tables = []
+            for table_name in ("messages", "archive_messages"):
+                if await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", f"public.{table_name}"):
+                    present_tables.append(table_name)
+            if present_tables:
+                await conn.execute(
+                    "LOCK TABLE " + ", ".join(f"public.{name}" for name in present_tables)
+                    + " IN SHARE ROW EXCLUSIVE MODE"
+                )
+
+            # LOCK TABLE does not support sequences. Reasserting the existing cache
+            # size obtains a transaction-held DDL lock without changing that setting;
+            # concurrent nextval calls wait until the high-water reset commits.
+            cache_size = await conn.fetchval(
+                "SELECT seqcache FROM pg_sequence WHERE seqrelid = 'public.messages_id_seq'::regclass"
+            )
+            await conn.execute(f"ALTER SEQUENCE public.messages_id_seq CACHE {int(cache_size)}")
+            prior = await conn.fetchval("SELECT last_value FROM public.messages_id_seq")
+            maxima = [int(prior)]
+            for table_name in present_tables:
+                maximum = await conn.fetchval(f"SELECT MAX(id)::bigint FROM public.{table_name}")
+                if maximum is not None:
+                    maxima.append(int(maximum))
+            await conn.execute(
+                f"ALTER SEQUENCE public.messages_id_seq RESTART WITH {max(maxima) + 1}"
+            )
+        reset.extend(
+            f"public.{table_name}.id" for table_name in ("messages", "archive_messages")
+            if ("public", table_name) in tables
+        )
     return reset
 
 
