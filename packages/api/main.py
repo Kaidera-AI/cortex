@@ -1730,11 +1730,15 @@ async def prometheus_middleware(request: Request, call_next):
     if request.url.path == "/metrics":
         return await call_next(request)
     method = request.method
-    # Normalise path: collapse UUIDs and agent names to reduce cardinality
-    path = request.url.path
     start = time.monotonic()
     response = await call_next(request)
     duration = time.monotonic() - start
+    # Routing resolves inside call_next. Only the server-owned route template is
+    # a bounded label; unmatched/auth-early responses never use their raw path.
+    scope = getattr(request, "scope", {})
+    route = scope.get("route") if isinstance(scope, dict) else None
+    template = getattr(route, "path", None)
+    path = template if isinstance(template, str) and template else "unmatched"
     REQUEST_DURATION.labels(method=method, endpoint=path).observe(duration)
     return response
 
