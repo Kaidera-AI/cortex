@@ -44,7 +44,7 @@ raise SystemExit(0 if r.wasSuccessful() else 1)
     value=run(['podman','exec','--env','PYTHONDONTWRITEBYTECODE=1',NAME,'python','-c',suite])
     reports=[json.loads(x.split('=',1)[1]) for x in value.stdout.splitlines() if x.startswith('CORTEX_TEST_RESULT=')]
     assert len(reports)==1 and reports[0]['tests_run']==3 and not reports[0]['errors']
-    if PHASE.startswith('red'):
+    if PHASE.startswith('red') or PHASE.endswith('-red'):
         assert value.returncode==1
         expected={'test_controller_receipt_guards.ControllerReceiptGuards.'+x for x in ('test_pg_pending_cleanup_cannot_return_green','test_consumer_foreign_name_cannot_return_green','test_consumer_inventory_timeout_retains_failed_receipt')}
         assert {x['id'].split(' (')[0] for x in reports[0]['failures']}==expected
