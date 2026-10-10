@@ -158,3 +158,28 @@ class GeometryTests(unittest.TestCase):
                      'custody_receipt': 'custody', 'import_review_sha': 'b'*40, 'api_key': 'SYNTHETIC-NEVER-LOG'}
         with self.assertRaises(ValueError):
             module.validate_admission(admission, 'marlow-geometry')
+
+    def test_joint_and_marginal_split_coverage_reconcile_including_nulls(self):
+        module = self.surface()
+        rows = self.rows() + [{'id': f'{i:064x}', 'project': 'a'*64, 'type': 'note',
+                               'month': '2026-09', 'vector': [0, 1]} for i in range(96, 99)]
+        rows.append({'id': f'{99:064x}', 'project': 'b'*64, 'type': 'rare',
+                     'month': '2026-09', 'vector': [0, 1]})
+        with tempfile.TemporaryDirectory() as tmp:
+            c = self.prepare(module, Path(tmp), rows)
+            marginal = c.manifest['geometry'].get('marginal_coverage')
+            self.assertIsInstance(marginal, dict, 'accepted plan requires marginal coverage')
+            self.assertEqual(set(marginal), {'project', 'type', 'month'})
+            for values in marginal.values():
+                self.assertEqual(sum(v['input'] for v in values), 16)
+                self.assertEqual(sum(v['corpus'] for v in values), 10)
+                self.assertEqual(sum(v['tuning'] for v in values), 3)
+                self.assertEqual(sum(v['heldout'] for v in values), 3)
+                null = next(v for v in values if v['value'] is None)
+                self.assertEqual((null['input'], null['corpus'], null['tuning'], null['heldout']), (6, 4, 1, 1))
+            project = next(v for v in marginal['project'] if v['value'] == 'a'*64)
+            self.assertEqual((project['input'], project['corpus'], project['tuning'], project['heldout']), (9, 5, 2, 2))
+            month = next(v for v in marginal['month'] if v['value'] == '2026-09')
+            self.assertEqual((month['input'], month['corpus'], month['tuning'], month['heldout']), (4, 2, 1, 1))
+            rare = next(v for v in marginal['type'] if v['value'] == 'rare')
+            self.assertEqual((rare['input'], rare['corpus'], rare['status']), (1, 1, 'NOT_RUN'))
