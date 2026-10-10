@@ -65,7 +65,7 @@ class MemoryAPI(Fixture):
         status, read = self.call('GET', '/records/' + ack['id'], READ_A)
         self.assertEqual(status, 200)
         self.assertEqual(read['revision'], expected.revision)
-        self.assertEqual(read['payload_sha256'], expected.payload_sha256)
+        self.assertEqual(read.get('payload_sha256'), expected.payload_sha256)
 
     def test_d1_authenticated_out_of_scope_matches_unknown_id(self):
         body = {'section': 'decisions', 'content': 'private D1 payload',
