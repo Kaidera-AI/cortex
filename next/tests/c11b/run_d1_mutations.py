@@ -10,6 +10,7 @@ EXPECTED = {
     'd1_403_leak': 'test_memory_api.MemoryAPI.test_d1_authenticated_out_of_scope_matches_unknown_id',
     'd1_tombstone_skipped': 'test_memory_api.MemoryAPI.test_d1_authorized_tombstone_is_gone',
     'd1_digest_dropped': 'test_memory_api.MemoryAPI.test_d1_committed_read_exposes_exact_revision_and_digest',
+    'd1_memory_filter_readded': 'test_d1_generic_record.GenericRecordContract.test_authorized_c05_record_is_readable_by_generic_route',
 }
 
 

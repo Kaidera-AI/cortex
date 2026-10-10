@@ -40,8 +40,12 @@ MUTANTS = {
                              "if value.tombstone:\n            raise RecordError('gone')",
                              "if False:\n            raise RecordError('gone')"),
     'd1_digest_dropped': ('src/cortex_core/api/c11b.py',
-                          "'payload_sha256': value.payload_sha256,",
-                          "'payload_sha256_omitted': value.payload_sha256,"),
+                          "'payload_sha256': value.payload_sha256}",
+                          "'payload_sha256': None}"),
+    'd1_memory_filter_readded': ('src/cortex_core/api/c11b.py',
+                                 "if value.kind == 'memory':\n            body = json.loads(value.body)",
+                                 "if value.kind != 'memory':\n            return None\n"
+                                 "        if value.kind == 'memory':\n            body = json.loads(value.body)"),
 }
 
 

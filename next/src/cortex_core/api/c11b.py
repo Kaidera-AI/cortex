@@ -266,13 +266,13 @@ class C11bRecordPort:
             return None
         if value.tombstone:
             raise RecordError('gone')
-        if value.kind != 'memory':
-            return None
-        body = json.loads(value.body)
-        return {'id': str(value.record_id), 'kind': value.kind, 'revision': value.revision,
-                'payload_sha256': value.payload_sha256,
-                'section': body['section'], 'content': body['content'],
-                'category': body['category'], 'source': body['source']}
+        result = {'id': str(value.record_id), 'kind': value.kind,
+                  'revision': value.revision, 'payload_sha256': value.payload_sha256}
+        if value.kind == 'memory':
+            body = json.loads(value.body)
+            result.update(section=body['section'], content=body['content'],
+                          category=body['category'], source=body['source'])
+        return result
 
     async def read_record(self, principal, scope, record_id):
         return await asyncio.to_thread(self._read_record, principal, scope, record_id)
