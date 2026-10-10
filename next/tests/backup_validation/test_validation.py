@@ -206,6 +206,33 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(BackupError):
             self.seal()
 
+    def test_base_file_changed_after_native_validation_cannot_publish(self):
+        path = self.base/'base/123/456'
+
+        def change_after_validation(*_args):
+            path.write_bytes(b'VECTOR-AFTER')
+
+        with patch('cortex_core.backup_validation._validate_native_pg',
+                   side_effect=change_after_validation):
+            with self.assertRaises(BackupError):
+                self.seal()
+        self.assertFalse(self.target.exists())
+        self.assertEqual(list(self.root.glob('.o01a-*.age')), [])
+
+    def test_wal_file_changed_after_native_validation_cannot_publish(self):
+        path = self.archive/'000000010000000000000011'
+
+        def change_after_validation(*_args):
+            with path.open('r+b') as staged:
+                staged.write(b'changed')
+
+        with patch('cortex_core.backup_validation._validate_native_pg',
+                   side_effect=change_after_validation):
+            with self.assertRaises(BackupError):
+                self.seal()
+        self.assertFalse(self.target.exists())
+        self.assertEqual(list(self.root.glob('.o01a-*.age')), [])
+
 
 if __name__ == '__main__':
     unittest.main()
