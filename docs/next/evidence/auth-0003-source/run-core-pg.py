@@ -107,7 +107,7 @@ try:
         assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
     else:
         assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('coordination','conformance','mutation','guards')):
+    if PHASE.startswith(('coordination','conformance','mutation','guards','identity')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/coordination'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==23 and not reports[0]['errors']
@@ -117,7 +117,7 @@ try:
             assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('conformance','mutation','guards')):
+    if PHASE.startswith(('conformance','mutation','guards','identity')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/core_adapters'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==6 and not reports[0]['errors']
