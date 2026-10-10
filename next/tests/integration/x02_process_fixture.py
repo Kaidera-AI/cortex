@@ -146,6 +146,7 @@ class Manager:
         self.children, self.events = [], []
         self.child = self.task = None
         self.closing = self.requested_stop = False
+        self.reported_failure = False
 
     async def spawn(self):
         child = await Child.spawn(self.dsn, self.installation, lease_seconds=self.lease_seconds,
@@ -191,12 +192,18 @@ class Manager:
 
     async def close(self):
         self.closing = True
+        results = []
         if self.task:
             self.task.cancel()
-            await asyncio.gather(self.task, return_exceptions=True)
-        for child in self.children:
-            await child.close()
+            results.extend(await asyncio.gather(self.task, return_exceptions=True))
+        results.extend(await asyncio.gather(*(child.close() for child in self.children),
+                                            return_exceptions=True))
         self.state = "closed"
+        failures = [result for result in results if isinstance(result, BaseException)
+                    and not isinstance(result, asyncio.CancelledError)]
+        if failures and not self.reported_failure:
+            self.reported_failure = True
+            raise FixtureError("Background fixture failure observed after owned cleanup") from None
 
 
 class Consumer:

@@ -77,6 +77,8 @@ MUTATIONS = [
     (FIXTURE, "consumer_checkpoint_not_advanced",
      'await conn.execute("UPDATE public.x02_checkpoint SET seq=$1 WHERE id=1", rows[-1]["seq"])',
      "pass", PREFIX + "test_consumer_continues_without_conductor"),
+    (FIXTURE, "background_fixture_failure_hidden", "if failures and not self.reported_failure:",
+     "if False:", PREFIX + "test_background_fixture_failure_surfaces_after_cleanup"),
 ]
 
 
