@@ -233,3 +233,26 @@ def test_non_self_table_keeps_input_order(api, scratch_conn, monkeypatch):
             assert result["inserted"] == 2
             assert [r["id"] for r in attempts] == [str(first), str(second)]
     run(case())
+
+
+@pytest.mark.parametrize("duplicate", ["payload", "existing"])
+def test_skipped_duplicate_does_not_validate_its_unused_reference(api, scratch_conn, monkeypatch, duplicate):
+    async def case():
+        async with case_context(api, scratch_conn, monkeypatch) as (conn, attempts, import_rows):
+            parent, child, absent = uuid4(), uuid4(), uuid4()
+            if duplicate == "existing":
+                await conn.execute("INSERT INTO transfer_nodes(id,project,marker) VALUES($1,'audit','first')", parent)
+                rows = [row(child, parent), row(parent, absent, marker="second")]
+            else:
+                rows = [row(child, parent), row(parent, marker="first"), row(parent, absent, marker="second")]
+            error, result = None, None
+            try:
+                result = await import_rows(rows, allow_existing=(duplicate == "existing"))
+            except (asyncpg.PostgresError, api.HTTPException) as caught:
+                error = type(caught).__name__
+            assert error is None, f"reference of skipped duplicate was evaluated: {error}"
+            assert result["inserted"] == (1 if duplicate == "existing" else 2)
+            assert result["skipped"] == 1
+            assert await conn.fetchval("SELECT marker FROM transfer_nodes WHERE id=$1", parent) == "first"
+            assert await conn.fetchval("SELECT parent_id FROM transfer_nodes WHERE id=$1", child) == parent
+    run(case())
