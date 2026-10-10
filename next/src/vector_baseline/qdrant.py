@@ -377,7 +377,7 @@ async def upload(client, c):
 def verify_import(c, sample, response, info, distance):
     try:
         collection = info['result']
-        vectors = collection['config']['vectors']
+        vectors = collection['config']['params']['vectors']
         hnsw = collection['config']['hnsw_config']
         schema = collection['payload_schema']
         if (vectors['size'] != c.identity['dimension'] or vectors['distance'] != distance

@@ -105,6 +105,8 @@ MUTATIONS = [
      '        result = not_run(c, cell, engine, selected, "qdrant-import-parity-mismatch", frozen_input_sha256)',
      '        result = {"diagnostic": {"verdict": "FAIL"}}',
      R+'test_import_parity_refusal_writes_not_run_and_never_times_queries', 1),
+    ('qdrant.py', 'flat-native-config-assumed', "vectors = collection['config']['params']['vectors']",
+     "vectors = collection['config']['vectors']", R+'test_observed_qdrant_params_config_shape_is_admitted', 1),
 ]
 
 CHILD = r'''
