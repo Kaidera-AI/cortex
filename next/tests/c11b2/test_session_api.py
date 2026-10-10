@@ -131,3 +131,14 @@ class SessionAPI(Fixture):
         after = tuple(self.admin.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
                       for table in tables)
         self.assertEqual(after, before)
+
+    def test_valid_iso_offsets_and_fractions_are_preserved(self):
+        for number, timestamp in enumerate(('2026-10-10T20:14:00Z',
+                                            '2026-10-10T20:14:00+02:00',
+                                            '2026-10-10T20:14:00.123456-03:30'), 90):
+            body = {'session_uuid': uid(number), 'agent': '10',
+                    'source_path': f'/synthetic/valid-iso-{number}.jsonl',
+                    'provider': 'codex',
+                    'messages': [{'role': 'user', 'content': 'valid', 'ts': timestamp}]}
+            status, result = self.call(body)
+            self.assertEqual((status, result['messages_inserted']), (200, 1))
