@@ -78,6 +78,21 @@ BEGIN
 END;
 $$;
 
+-- A writer receives only its newly captured event identity, never a read capability.
+CREATE FUNCTION coordination.c06_record_event(p_record uuid,p_revision bigint) RETURNS uuid
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE s record; event uuid;
+BEGIN
+    SELECT * INTO STRICT s FROM coordination.c05_scope();
+    SELECT o.event_id INTO event FROM coordination.outbox o
+      WHERE o.installation_id=s.installation_id AND o.tenant_id=s.tenant_id AND o.project_id=s.project_id
+        AND o.aggregate_id=p_record AND o.aggregate_revision=p_revision
+        AND o.xmin::text=pg_current_xact_id()::text;
+    RETURN event;
+END;
+$$;
+
 CREATE FUNCTION coordination.c06_job_snapshot(p_job uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE s record; j record; snapshot jsonb;
@@ -558,6 +573,6 @@ DO $$ DECLARE f record; BEGIN
 END; $$;
 REVOKE CREATE ON SCHEMA coordination FROM "kaidera-runtime-core-verifier";
 REVOKE ALL ON FUNCTION auth.identity_finish(text,text,jsonb,jsonb) FROM PUBLIC,"kaidera-runtime-core-request";
-GRANT EXECUTE ON FUNCTION coordination.c06_bootstrap(),coordination.c06_reserved(),coordination.capture_job(uuid),
+GRANT EXECUTE ON FUNCTION coordination.c06_bootstrap(),coordination.c06_reserved(),coordination.capture_job(uuid),coordination.c06_record_event(uuid,bigint),
   coordination.publish_outbox(integer),coordination.outbox_page(bigint,integer),coordination.prune_outbox()
   TO "kaidera-runtime-core-request";

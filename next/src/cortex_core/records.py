@@ -177,10 +177,9 @@ class Records:
                             (record_id,int(expected),revision,tombstone))
                     _append_revision(self.connection,scope,record_id,revision,payload_id,tombstone)
                     data = dict(record_id=str(record_id),revision=revision,tombstone=tombstone,payload_sha256=payload_digest)
-                    event = self.connection.execute('''SELECT event_id FROM coordination.outbox
-                        WHERE tenant_id=%s AND project_id=%s AND aggregate_id=%s AND aggregate_revision=%s''',
-                        (*_scope(scope),record_id,revision)).fetchone()
-                    if event is None:
+                    event = _private(self.connection,'SELECT coordination.c06_record_event(%s,%s)',
+                        (record_id,revision)).fetchone()
+                    if event is None or event[0] is None:
                         raise RecordError('core_unavailable')
                     data['event_id'] = str(event[0])
                     data['request_json'] = request_json

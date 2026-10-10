@@ -45,6 +45,7 @@ MATRICES = {
     'identity': (NEXT/'contracts/outbox-identity-fault-recipes.json', ('auth_identity','auth_identity_guards','identity_coordination','identity_portability','identity_receipts','identity_transition','identity_policy_faults','identity_binding')),
     'adapters': (NEXT/'contracts/outbox-adapters-fault-recipes.json', ('records','coordination','core_adapters','acceptance_guards')),
     'c05': (NEXT/'contracts/outbox-c05-fault-recipes.json', ('c05_review','c05_private')),
+    'write_only': (NEXT/'contracts/outbox-write-only-fault-recipes.json', ('outbox_write_only',)),
 }
 
 
