@@ -131,3 +131,47 @@ class ReportTests(unittest.TestCase):
         result = self.summarize(run)
         self.assertEqual(result["diagnostic"]["warmup_errors"], 1)
         self.assertEqual(result["diagnostic"]["verdict"], "FAIL")
+
+
+    def test_omitted_heldout_query_is_explicit_not_run(self):
+        result = self.surface().summarize(fixture(), latency_budget_ms=100,
+                                         bindings={"dataset": "synthetic", "heldout_query_ids": ["q", "omitted"]})
+        self.assertEqual(result["diagnostic"]["recall_status"], "NOT_RUN")
+        self.assertEqual(result["diagnostic"]["missing_heldout_queries"], ["omitted"])
+        self.assertEqual(result["diagnostic"]["verdict"], "NOT_RUN")
+
+    def test_interrupt_is_named_in_saved_fail_receipt_and_propagates(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        import tempfile
+        import json
+        benchmark = self.surface("benchmark")
+        class Stack:
+            cleanup_verified = False
+            password = "synthetic-secret"
+            lock = object()
+            connection = None
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                self.cleanup_verified = True
+                self.password = self.lock = None
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "heldout.jsonl").write_text(json.dumps({"id": "q", "stratum": "scope", "mode": "dense", "status": "READY"}) + "\n")
+            (root / "query-manifest.json").write_text(json.dumps({"corpus_manifest": "hash", "queries": {"heldout": "hash"}}))
+            c = SimpleNamespace(path=root, manifest={"dataset": "synthetic"}, identity={})
+            output = root / "result.json"
+            with patch.object(benchmark.corpus, "load", return_value=c), \
+                    patch.object(benchmark.corpus, "digest", return_value="hash"), \
+                    patch.object(benchmark.oracle, "rank", return_value={}), \
+                    patch.object(benchmark.postgres, "DisposablePostgres", Stack), \
+                    patch.object(benchmark.postgres, "install", side_effect=KeyboardInterrupt):
+                with self.assertRaises(KeyboardInterrupt):
+                    benchmark.execute(root, output, duration=1, warmup=0)
+            receipt = json.loads(output.read_text())
+            self.assertEqual(receipt["runner_error_class"], "KeyboardInterrupt")
+            self.assertEqual(receipt["diagnostic"]["verdict"], "FAIL")
+            self.assertTrue(receipt["cleanup_verified"])
+            self.assertTrue(receipt["credential_discarded"])
+            self.assertTrue(receipt["lock_released"])

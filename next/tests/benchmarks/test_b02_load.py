@@ -184,3 +184,59 @@ class LoadTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(run["records"]), 48)
         self.assertTrue(all(r["status"] == "OK" for r in run["records"]))
         self.assertGreaterEqual(len(run["observations"]), 3)
+
+
+    async def test_owned_stats_timeout_kills_and_reaps_actual_child(self):
+        from vector_baseline import benchmark
+        from unittest.mock import patch
+        import sys
+        import time
+        process = await asyncio.create_subprocess_exec(sys.executable, "-c", "import time; time.sleep(60)",
+                                                       stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        class Stack:
+            lifecycle = "fixture"
+            def owned_resource(self, kind):
+                return "owned-fixture-id"
+        async def spawn(*args, **kwargs):
+            return process
+        try:
+            with patch.object(benchmark, "OBSERVATION_TIMEOUT_SECONDS", .025, create=True), \
+                    patch.object(benchmark.asyncio, "create_subprocess_exec", spawn):
+                started = time.monotonic()
+                with self.assertRaises(TimeoutError):
+                    await asyncio.wait_for(benchmark.observe_owned(Stack()), .2)
+                elapsed = time.monotonic() - started
+            self.assertLess(elapsed, .15, "observer did not enforce its own deadline")
+            self.assertIsNotNone(process.returncode, "owned stats child was not reaped")
+        finally:
+            if process.returncode is None:
+                process.kill()
+            await process.wait()
+
+    async def test_owned_stats_cancellation_kills_and_reaps_actual_child(self):
+        from vector_baseline import benchmark
+        from unittest.mock import patch
+        import sys
+        process = await asyncio.create_subprocess_exec(sys.executable, "-c", "import time; time.sleep(60)",
+                                                       stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        entered = asyncio.Event()
+        class Stack:
+            lifecycle = "fixture"
+            def owned_resource(self, kind):
+                return "owned-fixture-id"
+        async def spawn(*args, **kwargs):
+            entered.set()
+            return process
+        try:
+            with patch.object(benchmark.asyncio, "create_subprocess_exec", spawn):
+                task = asyncio.create_task(benchmark.observe_owned(Stack()))
+                await entered.wait()
+                await asyncio.sleep(.01)
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+            self.assertIsNotNone(process.returncode, "cancelled owned stats child was not reaped")
+        finally:
+            if process.returncode is None:
+                process.kill()
+            await process.wait()
