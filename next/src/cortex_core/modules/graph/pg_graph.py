@@ -13,6 +13,8 @@ from uuid import UUID, uuid4, uuid5
 
 import asyncpg
 from cortex_core.embeddings.pg_search import CapabilityUnavailable, PostgresSearch, Scope
+from cortex_core.embeddings.pg_search import CoreUnavailable
+from cortex_core.embeddings.projection_revision import ProjectionRevision, finish_observation, validate_target
 
 HIGH = ("concept", "epic", "service", "project", "product", "work_product")
 LOW = ("file", "tool", "endpoint", "table", "branch", "model", "agent")
@@ -147,6 +149,58 @@ class PostgresGraph:
         self.identity = text(extractor_identity, 512)
         self.source_reader, self.extractor, self.fact_sink = source_reader, extractor, fact_sink
         self.enqueue_job, self.read_job, self.build_executor = enqueue_job, read_job, build_executor
+
+    async def projection_revision(self, subject, target, generation, *, recheck, project=None):
+        """Observe the active graph receipt, including a valid empty fact."""
+        record_id, required = validate_target(target, recheck)
+        if not isinstance(generation, UUID):
+            raise ValueError('An explicit graph generation is required')
+        observation = lambda state, indexed=None, reason='': ProjectionRevision(
+            state, record_id, required, indexed, self.identity, generation, reason)
+        try:
+            async with self._tx(subject, 'read', project) as (conn, scope):
+                current = await conn.fetchrow(
+                    'SELECT current_revision,tombstone,kind FROM core.records '
+                    'WHERE tenant_id=$1 AND project_id=$2 AND id=$3',
+                    scope.tenant_id, scope.project_id, record_id)
+                state = await conn.fetchrow(
+                    '''SELECT s.active_generation,s.state,g.extractor_identity
+                         FROM retrieval.graph_state s JOIN retrieval.graph_generations g
+                           ON (g.tenant_id,g.project_id,g.id)=(s.tenant_id,s.project_id,s.active_generation)
+                        WHERE s.tenant_id=$1 AND s.project_id=$2''', scope.tenant_id, scope.project_id)
+                if current is None:
+                    result = observation('unavailable', reason='target_unavailable')
+                elif current['tombstone']:
+                    result = observation('unavailable', reason='tombstone')
+                elif current['kind'] not in KINDS:
+                    result = observation('unavailable', reason='unsupported_kind')
+                elif state is None:
+                    result = observation('unavailable', reason='not_configured')
+                elif state['active_generation'] != generation or state['extractor_identity'] != self.identity:
+                    result = observation('unavailable', reason='identity_mismatch')
+                elif state['state'] != 'ready':
+                    result = observation('unavailable', reason=state['state'])
+                else:
+                    row = await conn.fetchrow(
+                        '''SELECT a.source_revision AS indexed_revision,a.source_kind,
+                                  f.record_id AS fact_record_id,f.source_revision AS fact_revision,f.extractor_identity
+                             FROM retrieval.graph_applied a JOIN core.extraction_facts f
+                               ON (f.tenant_id,f.project_id,f.id)=(a.tenant_id,a.project_id,a.fact_id)
+                            WHERE a.tenant_id=$1 AND a.project_id=$2 AND a.generation=$3 AND a.record_id=$4''',
+                        scope.tenant_id, scope.project_id, generation, record_id)
+                    indexed = row['indexed_revision'] if row is not None else None
+                    visible = (indexed is not None and indexed >= required
+                               and indexed == current['current_revision']
+                               and row['source_kind'] == current['kind']
+                               and row['fact_record_id'] == record_id and row['fact_revision'] == indexed
+                               and row['extractor_identity'] == self.identity)
+                    result = observation('visible' if visible else 'pending', indexed,
+                                         '' if visible else 'index_pending')
+        except CoreUnavailable:
+            return observation('unavailable', reason='core_unavailable')
+        except GraphUnavailable:
+            return observation('unavailable', reason='projection_unavailable')
+        return await finish_observation(recheck, subject, scope, result)
 
     @asynccontextmanager
     async def _tx(self, subject, operation="read", project=None):
