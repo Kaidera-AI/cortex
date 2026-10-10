@@ -19,6 +19,7 @@ import tempfile
 _DIGEST = re.compile(r'^[0-9a-f]{64}$')
 _MODULE_DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
 _VERSION = re.compile(r'^v(\d+)\.(\d+)\.(\d+)$')
+_UNSET = object()
 _MANIFEST_FIELDS = frozenset({'format', 'release', 'edition', 'platform',
                               'schema_version', 'event_version', 'modules'})
 _POLICY_FIELDS = frozenset({'trusted_key_sha256', 'old_release', 'new_release',
@@ -157,15 +158,26 @@ def admit_signed_pair(policy, old_manifest, old_signature,
     """Verify exact signed bytes and table compatibility before touching Core."""
     _policy(policy)
     try:
-        key_digest = hashlib.sha256(Path(trusted_public_key).read_bytes()).hexdigest()
+        key_bytes = Path(trusted_public_key).read_bytes()
     except OSError:
         raise UpgradeRefusal('untrusted_key') from None
-    if key_digest != policy['trusted_key_sha256']:
+    if hashlib.sha256(key_bytes).hexdigest() != policy['trusted_key_sha256']:
         raise UpgradeRefusal('untrusted_key')
-    old = _manifest(_verified_bytes(old_manifest, old_signature, trusted_public_key,
-                                    policy['old_manifest_sha256']))
-    new = _manifest(_verified_bytes(new_manifest, new_signature, trusted_public_key,
-                                    policy['new_manifest_sha256']))
+    try:
+        with tempfile.TemporaryDirectory(prefix='cortex-upgrade-key-') as temporary:
+            os.chmod(temporary, 0o700)
+            stable_key = Path(temporary) / 'trusted.pub'
+            descriptor = os.open(stable_key, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, 'wb') as output:
+                output.write(key_bytes)
+                output.flush()
+                os.fsync(output.fileno())
+            old = _manifest(_verified_bytes(old_manifest, old_signature, stable_key,
+                                            policy['old_manifest_sha256']))
+            new = _manifest(_verified_bytes(new_manifest, new_signature, stable_key,
+                                            policy['new_manifest_sha256']))
+    except OSError:
+        raise UpgradeRefusal('signature_unavailable') from None
     if (old['release'] != policy['old_release']
         or new['release'] != policy['new_release']):
         raise UpgradeRefusal('unknown_release')
@@ -227,12 +239,14 @@ class UpgradeCoordinator:
         if state is not None:
             if state['phase'] != 'prepared':
                 raise UpgradeRefusal('fix_forward_only' if state['phase'] == 'accepted'
+                                     else 'rollback_in_progress' if state['phase'] == 'rolling_back'
                                      else 'already_rolled_back')
             return
+        self.ports.fence_old()
         if self.ports.verified_backup() is not True:
             raise UpgradeRefusal('backup_unverified')
-        self.ports.fence_old()
-        self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': ()})
+        self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': ()},
+                        expected=None)
 
     def advance(self):
         state = self._state()
@@ -245,7 +259,8 @@ class UpgradeCoordinator:
         if tuple(state['steps']) != applied:
             if tuple(state['steps']) != applied[:len(state['steps'])]:
                 raise UpgradeRefusal('migration_ledger_diverged')
-            self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': applied})
+            self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': applied},
+                            expected=state)
             return applied[-1] if applied else None
         if len(applied) == len(steps):
             return None
@@ -254,13 +269,16 @@ class UpgradeCoordinator:
         after = tuple(self.ports.applied_steps())
         if after != steps[:len(applied) + 1]:
             raise UpgradeRefusal('migration_ledger_diverged')
-        self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': after})
+        self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': after},
+                        expected=state)
         return step
 
     def accept(self):
         state = self._state()
         if state is None or state['phase'] != 'prepared':
-            raise UpgradeRefusal('not_prepared')
+            raise UpgradeRefusal('rollback_in_progress' if state and state['phase'] == 'rolling_back'
+                                 else 'fix_forward_only' if state and state['phase'] == 'accepted'
+                                 else 'not_prepared')
         if tuple(self.ports.applied_steps()) != self.admission.expand_steps:
             raise UpgradeRefusal('migrations_incomplete')
         if not self.admission.writer_allowed(self.admission.new_release,
@@ -271,16 +289,26 @@ class UpgradeCoordinator:
         # This durable journal write is the fixed acceptance point. After it,
         # only forward repair is permitted, even if activation later fails.
         self.ports.save({'pair': self.pair, 'phase': 'accepted',
-                         'steps': self.admission.expand_steps})
+                         'steps': self.admission.expand_steps}, expected=state)
 
     def rollback(self):
         state = self._state()
-        if state is None or state['phase'] != 'prepared':
-            raise UpgradeRefusal('fix_forward_only' if state and state['phase'] == 'accepted'
-                                 else 'not_prepared')
+        if state is None:
+            raise UpgradeRefusal('not_prepared')
+        if state['phase'] == 'accepted':
+            raise UpgradeRefusal('fix_forward_only')
+        if state['phase'] == 'rolled_back':
+            raise UpgradeRefusal('already_rolled_back')
+        if state['phase'] == 'prepared':
+            self.ports.save({'pair': self.pair, 'phase': 'rolling_back',
+                             'steps': tuple(state['steps'])}, expected=state)
+            state = self._state()
+        if state['phase'] != 'rolling_back':
+            raise UpgradeRefusal('invalid_journal_transition')
         self.ports.fence_new()
         self.ports.restore()
-        self.ports.save({'pair': self.pair, 'phase': 'rolled_back', 'steps': ()})
+        self.ports.save({'pair': self.pair, 'phase': 'rolled_back',
+                         'steps': tuple(state['steps'])}, expected=state)
 
 
 class AtomicUpgradeJournal:
@@ -300,7 +328,7 @@ class AtomicUpgradeJournal:
             or len(value['pair']) != 2
             or any(not isinstance(v, str) or not _DIGEST.fullmatch(v)
                    for v in value['pair'])
-            or value['phase'] not in ('prepared', 'accepted', 'rolled_back')
+            or value['phase'] not in ('prepared', 'accepted', 'rolling_back', 'rolled_back')
             or not isinstance(value['steps'], (tuple, list))
             or any(not isinstance(v, str) or not v for v in value['steps'])):
             raise UpgradeRefusal('invalid_journal')
@@ -315,15 +343,25 @@ class AtomicUpgradeJournal:
         except (ValueError, UnicodeError, OSError):
             raise UpgradeRefusal('invalid_journal') from None
 
-    def save(self, state):
+    def save(self, state, *, expected=_UNSET):
         state = self._normal(state)
+        if expected is not _UNSET and expected is not None:
+            expected = self._normal(expected)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         lock_path = self.path.with_name(self.path.name + '.lock')
         with lock_path.open('a+b') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             previous = self.load()
+            if expected is not _UNSET and previous != expected:
+                if previous is not None and previous['phase'] == 'accepted':
+                    raise UpgradeRefusal('fix_forward_only')
+                if previous is not None and previous['phase'] == 'rolling_back':
+                    raise UpgradeRefusal('rollback_in_progress')
+                if previous is not None and previous['phase'] == 'rolled_back':
+                    raise UpgradeRefusal('already_rolled_back')
+                raise UpgradeRefusal('journal_conflict')
             if previous is None:
-                if state['phase'] != 'prepared':
+                if state['phase'] != 'prepared' or state['steps']:
                     raise UpgradeRefusal('invalid_journal_transition')
             else:
                 if previous['pair'] != state['pair']:
@@ -332,8 +370,18 @@ class AtomicUpgradeJournal:
                     raise UpgradeRefusal('fix_forward_only')
                 if previous['phase'] == 'rolled_back':
                     raise UpgradeRefusal('already_rolled_back')
-                if state['steps'][:len(previous['steps'])] != previous['steps']:
-                    raise UpgradeRefusal('migration_ledger_diverged')
+                if previous['phase'] == 'rolling_back':
+                    if (state['phase'] not in ('rolling_back', 'rolled_back')
+                            or state['steps'] != previous['steps']):
+                        raise UpgradeRefusal('rollback_in_progress')
+                elif state['phase'] in ('prepared', 'accepted'):
+                    if state['steps'][:len(previous['steps'])] != previous['steps']:
+                        raise UpgradeRefusal('migration_ledger_diverged')
+                elif state['phase'] == 'rolling_back':
+                    if state['steps'] != previous['steps']:
+                        raise UpgradeRefusal('migration_ledger_diverged')
+                else:
+                    raise UpgradeRefusal('invalid_journal_transition')
             raw = json.dumps(state, sort_keys=True, separators=(',', ':')).encode()
             name = None
             try:

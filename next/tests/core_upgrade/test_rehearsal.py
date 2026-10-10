@@ -10,7 +10,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'schema'))
 import test_schema
 from cortex_core.migrations import apply_migrations
-from cortex_core.upgrade import UpgradeCoordinator
+from cortex_core.upgrade import AtomicUpgradeJournal, UpgradeCoordinator
 
 
 class Rehearsal(unittest.TestCase):
@@ -67,17 +67,19 @@ class Rehearsal(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest))
 
             class Ports:
-                state = None
                 applied_once = []
                 fail_after = None
                 restored = False
+                def __init__(port):
+                    port.journal = AtomicUpgradeJournal(Path(temporary)/'upgrade.json')
                 def verified_backup(port): return True
                 def fence_old(port): pass
                 def fence_new(port): pass
                 def restore(port): port.restored = True
                 def validate_preservation(port): return self.snapshot() == before
-                def load(port): return port.state
-                def save(port, state): port.state = state
+                def load(port): return port.journal.load()
+                def save(port, state, *, expected):
+                    port.journal.save(state, expected=expected)
                 def applied_steps(port):
                     rows = self.db.execute("SELECT migration_id FROM core.schema_migrations WHERE migration_id IN (%s,%s)", steps).fetchall()
                     return tuple(step for step in steps if (step,) in rows)
@@ -105,11 +107,78 @@ class Rehearsal(unittest.TestCase):
             self.assertEqual(ports.applied_once, list(steps))
             self.assertEqual(ports.applied_steps(), steps)
             upgrade.accept()
-            self.assertEqual(ports.state['phase'], 'accepted')
+            self.assertEqual(ports.load()['phase'], 'accepted')
             with self.assertRaisesRegex(ValueError, 'fix_forward_only'):
                 UpgradeCoordinator(admission, ports).rollback()
             self.assertFalse(ports.restored)
             self.assertEqual(self.snapshot(), before)
+
+    def test_real_pg_rollback_after_every_expand_prefix(self):
+        self.seed()
+        before = self.snapshot()
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)/'schema'
+            shutil.copytree(test_schema.NEXT/'schema', directory)
+            manifest_path = directory/'manifest.json'
+            manifest = json.loads(manifest_path.read_text())
+            steps = ('core-upgrade-rollback-0001', 'core-upgrade-rollback-0002')
+            sqls = ('CREATE TABLE core.upgrade_rollback_probe(id integer PRIMARY KEY);\n',
+                    'ALTER TABLE core.upgrade_rollback_probe ADD COLUMN note text;\n')
+            for step, sql in zip(steps, sqls):
+                filename = step+'.sql'
+                data = sql.encode()
+                (directory/filename).write_bytes(data)
+                manifest['migrations'].append({'id':step, 'file':filename,
+                                               'sha256':hashlib.sha256(data).hexdigest()})
+            manifest_path.write_text(json.dumps(manifest))
+
+            for prefix in range(3):
+                with self.subTest(prefix=prefix):
+                    class Ports:
+                        fenced = False
+                        def __init__(port):
+                            port.journal = AtomicUpgradeJournal(
+                                Path(temporary)/f'rollback-{prefix}.json')
+                        def load(port): return port.journal.load()
+                        def save(port, state, *, expected):
+                            port.journal.save(state, expected=expected)
+                        def fence_old(port): port.fenced = True
+                        def verified_backup(port):
+                            self.assertTrue(port.fenced)
+                            self.assertEqual(self.snapshot(), before)
+                            return True
+                        def applied_steps(port):
+                            rows = self.db.execute(
+                                'SELECT migration_id FROM core.schema_migrations '
+                                'WHERE migration_id IN (%s,%s)', steps).fetchall()
+                            return tuple(step for step in steps if (step,) in rows)
+                        def apply(port, *, through):
+                            apply_migrations(self.db, directory, through=through)
+                        def fence_new(port):
+                            self.assertEqual(port.load()['phase'], 'rolling_back')
+                        def restore(port):
+                            self.assertEqual(port.load()['phase'], 'rolling_back')
+                            self.db.execute('DROP TABLE IF EXISTS core.upgrade_rollback_probe')
+                            for step in steps:
+                                self.db.execute('DELETE FROM core.schema_migrations '
+                                                'WHERE migration_id=%s', (step,))
+                            self.assertEqual(self.snapshot(), before)
+                    admission = type('Admission', (), {
+                        'old_manifest_sha256':'1'*64, 'new_manifest_sha256':'2'*64,
+                        'old_release':'v0.1.003', 'new_release':'v0.1.020',
+                        'old_schema':1, 'new_schema':2, 'expand_steps':steps,
+                        'writer_allowed':lambda _self, release, schema: release == 'v0.1.020' and schema == 2,
+                    })()
+                    ports = Ports()
+                    upgrade = UpgradeCoordinator(admission, ports)
+                    upgrade.prepare()
+                    for step in steps[:prefix]:
+                        self.assertEqual(upgrade.advance(), step)
+                    upgrade.rollback()
+                    self.assertEqual(ports.load()['phase'], 'rolled_back')
+                    self.assertEqual(ports.load()['steps'], steps[:prefix])
+                    self.assertEqual(ports.applied_steps(), ())
+                    self.assertEqual(self.snapshot(), before)
 
 
 if __name__ == '__main__':

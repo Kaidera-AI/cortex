@@ -2,14 +2,17 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
 import types
 
 
-SOURCE = (Path(__file__).resolve().parents[2] / 'src/cortex_core/upgrade.py').read_text()
+SOURCE = Path(os.environ.get('CORE_UPGRADE_TEST_SOURCE',
+    Path(__file__).resolve().parents[2] / 'src/cortex_core/upgrade.py')).read_text()
 module = types.ModuleType("vera_pr83_exact_upgrade_key")
 sys.modules[module.__name__] = module
 exec(compile(SOURCE, "exact-head-upgrade.py", "exec"), module.__dict__)
@@ -58,10 +61,16 @@ with tempfile.TemporaryDirectory() as temporary:
         "writers": [["v0.1.003", 1], ["v0.1.020", 2]],
     }
     swapped = False
+    pinned_key_bytes = trusted.read_bytes()
 
     def swap_before_verify(command, **kwargs):
         global swapped
         if command[:2] == ["minisign", "-V"] and not swapped:
+            stable_key = Path(command[command.index("-p") + 1])
+            assert stable_key != trusted
+            assert stable_key.read_bytes() == pinned_key_bytes
+            assert stat.S_IMODE(os.stat(stable_key).st_mode) == 0o600
+            assert stat.S_IMODE(os.stat(stable_key.parent).st_mode) == 0o700
             trusted.write_bytes(attacker.read_bytes())
             swapped = True
         return real_run(command, **kwargs)

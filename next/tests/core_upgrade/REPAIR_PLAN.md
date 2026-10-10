@@ -22,6 +22,13 @@ installer-owned backup/fence/restore are separate gates.
    GREEN, named mutants for key, ordering, rollback and acceptance, and exact
    host plus disposable-PG qualifications. Retain raw outputs and cleanup.
 
+The frozen Vera acceptance interleaving expected an acceptance during
+`fence_new()`. That schedule is forbidden by Kai's newer requirement to
+durably mark `rolling_back` *before* any rollback side effect. Preserve the
+original RED commit as evidence; replace its one race expectation with two
+strict orderings: acceptance before the marker blocks restore, and marker
+before acceptance blocks acceptance. Add crash/re-entry in the marked state.
+
 Risks: the acceptance/rollback race can cause data loss; the backup boundary
 can omit an acknowledged write; a key path race can subvert admission. No
 host upgrade, released artifact execution, or mainline merge is authorized.

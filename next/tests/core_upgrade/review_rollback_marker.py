@@ -1,5 +1,6 @@
 """Exact-head source control for upgrade rollback and acceptance marker."""
 
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -8,7 +9,8 @@ import types
 import unittest
 
 
-SOURCE = (Path(__file__).resolve().parents[2] / 'src/cortex_core/upgrade.py').read_text()
+SOURCE = Path(os.environ.get('CORE_UPGRADE_TEST_SOURCE',
+    Path(__file__).resolve().parents[2] / 'src/cortex_core/upgrade.py')).read_text()
 module = types.ModuleType("vera_pr83_exact_upgrade")
 sys.modules[module.__name__] = module
 exec(compile(SOURCE, "exact-head-upgrade.py", "exec"), module.__dict__)
@@ -24,8 +26,8 @@ class Ports:
     def load(self):
         return self.journal.load()
 
-    def save(self, value):
-        self.journal.save(value)
+    def save(self, value, *, expected):
+        self.journal.save(value, expected=expected)
 
     def verified_backup(self):
         return True
@@ -102,19 +104,59 @@ class RollbackMarker(unittest.TestCase):
             self.assertIsNone(error, f"restore ran, but journal rejected rollback: {error}")
             self.assertEqual(ports.load()["phase"], "rolled_back")
 
-    def test_accepted_marker_prevents_interleaved_restore(self):
+    def test_rolling_back_marker_prevents_interleaved_acceptance(self):
         with tempfile.TemporaryDirectory() as temporary:
             ports = Ports(module.AtomicUpgradeJournal(Path(temporary) / "upgrade.json"))
             upgrade = coordinator(ports)
             upgrade.prepare()
             self.assertEqual(upgrade.advance(), "expand-1")
-            ports.fence_new_hook = lambda: coordinator(ports).accept()
+            def attempted_acceptance():
+                with self.assertRaises(module.UpgradeRefusal) as seen:
+                    coordinator(ports).accept()
+                self.assertEqual(seen.exception.code, "rollback_in_progress")
+            ports.fence_new_hook = attempted_acceptance
+            upgrade.rollback()
+            self.assertEqual(ports.load()["phase"], "rolled_back")
+            self.assertEqual(ports.restore_calls, 1)
+
+    def test_accepted_marker_wins_before_rollback_transition(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            class AcceptBeforeMarker(Ports):
+                injected = False
+                def save(self, value, *, expected):
+                    if value['phase'] == 'rolling_back' and not self.injected:
+                        self.injected = True
+                        coordinator(self).accept()
+                    super().save(value, expected=expected)
+            ports = AcceptBeforeMarker(module.AtomicUpgradeJournal(Path(temporary) / "upgrade.json"))
+            upgrade = coordinator(ports)
+            upgrade.prepare()
+            self.assertEqual(upgrade.advance(), "expand-1")
             with self.assertRaises(module.UpgradeRefusal) as seen:
                 upgrade.rollback()
             self.assertEqual(seen.exception.code, "fix_forward_only")
             self.assertEqual(ports.load()["phase"], "accepted")
-            self.assertEqual(ports.restore_calls, 0,
-                             "restore ran after another coordinator durably accepted")
+            self.assertEqual(ports.restore_calls, 0)
+
+    def test_crash_during_restore_resumes_rolling_back(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            class InterruptedRestore(Ports):
+                fail_once = True
+                def restore(self):
+                    self.restore_calls += 1
+                    if self.fail_once:
+                        self.fail_once = False
+                        raise InterruptedError('restore interrupted')
+            ports = InterruptedRestore(module.AtomicUpgradeJournal(Path(temporary) / "upgrade.json"))
+            upgrade = coordinator(ports)
+            upgrade.prepare()
+            self.assertEqual(upgrade.advance(), "expand-1")
+            with self.assertRaises(InterruptedError):
+                upgrade.rollback()
+            self.assertEqual(ports.load()["phase"], "rolling_back")
+            coordinator(ports).rollback()
+            self.assertEqual(ports.load()["phase"], "rolled_back")
+            self.assertEqual(ports.restore_calls, 2)
 
 
 if __name__ == "__main__":

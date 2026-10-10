@@ -42,7 +42,9 @@ class FakePorts:
     def load(self):
         return self.state
 
-    def save(self, state):
+    def save(self, state, *, expected=None):
+        if self.state != expected:
+            raise ValueError('journal_conflict')
         self.state = state
 
 
@@ -69,7 +71,7 @@ class CoordinatorTests(unittest.TestCase):
     def test_interruption_after_each_step_reenters_without_duplicate_work(self):
         c = self.coordinator()
         c.prepare()
-        self.assertEqual(self.ports.calls[:2], ['backup', 'fence_old'])
+        self.assertEqual(self.ports.calls[:2], ['fence_old', 'backup'])
         for step in self.admission.expand_steps:
             self.ports.fail_after = step
             with self.assertRaises(InterruptedError):
