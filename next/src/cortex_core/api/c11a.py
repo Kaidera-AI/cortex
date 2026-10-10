@@ -162,7 +162,8 @@ class ConsumerGateway:
     """Fail-closed ASGI adapter around explicit Core and module ports."""
 
     def __init__(self, *, core_probe, principal_resolver, permission_recheck,
-                 capability_source, health, handlers):
+                 capability_source, health, handlers, record_reader=None,
+                 allow_legacy_idempotency=False):
         if (any(not callable(value) for value in (core_probe, principal_resolver,
                                                    permission_recheck, capability_source, health))
                 or not isinstance(handlers, dict)
@@ -172,6 +173,8 @@ class ConsumerGateway:
         self.core_probe, self.principal_resolver = core_probe, principal_resolver
         self.permission_recheck, self.capability_source = permission_recheck, capability_source
         self.health, self.handlers = health, handlers
+        self.record_reader = record_reader
+        self.allow_legacy_idempotency = allow_legacy_idempotency
         self.app = self._app
 
     async def _app(self, scope, receive, send):
