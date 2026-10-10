@@ -42,3 +42,7 @@ Before/after receipts must prove: actual mutation+outbox commit/rollback couplin
 **Door:** one-way when forward migration/events/pruning are applied. **Blast radius:** outbox. Revert source before admission; repair accepted data forward. Live writers/HTTP ACK, issuer/adoption, real released donor, native x86/install/signing/release stay HELD. No source plan closes a finding or approves its own work.
 
 **Gate boundary:** build the accepted existing-Core fact/alias representation, locked journal and bounded retention as one C06 day. No further Jev use or key provisioning. Vera PR41/45 findings pre-empt; fixes merge forward up the stack, never rebase. Overrun or a scope change returns a short consult to Kai.
+
+## Build amendment — frozen C05 receipt boundary
+
+Actual first PostgreSQL integration at `a969e0b57c96231fe9aeceddd824202ca5a4d791` retained one expected-boundary failure: the frozen C05 contract forbids an `event_id` field on its original `MutationReceipt`. Preserve that base dataclass and the held transport contract exactly; the C06 private port returns additive `EventMutationReceipt(MutationReceipt)` with its committed event ID. No predecessor test or admission claim changes. Receipt `outbox-green-attempt-001.json` remains failed with cleanup verified; this is an API representation adjustment within the accepted capture scope.

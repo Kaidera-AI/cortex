@@ -25,7 +25,12 @@ class MutationReceipt:
     revision: int
     tombstone: bool
     payload_sha256: str
-    event_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class EventMutationReceipt(MutationReceipt):
+    """C06 private receipt extends the frozen C05 eventless transport shape."""
+    event_id: UUID
 
 
 @dataclass(frozen=True)
@@ -94,7 +99,7 @@ def _validate(record_id, revision, key):
 
 
 def _receipt(data):
-    return MutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'],UUID(data['event_id']) if data.get('event_id') else None)
+    return EventMutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'],UUID(data['event_id']) if data.get('event_id') else None)
 
 
 class Records:
