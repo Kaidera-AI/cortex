@@ -3093,12 +3093,12 @@ def configured_schema_migrations_dir() -> Path:
 
     Containerized Kaidera OS mounts ``.agents/data/migrations`` at
     ``/app/migrations``. Unit tests and direct source runs fall back to the
-    repository's ``.agents/data/migrations`` path.
+    repository's ``packages/schema/migrations`` path.
     """
     configured = Path(os.getenv("CORTEX_MIGRATIONS_DIR", "/app/migrations"))
     if configured.exists():
         return configured
-    source_tree = Path(__file__).resolve().parents[1] / "data" / "migrations"
+    source_tree = Path(__file__).resolve().parents[1] / "schema" / "migrations"
     return source_tree
 
 
