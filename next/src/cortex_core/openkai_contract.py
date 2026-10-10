@@ -24,6 +24,29 @@ SDK_ONLY = {
     ('GET', '/sessions/ingested-ids'), ('GET', '/skills'),
     ('POST', '/skills'), ('POST', '/skills/{slug}/bind'),
 }
+RULINGS = {
+    'D1': {'method':'GET', 'path':'/records/{id}',
+           'implementation_state':'ruled_unimplemented',
+           'not_found':404, 'unauthorized':404, 'tombstone':410,
+           'body_fields':['revision','payload_sha256']},
+    'D2': {'method':'POST', 'path':'/search', 'placement':'parameters',
+           'implementation_state':'ruled_unimplemented',
+           'min_revision':'non_negative_integer',
+           'wait_ms':{'default':0,'maximum':10000},
+           'deadline':{'status':503,'code':'capability_unavailable',
+                       'state':'pending'}},
+    'D3': {'status_scope':'read', 'status_binding':'bound_now',
+           'status_paths':['/beat/embeddings/backlog','/degradation',
+                           '/workers/health'],
+           'control_jobs_state':'ruled_unimplemented',
+           'future_control_scope':'owner_admin',
+           'gtm_response':{'status':503,'code':'capability_unavailable',
+                           'state':'unimplemented'}},
+    'D4': {'implementation_state':'ruled_unimplemented',
+           'lag_partial':{'status':503,'code':'capability_unavailable',
+                          'results':'omitted'},
+           'ready_empty':{'status':200,'state':'ready_empty','results':[]}},
+}
 SCOPES = {'public_health', 'project_read', 'project_write', 'operator_read'}
 _SHA = re.compile(r'[0-9a-f]{64}\Z')
 _BEHAVIOR = re.compile(r'B\d{2}\Z')
@@ -117,9 +140,9 @@ def validate_packet(packet, openapi):
             'status': 'pending_cto_signature',
             'pre_signed_path': 'backup_fresh_install_restore'},
               'upgrade_origin_mismatch')
-        _need(packet['unbound_contract_deltas'] == [
-            'authorized_core_record_read_by_id', 'indexed_revision_wait',
-            'standalone_status_control_jobs'], 'unbound_delta_missing')
+        _need(packet['ruled_contract_deltas'] == RULINGS
+              and 'unbound_contract_deltas' not in packet,
+              'ruled_delta_mismatch')
         return len(observed), len(sdk)
     except (KeyError, TypeError, OSError):
         raise ContractRefusal('packet_malformed') from None
@@ -146,10 +169,16 @@ def _write_ack_read(case):
     receipt = ack['receipt']
     _receipt(receipt, request['request_key'])
     _need(read['status'] == 200 and read['authorized'] is True
-          and read['binding'] == 'UNBOUND_CONTRACT_DELTA'
+          and read['binding'] == 'ruled_unimplemented'
+          and (read['method'], read['path']) == ('GET', '/records/{id}')
           and read['project_id'] == request['project_id']
           and read['record_id'] == receipt['record_id']
-          and read['revision'] == receipt['aggregate_version'],
+          and read['revision'] == receipt['aggregate_version']
+          and read['payload_sha256'] == request['payload_sha256']
+          and read['not_found_status'] == 404
+          and read['unauthorized_status'] == 404
+          and read['tombstone_status'] == 410
+          and read['tombstone_authorized_only'] is True,
           'read_after_write_broken')
 
 
@@ -197,20 +226,23 @@ def _search(case):
               and case['complete'] is False
               and case['freshness'] == 'lagging' and 'results' not in case
               and case['error'] == {'code':'capability_unavailable',
-                                    'retryable':True}, 'lag_as_empty_search')
+                                    'retryable':True,'state':'pending'},
+              'lag_as_empty_search')
     elif state == 'partial':
-        _need(case['status'] is None and case['complete'] is False
-              and case['wire_state'] == 'proposed_unbound'
-              and case['freshness'] == 'lagging'
-              and isinstance(case.get('results'), list)
-              and case['error'] == {'code':'partial_result','retryable':True},
+        _need(type(case['status']) is int and case['status'] == 503
+              and case['complete'] is False
+              and case['wire_state'] == 'ruled_unimplemented'
+              and case['freshness'] == 'lagging' and 'results' not in case
+              and case['error'] == {'code':'capability_unavailable',
+                                    'retryable':True,'state':'partial'},
               'partial_as_complete_search')
     elif state == 'unavailable':
         _need(type(case['status']) is int and case['status'] == 503
               and case['complete'] is False
               and case['freshness'] == 'disabled' and 'results' not in case
               and case['error'] == {'code':'capability_unavailable',
-                                    'retryable':False}, 'unavailable_as_empty_search')
+                                    'retryable':False,'state':'unavailable'},
+              'unavailable_as_empty_search')
     else:
         raise ContractRefusal('unknown_search_state')
 
@@ -265,7 +297,11 @@ def _route_exchange(case):
           'unobserved_route_exchange')
     request, success, error = (case[name] for name in
                                ('request', 'success', 'error'))
-    _need(case['binding'] == 'proposed_new_consumer'
+    status_path = case['path'] in RULINGS['D3']['status_paths']
+    binding = 'ruled_status_read' if status_path else 'proposed_new_consumer'
+    _need(case['binding'] == binding
+          and (case.get('authorization') == 'read' if status_path
+               else 'authorization' not in case)
           and case['runtime_state'] == 'not_executed'
           and request['method'] == case['method']
           and request['path'] == case['path'],
@@ -300,9 +336,17 @@ def _route_exchange(case):
         _receipt(success['body'].get('receipt'), request['idempotency_key'])
     if case['path'] == '/search':
         body = success['body']
-        _need(body.get('results') == [] and body.get('complete') is True
+        parameters = request['body']
+        _need(type(parameters.get('min_revision')) is int
+              and parameters['min_revision'] >= 0
+              and type(parameters.get('wait_ms')) is int
+              and 0 <= parameters['wait_ms'] <= 10000
+              and body.get('results') == [] and body.get('complete') is True
+              and body.get('state') == 'ready_empty'
               and body.get('freshness') == {'state':'current','complete':True}
               and error['body']['error']['code'] == 'capability_unavailable'
+              and error['body']['error'].get('state') == 'pending'
+              and error['status'] == 503
               and 'results' not in error['body'], 'search_exchange_false_empty')
 
 

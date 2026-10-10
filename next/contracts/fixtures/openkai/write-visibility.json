@@ -25,6 +25,7 @@
         "record_id": "00000000-0000-4000-8000-000000000011",
         "revision": 2,
         "status": 200,
+        "tombstone_authorized_only": true,
         "tombstone_status": 410,
         "unauthorized_status": 404
       },
