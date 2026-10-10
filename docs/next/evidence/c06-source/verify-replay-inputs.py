@@ -6,6 +6,17 @@ from pathlib import Path
 import subprocess
 import sys
 wt=Path(sys.argv[1]);
+required_inputs=('run-core-pg.py','replay_lifecycle.py','verify-replay-inputs.py',
+                 'verify-fixture-contract.py','verify-expiry-fixture.py',
+                 'verify-fixture-shapes.py','verify-publication.py','offline-wheel-inputs.json')
+input_sha256={}
+for name in required_inputs:
+ relative='docs/next/evidence/c06-source/'+name
+ local=Path(__file__).with_name(name).read_bytes()
+ mirror=(wt/relative).read_bytes()
+ committed=subprocess.check_output(['git','-C',str(wt),'show','HEAD:'+relative])
+ assert local==mirror==committed,('controller_input_not_git_bound',name)
+ input_sha256[name]=hashlib.sha256(local).hexdigest()
 for script,fixture in [('verify-fixture-contract.py','next/tests/outbox/test_outbox.py'),('verify-expiry-fixture.py','next/tests/outbox_retention/test_outbox_retention.py')]:
  result=subprocess.run([sys.executable,str(Path(__file__).with_name(script)),str(wt/fixture)],capture_output=True,text=True)
  assert result.returncode==0,script+': '+result.stdout
@@ -31,8 +42,13 @@ for filename in ('outbox-fault-recipes.json','outbox-identity-fault-recipes.json
    sources[e['path']]=sources[e['path']].replace(e['before'],e['after'])
 checks['all_fault_anchors']={'passed':True,'recipes':119}
 status=subprocess.check_output(['git','status','--porcelain','--untracked-files=all','--','next'],cwd=wt,text=True)
-checks['product_committed']={'passed':not status,'status':status}
+tracked=set(subprocess.check_output(['git','-C',str(wt),'ls-tree','-r','--name-only','HEAD','next'],text=True).splitlines())
+actual=set(str(p.relative_to(wt)) for p in (wt/'next').rglob('*') if p.is_file())
+source_sha256={name:hashlib.sha256((wt/name).read_bytes()).hexdigest() for name in sorted(actual)}
+checks['product_committed']={'passed':not status and tracked==actual,'status':status,
+                              'tracked':len(tracked),'actual':len(actual)}
 mirror=wt/'docs/next/evidence/c06-source/run-core-pg.py'
 controller=Path(__file__).with_name('run-core-pg.py')
 checks['controller_committed']={'passed':mirror.read_bytes()==controller.read_bytes() and not subprocess.check_output(['git','diff','HEAD','--',str(mirror)],cwd=wt)}
-passed=all(v['passed'] for v in checks.values());print(json.dumps({'passed':passed,'checks':checks}));raise SystemExit(0 if passed else 1)
+passed=all(v['passed'] for v in checks.values());print(json.dumps({'passed':passed,'checks':checks,
+    'controller_input_sha256':input_sha256,'source_sha256':source_sha256}));raise SystemExit(0 if passed else 1)
