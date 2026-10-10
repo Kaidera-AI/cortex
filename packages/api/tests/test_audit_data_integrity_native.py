@@ -1,4 +1,4 @@
-"""Seven source-bound data-integrity regressions on an owned scratch PostgreSQL.
+"""Source-bound data-integrity regressions on an owned scratch PostgreSQL.
 
 Run with CORTEX_AUDIT_PG_DSN pointing at a disposable loopback PostgreSQL server.
 Every test creates and destroys its own database. These are intentionally RED against
@@ -365,6 +365,41 @@ def test_schema_3_001_migration_does_not_rewind_concurrent_message_ids(scratch_c
                 concurrent_id = await second.fetchval("SELECT nextval('public.messages_id_seq')")
             next_id = await second.fetchval("SELECT nextval('public.messages_id_seq')")
             assert next_id > concurrent_id
+        finally:
+            await first.close()
+            await second.close()
+    run(case())
+
+
+def test_schema_3_001_migration_fences_nextval_and_all_existing_ids(scratch_conn):
+    async def case():
+        first = await asyncpg.connect(**scratch_conn)
+        second = await asyncpg.connect(**scratch_conn)
+        try:
+            await first.execute("CREATE SEQUENCE public.messages_id_seq")
+            await first.execute("CREATE TABLE public.messages(id bigint PRIMARY KEY DEFAULT nextval('public.messages_id_seq'))")
+            await first.execute("CREATE TABLE public.archive_messages(id bigint PRIMARY KEY)")
+            await first.execute("INSERT INTO public.messages(id) VALUES(200)")
+            await first.execute("INSERT INTO public.archive_messages(id) VALUES(150)")
+            await first.fetchval("SELECT setval('public.messages_id_seq', 100, true)")
+            source = MIGRATION.read_text()
+            started = asyncio.Event()
+
+            async def concurrent_nextval():
+                started.set()
+                return await second.fetchval("SELECT nextval('public.messages_id_seq')")
+
+            async with first.transaction():
+                await first.execute(source)
+                waiting = asyncio.create_task(concurrent_nextval())
+                await started.wait()
+                await asyncio.sleep(0.1)
+                assert not waiting.done(), "concurrent nextval bypassed the migration's sequence fence"
+            next_id = await asyncio.wait_for(waiting, 2)
+            assert next_id > 200
+            await first.execute(source)
+            rerun_id = await second.fetchval("SELECT nextval('public.messages_id_seq')")
+            assert rerun_id > next_id
         finally:
             await first.close()
             await second.close()
