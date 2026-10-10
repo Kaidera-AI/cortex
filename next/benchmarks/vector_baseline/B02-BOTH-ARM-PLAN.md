@@ -75,3 +75,16 @@ Final checklist reread found omitted marginal coverage, which the accepted plan 
 ### PR50 main-forward integration (Kai12:34)
 
 Merge abbb45af9c91629382fbf0e8ec2f456d4c9735a2 forward without rebase. Preserve PR49's frozen test_postgres_lock.py byte-for-byte and every durable admission method/cleanup body; combine constructor marker state with Nemo labels/preflight state. Admission reconciliation/fsynced marker remains immediately after flock, before creates; Nemo>=35%/exclusive-slot gate runs before creates and again before start. Geometry admission/install/load changes remain. Verify full clean/restored suites and Postgres-touching literal probes, including PR49's5 frozen recipes. Prior c81ea379 live broad FAIL stays historical and visible; no new live benchmark is required by this bounded merge dispatch.
+
+
+### PR50 three-finding rework — Kai13:02/13:48 accepted dispatch
+
+Before implementation, freeze new controls for B02-PR50-001/002/003. Existing assertion statements remain unchanged. Source map stays geometry.py/benchmark.py/qdrant.py plus README/source plan, new test_b02_review_rework.py and literal producer additions. Old fake upload API fixtures may add valid readback/config responses only, without weakening assertions; retain original bytes/context amendments.
+
+001: converter emits a frozen-input record before engine evaluation, binding input/canonical identity, physically disjoint split, counts/order, candidate file hashes, query file hashes and source ID/vector digests. Runtime geometry loading requires the independently retained/reviewed record SHA256 from the caller/admission; it never derives its trusted expected hash from the current artifact. Validate every heldout source ID and canonical float32 vector against the frozen split, and refuse rehashed biased query/manifests or changed counts/order before engine effects. CLI prints the new freeze digest after preparation; geometry benchmarking requires the digest. Native admission carries the reviewed digest in addition to existing custody/hash/host/resize/cost gates.
+
+002: every requested valid unpopulated cell writes an input-bound NOT_RUN row with missing query IDs/reason and zero engine starts. Invalid engine/cell/input remains a refusal. NOT_RUN is not PASS or engine selection.
+
+003: after exact count, read back deterministic first/middle/last point IDs (bounded3), canonical vectors and every payload predicate/generation/ID; verify collection size/metric/HNSW and indexed payload schemas. Cosine engines store normalized vectors: compare to canonical stored-float32 cosine normalization at frozen rtol1e-5/atol1e-6; dot/Euclidean preserve exact float32 values. Reject all mapping/payload/vector/config/index mismatches before timing and emit an explicit import-parity NOT_RUN cell receipt. Count alone cannot qualify import. Preserve partial-write no-retry and cleanup/marker semantics.
+
+Each fix has a named body RED and a literal mutant. Full clean/restored suites plus old/new and Postgres lock probes run under the immutable published fixed-classifier SHA from PR55, as Kai13:48 directs; no unreviewed helper source merge. All prior assertions, old failure/native gates and historical Qdrant broad scheduled-miss FAIL remain. Mike alone re-reviews/closes the three findings. PR39 fixed-classifier reruns wait for PR55 merge as explicitly queued.
