@@ -1,11 +1,14 @@
 """Frozen O01a group-1 controls: a usable backup needs bound continuous WAL."""
 import hashlib
+import io
 import json
 from pathlib import Path
+import subprocess
+import tarfile
 import tempfile
 import unittest
 
-from cortex_core.backup import BackupError, build_manifest
+from cortex_core.backup import BackupError, build_manifest, seal_encrypted_bundle
 
 
 SEGMENT_BYTES = 1 << 20
@@ -77,6 +80,30 @@ class BackupManifestTests(unittest.TestCase):
         self.assertEqual([entry['name'] for entry in result['wal_segments']], names)
         self.assertEqual(result['wal_segments'][1]['sha256'], hashlib.sha256((self.archive / names[1]).read_bytes()).hexdigest())
         self.assertEqual(result['base_files']['backup_label']['sha256'], hashlib.sha256((self.base / 'backup_label').read_bytes()).hexdigest())
+
+    def test_complete_set_is_sealed_with_synthetic_age_key(self):
+        for number in (16, 17, 18):
+            self.put_wal(number)
+        identity = self.root / 'synthetic-age-key'
+        subprocess.run(['age-keygen', '-o', str(identity)], capture_output=True, check=True)
+        recipient = next(line.split(': ', 1)[1] for line in identity.read_text().splitlines()
+                         if line.startswith('# public key: '))
+        target = self.root / 'backup.tar.age'
+        manifest = seal_encrypted_bundle(self.base, self.archive, ARCHIVE_END, metadata(),
+                                         segment_bytes=SEGMENT_BYTES, recipient=recipient,
+                                         destination=target)
+        self.assertTrue(target.is_file())
+        self.assertEqual(manifest['metadata'], metadata())
+        plaintext = subprocess.run(['age', '-d', '-i', str(identity)],
+                                   input=target.read_bytes(), capture_output=True,
+                                   check=True).stdout
+        with tarfile.open(fileobj=io.BytesIO(plaintext), mode='r:') as archive:
+            names = archive.getnames()
+            self.assertIn('manifest.json', names)
+            self.assertIn('base/backup_manifest', names)
+            self.assertIn('wal/000000010000000000000011', names)
+            inner = json.load(archive.extractfile('manifest.json'))
+            self.assertEqual(inner, manifest)
 
 
 if __name__ == '__main__':
