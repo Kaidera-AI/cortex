@@ -99,6 +99,8 @@ class Lifecycle:
             if resource not in resources or resource in bindings or not isinstance(row['id'], str) or not re.fullmatch('[0-9a-f]{64}', row['id']):
                 raise RuntimeError('dirty lifecycle immutable identity is unverified')
             bindings[resource] = row['id']
+        if not {tuple(r) for r in state['owned']} <= set(bindings):
+            raise RuntimeError('dirty owned resource lacks immutable binding')
         return state, bindings
 
     def _clear_marker(self):
@@ -154,6 +156,13 @@ class Lifecycle:
     def inspect(self, kind, name):
         value = self.runner(['podman', kind, 'exists', name])
         if value.returncode == 1:
+            bound = self.binding.get((kind, name))
+            if bound is not None:
+                identity = self.runner(['podman', kind, 'exists', bound])
+                if identity.returncode == 0:
+                    raise RuntimeError('bound immutable ID remains under another name')
+                if identity.returncode != 1:
+                    raise RuntimeError('bound immutable ID absence is unverified')
             return None
         if value.returncode != 0:
             raise RuntimeError('resource existence is unverified')
