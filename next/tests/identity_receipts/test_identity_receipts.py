@@ -26,7 +26,7 @@ class IdentityReceipts(unittest.TestCase):
         manifest = json.loads((NEXT/'schema/manifest.json').read_bytes())
         rows = [row for row in manifest['migrations'] if row['id']=='auth-0003']
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]['path'], 'auth/003-identity.sql')
+        self.assertEqual(rows[0].get('file'), 'auth/003-identity.sql')
         self.assertEqual(rows[0]['sha256'], hashlib.sha256((NEXT/'schema/auth/003-identity.sql').read_bytes()).hexdigest())
 
     def test_identity_contract_keeps_authority_and_admission_boundaries(self):
@@ -55,3 +55,14 @@ class IdentityReceipts(unittest.TestCase):
         body = {'id':'expected','traceback':'actual synthetic classifier probe','phase':'test','is_assertion':True}
         self.assertEqual(consumer.mutation_status(self.receipt(1,[body]),{'expected'}), 'killed')
         self.assertEqual(consumer.mutation_status(self.receipt(0),{'expected'}), 'survived')
+
+    def test_caller_redacts_bearer_bytes_before_retaining_tracebacks(self):
+        self.assertIsNotNone(consumer, 'missing C04a mutation caller')
+        token = 'A'*43  # synthetic redaction probe, never an issued credential
+        body = {'id':'expected','traceback':"AssertionError: b'"+token+"' is not None",'phase':'test','is_assertion':True}
+        result = self.receipt(1,[body]); result.stderr = "AssertionError: b'"+token+"' is not None"
+        retained = consumer.capture(result)
+        self.assertNotIn(token, json.dumps(retained))
+        self.assertIn('<redacted-bearer>', retained['stdout'])
+        self.assertEqual(retained['receipt']['failures'][0]['id'], 'expected')
+        self.assertEqual(retained['receipt']['failures'][0]['phase'], 'test')

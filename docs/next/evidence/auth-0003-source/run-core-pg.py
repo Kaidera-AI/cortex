@@ -196,11 +196,12 @@ try:
     if PHASE.startswith(('identity-caller','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_receipts'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-        assert report['tests_run']==4 and not report['errors']
+        assert report['tests_run']==5 and not report['errors']
         if PHASE.startswith('identity-caller-red'):
             expected={'test_identity_receipts.IdentityReceipts.'+name for name in (
                 'test_caller_refuses_signals_fixtures_wrong_body_and_operational_errors',
-                'test_caller_requires_declared_body_and_clean_success')}
+                'test_caller_requires_declared_body_and_clean_success',
+                'test_caller_redacts_bearer_bytes_before_retaining_tracebacks')}
             assert value.returncode==1 and {row['id'] for row in report['failures']}==expected
             assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
         else:
