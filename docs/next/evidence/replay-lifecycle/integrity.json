@@ -1,0 +1,75 @@
+{
+  "accepted_pattern": {
+    "accepted_sha": "4bd7717366c2a6c188805a4b4a5d0fabba1a7769",
+    "source_path": "next/src/vector_baseline/postgres.py",
+    "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704",
+    "authority": "H-D45501:32",
+    "review_return": "docs/handoffs/2026-10-10_vera_kai_b01-repair-accepted.md",
+    "scope": "completed-effect lost-ack synchronous bounded producer; no delayed daemon guarantee"
+  },
+  "frozen_tests": [
+    {
+      "file": "test_producer_lifecycle.py",
+      "frozen_commit": "1e7fd19",
+      "sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+      "unchanged": true
+    },
+    {
+      "file": "test_lifecycle_pattern.py",
+      "frozen_commit": "44fd45a",
+      "sha256": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+      "unchanged": true
+    }
+  ],
+  "red_frozen_runner_sha256": "87628ef9decdc7c1643624d19dfa5f7c1641696645eca917ace52a3dcdc25a15",
+  "source_sha256": {
+    "run-safety.py": "6539cba8f103dea588115cc21eba30ed044d6cd8352f11b9b907617e838111d7",
+    "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+    "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+    "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+    "safe-run-adoption.py": "245d1b26fd1642681f9ac7429b1f97e3e8c81523f9c9c1fab8bd5551da34f5ba",
+    "safe-run-graph.py": "dcdd0124cc78607001f347411a2a1d64f560c352c61b73a5ac857d220bd00513",
+    "fake_engine.py": "396d6eb979efaa94f1cd7c9b590a289825168ddbbf23cc306d5d2203fbd1d295",
+    "old-run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+    "old-run-adoption.py": "d350f436ce738955bee2e1eb9f910492eb35237df52d9447d252e9692531db2d"
+  },
+  "mutants": [
+    {
+      "name": "pending-after-ack",
+      "expected_body_failures": 3,
+      "errors": 0,
+      "recipe_and_hash_reconstructed": true
+    },
+    {
+      "name": "foreign-nonce-ignored",
+      "expected_body_failures": 2,
+      "errors": 0,
+      "recipe_and_hash_reconstructed": true
+    },
+    {
+      "name": "remove-by-name",
+      "expected_body_failures": 1,
+      "errors": 0,
+      "recipe_and_hash_reconstructed": true
+    },
+    {
+      "name": "output-not-prepared",
+      "expected_body_failures": 1,
+      "errors": 0,
+      "recipe_and_hash_reconstructed": true
+    }
+  ],
+  "canonical_receipts": {
+    "green-attempt-002.json": "bbc3afaaa27505d6d5a82dad3087e91f58dfed11e86e231fa6b76752b3e8d404",
+    "graph-green.json": "16e58950d58133acc4be9602f97244105133ebda74a3bf3d96a5d6ce1a2270e2",
+    "red.json": "808b15a2ba207c8be2d9b5e12548da3f816dc174562337b10c76d8c2ad58c652",
+    "red-attempt-002.json": "f29ec556f444942a7731ebf11b9013935888c08ef743acf2c7dcb6f9c13f8df5",
+    "graph-red.json": "ac4394f51ed8ad69b33893ddf61ef3eac624220e35893bc20d6e7f5e859beabe",
+    "accepted-pattern-binding.json": "0fddfcc5263e64f9bef4a82c8b2e486fb1f859fca965ff63ab8afd0f4a8af3ad",
+    "held-scope-index.json": "b1c92c8202196dbd2e3c0a931eb557ba7e18252a92839b9fb28cffa72094258f",
+    "folder-fitness.json": "25ade33deb0219127683a196cf4b4c57abf51296150102ea4c67941520654b1d",
+    "c03-green.json": "a5882358870dda36d8cb31675e706cce1a24be175b77c9ee77f97b02ebd762a4",
+    "green-attempt-001.json": "3e642d2032a650d9b813e889b516d960611681c3008f38e31e80bf98301673e5",
+    "c03-red.json": "ae6b28926f1b2fdb153bcc6c3db6a5ab9c66878504f5e6574d6256de0b74e88a"
+  }
+}

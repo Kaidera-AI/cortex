@@ -1,0 +1,417 @@
+{
+  "final_inventory_error": null,
+  "tool_input_sha256": {
+    "safe-run-graph.py": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+    "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+  },
+  "phase": "lifecycle-green-attempt-002",
+  "tree": "e9a19f1476d1f6f3be14d7df6ccb3fb7eddd9e7e",
+  "passed": true,
+  "cleanup": {
+    "lifecycle": "a459f122798456eec31b371477329700",
+    "cleanup_verified": true,
+    "pending": [],
+    "owned": [],
+    "events": [
+      {
+        "event": "created",
+        "kind": "container",
+        "name": "kaidera-test-graph-cleanup-1",
+        "id": "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd"
+      },
+      {
+        "event": "removed",
+        "kind": "container",
+        "name": "kaidera-test-graph-cleanup-1",
+        "id": "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd"
+      }
+    ],
+    "attempts": [
+      {
+        "errors": [],
+        "verified": true,
+        "pending": [],
+        "owned": [],
+        "password_discarded": true,
+        "lock_released": true
+      }
+    ],
+    "password_discarded": true,
+    "lock_released": true
+  },
+  "image": "docker.io/library/python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e",
+  "results": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--name",
+        "kaidera-test-graph-cleanup-1",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "kaidera.cox.lifecycle=a459f122798456eec31b371477329700",
+        "--label",
+        "purpose=H-D449-regression",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--user",
+        "0:0",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--cap-add=CHOWN",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/proof:rw,size=33554432,mode=0755",
+        "--tmpfs",
+        "/tmp:rw,size=67108864,mode=1777",
+        "--tmpfs",
+        "/var/cache:rw,size=16777216,mode=0755",
+        "--tmpfs",
+        "/var/log:rw,size=16777216,mode=0755",
+        "--tmpfs",
+        "/home:rw,size=1048576,mode=0755",
+        "--tmpfs",
+        "/opt:rw,size=1048576,mode=0755",
+        "docker.io/library/python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e",
+        "sleep",
+        "infinity"
+      ],
+      "exit_code": 0,
+      "stdout": "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "exists",
+        "kaidera-test-graph-cleanup-1"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "inspect",
+        "kaidera-test-graph-cleanup-1"
+      ],
+      "exit_code": 0,
+      "stdout": "[\n     {\n          \"Id\": \"41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd\",\n          \"Created\": \"2026-10-10T03:48:06.098551809+04:00\",\n          \"Path\": \"sleep\",\n          \"Args\": [\n               \"infinity\"\n          ],\n          \"State\": {\n               \"OciVersion\": \"1.3.0\",\n               \"Status\": \"running\",\n               \"Running\": true,\n               \"Paused\": false,\n               \"Restarting\": false,\n               \"OOMKilled\": false,\n               \"Dead\": false,\n               \"Pid\": 948815,\n               \"ConmonPid\": 948813,\n               \"ExitCode\": 0,\n               \"Error\": \"\",\n               \"StartedAt\": \"2026-10-10T03:48:06.130791799+04:00\",\n               \"FinishedAt\": \"0001-01-01T00:00:00Z\",\n               \"CgroupPath\": \"/user.slice/user-501.slice/user@501.service/user.slice/libpod-41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd.scope\",\n               \"CheckpointedAt\": \"0001-01-01T00:00:00Z\",\n               \"RestoredAt\": \"0001-01-01T00:00:00Z\"\n          },\n          \"Image\": \"b4600cb7d697d46d382b9581a7c52fa76f32d19536309c5096994757e62f3700\",\n          \"ImageDigest\": \"sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n          \"ImageName\": \"docker.io/library/python@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n          \"Rootfs\": \"\",\n          \"Pod\": \"\",\n          \"ResolvConfPath\": \"\",\n          \"HostnamePath\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/hostname\",\n          \"HostsPath\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/hosts\",\n          \"StaticDir\": \"/var/home/core/.local/share/containers/storage/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata\",\n          \"OCIConfigPath\": \"/var/home/core/.local/share/containers/storage/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/config.json\",\n          \"OCIRuntime\": \"crun\",\n          \"ConmonPidFile\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/conmon.pid\",\n          \"PidFile\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/pidfile\",\n          \"Name\": \"kaidera-test-graph-cleanup-1\",\n          \"RestartCount\": 0,\n          \"Driver\": \"overlay\",\n          \"MountLabel\": \"system_u:object_r:container_file_t:s0:c375,c398\",\n          \"ProcessLabel\": \"system_u:system_r:container_t:s0:c375,c398\",\n          \"AppArmorProfile\": \"\",\n          \"EffectiveCaps\": [\n               \"CAP_CHOWN\"\n          ],\n          \"BoundingCaps\": [\n               \"CAP_CHOWN\"\n          ],\n          \"ExecIDs\": [],\n          \"GraphDriver\": {\n               \"Name\": \"overlay\",\n               \"Data\": {\n                    \"LowerDir\": \"/var/home/core/.local/share/containers/storage/overlay/a6b397e1a661700212e0cdd10040b166d43e4d34ae720babfef052755b7a4511/diff:/var/home/core/.local/share/containers/storage/overlay/f59e5f256b8a72906394d9f58bc764c168ec306898eb429c17e76fd1f648c1dc/diff:/var/home/core/.local/share/containers/storage/overlay/408ea4ab9b9eafc02f9969db8217d83af2a6f3581ccaeccf6f5dbba47d7d7b88/diff:/var/home/core/.local/share/containers/storage/overlay/13a56b6535801be2adde694dabaf1c2df1d862a390661907dac821c42cd565cc/diff\",\n                    \"MergedDir\": \"/var/home/core/.local/share/containers/storage/overlay/08bfe4b1ec08e0dbbc79cbfd77972393192aad20490169629321a77f2c62affe/merged\",\n                    \"UpperDir\": \"/var/home/core/.local/share/containers/storage/overlay/08bfe4b1ec08e0dbbc79cbfd77972393192aad20490169629321a77f2c62affe/diff\",\n                    \"WorkDir\": \"/var/home/core/.local/share/containers/storage/overlay/08bfe4b1ec08e0dbbc79cbfd77972393192aad20490169629321a77f2c62affe/work\"\n               }\n          },\n          \"Mounts\": [],\n          \"Dependencies\": [],\n          \"NetworkSettings\": {\n               \"EndpointID\": \"\",\n               \"Gateway\": \"\",\n               \"IPAddress\": \"\",\n               \"IPPrefixLen\": 0,\n               \"IPv6Gateway\": \"\",\n               \"GlobalIPv6Address\": \"\",\n               \"GlobalIPv6PrefixLen\": 0,\n               \"MacAddress\": \"\",\n               \"Bridge\": \"\",\n               \"SandboxID\": \"\",\n               \"HairpinMode\": false,\n               \"LinkLocalIPv6Address\": \"\",\n               \"LinkLocalIPv6PrefixLen\": 0,\n               \"Ports\": {},\n               \"SandboxKey\": \"/proc/948815/ns/net\",\n               \"Networks\": {\n                    \"none\": {\n                         \"EndpointID\": \"\",\n                         \"Gateway\": \"\",\n                         \"IPAddress\": \"\",\n                         \"IPPrefixLen\": 0,\n                         \"IPv6Gateway\": \"\",\n                         \"GlobalIPv6Address\": \"\",\n                         \"GlobalIPv6PrefixLen\": 0,\n                         \"MacAddress\": \"\",\n                         \"NetworkID\": \"none\",\n                         \"DriverOpts\": null,\n                         \"IPAMConfig\": null,\n                         \"Links\": null\n                    }\n               }\n          },\n          \"Namespace\": \"\",\n          \"IsInfra\": false,\n          \"IsService\": false,\n          \"KubeExitCodePropagation\": \"invalid\",\n          \"lockNumber\": 29,\n          \"Config\": {\n               \"Hostname\": \"41e710fe6545\",\n               \"Domainname\": \"\",\n               \"User\": \"0:0\",\n               \"AttachStdin\": false,\n               \"AttachStdout\": false,\n               \"AttachStderr\": false,\n               \"Tty\": false,\n               \"OpenStdin\": false,\n               \"StdinOnce\": false,\n               \"Env\": [\n                    \"PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                    \"container=podman\",\n                    \"GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305\",\n                    \"PYTHON_VERSION=3.13.15\",\n                    \"PYTHON_SHA256=1e66a7945a48390ee4c2a4268a0e4185884059a13c4aab6d148aa208deea4a76\",\n                    \"HOME=/root\",\n                    \"HOSTNAME=41e710fe6545\"\n               ],\n               \"Cmd\": [\n                    \"sleep\",\n                    \"infinity\"\n               ],\n               \"Image\": \"docker.io/library/python@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n               \"Volumes\": null,\n               \"WorkingDir\": \"/\",\n               \"Entrypoint\": [],\n               \"OnBuild\": null,\n               \"Labels\": {\n                    \"kaidera.cox.lifecycle\": \"a459f122798456eec31b371477329700\",\n                    \"owner\": \"cox@helix\",\n                    \"purpose\": \"H-D449-regression\"\n               },\n               \"Annotations\": {\n                    \"io.container.manager\": \"libpod\",\n                    \"org.opencontainers.image.stopSignal\": \"15\",\n                    \"org.systemd.property.KillSignal\": \"15\",\n                    \"org.systemd.property.TimeoutStopUSec\": \"uint64 10000000\"\n               },\n               \"StopSignal\": \"SIGTERM\",\n               \"HealthcheckOnFailureAction\": \"none\",\n               \"HealthLogDestination\": \"local\",\n               \"HealthcheckMaxLogCount\": 5,\n               \"HealthcheckMaxLogSize\": 500,\n               \"CreateCommand\": [\n                    \"podman\",\n                    \"run\",\n                    \"-d\",\n                    \"--name\",\n                    \"kaidera-test-graph-cleanup-1\",\n                    \"--label\",\n                    \"owner=cox@helix\",\n                    \"--label\",\n                    \"kaidera.cox.lifecycle=a459f122798456eec31b371477329700\",\n                    \"--label\",\n                    \"purpose=H-D449-regression\",\n                    \"--network\",\n                    \"none\",\n                    \"--cpus\",\n                    \"2\",\n                    \"--memory\",\n                    \"1g\",\n                    \"--user\",\n                    \"0:0\",\n                    \"--read-only\",\n                    \"--cap-drop=ALL\",\n                    \"--cap-add=CHOWN\",\n                    \"--security-opt=no-new-privileges\",\n                    \"--image-volume=ignore\",\n                    \"--tmpfs\",\n                    \"/proof:rw,size=33554432,mode=0755\",\n                    \"--tmpfs\",\n                    \"/tmp:rw,size=67108864,mode=1777\",\n                    \"--tmpfs\",\n                    \"/var/cache:rw,size=16777216,mode=0755\",\n                    \"--tmpfs\",\n                    \"/var/log:rw,size=16777216,mode=0755\",\n                    \"--tmpfs\",\n                    \"/home:rw,size=1048576,mode=0755\",\n                    \"--tmpfs\",\n                    \"/opt:rw,size=1048576,mode=0755\",\n                    \"docker.io/library/python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n                    \"sleep\",\n                    \"infinity\"\n               ],\n               \"Umask\": \"0022\",\n               \"Timeout\": 0,\n               \"StopTimeout\": 10,\n               \"Passwd\": true,\n               \"sdNotifyMode\": \"container\"\n          },\n          \"HostConfig\": {\n               \"Binds\": [],\n               \"CgroupManager\": \"systemd\",\n               \"CgroupMode\": \"private\",\n               \"ContainerIDFile\": \"\",\n               \"LogConfig\": {\n                    \"Type\": \"journald\",\n                    \"Config\": null,\n                    \"Path\": \"\",\n                    \"Tag\": \"\",\n                    \"Size\": \"-1B\"\n               },\n               \"NetworkMode\": \"none\",\n               \"PortBindings\": {},\n               \"RestartPolicy\": {\n                    \"Name\": \"no\",\n                    \"MaximumRetryCount\": 0\n               },\n               \"AutoRemove\": false,\n               \"AutoRemoveImage\": false,\n               \"Annotations\": {\n                    \"io.container.manager\": \"libpod\",\n                    \"org.opencontainers.image.stopSignal\": \"15\",\n                    \"org.systemd.property.KillSignal\": \"15\",\n                    \"org.systemd.property.TimeoutStopUSec\": \"uint64 10000000\"\n               },\n               \"VolumeDriver\": \"\",\n               \"VolumesFrom\": null,\n               \"CapAdd\": [],\n               \"CapDrop\": [\n                    \"CAP_DAC_OVERRIDE\",\n                    \"CAP_FOWNER\",\n                    \"CAP_FSETID\",\n                    \"CAP_KILL\",\n                    \"CAP_NET_BIND_SERVICE\",\n                    \"CAP_SETFCAP\",\n                    \"CAP_SETGID\",\n                    \"CAP_SETPCAP\",\n                    \"CAP_SETUID\",\n                    \"CAP_SYS_CHROOT\"\n               ],\n               \"Dns\": [],\n               \"DnsOptions\": null,\n               \"DnsSearch\": null,\n               \"ExtraHosts\": null,\n               \"HostsFile\": \"\",\n               \"GroupAdd\": null,\n               \"IpcMode\": \"shareable\",\n               \"Cgroup\": \"\",\n               \"Cgroups\": \"default\",\n               \"Links\": null,\n               \"OomScoreAdj\": 0,\n               \"PidMode\": \"private\",\n               \"Privileged\": false,\n               \"PublishAllPorts\": false,\n               \"ReadonlyRootfs\": true,\n               \"SecurityOpt\": [\n                    \"no-new-privileges\"\n               ],\n               \"Tmpfs\": {\n                    \"/home\": \"rw,size=1048576,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/opt\": \"rw,size=1048576,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/proof\": \"rw,size=33554432,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/tmp\": \"rw,size=67108864,mode=1777,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/var/cache\": \"rw,size=16777216,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/var/log\": \"rw,size=16777216,mode=0755,rprivate,nosuid,nodev,tmpcopyup\"\n               },\n               \"UTSMode\": \"private\",\n               \"UsernsMode\": \"\",\n               \"ShmSize\": 65536000,\n               \"Runtime\": \"oci\",\n               \"ConsoleSize\": [\n                    0,\n                    0\n               ],\n               \"Isolation\": \"\",\n               \"CpuShares\": 0,\n               \"Memory\": 1073741824,\n               \"NanoCpus\": 2000000000,\n               \"CgroupParent\": \"user.slice\",\n               \"BlkioWeight\": 0,\n               \"BlkioWeightDevice\": null,\n               \"BlkioDeviceReadBps\": null,\n               \"BlkioDeviceWriteBps\": null,\n               \"BlkioDeviceReadIOps\": null,\n               \"BlkioDeviceWriteIOps\": null,\n               \"CpuPeriod\": 100000,\n               \"CpuQuota\": 200000,\n               \"CpuRealtimePeriod\": 0,\n               \"CpuRealtimeRuntime\": 0,\n               \"CpusetCpus\": \"\",\n               \"CpusetMems\": \"\",\n               \"Devices\": [],\n               \"DiskQuota\": 0,\n               \"KernelMemory\": 0,\n               \"MemoryReservation\": 0,\n               \"MemorySwap\": 2147483648,\n               \"MemorySwappiness\": null,\n               \"OomKillDisable\": false,\n               \"PidsLimit\": 0,\n               \"Ulimits\": [\n                    {\n                         \"Name\": \"RLIMIT_NOFILE\",\n                         \"Soft\": 524288,\n                         \"Hard\": 524288\n                    },\n                    {\n                         \"Name\": \"RLIMIT_NPROC\",\n                         \"Soft\": 31613,\n                         \"Hard\": 31613\n                    }\n               ],\n               \"CpuCount\": 0,\n               \"CpuPercent\": 0,\n               \"IOMaximumIOps\": 0,\n               \"IOMaximumBandwidth\": 0,\n               \"CgroupConf\": null\n          },\n          \"UseImageHosts\": false,\n          \"UseImageHostname\": false\n     }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker",
+        "kaidera-test-graph-cleanup-1:/proof/graph"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/output/Cortex/design55-r426/2026-10-10/graph-cleanup/test_receipts.py",
+        "kaidera-test-graph-cleanup-1:/proof/test_receipts.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,os,shlex,subprocess\nfrom pathlib import Path\np=Path('/var/cache/ldconfig');p.mkdir(parents=True,exist_ok=True);p.chmod(0o700)\nsystem=['/var/log/apt/history.log','/var/log/apt/term.log','/var/log/dpkg.log','/var/cache/ldconfig/aux-cache']\nfor name in system:\n p=Path(name);p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'root-build-byproduct')\nsource=Path('/proof/graph/Dockerfile').read_text().replace(chr(92)+chr(10),'')\nline=next(x for x in source.splitlines() if x.startswith('RUN ') and 'apt-get update;' in x)\ncommand=line[line.index('/usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py'):].strip()\nargv=shlex.split(command);argv=[('/proof/graph/finalize-build.py' if x.endswith('/finalize-build.py') else x) for x in argv]\nresult=subprocess.run(argv,capture_output=True,text=True);print(result.stdout,end='');print(result.stderr,end='')\nassert result.returncode==0\nassert all(not Path(x).exists() for x in system)\nPath('/proof/system-cleanup.json').write_text(json.dumps({'uid':os.getuid(),'command':argv,'all_system_byproducts_absent':True,'root_only_parent_mode':oct(Path('/var/cache/ldconfig').stat().st_mode&0o777)}))\nhome=Path('/home/kaidera');home.mkdir();os.chown(home,10001,10001)\nmodel=Path('/opt/kaidera-qwen3');model.mkdir();(model/'model.onnx').write_bytes(b'fixture-weights')\n"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "import os,platform,json; from pathlib import Path; print(json.dumps({\"uid\":os.getuid(),\"gid\":os.getgid(),\"python\":platform.python_version(),\"arch\":platform.machine(),\"capability_fields\":[x for x in Path(\"/proc/self/status\").read_text().splitlines() if x.startswith(\"Cap\")]}))"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"uid\": 10001, \"gid\": 10001, \"python\": \"3.13.15\", \"arch\": \"aarch64\", \"capability_fields\": [\"CapInh:\\t0000000000000000\", \"CapPrm:\\t0000000000000000\", \"CapEff:\\t0000000000000000\", \"CapBnd:\\t0000000000000001\", \"CapAmb:\\t0000000000000000\"]}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 0,
+      "stdout": "*** Error compiling '/tmp/tmp1hizieqw/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.205s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "from pathlib import Path\np=Path('/proof/graph/Dockerfile');s=p.read_text();a=s.index('USER 10001:10001');head,tail=s[:a],s[a:];assert tail.count('--cleanup-scope runtime')==1;p.write_text(head+tail.replace('--cleanup-scope runtime','--cleanup-scope all',1))"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 1,
+      "stdout": "*** Error compiling '/tmp/tmpzxe7xhtb/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_cleanup_ownership.py\\\", line 74, in test_creating_runs_select_their_own_paths_and_keep_hash_compile\\n    self.assertEqual(argv[argv.index('--cleanup-scope') + 1], scope)\\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: 'all' != 'runtime'\\n- all\\n+ runtime\\n\\n\"}, {\"id\": \"test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_cleanup_ownership.py\\\", line 63, in test_real_runtime_uid_cleans_without_visiting_system_parent\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: 1 != 0 : Traceback (most recent call last):\\n  File \\\"/proof/graph/finalize-build.py\\\", line 72, in <module>\\n    finalize('/', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             builder_home=args.builder_home,\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else 'none')\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/proof/graph/finalize-build.py\\\", line 33, in finalize\\n    if path.is_symlink() or path.is_file():\\n       ~~~~~~~~~~~~~~~^^\\n  File \\\"/usr/local/lib/python3.13/pathlib/_abc.py\\\", line 518, in is_symlink\\n    return S_ISLNK(self.lstat().st_mode)\\n                   ~~~~~~~~~~^^\\n  File \\\"/usr/local/lib/python3.13/pathlib/_abc.py\\\", line 437, in lstat\\n    return self.stat(follow_symlinks=False)\\n           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/usr/local/lib/python3.13/pathlib/_local.py\\\", line 515, in stat\\n    return os.stat(self, follow_symlinks=follow_symlinks)\\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nPermissionError: [Errno 13] Permission denied: '/var/cache/ldconfig/aux-cache'\\n\\n\"}], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... FAIL\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... FAIL\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n======================================================================\nFAIL: test_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_cleanup_ownership.py\", line 74, in test_creating_runs_select_their_own_paths_and_keep_hash_compile\n    self.assertEqual(argv[argv.index('--cleanup-scope') + 1], scope)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'all' != 'runtime'\n- all\n+ runtime\n\n\n======================================================================\nFAIL: test_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_cleanup_ownership.py\", line 63, in test_real_runtime_uid_cleans_without_visiting_system_parent\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 1 != 0 : Traceback (most recent call last):\n  File \"/proof/graph/finalize-build.py\", line 72, in <module>\n    finalize('/', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n             builder_home=args.builder_home,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else 'none')\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/proof/graph/finalize-build.py\", line 33, in finalize\n    if path.is_symlink() or path.is_file():\n       ~~~~~~~~~~~~~~~^^\n  File \"/usr/local/lib/python3.13/pathlib/_abc.py\", line 518, in is_symlink\n    return S_ISLNK(self.lstat().st_mode)\n                   ~~~~~~~~~~^^\n  File \"/usr/local/lib/python3.13/pathlib/_abc.py\", line 437, in lstat\n    return self.stat(follow_symlinks=False)\n           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.13/pathlib/_local.py\", line 515, in stat\n    return os.stat(self, follow_symlinks=follow_symlinks)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 13] Permission denied: '/var/cache/ldconfig/aux-cache'\n\n\n----------------------------------------------------------------------\nRan 8 tests in 0.292s\n\nFAILED (failures=2)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker/Dockerfile",
+        "kaidera-test-graph-cleanup-1:/proof/graph/Dockerfile"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "from pathlib import Path\np=Path('/proof/graph/finalize-build.py');s=p.read_text();before=\"        if path.is_symlink() or path.is_file():\";assert s.count(before)==1;s=s.replace(before,\"        if name == 'var/cache/ldconfig/aux-cache':\\n            continue\\n\"+before);p.write_text(s)"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 1,
+      "stdout": "*** Error compiling '/tmp/tmpmga0ph2h/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_finalize_build.py\\\", line 38, in test_cleanup_exact_paths_preserves_model_and_neighbor\\n    self.assertTrue(all(not (root/x).exists() for x in finalizer.BYPRODUCTS))\\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: False is not true\\n\"}, {\"id\": \"test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_cleanup_ownership.py\\\", line 81, in test_permission_errors_remain_visible_for_unscoped_cleanup\\n    with self.assertRaises(PermissionError):\\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\\nAssertionError: PermissionError not raised\\n\"}], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... FAIL\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... FAIL\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n======================================================================\nFAIL: test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_finalize_build.py\", line 38, in test_cleanup_exact_paths_preserves_model_and_neighbor\n    self.assertTrue(all(not (root/x).exists() for x in finalizer.BYPRODUCTS))\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n\n======================================================================\nFAIL: test_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_cleanup_ownership.py\", line 81, in test_permission_errors_remain_visible_for_unscoped_cleanup\n    with self.assertRaises(PermissionError):\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\nAssertionError: PermissionError not raised\n\n----------------------------------------------------------------------\nRan 8 tests in 0.252s\n\nFAILED (failures=2)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker/finalize-build.py",
+        "kaidera-test-graph-cleanup-1:/proof/graph/finalize-build.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "0:0",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "from pathlib import Path\np=Path('/proof/graph/finalize-build.py');s=p.read_text();before=\"    if not args.cleanup_only:\\n        verify_clean('/')\";assert s.count(before)==1;p.write_text(s.replace(before,\"    if False and not args.cleanup_only:\\n        verify_clean('/')\"))"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 1,
+      "stdout": "*** Error compiling '/tmp/tmp_c_k4ocu/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [{\"id\": \"test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup\", \"phase\": \"test\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/proof/graph/tests/test_finalizer_guard.py\\\", line 20, in test_final_entrypoint_refuses_late_cleanup\\n    self.assertIn('RuntimeError: byproduct remained after creating RUN:', result.stderr)\\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: 'RuntimeError: byproduct remained after creating RUN:' not found in 'Traceback (most recent call last):\\\\n  File \\\"/proof/graph/finalize-build.py\\\", line 72, in <module>\\\\n    finalize(\\\\'/\\\\', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\\\\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\n             builder_home=args.builder_home,\\\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else \\\\'none\\\\')\\\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\\\n  File \\\"/proof/graph/finalize-build.py\\\", line 50, in finalize\\\\n    raise RuntimeError(f\\\\'bytecode compilation failed: {name}\\\\')\\\\nRuntimeError: bytecode compilation failed: usr/local/lib/python3.13\\\\n'\\n\"}], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... FAIL\n\n======================================================================\nFAIL: test_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/proof/graph/tests/test_finalizer_guard.py\", line 20, in test_final_entrypoint_refuses_late_cleanup\n    self.assertIn('RuntimeError: byproduct remained after creating RUN:', result.stderr)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'RuntimeError: byproduct remained after creating RUN:' not found in 'Traceback (most recent call last):\\n  File \"/proof/graph/finalize-build.py\", line 72, in <module>\\n    finalize(\\'/\\', compile_roots=() if args.cleanup_only else COMPILE_ROOTS,\\n    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             builder_home=args.builder_home,\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n             cleanup_scope=args.cleanup_scope if args.cleanup_only else \\'none\\')\\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"/proof/graph/finalize-build.py\", line 50, in finalize\\n    raise RuntimeError(f\\'bytecode compilation failed: {name}\\')\\nRuntimeError: bytecode compilation failed: usr/local/lib/python3.13\\n'\n\n----------------------------------------------------------------------\nRan 8 tests in 1.355s\n\nFAILED (failures=1)\n"
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-cleanup-20261010/packages/containers/graph-worker/finalize-build.py",
+        "kaidera-test-graph-cleanup-1:/proof/graph/finalize-build.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "\nimport json,sys,unittest\nsys.path.insert(0,'/proof')\nfrom test_receipts import AssertionResult,MARKER\nloader=unittest.TestLoader()\ntests=unittest.TestSuite([loader.discover('/proof/graph/tests',pattern='test_finalize_build.py'),loader.discover('/proof/graph/tests',pattern='test_cleanup_ownership.py'),loader.discover('/proof/graph/tests',pattern='test_finalizer_guard.py')])\nresult=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)\nprint(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,'errors':[{'id':test.id(),'traceback':tb} for test,tb in result.errors]}),flush=True)\nraise SystemExit(0 if result.wasSuccessful() else 1)\n"
+      ],
+      "exit_code": 0,
+      "stdout": "*** Error compiling '/tmp/tmpf4nd3rzn/app/broken.py'...\n  File \"/app/broken.py\", line 1\n    def invalid(\n               ^\nSyntaxError: '(' was never closed\n\nCORTEX_TEST_RESULT={\"tests_run\": 8, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_cleanup_exact_paths_preserves_model_and_neighbor (test_finalize_build.FinalizerTests.test_cleanup_exact_paths_preserves_model_and_neighbor) ... ok\ntest_compile_failure_refuses (test_finalize_build.FinalizerTests.test_compile_failure_refuses) ... ok\ntest_dockerfile_layer_hooks (test_finalize_build.FinalizerTests.test_dockerfile_layer_hooks) ... ok\ntest_final_path_hash_and_identical_builds (test_finalize_build.FinalizerTests.test_final_path_hash_and_identical_builds) ... ok\ntest_creating_runs_select_their_own_paths_and_keep_hash_compile (test_cleanup_ownership.OwnershipCleanupTests.test_creating_runs_select_their_own_paths_and_keep_hash_compile) ... ok\ntest_permission_errors_remain_visible_for_unscoped_cleanup (test_cleanup_ownership.OwnershipCleanupTests.test_permission_errors_remain_visible_for_unscoped_cleanup) ... ok\ntest_real_runtime_uid_cleans_without_visiting_system_parent (test_cleanup_ownership.OwnershipCleanupTests.test_real_runtime_uid_cleans_without_visiting_system_parent) ... ok\ntest_final_entrypoint_refuses_late_cleanup (test_finalizer_guard.FinalCompilationGuardTests.test_final_entrypoint_refuses_late_cleanup) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.168s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "--user",
+        "10001:10001",
+        "kaidera-test-graph-cleanup-1",
+        "python",
+        "-I",
+        "-c",
+        "import hashlib,json;from pathlib import Path;p=Path(\"/proof/graph\");print(json.dumps({str(x.relative_to(p)):hashlib.sha256(x.read_bytes()).hexdigest() for x in p.rglob(\"*\") if x.is_file() and \"__pycache__\" not in x.parts}))"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"finalize-build.py\": \"77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3\", \"Dockerfile\": \"58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4\", \"worker.py\": \"493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4\", \"worker-entrypoint\": \"db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312\", \"verify-qwen3-model.py\": \"968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473\", \"requirements.runtime.lock\": \"bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9\", \"requirements.runtime.in\": \"c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b\", \"requirements.bcrg.lock\": \"e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018\", \"requirements.bcrg.in\": \"afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf\", \"qwen3-model-pins.json\": \"84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea\", \"fetch-qwen3-model.py\": \"a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb\", \"debian-snapshot.sources\": \"34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017\", \".dockerignore\": \"3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232\", \"tests/test_worker_prune.py\": \"387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c\", \"tests/test_finalizer_guard.py\": \"a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3\", \"tests/test_finalize_build.py\": \"d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24\", \"tests/test_fetch_qwen3_model.py\": \"e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42\", \"tests/test_cleanup_ownership.py\": \"d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "exists",
+        "kaidera-test-graph-cleanup-1"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "inspect",
+        "kaidera-test-graph-cleanup-1"
+      ],
+      "exit_code": 0,
+      "stdout": "[\n     {\n          \"Id\": \"41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd\",\n          \"Created\": \"2026-10-10T03:48:06.098551809+04:00\",\n          \"Path\": \"sleep\",\n          \"Args\": [\n               \"infinity\"\n          ],\n          \"State\": {\n               \"OciVersion\": \"1.3.0\",\n               \"Status\": \"running\",\n               \"Running\": true,\n               \"Paused\": false,\n               \"Restarting\": false,\n               \"OOMKilled\": false,\n               \"Dead\": false,\n               \"Pid\": 948815,\n               \"ConmonPid\": 948813,\n               \"ExitCode\": 0,\n               \"Error\": \"\",\n               \"StartedAt\": \"2026-10-10T03:48:06.130791799+04:00\",\n               \"FinishedAt\": \"0001-01-01T00:00:00Z\",\n               \"CgroupPath\": \"/user.slice/user-501.slice/user@501.service/user.slice/libpod-41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd.scope\",\n               \"CheckpointedAt\": \"0001-01-01T00:00:00Z\",\n               \"RestoredAt\": \"0001-01-01T00:00:00Z\"\n          },\n          \"Image\": \"b4600cb7d697d46d382b9581a7c52fa76f32d19536309c5096994757e62f3700\",\n          \"ImageDigest\": \"sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n          \"ImageName\": \"docker.io/library/python@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n          \"Rootfs\": \"\",\n          \"Pod\": \"\",\n          \"ResolvConfPath\": \"\",\n          \"HostnamePath\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/hostname\",\n          \"HostsPath\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/hosts\",\n          \"StaticDir\": \"/var/home/core/.local/share/containers/storage/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata\",\n          \"OCIConfigPath\": \"/var/home/core/.local/share/containers/storage/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/config.json\",\n          \"OCIRuntime\": \"crun\",\n          \"ConmonPidFile\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/conmon.pid\",\n          \"PidFile\": \"/run/user/501/containers/overlay-containers/41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd/userdata/pidfile\",\n          \"Name\": \"kaidera-test-graph-cleanup-1\",\n          \"RestartCount\": 0,\n          \"Driver\": \"overlay\",\n          \"MountLabel\": \"system_u:object_r:container_file_t:s0:c375,c398\",\n          \"ProcessLabel\": \"system_u:system_r:container_t:s0:c375,c398\",\n          \"AppArmorProfile\": \"\",\n          \"EffectiveCaps\": [\n               \"CAP_CHOWN\"\n          ],\n          \"BoundingCaps\": [\n               \"CAP_CHOWN\"\n          ],\n          \"ExecIDs\": [],\n          \"GraphDriver\": {\n               \"Name\": \"overlay\",\n               \"Data\": {\n                    \"LowerDir\": \"/var/home/core/.local/share/containers/storage/overlay/a6b397e1a661700212e0cdd10040b166d43e4d34ae720babfef052755b7a4511/diff:/var/home/core/.local/share/containers/storage/overlay/f59e5f256b8a72906394d9f58bc764c168ec306898eb429c17e76fd1f648c1dc/diff:/var/home/core/.local/share/containers/storage/overlay/408ea4ab9b9eafc02f9969db8217d83af2a6f3581ccaeccf6f5dbba47d7d7b88/diff:/var/home/core/.local/share/containers/storage/overlay/13a56b6535801be2adde694dabaf1c2df1d862a390661907dac821c42cd565cc/diff\",\n                    \"MergedDir\": \"/var/home/core/.local/share/containers/storage/overlay/08bfe4b1ec08e0dbbc79cbfd77972393192aad20490169629321a77f2c62affe/merged\",\n                    \"UpperDir\": \"/var/home/core/.local/share/containers/storage/overlay/08bfe4b1ec08e0dbbc79cbfd77972393192aad20490169629321a77f2c62affe/diff\",\n                    \"WorkDir\": \"/var/home/core/.local/share/containers/storage/overlay/08bfe4b1ec08e0dbbc79cbfd77972393192aad20490169629321a77f2c62affe/work\"\n               }\n          },\n          \"Mounts\": [],\n          \"Dependencies\": [],\n          \"NetworkSettings\": {\n               \"EndpointID\": \"\",\n               \"Gateway\": \"\",\n               \"IPAddress\": \"\",\n               \"IPPrefixLen\": 0,\n               \"IPv6Gateway\": \"\",\n               \"GlobalIPv6Address\": \"\",\n               \"GlobalIPv6PrefixLen\": 0,\n               \"MacAddress\": \"\",\n               \"Bridge\": \"\",\n               \"SandboxID\": \"\",\n               \"HairpinMode\": false,\n               \"LinkLocalIPv6Address\": \"\",\n               \"LinkLocalIPv6PrefixLen\": 0,\n               \"Ports\": {},\n               \"SandboxKey\": \"/proc/948815/ns/net\",\n               \"Networks\": {\n                    \"none\": {\n                         \"EndpointID\": \"\",\n                         \"Gateway\": \"\",\n                         \"IPAddress\": \"\",\n                         \"IPPrefixLen\": 0,\n                         \"IPv6Gateway\": \"\",\n                         \"GlobalIPv6Address\": \"\",\n                         \"GlobalIPv6PrefixLen\": 0,\n                         \"MacAddress\": \"\",\n                         \"NetworkID\": \"none\",\n                         \"DriverOpts\": null,\n                         \"IPAMConfig\": null,\n                         \"Links\": null\n                    }\n               }\n          },\n          \"Namespace\": \"\",\n          \"IsInfra\": false,\n          \"IsService\": false,\n          \"KubeExitCodePropagation\": \"invalid\",\n          \"lockNumber\": 29,\n          \"Config\": {\n               \"Hostname\": \"41e710fe6545\",\n               \"Domainname\": \"\",\n               \"User\": \"0:0\",\n               \"AttachStdin\": false,\n               \"AttachStdout\": false,\n               \"AttachStderr\": false,\n               \"Tty\": false,\n               \"OpenStdin\": false,\n               \"StdinOnce\": false,\n               \"Env\": [\n                    \"PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                    \"container=podman\",\n                    \"GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305\",\n                    \"PYTHON_VERSION=3.13.15\",\n                    \"PYTHON_SHA256=1e66a7945a48390ee4c2a4268a0e4185884059a13c4aab6d148aa208deea4a76\",\n                    \"HOME=/root\",\n                    \"HOSTNAME=41e710fe6545\"\n               ],\n               \"Cmd\": [\n                    \"sleep\",\n                    \"infinity\"\n               ],\n               \"Image\": \"docker.io/library/python@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n               \"Volumes\": null,\n               \"WorkingDir\": \"/\",\n               \"Entrypoint\": [],\n               \"OnBuild\": null,\n               \"Labels\": {\n                    \"kaidera.cox.lifecycle\": \"a459f122798456eec31b371477329700\",\n                    \"owner\": \"cox@helix\",\n                    \"purpose\": \"H-D449-regression\"\n               },\n               \"Annotations\": {\n                    \"io.container.manager\": \"libpod\",\n                    \"org.opencontainers.image.stopSignal\": \"15\",\n                    \"org.systemd.property.KillSignal\": \"15\",\n                    \"org.systemd.property.TimeoutStopUSec\": \"uint64 10000000\"\n               },\n               \"StopSignal\": \"SIGTERM\",\n               \"HealthcheckOnFailureAction\": \"none\",\n               \"HealthLogDestination\": \"local\",\n               \"HealthcheckMaxLogCount\": 5,\n               \"HealthcheckMaxLogSize\": 500,\n               \"CreateCommand\": [\n                    \"podman\",\n                    \"run\",\n                    \"-d\",\n                    \"--name\",\n                    \"kaidera-test-graph-cleanup-1\",\n                    \"--label\",\n                    \"owner=cox@helix\",\n                    \"--label\",\n                    \"kaidera.cox.lifecycle=a459f122798456eec31b371477329700\",\n                    \"--label\",\n                    \"purpose=H-D449-regression\",\n                    \"--network\",\n                    \"none\",\n                    \"--cpus\",\n                    \"2\",\n                    \"--memory\",\n                    \"1g\",\n                    \"--user\",\n                    \"0:0\",\n                    \"--read-only\",\n                    \"--cap-drop=ALL\",\n                    \"--cap-add=CHOWN\",\n                    \"--security-opt=no-new-privileges\",\n                    \"--image-volume=ignore\",\n                    \"--tmpfs\",\n                    \"/proof:rw,size=33554432,mode=0755\",\n                    \"--tmpfs\",\n                    \"/tmp:rw,size=67108864,mode=1777\",\n                    \"--tmpfs\",\n                    \"/var/cache:rw,size=16777216,mode=0755\",\n                    \"--tmpfs\",\n                    \"/var/log:rw,size=16777216,mode=0755\",\n                    \"--tmpfs\",\n                    \"/home:rw,size=1048576,mode=0755\",\n                    \"--tmpfs\",\n                    \"/opt:rw,size=1048576,mode=0755\",\n                    \"docker.io/library/python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e\",\n                    \"sleep\",\n                    \"infinity\"\n               ],\n               \"Umask\": \"0022\",\n               \"Timeout\": 0,\n               \"StopTimeout\": 10,\n               \"Passwd\": true,\n               \"sdNotifyMode\": \"container\"\n          },\n          \"HostConfig\": {\n               \"Binds\": [],\n               \"CgroupManager\": \"systemd\",\n               \"CgroupMode\": \"private\",\n               \"ContainerIDFile\": \"\",\n               \"LogConfig\": {\n                    \"Type\": \"journald\",\n                    \"Config\": null,\n                    \"Path\": \"\",\n                    \"Tag\": \"\",\n                    \"Size\": \"-1B\"\n               },\n               \"NetworkMode\": \"none\",\n               \"PortBindings\": {},\n               \"RestartPolicy\": {\n                    \"Name\": \"no\",\n                    \"MaximumRetryCount\": 0\n               },\n               \"AutoRemove\": false,\n               \"AutoRemoveImage\": false,\n               \"Annotations\": {\n                    \"io.container.manager\": \"libpod\",\n                    \"org.opencontainers.image.stopSignal\": \"15\",\n                    \"org.systemd.property.KillSignal\": \"15\",\n                    \"org.systemd.property.TimeoutStopUSec\": \"uint64 10000000\"\n               },\n               \"VolumeDriver\": \"\",\n               \"VolumesFrom\": null,\n               \"CapAdd\": [],\n               \"CapDrop\": [\n                    \"CAP_DAC_OVERRIDE\",\n                    \"CAP_FOWNER\",\n                    \"CAP_FSETID\",\n                    \"CAP_KILL\",\n                    \"CAP_NET_BIND_SERVICE\",\n                    \"CAP_SETFCAP\",\n                    \"CAP_SETGID\",\n                    \"CAP_SETPCAP\",\n                    \"CAP_SETUID\",\n                    \"CAP_SYS_CHROOT\"\n               ],\n               \"Dns\": [],\n               \"DnsOptions\": null,\n               \"DnsSearch\": null,\n               \"ExtraHosts\": null,\n               \"HostsFile\": \"\",\n               \"GroupAdd\": null,\n               \"IpcMode\": \"shareable\",\n               \"Cgroup\": \"\",\n               \"Cgroups\": \"default\",\n               \"Links\": null,\n               \"OomScoreAdj\": 0,\n               \"PidMode\": \"private\",\n               \"Privileged\": false,\n               \"PublishAllPorts\": false,\n               \"ReadonlyRootfs\": true,\n               \"SecurityOpt\": [\n                    \"no-new-privileges\"\n               ],\n               \"Tmpfs\": {\n                    \"/home\": \"rw,size=1048576,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/opt\": \"rw,size=1048576,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/proof\": \"rw,size=33554432,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/tmp\": \"rw,size=67108864,mode=1777,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/var/cache\": \"rw,size=16777216,mode=0755,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/var/log\": \"rw,size=16777216,mode=0755,rprivate,nosuid,nodev,tmpcopyup\"\n               },\n               \"UTSMode\": \"private\",\n               \"UsernsMode\": \"\",\n               \"ShmSize\": 65536000,\n               \"Runtime\": \"oci\",\n               \"ConsoleSize\": [\n                    0,\n                    0\n               ],\n               \"Isolation\": \"\",\n               \"CpuShares\": 0,\n               \"Memory\": 1073741824,\n               \"NanoCpus\": 2000000000,\n               \"CgroupParent\": \"user.slice\",\n               \"BlkioWeight\": 0,\n               \"BlkioWeightDevice\": null,\n               \"BlkioDeviceReadBps\": null,\n               \"BlkioDeviceWriteBps\": null,\n               \"BlkioDeviceReadIOps\": null,\n               \"BlkioDeviceWriteIOps\": null,\n               \"CpuPeriod\": 100000,\n               \"CpuQuota\": 200000,\n               \"CpuRealtimePeriod\": 0,\n               \"CpuRealtimeRuntime\": 0,\n               \"CpusetCpus\": \"\",\n               \"CpusetMems\": \"\",\n               \"Devices\": [],\n               \"DiskQuota\": 0,\n               \"KernelMemory\": 0,\n               \"MemoryReservation\": 0,\n               \"MemorySwap\": 2147483648,\n               \"MemorySwappiness\": null,\n               \"OomKillDisable\": false,\n               \"PidsLimit\": 0,\n               \"Ulimits\": [\n                    {\n                         \"Name\": \"RLIMIT_NOFILE\",\n                         \"Soft\": 524288,\n                         \"Hard\": 524288\n                    },\n                    {\n                         \"Name\": \"RLIMIT_NPROC\",\n                         \"Soft\": 31613,\n                         \"Hard\": 31613\n                    }\n               ],\n               \"CpuCount\": 0,\n               \"CpuPercent\": 0,\n               \"IOMaximumIOps\": 0,\n               \"IOMaximumBandwidth\": 0,\n               \"CgroupConf\": null\n          },\n          \"UseImageHosts\": false,\n          \"UseImageHostname\": false\n     }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd"
+      ],
+      "exit_code": 0,
+      "stdout": "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "exists",
+        "kaidera-test-graph-cleanup-1"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "source_sha256": {
+    "packages/containers/graph-worker/worker.py": "493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4",
+    "packages/containers/graph-worker/verify-qwen3-model.py": "968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473",
+    "packages/containers/graph-worker/Dockerfile": "58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4",
+    "packages/containers/graph-worker/finalize-build.py": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    "packages/containers/graph-worker/.dockerignore": "3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232",
+    "packages/containers/graph-worker/requirements.bcrg.in": "afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf",
+    "packages/containers/graph-worker/worker-entrypoint": "db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312",
+    "packages/containers/graph-worker/requirements.bcrg.lock": "e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018",
+    "packages/containers/graph-worker/qwen3-model-pins.json": "84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea",
+    "packages/containers/graph-worker/requirements.runtime.lock": "bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9",
+    "packages/containers/graph-worker/requirements.runtime.in": "c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b",
+    "packages/containers/graph-worker/fetch-qwen3-model.py": "a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb",
+    "packages/containers/graph-worker/debian-snapshot.sources": "34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017",
+    "packages/containers/graph-worker/tests/test_finalize_build.py": "d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24",
+    "packages/containers/graph-worker/tests/test_cleanup_ownership.py": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "packages/containers/graph-worker/tests/test_fetch_qwen3_model.py": "e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42",
+    "packages/containers/graph-worker/tests/test_finalizer_guard.py": "a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3",
+    "packages/containers/graph-worker/tests/test_worker_prune.py": "387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c"
+  },
+  "limits": {
+    "cpus": 2,
+    "memory": "1g"
+  },
+  "network": "none",
+  "ports": [],
+  "bind_mounts": [],
+  "container_removed": true,
+  "classifier_sha256": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+}
