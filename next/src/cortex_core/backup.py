@@ -18,7 +18,19 @@ class BackupError(ValueError):
 
 
 def basebackup_command(destination, *, host, user, port=5432, executable="pg_basebackup"):
-    return []
+    """Build the native base-backup command; credentials stay outside argv.
+
+    The caller supplies an owned staging directory and a PostgreSQL credential
+    environment (for example PGPASSFILE) and runs this without a shell.
+    Continuous archived WAL is validated separately before sealing.
+    """
+    if (not Path(destination).is_absolute() or not isinstance(host, str) or not host
+            or not isinstance(user, str) or not user or type(port) is not int
+            or not 1 <= port <= 65535):
+        raise BackupError("invalid base-backup connection or destination")
+    return [executable, "-h", host, "-U", user, "-p", str(port), "-D",
+            str(destination), "-Fp", "-X", "none",
+            "--manifest-checksums=SHA256", "--checkpoint=fast"]
 
 
 _LSN = re.compile(r"^[0-9A-Fa-f]{1,8}/[0-9A-Fa-f]{1,8}$")

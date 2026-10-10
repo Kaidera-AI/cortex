@@ -14,12 +14,12 @@ HERE = Path(__file__).resolve().parent
 WT = HERE.parents[3]
 sys.path.insert(0, str(WT / 'next/src'))
 sys.path.insert(0, str(WT / 'docs/next/evidence/c06-source'))
-from cortex_core.backup import BackupError, build_manifest, seal_encrypted_bundle
+from cortex_core.backup import BackupError, basebackup_command, build_manifest, seal_encrypted_bundle
 from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-o01a-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE / 'native-pg-002.json'
+OUT = HERE / 'native-pg-final-003.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01a-source/run-native-pg.py'])
@@ -61,7 +61,7 @@ try:
                  str(WT/'next/tests/backup_producer')], env=local_env)
     report = json.loads(next(line.split('=', 1)[1] for line in local.stdout.splitlines()
                              if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run'] == 5 and not report['failures'] and not report['errors']
+    assert report['tests_run'] == 6 and not report['failures'] and not report['errors']
     life.acquire()
     assert subprocess.run(['podman', 'container', 'exists', NAME]).returncode == 1
     life.create('container', NAME, ['podman', 'run', '-d', '--name', NAME,
@@ -89,9 +89,8 @@ try:
     psql('CREATE TABLE synthetic_backup (id integer PRIMARY KEY, body text NOT NULL);')
     psql("INSERT INTO synthetic_backup VALUES (1,'synthetic before backup');")
     psql('SELECT pg_switch_wal();')
-    run(['podman', 'exec', NAME, 'pg_basebackup', '-h', '127.0.0.1', '-U', 'postgres',
-         '-D', '/tmp/base', '-Fp', '-X', 'none', '--manifest-checksums=SHA256',
-         '--checkpoint=fast'], 180)
+    run(['podman', 'exec', NAME] + basebackup_command(
+        '/tmp/base', host='127.0.0.1', user='postgres'), 180)
     run(['podman', 'exec', NAME, 'pg_verifybackup', '-n', '/tmp/base'], 120)
     for number in (2, 3, 4):
         psql(f"INSERT INTO synthetic_backup VALUES ({number},'synthetic after backup {number}');")
@@ -186,7 +185,7 @@ finally:
     if cleanup_error:
         errors.append('cleanup: '+str(cleanup_error))
     receipt = {'tree': tree, 'source_sha256': source, 'passed': passed and not errors,
-               'native': native, 'local_tests': 5, 'results': results,
+               'native': native, 'local_tests': 6, 'results': results,
                'cleanup': life.receipt(), 'errors': errors,
                'published_ports': [], 'bind_mounts': [], 'synthetic_only': True,
                'limits': {'cpus': 2, 'memory': '1g'}}
