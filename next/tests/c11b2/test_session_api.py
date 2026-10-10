@@ -21,7 +21,8 @@ class SessionAPI(Fixture):
             db = psycopg.connect(dsn, autocommit=True)
             db.execute(f'SET ROLE "{REQUEST}"')
             return db
-        port = C11bRecordPort(connection, UUID(uid(1)), {'3': UUID(uid(3))})
+        port = C11bRecordPort(connection, UUID(uid(1)),
+                              {'3': UUID(uid(3)), '4': UUID(uid(4))})
         async def ready(): return True
         async def state(*_): return {'state': 'unavailable'}
         async def grant(*_): return False
@@ -30,9 +31,9 @@ class SessionAPI(Fixture):
             permission_recheck=grant, capability_source=state, health=health,
             handlers={'C01-R013': port.ingest_session}, allow_legacy_idempotency=True)
 
-    def call(self, body, *, key=WRITE_A, request_key=None):
+    def call(self, body, *, key=WRITE_A, request_key=None, project='3'):
         payload = json.dumps(body).encode()
-        headers = [(b'authorization', b'Bearer ' + key), (b'x-project', b'3')]
+        headers = [(b'authorization', b'Bearer ' + key), (b'x-project', project.encode())]
         if request_key is not None:
             headers.append((b'idempotency-key', request_key.encode()))
         scope = {'type': 'http', 'method': 'POST', 'path': '/sessions/ingest',
@@ -66,3 +67,32 @@ class SessionAPI(Fixture):
         self.assertEqual(self.call({**body, 'messages': [{'role': 'invalid', 'content': 'one'}]})[0], 400)
         self.assertEqual(self.call(body, request_key='session-request')[0], 200)
         self.assertEqual(self.call({**body, 'provider': 'changed'}, request_key='session-request')[0], 409)
+
+    def test_source_path_is_unique_across_authorized_projects(self):
+        self.admin.execute("INSERT INTO auth.project_grants VALUES (%s,%s,%s,ARRAY['read','write'])",
+                           (uid(2), uid(4), uid(10)))
+        body = {'session_uuid': uid(82), 'agent': '10',
+                'source_path': '/synthetic/shared.jsonl', 'provider': 'codex', 'messages': []}
+        self.assertEqual(self.call(body)[0], 200)
+        status, error = self.call({**body, 'session_uuid': uid(83)}, project='4')
+        self.assertEqual(status, 409)
+        self.assertEqual(error['error']['code'], 'conflict')
+        self.assertEqual(self.admin.execute(
+            "SELECT count(*) FROM core.records WHERE kind='session' AND project_id=%s",
+            (uid(4),)).fetchone()[0], 0)
+
+    def test_iso_timestamps_and_bounded_large_batch(self):
+        body = {'session_uuid': uid(84), 'agent': '10',
+                'source_path': '/synthetic/large.jsonl', 'provider': 'codex',
+                'messages': [{'role': 'user', 'content': 'a' * 2048,
+                              'ts': '2026-10-10T20:14:00Z'} for _ in range(600)]}
+        status, result = self.call(body)
+        self.assertEqual(status, 200)
+        self.assertEqual(result['messages_inserted'], 600)
+        invalid = {**body, 'session_uuid': uid(85),
+                   'messages': [{'role': 'user', 'content': 'bad', 'ts': '2026-99-99'}]}
+        status, error = self.call(invalid)
+        self.assertEqual((status, error['error']['code']), (400, 'invalid_input'))
+        oversized = {**body, 'session_uuid': uid(86),
+                     'messages': [{'role': 'user', 'content': 'x' * 65536} for _ in range(140)]}
+        self.assertEqual(self.call(oversized)[0], 400)

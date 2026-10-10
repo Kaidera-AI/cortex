@@ -129,6 +129,45 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((status, error['error']['code']), (503, 'capability_unavailable'))
         self.assertNotIn('results', error)
 
+    async def test_p01_provider_identity_cache_and_unavailable_refusal(self):
+        calls = []
+        class FakeProvider:
+            async def embed(self, query, identity):
+                calls.append((query, identity.provider, identity.model, identity.version,
+                              identity.dimensions, identity.preprocessing, identity.key))
+                return PROBE_VECTOR
+        try:
+            port = C11b2ReadPort(self.record_port, self.pool, IDENTITY, FakeProvider(),
+                                 'fixture-extractor', {'3': '/approved/project-3'})
+        except ValueError:
+            self.fail('C11 must bind the P01 provider embed port')
+        gateway = self.make_gateway(port)
+        first = await self.call('GET', '/search', query=b'q=provider-probe', gateway=gateway)
+        second = await self.call('GET', '/search', query=b'q=provider-probe', gateway=gateway)
+        self.assertEqual((first[0], second[0]), (200, 200))
+        self.assertEqual(calls, [('provider-probe', 'fixture', 'frozen-query-vector',
+                                  'v1', 768, 'v1', IDENTITY.key)])
+        self.assertEqual(first[1]['freshness']['identity'], IDENTITY.key)
+
+        class Unavailable:
+            async def embed(self, _query, _identity):
+                raise CapabilityUnavailable('provider_unavailable')
+        port = C11b2ReadPort(self.record_port, self.pool, IDENTITY, Unavailable(),
+                             'fixture-extractor', {'3': '/approved/project-3'})
+        status, error = await self.call('GET', '/search', query=b'q=unavailable',
+                                        gateway=self.make_gateway(port))
+        self.assertEqual((status, error['error']['code']), (503, 'capability_unavailable'))
+        self.assertNotIn('results', error)
+
+    async def test_installer_ledger_contains_nemo_retrieval_schemas(self):
+        applied = {row[0] for row in self.admin.execute(
+            'SELECT migration_id FROM core.schema_migrations').fetchall()}
+        self.assertTrue({'retrieval-0001', 'retrieval-0002', 'retrieval-0003'} <= applied)
+        for table in ('search_state', 'search_sources', 'search_vectors',
+                      'query_embeddings', 'graph_state', 'graph_applied'):
+            self.assertIsNotNone(self.admin.execute(
+                'SELECT to_regclass(%s)', ('retrieval.' + table,)).fetchone()[0])
+
     async def test_graph_real_port_and_backlog_refusal(self):
         body = b'{"label":"fixture-concept","description":"current","content":"current"}'
         payload, rid, fact = uuid4(), uuid4(), uuid4()
