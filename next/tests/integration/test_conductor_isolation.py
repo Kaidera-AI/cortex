@@ -197,3 +197,12 @@ class ConductorIsolationTests(unittest.IsolatedAsyncioTestCase):
         await manager.close()
         self.assertTrue(all(child.process.returncode is not None for child in manager.children))
         self.assertTrue(manager.task.done())
+
+    async def test_expiry_receipt_proves_callback_entered_before_rollback(self):
+        child = await self.child()
+        self.assertEqual(child.receipt["kind"], "ready")
+        receipt = await child.request("intent", delay=0.8)
+        self.assertEqual(receipt["kind"], "stale")
+        self.assertTrue(receipt["entered"])
+        self.assertTrue(receipt["lease_expired"])
+        self.assertEqual(await self.fixture.admin.fetchval("SELECT count(*) FROM public.test_controls"), 0)
