@@ -100,7 +100,8 @@ class MemoryAPI(Fixture):
         before = self.admin.execute('SELECT count(*) FROM core.records WHERE kind=%s',
                                     ('memory',)).fetchone()[0]
         status, response = self.call('POST', '/memory', b'', body)
-        self.assertEqual((status, response['error']['code']), (403, 'forbidden'))
+        self.assertEqual((status, response['error']['code']), (401, 'credential_required'))
+        self.assertIn('upgrade', response['error']['message'].lower())
         self.assertEqual(self.admin.execute('SELECT count(*) FROM core.records WHERE kind=%s',
                                             ('memory',)).fetchone()[0], before)
 
