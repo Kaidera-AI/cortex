@@ -10,7 +10,7 @@ import unittest
 HERE = Path(__file__).resolve().parent
 WT = HERE.parents[3]
 VERIFY = HERE / 'verify-publication.py'
-INDEX = HERE / 'publication-index-001.json'
+INDEX = HERE / 'publication-index-002.json'
 
 
 class PublicationCompleteness(unittest.TestCase):
@@ -20,8 +20,7 @@ class PublicationCompleteness(unittest.TestCase):
         cls.clean = Path(cls.folder.name) / 'clean'
         subprocess.run(['git', 'clone', '--quiet', '--no-checkout', '--shared', str(WT), str(cls.clean)],
                        check=True, capture_output=True, text=True)
-        subprocess.run(['git', '-C', str(cls.clean), 'checkout', '--quiet', '--detach',
-                        '88586d3e111b7f619ba1ea8502358a379d3f0fcd'],
+        subprocess.run(['git', '-C', str(cls.clean), 'checkout', '--quiet', '--detach', 'HEAD'],
                        check=True, capture_output=True, text=True)
 
     @classmethod
@@ -46,6 +45,7 @@ class PublicationCompleteness(unittest.TestCase):
             copied.write_text(json.dumps(data))
             result = self.run_index(copied)
         self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('expected_inventory_mismatch', result.stderr)
 
 
 if __name__ == '__main__':

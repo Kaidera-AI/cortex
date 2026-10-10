@@ -34,13 +34,15 @@ for directory,count in expected.items():
       if alias.name in definitions:
        actual+=sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in definitions[alias.name].body)
  checks[directory]={'actual':actual,'expected':count,'passed':actual==count}
+recipe_count=0
 for filename in ('outbox-fault-recipes.json','outbox-identity-fault-recipes.json','outbox-adapters-fault-recipes.json','outbox-c05-fault-recipes.json','outbox-write-only-fault-recipes.json','outbox-private-namespace-fault-recipes.json'):
  for recipe in json.loads((wt/'next/contracts'/filename).read_text())['mutants']:
+  recipe_count+=1
   sources={e['path']:(wt/'next'/e['path']).read_text() for e in recipe['changes']}
   for e in recipe['changes']:
    assert sources[e['path']].count(e['before'])==e['count'],('fault_preflight',recipe['label'],e['path'])
    sources[e['path']]=sources[e['path']].replace(e['before'],e['after'])
-checks['all_fault_anchors']={'passed':True,'recipes':120}
+checks['all_fault_anchors']={'passed':recipe_count==120,'recipes':recipe_count}
 status=subprocess.check_output(['git','status','--porcelain','--untracked-files=all','--','next'],cwd=wt,text=True)
 tracked=set(subprocess.check_output(['git','-C',str(wt),'ls-tree','-r','--name-only','HEAD','next'],text=True).splitlines())
 actual=set(str(p.relative_to(wt)) for p in (wt/'next').rglob('*') if p.is_file())

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "kind": "C06 independent expected publication inventory",
-  "tested_source_commit": "e8dc899c06b38739144d10227916aadf792922ef",
+  "tested_source_commit": "c717570f3149950a3a6dd90322abc54fa02b8454",
   "source_paths": [
     "next/benchmarks/vector_baseline/.gitignore",
     "next/benchmarks/vector_baseline/PLAN.md",
@@ -416,6 +416,7 @@
     "next/tests/outbox_late_publication/test_late_publication.py",
     "next/tests/outbox_private_namespace/test_outbox_private_namespace.py",
     "next/tests/outbox_retention/test_outbox_retention.py",
+    "next/tests/outbox_retention/test_project_retention.py",
     "next/tests/outbox_write_only/test_outbox_write_only.py",
     "next/tests/receipt/fixture-reuse-probe.py",
     "next/tests/receipt/test_async_fixture_reuse.py",
@@ -486,6 +487,9 @@
     "docs/next/evidence/c06-source/pre-matrix-quarantine-fixture-original.py",
     "docs/next/evidence/c06-source/private-namespace-preflight-fail-001.json",
     "docs/next/evidence/c06-source/private-namespace-red-001.json",
+    "docs/next/evidence/c06-source/publication-expected.json",
+    "docs/next/evidence/c06-source/publication-index-001.json",
+    "docs/next/evidence/c06-source/publication-validation-red-green.json",
     "docs/next/evidence/c06-source/published-wheel-metadata-red.json",
     "docs/next/evidence/c06-source/qualified-test-id-check.json",
     "docs/next/evidence/c06-source/quarantine-fixture-disposition.json",
@@ -500,11 +504,14 @@
     "docs/next/evidence/c06-source/run-core-pg.py",
     "docs/next/evidence/c06-source/test-outbox-private-namespace-frozen.py",
     "docs/next/evidence/c06-source/test-outbox-write-only-frozen.py",
+    "docs/next/evidence/c06-source/test_publication_verifier.py",
+    "docs/next/evidence/c06-source/test_replay_inputs.py",
     "docs/next/evidence/c06-source/verify-expiry-fixture.py",
     "docs/next/evidence/c06-source/verify-fixture-contract.py",
     "docs/next/evidence/c06-source/verify-fixture-shapes.py",
     "docs/next/evidence/c06-source/verify-publication.py",
     "docs/next/evidence/c06-source/verify-replay-inputs.py",
     "docs/next/evidence/c06-source/write-only-event-red-001.json"
-  ]
+  ],
+  "index_path": "docs/next/evidence/c06-source/publication-index-002.json"
 }
