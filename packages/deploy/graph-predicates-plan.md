@@ -1,0 +1,20 @@
+# H-D449 retained graph class predicate plan
+
+READ-ONLY proposal for Kai and Vera, not a guard exception or admission. Inputs are the exact signed 15aff reference and retained attempt-8 fresh-seven graph archive. `audit.py` rebuilds complete merged filesystems with the unchanged guard reader. Every added/deleted name is in PATH_EXPLANATIONS.md, with measured rows in added-paths.json and deleted-paths.json.
+
+## Proposed predicates, only after acceptance
+
+1. A removed regular path must be precisely a Python-tagged `.pyc` directly under `__pycache__`. Derive its corresponding `.py`; require a regular source in BOTH merged images, equal size and SHA-256, and unchanged source metadata. Refuse missing, changed, ambiguous or noncache paths. This does not permit arbitrary bytecode removal or removal of source. Removed-cache list is exhaustive.
+2. Parse each changed dist-info/RECORD as CSV with exact 3-column rows and reject duplicate paths. Common rows must be byte-equivalent tuples; no added rows. Every removed row must name a cache whose corresponding source passes the byte/metadata equality predicate, with BOTH hash and size empty. Final compilation may regenerate that cache at the same path; its current bytes must then pass predicate 3. Do not confuse removed RECORD rows with removed filesystem paths: the retained diff has ZERO removed cache paths and 9,817 changed cache paths. Distribution/version/hashed-file rows stay exact. Refuse hashed caches, removed sources, unrelated rows and omissions. Independently compare the complete archive RECORD inventories, not only a claimed count.
+3. Each added OR changed cache must map to a regular source. Existing sources must have unchanged bytes and metadata. For checked-hash caches, require exact supported magic, flags 3, hash binding to actual source bytes, and marshal/code-object equivalence to compiling those exact bytes at the final absolute runtime filename on the matching Python 3.13 interpreter, fixed hash seed and optimize=0. No generic changed-cache waiver. Helper cache is separately bound to the single source-reviewed finalizer. An actual matching interpreter proof is NOT_RUN in this read-only packet.
+4. Allow only the three explicitly named added cache directories; exact ownership/mode/type and no hidden extra descendants beyond validated cache paths. The ONE added finalizer must be byte-bound to the reviewed graph source and must appear in build invocations only. Entry point and startup command remain exact.
+5. Allow only the SEVEN explicitly named removed byproducts in deleted-paths.json, each justified by the reviewed cleanup tuple. Refuse wildcard logs/cache deletion. Validate no runtime model, model receipt, package source, version or lock inventory changes.
+6. All other source, jp/code/model, filesystem metadata and release identity invariants retain the existing checks. `etc/shadow` is a separate existing generated-metadata predicate, not included in the 1044/7 list. Full class admission remains RED/NOT_RUN until an accepted implementation and new independent controls.
+
+## RED-first implementation and mutant contract
+
+Freeze controls for each proposed allowance and refusal before guard code: removed-cache source absent/changed, noncache deletion, hashed RECORD row, changed common/added/duplicate RECORD row, cache without source or bad hash/flags/body, wrong helper bytes, extra directory/child, extra cleanup path and altered model/source metadata. Baseline current strict guard rejects the accepted fixture deltas; proposed guard accepts only source-reviewed exact fixtures and kills every mutation. Use retained archives for measured evidence; then a NEW attempt requires Kai envelope and GO, native rebuilds and full class checks. No alteration of retained archives.
+
+## Decision requested
+
+Kai chooses whether Vera should review this exact bounded predicate contract before implementation. Recommendation: accept the plan only after exhaustive source and RECORD receipts and matching-interpreter proof are reviewed; no blanket metadata allowance. No host, merge, signing or install is authorized by this plan.
