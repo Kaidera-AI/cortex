@@ -2,6 +2,7 @@
 from contextvars import ContextVar
 from dataclasses import dataclass
 import hashlib
+from datetime import timedelta
 import json
 import re
 from uuid import UUID, uuid4
@@ -256,8 +257,8 @@ class Jobs:
                 (*_scope(scope),job_id)).fetchone()[0]
             _LEASE_DEADLINE.set(deadline)
             self.connection.execute('''INSERT INTO coordination.job_attempts
-                (tenant_id,project_id,id,job_id,attempt_number,fence,worker_id) VALUES (%s,%s,%s,%s,%s,%s,%s)''',
-                (*_scope(scope),attempt,job_id,number,fence,str(scope.principal_id)))
+                (tenant_id,project_id,id,job_id,attempt_number,fence,worker_id,started_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)''',
+                (*_scope(scope),attempt,job_id,number,fence,str(scope.principal_id),deadline-timedelta(seconds=ttl_seconds)))
             self._state(scope,job_id,'running')
             return dict(type='claim',job_id=str(job_id),attempt_id=str(attempt),attempt_number=number,fence=fence,holder=str(scope.principal_id))
         return self._execute('job.claim',job_id,request_key,[ttl_seconds],claim)

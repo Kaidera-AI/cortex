@@ -27,6 +27,7 @@ PY='sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 SUITES=[('schema', 30), ('auth', 40), ('records', 14), ('coordination', 23), ('core_adapters', 6), ('acceptance_guards', 7), ('auth_identity', 26), ('auth_identity_guards', 6), ('identity_coordination', 8), ('identity_portability', 3), ('identity_receipts', 5), ('identity_transition', 1), ('identity_policy_faults', 2), ('identity_binding', 2), ('contract', 33), ('receipt', 20)]
 results=[]
 passed=False
+mutation_errors=[]
 
 
 def run(args,timeout=120):
@@ -143,17 +144,18 @@ try:
         else:
             assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
-        for script,count in [('mutate_outbox.py',34),('mutate_identity.py',32),('mutate_core_adapters.py',30),('mutate_contracts.py',26),('mutate_test_receipts.py',8)]:
-            value=checked(env+['python','/tmp/next/scripts/'+script],900)
+        for script,count in [('mutate_outbox.py',42),('mutate_identity.py',32),('mutate_core_adapters.py',30),('mutate_contracts.py',26),('mutate_test_receipts.py',8)]:
+            value=run(env+['python','/tmp/next/scripts/'+script],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]
             faults=[row for row in rows if 'status' in row]
-            assert len(faults)==count and all(row['status']=='killed' for row in faults)
+            valid=value.returncode==0 and len(faults)==count and all(row['status']=='killed' for row in faults)
             for row in faults:
-                receipt=row['receipt']
-                assert not receipt['errors'] and all(r['phase']=='test' and r['is_assertion'] for r in receipt['failures'])
-                assert row['expected_test'] in {r['id'].split(' (')[0] for r in receipt['failures']}
-            summary=rows[-1]
-            assert summary['mutants']==count and summary['killed']==count and not summary['survivors'] and not summary['inconclusive']
+                receipt=row.get('receipt')
+                valid=valid and receipt is not None and not receipt['errors'] and all(r['phase']=='test' and r['is_assertion'] for r in receipt['failures'])
+                valid=valid and row['expected_test'] in {r['id'].split(' (')[0] for r in receipt['failures']}
+            summary=rows[-1] if rows else {}
+            valid=valid and summary.get('mutants')==count and summary.get('killed')==count and not summary.get('survivors') and not summary.get('inconclusive')
+            if not valid:mutation_errors.append({'script':script,'exit_code':value.returncode,'faults':len(faults),'summary':{k:summary.get(k) for k in ('mutants','killed','survivors','inconclusive')}})
     hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
     restored=json.loads(hashes.stdout)
     expected={str(p.relative_to(WT/'next')):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
@@ -169,7 +171,7 @@ try:
     assert restored==expected, 'all copied source bytes must be restored'
     assert SOURCE=={str(p.relative_to(WT)):digest for p,digest in ((WT/'next'/name,digest) for name,digest in expected.items())}
     assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
-    passed=True
+    passed=not mutation_errors
 finally:
     cleanup_error=life.finish()
     inventory_error=None
@@ -179,7 +181,7 @@ finally:
                  for kind,name in [('container',DB),('container',DRIVER),('pod',POD)])
     except Exception as caught:inventory_error=type(caught).__name__+': '+str(caught)
     TARGET.write_text(json.dumps({'phase':PHASE,'tree':TREE,
-        'passed':bool(passed and life.cleanup_verified and gone),'stack_removed':gone,
+        'passed':bool(passed and life.cleanup_verified and gone),'stack_removed':gone,'mutation_errors':mutation_errors,
         'final_inventory_error':inventory_error,'cleanup':life.receipt(),
         'lifecycle':life.lifecycle,'images':[PG,PY],'native_arch':'arm64','network':'none; private loopback',
         'published_ports':[],'bind_mounts':[],'limits':{'cpus':2,'memory':'1g','pg_memory':'768m','driver_memory':'256m'},
@@ -188,3 +190,5 @@ finally:
     if cleanup_error:raise cleanup_error
     if inventory_error:raise RuntimeError('final inventory unverified: '+inventory_error)
     assert gone,'C05 resource absence is unverified'
+
+assert passed, "C06 qualification failed; failed matrix and restoration retained"

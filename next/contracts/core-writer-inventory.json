@@ -392,7 +392,7 @@
       "verb": "INSERT",
       "table": "coordination.job_attempts",
       "ordinal": 0,
-      "statement_sha256": "34cbaec1d4b0c0825cfb6df652650ec7da4e380a7d2df5297c9eb36673162e36",
+      "statement_sha256": "43812e5ef50e5208dc941722099e54eb476fa717763f01ba7f860cb4c896581b",
       "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
     },
     {

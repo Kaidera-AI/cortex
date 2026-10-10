@@ -394,6 +394,7 @@ BEGIN
            OR receipt->>'holder' IS DISTINCT FROM actor::text
            OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'
            OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'
+           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric
           THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;
         RETURN;
     END IF;
@@ -425,6 +426,11 @@ BEGIN
             WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))
           THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;
     ELSE
+        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND
+           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')
+          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;
+        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'
+          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;
         IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)
            OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'
           THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;
