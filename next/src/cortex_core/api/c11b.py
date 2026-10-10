@@ -4,11 +4,16 @@ import asyncio
 from datetime import datetime
 import hashlib
 import json
+import re
 from uuid import UUID, NAMESPACE_URL, uuid5
 
 from cortex_core.auth import AuthError, authorized
 from cortex_core.records import RecordError, Records
 from .c11a import C05Committed
+
+
+_ISO_TIMESTAMP = (r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'
+                  r'(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})?')
 
 
 def _headers(scope):
@@ -98,6 +103,8 @@ def _session_body(scope):
         timestamp = message.get('ts')
         if timestamp is not None:
             if not timestamp or len(timestamp) > 64:
+                raise RecordError('invalid_input')
+            if re.fullmatch(_ISO_TIMESTAMP, timestamp) is None:
                 raise RecordError('invalid_input')
             try:
                 datetime.fromisoformat(timestamp.replace('Z', '+00:00'))

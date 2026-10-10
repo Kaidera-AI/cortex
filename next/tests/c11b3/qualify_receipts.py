@@ -6,7 +6,7 @@ import sys
 EXPECTED = {
     'provider_bypass': 'test_read_api.ReadAPI.test_p01_provider_identity_cache_and_unavailable_refusal',
     'session_claim_hook': 'test_session_api.SessionAPI.test_source_path_is_unique_across_authorized_projects',
-    'session_iso': 'test_session_api.SessionAPI.test_iso_timestamps_and_bounded_large_batch',
+    'session_iso': 'test_session_api.SessionAPI.test_non_iso_separator_refuses_without_core_or_source_writes',
     'session_size': 'test_session_api.SessionAPI.test_iso_timestamps_and_bounded_large_batch',
     'manifest_ledger': 'test_read_api.ReadAPI.test_installer_ledger_contains_nemo_retrieval_schemas',
     'query_cache_rls': 'test_read_api.ReadAPI.test_installer_ledger_contains_nemo_retrieval_schemas',
@@ -31,18 +31,18 @@ def receipt(path):
 def qualify(root):
     green, clean = receipt(root / 'green.jsonl')
     assert green['mutation'] is None and green['exit_code'] == 0
-    assert clean == {'tests_run': 21, 'failures': [], 'errors': []}
+    assert clean == {'tests_run': 23, 'failures': [], 'errors': []}
     killed = {}
     for name, expected_id in EXPECTED.items():
         run, result = receipt(root / f'mutant-{name}.jsonl')
         assert run['mutation'] == name and run['exit_code'] == 1
-        assert result['tests_run'] == 21 and result['errors'] == []
+        assert result['tests_run'] == 23 and result['errors'] == []
         failures = result['failures']
         assert failures and all(f['phase'] == 'test' and f['is_assertion'] is True
                                 for f in failures), name
         assert expected_id in {f['id'] for f in failures}, name
         killed[name] = [f['id'] for f in failures]
-    print(json.dumps({'green_tests': 21, 'mutants_killed': killed,
+    print(json.dumps({'green_tests': 23, 'mutants_killed': killed,
                       'cleanup': 'pass', 'limits': '2cpu/1GiB/no-network'}, sort_keys=True))
 
 
