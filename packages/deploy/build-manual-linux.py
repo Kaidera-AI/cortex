@@ -66,7 +66,7 @@ def make_plan(root, sha):
         # Podman 5.8.2 forbids combining --timestamp and --source-date-epoch.
         # --timestamp stamps image metadata AND newly committed layer files;
         # SOURCE_DATE_EPOCH build-args also select the conflicting clock mode.
-        argv = ['build', '--timestamp', str(SOURCE_DATE_EPOCH),
+        argv = ['build', '--timestamp', str(SOURCE_DATE_EPOCH), '--identity-label=true',
                 '--platform', 'linux/amd64', '--format', 'oci',
                 '--tag', tag, '--file', str(root/context/recipe)]
         for name, value in args.items():
