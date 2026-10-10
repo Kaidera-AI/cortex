@@ -1,0 +1,28 @@
+{
+  "base": "e9a19f1476d1f6f3be14d7df6ccb3fb7eddd9e7e",
+  "scope": [
+    "packages/containers/graph-worker/Dockerfile",
+    "packages/containers/graph-worker/tests/test_builder_pyc.py",
+    "docs/qualification/evidence/r426-graph-pyc-20261010"
+  ],
+  "graph_sha256": {
+    "worker.py": "493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4",
+    "verify-qwen3-model.py": "968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473",
+    "Dockerfile": "58e31b6ace9ce49025e2b194740692d4ebc15d9c801a7efde75d33633dbecab4",
+    "finalize-build.py": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    ".dockerignore": "3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232",
+    "requirements.bcrg.in": "afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf",
+    "worker-entrypoint": "db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312",
+    "requirements.bcrg.lock": "e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018",
+    "qwen3-model-pins.json": "84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea",
+    "requirements.runtime.lock": "bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9",
+    "requirements.runtime.in": "c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b",
+    "fetch-qwen3-model.py": "a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb",
+    "debian-snapshot.sources": "34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017",
+    "tests/test_finalize_build.py": "d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24",
+    "tests/test_cleanup_ownership.py": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "tests/test_fetch_qwen3_model.py": "e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42",
+    "tests/test_finalizer_guard.py": "a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3",
+    "tests/test_worker_prune.py": "387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c"
+  }
+}

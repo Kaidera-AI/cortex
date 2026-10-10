@@ -1,0 +1,23 @@
+{
+  "results": [
+    {
+      "command": [
+        "python3",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-pyc-20261010/docs/qualification/evidence/r426-graph-pyc-20261010/verify-fixture-parser.py",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-pyc-20261010/docs/qualification/evidence/r426-graph-pyc-20261010/unqualified-builder-probe-original.py"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-pyc-20261010/docs/qualification/evidence/r426-graph-pyc-20261010/verify-fixture-parser.py\", line 18, in <module>\n    assert len(runs)==1, 'fixture must reach the actual builder fetch RUN before native execution'\n           ^^^^^^^^^^^^\nAssertionError: fixture must reach the actual builder fetch RUN before native execution\n"
+    },
+    {
+      "command": [
+        "python3",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-pyc-20261010/docs/qualification/evidence/r426-graph-pyc-20261010/verify-fixture-parser.py"
+      ],
+      "exit_code": 0,
+      "stdout": "fixture parser reaches one real builder RUN; pip no-compile preserved\n",
+      "stderr": ""
+    }
+  ]
+}

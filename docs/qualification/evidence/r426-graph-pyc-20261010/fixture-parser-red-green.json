@@ -1,0 +1,8 @@
+{
+  "original_partition": "before the first FROM, hence no executable builder RUN",
+  "red_receipt": "red-attempt-001.json",
+  "qualification": "operational StopIteration, zero BODY assertions; not RED proof",
+  "correction": "select text between the first and second FROM, preserving all header/hash assertions",
+  "new_fixture_preflight": "verify-fixture-parser.py rejects original partition before any resource creation",
+  "actual_execution_receipt": "fixture-parser-actual-red-green.json"
+}

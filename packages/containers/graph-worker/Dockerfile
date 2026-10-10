@@ -24,6 +24,7 @@ RUN HF_HUB_DISABLE_TELEMETRY=1 \
     /opt/bcrg/bin/python /build/fetch-qwen3-model.py \
  && test -s /opt/kaidera-qwen3/kaidera-qwen3-model-receipt.json \
  && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --builder-home --cleanup-scope runtime \
+ && PYTHONHASHSEED=0 /usr/local/bin/python -m compileall --invalidation-mode checked-hash -f -q /opt/bcrg \
  && rm -rf /build
 
 
