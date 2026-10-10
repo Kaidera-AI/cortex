@@ -110,6 +110,12 @@ class D3Status(IsolatedAsyncioTestCase):
         status, body = await self.call_as(READ_A, '/workers/health')
         self.assertEqual((status, body['supervisor']['state']), (200, 'supervisor_down'))
         self.assertNotIn('fence', body)
+        self.admin.execute('UPDATE retrieval.search_sources SET source_revision=1 '
+                           'WHERE tenant_id=%s AND project_id=%s AND record_id=%s',
+                           (uid(2), uid(3), uid(6)))
+        status, body = await self.call_as(READ_A, '/degradation')
+        self.assertEqual((status, body['search']['state'], body['supervisor']['state']),
+                         (200, 'ready', 'supervisor_down'))
 
     async def test_revocation_during_supervisor_read_prevents_late_status(self):
         async def revoke_after_read(_principal, _scope, _key):
