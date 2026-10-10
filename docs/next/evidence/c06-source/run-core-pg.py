@@ -97,6 +97,14 @@ try:
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
+    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_caller'],300)
+    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+    assert report['tests_run']==2 and not report['errors']
+    if PHASE.startswith('outbox-red-caller'):
+        assert value.returncode==1 and len(report['failures'])==2
+        assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+    else:
+        assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
         for script,count in [('mutate_outbox.py',32),('mutate_identity.py',32),('mutate_core_adapters.py',30),('mutate_contracts.py',26),('mutate_test_receipts.py',8)]:
             value=checked(env+['python','/tmp/next/scripts/'+script],900)
