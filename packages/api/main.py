@@ -412,15 +412,31 @@ async def listen_for_team_events() -> None:
 
     while True:
         conn: asyncpg.Connection | None = None
+        on_terminated = None
         try:
             conn = await asyncpg.connect(
                 PG_DSN_ADMIN, **database_connection_kwargs(PG_DSN_ADMIN, "admin")
             )
             event_listener_conn = conn
+            terminated = asyncio.Event()
+
+            def on_terminated(closed_connection):
+                global event_listener_ready, event_listener_error
+                # A delayed callback from an old connection cannot invalidate a
+                # healthy replacement connection or wake its termination Event.
+                if event_listener_conn is closed_connection:
+                    event_listener_ready = False
+                    event_listener_error = "LISTEN connection closed"
+                    terminated.set()
+
+            conn.add_termination_listener(on_terminated)
             await conn.add_listener(EVENT_WAKE_CHANNEL, event_notification_callback)
+            if terminated.is_set():
+                raise ConnectionError("LISTEN connection closed")
             event_listener_ready = True
             event_listener_error = None
-            await asyncio.Future()
+            await terminated.wait()
+            raise ConnectionError("LISTEN connection closed")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -429,6 +445,9 @@ async def listen_for_team_events() -> None:
             await asyncio.sleep(2)
         finally:
             if conn is not None:
+                if on_terminated is not None:
+                    with suppress(Exception):
+                        conn.remove_termination_listener(on_terminated)
                 with suppress(Exception):
                     await conn.remove_listener(EVENT_WAKE_CHANNEL, event_notification_callback)
                 with suppress(Exception):
@@ -16900,11 +16919,34 @@ async def project_transfer_dependencies(
     ]
 
 
+async def lock_shared_message_transfer(conn: Any) -> tuple[list[str], bool]:
+    """Fence both message tables, then their sequence, for the caller transaction."""
+    present_tables = []
+    for table_name in ("messages", "archive_messages"):
+        if await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", f"public.{table_name}"):
+            present_tables.append(table_name)
+    if present_tables:
+        await conn.execute(
+            "LOCK TABLE " + ", ".join(f"public.{name}" for name in present_tables)
+            + " IN SHARE ROW EXCLUSIVE MODE"
+        )
+
+    sequence_exists = bool(await conn.fetchval("SELECT to_regclass('public.messages_id_seq') IS NOT NULL"))
+    if sequence_exists:
+        # Same-cache DDL holds the sequence lock through the outer transaction.
+        cache_size = await conn.fetchval(
+            "SELECT seqcache FROM pg_sequence WHERE seqrelid = 'public.messages_id_seq'::regclass"
+        )
+        await conn.execute(f"ALTER SEQUENCE public.messages_id_seq CACHE {int(cache_size)}")
+    return present_tables, sequence_exists
+
+
 async def reset_project_transfer_sequences(
     conn: Any,
     tables: set[tuple[str, str]],
 ) -> list[str]:
     reset: list[str] = []
+    shared_messages = bool({("public", "messages"), ("public", "archive_messages")} & tables)
     for schema_name, table_name in sorted(tables):
         rows = await conn.fetch(
             """SELECT column_name
@@ -16925,6 +16967,10 @@ async def reset_project_transfer_sequences(
             )
             if not sequence:
                 continue
+            if shared_messages and sequence == "public.messages_id_seq":
+                # Both hot and archived message IDs use this sequence. Reset it
+                # once, after collecting the high-water mark from both tables.
+                continue
             maximum = await conn.fetchval(
                 f"SELECT MAX({quote_ident(column)})::bigint FROM {qualified}"
             )
@@ -16932,6 +16978,25 @@ async def reset_project_transfer_sequences(
                 continue
             await conn.fetchval("SELECT setval($1::regclass, $2::bigint, true)", sequence, maximum)
             reset.append(f"{schema_name}.{table_name}.{column}")
+
+    if shared_messages:
+        async with conn.transaction():
+            present_tables, sequence_exists = await lock_shared_message_transfer(conn)
+            if sequence_exists:
+                prior = await conn.fetchval("SELECT last_value FROM public.messages_id_seq")
+                maxima = [int(prior)]
+                for table_name in present_tables:
+                    maximum = await conn.fetchval(f"SELECT MAX(id)::bigint FROM public.{table_name}")
+                    if maximum is not None:
+                        maxima.append(int(maximum))
+                await conn.execute(
+                    f"ALTER SEQUENCE public.messages_id_seq RESTART WITH {max(maxima) + 1}"
+                )
+        if sequence_exists:
+            reset.extend(
+                f"public.{table_name}.id" for table_name in ("messages", "archive_messages")
+                if ("public", table_name) in tables
+            )
     return reset
 
 
@@ -17832,6 +17897,8 @@ async def import_project(
         results: dict[str, dict[str, int]] = {}
         imported_tables: set[tuple[str, str]] = set()
         async with conn.transaction():
+            if {("public", "messages"), ("public", "archive_messages")} & requested.keys():
+                await lock_shared_message_transfer(conn)
             for key in order:
                 transfer = requested[key]
                 if not transfer.rows:
