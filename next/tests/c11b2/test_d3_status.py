@@ -76,8 +76,10 @@ class D3Status(IsolatedAsyncioTestCase):
         a_status, a = await self.call_as(READ_A, '/degradation')
         b_status, b = await self.call_as(READ_B, '/degradation', gateway=gateway_b)
         self.assertEqual((a_status, b_status), (200, 200))
-        self.assertEqual((a['search']['source_pending'], a['search']['core_unprojected']), (0, 0))
-        self.assertEqual((b['search']['source_pending'], b['search']['core_unprojected']), (1, 0))
+        self.assertEqual((a.get('search', {}).get('source_pending'),
+                          a.get('search', {}).get('core_unprojected')), (0, 0))
+        self.assertEqual((b.get('search', {}).get('source_pending'),
+                          b.get('search', {}).get('core_unprojected')), (1, 0))
         self.assertNotIn(uid(21), json.dumps(a))
         self.assertEqual(a['canonical_write']['state'], 'unavailable')
         for key, gateway in ((READ_A, self.gateway), (READ_B, gateway_b)):
@@ -94,7 +96,8 @@ class D3Status(IsolatedAsyncioTestCase):
         self.assertEqual((await self.call_as(READ_A, '/health'))[0], 200)
         status, body = await self.call_as(READ_A, '/degradation')
         self.assertEqual(status, 200)
-        self.assertEqual((body['search']['state'], body['search']['source_pending']), ('lagging', 1))
+        self.assertEqual((body.get('search', {}).get('state'),
+                          body.get('search', {}).get('source_pending')), ('lagging', 1))
         self.assertEqual(body['supervisor']['state'], 'healthy')
         self.assertEqual(body['canonical_write']['state'], 'unavailable')
         status, body = await self.call_as(READ_A, '/workers/health')
@@ -133,7 +136,8 @@ class D3Status(IsolatedAsyncioTestCase):
         for method, path in (('POST', '/beat/embeddings/backfill'),
                              ('GET', '/beat/embeddings/jobs/' + uid(60))):
             status, body = await self.call_as(READ_A, path, method)
-            self.assertEqual((status, body['error']['code'], body['error']['state']),
+            self.assertEqual((status, body.get('error', {}).get('code'),
+                              body.get('error', {}).get('state')),
                              (503, 'capability_unavailable', 'unimplemented'))
         self.assertEqual(calls, [])
 
