@@ -206,3 +206,16 @@ class ConductorIsolationTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(receipt["entered"])
         self.assertTrue(receipt["lease_expired"])
         self.assertEqual(await self.fixture.admin.fetchval("SELECT count(*) FROM public.test_controls"), 0)
+
+    async def test_background_fixture_failure_surfaces_after_cleanup(self):
+        from unittest.mock import patch
+        from x02_process_fixture import FixtureError
+
+        manager = self.manager()
+        self.assertEqual((await manager.start())["kind"], "ready")
+        with patch.object(manager, "spawn", side_effect=FixtureError("synthetic restart failure")):
+            await manager.child.kill()
+            self.assertTrue(await eventually(lambda: manager.task.done()))
+            with self.assertRaises(FixtureError):
+                await manager.close()
+        self.assertTrue(all(child.process.returncode is not None for child in manager.children))
