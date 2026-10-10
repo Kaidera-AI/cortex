@@ -110,11 +110,11 @@ try:
         assert value.returncode==0 and not report['failures']
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_guards'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==19 and not report['errors']
+    assert report['tests_run']==20 and not report['errors']
     if PHASE.startswith('outbox-final-review-red'):
-        assert value.returncode==1 and len(report['failures'])==9
+        assert value.returncode==1 and len(report['failures'])==10
         assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-        assert {r['id'].split(' (')[0].rsplit('.',1)[-1] for r in report['failures']}=={'test_reverse_history_insertion_refuses_revision_reordering','test_authentic_pending_event_cannot_forge_successful_completion_receipt','test_authentic_running_event_cannot_forge_claim_attempt_fence_or_holder','test_authentic_upsert_receipt_cannot_ack_a_future_delete','test_authentic_pending_receipt_cannot_ack_a_future_retry','test_job_authoritative_id_cannot_be_relocated_without_old_parent_event','test_attempt_cannot_be_reparented_without_old_job_event','test_job_fact_cannot_be_replayed_as_ordinary_memory_put','test_mixed_record_and_claim_receipt_cannot_bypass_job_contract'}
+        assert {r['id'].split(' (')[0].rsplit('.',1)[-1] for r in report['failures']}=={'test_reverse_history_insertion_refuses_revision_reordering','test_authentic_pending_event_cannot_forge_successful_completion_receipt','test_authentic_running_event_cannot_forge_claim_attempt_fence_or_holder','test_authentic_upsert_receipt_cannot_ack_a_future_delete','test_authentic_pending_receipt_cannot_ack_a_future_retry','test_job_authoritative_id_cannot_be_relocated_without_old_parent_event','test_attempt_cannot_be_reparented_without_old_job_event','test_job_fact_cannot_be_replayed_as_ordinary_memory_put','test_mixed_record_and_claim_receipt_cannot_bypass_job_contract','test_history_tombstone_must_match_authoritative_record_head'}
     elif PHASE.startswith('outbox-guards-red'):
         assert value.returncode==1 and len(report['failures'])==10
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])

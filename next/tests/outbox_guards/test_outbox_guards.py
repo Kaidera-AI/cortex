@@ -227,3 +227,12 @@ class OutboxGuards(Fixture):
             rejected=True
         if not rejected:
             with self.assertRaises(JobError):self.jobs(WRITE_A).claim(UUID(uid(60)),'forged')
+
+    def test_history_tombstone_must_match_authoritative_record_head(self):
+        self.records().put(UUID(uid(50)),'memory',b'first',0,'first')
+        payload=self.admin.execute('SELECT payload_ref FROM core.record_revisions WHERE record_id=%s',(uid(50),)).fetchone()[0]
+        with self.assertRaises(AuthError):
+            with self.write():
+                self.request.execute('UPDATE core.records SET current_revision=2 WHERE id=%s',(uid(50),))
+                self.request.execute('INSERT INTO core.record_revisions VALUES(%s,%s,%s,2,%s,true)',(uid(2),uid(3),uid(50),payload))
+        self.assertEqual((self.records().get(UUID(uid(50))).revision,self.count()),(1,1))
