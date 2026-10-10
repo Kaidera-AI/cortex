@@ -65,3 +65,8 @@ The first synthetic768 Qdrant create refused unsupported `uid/gid` options in `-
 ### Observed capability receipt repair
 
 Podman6.0.2 expands ALL in CapDrop and represents explicitly empty EffectiveCaps/BoundingCaps as JSON null. The existing verifier rejected the actually running, cap-free containers. New frozen4410bda body RED precedes admitting both explicit empty sets with no CapAdd/privileged mode; any nonempty effective/bounding set still refuses. Actual owned proc capability/stat observations and new literal mutants cover it. One simultaneous unit/live attempt collided on the inherited shared flock and is retained INCONCLUSIVE; verification now runs sequentially, no test weakening.
+
+
+### Final accepted-plan reconciliation
+
+Final checklist reread found omitted marginal coverage, which the accepted plan already required. Frozen53d0061 adds a null-aware joint-to-marginal reconciliation RED before implementing project/type/month input/corpus/tuning/heldout aggregates and READY/NOT_RUN status. Joint split/query bytes remain deterministic; no new source surface or scope. New literal count-aggregation mutant and independently reconstructed synthetic marginal counts prove the correction. All earlier source/proof attempts remain historical.

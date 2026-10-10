@@ -124,6 +124,21 @@ def build_queries(c, rows, vectors, split, selected):
     return queries
 
 
+def marginal_coverage(joint):
+    result = {}
+    for index, field in enumerate(('project', 'type', 'month')):
+        grouped = {}
+        for category in joint:
+            value = category['category'][index]
+            counts = grouped.setdefault(value, {name: 0 for name in ('input', 'corpus', 'tuning', 'heldout')})
+            for name in counts:
+                counts[name] += category[name]
+        result[field] = [{'value': value, **grouped[value],
+                          'status': 'READY' if grouped[value]['heldout'] else 'NOT_RUN'}
+                         for value in sorted(grouped, key=json.dumps)]
+    return result
+
+
 def prepare(source, output, *, dataset='synthetic', dimension=768, expected_count=None, seed=447020, admission=None):
     if dataset != 'synthetic':
         validate_admission(admission, dataset)  # BEFORE opening source or creating staging.
@@ -184,7 +199,8 @@ def prepare(source, output, *, dataset='synthetic', dimension=768, expected_coun
         geometry = {'schema': 'cortex-b02-geometry-v1', 'qualification': 'GEOMETRY_ONLY', 'unknown': UNKNOWN,
                     'input_sha256': input_hash, 'input_count': len(rows), 'canonical_sha256': canonical.hexdigest(),
                     'seed': seed, 'split_rule': 'sha256-seed-id-joint-category-reserve-one-each-v1',
-                    'split': split, 'coverage': coverage, 'kind_codes': [{'code': 0, 'value': None}]
+                    'split': split, 'coverage': coverage, 'marginal_coverage': marginal_coverage(coverage),
+                    'kind_codes': [{'code': 0, 'value': None}]
                     + [{'code': codes[t], 'value': t} for t in types],
                     'project_null': 'null-project', 'month_encoding': 'YYYYMM; null=-1',
                     'ordinal': 'candidate ID order within project', 'source_sha256': corpus.digest(__file__)}

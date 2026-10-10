@@ -29,6 +29,8 @@ MUTATIONS = [
      G+'test_split_is_deterministic_order_independent_and_disjoint', 1),
     ('geometry.py', 'small-group-coverage-fiction', "                         'status': 'READY' if ready else 'NOT_RUN'})", "                         'status': 'READY'})",
      G+'test_null_joint_coverage_and_small_groups_are_never_discarded', 1),
+    ('geometry.py', 'marginal-count-not-aggregated', 'counts[name] += category[name]', 'counts[name] = category[name]',
+     G+'test_joint_and_marginal_split_coverage_reconcile_including_nulls', 1),
     ('geometry.py', 'query-hash-drift-admitted', 'if binding[\'queries\'][name] != corpus.digest(target):', 'if False:',
      G+'test_input_count_and_query_hash_drift_are_refused', 1),
     ('geometry.py', 'mac-cold-admitted', "or (admission['edition'] == 'mac' and admission['cache_mode'] != 'warm')", 'or False',
