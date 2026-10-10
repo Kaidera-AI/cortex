@@ -7,6 +7,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from cortex_core.backup import BackupError
 from cortex_core.backup_validation import seal_complete_bundle, verify_complete_bundle
@@ -23,6 +24,9 @@ def sha(data):
 
 class ValidationTests(unittest.TestCase):
     def setUp(self):
+        native = patch('cortex_core.backup_validation._validate_native_pg')
+        native.start()
+        self.addCleanup(native.stop)
         self.temporary = tempfile.TemporaryDirectory(prefix='cox-o01b-')
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
@@ -41,6 +45,14 @@ class ValidationTests(unittest.TestCase):
         (self.base/'base').mkdir()
         (self.base/'base/123').mkdir()
         (self.base/'base/123/456').write_bytes(b'vector-after')
+        native = json.loads((self.base/'backup_manifest').read_text())
+        native['Files'] = [
+            {'Path': name, 'Size': (self.base/name).stat().st_size,
+             'Checksum-Algorithm': 'SHA256', 'Checksum': sha((self.base/name).read_bytes())}
+            for name in ('PG_VERSION', 'backup_label', 'base/123/456')]
+        prefix = json.dumps(native, separators=(',', ':'))[:-1] + ',\n'
+        (self.base/'backup_manifest').write_text(
+            prefix + '"Manifest-Checksum": "' + sha(prefix.encode()) + '"}\n')
         for number in (16, 17, 18):
             (self.archive/f'00000001000000000000{number:04X}').write_bytes(bytes([number])*SEG)
         (self.blobs/'synthetic/blob').write_bytes(b'synthetic blob')
@@ -160,6 +172,17 @@ class ValidationTests(unittest.TestCase):
         subprocess.run(['age-keygen', '-o', str(wrong)], capture_output=True, check=True)
         with self.assertRaises(BackupError):
             self.verify(self.target, digest, identity=wrong)
+
+    def test_vector_file_changed_before_seal_is_refused_by_native_manifest(self):
+        (self.base/'base/123/456').write_bytes(b'changed-vector')
+        with self.assertRaises(BackupError):
+            self.seal()
+
+    def test_native_manifest_changed_before_seal_is_refused(self):
+        path = self.base/'backup_manifest'
+        path.write_bytes(path.read_bytes().replace(b'123456789', b'123456788'))
+        with self.assertRaises(BackupError):
+            self.seal()
 
 
 if __name__ == '__main__':
