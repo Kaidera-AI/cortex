@@ -1,0 +1,32 @@
+[
+  {
+    "cache": "usr/local/lib/python3.14/site-packages/__pycache__/typing_extensions.cpython-314.pyc",
+    "source_filename": "/usr/local/lib/python3.14/site-packages/typing_extensions.py",
+    "source_file": "pair0.source",
+    "reference_body": "pair0.reference-body",
+    "attempt9_body": "pair0.attempt9-body",
+    "source_sha256": "4040ca1a1ecbee00d1385c12a93084d1c5bd46f0b774f07e5ae7e91c4f55e696",
+    "reference_body_sha256": "74e73ee1f7a59fea99480e62d468193530a7e5cd0ff52f8878e1dc39548fac4b",
+    "attempt9_body_sha256": "5ac4e39783b60de9ab5e4203fac6488703f59c8308426bd584313b22442449a1"
+  },
+  {
+    "cache": "usr/local/lib/python3.14/site-packages/rich/__pycache__/pretty.cpython-314.pyc",
+    "source_filename": "/usr/local/lib/python3.14/site-packages/rich/pretty.py",
+    "source_file": "pair1.source",
+    "reference_body": "pair1.reference-body",
+    "attempt9_body": "pair1.attempt9-body",
+    "source_sha256": "9715bf6e105f0d329efa0aedccfd4a42142ca8f6717d9375e2d8782515682f34",
+    "reference_body_sha256": "0f3aaf68ff075a4b7db70516c44e4380c3ca42448d7089229f1e61a29e2eb346",
+    "attempt9_body_sha256": "306fa68dececd9229f712e752212bfe9058065e24cfa080cbf204bf251a74ac2"
+  },
+  {
+    "cache": "usr/local/lib/python3.14/site-packages/truststore/__pycache__/_api.cpython-314.pyc",
+    "source_filename": "/usr/local/lib/python3.14/site-packages/truststore/_api.py",
+    "source_file": "pair2.source",
+    "reference_body": "pair2.reference-body",
+    "attempt9_body": "pair2.attempt9-body",
+    "source_sha256": "0910c84046483677663181b1c1b9f5db1ce5baddf89b4e9ed94248d8846a232e",
+    "reference_body_sha256": "c530ef455fe3c035221755d618e012661985e1df79661edb50e4815eff0b0e55",
+    "attempt9_body_sha256": "ccc85ac9eae234082b569777a04126155b84bffd9b1220d279f1316aea588983"
+  }
+]
