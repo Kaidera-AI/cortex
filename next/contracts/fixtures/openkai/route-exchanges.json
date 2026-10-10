@@ -282,10 +282,13 @@
       "path": "/search",
       "request": {
         "body": {
-          "min_revision": 2,
           "query": "synthetic query",
           "top_k": 5,
-          "wait_ms": 10000
+          "wait_ms": 10000,
+          "after": {
+            "record_id": "00000000-0000-4000-8000-000000000011",
+            "revision": 2
+          }
         },
         "headers": {
           "Authorization": "Bearer <fixture-scoped-token>",
@@ -307,6 +310,25 @@
           "state": "ready_empty"
         },
         "status": 200
+      },
+      "tombstone": {
+        "status": 503,
+        "body": {
+          "error": {
+            "code": "capability_unavailable",
+            "retryable": false,
+            "state": "unavailable"
+          }
+        }
+      },
+      "unknown_target": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "not_found",
+            "retryable": false
+          }
+        }
       }
     },
     {
