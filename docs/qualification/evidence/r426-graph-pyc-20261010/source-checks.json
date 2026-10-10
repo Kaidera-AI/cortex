@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-r426-graph-pyc-20261010/docs/qualification/evidence/r426-graph-pyc-20261010/verify-fixture-parser.py"
+      ],
+      "exit_code": 0,
+      "stdout": "fixture parser reaches one real builder RUN; pip no-compile preserved\n",
+      "stderr": ""
+    }
+  ],
+  "diff_stat": " packages/containers/graph-worker/Dockerfile        |  1 +\n .../graph-worker/tests/test_builder_pyc.py         | 52 ++++++++++++++++++++++\n 2 files changed, 53 insertions(+)\n"
+}

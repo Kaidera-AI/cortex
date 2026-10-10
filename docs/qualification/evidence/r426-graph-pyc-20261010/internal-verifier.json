@@ -1,0 +1,45 @@
+{
+  "reviewed_tree": "8e00995e478b7132e07282b831be997cb7811941",
+  "instrument": "fresh read-only internal subagent graph_pyc_verify, SDLC \u00a74",
+  "required_findings": [],
+  "verdict": "PASS bounded source/receipt audit only",
+  "verified": {
+    "production_lines_changed": 1,
+    "unchanged_existing_graph_files": 17,
+    "qualified_red": {
+      "tests": 9,
+      "body_failures": 1,
+      "errors": 0
+    },
+    "green": {
+      "tests": 9,
+      "body_failures": 0,
+      "errors": 0
+    },
+    "actual_removed_command_fault": {
+      "tests": 9,
+      "body_failures": 1,
+      "errors": 0
+    },
+    "restored": {
+      "tests": 9,
+      "copied_files": 19,
+      "errors": 0
+    },
+    "native": "aarch64 Python3.13.15 UID/GID10001",
+    "cleanup": "immutable-ID removal followed by verified name and ID absence; lock released",
+    "parser_fixture": "original operational StopIteration retained, actual AST preflightRED/GREEN now captured"
+  },
+  "limits": [
+    "no full493cache artifact rebuild",
+    "no OCI reproducibility",
+    "no native x86_64",
+    "no full graph Gate",
+    "no official Vera acceptance"
+  ],
+  "receipt_sha256": {
+    "red-attempt-002.json": "bc4880d16e9c2fc70e7c21178b87c0182736e763c6caca4a78592012ec1180a3",
+    "green-attempt-001.json": "2f321969d4e7a08caa01b197aa0653e2679674416cae539fb8b8c1997100aa3b",
+    "fixture-parser-actual-red-green.json": "c9f79e901c612a3863f9ccd845d3e4b1b07f0d2c0695e0c18d661c19ba25898a"
+  }
+}

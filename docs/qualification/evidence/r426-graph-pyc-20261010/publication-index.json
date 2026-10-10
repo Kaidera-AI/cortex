@@ -1,0 +1,40 @@
+{
+  "tested_tree": "8e00995e478b7132e07282b831be997cb7811941",
+  "pinned_base": "e9a19f1476d1f6f3be14d7df6ccb3fb7eddd9e7e",
+  "members": {
+    "docs/qualification/evidence/r426-graph-pyc-20261010/fixture-parser-actual-red-green.json": "c9f79e901c612a3863f9ccd845d3e4b1b07f0d2c0695e0c18d661c19ba25898a",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/fixture-parser-red-green.json": "8f482e38a686cb1829200ed5b09889e75b713705eb93d537234e4e148bd33bf4",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/green-attempt-001.json": "2f321969d4e7a08caa01b197aa0653e2679674416cae539fb8b8c1997100aa3b",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/integrity.json": "7669898175e710a529754d077c58dd70ae2057d90f0bc7cbef273933b1eccdcb",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/internal-verifier.json": "8a4d10235ace53d222a404326479c6aefa5d190e643fe21f082f6764e92abd3c",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/plan.md": "f68f3c4146bf7ab691ca12884d6f10458f03f8a14e593af8468d8df2f6fede91",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/pre-edit.json": "fc23859dcdc66afd5ac8abaf559697a1a9e4f3c063e00afca1661fcb1ed05efb",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/red-attempt-001.json": "e38858b2a601f00601edbeb2e0f032c8424dfaecd5a1d11a1b2259487b2d2205",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/red-attempt-002.json": "bc4880d16e9c2fc70e7c21178b87c0182736e763c6caca4a78592012ec1180a3",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/run-proof.py": "e02ae2eee770d5be1ed28556cec01cb48192c616219c5fc215b5e43a9b965746",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/source-checks.json": "ba4a9978cacfcd84656810aafd8d16ac55ea62e991eea5b4ae31ae7da84b4210",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/unqualified-builder-probe-original.py": "9abc6ac439ee377decbe438ac3033447f808cb956ae97064d4d63218f43bdbc1",
+    "docs/qualification/evidence/r426-graph-pyc-20261010/verify-fixture-parser.py": "55bcc519c1e5a9b8656a4cb2b7ca76d5a67da19a31c4625e7cc971062ebb99d1"
+  },
+  "graph_source_sha256": {
+    "worker.py": "493f5ac4df2e09d573194797c4a8e87624f05b3c83a6eec53a569777b8a544a4",
+    "verify-qwen3-model.py": "968b1e4f2a84b192f2fced53bfa68b73088f7639af172e3d57b2db1f02053473",
+    "Dockerfile": "3a51bc08c75df2338bd60a7b8488abc774c63775d71c9d7216037f23d215e1ff",
+    "finalize-build.py": "77bf51e51c6bf2ec1b4e22fedbc30e9c15b02219b3a75939a7ae69b5f2ee9ce3",
+    ".dockerignore": "3fbc708ab63aac1423a339f352791ca340e0366d5ad83e2b8733a43e88f60232",
+    "requirements.bcrg.in": "afd5d92e4909af91e01985574e58359767559a42eb22942272bbe8eae86ecddf",
+    "worker-entrypoint": "db14b95a2d1065e69c064f857d64211c0473a0431126c11ffc0a1546c4507312",
+    "requirements.bcrg.lock": "e71f1a41b8ffcb790b3fb0c363e01867d6b9142843e6d7b45e203441ed7c5018",
+    "qwen3-model-pins.json": "84777151610296106a65fa90d725e40d6517efb09819b3aee340be775c6bbcea",
+    "requirements.runtime.lock": "bf6510a5d88abe555526d1f5d5e8ad1ce56da15836d2a202111960d5a6e99de9",
+    "requirements.runtime.in": "c8fa1c10e023e6d66be1409e6b49a667ba3d6d69f6b7feec7eb5cfd8a612241b",
+    "fetch-qwen3-model.py": "a6d606ed1bdf71d65668b1acef47b2e2d764d329970c62981c690f6e270f29bb",
+    "debian-snapshot.sources": "34d8dc1761bd443e47052aa9db71436ceec70baeed82142789f9c9b838a1e017",
+    "tests/test_finalize_build.py": "d83c067a517a14113daaebfa0207e04b8edf1847f0665f6a8ebc997722ac4e24",
+    "tests/test_cleanup_ownership.py": "d8890f35bc6548c1c13544bafed31b93caf318255a892e3ed40b9adfbcafdefe",
+    "tests/test_builder_pyc.py": "b429e6e9fb920c6ad993eb1d8dabdb7a4c4f340f246386189aa330ee42321af7",
+    "tests/test_fetch_qwen3_model.py": "e684499591a5a986139cbd234082ea19c1712275dbf8f17e759cfad49779ac42",
+    "tests/test_finalizer_guard.py": "a8fb968247b65dccd0281e5503cd6da40af6fa9ba85e3f5f45bb93fe22da32a3",
+    "tests/test_worker_prune.py": "387d9bfa8b234a02e3a9f5aa7f8745b78eb240d6e960c741e5764b3418bc928c"
+  }
+}
