@@ -99,3 +99,27 @@ class WriterInventory(unittest.TestCase):
         self.assertIn('; DELETE FROM core.records WHERE true',self._captured_private_query(changed))
         result=checker.audit(NEXT,overrides={name:changed})
         self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
+
+    def test_private_query_match_capture_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        source=(NEXT/name).read_text()
+        before='    try:\n        return connection.execute(query, arguments)'
+        after="    try:\n        verb = 'DE' + 'LETE'\n        match verb + ' FROM core.records WHERE true':\n            case query:\n                return connection.execute(query, arguments)"
+        self.assertEqual(source.count(before),1)
+        changed=source.replace(before,after)
+        self.assertEqual(self._captured_private_query(changed),'DELETE FROM core.records WHERE true')
+        capture=next(n for n in ast.walk(ast.parse(changed)) if isinstance(n,ast.MatchAs) and n.name=='query')
+        self.assertIsNotNone(capture)
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
+
+    def test_private_query_harmless_statement_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        source=(NEXT/name).read_text()
+        before='    try:\n        return connection.execute(query, arguments)'
+        after='    try:\n        pass\n        return connection.execute(query, arguments)'
+        self.assertEqual(source.count(before),1)
+        changed=source.replace(before,after)
+        self.assertTrue(self._captured_private_query(changed).startswith('SELECT'))
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
