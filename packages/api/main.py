@@ -16896,6 +16896,28 @@ async def project_transfer_dependencies(
     ]
 
 
+async def lock_shared_message_transfer(conn: Any) -> tuple[list[str], bool]:
+    """Fence both message tables, then their sequence, for the caller transaction."""
+    present_tables = []
+    for table_name in ("messages", "archive_messages"):
+        if await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", f"public.{table_name}"):
+            present_tables.append(table_name)
+    if present_tables:
+        await conn.execute(
+            "LOCK TABLE " + ", ".join(f"public.{name}" for name in present_tables)
+            + " IN SHARE ROW EXCLUSIVE MODE"
+        )
+
+    sequence_exists = bool(await conn.fetchval("SELECT to_regclass('public.messages_id_seq') IS NOT NULL"))
+    if sequence_exists:
+        # Same-cache DDL holds the sequence lock through the outer transaction.
+        cache_size = await conn.fetchval(
+            "SELECT seqcache FROM pg_sequence WHERE seqrelid = 'public.messages_id_seq'::regclass"
+        )
+        await conn.execute(f"ALTER SEQUENCE public.messages_id_seq CACHE {int(cache_size)}")
+    return present_tables, sequence_exists
+
+
 async def reset_project_transfer_sequences(
     conn: Any,
     tables: set[tuple[str, str]],
@@ -16934,38 +16956,24 @@ async def reset_project_transfer_sequences(
             await conn.fetchval("SELECT setval($1::regclass, $2::bigint, true)", sequence, maximum)
             reset.append(f"{schema_name}.{table_name}.{column}")
 
-    if shared_messages and await conn.fetchval("SELECT to_regclass('public.messages_id_seq') IS NOT NULL"):
+    if shared_messages:
         async with conn.transaction():
-            present_tables = []
-            for table_name in ("messages", "archive_messages"):
-                if await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", f"public.{table_name}"):
-                    present_tables.append(table_name)
-            if present_tables:
+            present_tables, sequence_exists = await lock_shared_message_transfer(conn)
+            if sequence_exists:
+                prior = await conn.fetchval("SELECT last_value FROM public.messages_id_seq")
+                maxima = [int(prior)]
+                for table_name in present_tables:
+                    maximum = await conn.fetchval(f"SELECT MAX(id)::bigint FROM public.{table_name}")
+                    if maximum is not None:
+                        maxima.append(int(maximum))
                 await conn.execute(
-                    "LOCK TABLE " + ", ".join(f"public.{name}" for name in present_tables)
-                    + " IN SHARE ROW EXCLUSIVE MODE"
+                    f"ALTER SEQUENCE public.messages_id_seq RESTART WITH {max(maxima) + 1}"
                 )
-
-            # LOCK TABLE does not support sequences. Reasserting the existing cache
-            # size obtains a transaction-held DDL lock without changing that setting;
-            # concurrent nextval calls wait until the high-water reset commits.
-            cache_size = await conn.fetchval(
-                "SELECT seqcache FROM pg_sequence WHERE seqrelid = 'public.messages_id_seq'::regclass"
+        if sequence_exists:
+            reset.extend(
+                f"public.{table_name}.id" for table_name in ("messages", "archive_messages")
+                if ("public", table_name) in tables
             )
-            await conn.execute(f"ALTER SEQUENCE public.messages_id_seq CACHE {int(cache_size)}")
-            prior = await conn.fetchval("SELECT last_value FROM public.messages_id_seq")
-            maxima = [int(prior)]
-            for table_name in present_tables:
-                maximum = await conn.fetchval(f"SELECT MAX(id)::bigint FROM public.{table_name}")
-                if maximum is not None:
-                    maxima.append(int(maximum))
-            await conn.execute(
-                f"ALTER SEQUENCE public.messages_id_seq RESTART WITH {max(maxima) + 1}"
-            )
-        reset.extend(
-            f"public.{table_name}.id" for table_name in ("messages", "archive_messages")
-            if ("public", table_name) in tables
-        )
     return reset
 
 
@@ -17866,6 +17874,8 @@ async def import_project(
         results: dict[str, dict[str, int]] = {}
         imported_tables: set[tuple[str, str]] = set()
         async with conn.transaction():
+            if {("public", "messages"), ("public", "archive_messages")} & requested.keys():
+                await lock_shared_message_transfer(conn)
             for key in order:
                 transfer = requested[key]
                 if not transfer.rows:
