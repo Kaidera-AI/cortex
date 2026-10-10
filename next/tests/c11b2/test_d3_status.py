@@ -8,7 +8,7 @@ from uuid import UUID
 
 import asyncpg
 
-from core_db_fixture import READ_A, READ_B, REQUEST, uid
+from core_db_fixture import READ_A, READ_B, uid
 from cortex_core.api.c11a import ConsumerGateway
 from cortex_core.api.c11b import C11bRecordPort
 from cortex_core.api.c11b2 import C11b2ReadPort
@@ -19,6 +19,7 @@ from test_read_api import ReadAPI, IDENTITY
 class D3Status(IsolatedAsyncioTestCase):
     reset = ReadAPI.reset
     auth = ReadAPI.auth
+    make_gateway = ReadAPI.make_gateway
 
     async def asyncSetUp(self):
         await ReadAPI.asyncSetUp(self)
