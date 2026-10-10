@@ -129,7 +129,11 @@ class ProjectionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_tombstone_has_no_invented_indexed_delete_receipt(self):
         self.graph_receipt()
-        self.admin.execute('UPDATE core.records SET tombstone=true WHERE id=%s', (fixture.uid(6),))
+        with self.admin.transaction():
+            self.admin.execute('INSERT INTO core.record_revisions(tenant_id,project_id,record_id,revision,payload_ref,tombstone) VALUES(%s,%s,%s,2,%s,true)',
+                               (*self.scope, fixture.uid(6), fixture.uid(5)))
+            self.admin.execute('UPDATE core.records SET current_revision=2,tombstone=true WHERE tenant_id=%s AND project_id=%s AND id=%s',
+                               (*self.scope, fixture.uid(6)))
         for projection in ('search', 'graph'):
             with self.subTest(projection=projection):
                 value = await self.observe(projection)
