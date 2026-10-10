@@ -218,6 +218,10 @@ try:
         else:
             assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
+        value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_policy_faults'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==2 and not report['failures'] and not report['errors']
+    if PHASE.startswith('mutation'):
         for directory,count in [('contract',33),('receipt',20)]:
             value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
             report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))

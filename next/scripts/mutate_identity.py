@@ -43,10 +43,10 @@ MUTATIONS = [
  (SQL,'unadopted principal has identity routing authority',[("AND NOT p.disabled AND p.identity_adopted FOR SHARE OF p,g", "AND NOT p.disabled FOR SHARE OF p,g",1)],'auth_identity',I+'test_unadopted_existing_principals_have_no_role_or_human_authority'),
  (SQL,'project role membership leaks across projects',[(" AND g.project_id=s.project_id",'',1)],'identity_coordination',P+'test_role_membership_does_not_cross_project_scope'),
  (MANIFEST,'identity entry no longer binds actual SQL',[( '"id": "auth-0003"', '"id": "auth-0003-unbound"',1)],'identity_receipts',R+'test_manifest_binds_exact_additive_identity_sql'),
- (JOBS,'worker membership requirement omitted',[("elif role not in actor.roles:",'elif False:',1)],'identity_coordination',P+'test_only_fresh_adopted_core_role_can_claim_and_context_spoof_refuses'),
+ (JOBS,'worker membership requirement omitted',[("elif role not in actor.roles:",'elif False:',1)],'identity_policy_faults','test_identity_policy_faults.IdentityPolicyFaults.test_wrong_adopted_role_cannot_create_a_claim_or_attempt'),
  (JOBS,'human kind check omitted',[("if actor.kind != 'human':",'if False:',1)],'identity_coordination',P+'test_human_review_uses_core_kind_not_owner_permissions_or_guc'),
  (JOBS,'historical replay skips current identity policy',[("if operation in ('job.claim'", "if saved is None and operation in ('job.claim'",1)],'identity_coordination',P+'test_role_withdrawal_refuses_current_worker_and_historical_claim_replay'),
- (JOBS,'persisted role and human policy silently discarded',[("recipient_role=recipient_role,human_review=human_review)","recipient_role=None,human_review=False)",2)],'identity_coordination',P+'test_owner_policy_is_persisted_visible_and_bound_to_create_retry'),
+ (JOBS,'persisted role and human policy silently discarded',[("recipient_role=recipient_role,human_review=human_review)","recipient_role=None,human_review=False)",2)],'identity_policy_faults','test_identity_policy_faults.IdentityPolicyFaults.test_policy_persistence_retains_exact_role_and_human_flag'),
  (JOBS,'optional policy omitted from request digest',[("arguments.append(dict(recipient_role=recipient_role,human_review=human_review))",'pass',1)],'identity_coordination',P+'test_owner_policy_is_persisted_visible_and_bound_to_create_retry'),
  (JOBS,'human kind bypasses independent holder review',[("if (current[2] == str(scope.principal_id)) == review:",'if False:',1)],'identity_coordination',P+'test_human_kind_never_bypasses_independent_review'),
  (JOBS,'default policy changes published C05 digest',[("if recipient_role is not None or human_review:",'if True:',1)],'identity_transition','test_identity_transition.IdentityTransition.test_policy_free_create_keeps_c05_request_digest_and_replay'),
@@ -80,7 +80,7 @@ def run():
     paths = (IDENTITY, SQL, MANIFEST, JOBS, CONTRACT, DB_FIXTURE, CALLER)
     originals = {p:(NEXT/p).read_bytes() for p in paths}
     original_hashes = {p:hashlib.sha256(b).hexdigest() for p,b in originals.items()}
-    directories = ('auth_identity','auth_identity_guards','identity_coordination','identity_portability','identity_receipts','identity_transition')
+    directories = ('auth_identity','auth_identity_guards','identity_coordination','identity_portability','identity_receipts','identity_transition','identity_policy_faults')
     baseline = {p:capture(suite(NEXT/'tests'/p)) for p in directories}
     print(json.dumps({'baseline':baseline}), flush=True)
     if any(r['exit_code']!=0 or r['receipt'] is None or r['receipt']['errors'] or r['receipt']['failures'] for r in baseline.values()):
