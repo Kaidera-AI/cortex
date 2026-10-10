@@ -7,7 +7,9 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
+import cortex_core.backup as backup
 from cortex_core.backup import BackupError, basebackup_command, build_manifest, seal_encrypted_bundle
 
 
@@ -111,6 +113,41 @@ class BackupManifestTests(unittest.TestCase):
             self.assertIn('wal/000000010000000000000011', names)
             inner = json.load(archive.extractfile('manifest.json'))
             self.assertEqual(inner, manifest)
+
+    def test_caller_metadata_mutation_cannot_change_encrypted_manifest(self):
+        """Mike O01A-PR71-1: caller mutates metadata after the digest is bound."""
+        for number in (16, 17, 18):
+            self.put_wal(number)
+        supplied = metadata()
+        original_build = backup.build_manifest
+
+        def mutate_after_build(*args, **kwargs):
+            manifest = original_build(*args, **kwargs)
+            supplied['model_identities'][0]['version'] = '2'
+            return manifest
+
+        identity = self.root / 'synthetic-age-mutation-key'
+        subprocess.run(['age-keygen', '-o', str(identity)], capture_output=True, check=True)
+        recipient = next(line.split(': ', 1)[1] for line in identity.read_text().splitlines()
+                         if line.startswith('# public key: '))
+        target = self.root / 'mutation-backup.tar.age'
+        with patch.object(backup, 'build_manifest', side_effect=mutate_after_build):
+            returned = seal_encrypted_bundle(
+                self.base, self.archive, ARCHIVE_END, supplied,
+                segment_bytes=SEGMENT_BYTES, recipient=recipient, destination=target,
+            )
+        plaintext = subprocess.run(['age', '-d', '-i', str(identity)],
+                                   input=target.read_bytes(), capture_output=True,
+                                   check=True).stdout
+        with tarfile.open(fileobj=io.BytesIO(plaintext), mode='r:') as archive:
+            embedded = json.load(archive.extractfile('manifest.json'))
+        canonical = json.dumps(embedded['metadata'], sort_keys=True,
+                               separators=(',', ':'), allow_nan=False).encode()
+        self.assertEqual(hashlib.sha256(canonical).hexdigest(),
+                         embedded['metadata_sha256'])
+        self.assertEqual(embedded['metadata']['model_identities'][0]['version'], '1')
+        self.assertEqual(supplied['model_identities'][0]['version'], '2')
+        self.assertEqual(returned, embedded)
 
 
 if __name__ == '__main__':
