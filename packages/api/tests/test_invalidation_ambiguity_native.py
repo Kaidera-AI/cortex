@@ -38,7 +38,7 @@ async def case_context(api, scratch_conn, monkeypatch=None):
     writes = []
     try:
         for table in TABLES:
-            await conn.execute(f"CREATE TABLE {table}(id uuid PRIMARY KEY,project text NOT NULL,invalidated_at timestamptz,metadata jsonb NOT NULL DEFAULT '{{}}'::jsonb)")
+            await conn.execute(f"CREATE TABLE {table}(id uuid PRIMARY KEY,project text NOT NULL,summary text NOT NULL DEFAULT 'fixture summary',invalidated_at timestamptz,metadata jsonb NOT NULL DEFAULT '{{}}'::jsonb)")
         if monkeypatch is not None:
             class Proxy:
                 def __getattr__(self, name):
