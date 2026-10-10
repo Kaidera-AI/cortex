@@ -116,6 +116,15 @@ try:
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
+    for directory,count in [('outbox_retention',3),('outbox_inventory',3)]:
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==count and not report['errors']
+        if PHASE.startswith('outbox-protocol-red'):
+            assert value.returncode==1 and len(report['failures'])==count
+            assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+        else:
+            assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
         for script,count in [('mutate_outbox.py',32),('mutate_identity.py',32),('mutate_core_adapters.py',30),('mutate_contracts.py',26),('mutate_test_receipts.py',8)]:
             value=checked(env+['python','/tmp/next/scripts/'+script],900)
