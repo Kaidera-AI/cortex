@@ -31,7 +31,9 @@ MUTANTS = {
          'RollbackMarker.test_rollback_after_one_step_completes'],
         'restore ran, but journal rejected rollback'),
     'accept_after_rollback': (
-        [("            if expected is not _UNSET and previous != expected:",
+        [("        if state['phase'] == 'accepted':\n            raise UpgradeRefusal('fix_forward_only')",
+          "        if False:\n            raise UpgradeRefusal('fix_forward_only')"),
+         ("            if expected is not _UNSET and previous != expected:",
           "            if False:"),
          ("                if previous['phase'] == 'accepted':",
           "                if False:")],
@@ -42,6 +44,12 @@ MUTANTS = {
         [("            if expected is not _UNSET and previous != expected:",
           "            if False:")],
         ['test_journal.JournalTests.test_stale_prepared_snapshot_cannot_advance_journal'],
+        'AssertionError'),
+    'advance_operation_lock_removed': (
+        [('    @_serialized\n    def advance(self):',
+          '    def advance(self):')],
+        ['test_operation_race.py',
+         'OperationRace.test_paused_advance_drains_before_rollback_restores'],
         'AssertionError'),
 }
 

@@ -1,4 +1,6 @@
 """Upgrade orchestration failures must stay on the safe side of acceptance."""
+from pathlib import Path
+import tempfile
 import unittest
 from types import SimpleNamespace
 
@@ -50,7 +52,10 @@ class FakePorts:
 
 class CoordinatorTests(unittest.TestCase):
     def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
         self.ports = FakePorts()
+        self.ports.operation_lock_path = Path(directory.name)/'upgrade.op.lock'
         self.admission = SimpleNamespace(old_manifest_sha256='1'*64,
             new_manifest_sha256='2'*64, old_release='v0.1.002',
             new_release='v0.1.020', old_schema=1, new_schema=2,

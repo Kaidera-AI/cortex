@@ -5,6 +5,8 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
+import threading
+import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'schema'))
@@ -72,6 +74,7 @@ class Rehearsal(unittest.TestCase):
                 restored = False
                 def __init__(port):
                     port.journal = AtomicUpgradeJournal(Path(temporary)/'upgrade.json')
+                    port.operation_lock_path = Path(temporary)/'upgrade.op.lock'
                 def verified_backup(port): return True
                 def fence_old(port): pass
                 def fence_new(port): pass
@@ -139,6 +142,7 @@ class Rehearsal(unittest.TestCase):
                         def __init__(port):
                             port.journal = AtomicUpgradeJournal(
                                 Path(temporary)/f'rollback-{prefix}.json')
+                            port.operation_lock_path = Path(temporary)/'upgrade.op.lock'
                         def load(port): return port.journal.load()
                         def save(port, state, *, expected):
                             port.journal.save(state, expected=expected)
@@ -179,6 +183,99 @@ class Rehearsal(unittest.TestCase):
                     self.assertEqual(ports.load()['steps'], steps[:prefix])
                     self.assertEqual(ports.applied_steps(), ())
                     self.assertEqual(self.snapshot(), before)
+
+    def test_paused_real_pg_apply_drains_before_rollback(self):
+        self.seed()
+        before = self.snapshot()
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)/'schema'
+            shutil.copytree(test_schema.NEXT/'schema', directory)
+            manifest_path = directory/'manifest.json'
+            manifest = json.loads(manifest_path.read_text())
+            step = 'core-upgrade-race-0001'
+            data = b'CREATE TABLE core.upgrade_race_probe(id integer PRIMARY KEY);\n'
+            (directory/(step+'.sql')).write_bytes(data)
+            manifest['migrations'].append({'id':step, 'file':step+'.sql',
+                                           'sha256':hashlib.sha256(data).hexdigest()})
+            manifest_path.write_text(json.dumps(manifest))
+            entered, release = threading.Event(), threading.Event()
+
+            class Ports:
+                fenced = False
+                def __init__(port):
+                    port.journal = AtomicUpgradeJournal(Path(temporary)/'race.json')
+                    port.operation_lock_path = Path(temporary)/'upgrade.op.lock'
+                def load(port): return port.journal.load()
+                def save(port, state, *, expected):
+                    port.journal.save(state, expected=expected)
+                def fence_old(port): port.fenced = True
+                def verified_backup(port):
+                    self.assertTrue(port.fenced)
+                    self.assertEqual(self.snapshot(), before)
+                    return True
+                def applied_steps(port):
+                    rows = self.db.execute(
+                        'SELECT migration_id FROM core.schema_migrations WHERE migration_id=%s',
+                        (step,)).fetchall()
+                    return (step,) if rows else ()
+                def apply(port, *, through):
+                    self.assertEqual(through, step)
+                    entered.set()
+                    if not release.wait(10):
+                        raise AssertionError('timed out waiting to release PostgreSQL apply')
+                    apply_migrations(self.db, directory, through=through)
+                def fence_new(port):
+                    self.assertEqual(port.load()['phase'], 'rolling_back')
+                def restore(port):
+                    self.db.execute('DROP TABLE IF EXISTS core.upgrade_race_probe')
+                    self.db.execute('DELETE FROM core.schema_migrations '
+                                    'WHERE migration_id=%s', (step,))
+                    self.assertEqual(self.snapshot(), before)
+
+            admission = type('Admission', (), {
+                'old_manifest_sha256':'1'*64, 'new_manifest_sha256':'2'*64,
+                'old_release':'v0.1.003', 'new_release':'v0.1.020',
+                'old_schema':1, 'new_schema':2, 'expand_steps':(step,),
+                'writer_allowed':lambda _self, release, schema: release == 'v0.1.020' and schema == 2,
+            })()
+            ports = Ports()
+            upgrade = UpgradeCoordinator(admission, ports)
+            upgrade.prepare()
+            errors = []
+            rollback_started = threading.Event()
+
+            def advance():
+                try:
+                    upgrade.advance()
+                except Exception as error:
+                    errors.append(error)
+
+            def rollback():
+                rollback_started.set()
+                try:
+                    UpgradeCoordinator(admission, ports).rollback()
+                except Exception as error:
+                    errors.append(error)
+
+            writer = threading.Thread(target=advance)
+            restorer = threading.Thread(target=rollback)
+            writer.start()
+            self.assertTrue(entered.wait(10))
+            restorer.start()
+            self.assertTrue(rollback_started.wait(10))
+            time.sleep(0.2)
+            rolled_back_while_apply_paused = not restorer.is_alive()
+            release.set()
+            writer.join(10)
+            restorer.join(10)
+            self.assertFalse(writer.is_alive() or restorer.is_alive())
+            self.assertFalse(errors, [str(error) for error in errors])
+            self.assertFalse(rolled_back_while_apply_paused)
+            self.assertEqual(ports.load()['phase'], 'rolled_back')
+            self.assertEqual(ports.applied_steps(), ())
+            self.assertIsNone(self.db.execute(
+                "SELECT to_regclass('core.upgrade_race_probe')").fetchone()[0])
+            self.assertEqual(self.snapshot(), before)
 
 
 if __name__ == '__main__':

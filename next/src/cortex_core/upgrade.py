@@ -6,7 +6,9 @@ until the installer owner publishes and pins one.
 """
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 import fcntl
+from functools import wraps
 import hashlib
 import json
 import os
@@ -14,12 +16,14 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import threading
 
 
 _DIGEST = re.compile(r'^[0-9a-f]{64}$')
 _MODULE_DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
 _VERSION = re.compile(r'^v(\d+)\.(\d+)\.(\d+)$')
 _UNSET = object()
+_ACTIVE_OPERATIONS = threading.local()
 _MANIFEST_FIELDS = frozenset({'format', 'release', 'edition', 'platform',
                               'schema_version', 'event_version', 'modules'})
 _POLICY_FIELDS = frozenset({'trusted_key_sha256', 'old_release', 'new_release',
@@ -56,6 +60,14 @@ class Admission:
         # A new writer must never run against the old incompatible schema.
         return (release, schema_version) in self.writers and not (
             release == self.new_release and schema_version == self.old_schema)
+
+
+def _serialized(operation):
+    @wraps(operation)
+    def run(self, *args, **kwargs):
+        with self._operation_lock():
+            return operation(self, *args, **kwargs)
+    return run
 
 
 def _unique_pairs(value):
@@ -217,7 +229,10 @@ class UpgradeCoordinator:
     The journal port must durably and atomically persist each save. The
     migration port's own ledger is the source of truth after a crash between
     applying a step and recording its completion here. Ports must be
-    idempotent; Core never invokes an implicit startup migration.
+    idempotent; Core never invokes an implicit startup migration. Every port
+    instance must supply one stable absolute operation_lock_path, distinct
+    from the journal's own .lock file, shared by every coordinator for this
+    installation and upgrade pair.
     """
 
     def __init__(self, admission, ports):
@@ -227,6 +242,46 @@ class UpgradeCoordinator:
         self.ports = ports
         self.pair = (admission.old_manifest_sha256,
                      admission.new_manifest_sha256)
+        try:
+            self.operation_lock_path = Path(ports.operation_lock_path)
+        except (AttributeError, TypeError):
+            raise UpgradeRefusal('operation_lock_required') from None
+        if not self.operation_lock_path.is_absolute():
+            raise UpgradeRefusal('operation_lock_required')
+        journal = getattr(ports, 'journal', None)
+        if (journal is not None and hasattr(journal, 'path')
+                and self.operation_lock_path.resolve() == Path(journal.path).with_name(
+                    Path(journal.path).name + '.lock').resolve()):
+            raise UpgradeRefusal('operation_lock_conflicts_with_journal')
+
+    @contextmanager
+    def _operation_lock(self):
+        path = self.operation_lock_path
+        active = getattr(_ACTIVE_OPERATIONS, 'paths', set())
+        if path in active:
+            raise UpgradeRefusal('operation_reentrant')
+        descriptor = None
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            descriptor = os.open(path, os.O_RDWR | os.O_CREAT |
+                                 getattr(os, 'O_NOFOLLOW', 0), 0o600)
+            os.fchmod(descriptor, 0o600)
+            lock = os.fdopen(descriptor, 'a+b')
+        except OSError:
+            if descriptor is not None:
+                os.close(descriptor)
+            raise UpgradeRefusal('operation_lock_unavailable') from None
+        with lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+            except OSError:
+                raise UpgradeRefusal('operation_lock_unavailable') from None
+            active.add(path)
+            _ACTIVE_OPERATIONS.paths = active
+            try:
+                yield
+            finally:
+                active.remove(path)
 
     def _state(self):
         state = self.ports.load()
@@ -234,6 +289,7 @@ class UpgradeCoordinator:
             raise UpgradeRefusal('pair_mismatch')
         return state
 
+    @_serialized
     def prepare(self):
         state = self._state()
         if state is not None:
@@ -248,6 +304,7 @@ class UpgradeCoordinator:
         self.ports.save({'pair': self.pair, 'phase': 'prepared', 'steps': ()},
                         expected=None)
 
+    @_serialized
     def advance(self):
         state = self._state()
         if state is None or state['phase'] != 'prepared':
@@ -273,6 +330,7 @@ class UpgradeCoordinator:
                         expected=state)
         return step
 
+    @_serialized
     def accept(self):
         state = self._state()
         if state is None or state['phase'] != 'prepared':
@@ -291,6 +349,7 @@ class UpgradeCoordinator:
         self.ports.save({'pair': self.pair, 'phase': 'accepted',
                          'steps': self.admission.expand_steps}, expected=state)
 
+    @_serialized
     def rollback(self):
         state = self._state()
         if state is None:

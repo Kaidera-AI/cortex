@@ -19,6 +19,7 @@ exec(compile(SOURCE, "exact-head-upgrade.py", "exec"), module.__dict__)
 class Ports:
     def __init__(self, journal):
         self.journal = journal
+        self.operation_lock_path = journal.path.with_name('upgrade.op.lock')
         self.applied = []
         self.restore_calls = 0
         self.fence_new_hook = None
@@ -110,28 +111,22 @@ class RollbackMarker(unittest.TestCase):
             upgrade = coordinator(ports)
             upgrade.prepare()
             self.assertEqual(upgrade.advance(), "expand-1")
-            def attempted_acceptance():
-                with self.assertRaises(module.UpgradeRefusal) as seen:
-                    coordinator(ports).accept()
-                self.assertEqual(seen.exception.code, "rollback_in_progress")
-            ports.fence_new_hook = attempted_acceptance
+            ports.fence_new_hook = lambda: self.assertEqual(
+                ports.load()['phase'], 'rolling_back')
             upgrade.rollback()
+            with self.assertRaises(module.UpgradeRefusal) as seen:
+                coordinator(ports).accept()
+            self.assertEqual(seen.exception.code, 'not_prepared')
             self.assertEqual(ports.load()["phase"], "rolled_back")
             self.assertEqual(ports.restore_calls, 1)
 
     def test_accepted_marker_wins_before_rollback_transition(self):
         with tempfile.TemporaryDirectory() as temporary:
-            class AcceptBeforeMarker(Ports):
-                injected = False
-                def save(self, value, *, expected):
-                    if value['phase'] == 'rolling_back' and not self.injected:
-                        self.injected = True
-                        coordinator(self).accept()
-                    super().save(value, expected=expected)
-            ports = AcceptBeforeMarker(module.AtomicUpgradeJournal(Path(temporary) / "upgrade.json"))
+            ports = Ports(module.AtomicUpgradeJournal(Path(temporary) / "upgrade.json"))
             upgrade = coordinator(ports)
             upgrade.prepare()
             self.assertEqual(upgrade.advance(), "expand-1")
+            coordinator(ports).accept()
             with self.assertRaises(module.UpgradeRefusal) as seen:
                 upgrade.rollback()
             self.assertEqual(seen.exception.code, "fix_forward_only")
