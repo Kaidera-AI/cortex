@@ -1,0 +1,9 @@
+{
+  "source": "/Users/amadmalik/DevVault/helix/.worktrees/cox-c05-rework-20261010/docs/next/evidence/c05-source/run-core-pg.py",
+  "sha256": "232a76b54fdd8cb9a51c60cb0fc01a77ffb0feac054f8d0e33c54fe1b3fe27dd",
+  "actual_prefix_before_WT": true,
+  "no_resource_code_executed": true,
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from pathlib import Path;__file__='/Users/amadmalik/DevVault/helix/.worktrees/cox-c05-rework-20261010/docs/next/evidence/c05-source/run-core-pg.py';exec(compile('\"\"\"C05-only copied real-PG gates with hash-bound stdlib lifecycle custody.\"\"\"\\nimport hashlib\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\nimport time\\nSHARED=Path(__file__).resolve().parent.parent/\\'replay-lifecycle\\'\\nsys.path.insert(0,str(SHARED))\\nfrom replay_lifecycle import Lifecycle\\nROOT=Path(\\'/Users/amadmalik/DevVault/helix\\')\\n\\n',__file__,'exec'))\n                                                                                                                                                        ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c05-rework-20261010/docs/next/evidence/c05-source/run-core-pg.py\", line 10, in <module>\n    from replay_lifecycle import Lifecycle\nModuleNotFoundError: No module named 'replay_lifecycle'\n"
+}
