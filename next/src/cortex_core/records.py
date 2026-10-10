@@ -28,6 +28,12 @@ class MutationReceipt:
 
 
 @dataclass(frozen=True)
+class EventMutationReceipt(MutationReceipt):
+    """C06 private receipt extends the frozen C05 eventless transport shape."""
+    event_id: UUID
+
+
+@dataclass(frozen=True)
 class Record:
     record_id: UUID
     kind: str
@@ -99,7 +105,7 @@ def _validate(record_id, revision, key):
 
 
 def _receipt(data):
-    return MutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'])
+    return EventMutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'],UUID(data['event_id']) if data.get('event_id') else None)
 
 
 class Records:
@@ -127,7 +133,7 @@ class Records:
 
     def put(self, record_id, kind, body, expected_revision, request_key):
         _validate(record_id,expected_revision,request_key)
-        if not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None or not isinstance(body,bytes) or len(body) > MAX_PAYLOAD_BYTES:
+        if not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None or not isinstance(body,bytes) or len(body) > MAX_PAYLOAD_BYTES or kind == 'core' or kind.startswith('core.'):
             raise RecordError('invalid_input')
         return self._mutate('put',record_id,kind,body,expected_revision,request_key)
 
@@ -140,9 +146,12 @@ class Records:
     def _mutate(self, operation, record_id, kind, body, expected, key):
         digest = hashlib.sha256(json.dumps([operation,str(record_id),kind,
             None if body is None else hashlib.sha256(body).hexdigest(),expected],separators=(',',':')).encode()).hexdigest()
+        request_json = json.dumps([operation,str(record_id),kind,None if body is None else hashlib.sha256(body).hexdigest(),expected],separators=(',',':'))
         with self._authorized('write') as scope:
             saved = _request(self.connection,scope,key,digest)
             if saved is not None:
+                if saved.get('request_json') != request_json:
+                    raise RecordError('conflict')
                 result = _receipt(saved)
             else:
                 _lock(self.connection,'record',(*_scope(scope),record_id))
@@ -168,6 +177,12 @@ class Records:
                             (record_id,int(expected),revision,tombstone))
                     _append_revision(self.connection,scope,record_id,revision,payload_id,tombstone)
                     data = dict(record_id=str(record_id),revision=revision,tombstone=tombstone,payload_sha256=payload_digest)
+                    event = _private(self.connection,'SELECT coordination.c06_record_event(%s,%s)',
+                        (record_id,revision)).fetchone()
+                    if event is None or event[0] is None:
+                        raise RecordError('core_unavailable')
+                    data['event_id'] = str(event[0])
+                    data['request_json'] = request_json
                     _save_request(self.connection,scope,key,digest,data)
                     result = _receipt(data)
                 except psycopg.errors.UniqueViolation:

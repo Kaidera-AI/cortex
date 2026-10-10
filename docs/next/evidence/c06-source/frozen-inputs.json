@@ -1,0 +1,112 @@
+{
+  "fixture_commit": "f7dd73609ae0f5ee4da9badfad80318e24598eb8",
+  "fixtures": [
+    {
+      "path": "next/tests/outbox/test_outbox.py",
+      "sha256": "c06fdb03622484fdab5ee01928a02a23ef066ba81567c93ce3f7ebf4393e9a52",
+      "tests": 32,
+      "commit": "f7dd73609ae0f5ee4da9badfad80318e24598eb8"
+    }
+  ],
+  "historical_bad_shape_probe": "fixture-shape-red-source.py is pre-execution artifact RED only, never the runtime fixture",
+  "predecessor_suites": {
+    "schema": 30,
+    "auth": 40,
+    "records": 14,
+    "coordination": 23,
+    "core_adapters": 6,
+    "acceptance_guards": 7,
+    "auth_identity": 26,
+    "auth_identity_guards": 6,
+    "identity_coordination": 8,
+    "identity_portability": 3,
+    "identity_receipts": 5,
+    "identity_transition": 1,
+    "identity_policy_faults": 2,
+    "identity_binding": 2,
+    "contract": 33,
+    "receipt": 20
+  },
+  "predecessor_tests": 226,
+  "no_host_product_execution": true,
+  "final_custody": {
+    "tested_commit": "e8dc899c06b38739144d10227916aadf792922ef",
+    "tests": 85,
+    "fixtures": [
+      {
+        "directory": "outbox",
+        "tests": 32,
+        "files": {
+          "next/tests/outbox/test_outbox.py": "352d30112cb10a6cb028dcdfb58c6685cf4ad308743d071faa1e15662d30e1bf"
+        }
+      },
+      {
+        "directory": "outbox_caller",
+        "tests": 2,
+        "files": {
+          "next/tests/outbox_caller/test_outbox_caller.py": "bd9698a74f501f236e1a8cf33b6e0bdd6dc9f3b15f4bdc0bd244c5b28fe0d8aa"
+        }
+      },
+      {
+        "directory": "outbox_guards",
+        "tests": 23,
+        "files": {
+          "next/tests/outbox_guards/test_outbox_guards.py": "47bd0da9ad8772ac4445cbdd920ef0c8a99dad85ad2090261a4946e51a74e855"
+        }
+      },
+      {
+        "directory": "outbox_retention",
+        "tests": 4,
+        "files": {
+          "next/tests/outbox_retention/test_outbox_retention.py": "ef76f11dcbccbef2d798ee3b37f6bf3a3263b77316cf76d11096255863241496"
+        }
+      },
+      {
+        "directory": "outbox_inventory",
+        "tests": 6,
+        "files": {
+          "next/tests/outbox_inventory/test_outbox_inventory.py": "6c2ac98b4993e712d83b6532d068010b690d1b0bffa3adb822db717d7c015894",
+          "next/tests/outbox_inventory/test_outbox_manifest.py": "30ebe4388d5a4419980fc4a76758fc3eaec7043e768322ca4f3e779d0f95c457"
+        }
+      },
+      {
+        "directory": "outbox_late_publication",
+        "tests": 1,
+        "files": {
+          "next/tests/outbox_late_publication/test_late_publication.py": "dc70026d5db965c8f7ee779ce51df1dfcd6a127dfbf02a5ef2ce8bb0baab9afb"
+        }
+      },
+      {
+        "directory": "c05_review",
+        "tests": 8,
+        "files": {
+          "next/tests/c05_review/test_c05_review.py": "de9c49fe07f855cb693f4a19cb1178d8cc987b35af06b6580886a18b8d2e82f7"
+        }
+      },
+      {
+        "directory": "c05_private",
+        "tests": 5,
+        "files": {
+          "next/tests/c05_private/test_c05_private.py": "108406eccef1fa4418abce20db1ce0218ee4d93183ba7b467ab1832092fb7f53"
+        }
+      },
+      {
+        "directory": "outbox_write_only",
+        "tests": 2,
+        "files": {
+          "next/tests/outbox_write_only/test_outbox_write_only.py": "b89f2ef49d1a5755726eec9e31f7c07f939831076a21923d85a4eacdd0fff2e4"
+        }
+      },
+      {
+        "directory": "outbox_private_namespace",
+        "tests": 2,
+        "files": {
+          "next/tests/outbox_private_namespace/test_outbox_private_namespace.py": "5134d805cac2bad4e2b57688b6fb86990d83040610e0ff8136ded9d2d7005e20"
+        }
+      }
+    ],
+    "original_32_entry_preserved": true,
+    "authorized_assertion_amendments": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/fixture-freeze-amendment.json",
+    "canonical_quarantine_setup_amendment": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/quarantine-fixture-disposition.json"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "outbox": [
+    "record receipt returns unrelated event UUID",
+    "history and current head coupling omitted",
+    "inventory checker admits unknown writer"
+  ],
+  "identity": [
+    "both final credential authority checks use initial snapshot",
+    "final private binding survival check omitted",
+    "private final binding function accepts missing context",
+    "private coordination schema usage removed",
+    "optional policy omitted from request digest",
+    "human kind bypasses independent holder review"
+  ],
+  "adapters": [
+    "changed request digest ignored",
+    "delete stored as live revision",
+    "original byte zero discarded",
+    "record kind changes accepted",
+    "stale expected revision ignored",
+    "holder and independent reviewer checks omitted",
+    "canceled job eligible for retry",
+    "successful outcome mislabeled failed",
+    "claim holder receipt forged as creator"
+  ]
+}

@@ -1,0 +1,745 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "record receipt returns unrelated event UUID",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "UUID(data['event_id']) if data.get('event_id') else None",
+          "after": "UUID(int=0)",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_record_ack_binds_committed_event_and_exact_bytes"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "job receipts return unrelated event UUID",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "UUID(data['event_id']) if data.get('event_id') else None",
+          "after": "UUID(int=0)",
+          "count": 2
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_job_create_claim_complete_each_emit_one_stable_aggregate_fact"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "issued identity receipt returns unrelated event UUID",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "UUID(raw['event_id']) if raw.get('event_id') else None",
+          "after": "UUID(int=0)",
+          "count": 3
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_registration_and_role_change_emit_scoped_identity_facts"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "role receipt returns unrelated event UUID",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "saved['generation'],UUID(raw['event_id']),UUID(raw['audit_id'])",
+          "after": "saved['generation'],UUID(int=0),UUID(raw['audit_id'])",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_role_change_receipt_exposes_committed_identity_event"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "old role replay substitutes latest lookup",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "saved = raw['identity']",
+          "after": "saved = dict(raw['identity'])\n            current = lookup_bound(self.connection,principal_id)\n            saved.update(roles=current.roles,generation=current.generation)",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_role_change_replay_returns_original_receipt_after_later_change"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "record head and integrity guards both omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_record_head() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    IF (TG_OP='INSERT' AND NEW.current_revision<>1) OR (TG_OP='UPDATE' AND\n        ((NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind)<>(OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind)\n         OR NEW.current_revision<>OLD.current_revision+1))\n      THEN RAISE EXCEPTION 'record head must advance exactly one revision' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_record_head() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nBEGIN\n    RETURN NEW;\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    IF (TG_OP='INSERT' AND NEW.current_revision<>1) OR (TG_OP='UPDATE' AND\n        ((NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind)<>(OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind)\n         OR NEW.current_revision<>OLD.current_revision+1))\n      THEN RAISE EXCEPTION 'record head must advance exactly one revision' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE aggregate uuid; head bigint; maximum bigint;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;\n    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox\n        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)\n          AND xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;\n    IF TG_TABLE_NAME='record_revisions' THEN\n        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))\n          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE aggregate uuid; head bigint; maximum bigint;\nBEGIN\n    RETURN NULL;\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;\n    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox\n        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)\n          AND xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;\n    IF TG_TABLE_NAME='record_revisions' THEN\n        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))\n          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_raw_record_head_rewind_refuses_without_eventless_state"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "history and current head coupling omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE aggregate uuid; head bigint; maximum bigint;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;\n    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox\n        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)\n          AND xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;\n    IF TG_TABLE_NAME='record_revisions' THEN\n        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))\n          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE aggregate uuid; head bigint; maximum bigint;\nBEGIN\n    RETURN NULL;\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;\n    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox\n        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)\n          AND xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;\n    IF TG_TABLE_NAME='record_revisions' THEN\n        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))\n          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE head record;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    SELECT current_revision,tombstone INTO STRICT head FROM core.records\n      WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.record_id) FOR UPDATE;\n    IF NEW.revision IS DISTINCT FROM head.current_revision OR NEW.tombstone IS DISTINCT FROM head.tombstone\n       OR (NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n           WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,NEW.record_id,NEW.revision-1)))\n      THEN RAISE EXCEPTION 'history must match sequential authoritative head' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE head record;\nBEGIN\n    RETURN NEW;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_history_without_matching_head_cannot_commit_extra_event"
+      ],
+      "kind": "guard",
+      "composition": "Both deferred coupling and new immediate order guard must be removed to expose an unheaded history fault.",
+      "original_change_count": 1
+    },
+    {
+      "label": "job capture accepts no actual business change",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF changed<>pg_current_xact_id()::text THEN",
+          "after": "IF false THEN",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_capture_without_any_business_change_refuses_duplicate_fact"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "job final authoritative snapshot comparison omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "\n          AND p.body=convert_to(coordination.c06_job_snapshot(job)::text,'UTF8')",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_capture_then_second_job_change_cannot_leave_stale_snapshot"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "lease key can move away from job parent",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF TG_OP='UPDATE' AND (NEW.tenant_id,NEW.project_id,NEW.kind,NEW.resource_id)<>(OLD.tenant_id,OLD.project_id,OLD.kind,OLD.resource_id)",
+          "after": "IF false",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_job_lease_kind_cannot_be_changed_to_bypass_parent_guard"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "saved receipt update is accepted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF TG_OP='UPDATE' THEN RAISE EXCEPTION 'mutation receipts are immutable' USING ERRCODE='23514'; END IF;",
+          "after": "IF TG_OP='UPDATE' THEN RETURN NEW; END IF;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_raw_receipt_tampering_cannot_change_replayed_event_id"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "receipt current event validation omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_receipt_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; e record; target jsonb;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    IF TG_OP='UPDATE' THEN RAISE EXCEPTION 'mutation receipts are immutable' USING ERRCODE='23514'; END IF;\n    SELECT * INTO s FROM auth.identity_scope(false);\n    IF NOT FOUND OR (NEW.tenant_id,NEW.project_id,NEW.principal_id)<>(s.tenant_id,s.project_id,s.principal_id)\n       THEN RAISE EXCEPTION 'receipt scope is forbidden' USING ERRCODE='42501'; END IF;\n    IF NEW.outcome<>'committed' THEN RETURN NEW; END IF;\n    SELECT * INTO e FROM coordination.outbox WHERE (tenant_id,project_id,event_id)=\n      (s.tenant_id,s.project_id,(NEW.receipt->>'event_id')::uuid) AND xmin::text=pg_current_xact_id()::text;\n    IF NOT FOUND THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;\n    IF NEW.receipt ? 'record_id' OR NEW.receipt ? 'job_id' THEN\n        PERFORM coordination.c06_validate_request(NEW.receipt,NEW.request_sha256,to_jsonb(e),s.principal_id);\n    END IF;\n    IF NEW.receipt ? 'record_id' THEN\n        IF e.aggregate_id IS DISTINCT FROM (NEW.receipt->>'record_id')::uuid\n           OR e.aggregate_revision IS DISTINCT FROM (NEW.receipt->>'revision')::bigint\n           OR e.tombstone IS DISTINCT FROM (NEW.receipt->>'tombstone')::boolean\n           OR e.payload_sha256 IS DISTINCT FROM NEW.receipt->>'payload_sha256'\n          THEN RAISE EXCEPTION 'receipt does not match captured record' USING ERRCODE='23514'; END IF;\n    ELSIF NEW.receipt ? 'job_id' THEN\n        IF NOT EXISTS(SELECT 1 FROM core.record_aliases WHERE (tenant_id,project_id,source_namespace,external_id,record_id)=\n             (s.tenant_id,s.project_id,'cortex.core.job',NEW.receipt->>'job_id',e.aggregate_id))\n          THEN RAISE EXCEPTION 'receipt does not match captured job' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF s.action<>'control' OR jsonb_typeof(NEW.receipt->'events') IS DISTINCT FROM 'array'\n          OR jsonb_array_length(NEW.receipt->'events')<1 THEN RAISE EXCEPTION 'receipt does not match captured identity' USING ERRCODE='23514'; END IF;\n        FOR target IN SELECT * FROM jsonb_array_elements(NEW.receipt->'events') LOOP\n            IF NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n                ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n                WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id,o.event_id)=\n                  (s.tenant_id,s.project_id,'cortex.core.identity',target->>'principal_id',(target->>'event_id')::uuid)\n                  AND o.xmin::text=pg_current_xact_id()::text)\n              THEN RAISE EXCEPTION 'receipt does not match captured identity' USING ERRCODE='23514'; END IF;\n        END LOOP;\n    END IF;\n    RETURN NEW;\nEXCEPTION WHEN invalid_text_representation THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514';\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_receipt_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; e record; target jsonb;\nBEGIN\n    RETURN NEW;\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    IF TG_OP='UPDATE' THEN RAISE EXCEPTION 'mutation receipts are immutable' USING ERRCODE='23514'; END IF;\n    SELECT * INTO s FROM auth.identity_scope(false);\n    IF NOT FOUND OR (NEW.tenant_id,NEW.project_id,NEW.principal_id)<>(s.tenant_id,s.project_id,s.principal_id)\n       THEN RAISE EXCEPTION 'receipt scope is forbidden' USING ERRCODE='42501'; END IF;\n    IF NEW.outcome<>'committed' THEN RETURN NEW; END IF;\n    SELECT * INTO e FROM coordination.outbox WHERE (tenant_id,project_id,event_id)=\n      (s.tenant_id,s.project_id,(NEW.receipt->>'event_id')::uuid) AND xmin::text=pg_current_xact_id()::text;\n    IF NOT FOUND THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;\n    IF NEW.receipt ? 'record_id' OR NEW.receipt ? 'job_id' THEN\n        PERFORM coordination.c06_validate_request(NEW.receipt,NEW.request_sha256,to_jsonb(e),s.principal_id);\n    END IF;\n    IF NEW.receipt ? 'record_id' THEN\n        IF e.aggregate_id IS DISTINCT FROM (NEW.receipt->>'record_id')::uuid\n           OR e.aggregate_revision IS DISTINCT FROM (NEW.receipt->>'revision')::bigint\n           OR e.tombstone IS DISTINCT FROM (NEW.receipt->>'tombstone')::boolean\n           OR e.payload_sha256 IS DISTINCT FROM NEW.receipt->>'payload_sha256'\n          THEN RAISE EXCEPTION 'receipt does not match captured record' USING ERRCODE='23514'; END IF;\n    ELSIF NEW.receipt ? 'job_id' THEN\n        IF NOT EXISTS(SELECT 1 FROM core.record_aliases WHERE (tenant_id,project_id,source_namespace,external_id,record_id)=\n             (s.tenant_id,s.project_id,'cortex.core.job',NEW.receipt->>'job_id',e.aggregate_id))\n          THEN RAISE EXCEPTION 'receipt does not match captured job' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF s.action<>'control' OR jsonb_typeof(NEW.receipt->'events') IS DISTINCT FROM 'array'\n          OR jsonb_array_length(NEW.receipt->'events')<1 THEN RAISE EXCEPTION 'receipt does not match captured identity' USING ERRCODE='23514'; END IF;\n        FOR target IN SELECT * FROM jsonb_array_elements(NEW.receipt->'events') LOOP\n            IF NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n                ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n                WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id,o.event_id)=\n                  (s.tenant_id,s.project_id,'cortex.core.identity',target->>'principal_id',(target->>'event_id')::uuid)\n                  AND o.xmin::text=pg_current_xact_id()::text)\n              THEN RAISE EXCEPTION 'receipt does not match captured identity' USING ERRCODE='23514'; END IF;\n        END LOOP;\n    END IF;\n    RETURN NEW;\nEXCEPTION WHEN invalid_text_representation THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514';\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_raw_pre_forged_receipt_without_current_mutation_refuses"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "corrected raw job refusal loses its capture guard",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_job_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE job uuid;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_OP='UPDATE' THEN\n        IF TG_TABLE_NAME='jobs' THEN\n            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind,NEW.idempotency_key,NEW.created_at)<>\n               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind,OLD.idempotency_key,OLD.created_at)\n              THEN RAISE EXCEPTION 'job identity is immutable' USING ERRCODE='23514'; END IF;\n        ELSIF TG_TABLE_NAME='job_attempts' THEN\n            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.job_id,NEW.attempt_number,NEW.fence,NEW.worker_id,NEW.started_at)<>\n               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.job_id,OLD.attempt_number,OLD.fence,OLD.worker_id,OLD.started_at)\n              THEN RAISE EXCEPTION 'attempt identity is immutable' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\n    IF TG_TABLE_NAME='jobs' THEN job:=NEW.id;\n    ELSIF TG_TABLE_NAME='job_attempts' THEN job:=NEW.job_id;\n    ELSIF TG_TABLE_NAME='job_results' THEN\n        SELECT job_id INTO job FROM coordination.job_attempts WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.attempt_id);\n    ELSE\n        IF TG_OP='UPDATE' AND (NEW.tenant_id,NEW.project_id,NEW.kind,NEW.resource_id)<>(OLD.tenant_id,OLD.project_id,OLD.kind,OLD.resource_id)\n          THEN RAISE EXCEPTION 'lease identity is immutable' USING ERRCODE='23514'; END IF;\n        IF NEW.kind<>'job' THEN RETURN NULL; END IF; job:=NEW.resource_id;\n    END IF;\n    IF NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n        ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n        JOIN core.records h ON(h.tenant_id,h.project_id,h.id,h.current_revision)=(o.tenant_id,o.project_id,o.aggregate_id,o.aggregate_revision)\n        JOIN core.payloads p ON(p.tenant_id,p.project_id,p.id)=(o.tenant_id,o.project_id,o.payload_ref)\n        WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(NEW.tenant_id,NEW.project_id,'cortex.core.job',job::text)\n          AND o.xmin::text=pg_current_xact_id()::text\n          AND p.body=convert_to(coordination.c06_job_snapshot(job)::text,'UTF8'))\n      THEN RAISE EXCEPTION 'job mutation requires captured event' USING ERRCODE='23514'; END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_job_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE job uuid;\nBEGIN\n    RETURN NULL;\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_OP='UPDATE' THEN\n        IF TG_TABLE_NAME='jobs' THEN\n            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind,NEW.idempotency_key,NEW.created_at)<>\n               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind,OLD.idempotency_key,OLD.created_at)\n              THEN RAISE EXCEPTION 'job identity is immutable' USING ERRCODE='23514'; END IF;\n        ELSIF TG_TABLE_NAME='job_attempts' THEN\n            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.job_id,NEW.attempt_number,NEW.fence,NEW.worker_id,NEW.started_at)<>\n               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.job_id,OLD.attempt_number,OLD.fence,OLD.worker_id,OLD.started_at)\n              THEN RAISE EXCEPTION 'attempt identity is immutable' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\n    IF TG_TABLE_NAME='jobs' THEN job:=NEW.id;\n    ELSIF TG_TABLE_NAME='job_attempts' THEN job:=NEW.job_id;\n    ELSIF TG_TABLE_NAME='job_results' THEN\n        SELECT job_id INTO job FROM coordination.job_attempts WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.attempt_id);\n    ELSE\n        IF TG_OP='UPDATE' AND (NEW.tenant_id,NEW.project_id,NEW.kind,NEW.resource_id)<>(OLD.tenant_id,OLD.project_id,OLD.kind,OLD.resource_id)\n          THEN RAISE EXCEPTION 'lease identity is immutable' USING ERRCODE='23514'; END IF;\n        IF NEW.kind<>'job' THEN RETURN NULL; END IF; job:=NEW.resource_id;\n    END IF;\n    IF NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n        ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n        JOIN core.records h ON(h.tenant_id,h.project_id,h.id,h.current_revision)=(o.tenant_id,o.project_id,o.aggregate_id,o.aggregate_revision)\n        JOIN core.payloads p ON(p.tenant_id,p.project_id,p.id)=(o.tenant_id,o.project_id,o.payload_ref)\n        WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(NEW.tenant_id,NEW.project_id,'cortex.core.job',job::text)\n          AND o.xmin::text=pg_current_xact_id()::text\n          AND p.body=convert_to(coordination.c06_job_snapshot(job)::text,'UTF8'))\n      THEN RAISE EXCEPTION 'job mutation requires captured event' USING ERRCODE='23514'; END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_raw_bound_job_write_without_parent_capture_refuses_commit"
+      ],
+      "kind": "Kai_corrected_assertion_guard"
+    },
+    {
+      "label": "corrected reserved alias refusal loses privilege and namespace guards",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "REVOKE INSERT,UPDATE ON coordination.outbox,core.record_aliases,core.blob_manifests",
+          "after": "REVOKE INSERT,UPDATE ON coordination.outbox,core.blob_manifests",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "reserved:=NEW.source_namespace='cortex.core' OR NEW.source_namespace LIKE 'cortex.core.%';",
+          "after": "reserved:=false;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_reserved_alias_and_fact_names_cannot_be_forged_by_writer"
+      ],
+      "kind": "Kai_corrected_assertion_guard"
+    },
+    {
+      "label": "retention protection no longer takes shared lock",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_protection_lock() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE installation uuid; state_row record;\nBEGIN\n    IF TG_TABLE_NAME='quarantine' THEN\n        SELECT installation_id INTO STRICT installation FROM core.tenants WHERE id=NEW.tenant_id;\n    ELSE installation:=NEW.installation_id; END IF;\n    INSERT INTO coordination.feed_state(installation_id) VALUES(installation) ON CONFLICT DO NOTHING;\n    SELECT * INTO STRICT state_row FROM coordination.feed_state WHERE installation_id=installation FOR UPDATE;\n    IF TG_TABLE_NAME='snapshot_floors' THEN\n        IF NEW.cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        IF NEW.cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;\n    ELSIF TG_TABLE_NAME='consumer_checkpoints' THEN\n        IF TG_OP='UPDATE' THEN\n            IF (OLD.state='expired' OR OLD.expires_at<=clock_timestamp()) AND\n               (NEW.applied_cursor>OLD.applied_cursor OR NEW.state='active')\n              THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        END IF;\n        IF NEW.state='active' AND NEW.applied_cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        IF NEW.applied_cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;\n    END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_protection_lock() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE installation uuid; state_row record;\nBEGIN\n    RETURN NEW;\n    IF TG_TABLE_NAME='quarantine' THEN\n        SELECT installation_id INTO STRICT installation FROM core.tenants WHERE id=NEW.tenant_id;\n    ELSE installation:=NEW.installation_id; END IF;\n    INSERT INTO coordination.feed_state(installation_id) VALUES(installation) ON CONFLICT DO NOTHING;\n    SELECT * INTO STRICT state_row FROM coordination.feed_state WHERE installation_id=installation FOR UPDATE;\n    IF TG_TABLE_NAME='snapshot_floors' THEN\n        IF NEW.cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        IF NEW.cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;\n    ELSIF TG_TABLE_NAME='consumer_checkpoints' THEN\n        IF TG_OP='UPDATE' THEN\n            IF (OLD.state='expired' OR OLD.expires_at<=clock_timestamp()) AND\n               (NEW.applied_cursor>OLD.applied_cursor OR NEW.state='active')\n              THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        END IF;\n        IF NEW.state='active' AND NEW.applied_cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        IF NEW.applied_cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;\n    END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_retention",
+      "expected_tests": [
+        "test_outbox_retention.RetentionProtocol.test_snapshot_creation_serializes_with_actual_pruning",
+        "test_outbox_retention.RetentionProtocol.test_quarantine_creation_serializes_with_actual_pruning",
+        "test_outbox_retention.RetentionProtocol.test_active_checkpoint_cannot_be_created_below_retained_floor"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "active snapshot floor ignored",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "SELECT min(cursor) INTO snapshot FROM coordination.snapshot_floors\n      WHERE installation_id=s.installation_id AND expires_at>clock_timestamp();",
+          "after": "SELECT NULL::bigint INTO snapshot;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_active_snapshot_floor_blocks_pruning_until_expired"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "unresolved quarantine ignored",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "AND q.resolved_at IS NULL",
+          "after": "AND false",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_unresolved_quarantine_is_not_silently_pruned"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "expired cursor accepted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF p_after<project_floor THEN",
+          "after": "IF false THEN",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_default_retention_is_seven_days_and_old_cursor_refuses_after_prune"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "page leaks other project payloads",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "(p.installation_id,p.tenant_id,p.project_id)=(s.installation_id,s.tenant_id,s.project_id)",
+          "after": "(p.installation_id,p.tenant_id)=(s.installation_id,s.tenant_id)",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_scoped_feed_never_returns_other_project_payloads"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "journal allocation skips dense cursor",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "cursor_value:=cursor_value+1;",
+          "after": "cursor_value:=cursor_value+2;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_concurrent_publishers_assign_each_event_one_dense_cursor"
+      ],
+      "kind": "application",
+      "isolate_expected_test": true
+    },
+    {
+      "label": "feed head advances without a journal event",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "SET last_published_cursor=cursor_value WHERE",
+          "after": "SET last_published_cursor=cursor_value+1 WHERE",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_committed_lost_publication_response_retries_without_duplicate"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "already committed events are reselected and acknowledged again",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "        AND NOT EXISTS(SELECT 1 FROM coordination.published_events p WHERE p.event_id=o.event_id)\n",
+          "after": "",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "VALUES(s.installation_id,cursor_value,item.tenant_id,item.project_id,item.event_id,clock_timestamp());",
+          "after": "VALUES(s.installation_id,cursor_value,item.tenant_id,item.project_id,item.event_id,clock_timestamp()) ON CONFLICT(event_id) DO NOTHING;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_committed_lost_publication_response_retries_without_duplicate"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "aggregate delivery revisions reverse order",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "ORDER BY o.occurred_at,o.event_id LIMIT",
+          "after": "ORDER BY o.occurred_at DESC,o.event_id DESC LIMIT",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_update_and_delete_have_monotonic_revision_and_tombstone"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "delivery cursor differs from journal",
+      "changes": [
+        {
+          "path": "src/cortex_core/outbox.py",
+          "before": "PublishedEvent(*row)",
+          "after": "PublishedEvent(row[0]+1,*row[1:])",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_delivery_cursor_is_separate_from_exact_c01_envelope"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "delivery normalizes original byte zero",
+      "changes": [
+        {
+          "path": "src/cortex_core/outbox.py",
+          "before": "PublishedEvent(*row)",
+          "after": "PublishedEvent(row[0],row[1],row[2].replace(b'\\x00',b''))",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_record_ack_binds_committed_event_and_exact_bytes"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "delivery cursor contaminates C01 envelope",
+      "changes": [
+        {
+          "path": "src/cortex_core/outbox.py",
+          "before": "PublishedEvent(*row)",
+          "after": "PublishedEvent(row[0],row[1]|{'cursor':row[0]},row[2])",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_delivery_cursor_is_separate_from_exact_c01_envelope"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "post-journal failure swallowed and committed",
+      "changes": [
+        {
+          "path": "src/cortex_core/outbox.py",
+          "before": "            result = _publish(self.connection, limit)",
+          "after": "            try:\n                result = _publish(self.connection, limit)\n            except RuntimeError:\n                result = ()",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_failure_after_actual_journal_insert_rolls_back_cursor_and_publication"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "fixture read credential elevated to owner",
+      "changes": [
+        {
+          "path": "tests/core_db_fixture.py",
+          "before": "READ_A=auth_fixture.READ_A",
+          "after": "READ_A=auth_fixture.OWNER_A",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_publication_requires_owner_and_scoped_feed_requires_read"
+      ],
+      "kind": "fixture"
+    },
+    {
+      "label": "external HTTP admission falsely asserted",
+      "changes": [
+        {
+          "path": "contracts/outbox-conformance.json",
+          "before": "\"external_http_admission\": false",
+          "after": "\"external_http_admission\": true",
+          "count": 1
+        }
+      ],
+      "directory": "outbox",
+      "expected_tests": [
+        "test_outbox.OutboxTests.test_writer_inventory_and_held_admission_contract_are_explicit"
+      ],
+      "kind": "artifact"
+    },
+    {
+      "label": "source-bound writer receipt hash substituted",
+      "changes": [
+        {
+          "path": "contracts/core-writer-inventory.json",
+          "before": "51f83fe25d229e51eb54baae0c23fb420323c7dc4be348274c28e852f884fc47",
+          "after": "0000000000000000000000000000000000000000000000000000000000000000",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_inventory",
+      "expected_tests": [
+        "test_outbox_inventory.WriterInventory.test_all_executable_writer_sites_match_classified_source"
+      ],
+      "kind": "artifact"
+    },
+    {
+      "label": "manifest additive outbox binding renamed",
+      "changes": [
+        {
+          "path": "schema/manifest.json",
+          "before": "\"id\": \"outbox-0002\"",
+          "after": "\"id\": \"outbox-0002-unbound\"",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_inventory",
+      "expected_tests": [
+        "test_outbox_manifest.OutboxManifest.test_manifest_binds_exact_additive_outbox_sql"
+      ],
+      "kind": "artifact"
+    },
+    {
+      "label": "caller accepts wrapped import failures",
+      "changes": [
+        {
+          "path": "scripts/mutate_outbox.py",
+          "before": "if value is not None and any(",
+          "after": "if False and any(",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_caller",
+      "expected_tests": [
+        "test_outbox_caller.OutboxCaller.test_wrapped_import_failure_is_inconclusive"
+      ],
+      "kind": "artifact"
+    },
+    {
+      "label": "inventory checker admits unknown writer",
+      "changes": [
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "return rules.get((owner,table,verb))",
+          "after": "return rules.get((owner,table,verb), 'incorrectly_admitted_writer')",
+          "count": 1
+        },
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "if file_pin is None or normalized_function_digest(tree)!=file_pin:",
+          "after": "if file_pin is None or False:",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_inventory",
+      "expected_tests": [
+        "test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected"
+      ],
+      "kind": "artifact",
+      "composition": "Remove the whole-file pin as an auxiliary control; it must leave the expected boundary green alone. The original scanner fault must then fail the declared inventory test in its body.",
+      "original_change_count": 1
+    },
+    {
+      "label": "retention age starts at capture instead of publication",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF item.published_at>clock_timestamp()-make_interval(secs=>state.retention_seconds) THEN EXIT; END IF;",
+          "after": "IF (SELECT occurred_at FROM coordination.outbox WHERE event_id=item.event_id)>clock_timestamp()-make_interval(secs=>state.retention_seconds) THEN EXIT; END IF;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_late_publication",
+      "expected_tests": [
+        "test_late_publication.LatePublication.test_old_pending_event_gets_seven_days_from_actual_publication"
+      ],
+      "kind": "application"
+    },
+    {
+      "label": "immediate history ordering guard omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE head record;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    SELECT current_revision,tombstone INTO STRICT head FROM core.records\n      WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.record_id) FOR UPDATE;\n    IF NEW.revision IS DISTINCT FROM head.current_revision OR NEW.tombstone IS DISTINCT FROM head.tombstone\n       OR (NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n           WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,NEW.record_id,NEW.revision-1)))\n      THEN RAISE EXCEPTION 'history must match sequential authoritative head' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE head record;\nBEGIN\n    RETURN NEW;\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    SELECT current_revision,tombstone INTO STRICT head FROM core.records\n      WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.record_id) FOR UPDATE;\n    IF NEW.revision IS DISTINCT FROM head.current_revision OR NEW.tombstone IS DISTINCT FROM head.tombstone\n       OR (NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n           WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,NEW.record_id,NEW.revision-1)))\n      THEN RAISE EXCEPTION 'history must match sequential authoritative head' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_reverse_history_insertion_refuses_revision_reordering"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "job and attempt parent identity guards omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "    IF TG_OP='UPDATE' THEN\n        IF TG_TABLE_NAME='jobs' THEN\n            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind,NEW.idempotency_key,NEW.created_at)<>\n               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind,OLD.idempotency_key,OLD.created_at)\n              THEN RAISE EXCEPTION 'job identity is immutable' USING ERRCODE='23514'; END IF;\n        ELSIF TG_TABLE_NAME='job_attempts' THEN\n            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.job_id,NEW.attempt_number,NEW.fence,NEW.worker_id,NEW.started_at)<>\n               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.job_id,OLD.attempt_number,OLD.fence,OLD.worker_id,OLD.started_at)\n              THEN RAISE EXCEPTION 'attempt identity is immutable' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\n",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_job_authoritative_id_cannot_be_relocated_without_old_parent_event",
+        "test_outbox_guards.OutboxGuards.test_attempt_cannot_be_reparented_without_old_job_event"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "exact captured request semantics omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN;\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_authentic_pending_event_cannot_forge_successful_completion_receipt",
+        "test_outbox_guards.OutboxGuards.test_authentic_running_event_cannot_forge_claim_attempt_fence_or_holder",
+        "test_outbox_guards.OutboxGuards.test_authentic_upsert_receipt_cannot_ack_a_future_delete",
+        "test_outbox_guards.OutboxGuards.test_authentic_pending_receipt_cannot_ack_a_future_retry",
+        "test_outbox_guards.OutboxGuards.test_job_fact_cannot_be_replayed_as_ordinary_memory_put",
+        "test_outbox_guards.OutboxGuards.test_mixed_record_and_claim_receipt_cannot_bypass_job_contract"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "quoted and unqualified writer forms ignored",
+      "changes": [
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "            target=TARGET.match(text,match.end())\n",
+          "after": "            target=TARGET.match(text,match.end())\n            if target and ('\"' in target.group(1) or '.' not in target.group(1)):continue\n",
+          "count": 1
+        },
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "if file_pin is None or normalized_function_digest(tree)!=file_pin:",
+          "after": "if file_pin is None or False:",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_inventory",
+      "expected_tests": [
+        "test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected",
+        "test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected"
+      ],
+      "kind": "artifact",
+      "original_change_count": 1,
+      "composition": "Remove the whole-file pin as an auxiliary control; it must leave the expected boundary green alone. The original scanner fault must then fail the declared inventory test in its body."
+    },
+    {
+      "label": "expired consumers may advance completeness",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "        IF TG_OP='UPDATE' THEN\n            IF (OLD.state='expired' OR OLD.expires_at<=clock_timestamp()) AND\n               (NEW.applied_cursor>OLD.applied_cursor OR NEW.state='active')\n              THEN RAISE EXCEPTION 'outbox_expired'; END IF;\n        END IF;\n",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_retention",
+      "expected_tests": [
+        "test_outbox_retention.RetentionProtocol.test_expired_checkpoint_cannot_advance_or_reactivate_completeness"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "worker receipt actor relation omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')",
+          "after": "IF false",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_authentic_completed_fact_cannot_ack_a_foreign_workers_completion"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "review receipt actor independence omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'",
+          "after": "IF false",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_authentic_reviewed_fact_cannot_ack_a_workers_self_acceptance"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "claim request duration detached from captured lease",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_guards",
+      "expected_tests": [
+        "test_outbox_guards.OutboxGuards.test_authentic_sixty_second_claim_cannot_ack_an_hour_lease"
+      ],
+      "kind": "guard"
+    },
+    {
+      "label": "foreign cursor blocks own pruning",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "    FOR item IN SELECT * FROM coordination.published_events WHERE installation_id=s.installation_id\n      AND (tenant_id,project_id)=(s.tenant_id,s.project_id)\n      AND cursor>project_floor ORDER BY cursor LIMIT 1000 LOOP",
+          "after": "    FOR item IN SELECT * FROM coordination.published_events WHERE installation_id=s.installation_id\n      AND cursor>project_floor ORDER BY cursor LIMIT 1000 LOOP\n        IF (item.tenant_id,item.project_id)<>(s.tenant_id,s.project_id) THEN blocked:='foreign_scope'; EXIT; END IF;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_retention",
+      "expected_tests": [
+        "test_project_retention.ProjectRetention.test_own_expired_cursor_prunes_behind_foreign_quarantine"
+      ],
+      "kind": "guard"
+    }
+  ]
+}

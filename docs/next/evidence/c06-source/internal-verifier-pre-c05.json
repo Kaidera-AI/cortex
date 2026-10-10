@@ -1,0 +1,19 @@
+{
+  "scope": "pre-C05 matrix audit only; superseded source requires forward integration and fresh proof",
+  "tested_commit": "c2562ff9f16fa38e6c980bc592df7726403eebce",
+  "raw_sha256": "3fa88cc2ac64cd34064ba34e98ca695af15ef53958dbb176d03b97bcce6a90a7",
+  "verifier": "/root/c06_verify",
+  "baseline_tests": 294,
+  "actual_body_faults": 138,
+  "qualified_auxiliary_controls": 16,
+  "source_files_restored": 414,
+  "protected_predecessor_files": 393,
+  "required_findings": [],
+  "unresolved_upstream": [
+    "C05-CANCEL-001",
+    "C05-REPLAY-002",
+    "C05-REPRO-003",
+    "REPLAY-LOCK-001"
+  ],
+  "official_acceptance": "Kai/Vera separately; security/main held"
+}

@@ -1,0 +1,8 @@
+{
+  "source_commit": "c63e11a",
+  "phase": "C06 final preflight before any resource operation",
+  "failure": "private event binding fault anchor appears twice after new helper; preflight correctly refused",
+  "resource_operations": 0,
+  "repair": "give helper a distinct equivalent scope call and rebind additive outbox migration hash",
+  "status": "operational INCONCLUSIVE, not mutation kill"
+}

@@ -1,0 +1,167 @@
+# C06 — transactional capture and commit-safe publication (PLAN; no implementation)
+
+Owner Cox, helix laneA; Kai accepts; Vera reviews. H-D455 names C06 after C05; H-D470 adds the completed C04a identity slice. **Status: ACCEPTED by Kai, H-D455 inbox2026-10-10 04:39 local; gate `Program/Cortex/v2-v0.1.020/gates/c06-plan-accepted-20261010.json`.** One source day / six hours; any overrun returns remaining units to Kai before using the last integration reserve. Release authority still owns live admission.
+
+## Intent and pre-edit evidence
+
+Every admitted logical Core mutation commits its immutable event in the same PostgreSQL transaction. A rolled-back mutation publishes nothing; a committed late event is never skipped; duplicate publication is harmless. API acknowledgement means committed canonical persistence, with event identity, never immediate engine visibility. C07 owns application/checkpoint/rebuild; Conductor stays outside the data path.
+
+Own plan worktree `.worktrees/cox-c06-outbox-20261010`, branch `cox/c06-outbox-20261010`, clean at `66daeedaec4cbb75c9aa3126ec140f2e2656fb0b` (published C04a PR45; C05 base PR44). No C06 product source/tests/containers changed. Current origin/main `3401d1a1b4be7a3a115a440d5415ea937ff8e003` is incorporated. Recheck ownership, overlap, clean status and main before the first accepted-plan edit. Git writes stay in this own tree; do not change shared checkout or sibling lanes.
+
+Existing coordination001 already supplies outbox, published_events, feed_state, quarantine, consumer_checkpoints and snapshot_floors. Its outbox foreign keys require a real Core record/revision and exact payload digest. Existing C05 jobs and C04a identity audits are not yet outbox aggregates. Preserve all applied/prior migration bytes, the28-business-table boundary, frozen C04/C05/C04a tests and C01 event schema.
+
+## Proposed mechanism for Kai's acceptance
+
+**Publication:** lock the installation feed_state row; select a bounded batch of committed outbox rows missing a published_events entry, without any allocated-ID/time watermark; allocate the next dense cursor under that lock; insert unique event journal entries and advance state in one transaction. A lower-ID event invisible to the first transaction remains pending and is selected after it commits. Concurrent publishers serialize; crash before commit rolls back both journal and cursor. No new service, sequence watermark, cloud primitive or WAL-decoder configuration.
+
+[Option packet](evidence/c06-plan/publication-options.json) compares this with allocated-ID watermarks and upstream WAL decoding. Jev0.1.0 is present, but the actual developer option invocation returned `abstained_no_key`, exit2: `TYPESAFE_API_KEY` is unset. [Result](evidence/c06-plan/publication-options-result.json) is **no judgment**, not clearance. No credential lookup/client/policy was improvised. Kai subsequently RULED the locked journal at04:39 and prohibited further Jev/jev-option-decision use under H-D17/H-D119; no key will be provisioned. Future option choices go to Kai as short consults. The original no-key receipt remains historical evidence only.
+
+**Capture:** record put/delete reuse their exact existing immutable payload/revision. Jobs and identity emit kind-bound change facts into existing Core records/history, with private reserved namespaces in existing record_aliases mapping each project/business aggregate to its stable Core record. The original jobs/auth rows remain authority; their immutable change facts and event rows commit with that same logical operation. Aliases/fact kinds cannot be created or altered through ordinary record writers. Preserve exact original intent/result bytes and existing identity-audit bytes; reference payloads rather than re-encode them. Where a separate job-state snapshot is needed, its explicit versioned metadata references those original payloads.
+
+**Kai accepted this representation with the plan:** the current FK/table contract permits Core record facts, not a second outbox store or edge translator. Capture job create/claim/cancel/expire/retry/complete/release/abandon/fail/return/accept/rework and identity register-agent/register-human/set-roles/rotate/revoke/adopt, including direct authorized SQL identity paths. Principal/project membership changes use stable scoped aggregates and monotonic revisions; batch adoption records every affected target. Never expose bearer bytes, key digests, private attestation or donor source content through the feed. An idempotency replay returns the same saved event identity and creates no extra revision/event.
+
+A fail-capable writer inventory classifies every executable business INSERT/UPDATE/DELETE as transactional capture, subordinate immutable payload/history/attempt/lease effect captured by its parent operation, or explicit internal publication/checkpoint/retention housekeeping. Admitted mutations cannot bypass capture. Add deferred integrity guards where needed so an ordinary bound writer cannot commit business state without its required fact/event. Installer/bootstrap and administrative fixtures are separate trusted paths and never become an admitted eventless runtime writer. Missing classification is RED, not an exclusion.
+
+**Feed and retention:** expose bounded committed publication pages under fresh Core scope, with immutable C01 envelope and payload reference/digest. Public caller project/tenant/role fields never grant authority. Project reads cannot leak other project payloads; privileged installation publication is a private server operation pending C11 service admission. Default retention604800seconds. Pruning advances retained_floor atomically, respects active snapshot floors and unresolved quarantine, and marks/refuses expired consumers before they can falsely advance completeness. A cursor below the retained floor returns typed expired/rebuild-required. Pending unpublished rows are never pruned; late publication starts its delivery retention at publication. Unsafe pruning returns blocked/operator action, never silently discards a poison event. C07 owns durable apply-before-checkpoint and aggregate-only poison blocking.
+
+## Files and six-hour order
+
+1. **1h:** source-bound writer inventory, reserved fact/alias contract and receipt/API mapping; commit new full real-PG outbox fixtures and missing-port/capture RED before implementation. Capture after actual record/job/auth effects, forced rollback, exact byte/digest assertions and unauthorized bypass probes.
+2. **1.5h:** new `next/schema/coordination/002-outbox.sql` plus appended manifest entry; fixed-search-path/PUBLIC-revoked private capture/publication/retention functions and deferred guards. Never edit001 or auth001/002/003. No new business table.
+3. **1h:** new `next/src/cortex_core/outbox.py`; narrow capture integration in records.py/coordination.py/identity.py and additive saved-event receipt fields. Keep existing C04 binding, C05 request/holder/fence/deadline checks and C04a final binding/fresh authority. SQL identity capture belongs in the additive migration so authorized direct paths also emit events.
+4. **1h:** real concurrent late-commit, concurrent publisher, lost-response replay, post-event/pre-commit rollback, cross-project feed denial, expiry/retention/snapshot-floor/quarantine tests; unchanged predecessor suites all required clean. Explicit C06 conformance metadata records external HTTP/installed admission as held.
+5. **1h:** actual semantic faults per changed runtime/SQL/manifest/fixture/caller; each kill requires its declared BODY assertion and zero operational errors/survivors/inconclusive. All copied inputs restore. One copied native-arm64 PG/Python Podman stack, total2CPU/1GiB, pinned offline wheels/images, no ports/binds, no host product execution. Fresh lifecycle/pending-before-ACK/immutable-ID cleanup/password discard/local lock and cleanup-gated receipts.
+6. **0.5h:** fresh independent verifier; integrate current target-main and repeat final checks if bytes change; origin-bound one-slice PR and return to Kai/Vera. Preserve temp inputs and remove parked own worktree. Source admission remains distinct from native x86/install/signing/release.
+
+Additional scope: `next/contracts/outbox-conformance.json`, `next/tests/outbox/`, `next/scripts/mutate_outbox.py`, copied evidence/controller under laneA/evidence/c06-source and published docs/next mirrors. Existing source files change only for capture and typed receipt integration; no graph/search/Conductor/installer edits.
+
+## Fail-capable gate and danger
+
+Before/after receipts must prove: actual mutation+outbox commit/rollback coupling for every inventoried operation; monotonic aggregate revisions and tombstones; exact bytes; idempotent events and principal-bound replay; fresh credential/role/kind/holder authority; no unsafe raw writer; late lower-ID commit visible; cursor/journal atomicity under concurrent publication and crash; scoped bounded feed; seven-day expiry and safe pruning; immutable migrations/table count; all frozen predecessor suites and actual faults clean. The static inventory is an artifact guard, never a substitute for actual PostgreSQL qualification.
+
+**Door:** one-way when forward migration/events/pruning are applied. **Blast radius:** outbox. Revert source before admission; repair accepted data forward. Live writers/HTTP ACK, issuer/adoption, real released donor, native x86/install/signing/release stay HELD. No source plan closes a finding or approves its own work.
+
+**Gate boundary:** build the accepted existing-Core fact/alias representation, locked journal and bounded retention as one C06 day. No further Jev use or key provisioning. Vera PR41/45 findings pre-empt; fixes merge forward up the stack, never rebase. Overrun or a scope change returns a short consult to Kai.
+
+## Build amendment — frozen C05 receipt boundary
+
+Actual first PostgreSQL integration at `a969e0b57c96231fe9aeceddd824202ca5a4d791` retained one expected-boundary failure: the frozen C05 contract forbids an `event_id` field on its original `MutationReceipt`. Preserve that base dataclass and the held transport contract exactly; the C06 private port returns additive `EventMutationReceipt(MutationReceipt)` with its committed event ID. No predecessor test or admission claim changes. Receipt `outbox-green-attempt-001.json` remains failed with cleanup verified; this is an API representation adjustment within the accepted capture scope.
+
+## Build amendment — Kai ratification and fresh verifier regressions
+
+Kai ratified only the two newly frozen exception assertions at05:16 local; see fixture-freeze-amendment and original-frozen-outbox source. Artifact contract RED precedes correction; each corrected case requires an actual guard-removal mutant. Add10 separate unweakened raw-head/history, stale/no-effect job capture, lease reassignment, role receipt/replay and receipt-tamper/fabrication regressions before repairing their product gaps. Preserve the frozen predecessor226 cases. Retention error mapping is caught inside the C04 boundary; prune SQL column references are explicitly qualified. Concurrent floor/quarantine creation must share the publication row-lock protocol before pruning can qualify.
+
+## Build amendment: final independent source audit
+
+Add five unweakened RED-first probes before repairing remaining capture/receipt/inventory gaps: reverse insertion of history3 then2 in one transaction must roll back; authentic current pending/running job events cannot authorize forged completion state or Claim attempt/fence/holder receipts; quoted qualified and search-path unqualified executable writers must fail inventory admission. Enforce immediate history sequencing, validate job receipt facts against the captured snapshot, and conservatively reject unsupported writer forms. Preserve all predecessor fixtures and all failed receipts; extend the final semantic matrix with guard-removal faults. This stays within accepted canonical capture, durable ACK integrity and fail-capable inventory scope.
+
+The same audit also requires immutable job/attempt authoritative parent keys and request semantics bound to durable receipt ACKs. Add four further RED cases: job-ID relocation, attempt reparenting, authentic upsert falsely replayed as delete and authentic pending creation falsely replayed as retry. Store the exact canonical request JSON with its unchanged request digest, validate record/job request semantics against actual captured facts, and reject mismatched replay contracts before ACK. This extends existing receipt integrity proof, without changing frozen predecessor fixtures or C05 public receipt types.
+
+Add one retained-state RED: an expired consumer cannot advance or reactivate its checkpoint before explicit rebuild. C07 apply/checkpoint remains held; C06 protection guard enforces its own existing expiry contract under the installation lock.
+
+Final receipt probes also bind event kind to its port and reject mixed record/claim shapes. Every forged contract carries valid exact request JSON, so mere presence checks cannot satisfy semantic fault qualification.
+
+The immediate history check also binds its tombstone flag to the authoritative record head. Add one explicit mismatched-head/history tombstone RED before this repair; an event cannot acknowledge a delete while its Core head remains live.
+
+The tombstone/head probe was already GREEN under the existing C01 composite foreign key (core001:66–67). Preserve it as positive predecessor-invariant coverage, not a new gap or RED claim. Attempt003 is honestly failed solely because the controller expected an extra RED that did not exist; qualified002 proves the twelve actual gaps. No assertion was changed.
+
+## Build amendment: exact actor and claim duration
+
+The repaired request proof still needs worker equality for terminal/return ACKs and worker inequality for independent review, plus requested claim TTL equal to the captured grant duration. Add three authentic-event RED probes first. Persist attempt.started_at as the actual lease grant time (expires_at minus requested TTL) in the existing row, then validate its immutable timestamp/lease pair; no new table or port is introduced. Keep old request hashing, policy/fence predicates and predecessor fixtures unchanged.
+
+
+## Build amendment: Kai 09:23 full matrix repair
+
+The actual matrix at3695c185 retained all294 clean baselines,39/42 C06 faults,26/32 identity faults,21/30 C05 faults,26 C01 and8 shared faults, with full restoration and verified cleanup. Preserve failed002 and its raw outcomes. Redundancy legitimately blocks older faults; operational errors never count as kills.
+
+Add C06-owned JSON compositions and extend the C06 runner; original auth001/002/003, all226 predecessor fixtures, old mutators and their original recipes remain byte-exact. Every new descriptor includes original script SHA and verbatim original edits, plus narrowly documented new C06 guard bypasses so the unchanged expected BODY assertion can observe the old fault. Identity expiry/binding faults also remove the new deferred identity guard; request/effect faults remove the new private validator; kind/replay faults remove only their new parallel C06 checks. The private-schema-usage fault alone changes new C06 trigger owners to the trusted installer in its copied mutation, allowing bootstrap fixtures to reach the original runtime missing-usage body, without restoring that verifier grant.
+
+The unrelated-UUID C06 fault actually failed its expected body but also caused a downstream quarantine FK error. Correct ONLY retention setup to protect the canonical published event instead of consuming a deliberately corrupted ACK UUID. Archive the prior32case file; all assertion ASTs and all32 methods remain identical to its Kai-ratified version. The first fixture-contract check must prove that equality and actual published-event setup. This is the downstream fixture repair explicitly ordered at09:23, not an assertion or expected-refusal amendment.
+
+Compose both immediate and deferred history guards for the unheaded-history fault, and both generic and records-specific unknown-writer classification defaults. Actual failed002 is the RED-first proof. Run18 repaired fault descriptors first (full named fixture suites, never test filters), then the full294baseline/138fault matrix; rebind copied SQL manifest and writer inventory, require exact expected BODY assertions with zero errors, restore every copied source byte, and verify owned cleanup. Preserve all failures. Graph preemption09:04–09:27 is recorded outside the C06 six-hour build allocation; no integration reserve is silently spent. PR40 lock repair follows C06 per the latest Kai line; original/replacement replay producer reuse stays held.
+
+
+Attribution amendment: a fresh verifier found one bypass aimed at the wrong predicate (record kind request/effect proof), and an ownership bypass broad enough to create its own unrelated refusal. Preserve failed repair001 with its actual17/18 raw statuses and restoration/cleanup. Before correcting the owner override, freeze and execute an auxiliary-only control: same full named predecessor fixture, original fault absent, auxiliary changes present; this must remain GREEN before any composed fault qualifies. Each composed descriptor records original change count, auxiliary control source/output and result. C06 redundant-history controls require the named original boundary remains GREEN with zero errors, while unrelated guard BODY failures remain explicit. The broader owner override must cause an actual attribution RED under this frozen control, then narrow it to trigger functions only, keep helpers/ports as verifier. Correct the kind composition to its specific request-kind predicate. Replace the unreachable generic unknown-writer fault with its actual records-specific classifier fault (preserving the original failed recipe in002); it is one real fault, not a compound falsely attributed to an unused fallback. Final matrix must qualify every auxiliary control before counting primary faults.
+
+
+Attribution RED executed at8b01ecc: the frozen auxiliary-only ownership control caused the unchanged registration BODY to fail even with original USAGE grant present. Runner correctly reported zero kills and one inconclusive primary; whole NEXT bytes restored, owned absence/password discard/unlock verified. Retain actual failed attribution001. Narrow copied override to trigger-returning C06 functions only; helpers/capture ports retain verifier ownership. Replace kind bypass with only request-kind predicate and replace unknown-writer recipe with one actual Records-specific branch fault. No product implementation or predecessor source/assertion changes. Run the complete294 baseline and138 primary matrix with all auxiliary controls.
+
+## C05 review repair brought forward — H-D45510:05
+
+The user-adopted Kai ruling preempts C06 with Mike's three named C05 repairs.
+Keep the accepted gate immutable. Preserve mutation-outbox-final-003 at
+c2562ff9f16fa38e6c980bc592df7726403eebce as the pre-C05 proof, including the
+independent pre-C05 audit; it does not qualify the forthcoming source.
+
+Merge the completed C05 feature head forward through C04a into C06, without
+rebasing or main merge. Retain every original migration entry and frozen fixture.
+The new coordination-0002 private decision migration is an explicitly authorized
+predecessor addition. Preserve C06's request JSON, event receipt, revision and
+job/identity capture hooks when resolving the record-port conflict. Classify the
+moved UPDATE writer in the private C05 SQL function with C06's existing capture
+and sequential-head guards. The source inventory must be regenerated and contain
+no unclassified, missing or stale writer.
+
+The new baseline includes the frozen Mike8 and separate private5 (307 total).
+Retain the original42/32/30/26/8 fault identities and edits. Compose only the new
+C05 parallel digest, kind, CAS and verifier-schema-USAGE checks where they mask
+an old fault. Each auxiliary-only full frozen named fixture must remain GREEN.
+Add the11 C05 private guard removals through separate C06-owned descriptors;
+the two header-update faults may additionally bypass C06's parallel head guard,
+again with full private-fixture GREEN controls. Expected full matrix is149 actual
+BODY failures, with no operational errors or inconclusive faults. Do not edit
+C05's original descriptor publication or the original173/Mike8/private5 tests.
+
+Put the existing fixture-contract check first and validate all exact fault
+anchors before resource admission. Make the C06 controller's pinned lifecycle
+helper resolvable beside its publication; archive the previous tested controller
+and helper. Host and copied wheel bytes are bound before pip. Re-prove the whole
+copied source, manifest hashes, frozen predecessor custody and owned absence /
+password discard / unlock in one fresh native fixture. An independent verifier
+must inspect this post-C05 source and receipt. Return C06 to Vera, keep H-D471
+security/main hold, then perform the separately named PR40 lock repair.
+
+C05 preemption starts10:20 local and ends only after its exact-head return.
+Record its actual duration separately from the C06 one-day build allocation;
+the earlier graph preemption09:04–09:27 remains23minutes.
+
+### Current event lookup after write-only predecessor repair
+
+The old C06 Python event SELECT depends on public read, so bringing Kai's C05
+write-only contract forward also requires a private current-event decision.
+Freeze two additional probes before implementation: write-only create/update/
+delete and identical replay with exact event identities; private lookup refusing
+unbound/read contexts and any previous transaction's event. Run the original294
+controls plus these two expected BODY failures before repair. Add verifier-owned
+c06_record_event deriving c05_scope(), matching installation/tenant/project/
+record/revision and xmin=current transaction, returning only the event UUID.
+Keep the public read boundary unchanged and preserve receipt/effect hooks.
+Add actual guard removals for public-read fallback, private binding and current
+transaction predicate. New baseline309; full planned BODY matrix152.
+
+
+### Reserved Core fact decision after private C05 header updates
+
+The independent source check at f72a55f found the C06 revision trigger reads
+kind through public read permission, while the private C05 header update runs
+as verifier. Preserve that rework report; do not claim runtime confirmation.
+This repair enforces the accepted C06 reserved Core fact invariant and changes
+only C06 source, never held C04/C04a review or immutable C05 migration bytes.
+
+Freeze two additional job/identity conformance cases before implementation.
+Each creates a legitimate Core fact, gives the ordinary caller write-only
+permission, performs a private header advance and raw next revision without a
+request receipt, and requires typed core_unavailable refusal plus unchanged
+header/history/event counts and business state. Run all309 existing controls
+plus the two expected BODY assertions before repair, with owned absence.
+
+If confirmed, add VOLATILE verifier-owned c06_record_reserved(uuid), deriving
+fresh bound c05_scope and returning only reserved-kind existence in that scope.
+The existing invoker revision trigger calls it after its trusted-capture check.
+Pin search_path, revoke PUBLIC execute, grant request execute explicitly, and
+retain all ordinary CAS/sequential checks. Do not use an additional CAS lookup
+for this kind decision; old guard-removal attribution must remain causal.
+Freeze an actual predicate removal requiring both new BODY assertions, then
+run the complete311baseline/153fault matrix, qualify auxiliary controls, prove
+all copied source restored and cleanup/password/unlock. Preserve all old tests
+and receipts. Official Vera review remains separate and main merge held.

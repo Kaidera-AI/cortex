@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "private reserved Core kind decision removed",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "reserved:=coordination.c06_record_reserved(NEW.record_id);",
+          "after": "reserved:=false;",
+          "count": 1
+        }
+      ],
+      "kind": "c06_private_namespace_guard_removal",
+      "directory": "outbox_private_namespace",
+      "expected_tests": [
+        "test_outbox_private_namespace.PrivateNamespaceCases.test_write_only_raw_job_fact_revision_refuses_without_extra_event",
+        "test_outbox_private_namespace.PrivateNamespaceCases.test_write_only_raw_identity_fact_revision_refuses_without_extra_event"
+      ]
+    }
+  ]
+}

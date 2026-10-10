@@ -1,0 +1,12 @@
+{
+  "receipt": "outbox-red-attempt-001.json",
+  "receipt_sha256": "fee51161919bf830425dcef7b859ce598681b47141a781e3f85c4bf65259246a",
+  "tested_sha": "51b1750ba745049e92701322c7faa50adb149ffb",
+  "expected_missing_port_BODY_assertions": 32,
+  "errors": 0,
+  "clean_predecessor_tests": 226,
+  "copied_NEXT_files": 399,
+  "cleanup_verified": true,
+  "meaning": "initial capability/interface RED only; not application GREEN or semantic fault qualification",
+  "next_guard": "C06 caller must reject wrapped import/dependency failures while frozen32 remain unchanged"
+}

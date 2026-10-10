@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "write-only ACK falls back to public read",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "event = _private(self.connection,'SELECT coordination.c06_record_event(%s,%s)',\n                        (record_id,revision)).fetchone()",
+          "after": "event = self.connection.execute('''SELECT event_id FROM coordination.outbox\n                        WHERE tenant_id=%s AND project_id=%s AND aggregate_id=%s AND aggregate_revision=%s''',\n                        (*_scope(scope),record_id,revision)).fetchone()",
+          "count": 1
+        }
+      ],
+      "kind": "c06_write_only_guard_removal",
+      "directory": "outbox_write_only",
+      "expected_tests": [
+        "test_outbox_write_only.WriteOnlyCases.test_write_only_mutations_ack_and_replay_exact_current_events"
+      ]
+    },
+    {
+      "label": "private event transaction binding omitted",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "SELECT * INTO STRICT s FROM coordination.c05_scope();",
+          "after": "SELECT * INTO s FROM auth.resolve_scope(current_setting('cortex.credential_digest',true),\n        NULLIF(current_setting('cortex.installation_id',true),'')::uuid,\n        NULLIF(current_setting('cortex.project_id',true),'')::uuid,'write');",
+          "count": 1
+        }
+      ],
+      "kind": "c06_write_only_guard_removal",
+      "directory": "outbox_write_only",
+      "expected_tests": [
+        "test_outbox_write_only.WriteOnlyCases.test_private_event_lookup_requires_bound_write_and_current_transaction"
+      ]
+    },
+    {
+      "label": "previous transaction event admitted as current",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "AND o.xmin::text=pg_current_xact_id()::text;",
+          "after": ";",
+          "count": 1
+        }
+      ],
+      "kind": "c06_write_only_guard_removal",
+      "directory": "outbox_write_only",
+      "expected_tests": [
+        "test_outbox_write_only.WriteOnlyCases.test_private_event_lookup_requires_bound_write_and_current_transaction"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "tested_commit": "1b675b3fc834745544f311b8811909bb20cfb9ae",
+  "classifier_sha256": "aee2b3a3efc0a33fb7efc60a38a65ca3c624f5bc208db29ceebe4eae62242b13",
+  "files": {
+    "pr51-002-red.json": {
+      "sha256": "34028bfd49c7a07170cbdbfdbd7d51de24474ceb348a8f2669c7986cf0d4009c",
+      "bytes": 5966
+    },
+    "pr51-002-green.json": {
+      "sha256": "3ae035c582f65c5f4e3aef9ad0cd7cae83ad58d40055600a9c32382a48eb21c7",
+      "bytes": 2115
+    },
+    "pr51-002-mutant.json": {
+      "sha256": "b85fb316c4c7c87fea5616a18b8452a273b3a54a1865537f479aa9aba05581e9",
+      "bytes": 11677
+    },
+    "mutation-pr51-002-full-001.json": {
+      "sha256": "d4a8ee4dfae1e9abae32c370e0e9eea12591e7fbb874df646e99b2f272d24db2",
+      "bytes": 3134407
+    }
+  },
+  "clean_suites": 26,
+  "clean_tests": 316,
+  "primary_mutants": 154,
+  "expected_body_failures": 367,
+  "inconclusive": 0,
+  "source_files": 426,
+  "writer_sites": 62,
+  "owned_resources_removed": 3,
+  "source_restored": true
+}
