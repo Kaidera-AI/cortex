@@ -182,6 +182,19 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(BackupError):
             self.verify(self.target, digest, identity=wrong)
 
+    def test_native_wal_parser_failure_refuses_recoverable(self):
+        _, digest = self.seal()
+        with patch('cortex_core.backup_validation._validate_native_pg',
+                   side_effect=BackupError('invalid WAL')):
+            with self.assertRaises(BackupError):
+                self.verify(self.target, digest)
+
+    def test_native_wal_parser_failure_blocks_seal(self):
+        with patch('cortex_core.backup_validation._validate_native_pg',
+                   side_effect=BackupError('invalid WAL')):
+            with self.assertRaises(BackupError):
+                self.seal()
+
     def test_vector_file_changed_before_seal_is_refused_by_native_manifest(self):
         (self.base/'base/123/456').write_bytes(b'changed-vector')
         with self.assertRaises(BackupError):

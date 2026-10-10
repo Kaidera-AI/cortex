@@ -1,0 +1,1212 @@
+{
+  "tree": "a793395313fa330adaeac2478869de4e666dbef2",
+  "source_sha256": {
+    "next/src/cortex_core/backup.py": "197e16ed551244bad4aafb66f1820e66a4b46339bf26ec819f1800d808943b15",
+    "next/src/cortex_core/backup_validation.py": "db08072fec0d8e61ae364d41988948f83c7cb060f54cb7746aced630f5b51570",
+    "next/tests/backup_producer/test_manifest.py": "40cab6932ee476b1e8fc0a1084c9f3c40524901f2906653fd24584f68a48bb4d",
+    "next/tests/backup_validation/test_validation.py": "d7788f1edb56cd1028b413e9344e9d5919879036dfbe68dc0cc58e887cef539c",
+    "next/schema/manifest.json": "8c4d6dd14f3f52dfe499d4dd1b47f586718fda8220266b2dad83dd30cd823e6e",
+    "docs/next/evidence/o01b-source/synthetic-before.sql": "4ac2ec8eb19f3c59459362122af238044b8c48ff60a4a85070059bc5a2ea0f3d",
+    "docs/next/evidence/o01b-source/synthetic-mutate.sql": "a9b7d8af442cd5024023de7f9230212b9d600e3b3a4121f16e9c731f29603596",
+    "docs/next/evidence/o01b-source/run-native-pg.py": "d4590ba4509f1eeeca47e8acef7204af99140de2068c09b794f4e9f1c52c8ad7"
+  },
+  "passed": true,
+  "native": {
+    "mixed_snapshot_refused": true,
+    "missing_blob_refused": true,
+    "altered_vector_refused": true,
+    "altered_schema_refused": true,
+    "altered_wal_refused": true,
+    "missing_identity_refused": true,
+    "bad_manifest_digest_refused": true,
+    "pg_version": "18.4",
+    "segment_bytes": 16777216,
+    "before": [
+      1,
+      1,
+      1,
+      0
+    ],
+    "after_source": [
+      2,
+      2,
+      2,
+      1
+    ],
+    "after_recovery": [
+      2,
+      2,
+      2,
+      1
+    ],
+    "replay_lsn": "0/7000000",
+    "requested_end_lsn": "0/60000D0",
+    "archive_end_lsn": "0/7000000",
+    "mutation_overlapped_backup": true,
+    "backup_duration_s": 1.89,
+    "wal_segments": [
+      "000000010000000000000003",
+      "000000010000000000000004",
+      "000000010000000000000005",
+      "000000010000000000000006"
+    ],
+    "base_files": 1112,
+    "blob_members": 2,
+    "encrypted_bundle_sha256": "0f80cb369269ebeae960dc9440b31f183c6d402dd5c2d082c36aedf0a92f3257",
+    "manifest_sha256": "c8d72b415f97636b76db595a8633d8446521698b993c294d0a9813d5bd882431",
+    "verified_member_count": 1119
+  },
+  "results": [
+    {
+      "command": [
+        "test_receipts",
+        "backup_producer"
+      ],
+      "exit_code": 0,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 6, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... ok\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... ok\ntest_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key) ... ok\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... ok\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... ok\ntest_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret (test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.059s\n\nOK\n"
+    },
+    {
+      "command": [
+        "test_receipts",
+        "backup_validation"
+      ],
+      "exit_code": 0,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 12, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_altered_blob_is_refused (test_validation.ValidationTests.test_altered_blob_is_refused) ... ok\ntest_altered_schema_ledger_is_refused (test_validation.ValidationTests.test_altered_schema_ledger_is_refused) ... ok\ntest_altered_vector_file_is_refused (test_validation.ValidationTests.test_altered_vector_file_is_refused) ... ok\ntest_complete_bundle_binds_blob_and_full_snapshot (test_validation.ValidationTests.test_complete_bundle_binds_blob_and_full_snapshot) ... ok\ntest_manifest_endpoint_must_equal_actual_replay_lsn (test_validation.ValidationTests.test_manifest_endpoint_must_equal_actual_replay_lsn) ... ok\ntest_missing_blob_is_refused (test_validation.ValidationTests.test_missing_blob_is_refused) ... ok\ntest_missing_manifest_member_is_refused (test_validation.ValidationTests.test_missing_manifest_member_is_refused) ... ok\ntest_missing_or_wrong_age_identity_is_refused (test_validation.ValidationTests.test_missing_or_wrong_age_identity_is_refused) ... ok\ntest_mixed_record_vector_blob_checkpoint_snapshot_is_refused (test_validation.ValidationTests.test_mixed_record_vector_blob_checkpoint_snapshot_is_refused) ... ok\ntest_native_manifest_changed_before_seal_is_refused (test_validation.ValidationTests.test_native_manifest_changed_before_seal_is_refused) ... ok\ntest_truncated_wal_is_refused (test_validation.ValidationTests.test_truncated_wal_is_refused) ... ok\ntest_vector_file_changed_before_seal_is_refused_by_native_manifest (test_validation.ValidationTests.test_vector_file_changed_before_seal_is_refused_by_native_manifest) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.697s\n\nOK\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SHOW server_version;"
+      ],
+      "exit_code": 0,
+      "stdout": "18.4\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SHOW archive_mode;"
+      ],
+      "exit_code": 0,
+      "stdout": "on\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/next/schema",
+        "kaidera-test-o01b-pg-1:/tmp/schema"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/docs/next/evidence/o01b-source/synthetic-before.sql",
+        "kaidera-test-o01b-pg-1:/tmp/before.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/docs/next/evidence/o01b-source/synthetic-mutate.sql",
+        "kaidera-test-o01b-pg-1:/tmp/mutate.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/core/001-core.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE SCHEMA\nCREATE FUNCTION\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE TABLE\nALTER TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE TRIGGER\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/auth/001-auth.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE SCHEMA\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/coordination/001-coordination.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE SCHEMA\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TABLE\nCREATE TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/retrieval/000-canonical.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE SCHEMA\nCREATE FUNCTION\nCREATE TABLE\nCREATE TRIGGER\nCREATE TABLE\nCREATE TABLE\nCREATE INDEX\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/auth/002-isolation.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "DO\nREVOKE\nGRANT\nGRANT\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nCREATE TRIGGER\nGRANT\nGRANT\nGRANT\nGRANT\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nREVOKE\nREVOKE\nGRANT\nDO\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/coordination/002-record-replay.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nGRANT\nGRANT\nGRANT\nCREATE POLICY\nCREATE POLICY\nCREATE POLICY\nCREATE POLICY\nCREATE POLICY\nGRANT\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nALTER FUNCTION\nREVOKE\nREVOKE\nGRANT\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/auth/003-identity.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE FUNCTION\nALTER TABLE\nALTER TABLE\nALTER TABLE\nCREATE VIEW\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nGRANT\nGRANT\nGRANT\nCREATE POLICY\nCREATE POLICY\nGRANT\nDO\nALTER VIEW\nREVOKE\nGRANT\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/coordination/002-outbox.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "ALTER TABLE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nDO\nCREATE FUNCTION\nCREATE FUNCTION\nDO\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE FUNCTION\nDO\nGRANT\nGRANT\nGRANT\nGRANT\nGRANT\nGRANT\nGRANT\nGRANT\nGRANT\nREVOKE\nDO\nGRANT\nDO\nREVOKE\nREVOKE\nGRANT\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/schema/coordination/003-module-consumers.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE TABLE\nCREATE TABLE\nCREATE TABLE\nDO\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nGRANT\nGRANT\nCREATE POLICY\nGRANT\nDO\nREVOKE\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "CREATE TABLE core.schema_migrations (migration_id text PRIMARY KEY,sha256 text NOT NULL);"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE TABLE\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('core-0001','e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('auth-0001','97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('coordination-0001','c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('retrieval-0000','5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('auth-0002','dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('coordination-0002','683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('auth-0003','678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('outbox-0002','125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO core.schema_migrations VALUES ('module-consumers-0003','460399154d5e657a75916cf0cc6381921ad10a6204f7b6a00e71862198ade629');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/before.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "BEGIN\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nCOMMIT\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "sh",
+        "-c",
+        "mkdir -p /tmp/blobs/synthetic; printf 'before blob' > /tmp/blobs/synthetic/before; printf 'after blob' > /tmp/blobs/synthetic/after"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT\n      (SELECT current_revision FROM core.records),\n      (SELECT max(source_revision) FROM retrieval.embeddings),\n      (SELECT count(*) FROM core.blob_manifests),\n      (SELECT applied_cursor FROM coordination.consumer_project_checkpoints)\n    "
+      ],
+      "exit_code": 0,
+      "stdout": "1|1|1|0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "CREATE TABLE synthetic_ballast AS SELECT g,repeat('x',2048) AS body FROM generate_series(1,30000) AS g;"
+      ],
+      "exit_code": 0,
+      "stdout": "SELECT 30000\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/25135B8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/mutate.sql"
+      ],
+      "exit_code": 0,
+      "stdout": "BEGIN\nINSERT 0 1\nUPDATE 1\nINSERT 0 1\nINSERT 0 1\nINSERT 0 1\nUPDATE 1\nCOMMIT\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "pg_basebackup",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "postgres",
+        "-p",
+        "5432",
+        "-D",
+        "/tmp/base",
+        "-Fp",
+        "-X",
+        "none",
+        "--manifest-checksums=SHA256",
+        "--checkpoint=fast",
+        "--max-rate=32M"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "NOTICE:  all required WAL segments have been archived\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT\n      (SELECT current_revision FROM core.records),\n      (SELECT max(source_revision) FROM retrieval.embeddings),\n      (SELECT count(*) FROM core.blob_manifests),\n      (SELECT applied_cursor FROM coordination.consumer_project_checkpoints)\n    "
+      ],
+      "exit_code": 0,
+      "stdout": "2|2|2|1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "pg_verifybackup",
+        "-n",
+        "/tmp/base"
+      ],
+      "exit_code": 0,
+      "stdout": "backup successfully verified\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "CREATE TABLE synthetic_tail(id integer PRIMARY KEY);"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE TABLE\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_tail VALUES (1);"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_current_wal_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/4024290\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/40242A8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_tail VALUES (2);"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_current_wal_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/50000D0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/50000E8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_tail VALUES (3);"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_current_wal_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/60000D0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/60000E8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "pg_controldata",
+        "/var/lib/postgresql/18/data"
+      ],
+      "exit_code": 0,
+      "stdout": "pg_control version number:            1800\nCatalog version number:               202506291\nDatabase system identifier:           7695075247199944721\nDatabase cluster state:               in production\npg_control last modified:             Sat Oct 10 16:22:08 2026\nLatest checkpoint location:           0/3000080\nLatest checkpoint's REDO location:    0/3000028\nLatest checkpoint's REDO WAL file:    000000010000000000000003\nLatest checkpoint's TimeLineID:       1\nLatest checkpoint's PrevTimeLineID:   1\nLatest checkpoint's full_page_writes: on\nLatest checkpoint's NextXID:          0:959\nLatest checkpoint's NextOID:          24576\nLatest checkpoint's NextMultiXactId:  1\nLatest checkpoint's NextMultiOffset:  0\nLatest checkpoint's oldestXID:        745\nLatest checkpoint's oldestXID's DB:   1\nLatest checkpoint's oldestActiveXID:  959\nLatest checkpoint's oldestMultiXid:   1\nLatest checkpoint's oldestMulti's DB: 1\nLatest checkpoint's oldestCommitTsXid:0\nLatest checkpoint's newestCommitTsXid:0\nTime of latest checkpoint:            Sat Oct 10 16:22:08 2026\nFake LSN counter for unlogged rels:   0/3E8\nMinimum recovery ending location:     0/0\nMin recovery ending loc's timeline:   0\nBackup start location:                0/0\nBackup end location:                  0/0\nEnd-of-backup record required:        no\nwal_level setting:                    replica\nwal_log_hints setting:                off\nmax_connections setting:              100\nmax_worker_processes setting:         8\nmax_wal_senders setting:              10\nmax_prepared_xacts setting:           0\nmax_locks_per_xact setting:           64\ntrack_commit_timestamp setting:       off\nMaximum data alignment:               8\nDatabase block size:                  8192\nBlocks per segment of large relation: 131072\nWAL block size:                       8192\nBytes per WAL segment:                16777216\nMaximum length of identifiers:        64\nMaximum columns in an index:          32\nMaximum size of a TOAST chunk:        1996\nSize of a large-object chunk:         2048\nDate/time type storage:               64-bit integers\nFloat8 argument passing:              by value\nData page checksum version:           1\nDefault char data signedness:         signed\nMock authentication nonce:            54076ff13f1a41a4078b552e0f7ea176a79dbab2723c91cc20fb2da0b243a789\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/cox-o01b-native-gdcd1jo5/recovery.conf",
+        "kaidera-test-o01b-pg-1:/tmp/recovery.conf"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "sh",
+        "-c",
+        "cp -a /tmp/base /tmp/restored && cat /tmp/recovery.conf >> /tmp/restored/postgresql.auto.conf && touch /tmp/restored/recovery.signal"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "pg_ctl",
+        "-D",
+        "/tmp/restored",
+        "-o",
+        "-p 5433 -k /tmp -c listen_addresses=",
+        "-w",
+        "start"
+      ],
+      "exit_code": 0,
+      "stdout": "waiting for server to start....2026-10-10 16:22:11.803 UTC [145] LOG:  starting PostgreSQL 18.4 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-10 16:22:11.804 UTC [145] LOG:  listening on Unix socket \"/tmp/.s.PGSQL.5433\"\n2026-10-10 16:22:11.806 UTC [151] LOG:  database system was interrupted; last known up at 2026-10-10 16:22:08 UTC\ncp: can't stat '/archive/00000002.history': No such file or directory\n2026-10-10 16:22:11.811 UTC [151] LOG:  starting backup recovery with redo LSN 0/3000028, checkpoint LSN 0/3000080, on timeline ID 1\n2026-10-10 16:22:11.825 UTC [151] LOG:  restored log file \"000000010000000000000003\" from archive\n2026-10-10 16:22:11.825 UTC [151] LOG:  starting point-in-time recovery to WAL location (LSN) \"0/60000D0\"\n2026-10-10 16:22:11.826 UTC [151] LOG:  redo starts at 0/3000028\n2026-10-10 16:22:11.834 UTC [151] LOG:  restored log file \"000000010000000000000004\" from archive\n2026-10-10 16:22:11.834 UTC [151] LOG:  completed backup recovery with redo LSN 0/3000028 and end LSN 0/3001498\n2026-10-10 16:22:11.834 UTC [151] LOG:  consistent recovery state reached at 0/3001498\n2026-10-10 16:22:11.834 UTC [145] LOG:  database system is ready to accept read-only connections\n2026-10-10 16:22:11.851 UTC [151] LOG:  restored log file \"000000010000000000000005\" from archive\n2026-10-10 16:22:11.860 UTC [151] LOG:  restored log file \"000000010000000000000006\" from archive\ncp: can't stat '/archive/000000010000000000000007': No such file or directory\n2026-10-10 16:22:11.862 UTC [151] LOG:  recovery stopping after WAL location (LSN) \"0/60000D0\"\n2026-10-10 16:22:11.862 UTC [151] LOG:  pausing at the end of recovery\n2026-10-10 16:22:11.862 UTC [151] HINT:  Execute pg_wal_replay_resume() to promote.\n done\nserver started\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/tmp",
+        "-p",
+        "5433",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_is_in_recovery(),pg_is_wal_replay_paused();"
+      ],
+      "exit_code": 0,
+      "stdout": "t|t\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/tmp",
+        "-p",
+        "5433",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_last_wal_replay_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/7000000\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/tmp",
+        "-p",
+        "5433",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT\n      (SELECT current_revision FROM core.records),\n      (SELECT max(source_revision) FROM retrieval.embeddings),\n      (SELECT count(*) FROM core.blob_manifests),\n      (SELECT applied_cursor FROM coordination.consumer_project_checkpoints)\n    "
+      ],
+      "exit_code": 0,
+      "stdout": "2|2|2|1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/tmp",
+        "-p",
+        "5433",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "\nSELECT CASE WHEN pg_is_in_recovery() AND pg_is_wal_replay_paused() THEN\n  jsonb_build_object(\n    'installation_id', (SELECT id::text FROM core.installations),\n    'replay_lsn', pg_last_wal_replay_lsn()::text,\n    'schema_ledger', (SELECT coalesce(jsonb_agg(jsonb_build_object(\n       'id',migration_id,'sha256',sha256) ORDER BY migration_id),'[]'::jsonb)\n       FROM core.schema_migrations),\n    'consumer_generations', (SELECT coalesce(jsonb_agg(jsonb_build_object(\n       'module',module_id,'project',project_id::text,'generation',generation,\n       'cursor',applied_cursor,'scan_cursor',scan_cursor,'tenant_id',tenant_id::text)\n       ORDER BY installation_id,module_id,tenant_id,project_id,generation),'[]'::jsonb)\n       FROM coordination.consumer_project_checkpoints),\n    'model_identities', (SELECT coalesce(jsonb_agg(jsonb_build_object(\n       'id',id::text,'provider',provider,'model',model,'version',model_version,\n       'dimensions',dimensions,'tenant_id',tenant_id::text,'project_id',project_id::text)\n       ORDER BY tenant_id,project_id,id),'[]'::jsonb) FROM retrieval.embedding_models),\n    'blob_inventory', (SELECT coalesce(jsonb_agg(jsonb_build_object(\n       'object_key',object_key,'sha256',sha256,'byte_length',byte_length,\n       'tenant_id',tenant_id::text,'project_id',project_id::text)\n       ORDER BY tenant_id,project_id,object_key),'[]'::jsonb) FROM core.blob_manifests),\n    'record_heads', (SELECT coalesce(jsonb_agg(jsonb_build_object(\n       'id',r.id::text,'revision',r.current_revision,'payload_sha256',p.sha256,\n       'tenant_id',r.tenant_id::text,'project_id',r.project_id::text,'tombstone',r.tombstone)\n       ORDER BY r.tenant_id,r.project_id,r.id),'[]'::jsonb)\n       FROM core.records r JOIN core.record_revisions rr ON\n         (rr.tenant_id,rr.project_id,rr.record_id,rr.revision)=\n         (r.tenant_id,r.project_id,r.id,r.current_revision)\n       JOIN core.payloads p ON (p.tenant_id,p.project_id,p.id)=\n         (rr.tenant_id,rr.project_id,rr.payload_ref)),\n    'vectors', (SELECT coalesce(jsonb_agg(jsonb_build_object(\n       'record_id',e.record_id::text,'revision',e.source_revision,\n       'model_id',e.model_id::text,\n       'sha256',encode(sha256(convert_to(e.embedding::text,'UTF8')),'hex'),\n       'tenant_id',e.tenant_id::text,'project_id',e.project_id::text)\n       ORDER BY e.tenant_id,e.project_id,e.record_id,e.source_revision,e.model_id),'[]'::jsonb)\n       FROM retrieval.embeddings e JOIN core.records r ON\n         (e.tenant_id,e.project_id,e.record_id,e.source_revision)=\n         (r.tenant_id,r.project_id,r.id,r.current_revision)))::text\n  ELSE NULL END;\n"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"vectors\": [{\"sha256\": \"93b33cb19b03c0b3b9e6ff481d2e2f3c90e0efc713e112087f7a618c62264ecf\", \"model_id\": \"00000000-0000-4000-8000-000000000020\", \"revision\": 2, \"record_id\": \"00000000-0000-4000-8000-000000000010\", \"tenant_id\": \"00000000-0000-4000-8000-000000000002\", \"project_id\": \"00000000-0000-4000-8000-000000000003\"}], \"replay_lsn\": \"0/7000000\", \"record_heads\": [{\"id\": \"00000000-0000-4000-8000-000000000010\", \"revision\": 2, \"tenant_id\": \"00000000-0000-4000-8000-000000000002\", \"tombstone\": false, \"project_id\": \"00000000-0000-4000-8000-000000000003\", \"payload_sha256\": \"655611533da698ea054fc45baa26762d52f373dbc1fdd8daf22c70ab23baa333\"}], \"schema_ledger\": [{\"id\": \"auth-0001\", \"sha256\": \"97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e\"}, {\"id\": \"auth-0002\", \"sha256\": \"dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681\"}, {\"id\": \"auth-0003\", \"sha256\": \"678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8\"}, {\"id\": \"coordination-0001\", \"sha256\": \"c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1\"}, {\"id\": \"coordination-0002\", \"sha256\": \"683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87\"}, {\"id\": \"core-0001\", \"sha256\": \"e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147\"}, {\"id\": \"module-consumers-0003\", \"sha256\": \"460399154d5e657a75916cf0cc6381921ad10a6204f7b6a00e71862198ade629\"}, {\"id\": \"outbox-0002\", \"sha256\": \"125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e\"}, {\"id\": \"retrieval-0000\", \"sha256\": \"5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2\"}], \"blob_inventory\": [{\"sha256\": \"e45662d53982a6b48f95bdc1f1955c94f1def6c6fd5f60baacae9d0c09f870d5\", \"tenant_id\": \"00000000-0000-4000-8000-000000000002\", \"object_key\": \"synthetic/after\", \"project_id\": \"00000000-0000-4000-8000-000000000003\", \"byte_length\": 10}, {\"sha256\": \"fe17a1e7e1ae44f010eaebba70889c389222298d1919916fff2cfa63d124efb4\", \"tenant_id\": \"00000000-0000-4000-8000-000000000002\", \"object_key\": \"synthetic/before\", \"project_id\": \"00000000-0000-4000-8000-000000000003\", \"byte_length\": 11}], \"installation_id\": \"00000000-0000-4000-8000-000000000001\", \"model_identities\": [{\"id\": \"00000000-0000-4000-8000-000000000020\", \"model\": \"synthetic-1\", \"version\": \"1\", \"provider\": \"fixture\", \"tenant_id\": \"00000000-0000-4000-8000-000000000002\", \"dimensions\": 3, \"project_id\": \"00000000-0000-4000-8000-000000000003\"}], \"consumer_generations\": [{\"cursor\": 1, \"module\": \"graph\", \"project\": \"00000000-0000-4000-8000-000000000003\", \"tenant_id\": \"00000000-0000-4000-8000-000000000002\", \"generation\": 1, \"scan_cursor\": 1}]}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "kaidera-test-o01b-pg-1:/tmp/base",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/cox-o01b-native-gdcd1jo5/base"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "kaidera-test-o01b-pg-1:/tmp/blobs",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/cox-o01b-native-gdcd1jo5/blobs"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "kaidera-test-o01b-pg-1:/archive",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/cox-o01b-native-gdcd1jo5/archive"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "age-keygen",
+        "-o",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-o01b-backup-validation-20261010/cox-o01b-native-gdcd1jo5/synthetic-age-key"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "Public key: age1gnr3nxprpzahtl9x8etxmm2gr9zq80j3a0yq76mk94alwm6a9ejq58yk40\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_relation_filepath('retrieval.embeddings');"
+      ],
+      "exit_code": 0,
+      "stdout": "base/5/17019\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/var/run/postgresql",
+        "-p",
+        "5432",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_relation_filepath('core.schema_migrations');"
+      ],
+      "exit_code": 0,
+      "stdout": "base/5/17346\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01b-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-h",
+        "/tmp",
+        "-p",
+        "5433",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT\n      (SELECT current_revision FROM core.records),\n      (SELECT max(source_revision) FROM retrieval.embeddings),\n      (SELECT count(*) FROM core.blob_manifests),\n      (SELECT applied_cursor FROM coordination.consumer_project_checkpoints)\n    "
+      ],
+      "exit_code": 0,
+      "stdout": "2|2|2|1\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": {
+    "lifecycle": "8dab001c5b3f1f82091773fa13044bfb",
+    "cleanup_verified": true,
+    "pending": [],
+    "owned": [],
+    "events": [
+      {
+        "event": "created",
+        "kind": "container",
+        "name": "kaidera-test-o01b-pg-1",
+        "id": "55b6f082331be37e0da32178bfe0a06ba02a74c3ef51c1909eeb1086e3746687"
+      },
+      {
+        "event": "removed",
+        "kind": "container",
+        "name": "kaidera-test-o01b-pg-1",
+        "id": "55b6f082331be37e0da32178bfe0a06ba02a74c3ef51c1909eeb1086e3746687"
+      }
+    ],
+    "attempts": [
+      {
+        "errors": [],
+        "verified": true,
+        "pending": [],
+        "owned": [],
+        "password_discarded": true,
+        "lock_released": true
+      }
+    ],
+    "password_discarded": true,
+    "lock_released": true
+  },
+  "errors": [],
+  "synthetic_only": true,
+  "published_ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "cpus": 2,
+    "memory": "1g"
+  }
+}

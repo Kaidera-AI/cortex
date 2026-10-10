@@ -18,7 +18,7 @@ from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-o01b-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE/'native-pg-final-003.json'
+OUT = HERE/'native-pg-final-004.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01b-source/run-native-pg.py'])
@@ -76,7 +76,7 @@ def refused(action):
 life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'),
                  lambda args: subprocess.run(args, text=True, capture_output=True))
 try:
-    for directory, count in [('backup_producer', 6), ('backup_validation', 12)]:
+    for directory, count in [('backup_producer', 6), ('backup_validation', 14)]:
         env = os.environ.copy()
         env['PYTHONPATH'] = str(WT/'next/src')
         result = subprocess.run(['python3.12', str(WT/'next/tests/test_receipts.py'),
