@@ -151,7 +151,7 @@ class WriterInventory(unittest.TestCase):
         self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
 
     def test_dynamic_name_primitives_fail_closed(self):
-        checker=self.checker();name='src/cortex_core/records.py';source=(NEXT/name).read_text()
+        checker=self.checker();name='src/cortex_core/outbox.py';source=(NEXT/name).read_text()
         calls=("getattr(object(), name)","setattr(object(), name, None)","exec(name)",
                "eval(name)","__import__(name)","importlib.import_module(name)")
         for call in calls:
