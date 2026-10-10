@@ -1,0 +1,17 @@
+# H-D449 API/embed/PDF cache scope and body successor
+
+Kai20:32 accepts SOURCE-ONLY work, no host. Base50b5701 pinned. Body-fidelity window18:34:13UTC to20:34:13UTC10Oct2026. No original guard/predicate changes, no hash conversion, no exported-cache patch.
+
+Freeze new RED controls before implementation: uncached basepip source remains uncached, exact reference cache inventory unchanged, every timestamp header equals actual source stat, and three retained API raw-body pairs (typing_extensions/rich.pretty/truststore._api) reproduce reference bytes. Existing tests remain byte-identical. Use exact3.14.7 source-built local interpreter, not3.14.0 as native-byte proof. Preserve provider0 and graph checked-hash path unchanged.
+
+Scope source: only three affected Dockerfiles (API, embed both stages, PDF) and bounded build helper/control files if necessary. Derive compiler inputs only from wheel RECORD pyc rows that actually existed after pip installation, or exact validated reference inventory. Never compile previously uncached basepip source. Invoke original pip-equivalent compile_file path/context/order after physical source mtime final, preserving RECORD and body. Local fixture and retained read-only image source controls, no product build claimed. Try compile_file optimize defaults, path/filename handling and pip-import context against three exact gold bodies; record all failed hypotheses without relaxing equality.
+
+If no exact-byte reproduction within2h, stop fidelity work and PROPOSE ONLY the narrowly enumerated timestamp-cache semantic overlay specified by Kai20:32, after unchanged guard, with identical source bytes/metadata, actual header/stat equality, flags0, equal magic, no trailing marshal bytes, recursive code fields equal and refusing mutants. Do not implement overlay without a new ruling. Return source PR plus evidence/limits toKai; Vera exact-head acceptance and newKai envelope/GO precede attempt10.
+
+## Implemented bounded path
+
+Each of four existing compile RUNs snapshots source names from physically present original `.pyc` files BEFORE compilation. The rx predicate skips every other source; it never creates the basepip caches that caused404 additions. A retained reference control proves exact inventory1517/11395/427. No wheel RECORD rows are altered.
+
+Before compiling, import pip itself, temporarily remove its containing site-packages root from sys.path, construct the original install-command import context, load its vendored TLS context, then restore sys.path. Pip package __path__ stays available, while newly installed optional packages cannot load and perturb code-name intern state (rich.pretty otherwise optionally imports attr). No install command is run, no network/session, no application import and no image ENV change. Invoke normal compileall with original optimize default-1, actual TIMESTAMP flags0 and existing source selection; no code or serialized-body patch.
+
+Exact3.14.7 qualified-name warmup probe reproduced all3 gold bodies; actual pip context reproduced two, TLS context the third. Full API control then caught attr._make body drift from optional attr import; isolating site-packages closed it. Final actual recipe replay over all13339 retained caches preserves every raw body and inventory and corrects all headers. Source-only fixture path adapter maps compiler filename to the exact retained absolute runtime filename; file bytes are unchanged. Native image rebuild remainsNOT_RUN.
