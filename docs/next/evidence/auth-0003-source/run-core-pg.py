@@ -169,10 +169,19 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('identity-green','mutation')):
+    if PHASE.startswith(('identity-green','identity-policy','mutation')):
         value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth_identity_guards'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==6 and not report['failures'] and not report['errors']
+    if PHASE.startswith(('identity-policy','mutation')):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_coordination'],300)
+        reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+        assert len(reports)==1 and reports[0]['tests_run']==8 and not reports[0]['errors']
+        if PHASE.startswith('identity-policy-red'):
+            assert value.returncode==1 and len(reports[0]['failures'])==8
+            assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
+        else:
+            assert value.returncode==0 and not reports[0]['failures']
     if PHASE.startswith('mutation'):
         for directory,count in [('contract',33),('receipt',20)]:
             value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
