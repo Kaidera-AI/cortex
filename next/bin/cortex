@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+"""Installable Cortex CLI entry point; packaging pins its interpreter."""
+from cortex_core.cli.dispatch import main
+
+raise SystemExit(main())
