@@ -32,3 +32,16 @@ before acceptance blocks acceptance. Add crash/re-entry in the marked state.
 Risks: the acceptance/rollback race can cause data loss; the backup boundary
 can omit an acknowledged write; a key path race can subvert admission. No
 host upgrade, released artifact execution, or mainline merge is authorized.
+
+## Round 3: UPG-ADV-001
+
+Kai's 21:56 DO NOW rules the whole-operation lock. Freeze Vera's paused
+`advance()`/rollback schedule as a test-body RED before source changes. Add
+an installer-supplied `operation_lock_path` distinct from the journal `.lock`
+file, and hold one exclusive `flock` across every complete prepare, advance,
+accept and rollback call. The lock covers `apply()` and `restore()`, not only
+the journal save. Prove both terminal orders, crash re-entry and the native
+0/1/2-step rollback rehearsal. A mutant deleting the advance operation lock
+must be a body-assertion kill. Every GREEN command explicitly unsets the
+`CORE_UPGRADE_TEST_SOURCE` test override. Installer-owned restore idempotence
+remains an external production gate.
