@@ -27,8 +27,9 @@ from starlette.requests import Request
 
 ROOT = Path(__file__).resolve().parents[3]
 API_ROOT = ROOT / "packages" / "api"
-MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-07-29-01-archive-messages-shared-id-sequence.sql"
+JULY_MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-07-29-01-archive-messages-shared-id-sequence.sql"
 FORWARD_MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-10-10-01-archive-messages-sequence-high-water.sql"
+MIGRATION = FORWARD_MIGRATION
 SHIPPED_JULY_SHA256 = "1a03ff6e61cf8f21ca127288b696a1a350bd9a3b2ac18f759e4a8f1eeb18bdae"
 SCHEMA = ROOT / "packages" / "schema" / "schema.sql"
 DSN = os.environ.get("CORTEX_AUDIT_PG_DSN", "")
@@ -412,7 +413,7 @@ def test_schema_3_001_migration_fences_nextval_and_all_existing_ids(scratch_conn
 def schema3_delivery_files(tmp_path):
     directory = tmp_path / "migrations"
     directory.mkdir()
-    for source in (MIGRATION, FORWARD_MIGRATION):
+    for source in (JULY_MIGRATION, FORWARD_MIGRATION):
         if source.exists():
             (directory / source.name).write_bytes(source.read_bytes())
     return directory
@@ -436,13 +437,13 @@ def test_schema3_forward_upgrade_accepts_shipped_july_ledger(api, scratch_conn, 
             await conn.execute("""INSERT INTO cortex_schema_migrations
                 (migration_id,checksum_sha256,source_path,applied_by)
                 VALUES($1,$2,$3,'audit-prior-ledger')""",
-                MIGRATION.name, SHIPPED_JULY_SHA256, str(MIGRATION))
+                JULY_MIGRATION.name, SHIPPED_JULY_SHA256, str(JULY_MIGRATION))
             directory = schema3_delivery_files(tmp_path)
             plan = await api.schema_migration_plan(conn, migration_dir=directory)
             statuses = {item["id"]: item["status"] for item in plan["migrations"]}
-            assert statuses[MIGRATION.name] == "applied", statuses
+            assert statuses[JULY_MIGRATION.name] == "applied", statuses
             assert statuses[FORWARD_MIGRATION.name] == "pending", statuses
-            assert hashlib.sha256(MIGRATION.read_bytes()).hexdigest() == SHIPPED_JULY_SHA256
+            assert hashlib.sha256(JULY_MIGRATION.read_bytes()).hexdigest() == SHIPPED_JULY_SHA256
             result = await api.apply_schema_migrations(conn, dry_run=False, migration_dir=directory)
             assert result["applied_count"] == 1
             assert await conn.fetchval("SELECT count(*) FROM cortex_schema_migrations") == 2
