@@ -43,7 +43,7 @@
       "changes": [
         {
           "path": "src/cortex_core/records.py",
-          "before": "row = _private(self.connection,'SELECT * FROM coordination.c05_record_head(%s,%s,%s,%s)',\n                    (record_id,operation,kind,expected)).fetchone()",
+          "before": "row = _private(self.connection,'SELECT * FROM coordination.c05_record_head(%s,%s,%s,%s)',\n                    (record_id,operation,kind,int(expected))).fetchone()",
           "after": "row = self.connection.execute('SELECT kind,current_revision FROM core.records WHERE tenant_id=%s AND project_id=%s AND id=%s FOR UPDATE',(*_scope(scope),record_id)).fetchone()",
           "count": 1
         }
@@ -155,8 +155,8 @@
       "changes": [
         {
           "path": "schema/coordination/002-record-replay.sql",
-          "before": "OR head.current_revision<>p_expected OR p_expected<1",
-          "after": "",
+          "before": "IF NOT FOUND OR p_expected IS NULL OR head.current_revision<>p_expected OR p_expected<1 THEN",
+          "after": "IF NOT FOUND OR p_expected IS NULL THEN",
           "count": 1
         },
         {

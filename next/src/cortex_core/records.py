@@ -147,7 +147,7 @@ class Records:
             else:
                 _lock(self.connection,'record',(*_scope(scope),record_id))
                 row = _private(self.connection,'SELECT * FROM coordination.c05_record_head(%s,%s,%s,%s)',
-                    (record_id,operation,kind,expected)).fetchone()
+                    (record_id,operation,kind,int(expected))).fetchone()
                 if (row is None and (expected != 0 or operation == 'delete')) or (row is not None and
                         (row[1] != expected or (operation == 'put' and row[0] != kind))):
                     raise RecordError('conflict')
@@ -155,7 +155,7 @@ class Records:
                 tombstone = operation == 'delete'
                 if tombstone:
                     payload_id,payload_digest = _private(self.connection,
-                        'SELECT * FROM coordination.c05_record_payload(%s,%s)',(record_id,expected)).fetchone()
+                        'SELECT * FROM coordination.c05_record_payload(%s,%s)',(record_id,int(expected))).fetchone()
                 else:
                     payload_id,payload_digest = _payload(self.connection,scope,body)
                 try:
@@ -165,7 +165,7 @@ class Records:
                             (*_scope(scope),record_id,kind,revision,tombstone))
                     else:
                         _private(self.connection,'SELECT coordination.c05_update_head(%s,%s,%s,%s)',
-                            (record_id,expected,revision,tombstone))
+                            (record_id,int(expected),revision,tombstone))
                     _append_revision(self.connection,scope,record_id,revision,payload_id,tombstone)
                     data = dict(record_id=str(record_id),revision=revision,tombstone=tombstone,payload_sha256=payload_digest)
                     _save_request(self.connection,scope,key,digest,data)

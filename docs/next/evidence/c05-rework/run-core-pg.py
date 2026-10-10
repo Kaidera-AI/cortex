@@ -54,6 +54,13 @@ assert not subprocess.check_output(['git','status','--porcelain','--untracked-fi
 assert (WT/'docs/next/evidence/c05-rework/run-core-pg.py').read_bytes()==Path(__file__).read_bytes()
 assert not subprocess.check_output(['git','diff','HEAD','--','docs/next/evidence/c05-rework/run-core-pg.py'])
 assert hashlib.sha256((WT/'next/tests/c05_review/test_c05_review.py').read_bytes()).hexdigest()==json.loads((OUT/'pre-edit.json').read_text())['review_probe_sha256']
+# Verify all exact fault anchors before any lifecycle/resource operation.
+for filename in ('c05-adapters-fault-recipes.json','c05-rework-fault-recipes.json'):
+    for recipe in json.loads((WT/'next/contracts'/filename).read_text())['mutants']:
+        sources={edit['path']:(WT/'next'/edit['path']).read_text() for edit in recipe['changes']}
+        for edit in recipe['changes']:
+            assert sources[edit['path']].count(edit['before'])==edit['count'], ('fault_preflight',recipe['label'],edit['path'])
+            sources[edit['path']]=sources[edit['path']].replace(edit['before'],edit['after'])
 if PHASE=='--preflight-only':
     print(json.dumps({'dependency_resolved':True,'resource_operations':0,'exact_wheels':actual_wheels}));raise SystemExit(0)
 
