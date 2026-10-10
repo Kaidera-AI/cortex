@@ -33,6 +33,23 @@ MUTANTS = {
     'malformed_key': ('src/cortex_core/api/c11a.py',
                       "except UnicodeError:\n                return await _respond(send, 400, _packet('invalid_input', retryable=False))",
                       "except UnicodeError:\n                request_key = None"),
+    'd1_403_leak': ('src/cortex_core/api/c11a.py',
+                    "return 404, _packet('not_found', retryable=False)\n        return _error_status(error)",
+                    "return 403, _packet('forbidden', retryable=False)\n        return _error_status(error)"),
+    'd1_revoked_401_split': ('src/cortex_core/api/c11a.py',
+                             "return 404, _packet('not_found', retryable=False)\n        return _error_status(error)",
+                             "return 401, _packet('credential_required', retryable=False)\n"
+                             "        return _error_status(error)"),
+    'd1_tombstone_skipped': ('src/cortex_core/api/c11b.py',
+                             "if value.tombstone:\n            raise RecordError('gone')",
+                             "if False:\n            raise RecordError('gone')"),
+    'd1_digest_dropped': ('src/cortex_core/api/c11b.py',
+                          "'payload_sha256': value.payload_sha256}",
+                          "'payload_sha256': None}"),
+    'd1_memory_filter_readded': ('src/cortex_core/api/c11b.py',
+                                 "if value.kind == 'memory':\n            body = json.loads(value.body)",
+                                 "if value.kind != 'memory':\n            return None\n"
+                                 "        if value.kind == 'memory':\n            body = json.loads(value.body)"),
 }
 
 

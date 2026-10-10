@@ -56,7 +56,7 @@ class OpenKaiConsumer(unittest.TestCase):
         self.assertEqual(packet['upgrade_origin']['v0.1.002'], 'not_signed_origin')
         self.assertEqual(packet.get('ruled_contract_deltas'), {
             'D1': {'method':'GET', 'path':'/records/{id}',
-                   'implementation_state':'ruled_unimplemented',
+                   'implementation_state':'implemented_source',
                    'not_found':404, 'unauthorized':404, 'tombstone':410,
                    'body_fields':['revision','payload_sha256']},
             'D2': {'method':'POST', 'path':'/search', 'placement':'parameters',
@@ -159,7 +159,7 @@ class OpenKaiConsumer(unittest.TestCase):
                 self.assertEqual(validate_case(case), case['id'])
         read = next(x for x in cases if x['id'] == 'ack-read')['read']
         self.assertEqual((read.get('binding'), read.get('method'), read.get('path')),
-                         ('ruled_unimplemented', 'GET', '/records/{id}'))
+                         ('implemented_source', 'GET', '/records/{id}'))
         self.assertEqual(read.get('payload_sha256'), 'a'*64)
         self.assertEqual(read.get('not_found_status'), 404)
         self.assertEqual(read.get('unauthorized_status'), 404)

@@ -68,7 +68,9 @@ class GatewayTests(unittest.TestCase):
 
     def test_released_route_inventory_covers_observed_and_openkai_without_sql_bypass(self):
         routes = load_routes()
-        self.assertEqual(len(routes), 87)
+        self.assertEqual(len(routes), 88)
+        self.assertEqual(next(row for row in routes if row['id'] == 'C11-D1')['path'],
+                         '/records/{id}')
         self.assertEqual(sum(row["observed"] for row in routes), 82)
         self.assertEqual(sum(row["openkai_production"] for row in routes), 9)
         self.assertEqual({row["effect"] for row in routes if row["id"] in {"C01-R125", "C01-R126"}},

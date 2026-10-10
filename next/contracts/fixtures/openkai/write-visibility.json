@@ -16,7 +16,7 @@
       "kind": "write_ack_read",
       "read": {
         "authorized": true,
-        "binding": "ruled_unimplemented",
+        "binding": "implemented_source",
         "method": "GET",
         "not_found_status": 404,
         "path": "/records/{id}",
