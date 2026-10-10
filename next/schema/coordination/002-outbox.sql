@@ -366,6 +366,33 @@ $$;
 CREATE TRIGGER c06_receipt_guard BEFORE INSERT OR UPDATE ON coordination.idempotency
     FOR EACH ROW EXECUTE FUNCTION coordination.c06_receipt_guard();
 
+-- Protection creation and pruning use the same installation serialization point.
+-- Even trusted maintenance callers must take this lock; no bootstrap exception.
+CREATE FUNCTION coordination.c06_protection_lock() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE installation uuid; state_row record;
+BEGIN
+    IF TG_TABLE_NAME='quarantine' THEN
+        SELECT installation_id INTO STRICT installation FROM core.tenants WHERE id=NEW.tenant_id;
+    ELSE installation:=NEW.installation_id; END IF;
+    INSERT INTO coordination.feed_state(installation_id) VALUES(installation) ON CONFLICT DO NOTHING;
+    SELECT * INTO STRICT state_row FROM coordination.feed_state WHERE installation_id=installation FOR UPDATE;
+    IF TG_TABLE_NAME='snapshot_floors' THEN
+        IF NEW.cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;
+        IF NEW.cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;
+    ELSIF TG_TABLE_NAME='consumer_checkpoints' THEN
+        IF NEW.state='active' AND NEW.applied_cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;
+        IF NEW.applied_cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+DO $$ DECLARE t text; BEGIN
+    FOREACH t IN ARRAY ARRAY['quarantine','snapshot_floors','consumer_checkpoints'] LOOP
+        EXECUTE format('CREATE TRIGGER c06_protection_lock BEFORE INSERT OR UPDATE ON coordination.%I FOR EACH ROW EXECUTE FUNCTION coordination.c06_protection_lock()',t);
+    END LOOP;
+END; $$;
+
 -- Private verifier capabilities; no runtime membership or table bypass is added.
 GRANT SELECT,INSERT,UPDATE ON core.records,core.record_aliases TO "kaidera-runtime-core-verifier";
 GRANT SELECT,INSERT ON core.record_revisions TO "kaidera-runtime-core-verifier";

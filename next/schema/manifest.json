@@ -35,7 +35,7 @@
     {
       "id": "outbox-0002",
       "file": "coordination/002-outbox.sql",
-      "sha256": "6d03f806fe44b2955828bbe54e382d090010eeb50ae22b5e7c7206d5f52ed1a8"
+      "sha256": "169b5767aede892c14376f977f44d64251af3f01bd4e260340ffd3e79e05397f"
     }
   ]
 }

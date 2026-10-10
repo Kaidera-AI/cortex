@@ -42,5 +42,556 @@
   "separate_lanes": [
     "retrieval projection/cache writers (noncanonical)",
     "conductor supervisor_leases (separate optional C08 manifest)"
+  ],
+  "writer_sites": [
+    {
+      "file": "schema/auth/002-isolation.sql",
+      "owner": "auth.bump_generation",
+      "verb": "INSERT",
+      "table": "auth.permission_generations",
+      "ordinal": 0,
+      "statement_sha256": "51f83fe25d229e51eb54baae0c23fb420323c7dc4be348274c28e852f884fc47",
+      "classification": "authorization_generation_housekeeping"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_adopt",
+      "verb": "INSERT",
+      "table": "auth.principals",
+      "ordinal": 0,
+      "statement_sha256": "a38ba1eee86e5c32cdd97e1794e832ca34aa20630ea358d6ef2271ab86a9c830",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_adopt",
+      "verb": "INSERT",
+      "table": "auth.project_grants",
+      "ordinal": 0,
+      "statement_sha256": "a38ba1eee86e5c32cdd97e1794e832ca34aa20630ea358d6ef2271ab86a9c830",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_finish",
+      "verb": "INSERT",
+      "table": "coordination.idempotency",
+      "ordinal": 0,
+      "statement_sha256": "fd704a5b4611ea63a0ff3876848f918125e5ddb24c47f56b4ca8ffbfa3550086",
+      "classification": "original_immutable_audit_and_receipt; additive_finish_captures_every_target"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_finish",
+      "verb": "INSERT",
+      "table": "core.payloads",
+      "ordinal": 0,
+      "statement_sha256": "fd704a5b4611ea63a0ff3876848f918125e5ddb24c47f56b4ca8ffbfa3550086",
+      "classification": "original_immutable_audit_and_receipt; additive_finish_captures_every_target"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_register",
+      "verb": "INSERT",
+      "table": "auth.credentials",
+      "ordinal": 0,
+      "statement_sha256": "009f6d67b0e7a08ff0fbfac943380044e421a4740d754e57538f2a24fdcd16bb",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_register",
+      "verb": "INSERT",
+      "table": "auth.principals",
+      "ordinal": 0,
+      "statement_sha256": "009f6d67b0e7a08ff0fbfac943380044e421a4740d754e57538f2a24fdcd16bb",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_register",
+      "verb": "INSERT",
+      "table": "auth.project_grants",
+      "ordinal": 0,
+      "statement_sha256": "009f6d67b0e7a08ff0fbfac943380044e421a4740d754e57538f2a24fdcd16bb",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_revoke",
+      "verb": "UPDATE",
+      "table": "auth.credentials",
+      "ordinal": 0,
+      "statement_sha256": "5cadb529d453d141fe4fd4c45c890088213179229aa592e355136d349d0dacba",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_rotate",
+      "verb": "INSERT",
+      "table": "auth.credentials",
+      "ordinal": 0,
+      "statement_sha256": "b02ac244647ebc6daaf8a1b87651386ee2e3a4fa36fa8bd8cbf539931b12f28e",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_rotate",
+      "verb": "UPDATE",
+      "table": "auth.credentials",
+      "ordinal": 0,
+      "statement_sha256": "b02ac244647ebc6daaf8a1b87651386ee2e3a4fa36fa8bd8cbf539931b12f28e",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/auth/003-identity.sql",
+      "owner": "auth.identity_set_roles",
+      "verb": "UPDATE",
+      "table": "auth.project_grants",
+      "ordinal": 0,
+      "statement_sha256": "5538fbc8269a6762e805856a8c5506b52652122de0b48b0d92dcbc92b4fd8193",
+      "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "auth.identity_finish",
+      "verb": "INSERT",
+      "table": "coordination.idempotency",
+      "ordinal": 0,
+      "statement_sha256": "c0b78c74cb44d608de4303e8739978fb7c16b7ae4ed11f4895b87d397041f1da",
+      "classification": "private_C06_identity_finish"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "auth.identity_finish",
+      "verb": "INSERT",
+      "table": "core.payloads",
+      "ordinal": 0,
+      "statement_sha256": "c0b78c74cb44d608de4303e8739978fb7c16b7ae4ed11f4895b87d397041f1da",
+      "classification": "private_C06_identity_finish"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.c06_capture_revision",
+      "verb": "INSERT",
+      "table": "coordination.outbox",
+      "ordinal": 0,
+      "statement_sha256": "7b1c0c64b88c8cd6380410de1f27e5fa202975702cdcdd9f386f7a59ba14fd1f",
+      "classification": "private_C06_c06_capture_revision"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "INSERT",
+      "table": "core.record_aliases",
+      "ordinal": 0,
+      "statement_sha256": "f88ec8638dbbbed1685da094544eff821d214d1ab11c51024de679e6de98e548",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "INSERT",
+      "table": "core.record_revisions",
+      "ordinal": 0,
+      "statement_sha256": "f88ec8638dbbbed1685da094544eff821d214d1ab11c51024de679e6de98e548",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "INSERT",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "f88ec8638dbbbed1685da094544eff821d214d1ab11c51024de679e6de98e548",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "UPDATE",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "f88ec8638dbbbed1685da094544eff821d214d1ab11c51024de679e6de98e548",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.c06_protection_lock",
+      "verb": "INSERT",
+      "table": "coordination.feed_state",
+      "ordinal": 0,
+      "statement_sha256": "395e4b25e87f35f1bf33d37c3b36cb69a0bf8afc0ec8ac120f8f29b7b43b5409",
+      "classification": "private_C06_c06_protection_lock"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.capture_job",
+      "verb": "INSERT",
+      "table": "core.payloads",
+      "ordinal": 0,
+      "statement_sha256": "2b86f75b882e4051a911128499d10418aa55298a6e7bde1434fd33355431a984",
+      "classification": "private_C06_capture_job"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "DELETE",
+      "table": "coordination.outbox",
+      "ordinal": 0,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "DELETE",
+      "table": "coordination.published_events",
+      "ordinal": 0,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "DELETE",
+      "table": "coordination.quarantine",
+      "ordinal": 0,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "INSERT",
+      "table": "coordination.feed_state",
+      "ordinal": 0,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_checkpoints",
+      "ordinal": 0,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "UPDATE",
+      "table": "coordination.consumer_checkpoints",
+      "ordinal": 1,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.prune_outbox",
+      "verb": "UPDATE",
+      "table": "coordination.feed_state",
+      "ordinal": 0,
+      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "classification": "private_C06_prune_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.publish_outbox",
+      "verb": "INSERT",
+      "table": "coordination.feed_state",
+      "ordinal": 0,
+      "statement_sha256": "3c238df018de31f11c76bbd6504563c162e832126e4916d527869a5e226b7918",
+      "classification": "private_C06_publish_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.publish_outbox",
+      "verb": "INSERT",
+      "table": "coordination.published_events",
+      "ordinal": 0,
+      "statement_sha256": "3c238df018de31f11c76bbd6504563c162e832126e4916d527869a5e226b7918",
+      "classification": "private_C06_publish_outbox"
+    },
+    {
+      "file": "schema/coordination/002-outbox.sql",
+      "owner": "coordination.publish_outbox",
+      "verb": "UPDATE",
+      "table": "coordination.feed_state",
+      "ordinal": 0,
+      "statement_sha256": "3c238df018de31f11c76bbd6504563c162e832126e4916d527869a5e226b7918",
+      "classification": "private_C06_publish_outbox"
+    },
+    {
+      "file": "src/cortex_core/conductor/supervisor.py",
+      "owner": "Supervisor.acquire",
+      "verb": "INSERT",
+      "table": "coordination.supervisor_leases",
+      "ordinal": 0,
+      "statement_sha256": "24fbdea4e30cd68e982be7ac46f5e51b1c34b7c27adcca33e6b1ecf68c52e71b",
+      "classification": "optional_C08_control_plane; outside canonical mutation feed"
+    },
+    {
+      "file": "src/cortex_core/conductor/supervisor.py",
+      "owner": "Supervisor.release",
+      "verb": "UPDATE",
+      "table": "coordination.supervisor_leases",
+      "ordinal": 0,
+      "statement_sha256": "c14aaf6aea485db5f9c2bc8863bdd5f93bdd3616255559425e0b39717b737d97",
+      "classification": "optional_C08_control_plane; outside canonical mutation feed"
+    },
+    {
+      "file": "src/cortex_core/conductor/supervisor.py",
+      "owner": "Supervisor.renew",
+      "verb": "UPDATE",
+      "table": "coordination.supervisor_leases",
+      "ordinal": 0,
+      "statement_sha256": "abb266deb5b4b94cadf7fe874a8841aa158061605777c9e92497e8e4991e40cd",
+      "classification": "optional_C08_control_plane; outside canonical mutation feed"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "Jobs._replace_metadata",
+      "verb": "UPDATE",
+      "table": "coordination.jobs",
+      "ordinal": 0,
+      "statement_sha256": "5bb7dec55113b70f8819c0c5378c87ab2822aa7d352c4a4b6aebb19450f51561",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "Jobs._state",
+      "verb": "UPDATE",
+      "table": "coordination.jobs",
+      "ordinal": 0,
+      "statement_sha256": "6d2be023230cd51d0af6d2d4315a3391ef6acd894bcd0a7b9be5971d36ec97f8",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "Jobs._state",
+      "verb": "UPDATE",
+      "table": "coordination.leases",
+      "ordinal": 0,
+      "statement_sha256": "7f99921d79e42f9c3dc5eecad0324017e34766f00e980c5603d7aaecd0163c2f",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "Jobs.claim.claim",
+      "verb": "INSERT",
+      "table": "coordination.job_attempts",
+      "ordinal": 0,
+      "statement_sha256": "34cbaec1d4b0c0825cfb6df652650ec7da4e380a7d2df5297c9eb36673162e36",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "Jobs.claim.claim",
+      "verb": "INSERT",
+      "table": "coordination.leases",
+      "ordinal": 0,
+      "statement_sha256": "88e81f50d163e69ce727b2cd141c15f33fec4dfd95c216a74cc90e2360621092",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "Jobs.create.create",
+      "verb": "INSERT",
+      "table": "coordination.jobs",
+      "ordinal": 0,
+      "statement_sha256": "56d809a3b5fb7543ee8103aef9a95c502c60d30ec23588ff14f419eda497ed23",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/coordination.py",
+      "owner": "_append_result",
+      "verb": "INSERT",
+      "table": "coordination.job_results",
+      "ordinal": 0,
+      "statement_sha256": "4feb031bdc94453fa88fbc21e17730b93ca5be1db8facca3389a0eff40a11d56",
+      "classification": "job_parent_snapshot_before_receipt; deferred_final_snapshot_guard"
+    },
+    {
+      "file": "src/cortex_core/embeddings/pg_search.py",
+      "owner": "PostgresSearch.configure",
+      "verb": "INSERT",
+      "table": "retrieval.search_state",
+      "ordinal": 0,
+      "statement_sha256": "5a5b9b232ef66c895f0f27f456c711c701224b85b5faf04c9e036e4ccbce7e68",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/embeddings/pg_search.py",
+      "owner": "PostgresSearch.note_revision_in_transaction",
+      "verb": "INSERT",
+      "table": "retrieval.search_sources",
+      "ordinal": 0,
+      "statement_sha256": "6ef7cb09507de166fed69725688f409c08dc8de33d498c0792a58deec039b5a8",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/embeddings/pg_search.py",
+      "owner": "PostgresSearch.store_embedding",
+      "verb": "INSERT",
+      "table": "retrieval.search_vectors",
+      "ordinal": 0,
+      "statement_sha256": "70d23dd297b7b070841b795187a91ddf5fea9ad5942ce61671c11b6b842ca920",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/embeddings/query_cache.py",
+      "owner": "QueryEmbeddingCache._lookup_claim",
+      "verb": "DELETE",
+      "table": "retrieval.query_embeddings",
+      "ordinal": 0,
+      "statement_sha256": "eefda2e09de3c4994fa9e71a022d1136eda4c02eb174a2864d3422eddb965afa",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/embeddings/query_cache.py",
+      "owner": "QueryEmbeddingCache._lookup_claim",
+      "verb": "INSERT",
+      "table": "retrieval.query_embeddings",
+      "ordinal": 0,
+      "statement_sha256": "3b987877da6677a4c48586762ae92651a1e3b92865b8dac55241f7a7d7c6fa62",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/embeddings/query_cache.py",
+      "owner": "QueryEmbeddingCache._publish",
+      "verb": "UPDATE",
+      "table": "retrieval.query_embeddings",
+      "ordinal": 0,
+      "statement_sha256": "bc8ec52aa73e545ab6e0b06bd52472854ac155c399a342d87a19a1d4daa8c53d",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/embeddings/query_cache.py",
+      "owner": "QueryEmbeddingCache._release",
+      "verb": "DELETE",
+      "table": "retrieval.query_embeddings",
+      "ordinal": 0,
+      "statement_sha256": "e3c5c2cb4b740a927fcc76f5dfcb96836dc520fb37ba2d6fd93d5e78553ceb8a",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/migrations.py",
+      "owner": "apply_migrations",
+      "verb": "INSERT",
+      "table": "core.schema_migrations",
+      "ordinal": 0,
+      "statement_sha256": "01e0ada76b16aee82a66bd708ab8795ca2f2f5745bdc44534836a735e598d65b",
+      "classification": "explicit_installer_only; never runtime mutation"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph._publish",
+      "verb": "DELETE",
+      "table": "retrieval.graph_applied",
+      "ordinal": 0,
+      "statement_sha256": "286048f211efa0d35c2285081b185146a2dca3cd00623fe1ed351e6233829b65",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph._publish",
+      "verb": "INSERT",
+      "table": "retrieval.graph_applied",
+      "ordinal": 0,
+      "statement_sha256": "663f1b4ac872cc2d17dc9f6f866be9e1d8284210adbb921ef52f35b77f5ad664",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph._publish",
+      "verb": "INSERT",
+      "table": "retrieval.graph_edges",
+      "ordinal": 0,
+      "statement_sha256": "1a6fbb47842258fa0ca9a7cfe33a9718f7c1abe6f95ceefe40248f0ccfd5e94e",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph._publish",
+      "verb": "INSERT",
+      "table": "retrieval.graph_nodes",
+      "ordinal": 0,
+      "statement_sha256": "686c7a24d304689a3c1f47a3bd8e3da01257bd45184bef921993abf142cf713f",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph.configure",
+      "verb": "INSERT",
+      "table": "retrieval.graph_generations",
+      "ordinal": 0,
+      "statement_sha256": "7d0d73632fc2f42b9591b990fc1df7216c73b69c9ea2a360e740280f500bbe35",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph.configure",
+      "verb": "INSERT",
+      "table": "retrieval.graph_state",
+      "ordinal": 0,
+      "statement_sha256": "5cb69e88088285daeb6663f448958a8b90620c640413ede08d4d917ca30ada69",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/modules/graph/pg_graph.py",
+      "owner": "PostgresGraph.prune",
+      "verb": "DELETE",
+      "table": "retrieval.graph_generations",
+      "ordinal": 0,
+      "statement_sha256": "d0ec45c3a53627b5b03ee552dcae1f0a39a90022f29f89fb78fdca44add0c2c2",
+      "classification": "derived_projection_or_cache; separate module admission held"
+    },
+    {
+      "file": "src/cortex_core/records.py",
+      "owner": "Records._mutate",
+      "verb": "INSERT",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "a02811989ffffb23997d324c867b2dbe6fa1b972c3a97246468222a91738cd9a",
+      "classification": "trigger_capture_and_sequential_head_guard"
+    },
+    {
+      "file": "src/cortex_core/records.py",
+      "owner": "Records._mutate",
+      "verb": "UPDATE",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "cdb06af942061d466e5b59c32e47492a6ebc58b7b6522a8f156615f234741485",
+      "classification": "trigger_capture_and_sequential_head_guard"
+    },
+    {
+      "file": "src/cortex_core/records.py",
+      "owner": "_append_revision",
+      "verb": "INSERT",
+      "table": "core.record_revisions",
+      "ordinal": 0,
+      "statement_sha256": "15fc9947570e916a2e60dc9eb5cadd57896567a3623a9cb66679e767a76bbe9f",
+      "classification": "trigger_capture_and_deferred_history_guard"
+    },
+    {
+      "file": "src/cortex_core/records.py",
+      "owner": "_payload",
+      "verb": "INSERT",
+      "table": "core.payloads",
+      "ordinal": 0,
+      "statement_sha256": "d34d50d39a32943ea98066628d80abbb88e96f503c184b75a8f6937ce7ba95cf",
+      "classification": "immutable_payload_subordinate"
+    },
+    {
+      "file": "src/cortex_core/records.py",
+      "owner": "_save_request",
+      "verb": "INSERT",
+      "table": "coordination.idempotency",
+      "ordinal": 0,
+      "statement_sha256": "4c183d8268e05003e42e4544b28fd02b2aff86dcaed04ca74c052d53d509bb5d",
+      "classification": "immutable_current_event_receipt_guard"
+    }
   ]
 }
