@@ -1,5 +1,6 @@
 """Released session envelope backed by C05 record revisions and C06 events."""
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import json
 import sys
 from pathlib import Path
@@ -80,6 +81,23 @@ class SessionAPI(Fixture):
         self.assertEqual(self.admin.execute(
             "SELECT count(*) FROM core.records WHERE kind='session' AND project_id=%s",
             (uid(4),)).fetchone()[0], 0)
+
+    def test_racing_project_claims_commit_only_one_session(self):
+        self.admin.execute("INSERT INTO auth.project_grants VALUES (%s,%s,%s,ARRAY['read','write'])",
+                           (uid(2), uid(4), uid(10)))
+        path = '/synthetic/racing.jsonl'
+        def submit(item):
+            project, session = item
+            return self.call({'session_uuid': uid(session), 'agent': '10',
+                              'source_path': path, 'provider': 'codex', 'messages': []},
+                             project=project)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(submit, [('3', 87), ('4', 88)]))
+        self.assertEqual(sorted(status for status, _ in results), [200, 409])
+        self.assertEqual(self.admin.execute(
+            "SELECT count(*) FROM core.records WHERE kind='session'").fetchone()[0], 1)
+        self.assertEqual(self.admin.execute(
+            "SELECT count(*) FROM coordination.session_sources").fetchone()[0], 1)
 
     def test_iso_timestamps_and_bounded_large_batch(self):
         body = {'session_uuid': uid(84), 'agent': '10',

@@ -23,16 +23,23 @@ ROOT = Path(__file__).resolve().parents[2]
 IDENTITY = EmbeddingIdentity('fixture', 'frozen-query-vector', 'v1', 768, 'v1')
 
 
+class FunctionProvider:
+    def __init__(self, function):
+        self.function = function
+
+    async def embed(self, query, identity):
+        return await self.function(query, identity)
+
+
 class ReadAPI(unittest.IsolatedAsyncioTestCase):
     reset = Fixture.reset
     auth = Fixture.auth
 
     async def asyncSetUp(self):
         Fixture.setUp(self)
-        self.admin.execute((ROOT / 'schema/retrieval/001-pg-search.sql').read_text())
-        self.admin.execute((ROOT / 'schema/retrieval/003-pg-graph.sql').read_text())
         self.admin.execute(f'GRANT USAGE ON SCHEMA retrieval TO "{REQUEST}"')
         self.admin.execute(f'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA retrieval TO "{REQUEST}"')
+        self.admin.execute(f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA retrieval TO "{REQUEST}"')
         self.admin.execute('INSERT INTO retrieval.search_state VALUES (%s,%s,%s,%s)',
                            (*self.scope, IDENTITY.key, 'ready'))
         self.admin.execute('INSERT INTO retrieval.search_sources VALUES (%s,%s,%s,%s,%s)',
@@ -57,7 +64,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
             await conn.execute(f'SET ROLE "{REQUEST}"')
         self.pool = await asyncpg.create_pool(dsn, min_size=1, max_size=3, init=init)
         async def vector(_query, _identity): return PROBE_VECTOR
-        self.read_port = C11b2ReadPort(self.record_port, self.pool, IDENTITY, vector,
+        self.read_port = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
+                                       FunctionProvider(vector),
                                        'fixture-extractor', {'3': '/approved/project-3'})
         self.gateway = self.make_gateway(self.read_port)
 
@@ -167,6 +175,13 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
                       'query_embeddings', 'graph_state', 'graph_applied'):
             self.assertIsNotNone(self.admin.execute(
                 'SELECT to_regclass(%s)', ('retrieval.' + table,)).fetchone()[0])
+        flags = self.admin.execute("""SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='retrieval' AND c.relname IN
+            ('search_state','search_sources','search_vectors','query_embeddings',
+             'graph_generations','graph_state','graph_applied','graph_nodes','graph_edges')""").fetchall()
+        self.assertEqual(len(flags), 9)
+        self.assertTrue(all(enabled and forced for _, enabled, forced in flags))
 
     async def test_graph_real_port_and_backlog_refusal(self):
         body = b'{"label":"fixture-concept","description":"current","content":"current"}'
@@ -219,7 +234,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
             self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
                                (hashlib.sha256(READ_A).hexdigest(),))
             return PROBE_VECTOR
-        revoked = C11b2ReadPort(self.record_port, self.pool, IDENTITY, revoke,
+        revoked = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
+                                FunctionProvider(revoke),
                                 'fixture-extractor', {'3': '/approved/project-3'})
         self.assertEqual((await self.call('GET', '/search', query=b'q=fixture',
                                           gateway=self.make_gateway(revoked)))[0], 403)
@@ -229,7 +245,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         async def stalled(_query, _identity):
             started.set()
             await asyncio.Event().wait()
-        cancelled = C11b2ReadPort(self.record_port, self.pool, IDENTITY, stalled,
+        cancelled = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
+                                  FunctionProvider(stalled),
                                   'fixture-extractor', {'3': '/approved/project-3'})
         app = self.make_gateway(cancelled)
         scope = {'type': 'http', 'method': 'GET', 'path': '/search',

@@ -6,8 +6,9 @@ from uuid import UUID
 from cortex_core.auth import AuthError
 from .c11b import _credential
 from cortex_core.embeddings.pg_search import (
-    CapabilityUnavailable, EmbeddingIdentity, PostgresSearch, Scope as SearchScope,
+    CapabilityUnavailable, EmbeddingIdentity, PostgresSearch,
 )
+from cortex_core.embeddings.query_cache import CacheScope, QueryEmbeddingCache
 from cortex_core.modules.graph.pg_graph import GraphScope, GraphUnavailable, PostgresGraph
 
 PROBE_VECTOR = [1.0] + [0.0] * 767
@@ -47,15 +48,16 @@ def _boolean(value):
 class C11b2ReadPort:
     """Recheck C04 on each Nemo query and again before any result is emitted."""
 
-    def __init__(self, record_port, pool, identity, query_vector, extractor_identity,
+    def __init__(self, record_port, pool, identity, provider, extractor_identity,
                  project_repos):
-        if (not isinstance(identity, EmbeddingIdentity) or not callable(query_vector)
+        if (not isinstance(identity, EmbeddingIdentity)
+                or not callable(getattr(provider, 'embed', None))
                 or not isinstance(project_repos, dict)
                 or not all(k in record_port.projects and isinstance(v, str) and v
                            for k, v in project_repos.items())):
             raise ValueError('C11b2 read ports are incomplete')
         self.record_port, self.pool = record_port, pool
-        self.identity, self.query_vector = identity, query_vector
+        self.identity, self.provider = identity, provider
         self.extractor_identity, self.project_repos = extractor_identity, dict(project_repos)
 
     async def principal(self, scope):
@@ -99,7 +101,8 @@ class C11b2ReadPort:
             await _conn.execute('SELECT set_config(name,value,true) FROM '
                                 'unnest($1::text[],$2::text[]) AS bound(name,value)',
                                 names, values)
-            return SearchScope(UUID(principal['tenant_id']), UUID(principal['project_id']))
+            return CacheScope(UUID(principal['tenant_id']), UUID(principal['project_id']),
+                              str(principal['permission_generation']))
 
         async def graph_authorize(_conn, subject):
             scope = await search_authorize(_conn, subject)
@@ -118,6 +121,9 @@ class C11b2ReadPort:
                               authorize_control=deny, authorize_writer=deny,
                               extractor_identity=self.extractor_identity)
         return search, graph
+
+    def _cache(self, search):
+        return QueryEmbeddingCache(self.pool, search.authorize, self.provider.embed)
 
     async def permission_recheck(self, principal, _capability):
         await self._current(principal)
@@ -187,8 +193,15 @@ class C11b2ReadPort:
         if not isinstance(query, str) or not 1 <= len(query.strip()) <= 512 or hall != 'project' or room is not None:
             raise InvalidRequest('unsupported search scope')
         search, _graph = self._ports(principal)
-        vector = await self.query_vector(query, self.identity)
-        result = await search.search(principal['principal_id'], self.identity, vector, limit=limit)
+        try:
+            embedded = await self._cache(search).get(principal['principal_id'],
+                                                     self.identity, query)
+        except (CapabilityUnavailable, AuthError, PermissionError):
+            raise
+        except Exception:
+            raise CapabilityUnavailable('provider_unavailable') from None
+        result = await search.search(principal['principal_id'], self.identity,
+                                     embedded.vector, limit=limit)
         if result.freshness.pending_records or await self._core_pending(search, principal):
             raise CapabilityUnavailable('index_lagging', result.freshness)
         degraded = ['rerank'] if rerank else []
@@ -203,7 +216,12 @@ class C11b2ReadPort:
                 'freshness': {'state': result.freshness.status,
                               'pending_records': result.freshness.pending_records,
                               'indexed_records': result.freshness.indexed_records,
-                              'identity': result.freshness.identity}}
+                              'identity': result.freshness.identity,
+                              'model_identity': {'provider': self.identity.provider,
+                                  'model': self.identity.model,
+                                  'version': self.identity.version,
+                                  'dimensions': self.identity.dimensions,
+                                  'preprocessing': self.identity.preprocessing}}}
 
     async def graph_search(self, principal, scope, _request_key):
         try:

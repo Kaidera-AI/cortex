@@ -1,6 +1,7 @@
 """Concrete released memory adapter over C04 admission and C05/C06 commits."""
 
 import asyncio
+from datetime import datetime
 import hashlib
 import json
 from uuid import UUID, NAMESPACE_URL, uuid5
@@ -94,10 +95,20 @@ def _session_body(scope):
                 or message.get('ts') is not None and not isinstance(message['ts'], str)
                 or message.get('metadata') is not None and not isinstance(message['metadata'], dict)):
             raise RecordError('invalid_input')
+        timestamp = message.get('ts')
+        if timestamp is not None:
+            if not timestamp or len(timestamp) > 64:
+                raise RecordError('invalid_input')
+            try:
+                datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            except ValueError:
+                raise RecordError('invalid_input') from None
         translated.append({**message, 'role': roles[role.lower()]})
     canonical = {**raw, 'session_uuid': str(session_id), 'messages': translated}
     payload = json.dumps(canonical, sort_keys=True, separators=(',', ':'),
                          ensure_ascii=False).encode('utf-8')
+    if len(payload) > 8 * 1024 * 1024:
+        raise RecordError('invalid_input')
     return session_id, canonical, payload
 
 
@@ -192,7 +203,13 @@ class C11bRecordPort:
                     raise AuthError('forbidden')
                 record_id = uuid5(NAMESPACE_URL, f'cortex.session:{identity.tenant_id}:'
                                   f'{identity.project_id}:{session_id}')
-            records = Records(db, credential, self.installation_id, project)
+            def claim_source(connection, _scope, saved_id, saved_kind):
+                if saved_kind != 'session' or saved_id != record_id:
+                    raise RecordError('conflict')
+                connection.execute('SELECT coordination.c11b3_session_claim(%s,%s,%s)',
+                                   (body['source_path'], session_id, record_id))
+            records = Records(db, credential, self.installation_id, project,
+                              before_commit=claim_source)
             saved = records.lookup_request(request_key)
             digest = hashlib.sha256(payload).hexdigest()
             if saved is not None:
