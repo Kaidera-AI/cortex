@@ -146,6 +146,8 @@ try:
             assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
+    if PHASE.startswith('identity-diagnostic'):
+        checked(env+['python','/tmp/next/tests/auth_identity/diagnose_registration.py'],120)
     if PHASE.startswith(('identity','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth_identity'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
