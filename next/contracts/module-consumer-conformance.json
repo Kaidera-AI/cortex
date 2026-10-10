@@ -12,7 +12,7 @@
     "duplicate_equal_revision", "equal_revision_conflict", "stale_after_tombstone",
     "revision_order", "full_project_page", "empty_project_page", "runner_exclusion",
     "foreign_project_rollup", "aggregate_poison", "peer_sparse_progress",
-    "held_successor_repair", "transient_failure", "untrusted_scope", "retention_expiry",
+    "held_successor_repair", "complete_outcome_immutable", "transient_failure", "untrusted_scope", "retention_expiry",
     "snapshot_floor", "poison_retention", "graph_fact_exact_bytes",
     "migration_append_only", "new_table_privileges"
   ],

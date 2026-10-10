@@ -168,6 +168,8 @@ BEGIN
     WHERE (installation_id,module_id,tenant_id,project_id,generation,cursor)=
       (s.installation_id,p_module,s.tenant_id,s.project_id,p_generation,p_cursor);
   IF FOUND AND existing.event_id<>p_event THEN RAISE EXCEPTION 'consumer_event_mismatch'; END IF;
+  IF FOUND AND existing.outcome IN ('applied','stale') AND p_outcome IN ('poison','held')
+    THEN RAISE EXCEPTION 'consumer_outcome_immutable'; END IF;
   IF p_outcome IN ('applied','stale') THEN
     IF p_receipt IS NULL OR p_receipt->>'event_id'<>p_event::text
        OR p_receipt->>'aggregate_id'<>e.aggregate_id::text

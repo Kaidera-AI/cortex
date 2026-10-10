@@ -37,6 +37,10 @@ RECIPES = [
      "if self.status()['pending_outcomes'] >= self.max_pending_outcomes:",
      'if False:',
      'test_poison.Poison.test_sparse_outcome_capacity_refuses_without_dropping_peer'),
+    ('complete outcome downgrade guard removed',SQL,
+     "IF FOUND AND existing.outcome IN ('applied','stale') AND p_outcome IN ('poison','held')",
+     'IF false',
+     'test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'),
     ('poisoned aggregate not held',CONSUMER,
      "if not repairing and self._call('c07_poisoned(%s,%s,%s)',",
      "if False and self._call('c07_poisoned(%s,%s,%s)',",
@@ -115,7 +119,7 @@ def run():
         assert expected.startswith('test_')
     baseline = suite(DIRECTORY)
     baseline_receipt = check_receipt(baseline)
-    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 23
+    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 24
     assert not baseline_receipt['failures'] and not baseline_receipt['errors']
     print(json.dumps({'baseline':baseline_receipt,'source_sha256':original_sha}),flush=True)
     rows = []
@@ -162,7 +166,7 @@ def run():
                'restored_source_sha256':final_sha,'restored_receipt':restored}
     print(json.dumps(summary),flush=True)
     assert len(rows)==len(RECIPES) and summary['killed']==len(RECIPES)
-    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==23
+    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==24
     assert not restored['failures'] and not restored['errors']
 
 
