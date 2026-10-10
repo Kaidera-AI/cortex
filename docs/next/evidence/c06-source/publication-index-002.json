@@ -1,7 +1,7 @@
 {
   "tested_commit": "a8d8876e769ec77c5164490a79055948db123aaa",
   "source_files": 426,
-  "expected_inventory_sha256": "901323b9ca4990c0e40c16a1fef87729c304f0e2df9337ce2dc98d72b98b427d",
+  "expected_inventory_sha256": "6e9804d148640f9e2ecf7541738e316cdf5721a9636a05dc63254da9b6d9a396",
   "members": {
     "next/benchmarks/vector_baseline/.gitignore": {
       "sha256": "d661273ba3801d696e35e8eba090d9b844c51943261093a1204107e8cd6e1c14",
@@ -2393,6 +2393,11 @@
       "bytes": 471428,
       "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/outbox-red-caller-001.json"
     },
+    "docs/next/evidence/c06-source/pr51-rework-proof.json": {
+      "sha256": "b8f395b2891d323fb67700d500efa7c82d33f8112359d9218350df4eee3b3ced",
+      "bytes": 4520,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/pr51-rework/pr51-rework-proof.json"
+    },
     "docs/next/evidence/c06-source/pre-edit.json": {
       "sha256": "c4ccb9196b397df417b1c510abbd4eb29b7469e6453f95fe19730f7466d4cc2e",
       "bytes": 116709,
@@ -2414,8 +2419,8 @@
       "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/private-namespace-red-001.json"
     },
     "docs/next/evidence/c06-source/publication-expected.json": {
-      "sha256": "901323b9ca4990c0e40c16a1fef87729c304f0e2df9337ce2dc98d72b98b427d",
-      "bytes": 35299,
+      "sha256": "6e9804d148640f9e2ecf7541738e316cdf5721a9636a05dc63254da9b6d9a396",
+      "bytes": 35359,
       "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/pr51-rework/publication-expected.json"
     },
     "docs/next/evidence/c06-source/publication-index-001.json": {
@@ -2474,9 +2479,9 @@
       "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/pr51-rework/replay_lifecycle.py"
     },
     "docs/next/evidence/c06-source/reproduce.md": {
-      "sha256": "b7a4c30f663d360158936f6b84622bfbb5859dea5a00d9f5bf4ce606b4c320b2",
-      "bytes": 4225,
-      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/reproduce.md"
+      "sha256": "3e3fd5d77bb380f2ef31385faca730fe6f9ab90684190046e1d5134ea552e317",
+      "bytes": 5549,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/pr51-rework/reproduce.md"
     },
     "docs/next/evidence/c06-source/run-core-pg-pre-c05.py": {
       "sha256": "087b810f70982f5af32d8143cd4822276bf50f17be8dad048d717a6e295138f7",
