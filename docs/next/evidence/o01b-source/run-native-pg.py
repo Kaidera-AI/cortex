@@ -7,18 +7,20 @@ import subprocess
 import sys
 import tempfile
 import time
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 WT = HERE.parents[3]
 sys.path[:0] = [str(WT/'next/src'), str(WT/'docs/next/evidence/c06-source')]
 from cortex_core.backup import BackupError, basebackup_command, build_manifest
+import cortex_core.backup_validation as validation
 from cortex_core.backup_validation import (SNAPSHOT_SQL, seal_complete_bundle,
                                            verify_complete_bundle)
 from replay_lifecycle import Lifecycle
 
-NAME = 'kaidera-test-o01b-pg-1'
+NAME = 'kaidera-test-o01b-pr72-1-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE/'native-pg-final-004.json'
+OUT = HERE/'native-pg-pr72-1-001.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01b-source/run-native-pg.py'])
@@ -76,7 +78,7 @@ def refused(action):
 life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'),
                  lambda args: subprocess.run(args, text=True, capture_output=True))
 try:
-    for directory, count in [('backup_producer', 6), ('backup_validation', 14)]:
+    for directory, count in [('backup_producer', 7), ('backup_validation', 16)]:
         env = os.environ.copy()
         env['PYTHONPATH'] = str(WT/'next/src')
         result = subprocess.run(['python3.12', str(WT/'next/tests/test_receipts.py'),
@@ -250,6 +252,23 @@ try:
                 blob_root=blobs, recipient=recipient, destination=root/'vector.age'))
         finally:
             vector.write_bytes(old_vector)
+        original_native_check = validation._validate_native_pg
+        postcheck_vector_target = root/'postcheck-vector.age'
+
+        def change_vector_after_native(*args):
+            original_native_check(*args)
+            vector.write_bytes(bytes([old_vector[0] ^ 1]) + old_vector[1:])
+
+        try:
+            with patch.object(validation, '_validate_native_pg',
+                              side_effect=change_vector_after_native):
+                native['postcheck_base_refused'] = refused(lambda: seal_complete_bundle(
+                    base, archive, archive_end, snapshot, segment_bytes=segment_bytes,
+                    blob_root=blobs, recipient=recipient,
+                    destination=postcheck_vector_target))
+            assert not postcheck_vector_target.exists()
+        finally:
+            vector.write_bytes(old_vector)
         schema_path = sql("SELECT pg_relation_filepath('core.schema_migrations');")
         schema_file = base/schema_path
         old_schema = schema_file.read_bytes()
@@ -267,6 +286,24 @@ try:
             native['altered_wal_refused'] = refused(lambda: seal_complete_bundle(
                 base, archive, archive_end, snapshot, segment_bytes=segment_bytes,
                 blob_root=blobs, recipient=recipient, destination=root/'wal.age'))
+        finally:
+            wal_file.write_bytes(old_wal)
+        postcheck_wal_target = root/'postcheck-wal.age'
+
+        def change_wal_after_native(*args):
+            original_native_check(*args)
+            wal_file.write_bytes(bytes([old_wal[0] ^ 1]) + old_wal[1:])
+
+        try:
+            with patch.object(validation, '_validate_native_pg',
+                              side_effect=change_wal_after_native):
+                native['postcheck_wal_refused'] = refused(lambda: seal_complete_bundle(
+                    base, archive, archive_end, snapshot, segment_bytes=segment_bytes,
+                    blob_root=blobs, recipient=recipient,
+                    destination=postcheck_wal_target))
+            assert not postcheck_wal_target.exists()
+            assert not list(root.glob('.o01a-*.age'))
+            native['postcheck_no_ciphertext'] = True
         finally:
             wal_file.write_bytes(old_wal)
         native['missing_identity_refused'] = refused(lambda: verify_complete_bundle(

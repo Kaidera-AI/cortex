@@ -1,0 +1,21 @@
+{
+  "phase": "GREEN",
+  "source_sha256": {
+    "backup.py": "331ed3289066ce9e952ccddb1b8429101b5faaed9996cc9219a5d84cd806adf7",
+    "backup_validation.py": "78cb7962e3ca8a2f5becefd53e3fa42cea9c81759ffe0af63118fd1cae87decf"
+  },
+  "test_sha256": "f43f12c56833b0c0fcbad8e30731170c856f58e983976946782d05c295f254f0",
+  "command": [
+    "python3.12",
+    "next/tests/test_receipts.py",
+    "next/tests/backup_producer"
+  ],
+  "exit_code": 0,
+  "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 7, \"failures\": [], \"errors\": []}\n",
+  "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... ok\ntest_caller_metadata_mutation_cannot_change_encrypted_manifest (test_manifest.BackupManifestTests.test_caller_metadata_mutation_cannot_change_encrypted_manifest)\nMike O01A-PR71-1: caller mutates metadata after the digest is bound. ... ok\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... ok\ntest_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key) ... ok\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... ok\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... ok\ntest_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret (test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.101s\n\nOK\n",
+  "receipt": {
+    "tests_run": 7,
+    "failures": [],
+    "errors": []
+  }
+}
