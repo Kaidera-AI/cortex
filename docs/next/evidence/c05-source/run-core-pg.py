@@ -104,12 +104,24 @@ try:
         assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
     else:
         assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith('coordination'):
+    if PHASE.startswith(('coordination','conformance','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/coordination'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==23 and not reports[0]['errors']
         if PHASE.startswith('coordination-red'):
             expected={'test_coordination.JobAdapters.'+name for name in ('test_create_get_preserves_exact_intent_bytes', 'test_create_replays_after_commit_and_changed_request_refuses', 'test_owner_controls_and_read_cannot_write', 'test_claim_binds_verified_principal_and_fence', 'test_explicit_recipient_refuses_other_principal', 'test_concurrent_claim_has_one_winner', 'test_same_key_claim_replay_is_one_attempt', 'test_complete_preserves_exact_result_and_is_immutable', 'test_nonholder_and_wrong_attempt_or_fence_cannot_complete', 'test_expiry_refuses_completion_and_needs_explicit_retry', 'test_cancel_never_becomes_success_and_is_terminal', 'test_cancel_complete_race_has_one_terminal_state', 'test_failure_after_actual_result_insert_rolls_back', 'test_cross_tenant_job_is_hidden_and_cannot_claim', 'test_revoked_credential_cannot_replay_claim', 'test_invalid_inputs_and_ttl_refuse_without_partial_rows', 'test_release_is_unresolved_abandon_and_fail_are_distinct', 'test_stable_bounded_pagination', 'test_handoff_return_requires_independent_accept', 'test_owner_worker_cannot_self_accept_or_rework', 'test_rework_needs_explicit_retry_and_new_attempt', 'test_claim_budget_alias_is_explicitly_not_enforced', 'test_closed_core_connection_has_typed_failure')}
+            assert value.returncode==1 and {r['id'] for r in reports[0]['failures']}==expected
+            assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
+        else:
+            assert value.returncode==0 and not reports[0]['failures']
+    if PHASE.startswith(('conformance','mutation')):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/core_adapters'],300)
+        reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+        assert len(reports)==1 and reports[0]['tests_run']==6 and not reports[0]['errors']
+        if PHASE.startswith('conformance-red'):
+            expected={'test_core_adapters.AdapterConformance.'+name for name in (
+                'test_mutation_caller_refuses_operational_fixture_wrong_test_and_errors',
+                'test_mutation_caller_requires_expected_body_and_zero_error_clean_baseline')}
             assert value.returncode==1 and {r['id'] for r in reports[0]['failures']}==expected
             assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
         else:
