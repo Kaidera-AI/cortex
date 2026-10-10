@@ -64,6 +64,17 @@ def category(file,owner,verb,table):
           'coordination.prune_outbox':{'coordination.feed_state','coordination.consumer_checkpoints','coordination.published_events','coordination.quarantine','coordination.outbox'},
           'coordination.c06_protection_lock':{'coordination.feed_state'}}
         if table in rules.get(owner,set()):return 'private_C06_'+owner.rsplit('.',1)[-1]
+    if file=='schema/coordination/003-module-consumers.sql':
+        rules={
+          'coordination.c07_register':{'coordination.feed_state','coordination.consumer_project_checkpoints',
+            'coordination.consumer_checkpoints'},
+          'coordination.c07_expire':{'coordination.consumer_project_checkpoints'},
+          'coordination.c07_record':{'coordination.consumer_aggregate_heads',
+            'coordination.consumer_event_outcomes','coordination.quarantine',
+            'coordination.consumer_project_checkpoints'},
+          'coordination.c07_scan':{'coordination.consumer_project_checkpoints'}}
+        if table in rules.get(owner,set()):
+            return 'private_C07_scoped_durable_outcome_after_target_receipt'
     return None
 
 

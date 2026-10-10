@@ -45,8 +45,21 @@ class ModuleConsumer:
         try:
             with authorized(self.connection, self.credential,
                             self.installation_id, self.project_id, 'control'):
-                result = self.connection.execute(
-                    f'SELECT coordination.{signature}', args).fetchone()[0]
+                if signature == 'c07_status(%s)':
+                    row = self.connection.execute('SELECT coordination.c07_status(%s)', args)
+                elif signature == 'c07_register(%s,%s,%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c07_register(%s,%s,%s,%s)', args)
+                elif signature == 'c07_expire(%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c07_expire(%s,%s)', args)
+                elif signature == 'c07_poisoned(%s,%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c07_poisoned(%s,%s,%s)', args)
+                elif signature == 'c07_record(%s,%s,%s,%s,%s,%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c07_record(%s,%s,%s,%s,%s,%s,%s::jsonb)', args)
+                elif signature == 'c07_scan(%s,%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c07_scan(%s,%s,%s)', args)
+                else:
+                    raise ConsumerError('invalid_call')
+                result = row.fetchone()[0]
             return result
         except (AuthError, psycopg.Error) as error:
             raise ConsumerError('core_unavailable') from error
