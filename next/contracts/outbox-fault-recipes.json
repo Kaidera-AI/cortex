@@ -300,7 +300,7 @@
       "changes": [
         {
           "path": "schema/coordination/002-outbox.sql",
-          "before": "IF p_after<state.retained_floor THEN",
+          "before": "IF p_after<project_floor THEN",
           "after": "IF false THEN",
           "count": 1
         }
