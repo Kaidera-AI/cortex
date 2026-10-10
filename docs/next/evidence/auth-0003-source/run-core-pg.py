@@ -206,6 +206,17 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
         else:
             assert value.returncode==0 and not report['failures']
+    if PHASE.startswith(('identity-transition','mutation')):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_transition'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==1 and not report['errors']
+        if PHASE.startswith('identity-transition-red'):
+            assert value.returncode==1 and len(report['failures'])==1
+            row=report['failures'][0]
+            assert row['id']=='test_identity_transition.IdentityTransition.test_policy_free_create_keeps_c05_request_digest_and_replay'
+            assert row['phase']=='test' and row['is_assertion']
+        else:
+            assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
         for directory,count in [('contract',33),('receipt',20)]:
             value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
