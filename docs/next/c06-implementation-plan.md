@@ -62,3 +62,5 @@ Add one retained-state RED: an expired consumer cannot advance or reactivate its
 Final receipt probes also bind event kind to its port and reject mixed record/claim shapes. Every forged contract carries valid exact request JSON, so mere presence checks cannot satisfy semantic fault qualification.
 
 The immediate history check also binds its tombstone flag to the authoritative record head. Add one explicit mismatched-head/history tombstone RED before this repair; an event cannot acknowledge a delete while its Core head remains live.
+
+The tombstone/head probe was already GREEN under the existing C01 composite foreign key (core001:66–67). Preserve it as positive predecessor-invariant coverage, not a new gap or RED claim. Attempt003 is honestly failed solely because the controller expected an extra RED that did not exist; qualified002 proves the twelve actual gaps. No assertion was changed.

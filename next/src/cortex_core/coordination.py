@@ -105,6 +105,7 @@ class Jobs:
             try:
                 _validate(job_id,0,key)
                 digest = hashlib.sha256(json.dumps([operation,str(job_id),arguments],separators=(',',':')).encode()).hexdigest()
+                request_json = json.dumps([operation,str(job_id),arguments],separators=(',',':'))
                 with self._auth('write') as scope:
                     if control:
                         self._control(scope)
@@ -121,10 +122,13 @@ class Jobs:
                             saved = callback(scope)
                             saved['event_id'] = str(self.connection.execute(
                                 'SELECT coordination.capture_job(%s)', (job_id,)).fetchone()[0])
+                            saved['request_json'] = request_json
                             _save_request(self.connection,scope,key,digest,saved)
                         except psycopg.errors.UniqueViolation:
                             raise JobError('conflict') from None
                     self._accept_deadline()
+                    if saved.get('request_json') != request_json:
+                        raise JobError('conflict')
                     result = _typed(saved)
                 return result
             except RecordError as error:

@@ -6,7 +6,9 @@ from pathlib import Path
 import re
 import sys
 
-DML = re.compile(r'\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+((?:core|auth|coordination|retrieval)\.[a-z_][a-z0-9_]*)',re.I)
+DML = re.compile(r'\b(INSERT\s+INTO|UPDATE(?!\s+SET\b)|DELETE\s+FROM)\b',re.I)
+IDENTIFIER = r'(?:"(?:""|[^"])+"|[a-z_][a-z0-9_$]*)'
+TARGET = re.compile(r'\s*('+IDENTIFIER+r'(?:\s*\.\s*'+IDENTIFIER+r')?)',re.I)
 FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.]*).*?\bAS\s+\$\$(.*?)\$\$;',re.I|re.S)
 
 
@@ -30,6 +32,8 @@ def category(file,owner,verb,table):
           ('Jobs._state','coordination.jobs','UPDATE'),('Jobs._state','coordination.leases','UPDATE'),
           ('Jobs._replace_metadata','coordination.jobs','UPDATE')}
         if (owner,table,verb) in allowed:return 'job_parent_snapshot_before_receipt; deferred_final_snapshot_guard'
+    if file=='schema/auth/002-isolation.sql' and owner=='auth.bind_scope' and table=='pg_temp.c04_request_context':
+        return 'private_transaction_binding_housekeeping'
     if file=='schema/auth/002-isolation.sql' and owner=='auth.bump_generation' and table=='auth.permission_generations':
         return 'authorization_generation_housekeeping'
     if file=='schema/auth/003-identity.sql':
@@ -53,7 +57,12 @@ def scan_source(file,source):
     rows=[]; ordinals={}
     def add(owner,text):
         for match in DML.finditer(text):
-            verb=match.group(1).split()[0].upper();table=match.group(2).lower()
+            verb=match.group(1).split()[0].upper()
+            if text[match.start()-1:match.start()]=="'" and text[match.end():match.end()+1]=="'":continue
+            if verb=='UPDATE' and re.search(r'\bFOR\s*$',text[:match.start()],re.I):continue
+            target=TARGET.match(text,match.end())
+            table='<dynamic_or_unsupported>' if target is None else re.sub(r'\s+','',target.group(1)).replace('"','').lower()
+            if '.' not in table:table='<unqualified>:'+table
             key=(owner,verb,table);ordinal=ordinals.get(key,0);ordinals[key]=ordinal+1
             normalized=' '.join(text.split())
             rows.append(dict(file=file,owner=owner,verb=verb,table=table,ordinal=ordinal,

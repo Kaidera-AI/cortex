@@ -46,6 +46,15 @@
   "writer_sites": [
     {
       "file": "schema/auth/002-isolation.sql",
+      "owner": "auth.bind_scope",
+      "verb": "INSERT",
+      "table": "pg_temp.c04_request_context",
+      "ordinal": 0,
+      "statement_sha256": "2db2520243e05289b2df3328f4072620a0121a96984da22ea568aba32428acca",
+      "classification": "private_transaction_binding_housekeeping"
+    },
+    {
+      "file": "schema/auth/002-isolation.sql",
       "owner": "auth.bump_generation",
       "verb": "INSERT",
       "table": "auth.permission_generations",
@@ -221,7 +230,7 @@
       "verb": "INSERT",
       "table": "coordination.feed_state",
       "ordinal": 0,
-      "statement_sha256": "395e4b25e87f35f1bf33d37c3b36cb69a0bf8afc0ec8ac120f8f29b7b43b5409",
+      "statement_sha256": "48282d6ec67da4a4d8c4869286786d37a6dfd00400cdf13dea2efe313533f522",
       "classification": "private_C06_c06_protection_lock"
     },
     {

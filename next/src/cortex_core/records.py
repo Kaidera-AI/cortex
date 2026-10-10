@@ -140,9 +140,12 @@ class Records:
     def _mutate(self, operation, record_id, kind, body, expected, key):
         digest = hashlib.sha256(json.dumps([operation,str(record_id),kind,
             None if body is None else hashlib.sha256(body).hexdigest(),expected],separators=(',',':')).encode()).hexdigest()
+        request_json = json.dumps([operation,str(record_id),kind,None if body is None else hashlib.sha256(body).hexdigest(),expected],separators=(',',':'))
         with self._authorized('write') as scope:
             saved = _request(self.connection,scope,key,digest)
             if saved is not None:
+                if saved.get('request_json') != request_json:
+                    raise RecordError('conflict')
                 result = _receipt(saved)
             else:
                 _lock(self.connection,'record',(*_scope(scope),record_id))
@@ -178,6 +181,7 @@ class Records:
                     if event is None:
                         raise RecordError('core_unavailable')
                     data['event_id'] = str(event[0])
+                    data['request_json'] = request_json
                     _save_request(self.connection,scope,key,digest,data)
                     result = _receipt(data)
                 except psycopg.errors.UniqueViolation:

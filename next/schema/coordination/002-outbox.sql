@@ -120,6 +120,17 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordinat
 DECLARE job uuid;
 BEGIN
     IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;
+    IF TG_OP='UPDATE' THEN
+        IF TG_TABLE_NAME='jobs' THEN
+            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind,NEW.idempotency_key,NEW.created_at)<>
+               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind,OLD.idempotency_key,OLD.created_at)
+              THEN RAISE EXCEPTION 'job identity is immutable' USING ERRCODE='23514'; END IF;
+        ELSIF TG_TABLE_NAME='job_attempts' THEN
+            IF (NEW.tenant_id,NEW.project_id,NEW.id,NEW.job_id,NEW.attempt_number,NEW.fence,NEW.worker_id,NEW.started_at)<>
+               (OLD.tenant_id,OLD.project_id,OLD.id,OLD.job_id,OLD.attempt_number,OLD.fence,OLD.worker_id,OLD.started_at)
+              THEN RAISE EXCEPTION 'attempt identity is immutable' USING ERRCODE='23514'; END IF;
+        END IF;
+    END IF;
     IF TG_TABLE_NAME='jobs' THEN job:=NEW.id;
     ELSIF TG_TABLE_NAME='job_attempts' THEN job:=NEW.job_id;
     ELSIF TG_TABLE_NAME='job_results' THEN
@@ -299,6 +310,22 @@ END;
 $$;
 CREATE TRIGGER c06_record_head BEFORE INSERT OR UPDATE ON core.records
     FOR EACH ROW EXECUTE FUNCTION coordination.c06_record_head();
+CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE head record;
+BEGIN
+    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;
+    SELECT current_revision,tombstone INTO STRICT head FROM core.records
+      WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.record_id) FOR UPDATE;
+    IF NEW.revision IS DISTINCT FROM head.current_revision OR NEW.tombstone IS DISTINCT FROM head.tombstone
+       OR (NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions
+           WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,NEW.record_id,NEW.revision-1)))
+      THEN RAISE EXCEPTION 'history must match sequential authoritative head' USING ERRCODE='23514'; END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER c06_revision_order BEFORE INSERT ON core.record_revisions
+    FOR EACH ROW EXECUTE FUNCTION coordination.c06_revision_order();
 CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE aggregate uuid; head bigint; maximum bigint;
@@ -324,6 +351,102 @@ CREATE CONSTRAINT TRIGGER c06_record_integrity AFTER INSERT OR UPDATE ON core.re
 CREATE CONSTRAINT TRIGGER c06_history_integrity AFTER INSERT ON core.record_revisions
     DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION coordination.c06_record_integrity();
 
+-- Exact request bytes bind the durable ACK to the captured port effect.
+CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;
+  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;
+BEGIN
+    raw:=receipt->>'request_json'; request:=raw::jsonb;
+    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha
+       OR jsonb_typeof(request) IS DISTINCT FROM 'array'
+      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;
+    operation:=request->>0;
+    IF receipt ? 'record_id' THEN
+        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5
+           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'
+           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1
+           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')
+           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'
+           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'
+                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))
+           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))
+          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;
+        RETURN;
+    END IF;
+    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3
+       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'
+       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'
+      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;
+    arguments:=request->2;
+    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads
+      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);
+    attempt:=snapshot->'attempts'->-1;
+    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads
+      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);
+    IF operation='job.claim' THEN
+        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'
+           OR jsonb_array_length(arguments)<>1
+           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'
+           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'
+           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'
+           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'
+           OR receipt->>'holder' IS DISTINCT FROM actor::text
+           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'
+           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'
+          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;
+        RETURN;
+    END IF;
+    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'
+      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'
+      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'
+      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;
+    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'
+      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'
+      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'
+      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;
+    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'
+       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state
+       OR receipt->>'reason' IS DISTINCT FROM expected_reason
+      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;
+    IF operation='job.create' THEN
+        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'
+           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text
+           OR jsonb_array_length(snapshot->'attempts')<>0
+           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(
+                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))
+           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))
+           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=
+                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)
+          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;
+    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN
+        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;
+        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r
+            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))
+          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;
+    ELSE
+        IF jsonb_array_length(arguments) IS DISTINCT FROM CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END
+           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'
+          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;
+        IF operation='job.return' THEN
+            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0
+               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1
+               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text
+               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=
+                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)
+              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;
+        ELSE
+            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r
+              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;
+            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE
+                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)
+                  AND sha256=arguments->>2))
+              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;
+        END IF;
+    END IF;
+END;
+$$;
+
 CREATE FUNCTION coordination.c06_receipt_guard() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE s record; e record; target jsonb;
@@ -337,6 +460,9 @@ BEGIN
     SELECT * INTO e FROM coordination.outbox WHERE (tenant_id,project_id,event_id)=
       (s.tenant_id,s.project_id,(NEW.receipt->>'event_id')::uuid) AND xmin::text=pg_current_xact_id()::text;
     IF NOT FOUND THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;
+    IF NEW.receipt ? 'record_id' OR NEW.receipt ? 'job_id' THEN
+        PERFORM coordination.c06_validate_request(NEW.receipt,NEW.request_sha256,to_jsonb(e),s.principal_id);
+    END IF;
     IF NEW.receipt ? 'record_id' THEN
         IF e.aggregate_id IS DISTINCT FROM (NEW.receipt->>'record_id')::uuid
            OR e.aggregate_revision IS DISTINCT FROM (NEW.receipt->>'revision')::bigint
@@ -381,6 +507,11 @@ BEGIN
         IF NEW.cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;
         IF NEW.cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;
     ELSIF TG_TABLE_NAME='consumer_checkpoints' THEN
+        IF TG_OP='UPDATE' THEN
+            IF (OLD.state='expired' OR OLD.expires_at<=clock_timestamp()) AND
+               (NEW.applied_cursor>OLD.applied_cursor OR NEW.state='active')
+              THEN RAISE EXCEPTION 'outbox_expired'; END IF;
+        END IF;
         IF NEW.state='active' AND NEW.applied_cursor<state_row.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;
         IF NEW.applied_cursor>state_row.last_published_cursor THEN RAISE EXCEPTION 'outbox_invalid_input'; END IF;
     END IF;
