@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 import re
 import sys
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
 import asyncpg
@@ -43,22 +43,42 @@ def api():
 
 
 @pytest.fixture
-def scratch_dsn():
+def scratch_conn():
     if not DSN:
         pytest.skip("CORTEX_AUDIT_PG_DSN must name a disposable loopback PostgreSQL")
     parsed = urlsplit(DSN)
     if parsed.query or parsed.fragment:
         pytest.fail("audit DSN query parameters and fragments are forbidden before any connection")
-    if parsed.scheme not in {"postgresql", "postgres"} or parsed.hostname not in {"127.0.0.1", "localhost"} or parsed.port in {5500, 8501, None}:
+    try:
+        port = parsed.port
+    except ValueError:
+        pytest.fail("audit DSN has an invalid port")
+    host = parsed.hostname
+    hostaddr = "127.0.0.1"
+    database = unquote(parsed.path.removeprefix("/"))
+    user = unquote(parsed.username or "")
+    if parsed.scheme not in {"postgresql", "postgres"} or host not in {"127.0.0.1", "localhost"} or port in {5500, 8501, None} or not database or "/" in database or not user:
         pytest.fail("audit DSN must use an explicit non-live loopback port")
-    admin_dsn = urlunsplit(parsed._replace(query="", fragment=""))
+    for key, target in (("PGHOSTADDR", hostaddr), ("PGHOST", host), ("PGPORT", str(port))):
+        inherited = os.environ.get(key)
+        if inherited and inherited != target:
+            pytest.fail(f"audit DSN environment {key} disagrees with validated target")
+    for key in ("PGSERVICE", "PGSERVICEFILE"):
+        if os.environ.get(key):
+            pytest.fail(f"audit DSN environment {key} can redirect the connection")
+    password = unquote(parsed.password) if parsed.password is not None else None
+    admin_params = {"host": host, "hostaddr": hostaddr, "port": port, "dbname": database, "user": user}
     name = "mike_audit_" + uuid4().hex
-    admin = psycopg2.connect(admin_dsn)
+    scratch_params = {"host": hostaddr, "port": port, "database": name, "user": user}
+    if password is not None:
+        admin_params["password"] = password
+        scratch_params["password"] = password
+    admin = psycopg2.connect(**admin_params)
     admin.autocommit = True
     try:
         with admin.cursor() as cur:
             cur.execute(pgsql.SQL("CREATE DATABASE {}").format(pgsql.Identifier(name)))
-        yield urlunsplit(parsed._replace(path="/" + name, query="", fragment=""))
+        yield scratch_params
     finally:
         with admin.cursor() as cur:
             cur.execute(pgsql.SQL("DROP DATABASE {} WITH (FORCE)").format(pgsql.Identifier(name)))
@@ -80,13 +100,37 @@ def test_audit_dsn_rejects_libpq_target_overrides_before_connect(monkeypatch, ov
 
     monkeypatch.setattr(psycopg2, "connect", forbidden_connect)
     with pytest.raises(pytest.fail.Exception, match="query parameters"):
-        next(scratch_dsn.__wrapped__())
+        next(scratch_conn.__wrapped__())
     assert calls == []
 
 
-def test_api1_001_retention_moves_child_before_parent(api, scratch_dsn):
+@pytest.mark.parametrize("name,value", [
+    ("PGHOSTADDR", "203.0.113.10"),
+    ("PGHOST", "example.com"),
+    ("PGPORT", "5500"),
+    ("PGSERVICE", "other-cluster"),
+    ("PGSERVICEFILE", "/tmp/other-service.conf"),
+])
+def test_audit_dsn_rejects_inherited_routing_before_connect(monkeypatch, name, value):
+    monkeypatch.setattr(sys.modules[__name__], "DSN", "postgresql://postgres@127.0.0.1:37407/postgres")
+    for key in ("PGHOSTADDR", "PGHOST", "PGPORT", "PGSERVICE", "PGSERVICEFILE"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv(name, value)
+    calls = []
+
+    def forbidden_connect(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("audit fixture attempted to connect before rejecting inherited routing")
+
+    monkeypatch.setattr(psycopg2, "connect", forbidden_connect)
+    with pytest.raises(pytest.fail.Exception, match="environment"):
+        next(scratch_conn.__wrapped__())
+    assert calls == []
+
+
+def test_api1_001_retention_moves_child_before_parent(api, scratch_conn):
     async def case():
-        conn = await asyncpg.connect(scratch_dsn)
+        conn = await asyncpg.connect(**scratch_conn)
         try:
             cols = api._RETENTION_TABLES["handoffs"]["cols"].split(", ")
             defs = []
@@ -110,9 +154,9 @@ def test_api1_001_retention_moves_child_before_parent(api, scratch_dsn):
     run(case())
 
 
-def test_api1_005_ambiguous_invalidation_prefix_is_rejected(api, scratch_dsn):
+def test_api1_005_ambiguous_invalidation_prefix_is_rejected(api, scratch_conn):
     async def case():
-        conn = await asyncpg.connect(scratch_dsn)
+        conn = await asyncpg.connect(**scratch_conn)
         try:
             for table in ("decisions", "lessons", "handoffs"):
                 await conn.execute(f"CREATE TABLE {table}(id uuid PRIMARY KEY, project text NOT NULL)")
@@ -125,9 +169,9 @@ def test_api1_005_ambiguous_invalidation_prefix_is_rejected(api, scratch_dsn):
     run(case())
 
 
-def test_api2_001_bm25_excludes_invalidated_decisions(api, scratch_dsn, monkeypatch):
+def test_api2_001_bm25_excludes_invalidated_decisions(api, scratch_conn, monkeypatch):
     async def case():
-        conn = await asyncpg.connect(scratch_dsn)
+        conn = await asyncpg.connect(**scratch_conn)
         try:
             await conn.execute("CREATE TABLE decisions(id uuid PRIMARY KEY, project text, summary text, category text, agent_name text, search_vector tsvector, invalidated_at timestamptz)")
             stale, current = uuid4(), uuid4()
@@ -154,9 +198,9 @@ def test_api2_001_bm25_excludes_invalidated_decisions(api, scratch_dsn, monkeypa
     run(case())
 
 
-def test_api4_002_backfill_does_not_write_vector_for_changed_content(api, scratch_dsn, monkeypatch):
+def test_api4_002_backfill_does_not_write_vector_for_changed_content(api, scratch_conn, monkeypatch):
     async def case():
-        conn = await asyncpg.connect(scratch_dsn)
+        conn = await asyncpg.connect(**scratch_conn)
         try:
             await conn.execute("CREATE DOMAIN vector AS text")
             await conn.execute("CREATE TABLE knowledge(id uuid PRIMARY KEY, project text, content text, embedding vector, metadata jsonb DEFAULT '{}'::jsonb, created_at timestamptz DEFAULT now())")
@@ -191,9 +235,9 @@ def test_api4_002_backfill_does_not_write_vector_for_changed_content(api, scratc
     run(case())
 
 
-def test_api4_004_transfer_reset_keeps_shared_sequence_above_archive(api, scratch_dsn):
+def test_api4_004_transfer_reset_keeps_shared_sequence_above_archive(api, scratch_conn):
     async def case():
-        conn = await asyncpg.connect(scratch_dsn)
+        conn = await asyncpg.connect(**scratch_conn)
         try:
             await conn.execute("CREATE SEQUENCE messages_id_seq")
             await conn.execute("CREATE TABLE messages(id bigint PRIMARY KEY DEFAULT nextval('messages_id_seq'))")
@@ -210,9 +254,9 @@ def test_api4_004_transfer_reset_keeps_shared_sequence_above_archive(api, scratc
     run(case())
 
 
-def test_api4_005_transfer_accepts_child_before_parent_in_same_table(api, scratch_dsn, monkeypatch):
+def test_api4_005_transfer_accepts_child_before_parent_in_same_table(api, scratch_conn, monkeypatch):
     async def case():
-        conn = await asyncpg.connect(scratch_dsn)
+        conn = await asyncpg.connect(**scratch_conn)
         try:
             await conn.execute("CREATE TABLE sprints(id uuid PRIMARY KEY)")
             handoffs_ddl = re.search(
@@ -274,10 +318,10 @@ def test_api4_005_transfer_accepts_child_before_parent_in_same_table(api, scratc
     run(case())
 
 
-def test_schema_3_001_migration_does_not_rewind_concurrent_message_ids(scratch_dsn):
+def test_schema_3_001_migration_does_not_rewind_concurrent_message_ids(scratch_conn):
     async def case():
-        first = await asyncpg.connect(scratch_dsn)
-        second = await asyncpg.connect(scratch_dsn)
+        first = await asyncpg.connect(**scratch_conn)
+        second = await asyncpg.connect(**scratch_conn)
         try:
             await first.execute("CREATE SEQUENCE public.messages_id_seq")
             await first.execute("CREATE TABLE public.messages(id bigint PRIMARY KEY DEFAULT nextval('public.messages_id_seq'))")
