@@ -12,6 +12,18 @@ TARGET = re.compile(r'\s*('+IDENTIFIER+r'(?:\s*\.\s*'+IDENTIFIER+r')?)',re.I)
 FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.]*).*?\bAS\s+\$\$(.*?)\$\$;',re.I|re.S)
 
 
+def static_text(node):
+    """Fold source-known SQL without executing application expressions."""
+    if isinstance(node,ast.Constant) and isinstance(node.value,str):return node.value
+    if isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add):
+        left,right=static_text(node.left),static_text(node.right)
+        if left is not None and right is not None:return left+right
+    if isinstance(node,ast.JoinedStr):
+        parts=[static_text(part) for part in node.values]
+        if all(part is not None for part in parts):return ''.join(parts)
+    return None
+
+
 def category(file,owner,verb,table):
     if table.startswith('retrieval.') and ('embeddings/' in file or 'modules/graph/' in file or file.startswith('schema/retrieval/')):
         return 'derived_projection_or_cache; separate module admission held'
@@ -69,7 +81,63 @@ def scan_source(file,source):
             normalized=' '.join(text.split())
             rows.append(dict(file=file,owner=owner,verb=verb,table=table,ordinal=ordinal,
                 statement_sha256=hashlib.sha256(normalized.encode()).hexdigest(),classification=category(file,owner,verb,table)))
+    def add_dynamic(owner,node,force=False):
+        fragments=[child.value for child in sorted(ast.walk(node),key=lambda part:(getattr(part,'lineno',0),getattr(part,'col_offset',0)))
+                   if isinstance(child,ast.Constant) and isinstance(child.value,str)]
+        candidate=''.join(fragments)
+        if not force and not any(not (match.group().upper()=='UPDATE' and re.search(r'\bFOR\s*$',candidate[:match.start()],re.I))
+                   for match in re.finditer(r'\b(?:INSERT|UPDATE|DELETE)\b',candidate,re.I)):return
+        key=(owner,'DYNAMIC','<dynamic_or_unsupported>');ordinal=ordinals.get(key,0);ordinals[key]=ordinal+1
+        rows.append(dict(file=file,owner=owner,verb='DYNAMIC',table='<dynamic_or_unsupported>',ordinal=ordinal,
+            statement_sha256=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
+    def known_existing_input(owner,node,tree):
+        """Only these source-proved existing indirect inputs bypass fail-closed."""
+        if file=='src/cortex_core/coordination.py' and owner=='Jobs._load':
+            return (isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add)
+                    and (static_text(node.left) or '').lstrip().upper().startswith('SELECT')
+                    and isinstance(node.right,ast.IfExp)
+                    and static_text(node.right.body)==' FOR UPDATE'
+                    and static_text(node.right.orelse)=='')
+        if not isinstance(node,ast.Name):return False
+        name=node.id
+        if name=='_ROLE_QUERY' and file in ('src/cortex_core/auth.py','src/cortex_core/identity.py'):
+            assignments=[n for n in ast.walk(tree) if isinstance(n,(ast.Assign,ast.AnnAssign))
+                         and any(isinstance(t,ast.Name) and t.id==name for t in
+                                 (n.targets if isinstance(n,ast.Assign) else [n.target]))]
+            if file.endswith('/auth.py'):
+                return len(assignments)==1 and (static_text(assignments[0].value) or '').lstrip().upper().startswith('SELECT')
+            return (not assignments and any(isinstance(n,ast.ImportFrom) and n.module=='auth'
+                        and any(a.name=='_ROLE_QUERY' for a in n.names) for n in tree.body))
+        if file=='src/cortex_core/identity.py' and owner=='Identity._register' and name=='query':
+            methods=[n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=='_register']
+            assignments=[n for n in ast.walk(methods[0]) if isinstance(n,ast.Assign)
+                         and any(isinstance(t,ast.Name) and t.id=='query' for t in n.targets)] if len(methods)==1 else []
+            return len(assignments)==2 and all((static_text(n.value) or '').lstrip().upper().startswith('SELECT') for n in assignments)
+        if file=='src/cortex_core/records.py' and owner=='_private' and name=='query':
+            calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name)
+                   and n.func.id=='_private']
+            assignments=[n for n in ast.walk(tree) if isinstance(n,ast.Assign)
+                         and any(isinstance(t,ast.Name) and t.id=='query' for t in n.targets)]
+            return bool(calls) and not assignments and all(len(n.args)>1 and
+                   (static_text(n.args[1]) or '').lstrip().upper().startswith('SELECT') for n in calls)
+        if file=='src/cortex_core/migrations.py' and owner=='apply_migrations' and name=='sql':
+            functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='apply_migrations']
+            if len(functions)!=1:return False
+            fn=functions[0]
+            loops=[n for n in ast.walk(fn) if isinstance(n,ast.For) and isinstance(n.target,ast.Tuple)
+                   and [getattr(t,'id',None) for t in n.target.elts]==['identity','digest','sql']
+                   and isinstance(n.iter,ast.Name) and n.iter.id=='prepared']
+            appends=[n for n in ast.walk(fn) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute)
+                     and n.func.attr=='append' and isinstance(n.func.value,ast.Name) and n.func.value.id=='prepared']
+            other_assignments=[n for n in ast.walk(fn) if isinstance(n,(ast.Assign,ast.AnnAssign,ast.NamedExpr))
+                               and any(isinstance(t,ast.Name) and t.id=='sql' for t in
+                                       (n.targets if isinstance(n,ast.Assign) else [n.target]))]
+            return (len(loops)==1 and len(appends)==1 and not other_assignments
+                    and 'hashlib.sha256(data).hexdigest() != entry["sha256"]' in source
+                    and ast.unparse(appends[0].args[0])=="(entry['id'], entry['sha256'], data.decode('utf-8'))")
+        return False
     if file.endswith('.py'):
+        tree=ast.parse(source)
         class Visitor(ast.NodeVisitor):
             def __init__(self):self.owners=[]
             def visit_ClassDef(self,node):
@@ -77,9 +145,26 @@ def scan_source(file,source):
             def visit_FunctionDef(self,node):
                 self.owners.append(node.name);self.generic_visit(node);self.owners.pop()
             visit_AsyncFunctionDef=visit_FunctionDef
+            def visit_Call(self,node):
+                if (isinstance(node.func,ast.Attribute) and node.func.attr in ('execute','executemany')
+                    and node.args and static_text(node.args[0]) is None):
+                    owner='.'.join(self.owners) or '<module>'
+                    if not known_existing_input(owner,node.args[0],tree):
+                        add_dynamic(owner,node.args[0],force=True)
+                self.generic_visit(node)
+            def visit_BinOp(self,node):
+                value=static_text(node)
+                if value is not None:
+                    add('.'.join(self.owners) or '<module>',value)
+                else:self.generic_visit(node)
+            def visit_JoinedStr(self,node):
+                value=static_text(node)
+                if value is not None:
+                    add('.'.join(self.owners) or '<module>',value)
+                else:self.generic_visit(node)
             def visit_Constant(self,node):
                 if isinstance(node.value,str):add('.'.join(self.owners) or '<module>',node.value)
-        Visitor().visit(ast.parse(source))
+        Visitor().visit(tree)
     else:
         for function in FUNCTION.finditer(source):add(function.group(1),function.group(2))
     return rows

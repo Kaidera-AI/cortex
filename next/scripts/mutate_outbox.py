@@ -20,6 +20,7 @@ def mutation_status(result, expected):
 import hashlib
 import json
 import os
+import subprocess
 import psycopg
 from mutate_identity import capture
 from verify_writer_inventory import scan as writer_scan
@@ -38,6 +39,28 @@ def checkpoint():
 
 def clean(result):
     return result['exit_code']==0 and result['receipt'] is not None and not result['receipt']['failures'] and not result['receipt']['errors']
+
+
+def exact_suite(directory,names):
+    """Run only named tests for a fault whose unrelated tests cannot remain meaningful."""
+    assert names and all(name.startswith('test_') for name in names)
+    script='''import json,sys,unittest
+sys.path.insert(0,sys.argv[1]);sys.path.insert(0,sys.argv[2])
+from test_receipts import AssertionResult,MARKER
+names=sys.argv[3:]
+tests=unittest.defaultTestLoader.loadTestsFromNames(names)
+def ids(node):
+    for item in node:
+        if isinstance(item,unittest.TestSuite):yield from ids(item)
+        else:yield item.id()
+assert sorted(ids(tests))==sorted(names),'selected test IDs must resolve exactly'
+result=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)
+print(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,
+ 'errors':[{'id':test.id(),'traceback':traceback} for test,traceback in result.errors]}),flush=True)
+raise SystemExit(0 if result.wasSuccessful() else 1)
+'''
+    return subprocess.run([sys.executable,'-c',script,str(NEXT/'tests'),str(NEXT/'tests'/directory),*names],
+                          capture_output=True,text=True)
 
 
 MATRICES = {
@@ -60,6 +83,11 @@ def run(matrix='outbox', repair_only=False, attribution_only=False):
     if attribution_only:
         mutations=[row for row in mutations if row['label']=='private coordination schema usage removed']
         assert len(mutations)==1
+    only=[arg.split('=',1)[1] for arg in sys.argv if arg.startswith('--only-label=')]
+    assert len(only)<=1
+    if only:
+        mutations=[row for row in mutations if row['label']==only[0]]
+        assert len(mutations)==1, 'selected fault label must resolve exactly once'
     paths=sorted({edit['path'] for row in mutations for edit in row['changes']} | {MANIFEST,INVENTORY})
     originals={name:(NEXT/name).read_bytes() for name in paths}
     hashes={name:hashlib.sha256(body).hexdigest() for name,body in originals.items()}
@@ -110,7 +138,11 @@ def run(matrix='outbox', repair_only=False, attribution_only=False):
                     for name,body in originals.items():(NEXT/name).write_bytes(body)
                     checkpoint()
                 changed=apply(recipe['changes'])
-                result=suite(NEXT/'tests'/recipe['directory']);expected=set(recipe['expected_tests'])
+                selected=recipe.get('isolate_expected_test',False)
+                assert type(selected) is bool
+                result=(exact_suite(recipe['directory'],recipe['expected_tests']) if selected
+                        else suite(NEXT/'tests'/recipe['directory']))
+                expected=set(recipe['expected_tests'])
                 status=mutation_status(result,expected);value=report(result)
                 failed=set() if value is None else {f['id'].split(' (')[0] for f in value['failures']}
                 if status=='killed' and (not expected<=failed or (auxiliary is not None and not auxiliary['qualified'])):status='inconclusive'

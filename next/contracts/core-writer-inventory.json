@@ -248,7 +248,7 @@
       "verb": "DELETE",
       "table": "coordination.outbox",
       "ordinal": 0,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {
@@ -257,7 +257,7 @@
       "verb": "DELETE",
       "table": "coordination.published_events",
       "ordinal": 0,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {
@@ -266,7 +266,7 @@
       "verb": "DELETE",
       "table": "coordination.quarantine",
       "ordinal": 0,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {
@@ -275,7 +275,7 @@
       "verb": "INSERT",
       "table": "coordination.feed_state",
       "ordinal": 0,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {
@@ -284,7 +284,7 @@
       "verb": "UPDATE",
       "table": "coordination.consumer_checkpoints",
       "ordinal": 0,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {
@@ -293,7 +293,7 @@
       "verb": "UPDATE",
       "table": "coordination.consumer_checkpoints",
       "ordinal": 1,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {
@@ -302,7 +302,7 @@
       "verb": "UPDATE",
       "table": "coordination.feed_state",
       "ordinal": 0,
-      "statement_sha256": "9672989038555a754734ff4f40c0a069abcf427b376a33310b5028ea85ce9e0c",
+      "statement_sha256": "6d0666261e7cfaeaa2ede86d2735dd8421261a324e79b2fe5389c8277fba80e2",
       "classification": "private_C06_prune_outbox"
     },
     {

@@ -1,0 +1,20 @@
+{
+  "tested_source_head": "91a5c6b258bb3428bf2e0c8e12c7b921b2739529",
+  "test_file_sha256": "0b48a399d0f97f7d60c0d6a6eb44eec1e9e4e72ae67b11fd86b4242a21a78651",
+  "scanner_sha256": "7e49c2080c93249add3f86b25f309b2b2a2eddc94a388847882a90ea5437e6a9",
+  "suite_exit_code": 0,
+  "suite_report": {
+    "tests_run": 10,
+    "failures": [],
+    "errors": []
+  },
+  "suite_stdout_stderr": "test_all_executable_writer_sites_match_classified_source (test_outbox_inventory.WriterInventory.test_all_executable_writer_sites_match_classified_source) ... ok\ntest_assigned_variable_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_assigned_variable_dynamic_writer_fails_closed) ... ok\ntest_composed_sql_writer_is_rejected (test_outbox_inventory.WriterInventory.test_composed_sql_writer_is_rejected) ... ok\ntest_dynamic_composed_sql_writer_fails_closed (test_outbox_inventory.WriterInventory.test_dynamic_composed_sql_writer_fails_closed) ... ok\ntest_helper_return_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_helper_return_dynamic_writer_fails_closed) ... ok\ntest_missing_writer_binding_is_rejected (test_outbox_inventory.WriterInventory.test_missing_writer_binding_is_rejected) ... ok\ntest_new_unclassified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected) ... ok\ntest_quoted_qualified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected) ... ok\ntest_unqualified_writer_with_search_path_is_rejected (test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected) ... ok\ntest_manifest_binds_exact_additive_outbox_sql (test_outbox_manifest.OutboxManifest.test_manifest_binds_exact_additive_outbox_sql) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.318s\n\nOK\nCORTEX_TEST_RESULT={\"tests_run\": 10, \"failures\": [], \"errors\": []}\n",
+  "writer_audit": {
+    "passed": true,
+    "writer_count": 62,
+    "unclassified": [],
+    "missing": [],
+    "stale": []
+  },
+  "resource_operations": 0
+}

@@ -156,11 +156,15 @@ try:
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
-    for directory,count in [('outbox_retention',4),('outbox_inventory',6),('outbox_late_publication',1)]:
+    for directory,count in [('outbox_retention',5),('outbox_inventory',10),('outbox_late_publication',1)]:
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==count and not report['errors']
-        if PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
+        if PHASE.startswith('pr51-retention-red') and directory=='outbox_retention':
+            assert value.returncode==1 and len(report['failures'])==1
+            assert report['failures'][0]['id'].rsplit('.',1)[-1]=='test_own_expired_cursor_prunes_behind_foreign_quarantine'
+            assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+        elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
             assert value.returncode==1 and len(report['failures'])==1
             assert report['failures'][0]['id'].rsplit('.',1)[-1].startswith('test_expired_checkpoint_cannot_advance_or_reactivate_completeness')
             assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
@@ -174,11 +178,13 @@ try:
         else:
             assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
-        matrices=[('mutate_outbox.py',[],42),('mutate_outbox.py',['--identity'],32),('mutate_outbox.py',['--adapters'],30),('mutate_outbox.py',['--c05'],11),('mutate_outbox.py',['--write_only'],3),('mutate_outbox.py',['--private_namespace'],1),('mutate_contracts.py',[],26),('mutate_test_receipts.py',[],8)]
+        matrices=[('mutate_outbox.py',[],43),('mutate_outbox.py',['--identity'],32),('mutate_outbox.py',['--adapters'],30),('mutate_outbox.py',['--c05'],11),('mutate_outbox.py',['--write_only'],3),('mutate_outbox.py',['--private_namespace'],1),('mutate_contracts.py',[],26),('mutate_test_receipts.py',[],8)]
         if 'repair' in PHASE:
             matrices=[('mutate_outbox.py',['--repair'],3),('mutate_outbox.py',['--identity','--repair'],6),('mutate_outbox.py',['--adapters','--repair'],9)]
         if 'attribution-red' in PHASE:
             matrices=[('mutate_outbox.py',['--identity','--attribution-red'],1)]
+        if 'dense-check' in PHASE:
+            matrices=[('mutate_outbox.py',['--only-label=journal allocation skips dense cursor'],1)]
         for script,arguments,count in matrices:
             value=run(env+['python','/tmp/next/scripts/'+script,*arguments],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]

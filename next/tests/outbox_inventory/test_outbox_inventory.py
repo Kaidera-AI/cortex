@@ -42,3 +42,27 @@ class WriterInventory(unittest.TestCase):
         changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection):\n    connection.execute('SET search_path=core; DELETE FROM records WHERE true')\n"
         result=checker.audit(NEXT,overrides={name:changed})
         self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def test_composed_sql_writer_is_rejected(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection):\n    connection.execute('DELETE ' + 'FROM core.records WHERE true')\n"
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def test_assigned_variable_dynamic_writer_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection, table):\n    verb = 'DELETE'\n    statement = verb + ' FROM ' + table + ' WHERE true'\n    connection.execute(statement)\n"
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def test_helper_return_dynamic_writer_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        changed=(NEXT/name).read_text()+"\ndef accidental_statement(table):\n    verb = 'DELETE'\n    return verb + ' FROM ' + table + ' WHERE true'\ndef accidental_writer(connection, table):\n    connection.execute(accidental_statement(table))\n"
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def test_dynamic_composed_sql_writer_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection, table):\n    connection.execute('DELETE ' + table + ' WHERE true')\n"
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])

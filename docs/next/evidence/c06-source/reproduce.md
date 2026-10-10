@@ -1,5 +1,48 @@
 # C06 copied PostgreSQL source proof
 
+## PR #51 writer-inventory delta — current proof
+
+Mike closed C06-PR51-001/003/004 and reopened 002. The new committed
+`test_assigned_variable_dynamic_writer_fails_closed` and
+`test_helper_return_dynamic_writer_fails_closed` each failed in the test body
+before scanner repair (`pr51-002-red.json`). The scanner now fails closed on
+unresolved `execute`/`executemany` arguments while recognizing only its
+source-proved existing indirect SQL inputs. Ten inventory tests and 62 declared
+writer sites pass (`pr51-002-green.json`); removing the fail-closed branch
+causes three expected BODY failures (`pr51-002-mutant.json`).
+
+The complete fixed-classifier native replay is `mutation-pr51-002-full-001.json`
+at tested source `1b675b3fc834745544f311b8811909bb20cfb9ae`: 26 clean
+suites/316 tests, 154/154 primary faults killed, 367 expected BODY assertion
+records all with active phase attribution, zero inconclusive/errors, 426 copied
+NEXT files restored, and exact-owned stack removed. Run
+`python3 docs/next/evidence/c06-source/verify-pr51-002.py .` from this PR head;
+`pr51-002-proof.json` binds the raw proof inputs by SHA-256. Publication
+`publication-index-003.json` is compared with the independent Git-bound
+`publication-expected.json` and the complete current source/evidence trees.
+The next section is the prior four-P2 proof, retained unchanged as history.
+
+## PR #51 functional rework — current proof
+
+The [PR51 rework proof](pr51-rework-proof.json) binds the current tested NEXT source
+`a8d8876e769ec77c5164490a79055948db123aaa` to the exact fixed classifier
+blob from PR #55 head `2b9ed6e98c27b087e2778571f0ea66212fb27609` (also present at
+its merged commit `fdd04d7b8b8f977e3c3b94f7badc9a17c87d787f`). Its canonical
+raw receipts cover the four Mike P2 repairs: per-project retention, composed
+writer SQL, independent complete publication inventory, and Git-bound replay
+inputs. The full copied native proof has 26 clean suites/314 tests and 154 of
+154 expected BODY fault kills, zero errors, all 367 failure records bearing
+`traceback+active-unittest-v2`, exact copied-source restoration and owned stack
+absence. The first full rework attempt retained one INCONCLUSIVE dense-cursor
+fault because an unrelated retention test raised a typed expiry error. The
+targeted exact-test repair and the later old-classifier full pass are retained
+as diagnostic generations; only the fixed-classifier full pass closes this
+evidence gate. The final publication inventory is `publication-expected.json`,
+checked independently of `publication-index-002.json`, which excludes only
+its own self-referential index file.
+
+The following `e8dc899c` proof is historical before Mike's PR51 review.
+
 Tested Git `e8dc899c06b38739144d10227916aadf792922ef`. Actual final native-arm64 receipt is
 `mutation-outbox-forward-final-005.json`, SHA256 `06727591a6158c3561eeee489e316b293c8873776e98ee274c89fd763c0699ac`.
 All311 baseline tests pass (239 frozen predecessors plus72 C06), followed by
