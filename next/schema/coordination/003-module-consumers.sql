@@ -239,6 +239,7 @@ BEGIN
   RETURN coordination.c07_status(p_module);
 END $$;
 
+GRANT INSERT ON coordination.consumer_checkpoints TO "kaidera-runtime-core-verifier";
 GRANT SELECT,INSERT,UPDATE ON coordination.quarantine TO "kaidera-runtime-core-verifier";
 CREATE POLICY c07_quarantine_private ON coordination.quarantine TO "kaidera-runtime-core-verifier" USING (true) WITH CHECK (true);
 GRANT CREATE ON SCHEMA coordination TO "kaidera-runtime-core-verifier";

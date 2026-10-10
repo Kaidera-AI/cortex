@@ -104,80 +104,84 @@ try:
          '--env','PYTHONDONTWRITEBYTECODE=1',
          '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','-c',"import os,psycopg;from cortex_core.migrations import apply_migrations;c=psycopg.connect(os.environ['TEST_DATABASE_URL'],autocommit=True);print('CORTEX_MIGRATION_CHECK='+str(apply_migrations(c)));c.close()"])
-    for directory,count in SUITES:
-        if PHASE.startswith('write-only-event-red') and directory in ('c05_review','c05_private'):continue
-        value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
+    if not PHASE.startswith('c07-debug'):
+        for directory,count in SUITES:
+            if PHASE.startswith('write-only-event-red') and directory in ('c05_review','c05_private'):continue
+            value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
+            report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+            assert report['tests_run']==count and not report['failures'] and not report['errors']
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_write_only'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-        assert report['tests_run']==count and not report['failures'] and not report['errors']
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_write_only'],300)
-    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==2 and not report['errors']
-    if PHASE.startswith('write-only-event-red'):
-        assert value.returncode==1 and len(report['failures'])==2
-        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-    else:
-        assert value.returncode==0 and not report['failures']
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_private_namespace'],300)
-    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==2 and not report['errors']
-    if PHASE.startswith('private-namespace-red'):
-        assert value.returncode==1 and len(report['failures'])==2
-        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-    else:
-        assert value.returncode==0 and not report['failures']
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox'],300)
-    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==32 and not report['errors']
-    if PHASE.startswith('outbox-red'):
-        assert value.returncode==1 and len(report['failures'])==32
-        assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
-    else:
-        assert value.returncode==0 and not report['failures']
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_caller'],300)
-    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==2 and not report['errors']
-    if PHASE.startswith('outbox-red-caller'):
-        assert value.returncode==1 and len(report['failures'])==2
-        assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
-    else:
-        assert value.returncode==0 and not report['failures']
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_guards'],300)
-    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==23 and not report['errors']
-    if PHASE.startswith('outbox-receipt-actor-red'):
-        assert value.returncode==1 and len(report['failures'])==3
-        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-        assert {r['id'].rsplit('.',1)[-1] for r in report['failures']}=={'test_authentic_completed_fact_cannot_ack_a_foreign_workers_completion','test_authentic_reviewed_fact_cannot_ack_a_workers_self_acceptance','test_authentic_sixty_second_claim_cannot_ack_an_hour_lease'}
-    elif PHASE.startswith('outbox-final-review-red'):
-        assert value.returncode==1 and len(report['failures'])==9
-        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-        assert {r['id'].split(' (')[0].rsplit('.',1)[-1] for r in report['failures']}=={'test_reverse_history_insertion_refuses_revision_reordering','test_authentic_pending_event_cannot_forge_successful_completion_receipt','test_authentic_running_event_cannot_forge_claim_attempt_fence_or_holder','test_authentic_upsert_receipt_cannot_ack_a_future_delete','test_authentic_pending_receipt_cannot_ack_a_future_retry','test_job_authoritative_id_cannot_be_relocated_without_old_parent_event','test_attempt_cannot_be_reparented_without_old_job_event','test_job_fact_cannot_be_replayed_as_ordinary_memory_put','test_mixed_record_and_claim_receipt_cannot_bypass_job_contract'}
-    elif PHASE.startswith('outbox-guards-red'):
-        assert value.returncode==1 and len(report['failures'])==10
-        assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
-    else:
-        assert value.returncode==0 and not report['failures']
-    for directory,count in [('outbox_retention',5),('outbox_inventory',10),('outbox_late_publication',1)]:
-        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
-        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-        assert report['tests_run']==count and not report['errors']
-        if PHASE.startswith('pr51-retention-red') and directory=='outbox_retention':
-            assert value.returncode==1 and len(report['failures'])==1
-            assert report['failures'][0]['id'].rsplit('.',1)[-1]=='test_own_expired_cursor_prunes_behind_foreign_quarantine'
-            assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
-        elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
-            assert value.returncode==1 and len(report['failures'])==1
-            assert report['failures'][0]['id'].rsplit('.',1)[-1].startswith('test_expired_checkpoint_cannot_advance_or_reactivate_completeness')
-            assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
-        elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_inventory':
+        assert report['tests_run']==2 and not report['errors']
+        if PHASE.startswith('write-only-event-red'):
             assert value.returncode==1 and len(report['failures'])==2
             assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-            assert {r['id'].split(' (')[0].rsplit('.',1)[-1] for r in report['failures']}=={'test_quoted_qualified_writer_is_rejected','test_unqualified_writer_with_search_path_is_rejected'}
-        elif PHASE.startswith('outbox-protocol-red'):
-            assert value.returncode==1 and len(report['failures'])==count
+        else:
+            assert value.returncode==0 and not report['failures']
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_private_namespace'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==2 and not report['errors']
+        if PHASE.startswith('private-namespace-red'):
+            assert value.returncode==1 and len(report['failures'])==2
+            assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+        else:
+            assert value.returncode==0 and not report['failures']
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==32 and not report['errors']
+        if PHASE.startswith('outbox-red'):
+            assert value.returncode==1 and len(report['failures'])==32
             assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
         else:
             assert value.returncode==0 and not report['failures']
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_caller'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==2 and not report['errors']
+        if PHASE.startswith('outbox-red-caller'):
+            assert value.returncode==1 and len(report['failures'])==2
+            assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+        else:
+            assert value.returncode==0 and not report['failures']
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_guards'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==23 and not report['errors']
+        if PHASE.startswith('outbox-receipt-actor-red'):
+            assert value.returncode==1 and len(report['failures'])==3
+            assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+            assert {r['id'].rsplit('.',1)[-1] for r in report['failures']}=={'test_authentic_completed_fact_cannot_ack_a_foreign_workers_completion','test_authentic_reviewed_fact_cannot_ack_a_workers_self_acceptance','test_authentic_sixty_second_claim_cannot_ack_an_hour_lease'}
+        elif PHASE.startswith('outbox-final-review-red'):
+            assert value.returncode==1 and len(report['failures'])==9
+            assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+            assert {r['id'].split(' (')[0].rsplit('.',1)[-1] for r in report['failures']}=={'test_reverse_history_insertion_refuses_revision_reordering','test_authentic_pending_event_cannot_forge_successful_completion_receipt','test_authentic_running_event_cannot_forge_claim_attempt_fence_or_holder','test_authentic_upsert_receipt_cannot_ack_a_future_delete','test_authentic_pending_receipt_cannot_ack_a_future_retry','test_job_authoritative_id_cannot_be_relocated_without_old_parent_event','test_attempt_cannot_be_reparented_without_old_job_event','test_job_fact_cannot_be_replayed_as_ordinary_memory_put','test_mixed_record_and_claim_receipt_cannot_bypass_job_contract'}
+        elif PHASE.startswith('outbox-guards-red'):
+            assert value.returncode==1 and len(report['failures'])==10
+            assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+        else:
+            assert value.returncode==0 and not report['failures']
+        for directory,count in [('outbox_retention',5),('outbox_inventory',10),('outbox_late_publication',1)]:
+            value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
+            report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+            assert report['tests_run']==count and not report['errors']
+            if PHASE.startswith('pr51-retention-red') and directory=='outbox_retention':
+                assert value.returncode==1 and len(report['failures'])==1
+                assert report['failures'][0]['id'].rsplit('.',1)[-1]=='test_own_expired_cursor_prunes_behind_foreign_quarantine'
+                assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+            elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
+                assert value.returncode==1 and len(report['failures'])==1
+                assert report['failures'][0]['id'].rsplit('.',1)[-1].startswith('test_expired_checkpoint_cannot_advance_or_reactivate_completeness')
+                assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+            elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_inventory':
+                assert value.returncode==1 and len(report['failures'])==2
+                assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+                assert {r['id'].split(' (')[0].rsplit('.',1)[-1] for r in report['failures']}=={'test_quoted_qualified_writer_is_rejected','test_unqualified_writer_with_search_path_is_rejected'}
+            elif PHASE.startswith('outbox-protocol-red'):
+                assert value.returncode==1 and len(report['failures'])==count
+                assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+            else:
+                assert value.returncode==0 and not report['failures']
+    if PHASE.startswith('c07-debug'):
+        probe = '''import sys;sys.path.insert(0,'/tmp/next/tests/module_consumer');from common import ConsumerFixture,OWNER_A,uid;from uuid import UUID;from cortex_core.auth import authorized;f=ConsumerFixture(methodName='runTest');f.setUp();with_scope=authorized(f.request,OWNER_A,UUID(uid(1)),UUID(uid(3)),'control');with_scope.__enter__();print(f.request.execute("SELECT coordination.c07_register('graph',0,1,false)").fetchone());with_scope.__exit__(None,None,None);f.doCleanups()'''
+        checked(env+['python','-c',probe],120)
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run']==22 and not report['errors']
