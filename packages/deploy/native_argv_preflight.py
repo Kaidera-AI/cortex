@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import time
 
 EPOCH = 1791586380
 ENGINE = '/usr/bin/podman'
@@ -48,6 +49,7 @@ def verify_receipt(path, producer_dir, source_sha, instance_id, guard_sha, engin
             receipt.get('instance_id') != instance_id or receipt.get('guard_receipt_sha256') != guard_sha or
             receipt.get('source_revision') != source_sha or
             receipt.get('producer_sha256') != digest(producer_dir/'build-manual-linux.py') or
+            receipt.get('export_writer_sha256') != digest(producer_dir/'deterministic_oci_export.py') or
             receipt.get('driver_sha256') != digest(Path(__file__))):
         raise ValueError('native argv preflight missing, stale, RED or wrong host/source/controller')
     if engine_hash is not None and receipt.get('engine_sha256') != engine_hash:
@@ -66,11 +68,20 @@ def verify_receipt(path, producer_dir, source_sha, instance_id, guard_sha, engin
     for plan, row in zip(expected, actual):
         if (row.get('producer_argv') != plan['argv'] or row.get('exit') != 0 or
                 row.get('fixed_image_and_layer_clock') is not True or
+                row.get('double_export_byte_equal') is not True or
                 row.get('fixture_recipe_sha256') != hashlib.sha256(b'FROM scratch\nCOPY preflight-input /preflight-input\n').hexdigest()):
             raise ValueError('native complete argv/fixture/clock proof differs')
         command = row.get('command', [])
         if command[:5] != [ENGINE, '--root', str(root.parent/'store'), '--runroot', str(root.parent/'runroot')] or command[5:] != plan['argv']:
             raise ValueError('native parser preflight command was modified')
+        exports = row.get('export_receipts', [])
+        if (len(exports) != 2 or any(x.get('result') != 'PASS' or x.get('format') != 'USTAR' or
+                x.get('epoch') != EPOCH for x in exports) or
+                (exports[0].get('archive_sha256'), exports[0].get('archive_size')) !=
+                (exports[1].get('archive_sha256'), exports[1].get('archive_size')) or
+                exports[0].get('archive_sha256') != row.get('archive_sha256') or
+                exports[0].get('archive_size') != row.get('archive_size')):
+            raise ValueError('native double export verification missing or differs')
     return receipt
 
 
@@ -154,6 +165,8 @@ def execute(options):
         engine_version=version, engine_sha256=digest(Path(ENGINE)), platform='linux-x86_64', uid=os.getuid(),
         fixture_root=str(root), expected_exit=options.expected_exit, qualification=False,
         product_build=False, initially_empty_store=True, builds=[], cleanup_verified=False, result='RED')
+    writer = options.producer_dir/'deterministic_oci_export.py'
+    receipt['export_writer_sha256'] = digest(writer) if writer.exists() else None
     plan = producer.make_plan(root, options.source_sha)
     receipt['complete_plan'] = plan
     failure = None
@@ -174,8 +187,14 @@ def execute(options):
                     raise ValueError('baseline RED not expected ambiguity')
             else:
                 archive = work/(label+'.oci.tar')
-                subprocess.run(engine+['save', '--format', 'oci-archive', '--output', str(archive), row['tag']],
-                               check=True, env=environment, timeout=180, capture_output=True)
+                first = producer.export_image(engine, row['tag'], archive, environment)
+                time.sleep(1.1)
+                second_archive = work/(label+'.repeat.oci.tar')
+                second = producer.export_image(engine, row['tag'], second_archive, environment)
+                record['double_export_byte_equal'] = (first['archive_size'], first['archive_sha256']) == (second['archive_size'], second['archive_sha256'])
+                if not record['double_export_byte_equal']:
+                    raise ValueError('native double export raw bytes differ')
+                record['export_receipts'] = [first, second]
                 record['fixed_image_and_layer_clock'] = inspect_archive(archive)
                 record['archive_sha256'] = digest(archive)
                 record['archive_size'] = archive.stat().st_size

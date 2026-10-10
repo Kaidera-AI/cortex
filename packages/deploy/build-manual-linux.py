@@ -17,6 +17,7 @@ import re
 import stat
 import subprocess
 import oci_archive
+import deterministic_oci_export
 
 VERSION = '0.1.003-manual.1'
 RELEASE = 'v' + VERSION
@@ -123,6 +124,18 @@ def normalize_checkout_mtimes(root):
             'symlink_targets_followed': False, 'records': records}
 
 
+def export_image(engine, tag, archive, env):
+    """Export unchanged OCI bytes to a directory, then create a fixed-header archive."""
+    directory = archive.with_suffix('.dir')
+    if directory.exists() or archive.exists():
+        raise ValueError('new OCI export directory and archive required')
+    subprocess.run(engine+['save', '--format', 'oci-dir', '--output', str(directory), tag],
+                   env=env, check=True, timeout=180)
+    receipt = deterministic_oci_export.write_archive(directory, archive)
+    (archive.with_suffix('.export-verification.json')).write_text(json.dumps(receipt, indent=2)+'\n')
+    return receipt
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
@@ -186,7 +199,7 @@ def main():
         with (out/(role+'.build.log')).open('w') as log:
             subprocess.run(engine+image['argv'], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         archive = out/('cortex-'+role+'-'+VERSION+'-linux-amd64.oci.tar')
-        subprocess.run(engine+['save', '--format', 'oci-archive', '--output', str(archive), image['tag']], env=env, check=True)
+        export_image(engine, image['tag'], archive, env)
         inspection = oci_archive.verify(archive, options.source_sha)
         digest = inspection['manifest_digest']
         (out/(role+'.archive-verification.json')).write_text(json.dumps(inspection, indent=2)+'\n')
