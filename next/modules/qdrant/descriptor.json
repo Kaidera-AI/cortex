@@ -1,0 +1,18 @@
+{
+  "binding": "unbound",
+  "engine": "qdrant",
+  "image": "docker.io/qdrant/qdrant",
+  "index_digest": "sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad",
+  "license": "Apache-2.0",
+  "license_sha256": "210b508429e913d9de5301f90508bc2cbf5b2281de5b45e607c04d58f0f3bd8f",
+  "module": "qdrant-engine",
+  "platforms": {
+    "linux/amd64": "sha256:0e8273b9130ca3b0dd9dcfaa8f55342066711f8aaeb2aa072e53344c42ecf57f",
+    "linux/arm64": "sha256:9eb80ba088703193c124db5e50a59f2028439c8bbc62fa1918625995116b50d0"
+  },
+  "profile": "inert_sourceA",
+  "required_api_profile": "c09.fake-required-api.v1",
+  "schema": "c09.inert-engine-descriptor.v1",
+  "source_commit": "016542aa5deb6c66380bb137badf73d54f742bde",
+  "version": "1.19.2"
+}
