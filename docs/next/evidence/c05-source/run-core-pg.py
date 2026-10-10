@@ -72,6 +72,9 @@ try:
     checked(['podman','cp',str(WT/'tmp/wheels'),DRIVER+':/tmp/wheels'])
     checked(['podman','exec',DRIVER,'python','-m','pip','install','--no-index',
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-db-test.txt'])
+    if PHASE.startswith('mutation'):
+        checked(['podman','exec',DRIVER,'python','-m','pip','install','--no-index',
+                 '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-test.txt'])
     for attempt in range(30):
         if run(['podman','exec',DB,'pg_isready','-U','postgres']).returncode==0:
             break
@@ -126,9 +129,34 @@ try:
             assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
+    if PHASE.startswith('mutation'):
+        for directory,count in [('contract',33),('receipt',20)]:
+            value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
+            report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+            assert report['tests_run']==count and not report['failures'] and not report['errors']
+        for script,count in [('mutate_core_adapters.py',26),('mutate_contracts.py',26),('mutate_test_receipts.py',8)]:
+            value=checked(env+['python','/tmp/next/scripts/'+script],900)
+            rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]
+            faults=[row for row in rows if 'status' in row]
+            assert len(faults)==count and all(row['status']=='killed' for row in faults)
+            for row in faults:
+                report=row['receipt']
+                assert not report['errors'] and all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+                assert row['expected_test'] in {r['id'].split(' (')[0] for r in report['failures']}
+            summary=rows[-1]
+            assert summary['mutants']==count and summary['killed']==count and not summary['survivors'] and not summary['inconclusive']
     hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
     restored=json.loads(hashes.stdout)
     expected={str(p.relative_to(WT/'next')):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
+    assert all(restored.get(name)==digest for name,digest in expected.items()), 'copied input changed'
+    extras=set(restored)-set(expected)
+    allowed={'scripts/__pycache__/mutate_contracts.cpython-312.pyc','tests/__pycache__/test_receipts.cpython-312.pyc'}
+    assert extras <= allowed, 'unknown copied output inventory'
+    if extras:
+        for name in sorted(extras):
+            checked(env+['python','-c',"from pathlib import Path;Path('/tmp/next/'+"+repr(name)+").unlink()"])
+        hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
+        restored=json.loads(hashes.stdout)
     assert restored==expected, 'all copied source bytes must be restored'
     assert SOURCE=={str(p.relative_to(WT)):digest for p,digest in ((WT/'next'/name,digest) for name,digest in expected.items())}
     assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==TREE
