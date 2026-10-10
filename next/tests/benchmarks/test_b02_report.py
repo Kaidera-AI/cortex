@@ -161,7 +161,7 @@ class ReportTests(unittest.TestCase):
             root = Path(tmp)
             (root / "heldout.jsonl").write_text(json.dumps({"id": "q", "stratum": "scope", "mode": "dense", "status": "READY"}) + "\n")
             (root / "query-manifest.json").write_text(json.dumps({"corpus_manifest": "hash", "queries": {"heldout": "hash"}}))
-            c = SimpleNamespace(path=root, manifest={"dataset": "synthetic"}, identity={})
+            c = SimpleNamespace(path=root, manifest={"dataset": "synthetic"}, identity={}, records=[None])
             output = root / "result.json"
             with patch.object(benchmark.corpus, "load", return_value=c), \
                     patch.object(benchmark.corpus, "digest", return_value="hash"), \

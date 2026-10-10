@@ -10,6 +10,39 @@ def nearest_rank(values, percentile):
     return sorted(values)[math.ceil(len(values) * percentile) - 1]
 
 
+def dispatcher_lags(run):
+    """An invalid offer generator cannot measure an engine; legacy times can derive lag."""
+    interval = 1 / 40
+    groups = {}; valid = True
+    def finite(value):
+        return type(value) in (int, float) and math.isfinite(value)
+    for phase, rows in [('measured', run['records']), ('warmup', run['warmup_records'])]:
+        values, late, dropped, invalid = [], [], [], []
+        for row in rows:
+            scheduled, dispatched = row.get('scheduled_at'), row.get('dispatched_at')
+            derived = dispatched - scheduled if finite(scheduled) and finite(dispatched) else None
+            lag = row.get('dispatcher_lag_seconds', derived)
+            coherent = (finite(lag) and lag >= 0 and finite(derived) and derived >= 0
+                        and math.isclose(lag, derived, rel_tol=1e-9, abs_tol=1e-9))
+            if not coherent:
+                invalid.append(row['offer_id'])
+            else:
+                values.append(lag * 1000)
+                if lag >= interval:
+                    late.append(row['offer_id'])
+            if row['status'] == 'MISSED':
+                dropped.append(row['offer_id'])
+        valid = valid and not late and not dropped and not invalid
+        groups[phase] = {'count': len(rows), 'valid_lag_count': len(values),
+                         'min_ms': min(values) if values else None, 'max_ms': max(values) if values else None,
+                         'p50_ms': nearest_rank(values, .5) if values else None,
+                         'p95_ms': nearest_rank(values, .95) if values else None,
+                         'p99_ms': nearest_rank(values, .99) if values else None,
+                         'late_offer_ids': late, 'dropped_offer_ids': dropped,
+                         'invalid_lag_offer_ids': invalid}
+    return valid, {'interval_seconds': interval, **groups}
+
+
 def summarize(run, *, latency_budget_ms, bindings):
     if (isinstance(latency_budget_ms, bool) or not isinstance(latency_budget_ms, (float, int))
             or not math.isfinite(latency_budget_ms) or latency_budget_ms <= 0):
@@ -64,6 +97,10 @@ def summarize(run, *, latency_budget_ms, bindings):
     failed = (not valid or errors != 0 or not collection_complete
               or any(r["status"] != "OK" for r in run["warmup_records"])
               or throughput == "FAIL" or latency == "FAIL" or recall == "FAIL")
+    generator_valid, lag_distribution = dispatcher_lags(run)
+    harness_valid = generator_valid and valid
+    if not harness_valid:
+        throughput = latency = recall = "NOT_RUN"
     windows = []
     for minute in range(math.ceil(duration / 60)):
         group = [r for r in rows if minute * 60 <= r["scheduled_offset_seconds"] < (minute + 1) * 60]
@@ -76,6 +113,7 @@ def summarize(run, *, latency_budget_ms, bindings):
             "not_run": ["real-Marlow-geometry", "both-native-editions", "verified-OS-cold", "full-GTM-matrix",
                         "API/auth/provider/cache/hybrid", "whole-first-release-stack", "Vera/Kai-acceptance"],
             "diagnostic": {"accounting_valid": valid, "offered": len(rows), "expected_offered": expected,
+                           "harness_valid": harness_valid, "dispatcher_lag": lag_distribution,
                            "successful_responses": len(successes), "successful_rps": successful_rps,
                            "errors_or_missed": errors, "throughput_status": throughput, "p95_ms": p95,
                            "latency_budget_ms": latency_budget_ms, "latency_status": latency,
@@ -87,5 +125,6 @@ def summarize(run, *, latency_budget_ms, bindings):
                            "resource_collection_complete": collection_complete, "minute_windows": windows,
                            "warmup_offers": len(run["warmup_records"]),
                            "warmup_errors": sum(r["status"] != "OK" for r in run["warmup_records"]),
-                           "verdict": "FAIL" if failed else "NOT_RUN" if recall == "NOT_RUN" else "PASS"},
+                           "verdict": "INVALID_HARNESS" if not harness_valid else
+                                      "FAIL" if failed else "NOT_RUN" if recall == "NOT_RUN" else "PASS"},
             "run": run}
