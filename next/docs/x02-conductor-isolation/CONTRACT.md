@@ -12,7 +12,7 @@ Core schema/record adapter, production consumer or monitoring deployment changes
 manual-heartbeat fault mode to expose expiry and stale captured tokens. Child
 requests admit only bounded PG intent writes. External process effects are
 owned by `Manager`, never by the fenced DB callback. Safe receipts carry kind,
-PID, fence and holder; no DSN, environment or exception text is emitted.
+PID, fence and exit code; no DSN, environment or exception text is emitted.
 
 `Manager` owns at most one running child at a time; overlap tests separately own
 a second child. It records exits, reaps each generation, makes at most three
@@ -21,9 +21,11 @@ deadline. Explicit shutdown is terminal. Exhaustion is an explicit failure, not
 a healthy observation or a request to restart Core.
 
 `Consumer` takes only a separate data pool. Its synthetic feed/sink/checkpoint
-has normal, in-memory shadow and pre-checkpoint barriers. Actual record writes
-and search use the existing restricted PG fixture. An independent parent ledger
-reconciles IDs/content digests. Feed insertion is a test witness, not the C06
+has normal, selected-batch shadow and pre-checkpoint barriers. All barriers follow
+batch selection, so records produced while paused belong to the next batch.
+Revision/vector writes and search use the existing restricted retrieval fixture.
+An independent parent ledger reconciles IDs and synthetic payload digests (the
+payload is the record ID, not a Core body). Feed insertion is a test witness, not the C06
 transactional outbox or C07 production consumer contract.
 
 The observer survives a killed Conductor and reads the published gateway over
@@ -34,4 +36,8 @@ signed platforms, real listener/C11 and expanded X02/CXV2-002 remain open.
 
 Every stack starts only after `memory_pressure` reports at least 30% free and
 the single team-wide v2 test slot is clear. Keep resource/cleanup observations
-with the exact-head proof. All new tests and receipts are initially NOT_RUN.
+with the exact-head proof. The frozen controls begin with expected-body REDs;
+final acceptance requires clean and restored full suites, named semantic kills
+and an independent source/recipe/raw-output audit. Runtime or cleanup errors
+are inconclusive. The source-fixture restart policy is independently mutated;
+it proves no native service-manager policy.

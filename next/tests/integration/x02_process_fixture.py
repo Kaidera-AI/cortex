@@ -73,7 +73,7 @@ class Child:
                                               str(root / "tests/integration")])}
         process = await asyncio.create_subprocess_exec(
             sys.executable, str(Path(__file__).resolve()), "--child", str(installation),
-            "--lease", str(lease_seconds), "--mode", mode, *( ["--crash"] if crash else []),
+            "--lease", str(lease_seconds), "--mode", mode, *(["--crash"] if crash else []),
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL, env=env, limit=8192,
         )
@@ -215,11 +215,11 @@ class Consumer:
             await asyncio.wait_for(self.resume.wait(), 5)
 
     async def advance(self):
-        await self.barrier("normal")
         async with self.pool.acquire(timeout=2) as conn:
             async with conn.transaction():
                 checkpoint = await conn.fetchval("SELECT seq FROM public.x02_checkpoint WHERE id=1 FOR UPDATE")
                 rows = await conn.fetch("SELECT seq,record_id,digest FROM public.x02_feed WHERE seq>$1 ORDER BY seq LIMIT 16", checkpoint)
+                await self.barrier("normal")
                 await self.barrier("shadow")
                 for row in rows:
                     await conn.execute("INSERT INTO public.x02_sink VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
@@ -261,7 +261,10 @@ async def commands(supervisor, stop, heartbeat):
             pending = asyncio.create_task(reader.readline())
             choices = {pending, stopped} | ({heartbeat} if heartbeat else set())
             done, _ = await asyncio.wait(choices, return_when=asyncio.FIRST_COMPLETED)
-            if stopped in done or (heartbeat and heartbeat in done):
+            if heartbeat and heartbeat in done:
+                await heartbeat  # An unexpected heartbeat failure must remain a failure.
+                break
+            if stopped in done:
                 break
             raw = await pending
             if not raw:
