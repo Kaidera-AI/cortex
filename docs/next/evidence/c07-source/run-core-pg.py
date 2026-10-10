@@ -158,7 +158,7 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
         else:
             assert value.returncode==0 and not report['failures']
-        for directory,count in [('outbox_retention',5),('outbox_inventory',10),('outbox_late_publication',1)]:
+        for directory,count in [('outbox_retention',5),('outbox_inventory',12),('outbox_late_publication',1)]:
             value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
             report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
             assert report['tests_run']==count and not report['errors']
@@ -201,9 +201,13 @@ f.doCleanups()
         checked(env+['python','-c',probe],120)
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==22 and not report['errors']
-    if PHASE.startswith('c07-red'):
-        assert value.returncode==1 and len(report['failures'])==22
+    assert report['tests_run']==23 and not report['errors']
+    if 'capacity-red' in PHASE:
+        assert value.returncode==1 and len(report['failures'])==1
+        assert report['failures'][0]['id'].split(' (')[0]=='test_poison.Poison.test_sparse_outcome_capacity_refuses_without_dropping_peer'
+        assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+    elif PHASE.startswith('c07-red'):
+        assert value.returncode==1 and len(report['failures'])==23
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
