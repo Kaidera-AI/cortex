@@ -28,7 +28,7 @@ MUTATIONS=[
  (JOBS,'explicit recipient ignored', [('if recipient is not None and recipient != str(scope.principal_id):','if False:')],'coordination','test_coordination.JobAdapters.test_explicit_recipient_refuses_other_principal'),
  (JOBS,'running job reclaimed automatically', [("if row[3] != 'pending' or row[4]:",'if False:')],'coordination','test_coordination.JobAdapters.test_concurrent_claim_has_one_winner'),
  (JOBS,'new attempt reuses previous fence', [('previous[0]+1','previous[0]')],'coordination','test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry'),
- (JOBS,'expired completion accepted', [(' or not current[3]','')],'coordination','test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry'),
+ (JOBS,'expired completion accepted', [(' or not current[3]',''),('self._accept_deadline()','pass')],'coordination','test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry'),
  (JOBS,'holder and independent reviewer checks omitted', [('if (current[2] == str(scope.principal_id)) == review:','if False:')],'coordination','test_coordination.JobAdapters.test_owner_worker_cannot_self_accept_or_rework'),
  (JOBS,'handoff completed without review', [("if row[1] == 'handoff':",'if False:')],'coordination','test_coordination.JobAdapters.test_handoff_return_requires_independent_accept'),
  (JOBS,'canceled job eligible for retry', [("if row[3] not in ('failed','unresolved') or row[4]:",'if False:')],'coordination','test_coordination.JobAdapters.test_cancel_never_becomes_success_and_is_terminal'),
