@@ -180,7 +180,24 @@ try:
             else:
                 assert value.returncode==0 and not report['failures']
     if PHASE.startswith('c07-debug'):
-        probe = '''import sys;sys.path.insert(0,'/tmp/next/tests/module_consumer');from common import ConsumerFixture,OWNER_A,uid;from uuid import UUID;from cortex_core.auth import authorized;f=ConsumerFixture(methodName='runTest');f.setUp();with_scope=authorized(f.request,OWNER_A,UUID(uid(1)),UUID(uid(3)),'control');with_scope.__enter__();print(f.request.execute("SELECT coordination.c07_register('graph',0,1,false)").fetchone());with_scope.__exit__(None,None,None);f.doCleanups()'''
+        probe = '''import sys
+sys.path.insert(0,'/tmp/next/tests/module_consumer')
+from common import ConsumerFixture
+f=ConsumerFixture(methodName='runTest')
+f.setUp()
+f.seed()
+p=f.port()
+print('registration',p.register(snapshot_cursor=0))
+f.sink.fail_after_once=True
+try:
+    p.cycle()
+except Exception as error:
+    print('first cycle',type(error).__name__,str(error))
+print('after first',f.checkpoint(),f.outcomes(),f.target())
+print('second cycle',p.cycle())
+print('after second',f.checkpoint(),f.outcomes(),f.target())
+f.doCleanups()
+'''
         checked(env+['python','-c',probe],120)
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
