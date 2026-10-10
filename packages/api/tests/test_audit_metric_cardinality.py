@@ -49,3 +49,24 @@ def test_real_asgi_route_templates_distinguish_static_routes_and_bound_unmatched
     assert labels[-2:]==[{'method':'GET','endpoint':'unmatched'}]*2
     count=len(labels);assert c.get('/metrics').status_code==200 and len(labels)==count
     assert len(durations)==len(labels) and all(value>=0 for value in durations)
+
+def test_auth_early_401_uses_fixed_unmatched_label_for_uuid_paths():
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    from fastapi.testclient import TestClient
+    labels=[]
+    class Histogram:
+        def labels(self,**values):labels.append(values);return self
+        def observe(self,value):pass
+    async def auth_refusal(request,call_next):
+        return JSONResponse({'detail':'synthetic-auth-refusal'},status_code=401)
+    ns=namespace();ns['REQUEST_DURATION']=Histogram();app=FastAPI()
+    app.middleware('http')(auth_refusal)
+    # Outermost metrics sees an inner auth response before route resolution.
+    app.middleware('http')(ns['prometheus_middleware'])
+    @app.get('/handoffs/{handoff_id}')
+    async def handoff(handoff_id:str):raise AssertionError('auth refusal should not reach routing')
+    c=TestClient(app)
+    for id in ['00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002']:
+        assert c.get('/handoffs/'+id).status_code==401
+    assert labels==[{'method':'GET','endpoint':'unmatched'}]*2
