@@ -55,7 +55,8 @@ class IdentityCoordination(Fixture):
                 self.jobs(key).claim(UUID(uid(80)), 'claim-wrong')
         worker = self.worker()
         claim = self.jobs(worker.secret).claim(UUID(uid(80)), 'claim')
-        self.assertEqual(claim.holder, str(worker.principal_id))
+        self.assertIsInstance(claim.holder, UUID)
+        self.assertEqual(claim.holder, worker.principal_id)
 
     def test_role_membership_does_not_cross_project_scope(self):
         worker = self.worker()
