@@ -31,6 +31,18 @@ MUTANTS = {
     'typed_route_error': ("and error['body']['error']['code']\n          and type(",
                           'and True\n          and type(',
                           'test_each_observed_route_has_a_proposed_exchange_and_typed_error'),
+    'd1_unauth_403': ("and read['unauthorized_status'] == 404",
+                      "and read['unauthorized_status'] in (403, 404)",
+                      'test_committed_write_read_retry_conflict_and_unknown_timeout'),
+    'd2_wait_cap': ("and 0 <= parameters['wait_ms'] <= 10000",
+                    "and parameters['wait_ms'] >= 0",
+                    'test_each_observed_route_has_a_proposed_exchange_and_typed_error'),
+    'd3_control_bound': ("and case['binding'] == 'ruled_unimplemented'\n              and case['future_scope']",
+                         "and case['binding'] in ('ruled_unimplemented', 'ruled_bound')\n              and case['future_scope']",
+                         'test_openkai_alone_scope_off_mirror_and_stale_recall'),
+    'd4_partial_206': ("case['status'] == 503\n              and case['complete'] is False\n              and case['wire_state'] == 'ruled_unimplemented'",
+                       "case['status'] in (206, 503)\n              and case['complete'] is False\n              and case['wire_state'] == 'ruled_unimplemented'",
+                       'test_search_states_never_turn_lag_into_zero_hits'),
 }
 
 

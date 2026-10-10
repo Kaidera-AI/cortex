@@ -16,6 +16,11 @@ accepted PR #80 head `cee438f`; no OpenKai product or runtime route changes.
    status requirements are refused. Run the full 39-test contract suite and
    8 named mutants in the bounded offline container at the final head.
 
+Kai's 21:52 review adds four D1–D4 mutants: unauthorized 403, removed wait
+cap, bound GTM control/job route, and 206 partial. Freeze a concrete control
+and job refusal fixture RED first; then prove 39 tests and all 12 named
+test-body mutation kills at the new pushed head before Vera's one review.
+
 Risk: a fixture could overclaim native implementation or normalize a missing
 projection to empty search. All ruled-unimplemented states remain explicit;
 native D1/D2 implementation is a later C11 slice.

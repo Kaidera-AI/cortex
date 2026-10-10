@@ -286,6 +286,20 @@ def _alone(case):
               and requested != current
               and isinstance(case['response'].get('results'), list)
               and case['decision'] == 'discarded', 'stale_recall_displayed')
+    elif kind == 'control_job_refusal':
+        allowed = {('POST', '/beat/embeddings/backfill'):
+                   'C01-R073_post_beat_embeddings_backfill',
+                   ('GET', '/beat/embeddings/jobs/{job_id}'):
+                   'C01-R074_get_beat_embedding_backfill_job'}
+        key = (case['method'], case['path'])
+        _need(key in allowed and case['operation_id'] == allowed[key]
+              and case['binding'] == 'ruled_unimplemented'
+              and case['future_scope'] == 'owner_admin'
+              and case['runtime_state'] == 'not_executed'
+              and case['performed'] is False
+              and case['response'] == {'status':503,'error':{
+                  'code':'capability_unavailable','state':'unimplemented',
+                  'retryable':False}}, 'control_job_bound_in_gtm')
     else:
         raise ContractRefusal('unknown_alone_case')
 
