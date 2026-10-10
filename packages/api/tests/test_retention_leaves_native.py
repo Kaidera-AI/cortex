@@ -5,7 +5,7 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
-from test_audit_data_integrity_native import api, scratch_conn  # noqa: F401
+pytest_plugins = ['test_audit_data_integrity_native']
 
 
 async def tables(connection, api_module):
