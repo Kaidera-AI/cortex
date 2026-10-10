@@ -11,6 +11,7 @@ EXPECTED = {
     'd1_tombstone_skipped': 'test_memory_api.MemoryAPI.test_d1_authorized_tombstone_is_gone',
     'd1_digest_dropped': 'test_memory_api.MemoryAPI.test_d1_committed_read_exposes_exact_revision_and_digest',
     'd1_memory_filter_readded': 'test_d1_generic_record.GenericRecordContract.test_authorized_c05_record_is_readable_by_generic_route',
+    'd1_revoked_401_split': 'test_memory_api.MemoryAPI.test_d1_revoked_and_forged_match_unknown_without_existence_leak',
 }
 
 

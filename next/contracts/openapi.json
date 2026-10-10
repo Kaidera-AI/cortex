@@ -12801,7 +12801,7 @@
           "records"
         ],
         "summary": "Read an authorized committed Core record",
-        "description": "H-D455 D1 additive source operation. Unknown and authenticated out-of-scope IDs have identical 404 responses; an authorized tombstone gives 410. Revoked or forged credentials give typed 401. A successful read includes the committed revision and payload digest.",
+        "description": "H-D455 D1 additive source operation. Unknown IDs and all presented-credential refusals have identical 404 responses; a missing credential gives typed 401 and an authorized tombstone gives 410. A successful read includes the committed revision and payload digest.",
         "parameters": [
           {
             "name": "id",
@@ -12848,10 +12848,10 @@
             }
           },
           "401": {
-            "description": "Credential missing, revoked or invalid"
+            "description": "Credential missing"
           },
           "404": {
-            "description": "Unknown or authenticated out-of-scope; identical response"
+            "description": "Unknown or presented-credential refusal; identical response"
           },
           "410": {
             "description": "Authorized tombstone"

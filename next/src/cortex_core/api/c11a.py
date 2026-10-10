@@ -222,7 +222,6 @@ class ConsumerGateway:
 
     def __init__(self, *, core_probe, principal_resolver, permission_recheck,
                  capability_source, health, handlers, record_reader=None,
-                 record_credential_active=None,
                  allow_legacy_idempotency=False, parse_search_body=False):
         if (any(not callable(value) for value in (core_probe, principal_resolver,
                                                    permission_recheck, capability_source, health))
@@ -234,27 +233,14 @@ class ConsumerGateway:
         self.permission_recheck, self.capability_source = permission_recheck, capability_source
         self.health, self.handlers = health, handlers
         self.record_reader = record_reader
-        self.record_credential_active = record_credential_active
         self.allow_legacy_idempotency = allow_legacy_idempotency
         self.parse_search_body = parse_search_body
         self.app = self._app
 
-    async def _d1_refusal(self, scope, error):
+    def _d1_refusal(self, error):
         code = getattr(error, 'code', None)
         if code in {'forbidden', 'scope_mismatch'}:
-            if self.record_credential_active is None:
-                return 503, _packet('capability_unavailable', reason='adapter_unbound')
-            try:
-                active = await self.record_credential_active(scope)
-            except Exception as failure:
-                if getattr(failure, 'code', None) == 'unauthenticated':
-                    return _error_status(failure)
-                return 503, _packet('core_unavailable')
-            if type(active) is not bool:
-                return 503, _packet('core_unavailable')
-            return ((404, _packet('not_found', retryable=False)) if active else
-                    (401, _packet('credential_required', retryable=False,
-                                  message='Configure a scoped Cortex credential or upgrade this client.')))
+            return 404, _packet('not_found', retryable=False)
         return _error_status(error)
 
     async def _app(self, scope, receive, send):
@@ -286,7 +272,7 @@ class ConsumerGateway:
             principal = await self.principal_resolver(scope)
         except Exception as error:
             if row['id'] == 'C11-D1':
-                status, packet = await self._d1_refusal(scope, error)
+                status, packet = self._d1_refusal(error)
                 return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'unauthenticated':
                 status, packet = _error_status(error)
@@ -296,11 +282,10 @@ class ConsumerGateway:
             principal = None
         if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
             if row['id'] == 'C11-D1':
-                status, packet = await self._d1_refusal(scope, GatewayError('forbidden'))
-                return await _respond(send, status, packet)
+                return await _respond(send, 404, _packet('not_found', retryable=False))
             return await _respond(send, 403, _packet("forbidden", retryable=False))
         if row['id'] == 'C11-D1':
-            if self.record_reader is None or self.record_credential_active is None:
+            if self.record_reader is None:
                 return await _respond(send, 503, _packet('capability_unavailable',
                                                         reason='adapter_unbound'))
             try:
@@ -311,7 +296,7 @@ class ConsumerGateway:
                     raise GatewayError('record read receipt is invalid')
                 return await _respond(send, 200, value)
             except Exception as error:
-                status, packet = await self._d1_refusal(scope, error)
+                status, packet = self._d1_refusal(error)
                 return await _respond(send, status, packet)
         if row["capability"]:
             state = await capability_state(row["capability"], self.capability_source,
