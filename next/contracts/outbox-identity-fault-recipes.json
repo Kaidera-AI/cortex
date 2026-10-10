@@ -288,14 +288,14 @@
         {
           "path": "schema/coordination/002-outbox.sql",
           "before": "EXECUTE format('ALTER FUNCTION %s OWNER TO \"kaidera-runtime-core-verifier\"',f.signature);",
-          "after": "EXECUTE format('ALTER FUNCTION %s OWNER TO \"%s\"',f.signature,session_user);",
+          "after": "EXECUTE format('ALTER FUNCTION %s OWNER TO %I',f.signature, CASE WHEN pg_get_function_result(f.signature::oid)='trigger' THEN session_user ELSE 'kaidera-runtime-core-verifier' END);",
           "count": 1
         }
       ],
       "original_script": "mutate_identity.py",
       "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
       "c06_composition": [
-        "C06 trigger functions alone use the trusted installer owner in this fault so bootstrap seed reaches the original frozen runtime authority probe without a new-trigger setup error; original verifier still loses coordination USAGE"
+        "Only copied C06 trigger functions use trusted installer ownership; helpers and capture ports retain verifier ownership. Original missing-USAGE fault remains unchanged. Auxiliary-only full predecessor fixture must pass."
       ],
       "original_change_count": 1
     },

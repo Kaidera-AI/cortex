@@ -127,15 +127,15 @@
         },
         {
           "path": "schema/coordination/002-outbox.sql",
-          "before": "CREATE FUNCTION coordination.c06_record_head() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    IF (TG_OP='INSERT' AND NEW.current_revision<>1) OR (TG_OP='UPDATE' AND\n        ((NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind)<>(OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind)\n         OR NEW.current_revision<>OLD.current_revision+1))\n      THEN RAISE EXCEPTION 'record head must advance exactly one revision' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
-          "after": "CREATE FUNCTION coordination.c06_record_head() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nBEGIN\n    RETURN NEW;\nEND;\n$$;",
+          "before": "(request->>2 IS DISTINCT FROM event->>'aggregate_kind'",
+          "after": "(FALSE",
           "count": 1
         }
       ],
       "original_script": "mutate_core_adapters.py",
       "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
       "c06_composition": [
-        "bypass new immediate immutable-kind/head guard as well as the original adapter kind check"
+        "Bypass only C06 request-kind comparison; preserve payload proof and immediate record-head guard. Original adapter kind fault remains unchanged. Auxiliary-only full predecessor fixture must pass."
       ],
       "original_change_count": 1
     },
