@@ -37,7 +37,7 @@ _LSN = re.compile(r"^[0-9A-Fa-f]{1,8}/[0-9A-Fa-f]{1,8}$")
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _REQUIRED = frozenset({"installation_id", "schema_ledger", "consumer_generations",
                        "model_identities", "blob_inventory"})
-_OPTIONAL = frozenset({"record_heads", "vectors"})
+_OPTIONAL = frozenset({"record_heads", "vectors", "replay_lsn"})
 
 
 def _lsn(value):
@@ -107,6 +107,8 @@ def _validated_metadata(value):
                 or type(entry.get("revision")) is not int or entry["revision"] < 1
                 or not _SHA.fullmatch(str(entry.get("sha256", "")))):
             raise BackupError("vector identity is invalid")
+    if "replay_lsn" in value:
+        _lsn(value["replay_lsn"])
     try:
         canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     except (TypeError, ValueError) as error:

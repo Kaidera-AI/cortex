@@ -26,6 +26,7 @@ SNAPSHOT_SQL = """
 SELECT CASE WHEN pg_is_in_recovery() AND pg_is_wal_replay_paused() THEN
   jsonb_build_object(
     'installation_id', (SELECT id::text FROM core.installations),
+    'replay_lsn', pg_last_wal_replay_lsn()::text,
     'schema_ledger', (SELECT coalesce(jsonb_agg(jsonb_build_object(
        'id',migration_id,'sha256',sha256) ORDER BY migration_id),'[]'::jsonb)
        FROM core.schema_migrations),
@@ -81,8 +82,10 @@ def _canonical(value):
 def seal_complete_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
                          segment_bytes, blob_root, recipient, destination):
     """Seal all authoritative blob bytes alongside the O01a PG/WAL members."""
-    if not isinstance(metadata, dict) or not {"record_heads", "vectors"} <= set(metadata):
+    if not isinstance(metadata, dict) or not {"record_heads", "vectors", "replay_lsn"} <= set(metadata):
         raise BackupError("full recovered-snapshot inventory is required")
+    if _lsn(metadata["replay_lsn"]) != _lsn(archive_end_lsn):
+        raise BackupError("manifest endpoint differs from actual recovery replay LSN")
     if blob_root is None:
         raise BackupError("authoritative blob root is required")
     preliminary = build_manifest(base_dir, archive_dir, archive_end_lsn, metadata,
@@ -148,7 +151,7 @@ def _expected_members(manifest):
         raise BackupError("unsupported backup manifest")
     metadata = manifest.get("metadata")
     canonical = _validated_metadata(metadata)
-    if not {"record_heads", "vectors"} <= set(metadata):
+    if not {"record_heads", "vectors", "replay_lsn"} <= set(metadata):
         raise BackupError("full recovered-snapshot inventory is absent")
     if hashlib.sha256(canonical).hexdigest() != manifest.get("metadata_sha256"):
         raise BackupError("backup metadata digest differs")
@@ -170,6 +173,8 @@ def _expected_members(manifest):
     archive_end = _lsn(manifest.get("archive_end_lsn"))
     if not 0 < start < base_end < archive_end:
         raise BackupError("unbound WAL interval")
+    if _lsn(metadata["replay_lsn"]) != archive_end:
+        raise BackupError("recovered snapshot and WAL endpoint differ")
     first, last = start // segment_bytes, (archive_end - 1) // segment_bytes
     if last - first > 4096:
         raise BackupError("WAL interval exceeds bound")
