@@ -183,6 +183,8 @@ try:
             matrices=[('mutate_outbox.py',['--repair'],3),('mutate_outbox.py',['--identity','--repair'],6),('mutate_outbox.py',['--adapters','--repair'],9)]
         if 'attribution-red' in PHASE:
             matrices=[('mutate_outbox.py',['--identity','--attribution-red'],1)]
+        if 'dense-check' in PHASE:
+            matrices=[('mutate_outbox.py',['--only-label=journal allocation skips dense cursor'],1)]
         for script,arguments,count in matrices:
             value=run(env+['python','/tmp/next/scripts/'+script,*arguments],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]

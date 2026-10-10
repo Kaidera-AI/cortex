@@ -341,7 +341,8 @@
       "expected_tests": [
         "test_outbox.OutboxTests.test_concurrent_publishers_assign_each_event_one_dense_cursor"
       ],
-      "kind": "application"
+      "kind": "application",
+      "isolate_expected_test": true
     },
     {
       "label": "feed head advances without a journal event",
