@@ -114,3 +114,20 @@ class SessionAPI(Fixture):
         oversized = {**body, 'session_uuid': uid(86),
                      'messages': [{'role': 'user', 'content': 'x' * 65536} for _ in range(140)]}
         self.assertEqual(self.call(oversized)[0], 400)
+
+    def test_non_iso_separator_refuses_without_core_or_source_writes(self):
+        tables = ('core.records', 'core.record_revisions',
+                  'coordination.outbox', 'coordination.session_sources')
+        before = tuple(self.admin.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+                       for table in tables)
+        body = {'session_uuid': uid(89), 'agent': '10',
+                'source_path': '/synthetic/non-iso-separator.jsonl',
+                'provider': 'codex',
+                'messages': [{'role': 'user', 'content': 'bad',
+                              'ts': '2026-10-10Q20:14:00'}]}
+        status, error = self.call(body)
+        self.assertEqual(status, 400)
+        self.assertEqual(error['error']['code'], 'invalid_input')
+        after = tuple(self.admin.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+                      for table in tables)
+        self.assertEqual(after, before)
