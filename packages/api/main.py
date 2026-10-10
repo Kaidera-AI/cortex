@@ -6664,7 +6664,7 @@ async def execute_search(
                 (
                     "decisions",
                     "summary",
-                    "project = $2",
+                    "project = $2 AND invalidated_at IS NULL",
                     (
                         "AND ($3::text IS NULL "
                         "OR COALESCE(category, '') ILIKE '%' || $3 || '%' "
@@ -6676,7 +6676,7 @@ async def execute_search(
                 (
                     "lessons",
                     "summary",
-                    "project = $2",
+                    "project = $2 AND invalidated_at IS NULL",
                     (
                         "AND ($3::text IS NULL "
                         "OR COALESCE(category, '') ILIKE '%' || $3 || '%' "

@@ -14,3 +14,16 @@ Declared paths: packages/api/main.py; packages/api/tests/test_bm25_lessons_inval
 The prior uncapped native-PG diagnostic is withdrawn as acceptance evidence and will not be reused. Pre-edit ref/worktree overlap evidence and graph-helper failure are recorded in the SSD receipts. Active health/graph changes do not alter execute_search; prior frozen release branches are excluded from this main-line repair.
 
 If memory, disposable ownership, cgroup limits, DSN guards, the deliberate RED or cleanup cannot be proved, return the failure to Kai rather than weakening the gate. Any new DO NOW is checked before each source mutation and after return.
+
+## Proof receipts
+
+All of these are full existing SSD paths, with SHA-256:
+
+- RED, both deliberate stale-row AssertionErrors: `/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/v004/api2-bm25-class-20261010/RED/receipt.json` — `ac106691646fdeb55f737e8f27374ce0ae529a711f39b220f7cd3287744d3e5d`.
+- GREEN, both tests pass: `/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/v004/api2-bm25-class-20261010/GREEN/receipt.json` — `8e3e4a5be3ae3c3a3dc15b05a3903a48678ba609d497cacf0f7ab88d4d019ab8`.
+- Decisions literal revert mutant: `/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/v004/api2-bm25-class-20261010/mutant-decisions/receipt.json` — `0e2428555c882057661a1ba1c559f6b27542f046e81da75dfc3d8272e1516ab4`.
+- Lessons literal revert mutant: `/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/v004/api2-bm25-class-20261010/mutant-lessons-retry1/receipt.json` — `1e3438fcd44e6a6eb1d841bb053f55345d701b302368642bf6514a7c63ca540e`.
+
+Each accepted run records effective cgroup limits of 1073741824 bytes and 2 CPUs, its prelaunch host/VM memory readings, the exact test command and raw transcript, immutable source/test hashes, and removal of its container and anonymous volume plus test-port closure. The first lessons-mutant attempt did not launch because host free memory was 34%; its failed preflight receipt is preserved separately and is not a mutant kill.
+
+The frozen decisions gate stays byte-identical (`d47169351f58098707944176abd7e95df6b37943a754f32518aa8fe0efb9a40e`); the new companion remains unchanged from RED (`27f7cfc4cae0c3c4056aaa79b23d50ea57112b8d701485262cef55708d08d216`). See SEARCH_STAGE_INVENTORY.md for the separate API2-EXACT-ID-INVALIDATION follow-up.
