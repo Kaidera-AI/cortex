@@ -169,11 +169,11 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('identity-green','identity-policy','mutation')):
+    if PHASE.startswith(('identity-green','identity-policy','identity-binding','mutation')):
         value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth_identity_guards'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==6 and not report['failures'] and not report['errors']
-    if PHASE.startswith(('identity-policy','mutation')):
+    if PHASE.startswith(('identity-policy','identity-binding','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_coordination'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==8 and not reports[0]['errors']
@@ -182,7 +182,7 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('identity-policy','mutation')):
+    if PHASE.startswith(('identity-policy','identity-binding','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_portability'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==3 and not report['errors']
@@ -193,7 +193,7 @@ try:
             assert 'SQL validation must use the same byte order' in report['failures'][0]['traceback']
         else:
             assert value.returncode==0 and not report['failures']
-    if PHASE.startswith(('identity-caller','mutation')):
+    if PHASE.startswith(('identity-caller','identity-binding','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_receipts'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==5 and not report['errors']
@@ -206,7 +206,7 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
         else:
             assert value.returncode==0 and not report['failures']
-    if PHASE.startswith(('identity-transition','mutation')):
+    if PHASE.startswith(('identity-transition','identity-binding','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_transition'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==1 and not report['errors']
@@ -221,6 +221,18 @@ try:
         value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_policy_faults'],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==2 and not report['failures'] and not report['errors']
+    if PHASE.startswith(('identity-binding','mutation')):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_binding'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==2 and not report['errors']
+        if PHASE.startswith('identity-binding-red'):
+            expected={'test_identity_binding.IdentityBinding.'+name for name in (
+                'test_private_binding_loss_after_actual_registration_refuses_and_rolls_back',
+                'test_private_binding_loss_after_actual_adoption_refuses_and_rolls_back')}
+            assert value.returncode==1 and {row['id'] for row in report['failures']}==expected
+            assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+        else:
+            assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
         for directory,count in [('contract',33),('receipt',20)]:
             value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
