@@ -98,3 +98,5 @@ The source-only unit has no default endpoint: the accepted C11 binding is still
 required. Usage and endpoint refusals share the finite `endpoint_refused` code;
 exit64 identifies either refusal and no untrusted argument is echoed.
 The original 28 test methods remain frozen at RED commit `2ffd6cf`.
+Two additive controls exercise genuinely compressed JSON and default HTTPS
+transport certificate verification; no original test method is altered.

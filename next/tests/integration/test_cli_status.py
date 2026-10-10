@@ -312,6 +312,32 @@ class CliStatusTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((code, packet["health"], packet["client_error"]), (2, None, "invalid_response"))
             self.assertNotIn(SECRET, json.dumps(packet))
 
+    async def test_valid_gzip_health_is_refused_before_decompression(self):
+        import gzip
+
+        body = Body([gzip.compress(json.dumps(receipt()).encode())])
+        code, packet, _ = await self.invoke(lambda _: httpx.Response(200, stream=body,
+            headers={"content-type": "application/json", "content-encoding": "gzip"}))
+        self.assertEqual((code, packet["health"], packet["client_error"]), (2, None, "invalid_response"))
+        self.assertTrue(body.closed)
+
+    async def test_default_https_transport_keeps_certificate_verification(self):
+        options, calls = [], []
+
+        class FakeNetwork(httpx.AsyncBaseTransport):
+            def __init__(self, **settings):
+                options.append(settings)
+
+            async def handle_async_request(self, request):
+                calls.append(str(request.url))
+                return httpx.Response(200, json=receipt())
+
+        with patch("httpx._client.AsyncHTTPTransport", FakeNetwork):
+            code = await status.run(["status", "--endpoint", "https://[::1]:17891", "--json"], out=StringIO())
+        self.assertEqual((code, calls), (0, ["https://[::1]:17891/health"]))
+        self.assertEqual(len(options), 1)
+        self.assertIs(options[0]["verify"], True)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -66,7 +66,9 @@ MUTATIONS = [
      PREFIX + "test_server_timeout_reason_is_preserved"),
     (SOURCE, "compressed_body_admitted",
      'response.headers.get("content-encoding", "identity").lower() != "identity"', "False",
-     PREFIX + "test_compressed_or_non_utf8_response_is_refused"),
+     PREFIX + "test_valid_gzip_health_is_refused_before_decompression"),
+    (SOURCE, "tls_verification_disabled", "verify=True", "verify=False",
+     PREFIX + "test_default_https_transport_keeps_certificate_verification"),
 ]
 
 
