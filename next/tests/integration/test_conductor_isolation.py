@@ -243,7 +243,9 @@ class ConductorIsolationTests(unittest.IsolatedAsyncioTestCase):
 
 
 # Reviewer controls: bodies copied unchanged from Mike's frozen probe.
-Cases = ConductorIsolationTests
+def Cases(method):
+    # A factory preserves reviewer bodies without unittest discovering a class alias.
+    return ConductorIsolationTests(method)
 
 
 class Process:
@@ -433,3 +435,30 @@ class FixtureLifecycle(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(FixtureError):
             await subject.asyncTearDown()
         self.assertEqual(closed, ['control', 'data', 'admin'], 'PG cleanup must not stop at first pool')
+
+    async def test_declared_lease_busy_keeps_75_after_reaping(self):
+        from unittest.mock import AsyncMock, patch
+        import x02_process_fixture as fixture_module
+        class Pool:
+            closed = False
+            async def close(self):
+                self.closed = True
+        pool = Pool()
+        class SupervisorDouble:
+            fence = None
+            def __init__(self, *args, **kwargs):
+                pass
+            async def run(self, stop):
+                raise fixture_module.LeaseBusy('declared initial refusal')
+        loop = asyncio.get_running_loop()
+        caught, code = None, None
+        with patch.dict(os.environ, {'SEARCH_TEST_DSN': 'postgresql://conductor_runtime@127.0.0.1:12345/search_test'}), \
+             patch.object(fixture_module.asyncpg, 'create_pool', new=AsyncMock(return_value=pool)), \
+             patch.object(fixture_module, 'Supervisor', SupervisorDouble), patch.object(fixture_module, 'emit'), \
+             patch.object(loop, 'add_signal_handler'), patch.object(loop, 'remove_signal_handler'):
+            try:
+                code = await fixture_module.worker(UUID(int=1), .5, 'heartbeat', False)
+            except fixture_module.LeaseBusy:
+                caught = 'LeaseBusy'
+        self.assertEqual((caught, code), (None, 75), 'declared lease refusal must survive heartbeat cleanup')
+        self.assertTrue(pool.closed)
