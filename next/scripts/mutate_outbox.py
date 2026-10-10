@@ -14,3 +14,84 @@ def mutation_status(result, expected):
                                  for row in value['failures']):
         return 'inconclusive'
     return classify(result, expected)
+
+
+import hashlib
+import json
+import os
+import psycopg
+from mutate_identity import capture
+from verify_writer_inventory import scan as writer_scan
+
+RECIPES = NEXT/'contracts/outbox-fault-recipes.json'
+MUTATIONS = json.loads(RECIPES.read_bytes())['mutants']
+MANIFEST = 'schema/manifest.json'
+INVENTORY = 'contracts/core-writer-inventory.json'
+DIRECTORIES = ('outbox','outbox_guards','outbox_retention','outbox_inventory','outbox_late_publication','outbox_caller')
+
+
+def checkpoint():
+    with psycopg.connect(os.environ['TEST_DATABASE_URL'],autocommit=True) as connection:
+        connection.execute('CHECKPOINT')
+
+
+def clean(result):
+    return result['exit_code']==0 and result['receipt'] is not None and not result['receipt']['failures'] and not result['receipt']['errors']
+
+
+def run():
+    paths=sorted({edit['path'] for row in MUTATIONS for edit in row['changes']} | {MANIFEST,INVENTORY})
+    originals={name:(NEXT/name).read_bytes() for name in paths}
+    hashes={name:hashlib.sha256(body).hexdigest() for name,body in originals.items()}
+    # Validate every recipe before any fault. Missing anchors are operational failures.
+    for recipe in MUTATIONS:
+        sources={name:body.decode() for name,body in originals.items()}
+        for edit in recipe['changes']:
+            assert sources[edit['path']].count(edit['before'])==edit['count'],(recipe['label'],edit['path'])
+            sources[edit['path']]=sources[edit['path']].replace(edit['before'],edit['after'])
+    baseline={directory:capture(suite(NEXT/'tests'/directory)) for directory in DIRECTORIES}
+    print(json.dumps({'baseline':baseline,'recipes_sha256':hashlib.sha256(RECIPES.read_bytes()).hexdigest()}),flush=True)
+    if not all(clean(value) for value in baseline.values()):raise SystemExit('C06 baseline is RED')
+    rows=[]
+    try:
+        for recipe in MUTATIONS:
+            checkpoint();changed=set()
+            try:
+                for edit in recipe['changes']:
+                    path=NEXT/edit['path'];source=path.read_text()
+                    assert source.count(edit['before'])==edit['count'],recipe['label']
+                    path.write_text(source.replace(edit['before'],edit['after']));changed.add(edit['path'])
+                if any(name.endswith('.sql') for name in changed):
+                    manifest=json.loads(originals[MANIFEST])
+                    for entry in manifest['migrations']:
+                        if 'schema/'+entry['file'] in changed:
+                            entry['sha256']=hashlib.sha256((NEXT/'schema'/entry['file']).read_bytes()).hexdigest()
+                    (NEXT/MANIFEST).write_text(json.dumps(manifest,indent=2)+'\n')
+                if INVENTORY not in changed and any(name.endswith('.sql') or name.startswith('src/') for name in changed):
+                    inventory=json.loads(originals[INVENTORY]);inventory['writer_sites']=writer_scan(NEXT)
+                    inventory['unclassified_writers']=[r for r in inventory['writer_sites'] if r['classification'] is None]
+                    (NEXT/INVENTORY).write_text(json.dumps(inventory,indent=2)+'\n')
+                result=suite(NEXT/'tests'/recipe['directory']);expected=set(recipe['expected_tests'])
+                status=mutation_status(result,expected);value=report(result)
+                failed=set() if value is None else {f['id'].split(' (')[0] for f in value['failures']}
+                if status=='killed' and not expected<=failed:status='inconclusive'
+                row=dict(source=sorted(changed),mutation=recipe['label'],recipe=recipe['changes'],
+                    expected_test=recipe['expected_tests'][0],expected_tests=recipe['expected_tests'],kind=recipe['kind'],status=status,
+                    original_source_sha256=hashes,effective_source_sha256={name:hashlib.sha256((NEXT/name).read_bytes()).hexdigest() for name in paths},**capture(result))
+                rows.append(row);print(json.dumps(row),flush=True)
+            finally:
+                for name,body in originals.items():(NEXT/name).write_bytes(body)
+    finally:
+        for name,body in originals.items():(NEXT/name).write_bytes(body)
+    checkpoint()
+    restored={directory:capture(suite(NEXT/'tests'/directory)) for directory in DIRECTORIES}
+    final={name:hashlib.sha256((NEXT/name).read_bytes()).hexdigest() for name in paths}
+    summary=dict(mutants=len(rows),killed=sum(row['status']=='killed' for row in rows),
+        survivors=[r['mutation'] for r in rows if r['status']=='survived'],
+        inconclusive=[r['mutation'] for r in rows if r['status']=='inconclusive'],restored_source_sha256=final,restored=restored)
+    print(json.dumps(summary),flush=True)
+    if len(rows)!=len(MUTATIONS) or any(row['status']!='killed' for row in rows):raise SystemExit('C06 mutation qualification incomplete')
+    if hashes!=final or not all(clean(value) for value in restored.values()):raise SystemExit('C06 source/baseline restoration failed')
+
+
+if __name__=='__main__':run()
