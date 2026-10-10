@@ -1,0 +1,101 @@
+{
+  "tested_sha": "b7238063e443dc7088f853a04a25d6fd79d78232",
+  "incorporated_main": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "scope": "C04 source-only private server-owned top-level transaction boundary",
+  "product_inputs_match_Git": 369,
+  "proofs": {
+    "binding-green-attempt-004.json": "d9d8f29bcb2334f4b070dcc5e56047c1464fe2aa360560156ea5f2414bfb7110",
+    "contract-shared-green-attempt-002.json": "49671fe21c337770e3c9350aced4f0ff1807c03292c6bfddb9da83dea52cd12c"
+  },
+  "mutations": [
+    {
+      "script": "mutate_auth.py",
+      "actual_expected_body_mutants": 22,
+      "assertion_rows": [
+        1,
+        1,
+        1,
+        2,
+        1,
+        29,
+        8,
+        1,
+        1,
+        2,
+        1,
+        2,
+        1,
+        1,
+        1,
+        5,
+        4,
+        1,
+        1,
+        1,
+        2,
+        1
+      ],
+      "errors": 0,
+      "survivors": [],
+      "inconclusive": [],
+      "restored_tests": 40
+    },
+    {
+      "script": "mutate_contracts.py",
+      "actual_expected_body_mutants": 26,
+      "assertion_rows": [
+        71,
+        7,
+        1,
+        1,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        4,
+        6,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        11
+      ],
+      "errors": 0,
+      "survivors": [],
+      "inconclusive": [],
+      "restored_tests": 33
+    },
+    {
+      "script": "mutate_test_receipts.py",
+      "actual_expected_body_mutants": 8,
+      "assertion_rows": [
+        8,
+        1,
+        2,
+        1,
+        4,
+        1,
+        1,
+        3
+      ],
+      "errors": 0,
+      "survivors": [],
+      "inconclusive": [],
+      "restored_tests": 20
+    }
+  ],
+  "cleanup_verified": true,
+  "original001_and_firstfour_manifest_unchanged": true,
+  "official_acceptance": false
+}
