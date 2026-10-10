@@ -14,6 +14,12 @@ MAX_RESPONSE_BYTES = 1048576
 class ProtocolFailure(RuntimeError):
     code = 'capability_unavailable'
 
+    def __init__(self, reason, *, primary_reason=None, cleanup_reason=None):
+        super().__init__(reason)
+        self.reason = reason
+        self.primary_reason = primary_reason
+        self.cleanup_reason = cleanup_reason
+
 
 def pinned_descriptor():
     raw = (Path(__file__).resolve().parents[4] / 'modules/qdrant/descriptor.json').read_bytes()
@@ -197,7 +203,10 @@ class InertPort:
                         raise ProtocolFailure('cleanup_refused')
                     verified.append('cleanup')
                 except Exception:
-                    raise ProtocolFailure('fake_cleanup_unverified') from None
+                    raise ProtocolFailure('fake_cleanup_unverified',
+                        primary_reason=primary.reason if isinstance(primary, ProtocolFailure) else
+                                       'fake_protocol_refused' if primary is not None else None,
+                        cleanup_reason='fake_cleanup_unverified') from None
         if primary is not None:
             if isinstance(primary, ProtocolFailure):
                 raise primary
