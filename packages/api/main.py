@@ -6564,16 +6564,25 @@ async def execute_search(
         # logged (public-RC hold 12). The column is mapped per table and a failed probe now
         # reports itself in degraded[] instead of vanishing.
         exact_id_ts_column = {"messages": "ts", "knowledge": "updated_at"}
+        exact_id_visibility = {
+            "decisions": "AND invalidated_at IS NULL",
+            "lessons": "AND invalidated_at IS NULL",
+            "handoffs": "AND invalidated_at IS NULL",
+            "work_products": "AND invalidated_at IS NULL AND status = 'current'",
+        }
         for table in ["decisions", "lessons", "knowledge", "messages", "handoffs", "work_products"]:
             ts_column = exact_id_ts_column.get(table, "created_at")
+            visibility = exact_id_visibility.get(table, "")
             try:
                 id_row = await conn.fetchrow(
-                    f"SELECT id::text, project, {ts_column}::text AS created_at FROM {table} WHERE id::text ILIKE $1 LIMIT 1",
+                    f"SELECT id::text, project, {ts_column}::text AS created_at FROM {table} WHERE id::text ILIKE $1 {visibility} LIMIT 1",
                     f"{query}%"
                 )
                 if id_row:
                     content_col = "content" if table in ["knowledge", "messages"] else "summary"
-                    row = await conn.fetchrow(f"SELECT {content_col} FROM {table} WHERE id::text = $1", id_row["id"])
+                    row = await conn.fetchrow(f"SELECT {content_col} FROM {table} WHERE id::text = $1 {visibility}", id_row["id"])
+                    if row is None:
+                        continue
                     results.append({
                         "id": id_row["id"],
                         "text": f"[{table.upper()} MATCH] " + (row[0] if row else ""),
