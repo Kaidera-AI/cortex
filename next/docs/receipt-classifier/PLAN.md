@@ -22,3 +22,6 @@ Risks: old genuine subtest proof may become inconclusive; this is evidence insuf
 
 
 Accepted Kai12:52, conservative legacy policy included. Per-pack flip-to-inconclusive counts required. Gates close only each unit owner's fresh rerun under the fixed classifier; no argument-based closure. Independent reviewer Vera.
+
+
+RED fixture-binding correction: first expanded cleanup factories registered unbound functions without their self argument. Those inner TypeErrors/outer factory assertions are retained INCONCLUSIVE, not phase defect evidence. Only registered callback argument binding changed; every Mike/outer assertion body remains unchanged. Proper expanded RED is committed before helper implementation.

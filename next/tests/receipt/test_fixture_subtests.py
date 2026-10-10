@@ -31,7 +31,7 @@ def synchronous(phase):
   with self.subTest(origin=phase):self.test_expected()
  def setup(self):
   self.in_fixture=False
-  if phase=='cleanup':self.addCleanup(fixture)
+  if phase=='cleanup':self.addCleanup(fixture,self)
  class Case(unittest.TestCase):
   def test_expected(self):
    if getattr(self,'in_fixture',False):self.fail('synthetic fixture subtest reuse')
@@ -45,7 +45,7 @@ def asynchronous(phase):
   with self.subTest(origin=phase):await self.test_expected()
  async def setup(self):
   self.in_fixture=False
-  if phase=='cleanup':self.addAsyncCleanup(fixture)
+  if phase=='cleanup':self.addAsyncCleanup(fixture,self)
  class Case(unittest.IsolatedAsyncioTestCase):
   async def test_expected(self):
    if getattr(self,'in_fixture',False):self.fail('synthetic async fixture subtest reuse')
