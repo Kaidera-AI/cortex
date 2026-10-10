@@ -19,7 +19,7 @@ assert expected['tested_commit'] == '16677ed2f1c72ff18f5a838ebdf0ca1fd67f1fba'
 assert sha(subprocess.check_output(['git', '-C', str(wt), 'show', 'HEAD:' + str(base / expected_path.name)])) == sha(expected_bytes)
 excluded = {expected_path.relative_to(wt), index_path.relative_to(wt)}
 actual = {str(p.relative_to(wt)) for dirname in ('next', 'docs/next/evidence/c05-rework', 'docs/next/evidence/c05-source')
-          for p in (wt / dirname).rglob('*') if p.is_file() and p.relative_to(wt) not in excluded}
+          for p in (wt / dirname).rglob('*') if p.is_file() and p.relative_to(wt) not in excluded and '__pycache__' not in p.parts and p.suffix != '.pyc'}
 assert set(expected['members']) == actual, ('membership', sorted(actual - set(expected['members'])), sorted(set(expected['members']) - actual))
 tracked = set(subprocess.check_output(['git', '-C', str(wt), 'ls-files'], text=True).splitlines())
 assert actual <= tracked, ('untracked', sorted(actual - tracked))

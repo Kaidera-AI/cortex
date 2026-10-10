@@ -1,10 +1,5 @@
 {
   "members": {
-    "docs/next/evidence/c05-rework/__pycache__/replay_lifecycle.cpython-314.pyc": {
-      "bytes": 11386,
-      "canonical_source": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/__pycache__/replay_lifecycle.cpython-314.pyc",
-      "sha256": "5d61f46688464c659a90e1c425a3540ed75821af50c234c62f3aa2d68f481ecd"
-    },
     "docs/next/evidence/c05-rework/auth-0003-plan-inputs-corrected.json": {
       "bytes": 1059,
       "canonical_source": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c05-rework/auth-0003-plan-inputs-corrected.json",
@@ -131,9 +126,9 @@
       "sha256": "3d731f24e67cb4a2a6e78308f08ea4a484f750dcbc5b64f7f908a0483a20ef33"
     },
     "docs/next/evidence/c05-rework/verify-publication-reclassified.py": {
-      "bytes": 2283,
+      "bytes": 2339,
       "canonical_source": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c05-rework/verify-publication-reclassified.py",
-      "sha256": "4a55438cf7170bd9b69fa9d502c3d965ae1a87f3cd4776a6f28a725f20f4c12e"
+      "sha256": "c1e39819f3d8f10e562d7c0b2df4f4c2791d03b38cf57d780e18db313b5e4b49"
     },
     "docs/next/evidence/c05-rework/verify-publication.py": {
       "bytes": 1213,
