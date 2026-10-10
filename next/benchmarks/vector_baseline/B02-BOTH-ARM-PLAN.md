@@ -98,3 +98,10 @@ Literal-recipe evolution: the preserved old query-hash-drift-admitted probe surv
 Native-admission fixture amendment: add the new required syntactic reviewed-freeze SHA to the existing Mac-cold negative record, without changing assertions, so its cache-mode control is no longer shadowed by missing input admission. Initial shadowed-mutant survival retained INCONCLUSIVE/notkill.
 
 Observed readback correction: live Qdrant1.19.2 exposes vector config at config.params.vectors; all3 sampled payloads/vectors matched within1.5e-8, but the old flat fake shape caused safe NOT_RUN. A new frozen native-shape body RED precedes parser correction; fake responses only are updated, original assertions preserved. Historical NOT_RUN attempts remain.
+
+
+### Kai16:47 prerequisites amendment
+
+Accepted b02-prereq-plan plus AMENDMENT: every warmup/measured offer records coherent dispatcher lag. Drops or dispatch lag>=one offer interval yield INVALID_HARNESS, never engine PASS/FAIL, with phase distributions and distinct CLI status2. Preserve immutable old FAIL packets and derive new-policy projections separately. Add safe setup primary/refusal/cleanup cause receipts and one reserved-ID-set hoist with deterministic cost/output equivalence. Frozen new body REDs precede production; report fixture adds valid zero-lag provenance only, original assertions unchanged. Full source/unit/mutant verification; precommitted3historical/candidatepairs+atmost2causalcontrols,256x768only,40RPS8clients1warm5measure10sdeadline100msp95,one<=1GiB2CPUstack>=35%every start/exclusive slot. No real/native-scale/product/engine GO. source map now includes load.py/report.py under explicit dispatcher amendment; Mike reviews one bounded PR.
+
+Parent missed-arrivals-hidden recipe literal retargets the same dispatch guard from clock.now()-scheduled to the single captured lag; target/after/body assertions unchanged, other22 parent recipes unchanged. Initial anchor drift is retained incomplete, not a full pack. Full125 source and52/23/10 proof will bind the final head.

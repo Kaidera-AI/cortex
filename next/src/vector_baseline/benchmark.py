@@ -136,8 +136,10 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
         stack.worker = "nemo"
     result = None
     failed = None
+    stage = "setup"
     try:
         with stack:
+            stage = "import"
             if engine == "postgres":
                 if admission is None:
                     postgres.install(stack.connection, c)
@@ -155,6 +157,7 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
                 factory = lambda _: qdrant.Client(stack)
                 observer = lambda: observe_qdrant(stack)
                 boundary = "scheduled-arrival-to-proxy-HTTP-response-including-IPC"
+            stage = "run"
             run = asyncio.run(load.run(selected, factory, config, observer=observer))
             attach_truth(run, truth)
             result = report.summarize(run, latency_budget_ms=budget_ms,
@@ -175,6 +178,7 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
             if admission is not None:
                 result["qualification"] = "ADMITTED_GEOMETRY_ENGINE_DIAGNOSTIC"
                 result["bindings"]["native_admission"] = admission
+            stage = "cleanup"
     except qdrant.ImportParityError:
         result = not_run(c, cell, engine, selected, "qdrant-import-parity-mismatch", frozen_input_sha256)
         result["engine_started"] = True
@@ -185,13 +189,22 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
     finally:
         if result is None:
             result = {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,
-                      "diagnostic": {"verdict": "FAIL"}, "runner_error_class": failed}
+                      "diagnostic": {"verdict": "FAIL"}, "runner_error_class": failed,
+                      "qualification": "INPUT_BOUND_OPERATION_FAILURE",
+                      "bindings": {"dataset": c.manifest["dataset"], "engine": engine, "cell": cell, "identity": c.identity,
+                                   "corpus_count": len(c.records), "frozen_input_sha256": frozen_input_sha256,
+                                   "corpus_manifest_sha256": corpus.digest(c.path / "manifest.json"),
+                                   "query_manifest_sha256": corpus.digest(c.path / "query-manifest.json")}}
         result["cleanup_verified"] = stack.cleanup_verified
         result["credential_discarded"] = stack.password is None
         result["lock_released"] = stack.lock is None
         if not stack.cleanup_verified or failed is not None:
-            result["diagnostic"]["verdict"] = "FAIL"
+            if result["diagnostic"]["verdict"] != "INVALID_HARNESS":
+                result["diagnostic"]["verdict"] = "FAIL"
             result["runner_error_class"] = failed
+            result["runner_failure"] = getattr(stack, "failure_receipt", None) or {
+                "primary": {"phase": stage, "error_class": failed, "reason": "operation_failed"},
+                "cleanup": None if stack.cleanup_verified else {"phase": "cleanup", "reason": "cleanup_incomplete"}}
         with output.open("x") as stream:
             json.dump(result, stream, indent=2, allow_nan=False)
             stream.write("\n")
@@ -233,7 +246,8 @@ def main():
     print(json.dumps({"engine_decision": "UNDECIDED", "diagnostic": result["diagnostic"]["verdict"],
                       "cleanup_verified": result["cleanup_verified"],
                       "report_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest()}))
-    return 1 if result["diagnostic"]["verdict"] == "FAIL" else 0
+    verdict = result["diagnostic"]["verdict"]
+    return 2 if verdict == "INVALID_HARNESS" else 1 if verdict == "FAIL" else 0
 
 
 if __name__ == "__main__":

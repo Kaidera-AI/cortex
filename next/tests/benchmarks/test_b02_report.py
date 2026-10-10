@@ -8,7 +8,8 @@ import unittest
 def fixture():
     rows = [{"offer_id": i, "client": i % 8, "query_id": "q", "status": "OK",
              "phase": "measured", "scheduled_offset_seconds": i / 40,
-             "scheduled_at": 100 + i / 40, "started_at": 100 + i / 40,
+             "scheduled_at": 100 + i / 40, "dispatched_at": 100 + i / 40,
+             "dispatcher_lag_seconds": 0.0, "started_at": 100 + i / 40,
              "completed_at": 100 + i / 40 + .001, "latency_seconds": .001, "queue_seconds": 0,
              "measurement": {"safe": True, "strict_recall": 1., "tie_recall": 1.,
                              "eligible_count": 12, "expected_count": 10}} for i in range(40)]
@@ -160,7 +161,7 @@ class ReportTests(unittest.TestCase):
             root = Path(tmp)
             (root / "heldout.jsonl").write_text(json.dumps({"id": "q", "stratum": "scope", "mode": "dense", "status": "READY"}) + "\n")
             (root / "query-manifest.json").write_text(json.dumps({"corpus_manifest": "hash", "queries": {"heldout": "hash"}}))
-            c = SimpleNamespace(path=root, manifest={"dataset": "synthetic"}, identity={})
+            c = SimpleNamespace(path=root, manifest={"dataset": "synthetic"}, identity={}, records=[None])
             output = root / "result.json"
             with patch.object(benchmark.corpus, "load", return_value=c), \
                     patch.object(benchmark.corpus, "digest", return_value="hash"), \
