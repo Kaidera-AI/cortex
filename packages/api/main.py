@@ -16951,6 +16951,8 @@ async def order_project_transfer_self_fk_rows(
     incoming = [0] * len(rows)
 
     def edge(parent: int, child: int) -> None:
+        if parent == child:
+            return
         if child not in edges[parent]:
             edges[parent].add(child)
             incoming[child] += 1
