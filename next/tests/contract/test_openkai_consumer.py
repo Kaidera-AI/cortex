@@ -59,6 +59,11 @@ class OpenKaiConsumer(unittest.TestCase):
             altered['source'][key] = bad
             with self.subTest(key=key), self.assertRaises(refusal):
                 validate_packet(altered, openapi)
+        altered = copy.deepcopy(packet)
+        first = next(iter(altered['source']['files']))
+        altered['source']['files'][first] = '0'*64
+        with self.assertRaises(refusal):
+            validate_packet(altered, openapi)
 
     def test_inventory_cannot_lose_or_promote_an_operation(self):
         packet = self.packet()
@@ -90,6 +95,10 @@ class OpenKaiConsumer(unittest.TestCase):
         del missing_error['error']
         with self.assertRaises(refusal):
             validate_case(missing_error)
+        empty_code = copy.deepcopy(cases[0])
+        empty_code['error']['body']['error']['code'] = ''
+        with self.assertRaises(refusal):
+            validate_case(empty_code)
         sdk_promoted = copy.deepcopy(cases[0])
         sdk_promoted['path'] = '/skills'
         with self.assertRaises(refusal):

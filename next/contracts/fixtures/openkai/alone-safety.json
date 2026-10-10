@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "committed": false,
+      "id": "wrong-project",
+      "kind": "scope_refusal",
+      "request": {
+        "principal_project": "00000000-0000-4000-8000-000000000003",
+        "target_project": "00000000-0000-4000-8000-000000000004",
+        "writer_authorized": true
+      },
+      "response": {
+        "error": "forbidden",
+        "status": 403
+      }
+    },
+    {
+      "committed": false,
+      "id": "revoked-writer",
+      "kind": "scope_refusal",
+      "request": {
+        "principal_project": "00000000-0000-4000-8000-000000000003",
+        "target_project": "00000000-0000-4000-8000-000000000003",
+        "writer_authorized": false
+      },
+      "response": {
+        "error": "forbidden",
+        "status": 403
+      }
+    },
+    {
+      "calls": [],
+      "id": "off",
+      "kind": "off",
+      "outcome": "off",
+      "selected": false
+    },
+    {
+      "id": "session-mirror",
+      "kind": "session_mirror",
+      "opt_in": true,
+      "project_id": "00000000-0000-4000-8000-000000000003",
+      "request": {
+        "message_count": 2,
+        "project_id": "00000000-0000-4000-8000-000000000003",
+        "session_uuid": "00000000-0000-4000-8000-000000000031",
+        "source_path": "/synthetic/openkai/session-31.jsonl"
+      },
+      "session_uuid": "00000000-0000-4000-8000-000000000031",
+      "source_path": "/synthetic/openkai/session-31.jsonl",
+      "timestamps": [
+        "2026-10-10T21:00:00Z",
+        "2026-10-10T21:00:01Z"
+      ]
+    },
+    {
+      "current_context": {
+        "connection_epoch": 2,
+        "project_id": "00000000-0000-4000-8000-000000000004"
+      },
+      "decision": "discarded",
+      "id": "stale-recall",
+      "kind": "stale_recall",
+      "requested_context": {
+        "connection_epoch": 1,
+        "project_id": "00000000-0000-4000-8000-000000000003"
+      },
+      "response": {
+        "results": [
+          {
+            "content": "synthetic",
+            "id": "00000000-0000-4000-8000-000000000011"
+          }
+        ]
+      }
+    }
+  ],
+  "format": "openkai-c02-fixtures-v1"
+}

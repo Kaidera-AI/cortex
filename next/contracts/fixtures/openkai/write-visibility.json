@@ -1,0 +1,82 @@
+{
+  "cases": [
+    {
+      "ack": {
+        "receipt": {
+          "aggregate_version": 2,
+          "durability": "canonical_committed",
+          "event_id": "00000000-0000-4000-8000-000000000012",
+          "projection": "pending",
+          "record_id": "00000000-0000-4000-8000-000000000011",
+          "request_key": "openkai-write-001"
+        },
+        "status": 200
+      },
+      "id": "ack-read",
+      "kind": "write_ack_read",
+      "read": {
+        "authorized": true,
+        "binding": "UNBOUND_CONTRACT_DELTA",
+        "project_id": "00000000-0000-4000-8000-000000000003",
+        "record_id": "00000000-0000-4000-8000-000000000011",
+        "revision": 2,
+        "status": 200
+      },
+      "request": {
+        "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "project_id": "00000000-0000-4000-8000-000000000003",
+        "request_key": "openkai-write-001",
+        "writer_id": "00000000-0000-4000-8000-000000000008"
+      }
+    },
+    {
+      "conflicting_retry": {
+        "error": "conflict",
+        "payload_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "request_key": "openkai-write-001",
+        "status": 409
+      },
+      "first": {
+        "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "receipt": {
+          "aggregate_version": 2,
+          "durability": "canonical_committed",
+          "event_id": "00000000-0000-4000-8000-000000000012",
+          "projection": "pending",
+          "record_id": "00000000-0000-4000-8000-000000000011",
+          "request_key": "openkai-write-001"
+        },
+        "request_key": "openkai-write-001"
+      },
+      "id": "idempotency",
+      "kind": "idempotency",
+      "same_retry": {
+        "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "receipt": {
+          "aggregate_version": 2,
+          "durability": "canonical_committed",
+          "event_id": "00000000-0000-4000-8000-000000000012",
+          "projection": "pending",
+          "record_id": "00000000-0000-4000-8000-000000000011",
+          "request_key": "openkai-write-001"
+        },
+        "request_key": "openkai-write-001"
+      }
+    },
+    {
+      "id": "timeout-unknown",
+      "kind": "timeout",
+      "outcome": "unknown",
+      "request": {
+        "payload_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "request_key": "openkai-write-002"
+      },
+      "retry": {
+        "resolution": "lookup_request_key",
+        "same_key": true
+      },
+      "transport": "timeout_after_dispatch"
+    }
+  ],
+  "format": "openkai-c02-fixtures-v1"
+}
