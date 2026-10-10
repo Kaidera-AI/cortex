@@ -16005,7 +16005,7 @@ async def execute_embedding_backfill(
                     "embedding_last_success_at": datetime.now(timezone.utc).isoformat(),
                 }
                 async with acquire_scoped(project) as conn:
-                    await conn.execute(
+                    update_status = await conn.execute(
                         f"""UPDATE {table}
                             SET embedding = $1::vector,
                                 metadata = (
@@ -16014,13 +16014,25 @@ async def execute_embedding_backfill(
                                     - 'embedding_last_error_at'
                                     - 'embedding_skip'
                                 ) || $2::jsonb
-                            WHERE id = $3""",
+                            WHERE id = $3
+                              AND ({project_filter.replace('$1', '$4')})
+                              AND {content_sql} = $5
+                              AND embedding IS NULL
+                              AND COALESCE(metadata->>'embedding_skip', 'false') <> 'true'
+                              AND {error_count_sql} < $6""",
                         vec_str,
                         json.dumps(patch),
                         row_id,
+                        project,
+                        text,
+                        error_threshold,
                     )
-                table_stats["embedded"] += 1
-                total_embedded += 1
+                if affected_count(update_status):
+                    table_stats["embedded"] += 1
+                    total_embedded += 1
+                else:
+                    table_stats["skipped"] += 1
+                    total_skipped += 1
             else:
                 new_error_count = current_errors + 1
                 patch = {
@@ -16030,19 +16042,32 @@ async def execute_embedding_backfill(
                 }
                 if new_error_count >= error_threshold:
                     patch["embedding_skip"] = True
-                    table_stats["skipped"] += 1
-                    total_skipped += 1
 
                 async with acquire_scoped(project) as conn:
-                    await conn.execute(
+                    update_status = await conn.execute(
                         f"""UPDATE {table}
                             SET metadata = {METADATA_AS_OBJECT_SQL} || $1::jsonb
-                            WHERE id = $2""",
+                            WHERE id = $2
+                              AND ({project_filter.replace('$1', '$3')})
+                              AND {content_sql} = $4
+                              AND embedding IS NULL
+                              AND COALESCE(metadata->>'embedding_skip', 'false') <> 'true'
+                              AND {error_count_sql} < $5""",
                         json.dumps(patch),
                         row_id,
+                        project,
+                        text,
+                        error_threshold,
                     )
-                table_stats["errors"] += 1
-                total_errors += 1
+                if affected_count(update_status):
+                    table_stats["errors"] += 1
+                    total_errors += 1
+                    if new_error_count >= error_threshold:
+                        table_stats["skipped"] += 1
+                        total_skipped += 1
+                else:
+                    table_stats["skipped"] += 1
+                    total_skipped += 1
 
             if job_id:
                 totals[table] = table_stats
