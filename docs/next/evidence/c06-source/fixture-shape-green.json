@@ -1,0 +1,8 @@
+{
+  "fixture_sha256": "c06fdb03622484fdab5ee01928a02a23ef066ba81567c93ce3f7ebf4393e9a52",
+  "validator_sha256": "0da9fc725920f9d8926a265ed358ef33e16c358eae16574a088ec8ecbb15a163",
+  "before_execution": true,
+  "exit_code": 0,
+  "stdout": "{\"identity_constructor_fields\": [\"released_sha\", \"source_bytes\", \"released\"], \"DonorPin_fixtures\": 1, \"authority_manifests\": 1, \"matched\": true}\n",
+  "stderr": ""
+}
