@@ -27,7 +27,7 @@ MUTATIONS = [
      G+'test_malformed_geometry_refuses_without_partial_output', 1),
     ('geometry.py', 'joint-groups-not-reserved', 'ready = len(group) >= 3', 'ready = False',
      G+'test_split_is_deterministic_order_independent_and_disjoint', 1),
-    ('geometry.py', 'small-group-coverage-fiction', "'status': 'READY' if ready else 'NOT_RUN'", "'status': 'READY'",
+    ('geometry.py', 'small-group-coverage-fiction', "                         'status': 'READY' if ready else 'NOT_RUN'})", "                         'status': 'READY'})",
      G+'test_null_joint_coverage_and_small_groups_are_never_discarded', 1),
     ('geometry.py', 'query-hash-drift-admitted', 'if binding[\'queries\'][name] != corpus.digest(target):', 'if False:',
      G+'test_input_count_and_query_hash_drift_are_refused', 1),
