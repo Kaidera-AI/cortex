@@ -10,7 +10,7 @@ import unittest
 HERE = Path(__file__).resolve().parent
 WT = HERE.parents[3]
 VERIFY = HERE / 'verify-publication.py'
-INDEX = HERE / 'publication-index-002.json'
+INDEX = HERE / 'publication-index-004.json'
 
 
 class PublicationCompleteness(unittest.TestCase):
@@ -46,6 +46,18 @@ class PublicationCompleteness(unittest.TestCase):
             result = self.run_index(copied)
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn('expected_inventory_mismatch', result.stderr)
+
+    def test_tampered_member_digest_refuses(self):
+        data = json.loads(INDEX.read_text())
+        member = 'next/src/cortex_core/records.py'
+        self.assertIn(member, data['members'])
+        data['members'][member]['sha256'] = '0' * 64
+        with tempfile.TemporaryDirectory() as folder:
+            copied = Path(folder) / 'index.json'
+            copied.write_text(json.dumps(data))
+            result = self.run_index(copied)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn('published_digest', result.stderr)
 
 
 if __name__ == '__main__':

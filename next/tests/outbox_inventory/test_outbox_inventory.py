@@ -1,8 +1,10 @@
 """Source-bound inventory artifact checks, never application qualification."""
+import ast
 import copy
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 NEXT=Path(__file__).resolve().parents[2]
 
@@ -66,3 +68,34 @@ class WriterInventory(unittest.TestCase):
         changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection, table):\n    connection.execute('DELETE ' + table + ' WHERE true')\n"
         result=checker.audit(NEXT,overrides={name:changed})
         self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def _captured_private_query(self, source):
+        function=next(node for node in ast.parse(source).body if isinstance(node,ast.FunctionDef) and node.name=='_private')
+        namespace={'psycopg':SimpleNamespace(errors=SimpleNamespace(UniqueViolation=RuntimeError)),
+                   'RecordError':RuntimeError}
+        exec(compile(ast.Module(body=[function],type_ignores=[]),'isolated-records-private','exec'),namespace)
+        class Connection:
+            def execute(self,query,arguments):return query
+        return namespace['_private'](Connection(),'SELECT * FROM coordination.c05_request(%s,%s)',())
+
+    def test_private_query_walrus_rebind_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        source=(NEXT/name).read_text()
+        before='    try:\n        return connection.execute(query, arguments)'
+        after="    try:\n        verb = 'DE' + 'LETE'\n        if (query := verb + ' FROM core.records WHERE true'):\n            return connection.execute(query, arguments)"
+        self.assertEqual(source.count(before),1)
+        changed=source.replace(before,after)
+        self.assertEqual(self._captured_private_query(changed),'DELETE FROM core.records WHERE true')
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
+
+    def test_private_query_augassign_rebind_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        source=(NEXT/name).read_text()
+        before='    try:\n        return connection.execute(query, arguments)'
+        after="    try:\n        verb = 'DE' + 'LETE'\n        query += '; ' + verb + ' FROM core.records WHERE true'\n        return connection.execute(query, arguments)"
+        self.assertEqual(source.count(before),1)
+        changed=source.replace(before,after)
+        self.assertIn('; DELETE FROM core.records WHERE true',self._captured_private_query(changed))
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
