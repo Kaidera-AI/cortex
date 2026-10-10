@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
-SHARED=Path(__file__).resolve().parent
+SHARED=Path(__file__).resolve().parent.parent/'replay-lifecycle'
 sys.path.insert(0,str(SHARED))
 from replay_lifecycle import Lifecycle
 ROOT=Path('/Users/amadmalik/DevVault/helix')
@@ -24,7 +24,7 @@ DB='kaidera-test-core-db-1'
 DRIVER='kaidera-test-core-driver-1'
 PG='sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
 PY='sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
-SUITES=[('schema', 30), ('auth', 40), ('records', 14), ('coordination', 23), ('core_adapters', 6), ('acceptance_guards', 7), ('auth_identity', 26), ('auth_identity_guards', 6), ('identity_coordination', 8), ('identity_portability', 3), ('identity_receipts', 5), ('identity_transition', 1), ('identity_policy_faults', 2), ('identity_binding', 2), ('contract', 33), ('receipt', 20), ('c05_review',8), ('c05_private',5)]
+SUITES=[('schema', 30), ('auth', 40), ('records', 14), ('coordination', 23), ('core_adapters', 6), ('acceptance_guards', 7), ('auth_identity', 26), ('auth_identity_guards', 6), ('identity_coordination', 8), ('identity_portability', 3), ('identity_receipts', 5), ('identity_transition', 1), ('identity_policy_faults', 2), ('identity_binding', 2), ('contract', 33), ('receipt', 20)]
 results=[]
 passed=False
 mutation_errors=[]
@@ -49,13 +49,6 @@ def checked(args,timeout=120):
 
 preflight=run([sys.executable,str(OUT/'verify-replay-inputs.py'),str(WT)])
 assert preflight.returncode==0, 'copied source/test/controller preflight failed before any resource creation'
-
-expected_wheels=json.loads((OUT/'offline-wheel-inputs.json').read_text())['wheels']
-actual_wheels={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'tmp/wheels').iterdir() if p.is_file()}
-assert actual_wheels==expected_wheels, 'actual wheel bytes differ before resource creation'
-if PHASE=='--preflight-only':
-    print(json.dumps({'passed':True,'resource_operations':0,'actual_wheels':actual_wheels}));raise SystemExit(0)
-
 
 life=Lifecycle(ROOT,run)
 LABELS=life.labels()+['--label','slice=C06']
@@ -82,12 +75,6 @@ try:
         '--tmpfs','/tmp:rw,size=268435456,mode=1777',PY,'sleep','1800'])
     checked(['podman','cp',str(WT/'next'),DRIVER+':/tmp/next'])
     checked(['podman','cp',str(WT/'tmp/wheels'),DRIVER+':/tmp/wheels'])
-
-    copied_wheels=checked(['podman','exec',DRIVER,'python','-c',"from pathlib import Path;import hashlib,json;print(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path('/tmp/wheels').iterdir() if p.is_file()}))"])
-    assert json.loads(copied_wheels.stdout)==expected_wheels
-    TOOLS['actual_wheels']=actual_wheels
-    TOOLS['copied_wheels']=json.loads(copied_wheels.stdout)
-
     checked(['podman','exec',DRIVER,'python','-m','pip','install','--no-index',
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-db-test.txt'])
     checked(['podman','exec',DRIVER,'python','-m','pip','install','--no-index',
@@ -104,18 +91,9 @@ try:
          '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','-c',"import os,psycopg;from cortex_core.migrations import apply_migrations;c=psycopg.connect(os.environ['TEST_DATABASE_URL'],autocommit=True);print('CORTEX_MIGRATION_CHECK='+str(apply_migrations(c)));c.close()"])
     for directory,count in SUITES:
-        if PHASE.startswith('write-only-event-red') and directory in ('c05_review','c05_private'):continue
         value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==count and not report['failures'] and not report['errors']
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_write_only'],300)
-    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==2 and not report['errors']
-    if PHASE.startswith('write-only-event-red'):
-        assert value.returncode==1 and len(report['failures'])==2
-        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
-    else:
-        assert value.returncode==0 and not report['failures']
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run']==32 and not report['errors']
@@ -166,7 +144,7 @@ try:
         else:
             assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
-        matrices=[('mutate_outbox.py',[],42),('mutate_outbox.py',['--identity'],32),('mutate_outbox.py',['--adapters'],30),('mutate_outbox.py',['--c05'],11),('mutate_contracts.py',[],26),('mutate_test_receipts.py',[],8)]
+        matrices=[('mutate_outbox.py',[],42),('mutate_outbox.py',['--identity'],32),('mutate_outbox.py',['--adapters'],30),('mutate_contracts.py',[],26),('mutate_test_receipts.py',[],8)]
         if 'repair' in PHASE:
             matrices=[('mutate_outbox.py',['--repair'],3),('mutate_outbox.py',['--identity','--repair'],6),('mutate_outbox.py',['--adapters','--repair'],9)]
         if 'attribution-red' in PHASE:

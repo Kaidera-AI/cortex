@@ -333,6 +333,15 @@
       "classification": "private_C06_publish_outbox"
     },
     {
+      "file": "schema/coordination/002-record-replay.sql",
+      "owner": "coordination.c05_update_head",
+      "verb": "UPDATE",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "ece641a231d1f5725bac33f2498b60a0b415537dabad2a642027aacc9ac29975",
+      "classification": "trigger_capture_and_sequential_head_guard"
+    },
+    {
       "file": "src/cortex_core/conductor/supervisor.py",
       "owner": "Supervisor.acquire",
       "verb": "INSERT",
@@ -564,15 +573,6 @@
       "table": "core.records",
       "ordinal": 0,
       "statement_sha256": "a02811989ffffb23997d324c867b2dbe6fa1b972c3a97246468222a91738cd9a",
-      "classification": "trigger_capture_and_sequential_head_guard"
-    },
-    {
-      "file": "src/cortex_core/records.py",
-      "owner": "Records._mutate",
-      "verb": "UPDATE",
-      "table": "core.records",
-      "ordinal": 0,
-      "statement_sha256": "cdb06af942061d466e5b59c32e47492a6ebc58b7b6522a8f156615f234741485",
       "classification": "trigger_capture_and_sequential_head_guard"
     },
     {

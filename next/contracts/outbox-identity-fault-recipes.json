@@ -290,6 +290,12 @@
           "before": "EXECUTE format('ALTER FUNCTION %s OWNER TO \"kaidera-runtime-core-verifier\"',f.signature);",
           "after": "EXECUTE format('ALTER FUNCTION %s OWNER TO %I',f.signature, CASE WHEN pg_get_function_result(f.signature::oid)='trigger' THEN session_user ELSE 'kaidera-runtime-core-verifier' END);",
           "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "GRANT USAGE ON SCHEMA coordination TO \"kaidera-runtime-core-verifier\";",
+          "after": "",
+          "count": 1
         }
       ],
       "original_script": "mutate_identity.py",

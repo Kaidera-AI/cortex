@@ -32,6 +32,8 @@ def category(file,owner,verb,table):
           ('Jobs._state','coordination.jobs','UPDATE'),('Jobs._state','coordination.leases','UPDATE'),
           ('Jobs._replace_metadata','coordination.jobs','UPDATE')}
         if (owner,table,verb) in allowed:return 'job_parent_snapshot_before_receipt; deferred_final_snapshot_guard'
+    if file=='schema/coordination/002-record-replay.sql' and owner=='coordination.c05_update_head' and table=='core.records' and verb=='UPDATE':
+        return 'trigger_capture_and_sequential_head_guard'
     if file=='schema/auth/002-isolation.sql' and owner=='auth.bind_scope' and table=='pg_temp.c04_request_context':
         return 'private_transaction_binding_housekeeping'
     if file=='schema/auth/002-isolation.sql' and owner=='auth.bump_generation' and table=='auth.permission_generations':

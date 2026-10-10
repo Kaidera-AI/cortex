@@ -85,3 +85,56 @@ Attribution amendment: a fresh verifier found one bypass aimed at the wrong pred
 
 
 Attribution RED executed at8b01ecc: the frozen auxiliary-only ownership control caused the unchanged registration BODY to fail even with original USAGE grant present. Runner correctly reported zero kills and one inconclusive primary; whole NEXT bytes restored, owned absence/password discard/unlock verified. Retain actual failed attribution001. Narrow copied override to trigger-returning C06 functions only; helpers/capture ports retain verifier ownership. Replace kind bypass with only request-kind predicate and replace unknown-writer recipe with one actual Records-specific branch fault. No product implementation or predecessor source/assertion changes. Run the complete294 baseline and138 primary matrix with all auxiliary controls.
+
+## C05 review repair brought forward — H-D45510:05
+
+The user-adopted Kai ruling preempts C06 with Mike's three named C05 repairs.
+Keep the accepted gate immutable. Preserve mutation-outbox-final-003 at
+c2562ff9f16fa38e6c980bc592df7726403eebce as the pre-C05 proof, including the
+independent pre-C05 audit; it does not qualify the forthcoming source.
+
+Merge the completed C05 feature head forward through C04a into C06, without
+rebasing or main merge. Retain every original migration entry and frozen fixture.
+The new coordination-0002 private decision migration is an explicitly authorized
+predecessor addition. Preserve C06's request JSON, event receipt, revision and
+job/identity capture hooks when resolving the record-port conflict. Classify the
+moved UPDATE writer in the private C05 SQL function with C06's existing capture
+and sequential-head guards. The source inventory must be regenerated and contain
+no unclassified, missing or stale writer.
+
+The new baseline includes the frozen Mike8 and separate private5 (307 total).
+Retain the original42/32/30/26/8 fault identities and edits. Compose only the new
+C05 parallel digest, kind, CAS and verifier-schema-USAGE checks where they mask
+an old fault. Each auxiliary-only full frozen named fixture must remain GREEN.
+Add the11 C05 private guard removals through separate C06-owned descriptors;
+the two header-update faults may additionally bypass C06's parallel head guard,
+again with full private-fixture GREEN controls. Expected full matrix is149 actual
+BODY failures, with no operational errors or inconclusive faults. Do not edit
+C05's original descriptor publication or the original173/Mike8/private5 tests.
+
+Put the existing fixture-contract check first and validate all exact fault
+anchors before resource admission. Make the C06 controller's pinned lifecycle
+helper resolvable beside its publication; archive the previous tested controller
+and helper. Host and copied wheel bytes are bound before pip. Re-prove the whole
+copied source, manifest hashes, frozen predecessor custody and owned absence /
+password discard / unlock in one fresh native fixture. An independent verifier
+must inspect this post-C05 source and receipt. Return C06 to Vera, keep H-D471
+security/main hold, then perform the separately named PR40 lock repair.
+
+C05 preemption starts10:20 local and ends only after its exact-head return.
+Record its actual duration separately from the C06 one-day build allocation;
+the earlier graph preemption09:04–09:27 remains23minutes.
+
+### Current event lookup after write-only predecessor repair
+
+The old C06 Python event SELECT depends on public read, so bringing Kai's C05
+write-only contract forward also requires a private current-event decision.
+Freeze two additional probes before implementation: write-only create/update/
+delete and identical replay with exact event identities; private lookup refusing
+unbound/read contexts and any previous transaction's event. Run the original294
+controls plus these two expected BODY failures before repair. Add verifier-owned
+c06_record_event deriving c05_scope(), matching installation/tenant/project/
+record/revision and xmin=current transaction, returning only the event UUID.
+Keep the public read boundary unchanged and preserve receipt/effect hooks.
+Add actual guard removals for public-read fallback, private binding and current
+transaction predicate. New baseline309; full planned BODY matrix152.

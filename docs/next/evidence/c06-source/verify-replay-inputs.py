@@ -9,7 +9,7 @@ wt=Path(sys.argv[1]);
 for script,fixture in [('verify-fixture-contract.py','next/tests/outbox/test_outbox.py'),('verify-expiry-fixture.py','next/tests/outbox_retention/test_outbox_retention.py')]:
  result=subprocess.run([sys.executable,str(Path(__file__).with_name(script)),str(wt/fixture)],capture_output=True,text=True)
  assert result.returncode==0,script+': '+result.stdout
-checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':23,'outbox_retention':4,'outbox_inventory':6,'outbox_late_publication':1}
+checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':23,'outbox_retention':4,'outbox_inventory':6,'outbox_late_publication':1,'c05_review':8,'c05_private':5,'outbox_write_only':2}
 for directory,count in expected.items():
  files=list((wt/'next/tests'/directory).glob('test_*.py'))
  actual=sum(sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in ast.walk(ast.parse(p.read_text()))) for p in files)
@@ -23,6 +23,13 @@ for directory,count in expected.items():
       if alias.name in definitions:
        actual+=sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in definitions[alias.name].body)
  checks[directory]={'actual':actual,'expected':count,'passed':actual==count}
+for filename in ('outbox-fault-recipes.json','outbox-identity-fault-recipes.json','outbox-adapters-fault-recipes.json','outbox-c05-fault-recipes.json'):
+ for recipe in json.loads((wt/'next/contracts'/filename).read_text())['mutants']:
+  sources={e['path']:(wt/'next'/e['path']).read_text() for e in recipe['changes']}
+  for e in recipe['changes']:
+   assert sources[e['path']].count(e['before'])==e['count'],('fault_preflight',recipe['label'],e['path'])
+   sources[e['path']]=sources[e['path']].replace(e['before'],e['after'])
+checks['all_fault_anchors']={'passed':True,'recipes':115}
 status=subprocess.check_output(['git','status','--porcelain','--untracked-files=all','--','next'],cwd=wt,text=True)
 checks['product_committed']={'passed':not status,'status':status}
 mirror=wt/'docs/next/evidence/c06-source/run-core-pg.py'
