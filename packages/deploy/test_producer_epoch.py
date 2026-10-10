@@ -9,7 +9,7 @@ class EpochTests(unittest.TestCase):
  def test_every_role_has_one_clock_and_epoch_build_argument(self):
   plan=p.make_plan(Path('/source'),'a'*40)
   for row in plan['images']:
-   a=row['argv'];self.assertIn('--timestamp',a);self.assertEqual(a[a.index('--timestamp')+1],str(EPOCH));self.assertIn('SOURCE_DATE_EPOCH='+str(EPOCH),a)
+   a=row['argv'];self.assertIn('--timestamp',a);self.assertEqual(a[a.index('--timestamp')+1],str(EPOCH));self.assertNotIn('SOURCE_DATE_EPOCH='+str(EPOCH),a)
    self.assertNotIn('--source-date-epoch',a);self.assertNotIn('--rewrite-timestamp',a)
  def test_real_checkout_mtimes_before_first_build_and_external_link_unchanged(self):
   with tempfile.TemporaryDirectory() as d:

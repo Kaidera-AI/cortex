@@ -55,8 +55,7 @@ def manifest_digest(raw):
 def make_plan(root, sha):
     if re.fullmatch('[0-9a-f]{40}', sha) is None or not root.is_absolute():
         raise ValueError('exact source SHA and absolute source root required')
-    args = {'SOURCE_DATE_EPOCH': str(SOURCE_DATE_EPOCH),
-            'KOS_VERSION': VERSION, 'KOS_SOURCE_REVISION': sha,
+    args = {'KOS_VERSION': VERSION, 'KOS_SOURCE_REVISION': sha,
             'KOS_IMAGE_SOURCE': SOURCE, 'KOS_EDITION': 'open-source',
             'CORTEX_RELEASE_ID': RELEASE, 'CORTEX_RELEASE_LINEAGE': 'cortex-v1-manual',
             'CORTEX_RELEASE_SEQUENCE': '1', 'CORTEX_API_CONTRACT': 'cortex-kos-v02009.v1'}
@@ -65,7 +64,7 @@ def make_plan(root, sha):
         tag = 'ghcr.io/kaidera-ai/cortex-' + role + ':' + RELEASE
         # Podman 5.8.2 forbids combining --timestamp and --source-date-epoch.
         # --timestamp stamps image metadata AND newly committed layer files;
-        # the explicit build arg supplies stages without the conflicting CLI.
+        # SOURCE_DATE_EPOCH build-args also select the conflicting clock mode.
         argv = ['build', '--timestamp', str(SOURCE_DATE_EPOCH),
                 '--platform', 'linux/amd64', '--format', 'oci',
                 '--tag', tag, '--file', str(root/context/recipe)]
@@ -176,7 +175,7 @@ def main():
     env.update(REGISTRY_AUTH_FILE=str(out/'auth.json'), LANG='C.UTF-8')
     # Intentionally keep SOURCE_DATE_EPOCH out of the Podman process environment:
     # 5.8.2 turns it into --source-date-epoch, conflicting with --timestamp.
-    # Its fixed value is bound in the plan and passed explicitly as a build arg.
+    # Its fixed value is bound in the plan and applied by --timestamp only.
     timestamps = normalize_checkout_mtimes(root)
     (out/'source-mtime-preparation.json').write_text(json.dumps(timestamps, indent=2)+'\n')
     (out/'native-tools.json').write_text(json.dumps({str(tool): hashlib.sha256(tool.read_bytes()).hexdigest() for tool in (options.podman,)}, indent=2)+'\n')
