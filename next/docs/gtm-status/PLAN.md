@@ -100,3 +100,7 @@ exit64 identifies either refusal and no untrusted argument is echoed.
 The original 28 test methods remain frozen at RED commit `2ffd6cf`.
 Two additive controls exercise genuinely compressed JSON and default HTTPS
 transport certificate verification; no original test method is altered.
+An additive wrapper exposes the original interruption assertion to the existing
+named runner's letters/underscores restriction, preserving that frozen method.
+A RED-first depth-limit control requires excessive JSON nesting to remain a safe
+protocol refusal, rather than a transport-failure classification.

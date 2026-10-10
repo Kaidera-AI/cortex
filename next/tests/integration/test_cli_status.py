@@ -338,6 +338,19 @@ class CliStatusTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(options), 1)
         self.assertIs(options[0]["verify"], True)
 
+    async def test_interrupted_main_without_traceback(self):
+        # The shared named-probe runner accepts letters/underscores, not digits.
+        await self.test_interrupted_public_main_returns_130_without_traceback()
+
+    async def test_deep_json_is_invalid_response_without_private_text(self):
+        raw = ('{"component":"cortex","status":"ok","core_available":true,'
+               '"conductor":"healthy","reason":' + '[' * 1500 + '"' + SECRET + '"'
+               + ']' * 1500 + '}').encode()
+        code, packet, _ = await self.invoke(lambda _: httpx.Response(200, content=raw,
+            headers={"content-type": "application/json"}))
+        self.assertEqual((code, packet["health"], packet["client_error"]), (2, None, "invalid_response"))
+        self.assertNotIn(SECRET, json.dumps(packet))
+
 
 if __name__ == "__main__":
     unittest.main()
