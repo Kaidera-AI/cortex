@@ -1,7 +1,19 @@
 # O01a backup producer — synthetic source proof
 
 Base: C07 PR #69 `e2e5a889a47c7ee538dfead08f44c7773fd72fe0`.
-Source-tested commit: `7eb8eae10a00e5ef778267dcd6c44be51c538d39`.
+Original native source-tested commit: `7eb8eae10a00e5ef778267dcd6c44be51c538d39`.
+
+## PR #71 metadata-binding rework
+
+Mike's O01A-PR71-1 probe mutates the caller's nested metadata after
+`build_manifest` computes its canonical digest and before the manifest is
+serialized into the encrypted bundle. The manifest now stores an owned snapshot
+decoded from those canonical bytes. The added focused test decrypts the result
+and requires its embedded metadata to match the digest and retain the original
+model version; restoring the caller-object assignment fails that test in its
+body. The RED, GREEN and mutant receipts are `metadata-mutation-*.json`.
+`verify-pr71-1.py` binds those receipts and the new source to the current Git
+head while checking the original native proof at its historical tested commit.
 
 The producer stages a PostgreSQL plain base backup with `-X none` and SHA-256
 native manifest checksums. A caller provides an owned, completed continuous WAL
@@ -16,13 +28,16 @@ the complete ciphertext. Credentials are not command arguments; the eventual
 runtime caller uses an owned PostgreSQL credential file. No plaintext tar is
 created; the caller owns and removes its plaintext staging directories.
 
-The standalone source checks are:
+The current standalone source checks are:
 
 ```sh
 PYTHONPATH=next/src python3.12 next/tests/test_receipts.py next/tests/backup_producer
-python3.12 next/scripts/mutate_backup.py
-python3.12 docs/next/evidence/o01a-source/verify-o01a.py "$PWD"
+python3 docs/next/evidence/o01a-source/verify-pr71-1.py "$PWD"
 ```
+
+The original six-fault matrix and `verify-o01a.py` remain historical at the
+original tested source; their pinned source digests are not relabelled as a
+fresh native run for this rework.
 
 The committed native controller `run-native-pg.py` creates one restricted,
 network-none PostgreSQL 18.4 container on the local Podman engine, with two CPUs,
