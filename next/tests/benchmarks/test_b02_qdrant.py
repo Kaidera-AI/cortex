@@ -327,3 +327,38 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
             bad = copy.deepcopy(row); bad['HostConfig'][field] = value
             with self.subTest(field=field), self.assertRaises(RuntimeError):
                 module.verify_container(bad, memory_bytes=805306368, cpus=1.5)
+
+    async def test_upload_binds_stored_geometry_payload_indexes_and_exact_count(self):
+        from vector_baseline import corpus
+        module = self.surface()
+        class API:
+            def __init__(self, count=2):
+                self.calls, self.count = [], count
+            async def call(self, method, path, body=None):
+                self.calls.append((method, path, body))
+                if path == '/':
+                    return {'version': '1.19.2'}
+                if path.endswith('/count'):
+                    return {'result': {'count': self.count}}
+                return {'result': {'status': 'green'}}
+        with tempfile.TemporaryDirectory() as tmp:
+            c = corpus.write_corpus(Path(tmp)/'corpus', [[3, 4], [1, 0]],
+                                    [{'id': 'a'}, {'id': 'b'}],
+                                    {'provider': 'synthetic', 'model': 'fixture', 'dimension': 2,
+                                     'metric': 'cosine', 'generation': 'g'})
+            api = API(); mapping, binding = await module.upload(api, c)
+            self.assertEqual(mapping, {1: 'a', 2: 'b'})
+            create = next(body for method, path, body in api.calls if method == 'PUT' and path == '/collections/b02')
+            self.assertEqual(create['vectors'], {'size': 2, 'distance': 'Cosine'})
+            self.assertEqual(create['hnsw_config'], {'m': 16, 'ef_construct': 64})
+            indexes = {body['field_name']: body['field_schema'] for _, path, body in api.calls if '/index?' in path}
+            self.assertEqual(indexes, {'tenant': 'keyword', 'project': 'keyword', 'generation': 'keyword',
+                                       'deleted': 'bool', 'ordinal': 'integer', 'kind': 'integer', 'time': 'integer'})
+            points = next(body['points'] for _, path, body in api.calls if '/points?' in path)
+            self.assertEqual(points[0]['vector'], [3., 4.])
+            self.assertEqual(points[0]['payload']['comparison_id'], 'a')
+            self.assertEqual(points[0]['payload']['generation'], 'g')
+            self.assertEqual(binding['exact_count'], 2)
+            self.assertFalse(binding['hnsw_use_qualified'])
+            with self.assertRaises(ValueError):
+                await module.upload(API(count=1), c)
