@@ -11,7 +11,8 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE s record; reserved boolean;
 BEGIN
-    SELECT * INTO STRICT s FROM coordination.c05_scope();
+    SELECT * INTO s FROM coordination.c05_scope();
+    IF NOT FOUND THEN RAISE EXCEPTION 'private write context required' USING ERRCODE='42501'; END IF;
     SELECT EXISTS(SELECT 1 FROM core.records r
       WHERE r.tenant_id=s.tenant_id AND r.project_id=s.project_id AND r.id=p_record
         AND (r.kind='core' OR r.kind LIKE 'core.%')) INTO reserved;
