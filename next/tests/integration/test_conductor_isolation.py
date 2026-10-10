@@ -331,3 +331,85 @@ class FixtureLifecycle(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(closed, ['first', 'second', 'standalone-child', 'PG-fixture'],
                          'one manager failure short-circuited later ownership cleanup')
 
+
+    async def test_watcher_refuses_runtime_fixture_error_before_restart(self):
+        manager = Manager('synthetic-not-connected', UUID(int=1), max_restarts=0)
+        manager.child = Child(Process(80))
+        caught = None
+        try:
+            await manager.watch()
+        except FixtureError:
+            caught = 'FixtureError'
+        self.assertEqual(caught, 'FixtureError', 'exit80 must not become restart exhaustion')
+        self.assertEqual(manager.children, [])
+
+    async def test_late_heartbeat_failure_survives_pool_cleanup(self):
+        from unittest.mock import patch
+        import x02_process_fixture as fixture_module
+
+        class Pool:
+            closed = False
+            async def close(self):
+                self.closed = True
+        pool = Pool()
+        class SupervisorDouble:
+            fence = 1
+            def __init__(self, *args, **kwargs):
+                pass
+            async def run(self, stop):
+                await stop.wait()
+                raise RuntimeError('late synthetic heartbeat failure')
+        async def commands(supervisor, stop, heartbeat):
+            return
+        loop = asyncio.get_running_loop()
+        with patch.dict(os.environ, {'SEARCH_TEST_DSN': 'postgresql://conductor_runtime@127.0.0.1:12345/search_test'}), \
+             patch.object(fixture_module.asyncpg, 'create_pool', return_value=pool), \
+             patch.object(fixture_module, 'Supervisor', SupervisorDouble), \
+             patch.object(fixture_module, 'commands', commands), \
+             patch.object(fixture_module, 'emit'), \
+             patch.object(loop, 'add_signal_handler'), patch.object(loop, 'remove_signal_handler'):
+            caught = None
+            try:
+                await fixture_module.worker(UUID(int=1), .5, 'heartbeat', False)
+            except RuntimeError:
+                caught = 'RuntimeError'
+        self.assertEqual(caught, 'RuntimeError', 'late heartbeat failure was swallowed')
+        self.assertTrue(pool.closed, 'pool must close before heartbeat error propagates')
+
+    async def test_partial_setup_has_registered_owned_cleanup(self):
+        from unittest.mock import patch
+        class Partial:
+            closed = False
+            async def asyncSetUp(self):
+                raise FixtureError('controlled partial setup')
+            async def asyncTearDown(self):
+                self.closed = True
+        partial = Partial()
+        subject = Cases('test_requested_stop_does_not_restart')
+        with patch.object(test_conductor, 'ConductorTests', return_value=partial):
+            with self.assertRaises(FixtureError):
+                await subject.asyncSetUp()
+        self.assertEqual(len(subject._cleanups), 1, 'owned cleanup must be registered before setup')
+        cleanup, args, kwargs = subject._cleanups[0]
+        await cleanup(*args, **kwargs)
+        self.assertTrue(partial.closed)
+
+    async def test_failed_fixture_teardown_still_closes_remaining_pools(self):
+        closed = []
+        class Resource:
+            def __init__(self, name):
+                self.name = name
+            async def close(self):
+                closed.append(self.name)
+        class Partial:
+            control_pool = Resource('control')
+            pool = Resource('data')
+            admin = Resource('admin')
+            async def asyncTearDown(self):
+                raise FixtureError('controlled pool close failure')
+        subject = Cases('test_requested_stop_does_not_restart')
+        subject.tasks, subject.managers, subject.children = [], [], []
+        subject.fixture = Partial()
+        with self.assertRaises(FixtureError):
+            await subject.asyncTearDown()
+        self.assertEqual(closed, ['control', 'data', 'admin'], 'PG cleanup must not stop at first pool')
