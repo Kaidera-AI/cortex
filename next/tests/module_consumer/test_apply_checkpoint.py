@@ -77,3 +77,14 @@ class ApplyCheckpoint(ConsumerFixture):
         self.foreign_event(cursor=1);p=self.port();p.register(snapshot_cursor=0);p.cycle()
         global_row=self.admin.execute("SELECT applied_cursor,state FROM coordination.consumer_checkpoints WHERE module_id='graph'").fetchone()
         self.assertEqual(global_row[0],0);self.assertNotEqual(global_row[1],'active')
+
+    def test_complete_outcome_cannot_be_downgraded_to_poison(self):
+        self.seed();p=self.port();p.register(snapshot_cursor=0);p.cycle()
+        event=Outbox(self.request,OWNER_A,UUID(uid(1)),UUID(uid(3))).page().events[0]
+        with self.assertRaises(self.module().ConsumerError):
+            p._call('c07_record(%s,%s,%s,%s,%s,%s,%s)',
+                    ('graph',1,event.cursor,UUID(event.envelope['event_id']),
+                     'poison','invalid_digest',None))
+        self.assertEqual(self.checkpoint()[1],1)
+        self.assertEqual([row[1] for row in self.outcomes()],['applied'])
+        self.assertEqual(self.quarantine(),[])

@@ -218,13 +218,17 @@ f.doCleanups()
         checked(env+['python','-c',probe],120)
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==23 and not report['errors']
-    if 'capacity-red' in PHASE:
+    assert report['tests_run']==24 and not report['errors']
+    if 'downgrade-red' in PHASE:
+        assert value.returncode==1 and len(report['failures'])==1
+        assert report['failures'][0]['id'].split(' (')[0]=='test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'
+        assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+    elif 'capacity-red' in PHASE:
         assert value.returncode==1 and len(report['failures'])==1
         assert report['failures'][0]['id'].split(' (')[0]=='test_poison.Poison.test_sparse_outcome_capacity_refuses_without_dropping_peer'
         assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
     elif PHASE.startswith('c07-red'):
-        assert value.returncode==1 and len(report['failures'])==23
+        assert value.returncode==1 and len(report['failures'])==24
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
