@@ -42,3 +42,15 @@ class WriterInventory(unittest.TestCase):
         changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection):\n    connection.execute('SET search_path=core; DELETE FROM records WHERE true')\n"
         result=checker.audit(NEXT,overrides={name:changed})
         self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def test_composed_sql_writer_is_rejected(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection):\n    connection.execute('DELETE ' + 'FROM core.records WHERE true')\n"
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])
+
+    def test_dynamic_composed_sql_writer_fails_closed(self):
+        checker=self.checker();name='src/cortex_core/records.py'
+        changed=(NEXT/name).read_text()+"\ndef accidental_writer(connection, table):\n    connection.execute('DELETE ' + table + ' WHERE true')\n"
+        result=checker.audit(NEXT,overrides={name:changed})
+        self.assertFalse(result['passed']);self.assertTrue(result['unclassified'])

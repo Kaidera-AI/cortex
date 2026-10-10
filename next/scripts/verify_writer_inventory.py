@@ -12,6 +12,18 @@ TARGET = re.compile(r'\s*('+IDENTIFIER+r'(?:\s*\.\s*'+IDENTIFIER+r')?)',re.I)
 FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.]*).*?\bAS\s+\$\$(.*?)\$\$;',re.I|re.S)
 
 
+def static_text(node):
+    """Fold source-known SQL without executing application expressions."""
+    if isinstance(node,ast.Constant) and isinstance(node.value,str):return node.value
+    if isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add):
+        left,right=static_text(node.left),static_text(node.right)
+        if left is not None and right is not None:return left+right
+    if isinstance(node,ast.JoinedStr):
+        parts=[static_text(part) for part in node.values]
+        if all(part is not None for part in parts):return ''.join(parts)
+    return None
+
+
 def category(file,owner,verb,table):
     if table.startswith('retrieval.') and ('embeddings/' in file or 'modules/graph/' in file or file.startswith('schema/retrieval/')):
         return 'derived_projection_or_cache; separate module admission held'
@@ -69,6 +81,15 @@ def scan_source(file,source):
             normalized=' '.join(text.split())
             rows.append(dict(file=file,owner=owner,verb=verb,table=table,ordinal=ordinal,
                 statement_sha256=hashlib.sha256(normalized.encode()).hexdigest(),classification=category(file,owner,verb,table)))
+    def add_dynamic(owner,node):
+        fragments=[child.value for child in sorted(ast.walk(node),key=lambda part:(getattr(part,'lineno',0),getattr(part,'col_offset',0)))
+                   if isinstance(child,ast.Constant) and isinstance(child.value,str)]
+        candidate=''.join(fragments)
+        if not any(not (match.group().upper()=='UPDATE' and re.search(r'\bFOR\s*$',candidate[:match.start()],re.I))
+                   for match in re.finditer(r'\b(?:INSERT|UPDATE|DELETE)\b',candidate,re.I)):return
+        key=(owner,'DYNAMIC','<dynamic_or_unsupported>');ordinal=ordinals.get(key,0);ordinals[key]=ordinal+1
+        rows.append(dict(file=file,owner=owner,verb='DYNAMIC',table='<dynamic_or_unsupported>',ordinal=ordinal,
+            statement_sha256=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
     if file.endswith('.py'):
         class Visitor(ast.NodeVisitor):
             def __init__(self):self.owners=[]
@@ -77,6 +98,21 @@ def scan_source(file,source):
             def visit_FunctionDef(self,node):
                 self.owners.append(node.name);self.generic_visit(node);self.owners.pop()
             visit_AsyncFunctionDef=visit_FunctionDef
+            def visit_Call(self,node):
+                if (isinstance(node.func,ast.Attribute) and node.func.attr in ('execute','executemany')
+                    and node.args and static_text(node.args[0]) is None):
+                    add_dynamic('.'.join(self.owners) or '<module>',node.args[0])
+                self.generic_visit(node)
+            def visit_BinOp(self,node):
+                value=static_text(node)
+                if value is not None:
+                    add('.'.join(self.owners) or '<module>',value)
+                else:self.generic_visit(node)
+            def visit_JoinedStr(self,node):
+                value=static_text(node)
+                if value is not None:
+                    add('.'.join(self.owners) or '<module>',value)
+                else:self.generic_visit(node)
             def visit_Constant(self,node):
                 if isinstance(node.value,str):add('.'.join(self.owners) or '<module>',node.value)
         Visitor().visit(ast.parse(source))
