@@ -295,3 +295,16 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.wait_for(client.call('GET', '/'), .05)
         self.assertIsNotNone(child.returncode, 'cancelled response must reap the owned process')
         self.assertTrue(client.closed)
+
+    def test_invalid_latency_budget_refuses_before_input_read(self):
+        from unittest.mock import Mock, patch
+        self.surface()
+        reader = Mock(side_effect=RuntimeError('input read'))
+        caught = None
+        with patch.object(benchmark.corpus, 'load', reader):
+            try:
+                benchmark.execute('never-read', 'never-created', budget_ms=0)
+            except Exception as error:
+                caught = type(error)
+        self.assertIs(caught, ValueError)
+        self.assertEqual(reader.call_count, 0)

@@ -150,3 +150,11 @@ class GeometryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.admit_native({'dataset': 'marlow-geometry', 'geometry': {'input_sha256': 'a'*64, 'input_count': 141511},
                                  'identity': {'dimension': 768}}, data)
+
+    def test_admission_rejects_unknown_secret_bearing_fields(self):
+        module = self.surface()
+        admission = {'schema': 'cortex-b02-data-admission-v1', 'dataset': 'marlow-geometry', 'input_sha256': 'a'*64,
+                     'count': 141511, 'dimension': 768, 'cto_decision': 'named-run',
+                     'custody_receipt': 'custody', 'import_review_sha': 'b'*40, 'api_key': 'SYNTHETIC-NEVER-LOG'}
+        with self.assertRaises(ValueError):
+            module.validate_admission(admission, 'marlow-geometry')
