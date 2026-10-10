@@ -20,9 +20,11 @@ INSTALLATION = test_conductor.INSTALLATION
 class ConductorIsolationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         # Compose setup, avoiding inherited tests being counted again as X02 cases.
-        self.fixture = test_conductor.ConductorTests("test_singleton_and_fence_after_expiry")
-        await self.fixture.asyncSetUp()
         self.managers, self.children, self.tasks, self.ledger = [], [], [], {}
+        self.cleanup_done = False
+        self.fixture = test_conductor.ConductorTests("test_singleton_and_fence_after_expiry")
+        self.addAsyncCleanup(self.asyncTearDown)
+        await self.fixture.asyncSetUp()
         self.dsn = os.environ["SEARCH_TEST_DSN"].replace("postgres@", "conductor_runtime@")
         await self.fixture.admin.execute(
             "DROP TABLE IF EXISTS public.x02_sink,public.x02_feed,public.x02_checkpoint;"
@@ -37,14 +39,32 @@ class ConductorIsolationTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def asyncTearDown(self):
+        if getattr(self, "cleanup_done", False):
+            return
+        errors = []
         for task in self.tasks:
             task.cancel()
         await asyncio.gather(*self.tasks, return_exceptions=True)
-        for manager in self.managers:
-            await manager.close()
-        for child in self.children:
-            await child.close()
-        await self.fixture.asyncTearDown()
+        for resource in [*self.managers, *self.children]:
+            try:
+                await resource.close()
+            except BaseException as error:
+                errors.append(error)
+        try:
+            await self.fixture.asyncTearDown()
+        except BaseException as error:
+            errors.append(error)
+            # Composed fixture teardown can fail on its first pool or partial setup.
+            for name in ("control_pool", "pool", "admin"):
+                resource = getattr(self.fixture, name, None)
+                if resource is not None:
+                    try:
+                        await resource.close()
+                    except BaseException as error:
+                        errors.append(error)
+        self.cleanup_done = True
+        if errors:
+            raise FixtureError("Owned fixture cleanup failed after all cleanup attempts") from None
 
     def manager(self, **options):
         manager = Manager(self.dsn, INSTALLATION, **options)

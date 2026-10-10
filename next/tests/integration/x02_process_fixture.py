@@ -58,6 +58,8 @@ class Child:
         self.pid = process.pid
         self.receipt = None
         self.fence = None
+        self.intentional_kill = False
+        self.reported_failure = False
 
     @classmethod
     async def spawn(cls, dsn, installation, *, lease_seconds=0.5, mode="manual", crash=False):
@@ -110,14 +112,29 @@ class Child:
 
     async def kill(self):
         if self.process.returncode is None:
+            self.intentional_kill = True
             self.process.kill()
         await asyncio.wait_for(self.process.wait(), 2)
+        self.check_exit()
         observation({"kind": "killed", "pid": self.pid, "returncode": self.process.returncode})
 
     async def force_reap(self):
         if self.process.returncode is None:
+            self.intentional_kill = True
             self.process.kill()
         await asyncio.wait_for(self.process.wait(), 2)
+
+    def check_exit(self):
+        allowed = {0}
+        if self.intentional_kill:
+            allowed.add(-signal.SIGKILL)
+        kind = (self.receipt or {}).get("kind")
+        if kind == "deliberate_crash":
+            allowed.add(70)
+        if kind == "lease_busy":
+            allowed.add(75)
+        if self.process.returncode not in allowed:
+            raise FixtureError("Unexpected fixture child exit after owned reaping")
 
     async def close(self):
         try:
@@ -132,6 +149,9 @@ class Child:
                 self.process.stdin.close()
             await self.force_reap()
         observation({"kind": "reaped", "pid": self.pid, "returncode": self.process.returncode})
+        if not self.reported_failure:
+            self.reported_failure = True
+            self.check_exit()
 
 
 class Manager:
@@ -171,6 +191,7 @@ class Manager:
                      "returncode": self.child.process.returncode}
             self.events.append(event)
             observation(event)
+            self.child.check_exit()
             if self.requested_stop:
                 self.state = "stopped"
                 return
@@ -184,6 +205,11 @@ class Manager:
                 self.state = "stopped"
                 return
             await self.spawn()
+            # Spawn publishes only after readiness; stop may arrive during that await.
+            if self.closing or self.requested_stop:
+                await self.child.close()
+                self.state = "stopped"
+                return
 
     async def request_stop(self):
         self.requested_stop = True
@@ -322,15 +348,19 @@ async def worker(installation, lease_seconds, mode, crash):
         return 75
     finally:
         stop.set()
-        if heartbeat:
-            await asyncio.gather(heartbeat, return_exceptions=True)
-        else:
+        try:
+            if heartbeat:
+                await heartbeat  # Late runtime failures must survive successful commands.
+            else:
+                try:
+                    await supervisor.release()
+                except StaleLease:
+                    pass
+        finally:
             try:
-                await supervisor.release()
-            except StaleLease:
-                pass
-        await pool.close()
-        loop.remove_signal_handler(signal.SIGTERM)
+                await pool.close()
+            finally:
+                loop.remove_signal_handler(signal.SIGTERM)
 
 
 if __name__ == "__main__":

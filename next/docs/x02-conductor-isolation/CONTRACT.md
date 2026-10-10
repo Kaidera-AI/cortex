@@ -41,3 +41,7 @@ final acceptance requires clean and restored full suites, named semantic kills
 and an independent source/recipe/raw-output audit. Runtime or cleanup errors
 are inconclusive. The source-fixture restart policy is independently mutated;
 it proves no native service-manager policy.
+
+## Reviewer lifecycle repair controls (2026-10-10)
+
+Stop during replacement readiness reaps the published replacement before returning. Only declared normal stop, deliberate crash/lease-busy and an intentional fixture kill are admitted exit classes; runtime exit80 and all unexpected exits raise FixtureError after reaping, so they cannot count as semantic kills or successful restarts. A late heartbeat failure survives pool cleanup. Composed setup registers owned cleanup before any await; teardown attempts all managers, standalone children and the PG fixture, falls back to all acquired pools/admin on partial or failed fixture teardown, then reports FixtureError. Mike's three frozen reviewer bodies and four additional fault controls precede these changes; all original assertion bodies and ten literal recipes stay unchanged. Every author stack now requires >=35% free memory and an empty team test inventory. No native qualification changes.

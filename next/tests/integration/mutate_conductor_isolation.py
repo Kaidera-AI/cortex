@@ -79,6 +79,31 @@ MUTATIONS = [
      "pass", PREFIX + "test_consumer_continues_without_conductor"),
     (FIXTURE, "background_fixture_failure_hidden", "if failures and not self.reported_failure:",
      "if False:", PREFIX + "test_background_fixture_failure_surfaces_after_cleanup"),
+    (FIXTURE, "replacement_stop_ignored",
+     '            # Spawn publishes only after readiness; stop may arrive during that await.\n            if self.closing or self.requested_stop:',
+     '            # Spawn publishes only after readiness; stop may arrive during that await.\n            if False:',
+     "test_conductor_isolation.FixtureLifecycle.test_stop_during_replacement_spawn_closes_replacement"),
+    (FIXTURE, "runtime_close_error_hidden",
+     '        if not self.reported_failure:\n            self.reported_failure = True\n            self.check_exit()',
+     '        if not self.reported_failure:\n            self.reported_failure = True',
+     "test_conductor_isolation.FixtureLifecycle.test_fixture_error_exit_cannot_be_silent_successful_close"),
+    (FIXTURE, "runtime_watcher_error_restarted",
+     '            self.child.check_exit()', '            pass',
+     "test_conductor_isolation.FixtureLifecycle.test_watcher_refuses_runtime_fixture_error_before_restart"),
+    (FIXTURE, "late_heartbeat_error_hidden",
+     '                await heartbeat  # Late runtime failures must survive successful commands.',
+     '                await asyncio.gather(heartbeat, return_exceptions=True)',
+     "test_conductor_isolation.FixtureLifecycle.test_late_heartbeat_failure_survives_pool_cleanup"),
+    (proof.ROOT / "tests/integration/test_conductor_isolation.py", "composed_cleanup_short_circuited",
+     '            except BaseException as error:\n                errors.append(error)\n        try:\n            await self.fixture.asyncTearDown()',
+     '            except BaseException as error:\n                raise\n        try:\n            await self.fixture.asyncTearDown()',
+     "test_conductor_isolation.FixtureLifecycle.test_teardown_attempts_all_owned_cleanup_after_one_failure"),
+    (proof.ROOT / "tests/integration/test_conductor_isolation.py", "partial_setup_cleanup_unregistered",
+     '        self.addAsyncCleanup(self.asyncTearDown)', '        pass',
+     "test_conductor_isolation.FixtureLifecycle.test_partial_setup_has_registered_owned_cleanup"),
+    (proof.ROOT / "tests/integration/test_conductor_isolation.py", "remaining_pg_pools_skipped",
+     '            for name in ("control_pool", "pool", "admin"):', '            for name in ():',
+     "test_conductor_isolation.FixtureLifecycle.test_failed_fixture_teardown_still_closes_remaining_pools"),
 ]
 
 
@@ -121,7 +146,7 @@ def resource_gate(evidence, name):
         inventory = subprocess.check_output(
             [podman, "ps", "-a", "--filter", "label=cortex.test", "--format", "{{.Names}}"], text=True)
         free = int(match[1])
-        allowed = free >= 30 and not inventory.strip()
+        allowed = free >= 35 and not inventory.strip()
         attempts.append({"utc": datetime.now(timezone.utc).isoformat(), "free_percent": free,
                          "team_test_inventory": inventory, "allowed": allowed})
         (evidence / (name + ".resources.json")).write_text(json.dumps(attempts, indent=2) + "\n")
