@@ -133,6 +133,62 @@ class OperationRace(unittest.TestCase):
             self.assertEqual((ports.data, ports.ledger, ports.restore_calls),
                              (ports.backup, [], 1))
 
+    def test_paused_rollback_excludes_accept_until_restore_completes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            entered_fence, release_fence = threading.Event(), threading.Event()
+
+            class PausedFence(Ports):
+                def fence_new(self):
+                    entered_fence.set()
+                    if not release_fence.wait(10):
+                        raise AssertionError('timed out waiting to release fence')
+
+            apply_release = threading.Event()
+            apply_release.set()
+            ports = PausedFence(
+                module.AtomicUpgradeJournal(Path(temporary)/'journal.json'),
+                threading.Event(), apply_release)
+            upgrade = coordinator(ports)
+            upgrade.prepare()
+            upgrade.advance()
+            rollback_errors, accept_errors = [], []
+            accept_started, accept_finished = threading.Event(), threading.Event()
+
+            def run_rollback():
+                try:
+                    coordinator(ports).rollback()
+                except Exception as error:
+                    rollback_errors.append(error)
+
+            def run_accept():
+                accept_started.set()
+                try:
+                    coordinator(ports).accept()
+                except Exception as error:
+                    accept_errors.append(error)
+                finally:
+                    accept_finished.set()
+
+            rollback = threading.Thread(target=run_rollback)
+            accept = threading.Thread(target=run_accept)
+            rollback.start()
+            self.assertTrue(entered_fence.wait(10), 'rollback did not enter fence')
+            accept.start()
+            self.assertTrue(accept_started.wait(10), 'accept did not start')
+            time.sleep(0.2)
+            completed_while_paused = accept_finished.is_set()
+            release_fence.set()
+            rollback.join(10)
+            accept.join(10)
+            self.assertFalse(rollback.is_alive() or accept.is_alive())
+            self.assertFalse(rollback_errors, [str(error) for error in rollback_errors])
+            self.assertFalse(completed_while_paused,
+                             'accept completed while rollback was in flight')
+            self.assertEqual([error.code for error in accept_errors], ['not_prepared'])
+            self.assertEqual(ports.load()['phase'], 'rolled_back')
+            self.assertEqual((ports.data, ports.ledger, ports.restore_calls),
+                             (ports.backup, [], 1))
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
