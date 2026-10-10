@@ -33,6 +33,15 @@ MUTANTS = {
     'malformed_key': ('src/cortex_core/api/c11a.py',
                       "except UnicodeError:\n                return await _respond(send, 400, _packet('invalid_input', retryable=False))",
                       "except UnicodeError:\n                request_key = None"),
+    'd1_403_leak': ('src/cortex_core/api/c11a.py',
+                    "return ((404, _packet('not_found', retryable=False)) if active else",
+                    "return ((403, _packet('forbidden', retryable=False)) if active else"),
+    'd1_tombstone_skipped': ('src/cortex_core/api/c11b.py',
+                             "if value.tombstone:\n            raise RecordError('gone')",
+                             "if False:\n            raise RecordError('gone')"),
+    'd1_digest_dropped': ('src/cortex_core/api/c11b.py',
+                          "'payload_sha256': value.payload_sha256,",
+                          "'payload_sha256_omitted': value.payload_sha256,"),
 }
 
 

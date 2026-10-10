@@ -156,6 +156,18 @@ class C11bRecordPort:
     async def principal(self, scope):
         return await asyncio.to_thread(self._principal, scope)
 
+    def _credential_active(self, scope):
+        digest = hashlib.sha256(_credential(scope)).hexdigest()
+        with self.connection_factory() as db:
+            value = db.execute('SELECT auth.credential_active(%s,%s)',
+                               (digest, self.installation_id)).fetchone()
+        if value is None or type(value[0]) is not bool:
+            raise AuthError('core_unavailable')
+        return value[0]
+
+    async def credential_active(self, scope):
+        return await asyncio.to_thread(self._credential_active, scope)
+
     def _write_memory(self, principal, scope, request_key):
         project = self._project(scope)
         credential = _credential(scope)
@@ -249,13 +261,16 @@ class C11bRecordPort:
         project = self._project(scope)
         with self.connection_factory() as db:
             records = Records(db, _credential(scope), self.installation_id, project)
-            value = records.get(record_id)
+            value = records.get(record_id, include_tombstone=True)
         if value is None:
             return None
+        if value.tombstone:
+            raise RecordError('gone')
         if value.kind != 'memory':
-            raise RecordError('conflict')
+            return None
         body = json.loads(value.body)
         return {'id': str(value.record_id), 'kind': value.kind, 'revision': value.revision,
+                'payload_sha256': value.payload_sha256,
                 'section': body['section'], 'content': body['content'],
                 'category': body['category'], 'source': body['source']}
 

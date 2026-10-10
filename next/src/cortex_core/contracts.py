@@ -76,20 +76,28 @@ def _walk(value):
 
 
 def validate_openapi(document):
-    """Verify ownership, schema structure and references in the 128-route draft."""
+    """Verify the 128 frozen C01 routes and the ruled additive D1 operation."""
     if document.get("openapi") != "3.1.0":
         raise ContractError("Unsupported OpenAPI version")
     ids = []
+    c01_ids = []
     for path, item in document["paths"].items():
         for method, operation in item.items():
             if method not in {"get", "post", "put", "patch", "delete", "head", "options"}:
                 continue
             ids.append(operation["operationId"])
+            if (method, path) == ('get', '/records/{id}'):
+                if (operation.get('operationId') != 'C11-D1_get_record'
+                        or operation.get('x-delta-ruling') != 'H-D455-D1-2026-10-10-21:30'
+                        or operation.get('x-implementation-state') != 'implemented_source'):
+                    raise ContractError('D1 additive operation differs')
+                continue
+            c01_ids.append(operation["operationId"])
             if operation.get("x-c01-disposition") not in {"keep", "change", "retire"}:
                 raise ContractError(f"Unowned route {method} {path}")
             if "x-c02-freeze-gaps" not in operation:
                 raise ContractError(f"Missing C02 freeze boundary for {method} {path}")
-    if len(ids) != 128 or len(set(ids)) != len(ids):
+    if len(ids) != 129 or len(c01_ids) != 128 or len(set(ids)) != len(ids):
         raise ContractError("Inventory count or operation IDs differ")
     for node in _walk(document):
         if "$ref" not in node:

@@ -34,7 +34,9 @@ class MemoryAPI(Fixture):
             principal_resolver=self.port.principal, permission_recheck=grant,
             capability_source=state, health=health,
             handlers={'C01-R102': self.port.write_memory},
-            record_reader=self.port.read_record, allow_legacy_idempotency=True)
+            record_reader=self.port.read_record,
+            record_credential_active=self.port.credential_active,
+            allow_legacy_idempotency=True)
 
     def call(self, method, path, key, body=None, *, agent='10', project='3',
              request_key=None, raw=False):
@@ -117,8 +119,10 @@ class MemoryAPI(Fixture):
         self.assertEqual(set(first), {'id', 'action', 'status', 'created', 'updated', 'embedded'})
         self.assertEqual((first['action'], first['status'], first['created'], first['updated'],
                           first['embedded']), ('created', 'created', True, False, False))
+        saved = Records(self.request, READ_A, UUID(uid(1)), UUID(uid(3))).get(UUID(first['id']))
         self.assertEqual(self.call('GET', '/records/' + first['id'], READ_A),
                          (200, {'id': first['id'], 'kind': 'memory', 'revision': 1,
+                                'payload_sha256': saved.payload_sha256,
                                 'section': 'decisions', 'content': 'one exact memory',
                                 'category': 'operational', 'source': 'openkai/decision/one'}))
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body), (200, first))
@@ -145,11 +149,11 @@ class MemoryAPI(Fixture):
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body, agent='8')[0], 403)
         status, created = self.call('POST', '/memory', WRITE_A, body)
         self.assertEqual(status, 200)
-        self.assertEqual(self.call('GET', '/records/' + created['id'], READ_B)[0], 403)
+        self.assertEqual(self.call('GET', '/records/' + created['id'], READ_B)[0], 401)
         self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
                            (hashlib.sha256(WRITE_A).hexdigest(),))
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body)[0], 403)
-        self.assertEqual(self.call('GET', '/records/' + created['id'], WRITE_A)[0], 403)
+        self.assertEqual(self.call('GET', '/records/' + created['id'], WRITE_A)[0], 401)
 
     def test_released_tokenless_cli_shape_is_refused_by_c04(self):
         body = {'section': 'decisions', 'content': 'CLI memory', 'category': 'operational'}

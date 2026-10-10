@@ -35,6 +35,9 @@ PG_SEARCH_ROUTES = frozenset({"C01-R021", "C01-R022"})
 PG_GRAPH_ROUTES = frozenset({"C01-R023", "C01-R024", "C01-R025", "C01-R026",
                              "C01-R034", "C01-R035", "C01-R036", "C01-R037"})
 RETIRED_SQL_ROUTES = frozenset({"C01-R125", "C01-R126"})
+D1_ROUTE = {"id": "C11-D1", "method": "GET", "path": "/records/{id}",
+            "disposition": "add", "observed": False, "openkai_production": False,
+            "effect": "read", "capability": None}
 
 
 def _matrix_routes(matrix):
@@ -60,13 +63,19 @@ def load_routes():
     if (manifest.get("format") != "c11a-consumer-routes-v1"
             or manifest.get("released_cortex_tag") != "v0.1.002"
             or hashlib.sha256(matrix).hexdigest() != manifest.get("c01_matrix_sha256")
-            or not isinstance(rows, list) or len(rows) != 87
+            or not isinstance(rows, list) or len(rows) != 88
             or sum(row.get("observed") is True for row in rows) != 82
             or sum(row.get("openkai_production") is True for row in rows) != 9):
         raise GatewayError("consumer route inventory differs")
     ids, pairs = set(), set()
     matrix_routes = _matrix_routes(matrix)
     for row in rows:
+        if row == D1_ROUTE:
+            if row["id"] in ids or (row["method"], row["path"]) in pairs:
+                raise GatewayError("consumer route entry is invalid")
+            ids.add(row["id"])
+            pairs.add((row["method"], row["path"]))
+            continue
         if (not isinstance(row, dict) or set(row) != {"id", "method", "path", "disposition",
                                                   "observed", "openkai_production", "effect", "capability"}
                 or not re.fullmatch(r"C01-R\d{3}", str(row["id"]))
@@ -90,7 +99,7 @@ def load_routes():
                 or row["openkai_production"] != (route_id in OPENKAI_PRODUCTION)
                 or row["effect"] != effect or row["capability"] != capability):
             raise GatewayError("consumer route differs from frozen source")
-    if ("C01-R001" not in ids or "C01-R002" not in ids
+    if ("C01-R001" not in ids or "C01-R002" not in ids or "C11-D1" not in ids
             or {row["id"] for row in rows if row["effect"] == "retired_sql"}
             != {"C01-R125", "C01-R126"}):
         raise GatewayError("required guarded route is absent")
@@ -164,6 +173,8 @@ def _error_status(error):
         return 409, _packet('conflict', retryable=False)
     if code == 'invalid_input':
         return 400, _packet('invalid_input', retryable=False)
+    if code == 'gone':
+        return 410, _packet('gone', retryable=False)
     if code == 'capability_unavailable':
         return 503, _packet('capability_unavailable',
                             capability=getattr(error, 'capability', None),
@@ -211,6 +222,7 @@ class ConsumerGateway:
 
     def __init__(self, *, core_probe, principal_resolver, permission_recheck,
                  capability_source, health, handlers, record_reader=None,
+                 record_credential_active=None,
                  allow_legacy_idempotency=False, parse_search_body=False):
         if (any(not callable(value) for value in (core_probe, principal_resolver,
                                                    permission_recheck, capability_source, health))
@@ -222,9 +234,28 @@ class ConsumerGateway:
         self.permission_recheck, self.capability_source = permission_recheck, capability_source
         self.health, self.handlers = health, handlers
         self.record_reader = record_reader
+        self.record_credential_active = record_credential_active
         self.allow_legacy_idempotency = allow_legacy_idempotency
         self.parse_search_body = parse_search_body
         self.app = self._app
+
+    async def _d1_refusal(self, scope, error):
+        code = getattr(error, 'code', None)
+        if code in {'forbidden', 'scope_mismatch'}:
+            if self.record_credential_active is None:
+                return 503, _packet('capability_unavailable', reason='adapter_unbound')
+            try:
+                active = await self.record_credential_active(scope)
+            except Exception as failure:
+                if getattr(failure, 'code', None) == 'unauthenticated':
+                    return _error_status(failure)
+                return 503, _packet('core_unavailable')
+            if type(active) is not bool:
+                return 503, _packet('core_unavailable')
+            return ((404, _packet('not_found', retryable=False)) if active else
+                    (401, _packet('credential_required', retryable=False,
+                                  message='Configure a scoped Cortex credential or upgrade this client.')))
+        return _error_status(error)
 
     async def _app(self, scope, receive, send):
         if scope.get("type") != "http":
@@ -247,14 +278,16 @@ class ConsumerGateway:
             return await _respond(send, 503, _packet("core_unavailable"))
         row = next((row for row, pattern in self.routes
                     if method == row["method"] and pattern.fullmatch(path or "")), None)
-        record_id = re.fullmatch(r'/records/([0-9a-fA-F-]{36})', path or '') if method == 'GET' else None
-        if row is None and (record_id is None or self.record_reader is None):
+        if row is None:
             return await _respond(send, 404, _packet("not_found", retryable=False))
         if row is not None and row["effect"] == "retired_sql":
             return await _respond(send, 410, _packet("retired_route", retryable=False))
         try:
             principal = await self.principal_resolver(scope)
         except Exception as error:
+            if row['id'] == 'C11-D1':
+                status, packet = await self._d1_refusal(scope, error)
+                return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'unauthenticated':
                 status, packet = _error_status(error)
                 return await _respond(send, status, packet)
@@ -262,17 +295,23 @@ class ConsumerGateway:
                 return await _respond(send, 503, _packet('core_unavailable'))
             principal = None
         if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
+            if row['id'] == 'C11-D1':
+                status, packet = await self._d1_refusal(scope, GatewayError('forbidden'))
+                return await _respond(send, status, packet)
             return await _respond(send, 403, _packet("forbidden", retryable=False))
-        if record_id is not None and row is None:
+        if row['id'] == 'C11-D1':
+            if self.record_reader is None or self.record_credential_active is None:
+                return await _respond(send, 503, _packet('capability_unavailable',
+                                                        reason='adapter_unbound'))
             try:
-                value = await self.record_reader(principal, scope, record_id.group(1))
+                value = await self.record_reader(principal, scope, path.rsplit('/', 1)[1])
                 if value is None:
                     return await _respond(send, 404, _packet('not_found', retryable=False))
                 if not isinstance(value, dict):
                     raise GatewayError('record read receipt is invalid')
                 return await _respond(send, 200, value)
             except Exception as error:
-                status, packet = _error_status(error)
+                status, packet = await self._d1_refusal(scope, error)
                 return await _respond(send, status, packet)
         if row["capability"]:
             state = await capability_state(row["capability"], self.capability_source,

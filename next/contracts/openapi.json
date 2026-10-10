@@ -12793,6 +12793,76 @@
         "x-h-d448-core-outage": "typed core_unavailable, fail closed; no authentication fallback",
         "x-h-d448-idempotency": "required; principal/project/operation/request binding; exact header and status mapping C02 transition"
       }
+    },
+    "/records/{id}": {
+      "get": {
+        "operationId": "C11-D1_get_record",
+        "tags": [
+          "records"
+        ],
+        "summary": "Read an authorized committed Core record",
+        "description": "H-D455 D1 additive source operation. Unknown and authenticated out-of-scope IDs have identical 404 responses; an authorized tombstone gives 410. Revoked or forged credentials give typed 401. A successful read includes the committed revision and payload digest.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized committed record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "kind",
+                    "revision",
+                    "payload_sha256"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "payload_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credential missing, revoked or invalid"
+          },
+          "404": {
+            "description": "Unknown or authenticated out-of-scope; identical response"
+          },
+          "410": {
+            "description": "Authorized tombstone"
+          },
+          "503": {
+            "description": "Core or adapter unavailable"
+          }
+        },
+        "x-delta-ruling": "H-D455-D1-2026-10-10-21:30",
+        "x-implementation-state": "implemented_source"
+      }
     }
   },
   "components": {

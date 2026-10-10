@@ -76,6 +76,11 @@
       "id": "retrieval-0004",
       "file": "retrieval/004-request-authority.sql",
       "sha256": "3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e"
+    },
+    {
+      "id": "auth-0004",
+      "file": "auth/004-credential-state.sql",
+      "sha256": "5b9a97806f5179b8accf874bc024265df372884ac261aaa6a047da6806ef3849"
     }
   ]
 }
