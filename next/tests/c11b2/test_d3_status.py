@@ -85,7 +85,8 @@ class D3Status(IsolatedAsyncioTestCase):
         self.assertEqual(a['canonical_write']['state'], 'unavailable')
         for key, gateway in ((READ_A, self.gateway), (READ_B, gateway_b)):
             status, body = await self.call_as(key, '/beat/embeddings/backlog', gateway=gateway)
-            self.assertEqual((status, body['error']['code'], body['error']['reason']),
+            self.assertEqual((status, body.get('error', {}).get('code'),
+                              body.get('error', {}).get('reason')),
                              (503, 'capability_unavailable', 'backlog_source_unbound'))
             self.assertNotIn('pending', body)
 
