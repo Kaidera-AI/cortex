@@ -77,6 +77,24 @@ class OpenKaiConsumer(unittest.TestCase):
         with self.assertRaises(refusal):
             validate_packet(wrong, openapi)
 
+    def test_each_observed_route_has_a_proposed_exchange_and_typed_error(self):
+        _, validate_case, refusal = self.validator()
+        cases = self.cases('route-exchanges')
+        self.assertEqual({(c['method'], c['path']) for c in cases},
+                         EXPECTED_OBSERVED)
+        self.assertEqual(len(cases), 9)
+        for case in cases:
+            with self.subTest(route=case['id']):
+                self.assertEqual(validate_case(case), case['id'])
+        missing_error = copy.deepcopy(cases[0])
+        del missing_error['error']
+        with self.assertRaises(refusal):
+            validate_case(missing_error)
+        sdk_promoted = copy.deepcopy(cases[0])
+        sdk_promoted['path'] = '/skills'
+        with self.assertRaises(refusal):
+            validate_case(sdk_promoted)
+
     def test_committed_write_read_retry_conflict_and_unknown_timeout(self):
         _, validate_case, refusal = self.validator()
         cases = self.cases('write-visibility')
@@ -87,6 +105,10 @@ class OpenKaiConsumer(unittest.TestCase):
                 self.assertEqual(validate_case(case), case['id'])
         bad = copy.deepcopy(next(x for x in cases if x['id'] == 'ack-read'))
         bad['read']['revision'] += 1
+        with self.assertRaises(refusal):
+            validate_case(bad)
+        bad = copy.deepcopy(next(x for x in cases if x['id'] == 'ack-read'))
+        bad['ack']['receipt']['durability'] = 'queued'
         with self.assertRaises(refusal):
             validate_case(bad)
         bad = copy.deepcopy(next(x for x in cases if x['id'] == 'idempotency'))
@@ -107,7 +129,6 @@ class OpenKaiConsumer(unittest.TestCase):
             self.assertEqual(validate_case(case), case['id'])
         pending = copy.deepcopy(next(x for x in cases if x['state'] == 'pending'))
         pending['results'] = []
-        pending['status'] = 200
         with self.assertRaises(refusal):
             validate_case(pending)
         partial = copy.deepcopy(next(x for x in cases if x['state'] == 'partial'))
