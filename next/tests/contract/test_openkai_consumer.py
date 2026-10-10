@@ -215,7 +215,8 @@ class OpenKaiConsumer(unittest.TestCase):
         cases = self.cases('alone-safety')
         self.assertEqual({x['id'] for x in cases},
                          {'wrong-project', 'revoked-writer', 'off',
-                          'session-mirror', 'stale-recall'})
+                          'session-mirror', 'stale-recall',
+                          'control-unbound', 'job-unbound'})
         for case in cases:
             self.assertEqual(validate_case(case), case['id'])
         off = copy.deepcopy(next(x for x in cases if x['id'] == 'off'))
@@ -230,6 +231,10 @@ class OpenKaiConsumer(unittest.TestCase):
         stale['decision'] = 'displayed'
         with self.assertRaises(refusal):
             validate_case(stale)
+        control = copy.deepcopy(next(x for x in cases if x['id'] == 'control-unbound'))
+        control['binding'] = 'ruled_bound'
+        with self.assertRaises(refusal):
+            validate_case(control)
 
 
 if __name__ == '__main__':
