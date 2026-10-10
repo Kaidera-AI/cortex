@@ -37,3 +37,7 @@ Run complete unchanged C04 auth/schema suites plus contract/shared gates and all
 ## Merge danger and held gates
 
 Source adapters can be reverted before installer admission. Any newly added forward migration is one-way when applied and needs separate owner authorization; blast radius records/coordination. C06 capture/publication and C07 module application are the next named source slices. Live mutation/adoption/installer, released client compatibility, native x86 artifact/signing and release remain held. This plan does not approve its own source or waive a failed gate.
+
+## Legacy coordination scope guard
+
+The current-main legacy source inspection is frozen in `evidence/c05-source/legacy-coordination-source.json`; it is planning evidence, never a released runtime acceptance pin. Claim eligibility depends on registered recipient/role and pending state. Return/completion handbacks have independent accept/rework governance, completion requires owner/admin control, and terminal release/abandon/fail preserve their distinct effects. The claim-with-budget path currently treats budget as telemetry (`not_enforced`), so this slice introduces no new budget-enforcement policy. The executable C05 mapping must name these boundaries and retained lifecycle aliases; a generic job lease must not be presented as complete legacy-handoff compatibility. Any unrepresented identity/return-governance requirement is returned to Kai as an explicit remaining adapter gap before claiming C05 complete; C02/C11 still own exact released HTTP envelopes.
