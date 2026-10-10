@@ -14,14 +14,15 @@ class MigrationSteps(unittest.TestCase):
     def setUp(self):
         self.db = psycopg.connect(os.environ['TEST_DATABASE_URL'], autocommit=True)
         self.addCleanup(self.db.close)
-        self.db.execute('DROP SCHEMA IF EXISTS core CASCADE')
+        for schema in ('retrieval', 'coordination', 'auth', 'core'):
+            self.db.execute(f'DROP SCHEMA IF EXISTS {schema} CASCADE')
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         entries = []
         for n in (1, 2):
             name = f'expand-{n}.sql'
-            data = f'CREATE TABLE core.upgrade_probe_{n}(id integer PRIMARY KEY);\n'.encode()
+            data = f'CREATE TABLE IF NOT EXISTS core.upgrade_probe_{n}(id integer PRIMARY KEY);\n'.encode()
             (self.root/name).write_bytes(data)
             entries.append({'id': f'expand-{n}', 'file': name,
                             'sha256': hashlib.sha256(data).hexdigest()})

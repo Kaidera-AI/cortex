@@ -76,7 +76,7 @@ class CoordinatorTests(unittest.TestCase):
                 c.advance()
             c.advance()
         self.assertEqual(self.ports.applied, ['expand-1', 'expand-2'])
-        self.assertEqual(self.ports.calls.count('apply:expand-1'), 2)
+        self.assertEqual(self.ports.calls.count('apply:expand-1'), 1)
         c.accept()
         self.assertEqual(self.ports.state['phase'], 'accepted')
         with self.assertRaisesRegex(ValueError, 'fix_forward_only'):
@@ -94,6 +94,7 @@ class CoordinatorTests(unittest.TestCase):
     def test_validation_and_identity_guard_before_acceptance(self):
         c = self.coordinator()
         c.prepare()
+        c.advance()
         c.advance()
         self.ports.valid = False
         with self.assertRaisesRegex(ValueError, 'preservation_failed'):

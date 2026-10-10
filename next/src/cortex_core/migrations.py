@@ -10,7 +10,7 @@ class MigrationError(ValueError):
     """Untrusted migration input or an incompatible applied ledger."""
 
 
-def apply_migrations(connection, directory=SCHEMA):
+def apply_migrations(connection, directory=SCHEMA, *, through=None):
     if not connection.autocommit:
         raise MigrationError("Migration connection must use autocommit")
     directory = Path(directory).resolve()
@@ -28,6 +28,12 @@ def apply_migrations(connection, directory=SCHEMA):
             raise MigrationError("Migration checksum differs")
         prepared.append((entry["id"], entry["sha256"], data.decode("utf-8")))
         seen.add(entry["id"])
+    if through is not None:
+        if through not in seen:
+            raise MigrationError("Unknown migration target")
+        prepared_target = next(i for i, item in enumerate(prepared) if item[0] == through)
+    else:
+        prepared_target = len(prepared) - 1
     applied = []
     with connection.transaction():
         connection.execute("SELECT pg_advisory_xact_lock(6203001)")
@@ -41,7 +47,10 @@ def apply_migrations(connection, directory=SCHEMA):
         for identity, digest, _ in prepared:
             if identity in ledger and ledger[identity] != digest:
                 raise MigrationError("Applied migration checksum differs")
-        for identity, digest, sql in prepared:
+        ledger_ids = set(ledger)
+        if ledger_ids != {item[0] for item in prepared[:len(ledger_ids)]}:
+            raise MigrationError("Applied migration ledger is not a prefix")
+        for identity, digest, sql in prepared[:prepared_target + 1]:
             if identity in ledger:
                 continue
             connection.execute(sql, prepare=False)
