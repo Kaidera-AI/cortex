@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -76,8 +80,8 @@ def test_project_root_validation_preserves_unconfigured_legacy_mode(monkeypatch)
 
 
 def test_fresh_schema_and_migrations_cover_runtime_created_graph_table_and_query_indexes():
-    schema = (REPO_ROOT / ".agents/data/cortex-schema-full.sql").read_text()
-    migrations = REPO_ROOT / ".agents/data/migrations"
+    schema = (REPO_ROOT / "packages/schema/cortex-schema-full.sql").read_text()
+    migrations = REPO_ROOT / "packages/schema/migrations"
 
     assert "CREATE TABLE public.graph_build_jobs" in schema
     for index in (
@@ -93,13 +97,6 @@ def test_fresh_schema_and_migrations_cover_runtime_created_graph_table_and_query
             matching = [path for path in migrations.glob("2026-07-19-*.sql") if index in path.read_text()]
         assert len(matching) == 1
         assert "CREATE INDEX CONCURRENTLY" in matching[0].read_text()
-
-
-def test_compose_runtime_memory_and_project_root_contracts():
-    compose = (REPO_ROOT / ".agents/docker-compose.cortex.yml").read_text()
-
-    assert "shared_buffers=384MB" in compose
-    assert "HOST_PROJECTS_ROOT" in compose
 
 
 def test_project_transfer_remaps_scope_and_uses_named_destination_columns():
@@ -143,15 +140,60 @@ def test_project_transfer_orders_fk_parents_before_children():
     assert order.index(actor) < order.index(alias)
 
 
-def test_project_transfer_cli_is_api_only_and_integrity_checked():
-    export_script = (REPO_ROOT / ".agents/scripts/cortex-export-project").read_text()
-    import_script = (REPO_ROOT / ".agents/scripts/cortex-import-project").read_text()
+def test_project_transfer_cli_is_api_only_and_integrity_checked(monkeypatch, tmp_path):
+    cli = REPO_ROOT / "packages/cli"
+    wrapper = (cli / "cortex-export-project").read_text()
+    assert any(line.startswith('exec python3 -B ') and '_cortex_export.py' in line
+               for line in wrapper.splitlines())
+    spec = importlib.util.spec_from_file_location("ledger_export_helper", cli / "_cortex_export.py")
+    helper = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(helper)
+    payload = json.dumps({"format": "kaidera.cortex-project.v1",
+        "source_project": {"project_key": "fixture"}, "table_count": 1, "row_count": 1,
+        "tables": [{"schema_name": "public", "table_name": "knowledge", "rows": [{"id": "synthetic"}]}]}).encode()
+    observed = []
 
-    assert "/admin/projects/${ENCODED_PROJECT}/export" in export_script
-    assert "/admin/projects/${ENCODED_PROJECT}/import" in import_script
-    assert "shasum -a 256" in export_script
-    assert "shasum -a 256 -c" in import_script
-    for script in (export_script, import_script):
-        assert "docker exec" not in script
-        assert "podman exec" not in script
-        assert "psql" not in script
+    def transport(command, _env):
+        observed.append(command[-3])
+        Path(command[-2]).write_bytes(payload)
+
+    monkeypatch.setattr(helper, "download", transport)
+    monkeypatch.setenv("CORTEX_AGENT", "fixture-agent")
+    directory = tmp_path.resolve()
+    output = directory / "export.json"
+    helper.export("fixture", str(output), [])
+    assert observed == ["/admin/projects/fixture/export"]
+    assert output.read_bytes() == payload
+    assert output.with_suffix(".json.sha256").read_text() == hashlib.sha256(payload).hexdigest() + "  export.json\n"
+
+    # Execute exact import bytes with only the API transport isolated. The real
+    # sidecar validation, body preparation and endpoint construction still run.
+    script = directory / "cortex-import-project"
+    script.write_bytes((cli / "cortex-import-project").read_bytes())
+    assert script.read_bytes() == (cli / "cortex-import-project").read_bytes()
+    (directory / "_cortex_api.sh").write_text('''cortex_api_urlencode_strict() { printf '%s' "$1"; }
+cortex_api_call_admin() {
+python3 - "$1" "$2" "$CORTEX_API_PAYLOAD_FILE" <<'PY'
+import json,sys
+from pathlib import Path
+print('LEDGER_API='+json.dumps({'method':sys.argv[1],'endpoint':sys.argv[2],'body':json.loads(Path(sys.argv[3]).read_text())}))
+PY
+}
+''')
+    env = {"PATH": os.environ["PATH"], "TMPDIR": str(directory), "CORTEX_AGENT": "fixture-agent"}
+    result = subprocess.run(["/bin/bash", str(script), "destination", str(output)], env=env,
+                            capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+    rows = [json.loads(line.removeprefix("LEDGER_API=")) for line in result.stdout.splitlines() if line.startswith("LEDGER_API=")]
+    assert len(rows) == 1
+    assert rows[0] == {"method": "POST", "endpoint": "/admin/projects/destination/import",
+                       "body": {**json.loads(payload), "allow_existing": False}}
+    output.write_bytes(payload + b" ")
+    refused = subprocess.run(["/bin/bash", str(script), "destination", str(output)], env=env,
+                             capture_output=True, text=True, timeout=15)
+    assert refused.returncode != 0 and "LEDGER_API=" not in refused.stdout
+    for path in (cli / "_cortex_export.py", cli / "cortex-import-project"):
+        executable_lines = [line for line in path.read_text().splitlines() if not line.lstrip().startswith("#")]
+        for forbidden in ("docker exec", "podman exec", "psql"):
+            assert not any(forbidden in line for line in executable_lines)

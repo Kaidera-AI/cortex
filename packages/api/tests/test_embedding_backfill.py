@@ -257,10 +257,10 @@ async def test_embedding_backfill_supports_artifacts_with_canonical_content(monk
 
 def test_artifact_embedding_schema_matches_the_768_dimension_backfill_contract():
     root = API_MAIN_PATH.parents[2]
-    schema = (root / ".agents/data/schema.sql").read_text(encoding="utf-8")
-    full_schema = (root / ".agents/data/cortex-schema-full.sql").read_text(encoding="utf-8")
+    schema = (root / "packages/schema/schema.sql").read_text(encoding="utf-8")
+    full_schema = (root / "packages/schema/cortex-schema-full.sql").read_text(encoding="utf-8")
     migration = (
-        root / ".agents/data/migrations/2026-09-01-01-artifact-embedding-768.sql"
+        root / "packages/schema/migrations/2026-09-01-01-artifact-embedding-768.sql"
     ).read_text(encoding="utf-8")
 
     artifact_schema = schema.split("CREATE TABLE IF NOT EXISTS artifacts (", 1)[1].split(
