@@ -245,7 +245,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
     async def test_installer_ledger_contains_nemo_retrieval_schemas(self):
         applied = {row[0] for row in self.admin.execute(
             'SELECT migration_id FROM core.schema_migrations').fetchall()}
-        self.assertTrue({'retrieval-0001', 'retrieval-0002', 'retrieval-0003'} <= applied)
+        self.assertTrue({'retrieval-0001', 'retrieval-0002', 'retrieval-0003',
+                         'retrieval-0004'} <= applied)
         for table in ('search_state', 'search_sources', 'search_vectors',
                       'query_embeddings', 'graph_state', 'graph_applied'):
             self.assertIsNotNone(self.admin.execute(
@@ -257,6 +258,35 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
              'graph_generations','graph_state','graph_applied','graph_nodes','graph_edges')""").fetchall()
         self.assertEqual(len(flags), 9)
         self.assertTrue(all(enabled and forced for _, enabled, forced in flags))
+        tables = ('search_state', 'search_sources', 'search_vectors',
+                  'query_embeddings', 'graph_generations', 'graph_state',
+                  'graph_applied', 'graph_nodes', 'graph_edges')
+        for table in tables:
+            relation = 'retrieval.' + table
+            with self.subTest(table=table):
+                self.assertTrue(self.admin.execute(
+                    'SELECT has_table_privilege(%s,%s,%s)',
+                    (REQUEST, relation, 'SELECT')).fetchone()[0])
+                for privilege in ('INSERT', 'UPDATE', 'DELETE'):
+                    self.assertEqual(self.admin.execute(
+                        'SELECT has_table_privilege(%s,%s,%s)',
+                        (REQUEST, relation, privilege)).fetchone()[0],
+                        table == 'query_embeddings')
+        self.assertTrue(self.admin.execute('SELECT has_sequence_privilege(%s,%s,%s)',
+            (REQUEST, 'retrieval.query_embedding_fences', 'USAGE')).fetchone()[0])
+        policies = self.admin.execute("""SELECT tablename FROM pg_policies
+            WHERE schemaname='retrieval' AND policyname='c11b3_request_bound'
+              AND permissive='RESTRICTIVE'""").fetchall()
+        self.assertEqual({row[0] for row in policies}, set(tables))
+
+    async def test_retrieval_plain_guc_without_c04_binding_cannot_read(self):
+        with self.request.transaction():
+            self.request.execute("SELECT set_config('cortex.tenant_id',%s,true)",
+                                 (self.scope[0],))
+            self.request.execute("SELECT set_config('cortex.project_id',%s,true)",
+                                 (self.scope[1],))
+            count = self.request.execute('SELECT count(*) FROM retrieval.search_state').fetchone()[0]
+        self.assertEqual(count, 0)
 
     async def test_graph_real_port_and_backlog_refusal(self):
         body = b'{"label":"fixture-concept","description":"current","content":"current"}'
