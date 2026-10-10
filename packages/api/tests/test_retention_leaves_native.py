@@ -5,7 +5,17 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
-pytest_plugins = ['test_audit_data_integrity_native']
+from test_audit_data_integrity_native import api as frozen_api, scratch_conn as frozen_scratch_conn
+
+
+@pytest.fixture(scope='module')
+def api():
+    yield from frozen_api.__wrapped__()
+
+
+@pytest.fixture
+def scratch_conn():
+    yield from frozen_scratch_conn.__wrapped__()
 
 
 async def tables(connection, api_module):
