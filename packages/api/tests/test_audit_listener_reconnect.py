@@ -14,6 +14,11 @@ def namespace():
     exec(compile(ast.fix_missing_locations(ast.Module(body=[future,n],type_ignores=[])),str(SOURCE),'exec'),ns)
     return ns
 
+def verify_double_protocol(connection):
+    import inspect,asyncpg
+    for name in ('add_termination_listener','remove_termination_listener'):
+        assert inspect.signature(getattr(connection,name)) == inspect.signature(getattr(asyncpg.Connection,name))
+
 class ActualAPIControls(unittest.IsolatedAsyncioTestCase):
     async def test_ready_listener_disconnect_reconnects(self):
             ns=namespace();connections=[]
@@ -27,6 +32,7 @@ class ActualAPIControls(unittest.IsolatedAsyncioTestCase):
                 def drop(self):
                     self.closed=True
                     for callback in tuple(self.termination):callback(self)
+            verify_double_protocol(Connection)
             async def connect(*args,**kwargs):
                 connection=Connection();connections.append(connection);return connection
             ns.update(asyncpg=SimpleNamespace(connect=connect),PG_DSN_ADMIN='synthetic-unused',
@@ -57,6 +63,7 @@ class ActualAPIControls(unittest.IsolatedAsyncioTestCase):
             def drop(self):
                 self.closed=True
                 for callback in tuple(self.callbacks):callback(self)
+        verify_double_protocol(Connection)
         async def connect(*args,**kwargs):
             c=Connection();connections.append(c);return c
         async def sleep(delay):
