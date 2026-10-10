@@ -10,6 +10,8 @@ import psycopg
 
 from . import corpus, load, oracle, postgres, report
 
+OBSERVATION_TIMEOUT_SECONDS = 5
+
 
 def admit(manifest):
     if manifest.get("dataset") != "synthetic" or manifest.get("remote", False) is not False:
@@ -59,7 +61,15 @@ async def observe_owned(stack):
         raise RuntimeError("owned observation identity lost")
     process = await asyncio.create_subprocess_exec("podman", "stats", "--no-stream", "--format", "json", target,
                                                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, _ = await process.communicate()
+    try:
+        stdout, _ = await asyncio.wait_for(process.communicate(), OBSERVATION_TIMEOUT_SECONDS)
+    finally:
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            await process.wait()
     if process.returncode:
         raise RuntimeError("owned stats failed")
     stats = json.loads(stdout)
@@ -105,10 +115,13 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
                                                 "cell": cell, "identity": c.identity, "corpus_count": c.manifest["count"],
                                                 "corpus_manifest_sha256": corpus.digest(c.path / "manifest.json"),
                                                 "query_manifest_sha256": corpus.digest(c.path / "query-manifest.json"),
-                                                "heldout_queries_in_cell": len(selected), "stack": stack.binding,
+                                                "heldout_queries_in_cell": len(selected),
+                                                "heldout_query_ids": [q["id"] for q in selected], "stack": stack.binding,
                                                 "natural_plan": natural_plan, "database_bytes": db_bytes})
-    except Exception as error:
+    except BaseException as error:
         failed = type(error).__name__
+        if not isinstance(error, Exception):
+            raise
     finally:
         if result is None:
             result = {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,

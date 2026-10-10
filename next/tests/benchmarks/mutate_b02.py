@@ -59,6 +59,16 @@ MUTATIONS = [
      "test_b02_report.ReportTests.test_real_or_remote_inputs_refuse_before_resource_creation", 2),
     ("benchmark.py", "first-response-reused", 'row["response"]["ids"], "dense"', 'run["records"][0]["response"]["ids"], "dense"',
      "test_b02_report.ReportTests.test_results_bind_each_response_to_its_own_full_oracle", 1),
+    ("benchmark.py", "unbounded-resource-observer",
+     'stdout, _ = await asyncio.wait_for(process.communicate(), OBSERVATION_TIMEOUT_SECONDS)',
+     'stdout, _ = await process.communicate()',
+     "test_b02_load.LoadTests.test_owned_stats_timeout_kills_and_reaps_actual_child", 1),
+    ("benchmark.py", "cancelled-stats-child-left-running", 'if process.returncode is None:', 'if False:',
+     "test_b02_load.LoadTests.test_owned_stats_cancellation_kills_and_reaps_actual_child", 1),
+    ("report.py", "omitted-heldout-query-hidden", 'mean is None or not coverage_complete', 'mean is None',
+     "test_b02_report.ReportTests.test_omitted_heldout_query_is_explicit_not_run", 1),
+    ("benchmark.py", "interruption-class-omitted", 'except BaseException as error:', 'except Exception as error:',
+     "test_b02_report.ReportTests.test_interrupt_is_named_in_saved_fail_receipt_and_propagates", 1),
     ("benchmark.py", "blocking-resource-observer", 'target = await asyncio.to_thread(stack.owned_resource, "container")',
      'target = stack.owned_resource("container")',
      "test_b02_load.LoadTests.test_owned_resource_poll_does_not_block_the_arrival_loop", 1),
@@ -116,7 +126,7 @@ def main():
 
     original_hashes = {name: sha(raw) for name, raw in originals.items()}
     child, parsed = execute("baseline", NEXT / "src", expected_source=original_hashes)
-    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 22:
+    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 26:
         raise RuntimeError("B02 mutation baseline not clean")
     for filename, label, before, after, target, bodies in MUTATIONS:
         if originals[filename].decode().count(before) != 1:
@@ -149,13 +159,13 @@ def main():
         if {path.name: sha(path.read_bytes()) for path in source.glob("*.py")} != original_hashes:
             raise RuntimeError("original source drift")
     child, parsed = execute("restored", NEXT / "src", expected_source=original_hashes)
-    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 22:
+    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 26:
         raise RuntimeError("restored source not clean")
     (args.destination / "mutations.json").write_text(json.dumps({"mutations": results, "tests": tests,
                                                                  "recipe_file_sha256": recipe_hash,
-                                                                 "baseline_restored": 22,
+                                                                 "baseline_restored": 26,
                                                                  "source_hashes": original_hashes}, indent=2) + "\n")
-    print(json.dumps({"mutants": len(results), "actual_body_kills": len(results), "baseline_restored": 22}))
+    print(json.dumps({"mutants": len(results), "actual_body_kills": len(results), "baseline_restored": 26}))
 
 
 if __name__ == "__main__":

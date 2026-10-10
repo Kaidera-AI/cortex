@@ -47,7 +47,17 @@ def summarize(run, *, latency_budget_ms, bindings):
     # Query cycling is repeated evidence, not additional distinct recall queries.
     means = [sum(values) / len(values) for values in per_query.values()]
     mean = sum(means) / len(means) if means else None
-    recall = "FAIL" if not safe else "NOT_RUN" if mean is None else "PASS" if mean >= .95 else "FAIL"
+    expected_ids = bindings.get("heldout_query_ids")
+    coverage_bound = (isinstance(expected_ids, list) and bool(expected_ids)
+                      and all(isinstance(q, str) and q for q in expected_ids)
+                      and len(set(expected_ids)) == len(expected_ids))
+    expected_queries = set(expected_ids) if coverage_bound else set()
+    observed_queries = {r["query_id"] for r in successes if isinstance(r.get("measurement"), dict)}
+    missing_queries = sorted(expected_queries - observed_queries)
+    unexpected_queries = sorted(observed_queries - expected_queries) if coverage_bound else []
+    coverage_complete = coverage_bound and not missing_queries and not unexpected_queries
+    recall = ("FAIL" if not safe or unexpected_queries else "NOT_RUN" if mean is None or not coverage_complete
+              else "PASS" if mean >= .95 else "FAIL")
     throughput = "PASS" if successful_rps >= 38 else "FAIL"
     latency = "PASS" if p95 is not None and p95 <= latency_budget_ms else "FAIL"
     collection_complete = bool(run["observations"]) and not run["observation_errors"]
@@ -71,6 +81,8 @@ def summarize(run, *, latency_budget_ms, bindings):
                            "latency_budget_ms": latency_budget_ms, "latency_status": latency,
                            "mean_tie_recall": mean, "mean_strict_recall": sum(strict) / len(strict) if strict else None,
                            "distinct_nonempty_queries": len(per_query), "recall_status": recall,
+                           "heldout_coverage_complete": coverage_complete,
+                           "missing_heldout_queries": missing_queries, "unexpected_query_ids": unexpected_queries,
                            "failed_queries": sorted(q for q, values in per_query.items() if min(values) < .95),
                            "resource_collection_complete": collection_complete, "minute_windows": windows,
                            "warmup_offers": len(run["warmup_records"]),
