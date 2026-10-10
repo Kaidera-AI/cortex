@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "kind": "internal-final-verification",
+  "project": "Helix",
+  "lane": "A",
+  "slice": "C04a auth-0003",
+  "verifier": "fresh internal verifier c04a_final_verify",
+  "official_review": false,
+  "verdict": "PASS_INTERNAL_SOURCE_VERIFICATION_PENDING_OFFICIAL_GATES",
+  "reviewed_sha": "b37df6705c1f87054279de60daa636e4043a3ca4",
+  "tested_sha": "6bff4da348b600186fc4c05399c216d0c51f8c8d",
+  "source_base": "5f43f43e9033a34ad34f55be642d51338c05acc6",
+  "incorporated_origin_main": "3401d1a1b4be7a3a115a440d5415ea937ff8e003",
+  "final_runtime_receipt": {
+    "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-004.json",
+    "sha256": "2b98a625132b0fa1ebb2330fe8df3ea40f41b7b9aa9ec6114cde7ef8995f0a5d",
+    "baseline_tests": 226,
+    "mutation_BODY_kills": {
+      "identity": 32,
+      "C05": 30,
+      "contracts": 26,
+      "shared_receipts": 8
+    },
+    "operational_errors": 0,
+    "survivors": 0,
+    "inconclusive": 0,
+    "all_NEXT_files_restored_and_Git_bound": 397,
+    "owned_resources_removed": 3,
+    "password_discarded": true,
+    "lock_released": true
+  },
+  "accepted_plan": {
+    "path": "docs/plans/cortex-v2-v0.1.020/lane-A/AUTH_0003_IMPLEMENTATION_PLAN.md",
+    "sha256": "b09ba80b4db0415b10b9e237a3a8d8fe7907dcdddc303964adf0e44666913343",
+    "gate": "Program/Cortex/v2-v0.1.020/gates/auth-0003-plan-accepted-20261010.json",
+    "gate_sha256": "27ef736dd21da346720b579c17ed6c54d8594a257cf5ff62c23c0839b688ec1f"
+  },
+  "publication_snapshot": {
+    "index": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/publication-index-001.json",
+    "index_sha256": "5dbfd8fb93ae0f1a96256be37884c91f5d50eca31b4d06b06e92f3e80d7cdf70",
+    "members": 65,
+    "committed_member_bytes_and_canonical_pointers_verified": true,
+    "all_NEXT_identical_between_tested_and_reviewed": true,
+    "shared_lifecycle_helper_committed_and_hash_bound": true,
+    "origin_feature_ref_at_certificate": "NOT_RUN; remote feature ref absent before lead feature publication"
+  },
+  "receipts_attempted": [
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-binding-red-attempt-001.json",
+      "sha256": "0941f51c0a7d27cb8c135e1bba9c6fe10a79feca18847a286e332918e1264c6c",
+      "tested_sha": "277cfbde87a084989dc77d50868d584b3b5ea3ff",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-caller-red-attempt-001.json",
+      "sha256": "f1173ff1bef7bf30fda7b0d029a78bcf81eddf773f509d90da4121066ed65222",
+      "tested_sha": "22978f66c86121af5f2aff98eb2c658e3d4b3011",
+      "phase_qualification_passed": false,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-caller-red-attempt-002.json",
+      "sha256": "91fefdc776b4d73deaefde7df562543ea4797fbf77b5646035a887aeec860236",
+      "tested_sha": "e224b6c08225639119d2941ca577753ad67d7776",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-diagnostic-attempt-001.json",
+      "sha256": "7a1dbd5752c06e9ba07b6dfd5ebbe5e353961c4b905b0e4ae09f6d9d92938981",
+      "tested_sha": "974e06de26aaa4f605dfba401c23ce09f340658c",
+      "phase_qualification_passed": false,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-green-attempt-001.json",
+      "sha256": "5fa9193ba7e309c8f7d23238dba30b76bbca5c0a5b78158a6c3312ca00cc7a30",
+      "tested_sha": "ae61cbf0dfe2e10400360453464a279fd227f917",
+      "phase_qualification_passed": false,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-green-attempt-002.json",
+      "sha256": "edd69be0e5045484f1ebd1c496bdc8738d4959c2815ce952dea27a4888ac91f5",
+      "tested_sha": "b188c249a4e5bafd64bc47bf9cbe0fb5ef9ac8bf",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-policy-green-attempt-001.json",
+      "sha256": "6c8ef4ba2146717baff3fc48dff9f0fc381bdd771259f7650422c9768b6c2bfb",
+      "tested_sha": "3c1adfc47f77d5f995def3704ca785bb1db8b27e",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-policy-red-attempt-001.json",
+      "sha256": "2fd48752a7431695604609ba470345909855418f49d365b39ecb55dd78fb1f80",
+      "tested_sha": "55a37cd9bca37473520d397a9d24b4741d73afae",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-policy-red-attempt-002.json",
+      "sha256": "afd3636ae330e0a7e21a357efde171208395323db5a53667fd3e9b00a0cf91ae",
+      "tested_sha": "87434e495d7cbf6f5118e25cefbf1c9cfe0ff08e",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-red-attempt-002.json",
+      "sha256": "2b89e5b35a90168ceb6796bcffeda273fdb90e4ac454474658118e0718ba5a56",
+      "tested_sha": "fe58099665c4fb62bd5006e38abc1c7bdf9e34b9",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-red.json",
+      "sha256": "1bf9a490263a598ba0dc595c72e245f2bace1608eb8d597f118e35b619547511",
+      "tested_sha": "4980d24b11d0da7e50ceca0cbbe0fcbdd4633d53",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-repair-red-attempt-001.json",
+      "sha256": "076bb8e10734688d3a761514f3f0c417ab02c41e1438422e3b5e4fdc8187dbaf",
+      "tested_sha": "bf228949da8560bbd881f3ae34de134c25c50645",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-transition-red-attempt-001.json",
+      "sha256": "d1beb9a26c293b8f2f659d9a93555a8880849c6906da29d6d7a840c8300ce6ed",
+      "tested_sha": "18861810e257956664fcc43aebb59fd47b48912b",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-001.json",
+      "sha256": "0b1ed0c1918d6c504f0dcec3293e9b8ea18d07b0e052c8ae78a2d3a0fc3837fb",
+      "tested_sha": "a37e8ebba1d8e15d56f31767b97891d3c011e760",
+      "phase_qualification_passed": false,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-002.json",
+      "sha256": "4a51b62a799733ad8778925c846539c6a908e2ec15aaf057c1f42aef3056a236",
+      "tested_sha": "c3ee014f03371c97ae2c07698df24c9d580d9317",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-003.json",
+      "sha256": "ae39520cf909579030582bef2c0f62374fafb556ef51b8c83dafeaa29b50a0e2",
+      "tested_sha": "c61f3a3e3fa3ad914a9cf7b9288c964651784d75",
+      "phase_qualification_passed": false,
+      "cleanup_verified": true
+    },
+    {
+      "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-004.json",
+      "sha256": "2b98a625132b0fa1ebb2330fe8df3ea40f41b7b9aa9ec6114cde7ef8995f0a5d",
+      "tested_sha": "6bff4da348b600186fc4c05399c216d0c51f8c8d",
+      "phase_qualification_passed": true,
+      "cleanup_verified": true
+    }
+  ],
+  "failed_history_retained": {
+    "count": 5,
+    "receipts": [
+      "identity-caller-red-attempt-001.json",
+      "identity-diagnostic-attempt-001.json",
+      "identity-green-attempt-001.json",
+      "mutation-identity-attempt-001.json",
+      "mutation-identity-attempt-003.json"
+    ],
+    "identity_GREEN001_and_diagnostic": "2 BODY assertions and 16 errors, both FAILED",
+    "caller_RED001": "wrong manifest field, 2 BODY assertions and 1 error, FAILED",
+    "mutation001": "28/30 BODY kills, 2 inconclusive companion JobErrors, FAILED; original integration8 unchanged; new frozen isolated2 select effects",
+    "mutation003": "31/32 BODY kills, old Python-only freshness recipe survived legitimate redundant SQL authority check, FAILED; compound recipe only changed, frozen expiry fixture unchanged",
+    "initial_identity_RED_limit": "first missing-port RED omitted jobs23/conformance6; honest disposition and complete predecessor RED replacement retained",
+    "fixture_corrections": "holder string-to-UUID expectation corrected before policy implementation with original commit/RED preserved; module alias corrected before isolated fixture execution"
+  },
+  "required_findings": [
+    {
+      "id": "C04a-BIND-001",
+      "priority": "REQUIRED",
+      "problem": "Private binding could be discarded after actual SQL effects while four caller GUCs and fresh credential remained valid.",
+      "disposition": "CLOSED for internal verification only",
+      "repair_commit": "c61f3a3e3fa3ad914a9cf7b9288c964651784d75",
+      "proof": "Frozen binding2 at 277cfbde87a084989dc77d50868d584b3b5ea3ff produces 2 BODY RED/0errors; final004 restores 2 GREEN and independently kills Python omission and SQL true faults. Narrow verifier-owned fixed-search-path PUBLIC-revoked boolean checks inherited private binding/once-only lock/current control before final resolution."
+    },
+    {
+      "id": "C04a-PROOF-001",
+      "priority": "REQUIRED",
+      "problem": "Mutation003 freshness fault survived the new redundant final SQL authority check.",
+      "disposition": "CLOSED for internal verification only",
+      "repair_commit": "6bff4da348b600186fc4c05399c216d0c51f8c8d",
+      "proof": "Only compound fault recipe changed; product source and frozen expiry test unchanged. Final004 expected expiry BODY assertion qualifies, with 32/32 identity faults and failed003 retained."
+    },
+    {
+      "id": "C04a-PUBLICATION-001",
+      "priority": "REQUIRED",
+      "problem": "Shared runtime lifecycle helper was outside the owner Git publication tree.",
+      "disposition": "CLOSED for internal verification only",
+      "repair_commit": "b37df6705c1f87054279de60daa636e4043a3ca4",
+      "proof": "Index001 commits docs/next/evidence/replay-lifecycle/replay_lifecycle.py with exact 764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2 bytes and canonical root pointer."
+    }
+  ],
+  "required_findings_open": 0,
+  "verified_contracts": [
+    "Accepted owner/admin plan, additive principal kind/adopted and bounded normalized grant roles; no new persistent business table. C04 auth.py/001/002/all40 and original C05 14/23/6/7 bytes preserved.",
+    "Verifier-owned fixed-search-path PUBLIC-revoked SQL lookups/mutations, private binding, fresh current credential/grant and final transaction acceptance compose without caller kind/role authority.",
+    "Fixed agent/human registration; human requires owner attestation. Roles and permissions remain separate, owner permission never implies human kind.",
+    "Opaque32-random-byte ASCII bearer stores exact-wire SHA256/lifetime/revocation only; plaintext returns after commit once, replay and audit contain no secret, rotation explicitly revokes old key.",
+    "Adoption validates exact private released-donor bytes/SHA, scope, stable source/target mapping and owner manifest hash; missing real pin remains NOT_RUN. Dry run has no writes; apply preserves immutable mapping audit and does not auto-adopt on migration/boot.",
+    "C05 role/human policy persists in immutable intent metadata, checks fresh adopted enabled Core identity before mutations and historical replay, preserves independent-holder review and request-key-before-job lock order. Default optional policies preserve published C05 digest.",
+    "Real ICU collation differs from byte order; explicit PostgreSQL C role comparison qualifies. Current-authorizing-key rotate/revoke deliberately refuses/rolls back; another active owner credential must perform the change.",
+    "All17 runtime inventories bind to their own Git trees; final397 NEXT bytes bind tested and reviewed snapshots. Eight frozen suites and24 predecessor files retain pinned bytes; expected BODY attribution, redaction, restoration, cleanup and canonical publication pointers verified."
+  ],
+  "artifact_checks": {
+    "custody_final004_exit_code": 0,
+    "custody_failed003_exit_code": 1,
+    "publication_index001_exit_code": 0,
+    "history_Git_inventory_receipts": 17,
+    "frozen_suites": 8,
+    "protected_predecessor_files": 24,
+    "prior_manifest_entries": 5,
+    "offline_wheels": "8 actual wheel bytes match canonical C05 custody pin; no host installation"
+  },
+  "root_folder_fitness": {
+    "status": "RED_RETAINED_PREEXISTING",
+    "exit_code": 1,
+    "paths": [
+      "dist",
+      "packaging"
+    ],
+    "disposition": "Outside-lane estate issue; no waiver or repair inferred."
+  },
+  "held_gates": {
+    "official_Vera_Kai_acceptance_and_merge": "HELD",
+    "released_real_donor_adoption": "HELD / NOT_RUN",
+    "live_issuer_adoption_installer": "HELD",
+    "native_x86_install_signing_release": "HELD",
+    "C02_C11_client_admission": "HELD",
+    "origin_bound_handback": "HELD until lead publishes and rechecks destination"
+  },
+  "limits": [
+    "This is internal source verification, not Vera approval or a release gate.",
+    "Reviewed snapshot is local staged packet at certificate time; lead will append certificate/index002 and publish feature branch.",
+    "Runtime is synthetic private Core fixtures in copied arm64 Linux PostgreSQL18.4/Python3.12 stack. Actual released donor/client, native installer/x86, live issuer/adoption and release were not run.",
+    "No host product import/test/container launch or external Cortex message was performed by this verifier. Only requested root certificate is written."
+  ]
+}
