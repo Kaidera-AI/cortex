@@ -70,3 +70,8 @@ Podman6.0.2 expands ALL in CapDrop and represents explicitly empty EffectiveCaps
 ### Final accepted-plan reconciliation
 
 Final checklist reread found omitted marginal coverage, which the accepted plan already required. Frozen53d0061 adds a null-aware joint-to-marginal reconciliation RED before implementing project/type/month input/corpus/tuning/heldout aggregates and READY/NOT_RUN status. Joint split/query bytes remain deterministic; no new source surface or scope. New literal count-aggregation mutant and independently reconstructed synthetic marginal counts prove the correction. All earlier source/proof attempts remain historical.
+
+
+### PR50 main-forward integration (Kai12:34)
+
+Merge abbb45af9c91629382fbf0e8ec2f456d4c9735a2 forward without rebase. Preserve PR49's frozen test_postgres_lock.py byte-for-byte and every durable admission method/cleanup body; combine constructor marker state with Nemo labels/preflight state. Admission reconciliation/fsynced marker remains immediately after flock, before creates; Nemo>=35%/exclusive-slot gate runs before creates and again before start. Geometry admission/install/load changes remain. Verify full clean/restored suites and Postgres-touching literal probes, including PR49's5 frozen recipes. Prior c81ea379 live broad FAIL stays historical and visible; no new live benchmark is required by this bounded merge dispatch.

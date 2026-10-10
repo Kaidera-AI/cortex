@@ -3,7 +3,9 @@ import argparse
 from collections import defaultdict
 import fcntl
 import json
+import os
 from pathlib import Path
+import re
 import secrets
 import subprocess
 import time
@@ -46,6 +48,57 @@ class DisposablePostgres:
         self.used = False
         self.worker = "mike"
         self.preflights = []
+        self.marker_path = None
+        self.marker_owned = False
+
+    def marker_identity(self):
+        return {"schema": "cortex-b01-lifecycle-admission-v1", "name": self.name,
+                "lifecycle": self.lifecycle, "image": self.image}
+
+    def read_marker(self):
+        try:
+            data = json.loads(self.marker_path.read_text())
+            valid = (isinstance(data, dict) and set(data) == {"schema", "name", "lifecycle", "image"}
+                     and data["schema"] == "cortex-b01-lifecycle-admission-v1"
+                     and isinstance(data["name"], str)
+                     and re.fullmatch(r"kaidera-dev-vector-baseline-[0-9]{1,20}", data["name"])
+                     and isinstance(data["lifecycle"], str)
+                     and re.fullmatch(r"[0-9a-f]{32}", data["lifecycle"])
+                     and data["image"] == IMAGE)
+            if not valid:
+                raise ValueError("invalid pending identity")
+            return data
+        except Exception:
+            raise RuntimeError("pending lifecycle identity could not be established") from None
+
+    def sync_marker_directory(self):
+        descriptor = os.open(self.marker_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    def acquire_admission(self, lock_path):
+        self.marker_path = lock_path.with_name("b01-podman.pending.json")
+        if self.marker_path.exists():
+            data = self.read_marker()
+            previous = object.__new__(DisposablePostgres)
+            previous.runner, previous.name, previous.lifecycle = self.runner, data["name"], data["lifecycle"]
+            try:
+                remaining = [previous.owned_resource(kind) for kind in ("container", "volume", "secret")]
+            except Exception:
+                raise RuntimeError("pending lifecycle absence could not be verified") from None
+            if any(remaining):
+                raise RuntimeError("pending lifecycle resources still require cleanup")
+            self.marker_path.unlink()
+            self.sync_marker_directory()
+        descriptor = os.open(self.marker_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w") as marker:
+            json.dump(self.marker_identity(), marker, sort_keys=True)
+            marker.flush()
+            os.fsync(marker.fileno())
+        self.sync_marker_directory()
+        self.marker_owned = True
 
     def labels(self):
         labels = ["--label", "worker=" + self.worker, "--label", f"kaidera.b01.lifecycle={self.lifecycle}"]
@@ -101,6 +154,7 @@ class DisposablePostgres:
         self.lock = lock_path.open("a")
         try:
             fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.acquire_admission(lock_path)
             if self.worker == "nemo":
                 from .qdrant import preflight
                 self.preflights.append(preflight(self.runner))
@@ -142,6 +196,9 @@ class DisposablePostgres:
         errors = []
         self.cleanup_verified = False
         try:
+            if self.marker_owned and self.lock is None:
+                self.lock = self.marker_path.with_name("b01-podman.lock").open("a")
+                fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if self.connection is not None:
                 try:
                     self.connection.close()
@@ -166,6 +223,17 @@ class DisposablePostgres:
                     errors.append("owned resource remains")
             except Exception as e:
                 errors.append(f"cleanup inventory: {type(e).__name__}")
+            if self.cleanup_verified and self.marker_owned:
+                try:
+                    if self.marker_path.exists():
+                        if self.read_marker() != self.marker_identity():
+                            raise RuntimeError("pending lifecycle identity changed")
+                        self.marker_path.unlink()
+                        self.sync_marker_directory()
+                    self.marker_owned = False
+                except Exception as e:
+                    self.cleanup_verified = False
+                    errors.append(f"cleanup admission: {type(e).__name__}")
         finally:
             self.password = None
             if self.lock is not None:
