@@ -18,6 +18,7 @@ from typing import Awaitable, Callable
 from uuid import UUID
 
 import asyncpg
+from .projection_revision import ProjectionRevision, finish_observation, validate_target
 
 
 @dataclass(frozen=True)
@@ -153,6 +154,56 @@ class PostgresSearch:
             raise TypeError("Current Core authorization is mandatory")
         self.pool = pool
         self.authorize = authorize
+
+    async def projection_revision(self, subject, target, identity, *, recheck):
+        """Read actual indexed evidence for one authorized Core record."""
+        record_id, required = validate_target(target, recheck)
+        key = identity.key
+        def observation(state, indexed=None, reason=''):
+            return ProjectionRevision(state, record_id, required, indexed, key, reason=reason)
+        try:
+            async with self._request(subject) as (conn, scope):
+                current = await conn.fetchrow(
+                    'SELECT current_revision,tombstone,kind FROM core.records '
+                    'WHERE tenant_id=$1 AND project_id=$2 AND id=$3',
+                    scope.tenant_id, scope.project_id, record_id)
+                state = await conn.fetchrow(
+                    'SELECT identity,state FROM retrieval.search_state '
+                    'WHERE tenant_id=$1 AND project_id=$2', scope.tenant_id, scope.project_id)
+                if current is None:
+                    result = observation('unavailable', reason='target_unavailable')
+                elif current['tombstone']:
+                    result = observation('unavailable', reason='tombstone')
+                elif state is None:
+                    result = observation('unavailable', reason='not_configured')
+                elif state['identity'] != key:
+                    result = observation('unavailable', reason='identity_mismatch')
+                elif state['state'] != 'ready':
+                    result = observation('unavailable', reason=state['state'])
+                else:
+                    row = await conn.fetchrow(
+                        '''SELECT s.source_revision AS desired_revision,s.kind,
+                                  v.source_revision AS indexed_revision,v.identity AS vector_identity
+                             FROM retrieval.search_sources s
+                             LEFT JOIN retrieval.search_vectors v
+                               USING(tenant_id,project_id,record_id)
+                            WHERE s.tenant_id=$1 AND s.project_id=$2 AND s.record_id=$3
+                            ORDER BY s.record_id LIMIT 1''',
+                        scope.tenant_id, scope.project_id, str(record_id))
+                    indexed = row['indexed_revision'] if row is not None and row['vector_identity'] == key else None
+                    visible = (indexed is not None and indexed >= required
+                               and indexed == current['current_revision']
+                               and row['desired_revision'] == current['current_revision']
+                               and row['kind'] == current['kind'])
+                    result = observation('visible' if visible else 'pending', indexed,
+                                         '' if visible else 'index_pending')
+        except CoreUnavailable:
+            return observation('unavailable', reason='core_unavailable')
+        except asyncpg.UndefinedTableError:
+            return observation('unavailable', reason='schema_unavailable')
+        except CapabilityUnavailable as exc:
+            return observation('unavailable', reason=exc.reason)
+        return await finish_observation(recheck, subject, scope, result)
 
     @asynccontextmanager
     async def _request(self, subject: str, *, isolation="repeatable_read"):
