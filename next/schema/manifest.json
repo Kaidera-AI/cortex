@@ -31,6 +31,11 @@
       "id": "auth-0003",
       "file": "auth/003-identity.sql",
       "sha256": "678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8"
+    },
+    {
+      "id": "outbox-0002",
+      "file": "coordination/002-outbox.sql",
+      "sha256": "00de7a2c3bf99a6fc9b74cdf475b8335278e7bcde9dbf36cdee1b382d9876857"
     }
   ]
 }

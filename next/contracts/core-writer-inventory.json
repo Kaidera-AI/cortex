@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "captured_ports": [
+    "records",
+    "jobs",
+    "identity"
+  ],
+  "unclassified_writers": [],
+  "bootstrap": {
+    "session_role": "superuser",
+    "runtime_admitted": false,
+    "reason": "trusted installer and frozen synthetic fixtures only"
+  },
+  "capture": {
+    "records": "AFTER history INSERT trigger, exact immutable payload",
+    "jobs": "private current-state fact before receipt; deferred parent guard",
+    "identity": "additive identity_finish; deferred per-principal guard"
+  },
+  "held_canonical_writers": [
+    "core.blob_manifests",
+    "core.extraction_facts",
+    "core.analytics_facts",
+    "ordinary core.record_aliases"
+  ],
+  "subordinate": [
+    "core.payloads",
+    "core.record_revisions",
+    "coordination.job_attempts",
+    "coordination.job_results",
+    "coordination.leases kind=job",
+    "auth.permission_generations"
+  ],
+  "housekeeping": [
+    "core.schema_migrations installer only",
+    "coordination.idempotency principal-bound receipt",
+    "coordination.published_events",
+    "coordination.feed_state",
+    "coordination.consumer_checkpoints",
+    "coordination.snapshot_floors",
+    "coordination.quarantine"
+  ],
+  "separate_lanes": [
+    "retrieval projection/cache writers (noncanonical)",
+    "conductor supervisor_leases (separate optional C08 manifest)"
+  ]
+}

@@ -38,6 +38,7 @@ class JobReceipt:
     job_id: UUID
     state: str
     reason: str
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ class Claim:
     attempt_number: int
     fence: int
     holder: UUID
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -63,8 +65,8 @@ def _append_result(connection, scope, attempt_id, outcome, payload_id):
 
 def _typed(data):
     if data['type'] == 'claim':
-        return Claim(UUID(data['job_id']),UUID(data['attempt_id']),data['attempt_number'],data['fence'],UUID(data['holder']))
-    return JobReceipt(UUID(data['job_id']),data['state'],data['reason'])
+        return Claim(UUID(data['job_id']),UUID(data['attempt_id']),data['attempt_number'],data['fence'],UUID(data['holder']),UUID(data['event_id']) if data.get('event_id') else None)
+    return JobReceipt(UUID(data['job_id']),data['state'],data['reason'],UUID(data['event_id']) if data.get('event_id') else None)
 
 
 def _result(job_id, state, reason):
@@ -117,6 +119,8 @@ class Jobs:
                     if saved is None:
                         try:
                             saved = callback(scope)
+                            saved['event_id'] = str(self.connection.execute(
+                                'SELECT coordination.capture_job(%s)', (job_id,)).fetchone()[0])
                             _save_request(self.connection,scope,key,digest,saved)
                         except psycopg.errors.UniqueViolation:
                             raise JobError('conflict') from None

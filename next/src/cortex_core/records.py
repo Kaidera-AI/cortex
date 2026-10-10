@@ -25,6 +25,7 @@ class MutationReceipt:
     revision: int
     tombstone: bool
     payload_sha256: str
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -93,7 +94,7 @@ def _validate(record_id, revision, key):
 
 
 def _receipt(data):
-    return MutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'])
+    return MutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'],UUID(data['event_id']) if data.get('event_id') else None)
 
 
 class Records:
@@ -121,7 +122,7 @@ class Records:
 
     def put(self, record_id, kind, body, expected_revision, request_key):
         _validate(record_id,expected_revision,request_key)
-        if not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None or not isinstance(body,bytes) or len(body) > MAX_PAYLOAD_BYTES:
+        if not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None or not isinstance(body,bytes) or len(body) > MAX_PAYLOAD_BYTES or kind == 'core' or kind.startswith('core.'):
             raise RecordError('invalid_input')
         return self._mutate('put',record_id,kind,body,expected_revision,request_key)
 
@@ -166,6 +167,12 @@ class Records:
                             (revision,tombstone,*_scope(scope),record_id))
                     _append_revision(self.connection,scope,record_id,revision,payload_id,tombstone)
                     data = dict(record_id=str(record_id),revision=revision,tombstone=tombstone,payload_sha256=payload_digest)
+                    event = self.connection.execute('''SELECT event_id FROM coordination.outbox
+                        WHERE tenant_id=%s AND project_id=%s AND aggregate_id=%s AND aggregate_revision=%s''',
+                        (*_scope(scope),record_id,revision)).fetchone()
+                    if event is None:
+                        raise RecordError('core_unavailable')
+                    data['event_id'] = str(event[0])
                     _save_request(self.connection,scope,key,digest,data)
                     result = _receipt(data)
                 except psycopg.errors.UniqueViolation:

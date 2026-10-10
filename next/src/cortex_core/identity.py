@@ -37,6 +37,7 @@ class IssuedCredential:
     audit_id: UUID
     replayed: bool
     secret: bytes | None = field(repr=False)
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class CredentialReceipt:
     audit_id: UUID
     replayed: bool
     revoked: bool
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,7 @@ class AdoptionReceipt:
     count: int
     audit_id: UUID
     replayed: bool
+    events: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -225,7 +228,8 @@ class Identity:
             raw = self._register(scope, kind, principal_id, name, roles, permissions, uuid4(), digest,
                                  ttl_seconds, attestation, request_key, request_sha)
         return IssuedCredential(UUID(raw['principal_id']), UUID(raw['credential_id']), UUID(raw['audit_id']),
-                                raw['replayed'], None if raw['replayed'] else secret)
+                                raw['replayed'], None if raw['replayed'] else secret,
+                                UUID(raw['event_id']) if raw.get('event_id') else None)
 
     def register_agent(self, principal_id, name, roles, permissions, *, request_key, ttl_seconds=86400):
         return self._registration('agent', principal_id, name, roles, permissions, request_key, ttl_seconds)
@@ -255,7 +259,8 @@ class Identity:
                 (principal_id, old_credential_id, uuid4(), hashlib.sha256(secret).hexdigest(),
                  ttl_seconds, request_key, request_sha)).fetchone()[0]
         return IssuedCredential(UUID(raw['principal_id']), UUID(raw['credential_id']), UUID(raw['audit_id']),
-                                raw['replayed'], None if raw['replayed'] else secret)
+                                raw['replayed'], None if raw['replayed'] else secret,
+                                UUID(raw['event_id']) if raw.get('event_id') else None)
 
     def revoke(self, credential_id, *, request_key):
         _uuid(credential_id); _text(request_key, 256)
@@ -264,7 +269,8 @@ class Identity:
             raw = self.connection.execute('SELECT auth.identity_revoke(%s,%s,%s)',
                                           (credential_id, request_key, request_sha)).fetchone()[0]
         return CredentialReceipt(UUID(raw['principal_id']), UUID(raw['credential_id']),
-                                 UUID(raw['audit_id']), raw['replayed'], raw['revoked'])
+                                 UUID(raw['audit_id']), raw['replayed'], raw['revoked'],
+                                 UUID(raw['event_id']) if raw.get('event_id') else None)
 
     def _manifest(self, manifest):
         pin = self.donor_pin
@@ -347,4 +353,5 @@ class Identity:
         with self._control():
             raw = self.connection.execute('SELECT auth.identity_adopt(%s,%s,%s,%s)',
                                           (_canonical(snapshot).decode(), digest, request_key, request_sha)).fetchone()[0]
-        return AdoptionReceipt(raw['manifest_sha256'], raw['count'], UUID(raw['audit_id']), raw['replayed'])
+        return AdoptionReceipt(raw['manifest_sha256'], raw['count'], UUID(raw['audit_id']), raw['replayed'],
+                               tuple((UUID(e['principal_id']),UUID(e['event_id'])) for e in raw.get('events',())))
