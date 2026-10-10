@@ -1,0 +1,28 @@
+{
+  "command": [
+    "python3.12",
+    "next/tests/test_receipts.py",
+    "next/tests/backup_producer"
+  ],
+  "exit_code": 1,
+  "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 5, \"failures\": [{\"id\": \"test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\\\", line 95, in test_complete_set_is_sealed_with_synthetic_age_key\\n    self.assertTrue(target.is_file())\\nAssertionError: False is not true\\n\"}], \"errors\": []}\n",
+  "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... ok\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... ok\ntest_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key) ... FAIL\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... ok\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... ok\n\n======================================================================\nFAIL: test_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 95, in test_complete_set_is_sealed_with_synthetic_age_key\n    self.assertTrue(target.is_file())\nAssertionError: False is not true\n\n----------------------------------------------------------------------\nRan 5 tests in 0.053s\n\nFAILED (failures=1)\n",
+  "receipt": {
+    "tests_run": 5,
+    "failures": [
+      {
+        "id": "test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 95, in test_complete_set_is_sealed_with_synthetic_age_key\n    self.assertTrue(target.is_file())\nAssertionError: False is not true\n"
+      }
+    ],
+    "errors": []
+  },
+  "source_sha256": {
+    "next/src/cortex_core/backup.py": "49821d1dca8fac1451f0f25e8f637f2343e977f8abd98bdbffc470f7879eab5c",
+    "next/tests/backup_producer/test_manifest.py": "1281254b114c4462244e651a7b84ab0b85feee4457f6298b42782e82dc5ff0f9"
+  }
+}
