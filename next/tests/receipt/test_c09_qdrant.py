@@ -175,3 +175,29 @@ class C09Tests(unittest.TestCase):
         self.assertFalse(hasattr(port, 'register'))
         self.assertFalse(hasattr(port, 'apply'))
         self.assertEqual(evidence['engine_decision'], 'UNDECIDED')
+
+    def test_boolean_numeric_readback_and_coerced_delivery_flags_refuse(self):
+        for fault in ('id', 'revision', 'vector', 'delivery'):
+            with self.subTest(fault=fault):
+                class Bad(Server):
+                    def __call__(self, method, path, body, role):
+                        response = super().__call__(method, path, body, role)
+                        if method == 'POST' and path == '/collections/c09-probe/points':
+                            value = json.loads(response['body']); point = value['result'][0]
+                            if fault == 'id':
+                                point['id'] = True
+                            elif fault == 'revision':
+                                point['payload']['revision'] = True
+                            elif fault == 'vector':
+                                point['vector'][0] = True
+                            response['body'] = json.dumps(value).encode()
+                        return response
+                config = module.private_config('10.89.0.2')
+                if fault == 'delivery':
+                    config['delivery']['read_only_root'] = 1
+                caught = None
+                try:
+                    self.port(Bad(), config=config).probe()
+                except Exception as error:
+                    caught = error
+                self.assertIsInstance(caught, ValueError if fault == 'delivery' else module.ProtocolFailure)
