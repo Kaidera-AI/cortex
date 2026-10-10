@@ -10,7 +10,7 @@ import unittest
 HERE = Path(__file__).resolve().parent
 WT = HERE.parents[3]
 VERIFY = HERE / 'verify-publication.py'
-INDEX = HERE / 'publication-index-005.json'
+INDEX = HERE / 'publication-index-006.json'
 
 
 class PublicationCompleteness(unittest.TestCase):

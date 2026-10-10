@@ -1,6 +1,36 @@
 # C06 copied PostgreSQL source proof
 
-## PR #51 writer-inventory rework r3 — current proof
+## PR #51 writer-inventory rework r4 — current proof
+
+Mike's aliased `_private` caller and a cross-file import alias passed the old
+scanner. Two committed controls prove those gaps; a third control exercises
+nonliteral `getattr`, `setattr`, `exec`, `eval`, `importlib.import_module` and
+`__import__`. On both Python 3.12 and 3.14, the pre-fix suite records eight
+expected test-body failures across 17 tests (`pr51-002-r4-red-*.json`).
+
+The scanner now pins the normalized AST of each whole source module holding a
+known-input exception, and flags exempt-name references outside their pinned
+files. It flags nonliteral dynamic-name calls anywhere under `next/src`.
+`known-input-reference-audit.json` lists the 20 current source files, zero
+cross-file exempt references and zero current nonliteral calls; each of the six
+dynamic-name primitives has an explicit zero-hit disposition. All 17 inventory
+tests and 62 classified sites pass on both Python versions. Three independent
+guard-removal mutants produce one, one and six expected BODY failures per
+interpreter, then restore the source exactly (`pr51-002-r4-mutants-*.json`).
+
+`mutation-pr51-002-r4-full-002.json` at source
+`3a7bc93932b7bfa80083a4ff064afdea33b88900` records 26 clean suites/323
+tests, all 154 primary faults killed with 372 expected BODY assertions, zero
+errors/inconclusive, 426 copied NEXT files restored and the three owned
+resources removed. `verify-pr51-002-r4.py` checks this raw receipt and its
+Git source independently. The first full attempt is retained: two legacy
+inventory mutants survived because the new whole-file pin still protected
+their test overrides. The two revised composite recipes have qualified
+auxiliary-only controls and expected BODY kills in the focused native repair
+receipt and this full run. `publication-index-006.json` plus the Git-bound
+`publication-expected.json` cover the complete current source/evidence tree.
+
+## PR #51 writer-inventory rework r3 — historical proof
 
 Mike's `match ...: case query:` capture and a harmless no-op inside
 `records._private` both passed the old allowlist. The two committed controls
