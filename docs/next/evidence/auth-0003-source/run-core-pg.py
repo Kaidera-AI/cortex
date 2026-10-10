@@ -148,7 +148,19 @@ try:
             assert value.returncode==0 and not reports[0]['failures']
     if PHASE.startswith('identity-diagnostic'):
         checked(env+['python','/tmp/next/tests/auth_identity/diagnose_registration.py'],120)
-    if PHASE.startswith(('identity','mutation')):
+    if PHASE.startswith('identity-repair-red'):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth_identity_guards'],300)
+        reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+        assert len(reports)==1 and reports[0]['tests_run']==6 and not reports[0]['errors']
+        expected={'test_identity_guards.IdentityGuards.'+name for name in (
+            'test_actual_registration_commits_without_private_resource_privilege_failure',
+            'test_fixed_agent_path_ignores_caller_kind_context',
+            'test_malformed_manifest_and_donor_inputs_always_have_typed_refusals',
+            'test_sql_adoption_rechecks_private_installation_and_project_scope',
+            'test_sql_adoption_digest_binds_exact_manifest_bytes')}
+        assert value.returncode==1 and {row['id'].split(' (')[0] for row in reports[0]['failures']}==expected
+        assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
+    elif PHASE.startswith(('identity','mutation')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/auth_identity'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==26 and not reports[0]['errors']
