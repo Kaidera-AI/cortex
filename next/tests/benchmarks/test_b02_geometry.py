@@ -146,7 +146,8 @@ class GeometryTests(unittest.TestCase):
             module.admit_native({}, {})
         data = {'schema': 'cortex-b02-data-admission-v1', 'dataset': 'marlow-geometry', 'input_sha256': 'a'*64,
                 'count': 141511, 'dimension': 768, 'cto_decision': 'named-run', 'custody_receipt': 'custody', 'import_review_sha': 'b'*40,
-                'native_host_receipt': 'host', 'resize_receipt': 'resize', 'edition': 'mac', 'cache_mode': 'cold', 'cost_cap_usd': 3}
+                'native_host_receipt': 'host', 'resize_receipt': 'resize', 'edition': 'mac', 'cache_mode': 'cold', 'cost_cap_usd': 3,
+                'frozen_input_sha256': 'c'*64}
         with self.assertRaises(ValueError):
             module.admit_native({'dataset': 'marlow-geometry', 'geometry': {'input_sha256': 'a'*64, 'input_count': 141511},
                                  'identity': {'dimension': 768}}, data)
