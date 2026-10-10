@@ -36,7 +36,12 @@ def verify_container(row, *, memory_bytes, cpus):
     config, host = row['Config'], row['HostConfig']
     nano = host.get('NanoCpus', 0)
     observed_cpus = nano / 1_000_000_000 if nano else host.get('CpuQuota', 0) / (host.get('CpuPeriod', 0) or 100000)
-    caps = 'ALL' in host.get('CapDrop', []) or row.get('EffectiveCaps') == []
+    if 'EffectiveCaps' in row and 'BoundingCaps' in row:
+        # Podman serializes nil empty capability slices as JSON null.
+        caps = (row['EffectiveCaps'] in (None, []) and row['BoundingCaps'] in (None, [])
+                and not host.get('CapAdd') and not host.get('Privileged', False))
+    else:
+        caps = 'ALL' in host.get('CapDrop', [])
     no_privilege = any(x.startswith('no-new-privileges') for x in host.get('SecurityOpt', []))
     if (config.get('User') != '10001:10001' or any(host.get('PortBindings', {}).values())
             or host.get('ReadonlyRootfs') is not True or host.get('Memory') != memory_bytes

@@ -60,3 +60,8 @@ The exact stored-vector/payload-index/count upload control is frozen at7c74ae7 b
 ### Observed Podman storage compatibility repair
 
 The first synthetic768 Qdrant create refused unsupported `uid/gid` options in `--tmpfs` (Podman6.0.2). Original failure/setup/absence receipts retained. `ce3c6cf` freezes the new body-assertion RED before replacing it with documented `--mount type=tmpfs,...tmpfs-mode=0700,U=true`; same512MiB bound and nonroot10001 ownership. Reference: https://raw.githubusercontent.com/containers/podman/v6.0.2/docs/source/markdown/options/mount.md . Literal ownership mutant and actual owned storage stat verify the correction. No added volume, root process, permission relaxation or host mount.
+
+
+### Observed capability receipt repair
+
+Podman6.0.2 expands ALL in CapDrop and represents explicitly empty EffectiveCaps/BoundingCaps as JSON null. The existing verifier rejected the actually running, cap-free containers. New frozen4410bda body RED precedes admitting both explicit empty sets with no CapAdd/privileged mode; any nonempty effective/bounding set still refuses. Actual owned proc capability/stat observations and new literal mutants cover it. One simultaneous unit/live attempt collided on the inherited shared flock and is retained INCONCLUSIVE; verification now runs sequentially, no test weakening.
