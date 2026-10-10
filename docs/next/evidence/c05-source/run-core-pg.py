@@ -107,7 +107,7 @@ try:
         assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
     else:
         assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('coordination','conformance','mutation')):
+    if PHASE.startswith(('coordination','conformance','mutation','guards')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/coordination'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==23 and not reports[0]['errors']
@@ -117,7 +117,7 @@ try:
             assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
-    if PHASE.startswith(('conformance','mutation')):
+    if PHASE.startswith(('conformance','mutation','guards')):
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/core_adapters'],300)
         reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
         assert len(reports)==1 and reports[0]['tests_run']==6 and not reports[0]['errors']
@@ -126,6 +126,23 @@ try:
                 'test_mutation_caller_refuses_operational_fixture_wrong_test_and_errors',
                 'test_mutation_caller_requires_expected_body_and_zero_error_clean_baseline')}
             assert value.returncode==1 and {r['id'] for r in reports[0]['failures']}==expected
+            assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
+        else:
+            assert value.returncode==0 and not reports[0]['failures']
+    if PHASE.startswith(('guards','mutation')):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/acceptance_guards'],300)
+        reports=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+        assert len(reports)==1 and reports[0]['tests_run']==7 and not reports[0]['errors']
+        if PHASE.startswith('guards-red'):
+            expected={'test_acceptance_guards.AcceptanceGuards.'+name for name in (
+                'test_expiry_after_real_result_insert_refuses_and_rolls_back',
+                'test_expiry_during_independent_accept_refuses_and_rolls_back',
+                'test_expiry_after_actual_claim_attempt_refuses_and_rolls_back',
+                'test_fence_types_refuse_before_encoding_in_every_worker_and_review_port',
+                'test_surrogate_request_key_has_typed_refusal_without_partial_rows',
+                'test_record_body_over_private_limit_is_typed_and_atomic',
+                'test_job_intent_and_all_result_paths_share_private_byte_bound')}
+            assert value.returncode==1 and {r['id'].split(' (')[0] for r in reports[0]['failures']}==expected
             assert all(r['phase']=='test' and r['is_assertion'] for r in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
