@@ -1,6 +1,6 @@
 # H-D449 retained graph class predicate plan
 
-READ-ONLY proposal for Kai and Vera, not a guard exception or admission. Inputs are the exact signed 15aff reference and retained attempt-8 fresh-seven graph archive. `audit.py` rebuilds complete merged filesystems with the unchanged guard reader. Every added/deleted name is in PATH_EXPLANATIONS.md, with measured rows in added-paths.json and deleted-paths.json.
+Kai accepted this bounded plan and authorized implementation at 2026-10-10 18:06 (INBOX_ren-kos.md H-D449). Vera reviews plan and code together; no attempt-9 GO. Original retained inputs and original guard stay unchanged. Inputs are the exact signed 15aff reference and retained attempt-8 fresh-seven graph archive. `audit.py` rebuilds complete merged filesystems with the unchanged guard reader. Every added/deleted name is in PATH_EXPLANATIONS.md, with measured rows in added-paths.json and deleted-paths.json.
 
 ## Proposed predicates, only after acceptance
 
@@ -18,3 +18,11 @@ Freeze controls for each proposed allowance and refusal before guard code: remov
 ## Decision requested
 
 Kai chooses whether Vera should review this exact bounded predicate contract before implementation. Recommendation: accept the plan only after exhaustive source and RECORD receipts and matching-interpreter proof are reviewed; no blanket metadata allowance. No host, merge, signing or install is authorized by this plan.
+
+## Implementation custody
+
+The repository contains a byte-identical original guard in signed_reference_filesystem.py, graph_class_predicates.py for the bounded overlay, verify_graph_signed_reference.py for the archive path and separate frozen regression/boundary tests. Matching CPython 3.13 is mandatory; all code-object fields, nested constants, final absolute filename, flags, source hash and trailing body bytes are checked. This filesystem predicate alone does not qualify jp/code/model/runtime. Source PR is stacked on pinned PR70.
+
+## Measured RECORD target-layout amendment
+
+Retained full run first RED on ONE jmespath-1.1.0 row: ../../bin/__pycache__/jp.cpython-313.pyc. Source uses pip --target /opt/bcrg/lib/python3.13/site-packages. Actual script/cache is under that target/bin; RECORD retains the staging scheme path. Add ONE exact distribution/row mapping to opt/bcrg/lib/python3.13/site-packages/bin/__pycache__/jp.cpython-313.pyc, require the normal resolved alias absent in both images, require the actual cache/source to pass all standard predicates, and keep unhashed-row-only checks. No suffix-based or generic relocation. New frozen test first RED then GREEN and neighboring-alias refusal. Disclose this amendment to Vera.
