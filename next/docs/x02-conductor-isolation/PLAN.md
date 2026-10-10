@@ -175,3 +175,7 @@ or runtime was created for this PLAN.
 Gate requested: Kai accepts this **bounded source-fixture plan** before BUILD.
 If Kai requires actual native service-manager acceptance in this same slice,
 return the target/access/resource prerequisites and re-size before execution.
+
+## 2026-10-10 10:41 review amendment (Kai DO NOW, H-D455)
+
+Fix X02-FIXTURE-001 to003 within the five accepted paths. Freeze Mike's three exact reviewer test bodies in the existing test file before implementation; retain original external probe byte-for-byte. Stop checks after publishing a replacement and reaps it before returning. Child exit80/fixture_error and unexpected exits remain FixtureError after reaping; declared kills/crashes/lease-busy stay distinguishable. Watch never restarts an unexpected fixture failure. Late heartbeat errors propagate after pool cleanup. Composed teardown attempts every manager, standalone child and PG fixture, then raises collected FixtureError; resource cleanup is registered before setup can fail. Keep original assertions and ten recipes; add literal recipes for each repaired concern, full clean/restored source binding and raw receipts. Recheck current main and >=35% free before each actual stack; no native/production gate changes. Mike reviews new exact head.

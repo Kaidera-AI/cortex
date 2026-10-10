@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import os
 import unittest
+from uuid import UUID
 
 import httpx
 import test_conductor
@@ -11,7 +12,7 @@ import test_pg_search
 from cortex_core.embeddings.pg_search import CoreUnavailable
 from cortex_core.conductor.metrics import MetricIdentity, Metrics
 from cortex_core.gateway.health_metrics import CoreSample, TelemetryGateway
-from x02_process_fixture import Child, Consumer, Manager, eventually
+from x02_process_fixture import Child, Consumer, FixtureError, Manager, eventually
 
 INSTALLATION = test_conductor.INSTALLATION
 
@@ -219,3 +220,114 @@ class ConductorIsolationTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(FixtureError):
                 await manager.close()
         self.assertTrue(all(child.process.returncode is not None for child in manager.children))
+
+
+# Reviewer controls: bodies copied unchanged from Mike's frozen probe.
+Cases = ConductorIsolationTests
+
+
+class Process:
+    def __init__(self, code=None):
+        self.pid = 424242  # A synthetic object identifier, never an OS process.
+        self.returncode = code
+        self.exited = asyncio.Event()
+        self.stdin = self
+        if code is not None:
+            self.exited.set()
+
+    async def wait(self):
+        await self.exited.wait()
+        return self.returncode
+
+    def kill(self):
+        self.returncode = -9
+        self.exited.set()
+
+    def close(self):
+        pass
+
+    def write(self, data):
+        self.returncode = 0
+        self.exited.set()
+
+    async def drain(self):
+        pass
+
+
+class FixtureLifecycle(unittest.IsolatedAsyncioTestCase):
+    async def test_stop_during_replacement_spawn_closes_replacement(self):
+        manager = Manager('synthetic-not-connected', UUID(int=1), lease_seconds=0.001)
+        old, replacement = Child(Process(0)), Child(Process())
+        entered, resume = asyncio.Event(), asyncio.Event()
+        manager.child, manager.children, manager.state = old, [old], 'ready'
+
+        async def delayed_spawn():
+            entered.set()
+            await resume.wait()
+            manager.child = replacement
+            manager.children.append(replacement)
+            manager.state = 'ready'
+            return {'kind': 'ready'}
+
+        manager.spawn = delayed_spawn
+        manager.task = asyncio.create_task(manager.watch())
+        stop = None
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            stop = asyncio.create_task(manager.request_stop())
+            while not manager.requested_stop:
+                await asyncio.sleep(0)
+            resume.set()
+            error = None
+            try:
+                await asyncio.wait_for(asyncio.shield(stop), 5.5)
+            except TimeoutError:
+                error = 'TimeoutError'
+            live = replacement.process.returncode is None
+            self.assertEqual((error, live), (None, False),
+                             f'accepted stop during spawn: error={error}, replacement_still_live={live}')
+        finally:
+            resume.set()
+            if stop:
+                stop.cancel()
+                await asyncio.gather(stop, return_exceptions=True)
+            await manager.close()
+
+    async def test_fixture_error_exit_cannot_be_silent_successful_close(self):
+        child = Child(Process(80))
+        caught = None
+        try:
+            await child.close()
+        except FixtureError:
+            caught = 'FixtureError'
+        self.assertEqual(caught, 'FixtureError', 'fixture_error exit80 was reported reaped without surfacing failure')
+
+    async def test_teardown_attempts_all_owned_cleanup_after_one_failure(self):
+        closed = []
+
+        class Spy:
+            def __init__(self, name, fail=False):
+                self.name, self.fail = name, fail
+
+            async def close(self):
+                closed.append(self.name)
+                if self.fail:
+                    raise FixtureError('controlled manager failure')
+
+            async def asyncTearDown(self):
+                closed.append(self.name)
+
+        subject = Cases('test_requested_stop_does_not_restart')
+        subject.tasks = []
+        subject.managers = [Spy('first', True), Spy('second')]
+        subject.children = [Spy('standalone-child')]
+        subject.fixture = Spy('PG-fixture')
+        error = None
+        try:
+            await subject.asyncTearDown()
+        except FixtureError:
+            error = 'FixtureError'
+        self.assertEqual(error, 'FixtureError', 'failure should remain visible after cleanup')
+        self.assertEqual(closed, ['first', 'second', 'standalone-child', 'PG-fixture'],
+                         'one manager failure short-circuited later ownership cleanup')
+
