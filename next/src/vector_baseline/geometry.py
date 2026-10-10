@@ -15,7 +15,7 @@ DATASET = 'marlow-geometry'
 UNKNOWN = ['tenant/auth', 'deletion', 'model/provider', 'semantic-query', 'sparse']
 ADMISSION_FIELDS = {'schema', 'dataset', 'input_sha256', 'count', 'dimension', 'cto_decision',
                     'custody_receipt', 'import_review_sha', 'native_host_receipt', 'resize_receipt',
-                    'edition', 'cache_mode', 'cost_cap_usd'}
+                    'edition', 'cache_mode', 'cost_cap_usd', 'frozen_input_sha256'}
 
 
 def validate_admission(admission, dataset):
@@ -50,7 +50,8 @@ def admit_native(manifest, admission):
             or admission.get('cache_mode') not in ('cold', 'warm')
             or (admission['edition'] == 'mac' and admission['cache_mode'] != 'warm')
             or type(admission.get('cost_cap_usd')) not in (int, float)
-            or not math.isfinite(admission['cost_cap_usd']) or not 0 < admission['cost_cap_usd'] <= 3):
+            or not math.isfinite(admission['cost_cap_usd']) or not 0 < admission['cost_cap_usd'] <= 3
+            or not re.fullmatch('[0-9a-f]{64}', str(admission.get('frozen_input_sha256', '')))):
         raise ValueError('native host/resize/cache/edition/cost admission missing')
 
 
@@ -139,6 +140,69 @@ def marginal_coverage(joint):
     return result
 
 
+def vector_digest(vector):
+    return hashlib.sha256(np.asarray(vector, dtype='<f4').tobytes()).hexdigest()
+
+
+def freeze_input(c, rows, vectors, split):
+    """Produce the import-review anchor before any engine evaluation."""
+    sources = {row['id']: vector_digest(vectors[row['offset']]) for row in rows
+               if row['id'] in set(split['tuning']) | set(split['heldout'])}
+    queries = {}
+    for name in ('tuning', 'heldout'):
+        path = c.path / (name + '.jsonl')
+        values = [json.loads(line) for line in path.read_text().splitlines()]
+        ordered = []
+        for query in values:
+            digest = vector_digest(query['vector'])
+            if query['source_id'] not in split[name] or sources[query['source_id']] != digest:
+                raise ValueError('generated query differs from frozen source geometry')
+            ordered.append({'id': query['id'], 'source_id': query['source_id'], 'vector_sha256': digest})
+        queries[name] = {'sha256': corpus.digest(path), 'count': len(values), 'ordered': ordered}
+    record = {'schema': 'cortex-b02-frozen-input-v1', 'input_sha256': c.manifest['geometry']['input_sha256'],
+              'input_count': c.manifest['geometry']['input_count'], 'identity': c.identity,
+              'split': split, 'candidate_count': len(c.records), 'candidate_files': c.manifest['files'],
+              'manifest_sha256': corpus.digest(c.path / 'manifest.json'),
+              'query_manifest_sha256': corpus.digest(c.path / 'query-manifest.json'),
+              'source_vectors': sources, 'queries': queries}
+    target = c.path / 'frozen-input.json'
+    target.write_text(json.dumps(record, sort_keys=True, indent=2) + '\n')
+    return corpus.digest(target)
+
+
+def validate_frozen(c, expected):
+    if not isinstance(expected, str) or not re.fullmatch('[0-9a-f]{64}', expected):
+        raise ValueError('independently retained import-review SHA256 required')
+    path = c.path / 'frozen-input.json'
+    if corpus.digest(path) != expected:
+        raise ValueError('frozen input review anchor differs')
+    record = json.loads(path.read_text())
+    if (record.get('schema') != 'cortex-b02-frozen-input-v1'
+            or record['input_sha256'] != c.manifest['geometry']['input_sha256']
+            or record['input_count'] != c.manifest['geometry']['input_count']
+            or record['identity'] != c.identity or record['candidate_count'] != len(c.records)
+            or record['split'] != c.manifest['geometry']['split']
+            or record['candidate_files'] != c.manifest['files']
+            or record['manifest_sha256'] != corpus.digest(c.path / 'manifest.json')
+            or record['query_manifest_sha256'] != corpus.digest(c.path / 'query-manifest.json')):
+        raise ValueError('frozen corpus/split/count/identity binding differs')
+    for name in ('tuning', 'heldout'):
+        target = c.path / (name + '.jsonl')
+        if record['queries'][name]['sha256'] != corpus.digest(target):
+            raise ValueError('frozen query bytes differ')
+        values = [json.loads(line) for line in target.read_text().splitlines()]
+        ordered = []
+        for query in values:
+            digest = vector_digest(query['vector'])
+            if (query['source_id'] not in record['split'][name]
+                    or record['source_vectors'].get(query['source_id']) != digest
+                    or query['split'] != name or query['generation'] != c.identity['generation']):
+                raise ValueError('query source ID/vector is not in the frozen split')
+            ordered.append({'id': query['id'], 'source_id': query['source_id'], 'vector_sha256': digest})
+        if record['queries'][name]['count'] != len(values) or record['queries'][name]['ordered'] != ordered:
+            raise ValueError('frozen query count/order differs')
+
+
 def prepare(source, output, *, dataset='synthetic', dimension=768, expected_count=None, seed=447020, admission=None):
     if dataset != 'synthetic':
         validate_admission(admission, dataset)  # BEFORE opening source or creating staging.
@@ -216,11 +280,12 @@ def prepare(source, output, *, dataset='synthetic', dimension=768, expected_coun
             hashes[name] = corpus.digest(target)
         (built / 'query-manifest.json').write_text(json.dumps({'corpus_manifest': corpus.digest(built/'manifest.json'),
                                                                'queries': hashes}, sort_keys=True, indent=2)+'\n')
+        frozen_input_sha256 = freeze_input(c, rows, vectors, split)
         built.rename(output)
-    return load(output, admission=admission)
+    return load(output, admission=admission, frozen_input_sha256=frozen_input_sha256)
 
 
-def load(path, *, admission=None):
+def load(path, *, admission=None, frozen_input_sha256=None):
     c = corpus.load(path) if admission is None else corpus.load(path, geometry_admission=admission)
     geometry = c.manifest.get('geometry', {})
     if geometry.get('schema') != 'cortex-b02-geometry-v1' or geometry.get('unknown') != UNKNOWN:
@@ -237,6 +302,8 @@ def load(path, *, admission=None):
         target = c.path / (name+'.jsonl')
         if binding['queries'][name] != corpus.digest(target):
             raise ValueError('geometry query hash drift')
+    validate_frozen(c, frozen_input_sha256)
+    c.frozen_input_sha256 = frozen_input_sha256
     return c
 
 
@@ -251,7 +318,8 @@ def main():
     c = prepare(args.source, args.output, dataset=args.dataset, dimension=args.dimension,
                 expected_count=args.expected_count, admission=admission)
     print(json.dumps({'dataset': c.manifest['dataset'], 'count': c.manifest['count'],
-                      'manifest_sha256': corpus.digest(c.path/'manifest.json'), 'qualification': 'GEOMETRY_ONLY'}))
+                      'manifest_sha256': corpus.digest(c.path/'manifest.json'),
+                      'frozen_input_sha256': c.frozen_input_sha256, 'qualification': 'GEOMETRY_ONLY'}))
 
 
 if __name__ == '__main__':

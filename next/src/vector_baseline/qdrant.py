@@ -9,6 +9,7 @@ import secrets
 import subprocess
 import sys
 import time
+import numpy as np
 
 from . import corpus, geometry, postgres, qdrant_proxy
 
@@ -18,6 +19,10 @@ PINS = {'amd64': 'docker.io/qdrant/qdrant@sha256:0e8273b9130ca3b0dd9dcfaa8f55342
 CLIENT_PINS = {'amd64': 'docker.io/library/python@sha256:2b4f19dae3a777dfc3b76730bda1e82e1f66ab2a2686fa93ca78edbfb4f04ffe',
                'arm64': 'docker.io/library/python@sha256:16bf2b5c59a08523519d3c8589deca849285dee1d62a3653e124c3dba340f15e'}
 SETTINGS = {'m': 16, 'ef_construct': 64, 'hnsw_ef': 200, 'exact': False}
+
+
+class ImportParityError(ValueError):
+    """Owned import did not reproduce the reviewed geometry/predicates."""
 
 
 def configuration(key):
@@ -357,10 +362,64 @@ async def upload(client, c):
         await client.call('PUT', '/collections/b02/points?wait=true', {'points': points})
     count = await client.call('POST', '/collections/b02/points/count', {'exact': True})
     if count['result']['count'] != len(c.records):
-        raise ValueError('import count mismatch')
+        raise ImportParityError('import count mismatch')
     info = await client.call('GET', '/collections/b02')
+    sample = sorted({1, len(c.records) // 2 + 1, len(c.records)}) if len(c.records) else []
+    response = await client.call('POST', '/collections/b02/points',
+                                {'ids': sample, 'with_payload': True, 'with_vector': True})
+    verify_import(c, sample, response, info, distance)
     return mapping, {'observed_version': version['version'], 'exact_count': count['result']['count'],
-                     'collection': info['result'], 'hnsw_use_qualified': False}
+                     'collection': info['result'], 'hnsw_use_qualified': False,
+                     'import_parity_verified': True, 'readback_sample_count': len(sample),
+                     'readback_sample_ids': sample, 'cosine_rtol': 1e-5, 'cosine_atol': 1e-6}
+
+
+def verify_import(c, sample, response, info, distance):
+    try:
+        collection = info['result']
+        vectors = collection['config']['vectors']
+        hnsw = collection['config']['hnsw_config']
+        schema = collection['payload_schema']
+        if (vectors['size'] != c.identity['dimension'] or vectors['distance'] != distance
+                or hnsw['m'] != 16 or hnsw['ef_construct'] != 64):
+            raise ImportParityError('collection vector/HNSW configuration differs')
+        for key in ('tenant', 'project', 'generation', 'deleted', 'ordinal', 'kind', 'time'):
+            expected = 'bool' if key == 'deleted' else 'integer' if key in ('ordinal', 'kind', 'time') else 'keyword'
+            if schema[key]['data_type'] != expected:
+                raise ImportParityError('indexed predicate schema differs')
+        points = response['result']
+        if not isinstance(points, list) or len(points) != len(sample):
+            raise ImportParityError('readback sample inventory differs')
+        if any(type(point['id']) is not int for point in points):
+            raise ImportParityError('readback point ID type differs')
+        observed = {point['id']: point for point in points}
+        if set(observed) != set(sample) or len(observed) != len(points):
+            raise ImportParityError('readback IDs differ or repeat')
+        for point_id in sample:
+            row = c.records[point_id - 1]
+            expected = {k: row[k].decode() for k in ('tenant', 'project')}
+            expected.update(comparison_id=row['id'].decode(), generation=c.identity['generation'],
+                            deleted=bool(row['deleted']), kind=int(row['kind']), time=int(row['time']),
+                            ordinal=int(row['ordinal']))
+            payload = observed[point_id]['payload']
+            if (set(payload) != set(expected)
+                    or any(type(payload[k]) is not type(value) or payload[k] != value for k, value in expected.items())):
+                raise ImportParityError('readback comparison ID or predicate differs')
+            actual = np.asarray(observed[point_id]['vector'], dtype='<f4')
+            stored = c.vectors[point_id - 1]
+            if actual.shape != stored.shape or not np.isfinite(actual).all():
+                raise ImportParityError('readback vector shape/values differ')
+            if c.identity['metric'] == 'cosine':
+                expected_vector = (stored.astype(np.float64) / np.linalg.norm(stored.astype(np.float64))).astype('<f4')
+                equal = np.allclose(actual, expected_vector, rtol=1e-5, atol=1e-6)
+            else:
+                equal = np.array_equal(actual, stored)
+            if not equal:
+                raise ImportParityError('readback canonical vector differs')
+    except ImportParityError:
+        raise
+    except (KeyError, TypeError, ValueError, OverflowError, IndexError) as error:
+        raise ImportParityError('bounded import readback is incomplete') from error
 
 
 def install(stack, c, *, admission=None):

@@ -91,7 +91,7 @@ async def observe_qdrant(stack):
 
 
 def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60, budget_ms=100,
-            engine="postgres", admission=None):
+            engine="postgres", admission=None, frozen_input_sha256=None):
     if engine not in ("postgres", "qdrant"):
         raise ValueError("explicit supported benchmark engine required")
     if type(budget_ms) not in (int, float) or not math.isfinite(budget_ms) or budget_ms <= 0:
@@ -101,7 +101,12 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
         raise ValueError("existing evidence cannot be overwritten")
     c = corpus.load(corpus_path) if admission is None else corpus.load(corpus_path, geometry_admission=admission)
     if "geometry" in c.manifest:
-        c = geometry.load(corpus_path, admission=admission)
+        if admission is not None:
+            approved = admission.get("frozen_input_sha256")
+            if frozen_input_sha256 is not None and frozen_input_sha256 != approved:
+                raise ValueError("caller freeze differs from native import review")
+            frozen_input_sha256 = approved
+        c = geometry.load(corpus_path, admission=admission, frozen_input_sha256=frozen_input_sha256)
     if admission is None:
         admit(c.manifest)
     else:
@@ -118,7 +123,11 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
     queries = [json.loads(line) for line in query_path.read_text().splitlines()]
     selected = [q for q in queries if q["stratum"] + "/" + q["mode"] == cell]
     if not selected or any(q["status"] != "READY" for q in selected):
-        raise ValueError("unpopulated filter cell, NOT_RUN")
+        result = not_run(c, cell, engine, selected, "unpopulated-filter-cell", frozen_input_sha256)
+        with output.open("x") as stream:
+            json.dump(result, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+        return result
     truth = {q["id"]: oracle.rank(c, q) for q in selected}
     config = load.RunConfig(duration_seconds=duration, warmup_seconds=warmup)
     config.validate()
@@ -153,6 +162,7 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
                                                 "cell": cell, "identity": c.identity, "corpus_count": c.manifest["count"],
                                                 "corpus_manifest_sha256": corpus.digest(c.path / "manifest.json"),
                                                 "query_manifest_sha256": corpus.digest(c.path / "query-manifest.json"),
+                                                "frozen_input_sha256": frozen_input_sha256,
                                                 "heldout_queries_in_cell": len(selected),
                                                 "heldout_query_ids": [q["id"] for q in selected], "stack": stack.binding,
                                                 "natural_plan": natural_plan, "database_bytes": db_bytes})
@@ -165,6 +175,9 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
             if admission is not None:
                 result["qualification"] = "ADMITTED_GEOMETRY_ENGINE_DIAGNOSTIC"
                 result["bindings"]["native_admission"] = admission
+    except qdrant.ImportParityError:
+        result = not_run(c, cell, engine, selected, "qdrant-import-parity-mismatch", frozen_input_sha256)
+        result["engine_started"] = True
     except BaseException as error:
         failed = type(error).__name__
         if not isinstance(error, Exception):
@@ -185,6 +198,22 @@ def execute(corpus_path, output, *, cell="scope/dense", duration=300, warmup=60,
     return result
 
 
+def not_run(c, cell, engine, queries, reason, frozen_input_sha256):
+    return {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,
+            "qualification": "INPUT_BOUND_CELL_NOT_RUN", "engine_started": False,
+            "bindings": {"dataset": c.manifest["dataset"], "identity": c.identity, "cell": cell,
+                         "engine": engine, "corpus_count": len(c.records),
+                         "corpus_manifest_sha256": corpus.digest(c.path / "manifest.json"),
+                         "query_manifest_sha256": corpus.digest(c.path / "query-manifest.json"),
+                         "frozen_input_sha256": frozen_input_sha256},
+            "cells": [{"cell": cell, "status": "NOT_RUN", "reason": reason,
+                       "missing_query_ids": [q["id"] for q in queries if q.get("status") != "READY"],
+                       "query_ids": [q["id"] for q in queries]}],
+            "diagnostic": {"verdict": "NOT_RUN", "recall_status": "NOT_RUN", "latency_status": "NOT_RUN",
+                           "throughput_status": "NOT_RUN", "resource_collection_complete": False},
+            "not_run": [cell], "cleanup_verified": True, "credential_discarded": True, "lock_released": True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("corpus", type=Path)
@@ -195,10 +224,12 @@ def main():
     parser.add_argument("--latency-budget-ms", type=float, default=100)
     parser.add_argument("--engine", choices=("postgres", "qdrant"), default="postgres")
     parser.add_argument("--admission", type=Path)
+    parser.add_argument("--frozen-input-sha256")
     args = parser.parse_args()
     admission = json.loads(args.admission.read_text()) if args.admission else None
     result = execute(args.corpus, args.output, cell=args.cell, duration=args.duration,
-                     warmup=args.warmup, budget_ms=args.latency_budget_ms, engine=args.engine, admission=admission)
+                     warmup=args.warmup, budget_ms=args.latency_budget_ms, engine=args.engine, admission=admission,
+                     frozen_input_sha256=args.frozen_input_sha256)
     print(json.dumps({"engine_decision": "UNDECIDED", "diagnostic": result["diagnostic"]["verdict"],
                       "cleanup_verified": result["cleanup_verified"],
                       "report_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest()}))
