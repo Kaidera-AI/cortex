@@ -155,14 +155,15 @@ class Lifecycle:
 
     def inspect(self, kind, name):
         value = self.runner(['podman', kind, 'exists', name])
+        bound = self.binding.get((kind, name))
+        identity = None
+        if bound is not None:
+            identity = self.runner(['podman', kind, 'exists', bound])
+            if identity.returncode not in (0, 1):
+                raise RuntimeError('bound immutable ID absence is unverified')
         if value.returncode == 1:
-            bound = self.binding.get((kind, name))
-            if bound is not None:
-                identity = self.runner(['podman', kind, 'exists', bound])
-                if identity.returncode == 0:
-                    raise RuntimeError('bound immutable ID remains under another name')
-                if identity.returncode != 1:
-                    raise RuntimeError('bound immutable ID absence is unverified')
+            if identity is not None and identity.returncode == 0:
+                raise RuntimeError('bound immutable ID remains under another name')
             return None
         if value.returncode != 0:
             raise RuntimeError('resource existence is unverified')
@@ -175,12 +176,13 @@ class Lifecycle:
         if actual != name:
             raise RuntimeError('inspected name differs from requested identity')
         if (labels or {}).get('owner') != 'cox@helix' or (labels or {}).get('kaidera.cox.lifecycle') != self.lifecycle:
+            if identity is not None and identity.returncode == 0:
+                raise RuntimeError('bound immutable ID remains under another name')
             self.events.append({'event': 'foreign-preserved', 'kind': kind, 'name': name})
             return None
         target = row['Id']
         if not isinstance(target, str) or not re.fullmatch('[0-9a-f]{64}', target):
             raise RuntimeError('immutable removal identity is unverified')
-        bound = self.binding.get((kind, name))
         if bound is not None and bound != target:
             raise RuntimeError('resource identity changed after acknowledgement')
         return row
