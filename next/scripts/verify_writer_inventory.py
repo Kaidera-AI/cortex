@@ -14,13 +14,19 @@ FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.
 # Source-reviewed, normalized ASTs of the complete enclosing functions. A change
 # anywhere in one of these functions invalidates its indirect-SQL exception.
 KNOWN_INPUT_FUNCTION_SHA256 = {
-    ('src/cortex_core/coordination.py','Jobs._load'): '890d933919e16b985fffb59cbc4d289f69e44354a9091ae8fb03c61806666192',
-    ('src/cortex_core/auth.py','authorized'): 'c24eb16f09a88420e2b91688fa34f0077314fc7826a2ca52607131ddbae6cdd8',
-    ('src/cortex_core/identity.py','Identity._control'): '223f040f8da4323aea07ab04dc93432f8d802341fd8d466c958a6a0cc66514ca',
-    ('src/cortex_core/identity.py','Identity._register'): '3f66ba2e72331e2fa3d69a8301b960a19ed9dabc9fb84fc86d202dee37cc6e21',
-    ('src/cortex_core/records.py','_private'): '7652959cf669358ba5aada70901130592954d399d64801983cf7189ac6fc62cc',
-    ('src/cortex_core/migrations.py','apply_migrations'): '40f09b7afe78da172c845b8704a3b4b708564545c9a02d0a09aa041a0b828888',
+    ('src/cortex_core/coordination.py','Jobs._load'): 'e10eddc8f089d9ccc97e60e576dedbfe3d39541e3eb8bee0414db28b29407ade',
+    ('src/cortex_core/auth.py','authorized'): '479d115551dc48de8bbc2e9fba943d21879bf0497f05a5d65610a97dc282ae46',
+    ('src/cortex_core/identity.py','Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
+    ('src/cortex_core/identity.py','Identity._register'): 'f837fa6fdcc01e32d12b74eb9b8a1390a3305bd8ef256fdf28b6b3b460e820b8',
+    ('src/cortex_core/records.py','_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
+    ('src/cortex_core/migrations.py','apply_migrations'): '7dbe9e12eaea949645208137e8db565874622c0af7d625529816e30aea3b5df3',
 }
+
+
+def normalized_function_digest(function):
+    # 3.14 changed ast.dump's default to hide empty fields; keep the 3.12 form.
+    options={'show_empty':True} if sys.version_info >= (3,14) else {}
+    return hashlib.sha256(ast.dump(function,include_attributes=False,**options).encode()).hexdigest()
 
 
 def static_text(node):
@@ -104,8 +110,7 @@ def scan_source(file,source):
     def known_existing_input(owner,node,tree,function):
         """Only these source-proved existing indirect inputs bypass fail-closed."""
         pin=KNOWN_INPUT_FUNCTION_SHA256.get((file,owner))
-        if function is None or pin is None or hashlib.sha256(
-                ast.dump(function,include_attributes=False).encode()).hexdigest()!=pin:
+        if function is None or pin is None or normalized_function_digest(function)!=pin:
             return False
         if file=='src/cortex_core/coordination.py' and owner=='Jobs._load':
             return (isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add)

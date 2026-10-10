@@ -35,7 +35,7 @@ if MODE=='red':
 else:
     baseline=suite()
     assert baseline['exit_code']==0 and baseline['receipt']=={'tests_run':14,'failures':[],'errors':[]}
-    before="or hashlib.sha256(\n                ast.dump(function,include_attributes=False).encode()).hexdigest()!=pin:"
+    before="or normalized_function_digest(function)!=pin:"
     assert original.decode().count(before)==1
     replacement=original.decode().replace(before,'or False:').encode()
 try:
