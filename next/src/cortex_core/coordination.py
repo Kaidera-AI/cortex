@@ -1,4 +1,5 @@
 """Private PG job state machine; released role/HTTP adapters and C06 capture are held."""
+from contextvars import ContextVar
 from dataclasses import dataclass
 import hashlib
 import json
@@ -8,7 +9,9 @@ from uuid import UUID, uuid4
 import psycopg
 
 from .auth import AuthError, authorized, _resolve
-from .records import RecordError, _payload, _request, _save_request, _scope, _validate
+from .records import RecordError, _payload, _request, _save_request, _scope, _validate, MAX_PAYLOAD_BYTES
+
+_LEASE_DEADLINE = ContextVar('c05_verified_lease_deadline',default=None)
 
 
 class JobError(RuntimeError):
@@ -66,7 +69,12 @@ def _result(job_id, state, reason):
 
 
 def _bytes(value):
-    if not isinstance(value,bytes):
+    if not isinstance(value,bytes) or len(value) > MAX_PAYLOAD_BYTES:
+        raise JobError('invalid_input')
+
+
+def _fence(attempt_id, fence):
+    if not isinstance(attempt_id,UUID) or type(fence) is not int or not 1 <= fence <= 2**63-1:
         raise JobError('invalid_input')
 
 
@@ -87,23 +95,36 @@ class Jobs:
             raise AuthError('forbidden')
 
     def _execute(self, operation, job_id, key, arguments, callback, control=False):
+        token = _LEASE_DEADLINE.set(None)
         try:
-            _validate(job_id,0,key)
-            digest = hashlib.sha256(json.dumps([operation,str(job_id),arguments],separators=(',',':')).encode()).hexdigest()
-            with self._auth('write') as scope:
-                if control:
-                    self._control(scope)
-                saved = _request(self.connection,scope,key,digest)
-                if saved is None:
-                    try:
-                        saved = callback(scope)
-                        _save_request(self.connection,scope,key,digest,saved)
-                    except psycopg.errors.UniqueViolation:
-                        raise JobError('conflict') from None
-                result = _typed(saved)
-            return result
-        except RecordError as error:
-            raise JobError(error.code) from None
+            try:
+                _validate(job_id,0,key)
+                digest = hashlib.sha256(json.dumps([operation,str(job_id),arguments],separators=(',',':')).encode()).hexdigest()
+                with self._auth('write') as scope:
+                    if control:
+                        self._control(scope)
+                    saved = _request(self.connection,scope,key,digest)
+                    if saved is None:
+                        try:
+                            saved = callback(scope)
+                            _save_request(self.connection,scope,key,digest,saved)
+                        except psycopg.errors.UniqueViolation:
+                            raise JobError('conflict') from None
+                    self._accept_deadline()
+                    result = _typed(saved)
+                return result
+            except RecordError as error:
+                raise JobError(error.code) from None
+        finally:
+            _LEASE_DEADLINE.reset(token)
+
+    def _accept_deadline(self):
+        # Final acceptance point, after all risky writes. Terminal state deliberately
+        # expires the durable lease, so compare its originally verified deadline.
+        deadline = _LEASE_DEADLINE.get()
+        if deadline is not None and not self.connection.execute(
+                'SELECT %s::timestamptz>clock_timestamp()', (deadline,)).fetchone()[0]:
+            raise JobError('conflict')
 
     def _load(self, scope, job_id, lock=False):
         row = self.connection.execute('''SELECT id,kind,payload_ref,state,cancel_requested FROM coordination.jobs
@@ -190,6 +211,10 @@ class Jobs:
                 ON CONFLICT (tenant_id,project_id,kind,resource_id) DO UPDATE
                 SET holder=EXCLUDED.holder,fence=EXCLUDED.fence,expires_at=EXCLUDED.expires_at''',
                 (*_scope(scope),job_id,str(scope.principal_id),fence,ttl_seconds))
+            deadline = self.connection.execute('''SELECT expires_at FROM coordination.leases
+                WHERE tenant_id=%s AND project_id=%s AND kind='job' AND resource_id=%s''',
+                (*_scope(scope),job_id)).fetchone()[0]
+            _LEASE_DEADLINE.set(deadline)
             self.connection.execute('''INSERT INTO coordination.job_attempts
                 (tenant_id,project_id,id,job_id,attempt_number,fence,worker_id) VALUES (%s,%s,%s,%s,%s,%s,%s)''',
                 (*_scope(scope),attempt,job_id,number,fence,str(scope.principal_id)))
@@ -209,7 +234,7 @@ class Jobs:
                 WHERE tenant_id=%s AND project_id=%s AND kind='job' AND resource_id=%s''',(*_scope(scope),job_id))
 
     def _attempt(self, scope, job_id):
-        return self.connection.execute('''SELECT a.id,a.fence,a.worker_id,l.expires_at>clock_timestamp()
+        return self.connection.execute('''SELECT a.id,a.fence,a.worker_id,l.expires_at>clock_timestamp(),l.expires_at
             FROM coordination.job_attempts a JOIN coordination.leases l
             ON (l.tenant_id,l.project_id,l.resource_id,l.kind)=(a.tenant_id,a.project_id,a.job_id,'job')
             AND l.fence=a.fence AND l.holder=a.worker_id
@@ -222,6 +247,7 @@ class Jobs:
         current = self._attempt(scope,row[0])
         if row[3] != 'running' or row[4] or current is None or current[:2] != (attempt_id,fence) or not current[3]:
             raise JobError('conflict')
+        _LEASE_DEADLINE.set(current[4])
         if (current[2] == str(scope.principal_id)) == review:
             raise JobError('forbidden')
         return current
@@ -233,6 +259,7 @@ class Jobs:
         return _result(row[0],state,reason)
 
     def complete(self, job_id, attempt_id, fence, body, request_key):
+        _fence(attempt_id,fence)
         _bytes(body)
         def complete(scope):
             row = self._load(scope,job_id,True)
@@ -282,6 +309,7 @@ class Jobs:
         return self._execute('job.retry',job_id,request_key,[],retry,control=True)
 
     def _worker_terminal(self, operation, job_id, attempt_id, fence, body, key, state, reason):
+        _fence(attempt_id,fence)
         _bytes(body)
         def finish(scope):
             row = self._load(scope,job_id,True)
@@ -299,6 +327,7 @@ class Jobs:
         return self._worker_terminal('job.fail',job_id,attempt_id,fence,body,request_key,'failed','failed')
 
     def return_result(self, job_id, attempt_id, fence, body, request_key):
+        _fence(attempt_id,fence)
         _bytes(body)
         def returned(scope):
             row = self._load(scope,job_id,True)
@@ -313,6 +342,7 @@ class Jobs:
         return self._execute('job.return',job_id,request_key,[str(attempt_id),fence,hashlib.sha256(body).hexdigest()],returned)
 
     def _review(self, operation, job_id, attempt_id, fence, request_key, state):
+        _fence(attempt_id,fence)
         def review(scope):
             row = self._load(scope,job_id,True)
             current = self._active(scope,row,attempt_id,fence,review=True)

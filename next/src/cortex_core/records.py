@@ -10,6 +10,8 @@ from psycopg.types.json import Jsonb
 
 from .auth import authorized
 
+MAX_PAYLOAD_BYTES = 16 * 1024 * 1024
+
 
 class RecordError(RuntimeError):
     def __init__(self, code):
@@ -84,6 +86,10 @@ def _validate(record_id, revision, key):
     if (not isinstance(record_id,UUID) or type(revision) is not int or not 0 <= revision < 2**63-1
             or not isinstance(key,str) or not 1 <= len(key) <= 256 or '\x00' in key):
         raise RecordError('invalid_input')
+    try:
+        key.encode('utf-8')
+    except UnicodeError:
+        raise RecordError('invalid_input') from None
 
 
 def _receipt(data):
@@ -115,7 +121,7 @@ class Records:
 
     def put(self, record_id, kind, body, expected_revision, request_key):
         _validate(record_id,expected_revision,request_key)
-        if not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None or not isinstance(body,bytes):
+        if not isinstance(kind,str) or re.fullmatch(r'[a-z][a-z0-9_.-]{0,63}',kind) is None or not isinstance(body,bytes) or len(body) > MAX_PAYLOAD_BYTES:
             raise RecordError('invalid_input')
         return self._mutate('put',record_id,kind,body,expected_revision,request_key)
 
