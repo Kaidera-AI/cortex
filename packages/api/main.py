@@ -16969,6 +16969,10 @@ async def order_project_transfer_self_fk_rows(
             f"existing.{quote_ident(column)} = c.{ref}"
             for column, ref in zip(parents, ref_aliases)
         )
+        own_database_match = " AND ".join(
+            f"existing.{quote_ident(column)} = c.{parent}"
+            for column, parent in zip(parents, parent_aliases)
+        )
         any_null = " OR ".join(f"c.{ref} IS NULL" for ref in ref_aliases)
         all_null = " AND ".join(f"c.{ref} IS NULL" for ref in ref_aliases)
         parent_not_null = " AND ".join(f"c.{parent} IS NOT NULL" for parent in parent_aliases)
@@ -16988,7 +16992,8 @@ async def order_project_transfer_self_fk_rows(
                 SELECT c.ordinal, p.parent_ordinal,
                        CASE WHEN {parent_not_null} THEN c.prior_ordinal END AS prior_ordinal,
                        ({any_null}) AS any_null, ({all_null}) AS all_null,
-                       EXISTS(SELECT 1 FROM {qualified} existing WHERE {database_match}) AS present
+                       EXISTS(SELECT 1 FROM {qualified} existing WHERE {database_match}) AS present,
+                       EXISTS(SELECT 1 FROM {qualified} existing WHERE {own_database_match}) AS own_present
                   FROM indexed c LEFT JOIN parent_keys p ON {payload_match}
                  ORDER BY c.ordinal""",
             json.dumps(rows, default=str),
@@ -16998,6 +17003,9 @@ async def order_project_transfer_self_fk_rows(
             # Preserve the first payload row for a duplicate referenced key.
             if binding["prior_ordinal"] is not None:
                 edge(int(binding["prior_ordinal"]), child)
+            # ON CONFLICT skips this duplicate without checking its unused FK.
+            if binding["prior_ordinal"] is not None or binding["own_present"]:
+                continue
             if constraint["match_type"] == "f" and binding["any_null"] and not binding["all_null"]:
                 raise HTTPException(409, "Project import has partially null self-reference")
             inactive = binding["all_null"] if constraint["match_type"] == "f" else binding["any_null"]
