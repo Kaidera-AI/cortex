@@ -84,6 +84,23 @@ def checkpoint():
         connection.execute('CHECKPOINT')
 
 
+def exact_suite(name):
+    """Isolate a declared fault boundary when unrelated repair cannot run."""
+    script = '''import json,sys,unittest
+sys.path.insert(0,sys.argv[1]);sys.path.insert(0,sys.argv[2])
+from test_receipts import AssertionResult,MARKER
+name=sys.argv[3]
+tests=unittest.defaultTestLoader.loadTestsFromName(name)
+assert tests.countTestCases()==1,'selected test ID must resolve exactly once'
+result=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)
+print(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,
+ 'errors':[{'id':test.id(),'traceback':traceback} for test,traceback in result.errors]}),flush=True)
+raise SystemExit(0 if result.wasSuccessful() else 1)
+'''
+    return subprocess.run([sys.executable,'-c',script,str(NEXT/'tests'),str(DIRECTORY),name],
+                          capture_output=True,text=True)
+
+
 def run():
     paths = sorted({path for _,path,_,_,_ in RECIPES} | {MANIFEST})
     originals = {path:(NEXT/path).read_bytes() for path in paths}
@@ -109,7 +126,8 @@ def run():
                     manifest['migrations'][-1]['sha256'] = digest((NEXT/SQL).read_bytes())
                     (NEXT/MANIFEST).write_text(json.dumps(manifest,indent=2)+'\n')
                 effective = {name:digest((NEXT/name).read_bytes()) for name in paths}
-                result = suite(DIRECTORY)
+                result = (exact_suite(expected) if label == 'sparse gap promoted'
+                          else suite(DIRECTORY))
                 receipt = check_receipt(result)
                 status = classify(result,{expected})
                 failed = {row['id'].split(' (')[0] for row in receipt['failures']}
