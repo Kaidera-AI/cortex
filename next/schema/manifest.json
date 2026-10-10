@@ -26,6 +26,11 @@
       "id": "auth-0002",
       "file": "auth/002-isolation.sql",
       "sha256": "dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681"
+    },
+    {
+      "id": "auth-0003",
+      "file": "auth/003-identity.sql",
+      "sha256": "1f408c2834e5f11bd14f95d42decdcf0e99cda879128b29f0278b6ff422c90e8"
     }
   ]
 }
