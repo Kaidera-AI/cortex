@@ -4321,10 +4321,10 @@ async def search_graph(
                  JOIN cortex_entities t
                    ON t.id = r.target_entity_id
                 UNION ALL
-               SELECT s.name AS seed_name,
-                      s.entity_type AS seed_type,
-                      src.name AS related_name,
-                      src.entity_type AS related_type,
+               SELECT src.name AS seed_name,
+                      src.entity_type AS seed_type,
+                      s.name AS related_name,
+                      s.entity_type AS related_type,
                       r.relationship_type AS relationship_type,
                       COALESCE(r.properties->>'description', '') AS rel_description
                  FROM seeds s
