@@ -1,5 +1,4 @@
 """Pinned real C04/request-role controls; no provider or API wait machinery."""
-import asyncio
 import hashlib
 import inspect
 import sys
@@ -12,6 +11,7 @@ import asyncpg
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'c11b2'))
 import test_read_api as fixture
 from cortex_core.auth import AuthError
+from cortex_core.embeddings.pg_search import PostgresSearch, Scope
 from cortex_core.modules.graph.pg_graph import Extraction, Source, encode_graph_fact
 
 
@@ -212,6 +212,26 @@ class ProjectionTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(target_shape=list(target)):
                 with self.assertRaises(ValueError):
                     await method(self.principal['principal_id'], target, fixture.IDENTITY, recheck=self.current)
+
+    async def test_plain_guc_scope_without_private_core_binding_cannot_observe(self):
+        async def unbound(conn, subject):
+            await conn.execute("SELECT set_config('cortex.tenant_id',$1,true),set_config('cortex.project_id',$2,true)",
+                               self.principal['tenant_id'], self.principal['project_id'])
+            return Scope(UUID(self.principal['tenant_id']), UUID(self.principal['project_id']))
+        # Deliberately invalid test callback proves real C04 restrictive RLS,
+        # never a production fallback or positive authority fixture.
+        port = PostgresSearch(self.pool, unbound)
+        value = await self.observe(port=port)
+        self.assertEqual(value.state, 'unavailable')
+        self.assertIsNone(value.indexed_revision)
+
+    async def test_core_down_has_no_false_visibility(self):
+        method = getattr(self.search, 'projection_revision', None)
+        self.assertTrue(callable(method))
+        await self.pool.close()
+        value = await self.observe()
+        self.assertEqual((value.state, value.reason, value.indexed_revision),
+                         ('unavailable', 'core_unavailable', None))
 
 
 if __name__ == '__main__':
