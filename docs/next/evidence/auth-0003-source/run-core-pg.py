@@ -182,6 +182,17 @@ try:
             assert all(row['phase']=='test' and row['is_assertion'] for row in reports[0]['failures'])
         else:
             assert value.returncode==0 and not reports[0]['failures']
+    if PHASE.startswith(('identity-policy','mutation')):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/identity_portability'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==3 and not report['errors']
+        if PHASE.startswith('identity-policy-red'):
+            assert value.returncode==1 and len(report['failures'])==1
+            assert report['failures'][0]['id']=='test_identity_portability.IdentityPortability.test_python_role_order_is_valid_under_real_non_c_collation'
+            assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+            assert 'SQL validation must use the same byte order' in report['failures'][0]['traceback']
+        else:
+            assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
         for directory,count in [('contract',33),('receipt',20)]:
             value=checked(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
