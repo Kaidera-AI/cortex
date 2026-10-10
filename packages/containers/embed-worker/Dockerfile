@@ -19,6 +19,9 @@ RUN pip install --no-cache-dir --only-binary=:all: --require-hashes \
     && python -c "import torch; assert torch.__version__ == '2.14.0+cpu'; assert torch.version.cuda is None" \
     && rm -rf /build
 
+# Recompile after the install layer has stamped source mtimes. Keep timestamp caches.
+RUN python -c "import compileall, py_compile, sysconfig; assert compileall.compile_dir(sysconfig.get_path('purelib'), force=True, quiet=1, optimize=0, invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)"
+
 
 # Fetch only the exact safe artifacts from immutable model commits. This stage
 # has network access; the runtime stage is offline and receives no downloader.
@@ -46,6 +49,9 @@ RUN pip install --no-cache-dir --only-binary=:all: --require-hashes \
       -r /build/requirements.lock \
     && python -c "import torch; assert torch.__version__ == '2.14.0+cpu'; assert torch.version.cuda is None" \
     && rm -rf /build
+
+# Recompile after the install layer has stamped source mtimes. Keep timestamp caches.
+RUN python -c "import compileall, py_compile, sysconfig; assert compileall.compile_dir(sysconfig.get_path('purelib'), force=True, quiet=1, optimize=0, invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)"
 
 # These caches are writable runtime scratch only.  Both selected models live in
 # the immutable image under /opt and every model library is forced offline.

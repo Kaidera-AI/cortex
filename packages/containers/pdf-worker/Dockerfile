@@ -55,6 +55,9 @@ RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
       -r /build/requirements.lock \
  && rm -rf /build
 
+# Recompile after the install layer has stamped source mtimes. Keep timestamp caches.
+RUN python -c "import compileall, py_compile, sysconfig; assert compileall.compile_dir(sysconfig.get_path('purelib'), force=True, quiet=1, optimize=0, invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)"
+
 WORKDIR /app
 COPY worker.py /app/
 COPY worker-entrypoint /usr/local/bin/worker-entrypoint
