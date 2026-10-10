@@ -329,6 +329,7 @@ async def worker(installation, lease_seconds, mode, crash):
     pool = await asyncpg.create_pool(dsn, min_size=1, max_size=2)
     supervisor = Supervisor(pool, installation, lease_seconds=lease_seconds)
     stop, heartbeat = asyncio.Event(), None
+    ready = lease_refused = False
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, stop.set)
     try:
@@ -341,16 +342,24 @@ async def worker(installation, lease_seconds, mode, crash):
         else:
             await supervisor.acquire()
         emit({"kind": "ready", "fence": supervisor.fence})
+        ready = True
         await commands(supervisor, stop, heartbeat)
         return 0
     except LeaseBusy:
+        if ready:
+            raise
+        lease_refused = True
         emit({"kind": "lease_busy"})
         return 75
     finally:
         stop.set()
         try:
             if heartbeat:
-                await heartbeat  # Late runtime failures must survive successful commands.
+                try:
+                    await heartbeat  # Late runtime failures must survive successful commands.
+                except LeaseBusy:
+                    if not lease_refused:
+                        raise
             else:
                 try:
                     await supervisor.release()

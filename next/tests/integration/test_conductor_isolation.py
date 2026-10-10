@@ -436,7 +436,7 @@ class FixtureLifecycle(unittest.IsolatedAsyncioTestCase):
             await subject.asyncTearDown()
         self.assertEqual(closed, ['control', 'data', 'admin'], 'PG cleanup must not stop at first pool')
 
-    async def test_declared_lease_busy_keeps_75_after_reaping(self):
+    async def test_declared_lease_busy_keeps_refusal_after_reaping(self):
         from unittest.mock import AsyncMock, patch
         import x02_process_fixture as fixture_module
         class Pool:

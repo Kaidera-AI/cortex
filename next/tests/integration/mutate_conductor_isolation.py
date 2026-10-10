@@ -91,8 +91,8 @@ MUTATIONS = [
      '            self.child.check_exit()', '            pass',
      "test_conductor_isolation.FixtureLifecycle.test_watcher_refuses_runtime_fixture_error_before_restart"),
     (FIXTURE, "late_heartbeat_error_hidden",
-     '                await heartbeat  # Late runtime failures must survive successful commands.',
-     '                await asyncio.gather(heartbeat, return_exceptions=True)',
+     '                    await heartbeat  # Late runtime failures must survive successful commands.',
+     '                    await asyncio.gather(heartbeat, return_exceptions=True)',
      "test_conductor_isolation.FixtureLifecycle.test_late_heartbeat_failure_survives_pool_cleanup"),
     (proof.ROOT / "tests/integration/test_conductor_isolation.py", "composed_cleanup_short_circuited",
      '            except BaseException as error:\n                errors.append(error)\n        try:\n            await self.fixture.asyncTearDown()',
@@ -104,6 +104,9 @@ MUTATIONS = [
     (proof.ROOT / "tests/integration/test_conductor_isolation.py", "remaining_pg_pools_skipped",
      '            for name in ("control_pool", "pool", "admin"):', '            for name in ():',
      "test_conductor_isolation.FixtureLifecycle.test_failed_fixture_teardown_still_closes_remaining_pools"),
+    (FIXTURE, "declared_lease_refusal_overridden",
+     '                    if not lease_refused:', '                    if True:',
+     "test_conductor_isolation.FixtureLifecycle.test_declared_lease_busy_keeps_refusal_after_reaping"),
 ]
 
 
