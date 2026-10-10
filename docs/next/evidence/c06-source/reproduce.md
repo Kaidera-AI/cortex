@@ -1,5 +1,27 @@
 # C06 copied PostgreSQL source proof
 
+## PR #51 writer-inventory delta — current proof
+
+Mike closed C06-PR51-001/003/004 and reopened 002. The new committed
+`test_assigned_variable_dynamic_writer_fails_closed` and
+`test_helper_return_dynamic_writer_fails_closed` each failed in the test body
+before scanner repair (`pr51-002-red.json`). The scanner now fails closed on
+unresolved `execute`/`executemany` arguments while recognizing only its
+source-proved existing indirect SQL inputs. Ten inventory tests and 62 declared
+writer sites pass (`pr51-002-green.json`); removing the fail-closed branch
+causes three expected BODY failures (`pr51-002-mutant.json`).
+
+The complete fixed-classifier native replay is `mutation-pr51-002-full-001.json`
+at tested source `1b675b3fc834745544f311b8811909bb20cfb9ae`: 26 clean
+suites/316 tests, 154/154 primary faults killed, 367 expected BODY assertion
+records all with active phase attribution, zero inconclusive/errors, 426 copied
+NEXT files restored, and exact-owned stack removed. Run
+`python3 docs/next/evidence/c06-source/verify-pr51-002.py .` from this PR head;
+`pr51-002-proof.json` binds the raw proof inputs by SHA-256. Publication
+`publication-index-003.json` is compared with the independent Git-bound
+`publication-expected.json` and the complete current source/evidence trees.
+The next section is the prior four-P2 proof, retained unchanged as history.
+
 ## PR #51 functional rework — current proof
 
 The [PR51 rework proof](pr51-rework-proof.json) binds the current tested NEXT source

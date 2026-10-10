@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "kind": "C06 independent expected publication inventory",
-  "tested_source_commit": "a8d8876e769ec77c5164490a79055948db123aaa",
+  "kind": "complete_c06_pr51_002_publication",
+  "tested_source_commit": "1b675b3fc834745544f311b8811909bb20cfb9ae",
   "source_paths": [
     "next/benchmarks/vector_baseline/.gitignore",
     "next/benchmarks/vector_baseline/PLAN.md",
@@ -464,6 +464,7 @@
     "docs/next/evidence/c06-source/mutation-outbox-forward-final-004.json",
     "docs/next/evidence/c06-source/mutation-outbox-forward-final-005.json",
     "docs/next/evidence/c06-source/mutation-outbox-repair-001.json",
+    "docs/next/evidence/c06-source/mutation-pr51-002-full-001.json",
     "docs/next/evidence/c06-source/offline-wheel-inputs.json",
     "docs/next/evidence/c06-source/original-frozen-outbox.py",
     "docs/next/evidence/c06-source/outbox-final-review-red-001.json",
@@ -483,6 +484,10 @@
     "docs/next/evidence/c06-source/outbox-red-attempt-001.controller.log",
     "docs/next/evidence/c06-source/outbox-red-attempt-001.json",
     "docs/next/evidence/c06-source/outbox-red-caller-001.json",
+    "docs/next/evidence/c06-source/pr51-002-green.json",
+    "docs/next/evidence/c06-source/pr51-002-mutant.json",
+    "docs/next/evidence/c06-source/pr51-002-proof.json",
+    "docs/next/evidence/c06-source/pr51-002-red.json",
     "docs/next/evidence/c06-source/pr51-rework-proof.json",
     "docs/next/evidence/c06-source/pre-edit.json",
     "docs/next/evidence/c06-source/pre-matrix-quarantine-fixture-original.py",
@@ -490,6 +495,7 @@
     "docs/next/evidence/c06-source/private-namespace-red-001.json",
     "docs/next/evidence/c06-source/publication-expected.json",
     "docs/next/evidence/c06-source/publication-index-001.json",
+    "docs/next/evidence/c06-source/publication-index-002.json",
     "docs/next/evidence/c06-source/publication-validation-red-green.json",
     "docs/next/evidence/c06-source/published-wheel-metadata-red.json",
     "docs/next/evidence/c06-source/qualified-test-id-check.json",
@@ -510,9 +516,10 @@
     "docs/next/evidence/c06-source/verify-expiry-fixture.py",
     "docs/next/evidence/c06-source/verify-fixture-contract.py",
     "docs/next/evidence/c06-source/verify-fixture-shapes.py",
+    "docs/next/evidence/c06-source/verify-pr51-002.py",
     "docs/next/evidence/c06-source/verify-publication.py",
     "docs/next/evidence/c06-source/verify-replay-inputs.py",
     "docs/next/evidence/c06-source/write-only-event-red-001.json"
   ],
-  "index_path": "docs/next/evidence/c06-source/publication-index-002.json"
+  "index_path": "docs/next/evidence/c06-source/publication-index-003.json"
 }
