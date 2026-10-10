@@ -102,7 +102,7 @@ Two additive controls exercise genuinely compressed JSON and default HTTPS
 transport certificate verification; no original test method is altered.
 An additive wrapper exposes the original interruption assertion to the existing
 named runner's letters/underscores restriction, preserving that frozen method.
-A RED-first depth-limit control requires excessive JSON nesting to remain a safe
-protocol refusal, rather than a transport-failure classification.
+An additive deep-nesting control confirms a safe protocol refusal. It was
+already GREEN on this Python3.12 host, so it is not counted as a RED or a defect fix.
 An automatic RED-first check rejects unselectable/missing named mutation targets
 and drifting source recipes before their individual disposable-PG runs.

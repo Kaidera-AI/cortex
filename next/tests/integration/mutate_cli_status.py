@@ -60,7 +60,7 @@ MUTATIONS = [
      "except BaseException:\n            # Never forward",
      PREFIX + "test_caller_cancellation_propagates_and_closes_response"),
     (SOURCE, "interrupt_wrong_exit", "return 130", "return 64",
-     PREFIX + "test_interrupted_public_main_returns_130_without_traceback"),
+     PREFIX + "test_interrupted_main_without_traceback"),
     (SOURCE, "server_timeout_reason_lost", 'return {key: value[key] for key in',
      'value["reason"] = "core_unavailable" if value["reason"] == "timeout" else value["reason"]\n    return {key: value[key] for key in',
      PREFIX + "test_server_timeout_reason_is_preserved"),
