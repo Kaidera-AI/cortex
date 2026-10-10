@@ -3693,25 +3693,42 @@ async def apply_schema_migrations(
 
 
 async def find_invalidation_target(conn: asyncpg.Connection, project: str, item_id: str):
-    for table in ("decisions", "lessons", "handoffs"):
+    tables = ("decisions", "lessons", "handoffs")
+
+    def resolve(candidates: list[dict[str, str]]):
+        if len(candidates) > 1:
+            raise HTTPException(409, {
+                "code": "ambiguous_invalidation_target",
+                "candidates": candidates[:50],
+                "truncated": len(candidates) > 50,
+            })
+        if candidates:
+            return candidates[0]["table"], candidates[0]["id"]
+        return None, None
+
+    exact = []
+    for table in tables:
         row = await conn.fetchrow(
             f"SELECT id::text AS id FROM {table} WHERE project = $1 AND id::text = $2 LIMIT 1",
             project,
             item_id,
         )
         if row:
-            return table, row["id"]
+            exact.append({"table": table, "id": row["id"]})
+    if exact:
+        return resolve(exact)
 
-    for table in ("decisions", "lessons", "handoffs"):
-        row = await conn.fetchrow(
-            f"SELECT id::text AS id FROM {table} WHERE project = $1 AND id::text LIKE $2 || '%' LIMIT 1",
+    prefix = item_id.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    candidates = []
+    for table in tables:
+        rows = await conn.fetch(
+            f"SELECT id::text AS id FROM {table} WHERE project = $1 "
+            "AND id::text LIKE $2 || '%' ESCAPE E'\\\\' ORDER BY id LIMIT 51",
             project,
-            item_id,
+            prefix,
         )
-        if row:
-            return table, row["id"]
-
-    return None, None
+        candidates.extend({"table": table, "id": row["id"]} for row in rows)
+    return resolve(candidates)
 
 
 # ---------------------------------------------------------------------------
