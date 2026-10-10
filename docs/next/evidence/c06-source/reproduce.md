@@ -1,6 +1,27 @@
 # C06 copied PostgreSQL source proof
 
-## PR #51 writer-inventory delta — current proof
+## PR #51 writer-inventory rework r2 — current proof
+
+Mike's walrus override of `records._private(query)` and an augmented
+assignment control failed in the test body before repair
+(`pr51-002-r2-red.json`). The scanner now proves that the only binding of the
+allowlisted private query is its parameter and rejects every local `Store` or
+`Del` use, plus `global` and `nonlocal` declarations. The same exhaustive
+binding check closes the other known indirect SQL exceptions. The twelve
+inventory tests and original examples pass (`pr51-002-r2-green.json`); removing
+the local-binding guard makes exactly those two new tests fail in their bodies
+(`pr51-002-r2-mutant.json`).
+
+`mutation-pr51-002-r2-full-001.json` at tested source
+`6e8d22de80dbb994d049034a355b49aa5959a897` records 26 clean suites/318
+tests, all 154 primary faults killed with 367 expected body assertions, zero
+errors/inconclusive, 426 copied NEXT files restored and the three owned
+resources removed. `verify-pr51-002-r2.py` checks the raw receipt and source
+against Git. `publication-index-004.json` and the independent Git-bound
+`publication-expected.json` cover the exact published source and evidence
+inventory. Older receipts below remain historical.
+
+## PR #51 writer-inventory delta — prior proof
 
 Mike closed C06-PR51-001/003/004 and reopened 002. The new committed
 `test_assigned_variable_dynamic_writer_fails_closed` and
