@@ -311,3 +311,22 @@ def test_non_self_fk_violation_propagates_and_rolls_back(api, scratch_conn, monk
             assert caught.value.constraint_name == "transfer_nodes_external_id_fkey"
             assert await conn.fetchval("SELECT count(*) FROM transfer_nodes") == 0
     run(case())
+
+
+def test_child_before_self_parent_full_route_is_accepted(api, scratch_conn, monkeypatch):
+    async def case():
+        async with case_context(api, scratch_conn, monkeypatch) as (conn, attempts, import_rows):
+            parent, child = uuid4(), uuid4()
+            error, result = None, None
+            try:
+                result = await import_rows([row(child, parent), row(parent, parent)])
+            except (asyncpg.PostgresError, api.HTTPException) as caught:
+                error = type(caught).__name__
+            assert error is None, f"SQL-valid self-parent chain was refused: {error}"
+            assert result["inserted"] == 2 and result["skipped"] == 0
+            assert [r["id"] for r in attempts] == [str(parent), str(child)]
+            data = await conn.fetch("SELECT id,project,parent_id FROM transfer_nodes")
+            assert {r["id"]: r["parent_id"] for r in data} == {parent: parent, child: parent}
+            assert all(r["project"] == "audit" for r in data)
+            assert await conn.fetchval("SELECT count(*) FROM transfer_nodes c LEFT JOIN transfer_nodes p ON p.id=c.parent_id WHERE c.parent_id IS NOT NULL AND p.id IS NULL") == 0
+    run(case())
