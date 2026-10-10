@@ -1,7 +1,7 @@
 {
   "version": 1,
   "kind": "C06 independent expected publication inventory",
-  "tested_source_commit": "c717570f3149950a3a6dd90322abc54fa02b8454",
+  "tested_source_commit": "a8d8876e769ec77c5164490a79055948db123aaa",
   "source_paths": [
     "next/benchmarks/vector_baseline/.gitignore",
     "next/benchmarks/vector_baseline/PLAN.md",
