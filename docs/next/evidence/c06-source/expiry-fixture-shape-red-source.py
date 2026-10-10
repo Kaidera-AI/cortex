@@ -70,7 +70,7 @@ class RetentionProtocol(Fixture):
 
     def test_expired_checkpoint_cannot_advance_or_reactivate_completeness(self):
         self.seed()
-        self.admin.execute("INSERT INTO coordination.consumer_checkpoints(installation_id,module_id,applied_cursor,state,last_seen_at,expires_at) VALUES(%s,'graph',0,'expired',clock_timestamp()-interval '2 hours',clock_timestamp()-interval '1 hour')",(uid(1),))
+        self.admin.execute("INSERT INTO coordination.consumer_checkpoints(installation_id,module_id,applied_cursor,state,expires_at) VALUES(%s,'graph',0,'expired',clock_timestamp()-interval '1 hour')",(uid(1),))
         with self.assertRaises(psycopg.Error):
             self.admin.execute("UPDATE coordination.consumer_checkpoints SET applied_cursor=1,state='active' WHERE module_id='graph'")
         self.assertEqual(self.admin.execute("SELECT applied_cursor,state FROM coordination.consumer_checkpoints WHERE module_id='graph'").fetchone(),(0,'expired'))
