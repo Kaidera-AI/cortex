@@ -142,7 +142,7 @@ class WriterInventory(unittest.TestCase):
         self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])
 
     def test_cross_file_private_import_alias_fails_closed(self):
-        checker=self.checker();name='src/cortex_core/coordination.py'
+        checker=self.checker();name='src/cortex_core/outbox.py'
         source=(NEXT/name).read_text()
         probe="\nfrom .records import _private as imported_private\ndef accidental_writer(connection):\n    statement = ''.join(('DE', 'LETE FROM core.records WHERE true'))\n    return imported_private(connection, statement, ())\n"
         self.assertTrue(any(isinstance(n,ast.alias) and n.name=='_private' and n.asname=='imported_private'
