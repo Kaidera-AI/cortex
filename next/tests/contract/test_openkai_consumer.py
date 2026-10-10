@@ -68,9 +68,12 @@ class OpenKaiConsumer(unittest.TestCase):
                    'tombstone':{'status':503,'code':'capability_unavailable',
                                 'state':'unavailable'},
                    'unknown_target':404},
-            'D3': {'status_scope':'read', 'status_binding':'bound_now',
+            'D3': {'status_scope':'read', 'status_binding':'partial_source',
                    'status_paths':['/beat/embeddings/backlog','/degradation',
                                    '/workers/health'],
+                   'bound_status_paths':['/degradation','/workers/health'],
+                   'backlog_refusal':{'status':503,'code':'capability_unavailable',
+                                      'reason':'backlog_source_unbound'},
                    'control_jobs_state':'ruled_unimplemented',
                    'future_control_scope':'owner_admin',
                    'gtm_response':{'status':503,'code':'capability_unavailable',
@@ -126,6 +129,10 @@ class OpenKaiConsumer(unittest.TestCase):
             if case['path'] in status_paths:
                 self.assertEqual((case.get('binding'), case.get('authorization')),
                                  ('ruled_status_read', 'read'))
+        backlog = next(case for case in cases if case['path'] == '/beat/embeddings/backlog')
+        self.assertEqual(backlog.get('gtm_refusal'), {'status':503,'body':{'error':{
+            'code':'capability_unavailable','retryable':False,
+            'reason':'backlog_source_unbound'}}})
         search = next(case for case in cases if case['path'] == '/search')
         self.assertEqual(search['request']['body'].get('after'),
                          {'record_id':'00000000-0000-4000-8000-000000000011',
