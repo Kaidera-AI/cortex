@@ -155,8 +155,8 @@ class PostgresGraph:
         record_id, required = validate_target(target, recheck)
         if not isinstance(generation, UUID):
             raise ValueError('An explicit graph generation is required')
-        observation = lambda state, indexed=None, reason='': ProjectionRevision(
-            state, record_id, required, indexed, self.identity, generation, reason)
+        def observation(state, indexed=None, reason=''):
+            return ProjectionRevision(state, record_id, required, indexed, self.identity, generation, reason)
         try:
             async with self._tx(subject, 'read', project) as (conn, scope):
                 current = await conn.fetchrow(

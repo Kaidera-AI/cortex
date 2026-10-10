@@ -159,8 +159,8 @@ class PostgresSearch:
         """Read actual indexed evidence for one authorized Core record."""
         record_id, required = validate_target(target, recheck)
         key = identity.key
-        observation = lambda state, indexed=None, reason='': ProjectionRevision(
-            state, record_id, required, indexed, key, reason=reason)
+        def observation(state, indexed=None, reason=''):
+            return ProjectionRevision(state, record_id, required, indexed, key, reason=reason)
         try:
             async with self._request(subject) as (conn, scope):
                 current = await conn.fetchrow(
