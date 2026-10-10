@@ -21,7 +21,7 @@ def fixture():
  raw=b'answer = 7\n';body=marshal.dumps(compile(raw,'/'+SOURCE,'exec',dont_inherit=True,optimize=0))
  old=importlib.util.MAGIC_NUMBER+struct.pack('<III',0,123,len(raw))+body
  new=importlib.util.MAGIC_NUMBER+struct.pack('<I',3)+importlib.util.source_hash(raw)+body
- rec=b'../../../../app/__pycache__/sample.cpython-313.pyc,,\nexample.py,sha256=abc,9\n'
+ rec=b'../../../../../app/__pycache__/sample.cpython-313.pyc,,\nexample.py,sha256=abc,9\n'
  a={SOURCE:raw,CACHE:old,RECORD:rec};b={SOURCE:raw,CACHE:new,RECORD:b'example.py,sha256=abc,9\n'}
  return {k:row(v) for k,v in a.items()},{k:row(v) for k,v in b.items()},a,b
 
