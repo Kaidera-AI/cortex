@@ -48,7 +48,7 @@ def checked(args,timeout=120):
 
 
 assert Path(__file__).read_bytes()==subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/run-core-pg.py']), 'c07_controller_not_git_bound'
-preflight=run([sys.executable,str(SHARED/'verify-replay-inputs.py'),str(WT)])
+preflight=run([sys.executable,str(OUT/'verify-replay-inputs.py'),str(WT)])
 assert preflight.returncode==0, 'copied source/test/controller preflight failed before any resource creation'
 
 expected_wheels=json.loads((SHARED/'offline-wheel-inputs.json').read_text())['wheels']
