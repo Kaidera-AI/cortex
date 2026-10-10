@@ -4,7 +4,7 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import stat
 import subprocess
@@ -37,6 +37,7 @@ _LSN = re.compile(r"^[0-9A-Fa-f]{1,8}/[0-9A-Fa-f]{1,8}$")
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _REQUIRED = frozenset({"installation_id", "schema_ledger", "consumer_generations",
                        "model_identities", "blob_inventory"})
+_OPTIONAL = frozenset({"record_heads", "vectors", "replay_lsn"})
 
 
 def _lsn(value):
@@ -65,7 +66,9 @@ def _digest(path):
 
 
 def _validated_metadata(value):
-    if not isinstance(value, dict) or set(value) != _REQUIRED:
+    if (not isinstance(value, dict) or not _REQUIRED <= set(value)
+            or not set(value) <= _REQUIRED | _OPTIONAL
+            or ("record_heads" in value) != ("vectors" in value)):
         raise BackupError("backup metadata is incomplete")
     try:
         UUID(value["installation_id"])
@@ -93,6 +96,19 @@ def _validated_metadata(value):
                 or not _SHA.fullmatch(str(entry.get("sha256", "")))
                 or type(entry.get("byte_length")) is not int or entry["byte_length"] < 0):
             raise BackupError("blob identity is invalid")
+    for entry in value.get("record_heads", []):
+        if (not isinstance(entry, dict) or not isinstance(entry.get("id"), str)
+                or type(entry.get("revision")) is not int or entry["revision"] < 1
+                or not _SHA.fullmatch(str(entry.get("payload_sha256", "")))):
+            raise BackupError("record head identity is invalid")
+    for entry in value.get("vectors", []):
+        if (not isinstance(entry, dict) or not isinstance(entry.get("record_id"), str)
+                or not isinstance(entry.get("model_id"), str)
+                or type(entry.get("revision")) is not int or entry["revision"] < 1
+                or not _SHA.fullmatch(str(entry.get("sha256", "")))):
+            raise BackupError("vector identity is invalid")
+    if "replay_lsn" in value:
+        _lsn(value["replay_lsn"])
     try:
         canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     except (TypeError, ValueError) as error:
@@ -182,7 +198,8 @@ def build_manifest(base_dir, archive_dir, archive_end_lsn, metadata, *, segment_
 
 
 def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
-                          segment_bytes, recipient, destination, age_binary="age"):
+                          segment_bytes, recipient, destination, age_binary="age",
+                          blob_root=None):
     """Stream a validated set into age and publish encrypted bytes atomically.
 
     The caller owns and removes the plaintext staging directories. This method
@@ -192,6 +209,25 @@ def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
         raise BackupError("age recipient is required")
     manifest = build_manifest(base_dir, archive_dir, archive_end_lsn, metadata,
                               segment_bytes=segment_bytes)
+    blobs = []
+    if blob_root is not None:
+        root = Path(blob_root)
+        if not root.is_dir() or root.is_symlink():
+            raise BackupError("blob root is missing or linked")
+        for entry in metadata["blob_inventory"]:
+            key = PurePosixPath(entry["object_key"])
+            if (key.is_absolute() or not key.parts or
+                    any(part in ("", ".", "..") for part in key.parts)):
+                raise BackupError("invalid blob object key")
+            path = root.joinpath(*key.parts)
+            for parent in (root, *(root.joinpath(*key.parts[:index])
+                                   for index in range(1, len(key.parts)))):
+                if parent.is_symlink():
+                    raise BackupError("linked blob parent is unsupported")
+            if _digest(path) != {"sha256": entry["sha256"],
+                                 "byte_length": entry["byte_length"]}:
+                raise BackupError("blob bytes differ from authoritative inventory")
+            blobs.append((path, "blobs/" + key.as_posix(), entry))
     destination = Path(destination)
     if destination.exists() or destination.is_symlink() or not destination.parent.is_dir():
         raise BackupError("destination must be absent in an owned directory")
@@ -237,6 +273,8 @@ def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
                     for entry in manifest["wal_segments"]:
                         add_verified(Path(archive_dir) / entry["name"],
                                      "wal/" + entry["name"], entry)
+                    for path, name, entry in blobs:
+                        add_verified(path, name, entry)
                 process.stdin.close()
                 error = process.stderr.read()
                 if process.wait() != 0:
