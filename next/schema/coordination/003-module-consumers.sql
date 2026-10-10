@@ -85,7 +85,11 @@ BEGIN
         (s.installation_id,p_module,s.tenant_id,s.project_id,c.generation) AND o.outcome='poison'),
     'outcome_count',(SELECT count(*) FROM coordination.consumer_event_outcomes o
       WHERE (o.installation_id,o.module_id,o.tenant_id,o.project_id,o.generation)=
-        (s.installation_id,p_module,s.tenant_id,s.project_id,c.generation)));
+        (s.installation_id,p_module,s.tenant_id,s.project_id,c.generation)),
+    'pending_outcomes',(SELECT count(*) FROM coordination.consumer_event_outcomes o
+      WHERE (o.installation_id,o.module_id,o.tenant_id,o.project_id,o.generation)=
+        (s.installation_id,p_module,s.tenant_id,s.project_id,c.generation)
+        AND o.cursor>c.applied_cursor));
 END $$;
 
 CREATE FUNCTION coordination.c07_register(p_module text,p_snapshot bigint,p_generation bigint,p_rebuild boolean)

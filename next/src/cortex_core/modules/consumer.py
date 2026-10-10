@@ -24,13 +24,16 @@ class ConsumerError(RuntimeError):
 
 class ModuleConsumer:
     def __init__(self, connection, credential, installation_id, project_id,
-                 module_id, sink, *, manifest, feed=None, after_checkpoint=None):
+                 module_id, sink, *, manifest, feed=None, after_checkpoint=None,
+                 max_pending_outcomes=10000):
         try:
             parsed = ModuleManifest.parse(manifest)
         except ValueError:
             raise ConsumerError('invalid_manifest') from None
         if parsed.module_id != module_id or not isinstance(installation_id, UUID) or not isinstance(project_id, UUID):
             raise ConsumerError('invalid_manifest')
+        if type(max_pending_outcomes) is not int or not 1 <= max_pending_outcomes <= 100000:
+            raise ConsumerError('invalid_input')
         self.connection = connection
         self.credential = credential
         self.installation_id = installation_id
@@ -40,6 +43,7 @@ class ModuleConsumer:
         self.sink = sink
         self.feed = feed or Outbox(connection, credential, installation_id, project_id)
         self.after_checkpoint = after_checkpoint
+        self.max_pending_outcomes = max_pending_outcomes
 
     def _call(self, signature, args=()):
         try:
@@ -178,6 +182,8 @@ class ModuleConsumer:
                 self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
                 raise ConsumerError('expired')
             for event in page.events:
+                if self.status()['pending_outcomes'] >= self.max_pending_outcomes:
+                    raise ConsumerError('capacity')
                 self._apply_event(state, event)
             cursor = page.events[-1].cursor if len(page.events) == limit else page.head
             self._call('c07_scan(%s,%s,%s)', (self.module_id, state['generation'], cursor))

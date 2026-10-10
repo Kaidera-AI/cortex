@@ -3,6 +3,8 @@
   "protocol": "project-scoped durable target before Core outcome",
   "page_default": 100,
   "page_max": 1000,
+  "pending_outcome_default": 10000,
+  "pending_outcome_range": [1, 100000],
   "states": ["active", "blocked", "expired", "rebuilding"],
   "outcomes": ["applied", "stale", "poison", "held"],
   "control_ids": [
@@ -14,7 +16,7 @@
     "snapshot_floor", "poison_retention", "graph_fact_exact_bytes",
     "migration_append_only", "new_table_privileges"
   ],
-  "typed_errors": ["invalid_input", "invalid_manifest", "untrusted_scope", "target_unavailable",
+  "typed_errors": ["invalid_input", "invalid_manifest", "untrusted_scope", "target_unavailable", "capacity",
     "core_unavailable", "expired", "busy", "repair_event_missing"],
   "held_capabilities": ["external_sink", "production_service_admission", "full_shadow_rebuild",
     "cross_project_installation_completeness", "automatic_module_switching"],
