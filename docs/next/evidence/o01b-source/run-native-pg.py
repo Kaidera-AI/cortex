@@ -18,7 +18,7 @@ from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-o01b-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE/'native-pg-001.json'
+OUT = HERE/'native-pg-002.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01b-source/run-native-pg.py'])
@@ -51,7 +51,8 @@ def run(args, timeout=180):
 
 
 def sql(query, port=5432):
-    return run(['podman', 'exec', NAME, 'psql', '-U', 'postgres', '-p', str(port),
+    return run(['podman', 'exec', NAME, 'psql', '-U', 'postgres', '-h',
+                '/tmp' if port == 5433 else '/var/run/postgresql', '-p', str(port),
                 '-At', '-v', 'ON_ERROR_STOP=1', '-c', query])
 
 
