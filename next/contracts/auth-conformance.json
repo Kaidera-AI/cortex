@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "policy": "Synthetic fixture; credentials verified through known scoped principal/install/project registry, no cached grant authority",
+  "expected": "AuthError; no accepted operation",
+  "cases": [
+    {
+      "id": "unknown_credential",
+      "credential": "unknown",
+      "installation": 1,
+      "project": 3,
+      "action": "read"
+    },
+    {
+      "id": "wrong_installation",
+      "credential": "read_a",
+      "installation": 20,
+      "project": 3,
+      "action": "read"
+    },
+    {
+      "id": "unknown_installation",
+      "credential": "read_a",
+      "installation": 99,
+      "project": 3,
+      "action": "read"
+    },
+    {
+      "id": "ungranted_project",
+      "credential": "read_a",
+      "installation": 1,
+      "project": 4,
+      "action": "read"
+    },
+    {
+      "id": "unknown_project",
+      "credential": "read_a",
+      "installation": 1,
+      "project": 99,
+      "action": "read"
+    },
+    {
+      "id": "read_cannot_control",
+      "credential": "read_a",
+      "installation": 1,
+      "project": 3,
+      "action": "control"
+    },
+    {
+      "id": "control_only_is_not_owner",
+      "credential": "control_a",
+      "installation": 1,
+      "project": 3,
+      "action": "control"
+    },
+    {
+      "id": "unknown_action",
+      "credential": "read_a",
+      "installation": 1,
+      "project": 3,
+      "action": "root-everywhere"
+    }
+  ]
+}
