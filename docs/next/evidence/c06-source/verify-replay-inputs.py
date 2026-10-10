@@ -40,7 +40,7 @@ for filename in ('outbox-fault-recipes.json','outbox-identity-fault-recipes.json
   for e in recipe['changes']:
    assert sources[e['path']].count(e['before'])==e['count'],('fault_preflight',recipe['label'],e['path'])
    sources[e['path']]=sources[e['path']].replace(e['before'],e['after'])
-checks['all_fault_anchors']={'passed':True,'recipes':119}
+checks['all_fault_anchors']={'passed':True,'recipes':120}
 status=subprocess.check_output(['git','status','--porcelain','--untracked-files=all','--','next'],cwd=wt,text=True)
 tracked=set(subprocess.check_output(['git','-C',str(wt),'ls-tree','-r','--name-only','HEAD','next'],text=True).splitlines())
 actual=set(str(p.relative_to(wt)) for p in (wt/'next').rglob('*') if p.is_file())

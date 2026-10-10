@@ -709,6 +709,22 @@
         "test_outbox_guards.OutboxGuards.test_authentic_sixty_second_claim_cannot_ack_an_hour_lease"
       ],
       "kind": "guard"
+    },
+    {
+      "label": "foreign cursor blocks own pruning",
+      "changes": [
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "    FOR item IN SELECT * FROM coordination.published_events WHERE installation_id=s.installation_id\n      AND (tenant_id,project_id)=(s.tenant_id,s.project_id)\n      AND cursor>project_floor ORDER BY cursor LIMIT 1000 LOOP",
+          "after": "    FOR item IN SELECT * FROM coordination.published_events WHERE installation_id=s.installation_id\n      AND cursor>project_floor ORDER BY cursor LIMIT 1000 LOOP\n        IF (item.tenant_id,item.project_id)<>(s.tenant_id,s.project_id) THEN blocked:='foreign_scope'; EXIT; END IF;",
+          "count": 1
+        }
+      ],
+      "directory": "outbox_retention",
+      "expected_tests": [
+        "test_project_retention.ProjectRetention.test_own_expired_cursor_prunes_behind_foreign_quarantine"
+      ],
+      "kind": "guard"
     }
   ]
 }
