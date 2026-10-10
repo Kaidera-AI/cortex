@@ -362,3 +362,16 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(binding['hnsw_use_qualified'])
             with self.assertRaises(ValueError):
                 await module.upload(API(count=1), c)
+
+    def test_storage_mount_uses_supported_nonroot_tmpfs_ownership(self):
+        module = self.surface()
+        stack = module.DisposableQdrant(architecture='arm64')
+        args = stack.run_args('qdrant')
+        mounts = [args[i+1] for i, value in enumerate(args) if value == '--mount']
+        storage = [value for value in mounts if 'destination=/qdrant/storage' in value]
+        self.assertEqual(len(storage), 1, 'owned storage needs supported tmpfs ownership syntax')
+        fields = dict(value.split('=', 1) for value in storage[0].split(','))
+        self.assertEqual(fields, {'type': 'tmpfs', 'destination': '/qdrant/storage',
+                                  'tmpfs-size': '536870912', 'tmpfs-mode': '0700', 'U': 'true'})
+        self.assertFalse(any('uid=' in value or 'gid=' in value for i, value in enumerate(args)
+                             if i and args[i-1] == '--tmpfs'))
