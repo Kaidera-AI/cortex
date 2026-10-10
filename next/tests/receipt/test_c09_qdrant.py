@@ -201,3 +201,34 @@ class C09Tests(unittest.TestCase):
                 except Exception as error:
                     caught = error
                 self.assertIsInstance(caught, ValueError if fault == 'delivery' else module.ProtocolFailure)
+
+    def test_fake_requests_bind_predicates_vectors_and_separate_service_roles(self):
+        server = Server(); self.port(server).probe()
+        request = next(body for method, path, body, role in server.calls if path.endswith('/points/query'))
+        matches = {row['key']: row['match']['value'] for row in request['filter']['must']}
+        self.assertEqual(matches, {'tenant': 'fake-tenant', 'project': 'fake-project',
+                                  'generation': 'fake-generation', 'deleted': False})
+        self.assertEqual(len(request['query']), 768)
+        self.assertTrue(request['with_vector'])
+        self.assertTrue(all(role == 'writer' for method, path, body, role in server.calls
+                            if method in ('PUT', 'DELETE') or path in ('/collections/aliases', '/collections/c09-probe/points/delete')))
+
+    def test_fake_partial_effect_cleanup_failure_retains_primary_and_never_retries(self):
+        class Broken(Server):
+            def __call__(self, method, path, body, role):
+                if method == 'DELETE':
+                    self.calls.append((method, path, body, role)); raise RuntimeError('SYNTHETIC-CLEANUP-SECRET')
+                response = super().__call__(method, path, body, role)
+                if method == 'PUT' and path.endswith('/points'):
+                    raise RuntimeError('SYNTHETIC-UPsert-SECRET')
+                return response
+        server = Broken(); caught = None
+        try:
+            self.port(server).probe()
+        except Exception as error:
+            caught = error
+        self.assertIsInstance(caught, module.ProtocolFailure)
+        self.assertEqual(getattr(caught, 'primary_reason', None), 'fake_protocol_failed')
+        self.assertEqual(getattr(caught, 'cleanup_reason', None), 'fake_cleanup_unverified')
+        self.assertNotIn('SECRET', str(caught))
+        self.assertEqual(sum(m == 'PUT' and p.endswith('/points') for m, p, b, r in server.calls), 1)

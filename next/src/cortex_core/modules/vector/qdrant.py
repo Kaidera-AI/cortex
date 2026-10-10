@@ -3,6 +3,7 @@ import copy
 import hashlib
 import ipaddress
 import json
+import math
 from pathlib import Path
 import re
 
@@ -80,7 +81,8 @@ class InertPort:
                 uid=config['delivery']['uid'])
         except (KeyError, TypeError, ValueError):
             raise ValueError('private_configuration_refused') from None
-        if config != expected:
+        if (type(config) is not dict
+                or json.dumps(config, sort_keys=True) != json.dumps(expected, sort_keys=True)):
             raise ValueError('private_configuration_refused')
         self.config, self.transport = copy.deepcopy(config), transport
 
@@ -104,6 +106,20 @@ class InertPort:
         if type(value) is not dict:
             raise ProtocolFailure('fake_response_refused')
         return value
+
+    @staticmethod
+    def _point_matches(actual, expected):
+        if type(actual) is not dict or type(actual.get('id')) is not int or actual['id'] != expected['id']:
+            return False
+        payload = actual.get('payload')
+        if (type(payload) is not dict or set(payload) != set(expected['payload'])
+                or any(type(payload[key]) is not type(value) or payload[key] != value
+                       for key, value in expected['payload'].items())):
+            return False
+        vector = actual.get('vector')
+        return (type(vector) is list and len(vector) == len(expected['vector'])
+                and all(type(value) in (int, float) and math.isfinite(value) and value == wanted
+                        for value, wanted in zip(vector, expected['vector'])))
 
     def probe(self):
         """Scripted synthetic API witness, never registration/readiness or real authority."""
@@ -147,15 +163,17 @@ class InertPort:
             if self._call('POST', collection+'/points/count', {'exact': True}).get('result', {}).get('count') != 3:
                 raise ProtocolFailure('count_refused')
             values = self._call('POST', collection+'/points', {'ids': [1, 2, 3], 'with_vector': True, 'with_payload': True}).get('result')
-            if type(values) is not list or sorted(values, key=lambda row: row['id']) != points:
+            if (type(values) is not list or len(values) != len(points)
+                    or not all(self._point_matches(value, expected)
+                               for value, expected in zip(sorted(values, key=lambda row: row['id']), points))):
                 raise ProtocolFailure('readback_refused')
             verified.append('readback')
             conditions = [{'key': field, 'match': {'value': value}}
                           for field, value in [('tenant', 'fake-tenant'), ('project', 'fake-project'),
                                               ('generation', 'fake-generation'), ('deleted', False)]]
             values = self._call('POST', collection+'/points/query', {'query': points[0]['vector'],
-                'filter': {'must': conditions}, 'limit': 1, 'with_payload': True}).get('result', {}).get('points')
-            if type(values) is not list or len(values) != 1 or values[0] != points[0]:
+                'filter': {'must': conditions}, 'limit': 1, 'with_payload': True, 'with_vector': True}).get('result', {}).get('points')
+            if type(values) is not list or len(values) != 1 or not self._point_matches(values[0], points[0]):
                 raise ProtocolFailure('filter_refused')
             verified.append('filtered_query')
             if self._call('POST', collection+'/points/delete', {'points': [2]}, 'writer').get('result') is not True:
