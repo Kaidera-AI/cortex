@@ -78,13 +78,13 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION coordination.capture_job(p_job uuid) RETURNS uuid
+CREATE FUNCTION coordination.c06_job_snapshot(p_job uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
-DECLARE s record; j record; snapshot jsonb; body bytea; payload uuid:=gen_random_uuid();
+DECLARE s record; j record; snapshot jsonb;
 BEGIN
     SELECT * INTO s FROM auth.identity_scope(false);
     IF NOT FOUND OR s.action<>'write' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
-    SELECT * INTO STRICT j FROM coordination.jobs WHERE (tenant_id,project_id,id)=(s.tenant_id,s.project_id,p_job) FOR UPDATE;
+    SELECT * INTO STRICT j FROM coordination.jobs WHERE (tenant_id,project_id,id)=(s.tenant_id,s.project_id,p_job);
     snapshot:=jsonb_build_object('version',1,'kind','core.job','job_id',j.id,'job_kind',j.kind,
       'state',j.state,'cancel_requested',j.cancel_requested,'intent_payload_ref',j.payload_ref,
       'attempts',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.attempt_number) FROM coordination.job_attempts a
@@ -94,7 +94,20 @@ BEGIN
         WHERE (a.tenant_id,a.project_id,a.job_id)=(s.tenant_id,s.project_id,p_job)),'[]'::jsonb),
       'lease',(SELECT to_jsonb(l) FROM coordination.leases l
         WHERE (l.tenant_id,l.project_id,l.kind,l.resource_id)=(s.tenant_id,s.project_id,'job',p_job)));
-    body:=convert_to(snapshot::text,'UTF8');
+    RETURN snapshot;
+END;
+$$;
+
+CREATE FUNCTION coordination.capture_job(p_job uuid) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE s record; changed text; body bytea; payload uuid:=gen_random_uuid();
+BEGIN
+    SELECT * INTO s FROM auth.identity_scope(false);
+    IF NOT FOUND OR s.action<>'write' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
+    SELECT business.xmin::text INTO STRICT changed FROM coordination.jobs business
+      WHERE (business.tenant_id,business.project_id,business.id)=(s.tenant_id,s.project_id,p_job) FOR UPDATE;
+    IF changed<>pg_current_xact_id()::text THEN RAISE EXCEPTION 'capture requires actual current job mutation' USING ERRCODE='23514'; END IF;
+    body:=convert_to(coordination.c06_job_snapshot(p_job)::text,'UTF8');
     INSERT INTO core.payloads(tenant_id,project_id,id,body,sha256)
       VALUES(s.tenant_id,s.project_id,payload,body,encode(sha256(body),'hex'));
     RETURN coordination.c06_fact('job',p_job,payload);
@@ -112,12 +125,17 @@ BEGIN
     ELSIF TG_TABLE_NAME='job_results' THEN
         SELECT job_id INTO job FROM coordination.job_attempts WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.attempt_id);
     ELSE
+        IF TG_OP='UPDATE' AND (NEW.tenant_id,NEW.project_id,NEW.kind,NEW.resource_id)<>(OLD.tenant_id,OLD.project_id,OLD.kind,OLD.resource_id)
+          THEN RAISE EXCEPTION 'lease identity is immutable' USING ERRCODE='23514'; END IF;
         IF NEW.kind<>'job' THEN RETURN NULL; END IF; job:=NEW.resource_id;
     END IF;
     IF NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o
         ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)
+        JOIN core.records h ON(h.tenant_id,h.project_id,h.id,h.current_revision)=(o.tenant_id,o.project_id,o.aggregate_id,o.aggregate_revision)
+        JOIN core.payloads p ON(p.tenant_id,p.project_id,p.id)=(o.tenant_id,o.project_id,o.payload_ref)
         WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(NEW.tenant_id,NEW.project_id,'cortex.core.job',job::text)
-          AND o.xmin::text=pg_current_xact_id()::text)
+          AND o.xmin::text=pg_current_xact_id()::text
+          AND p.body=convert_to(coordination.c06_job_snapshot(job)::text,'UTF8'))
       THEN RAISE EXCEPTION 'job mutation requires captured event' USING ERRCODE='23514'; END IF;
     RETURN NULL;
 END;
@@ -148,6 +166,13 @@ BEGIN
         events:=jsonb_build_array(jsonb_build_object('principal_id',p_audit->>'principal_id','event_id',event));
     END IF;
     receipt:=p_receipt||jsonb_build_object('audit_id',audit_id,'replayed',false,'event_id',event,'events',events);
+    IF p_audit->>'operation'='set_roles' THEN
+        receipt:=receipt||jsonb_build_object('identity',(SELECT jsonb_build_object('principal_id',p.id,'name',p.name,
+          'kind',p.kind,'adopted',p.identity_adopted,'roles',g.roles,'generation',gen.generation)
+          FROM auth.principals p JOIN auth.project_grants g ON(g.tenant_id,g.principal_id)=(p.tenant_id,p.id)
+          JOIN auth.permission_generations gen ON(gen.tenant_id,gen.project_id)=(g.tenant_id,g.project_id)
+          WHERE p.tenant_id=s.tenant_id AND p.id=(p_audit->>'principal_id')::uuid AND g.project_id=s.project_id));
+    END IF;
     INSERT INTO coordination.idempotency(tenant_id,project_id,principal_id,request_key,request_sha256,outcome,receipt)
       VALUES(s.tenant_id,s.project_id,s.principal_id,p_key,p_sha,'committed',receipt);
     RETURN receipt;
@@ -259,6 +284,86 @@ BEGIN
     RETURN jsonb_build_object('removed',removed,'floor',floor_value,'head',state.last_published_cursor,'blocked',blocked);
 END;
 $$;
+
+-- Preserve an append-only sequential record head and a current captured history.
+CREATE FUNCTION coordination.c06_record_head() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+BEGIN
+    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;
+    IF (TG_OP='INSERT' AND NEW.current_revision<>1) OR (TG_OP='UPDATE' AND
+        ((NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind)<>(OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind)
+         OR NEW.current_revision<>OLD.current_revision+1))
+      THEN RAISE EXCEPTION 'record head must advance exactly one revision' USING ERRCODE='23514'; END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER c06_record_head BEFORE INSERT OR UPDATE ON core.records
+    FOR EACH ROW EXECUTE FUNCTION coordination.c06_record_head();
+CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE aggregate uuid; head bigint; maximum bigint;
+BEGIN
+    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;
+    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;
+    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);
+    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);
+    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox
+        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)
+          AND xmin::text=pg_current_xact_id()::text)
+      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;
+    IF TG_TABLE_NAME='record_revisions' THEN
+        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions
+            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))
+          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+CREATE CONSTRAINT TRIGGER c06_record_integrity AFTER INSERT OR UPDATE ON core.records
+    DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION coordination.c06_record_integrity();
+CREATE CONSTRAINT TRIGGER c06_history_integrity AFTER INSERT ON core.record_revisions
+    DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION coordination.c06_record_integrity();
+
+CREATE FUNCTION coordination.c06_receipt_guard() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE s record; e record; target jsonb;
+BEGIN
+    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;
+    IF TG_OP='UPDATE' THEN RAISE EXCEPTION 'mutation receipts are immutable' USING ERRCODE='23514'; END IF;
+    SELECT * INTO s FROM auth.identity_scope(false);
+    IF NOT FOUND OR (NEW.tenant_id,NEW.project_id,NEW.principal_id)<>(s.tenant_id,s.project_id,s.principal_id)
+       OR NEW.outcome<>'committed' THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;
+    SELECT * INTO e FROM coordination.outbox WHERE (tenant_id,project_id,event_id)=
+      (s.tenant_id,s.project_id,(NEW.receipt->>'event_id')::uuid) AND xmin::text=pg_current_xact_id()::text;
+    IF NOT FOUND THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;
+    IF NEW.receipt ? 'record_id' THEN
+        IF e.aggregate_id IS DISTINCT FROM (NEW.receipt->>'record_id')::uuid
+           OR e.aggregate_revision IS DISTINCT FROM (NEW.receipt->>'revision')::bigint
+           OR e.tombstone IS DISTINCT FROM (NEW.receipt->>'tombstone')::boolean
+           OR e.payload_sha256 IS DISTINCT FROM NEW.receipt->>'payload_sha256'
+          THEN RAISE EXCEPTION 'receipt does not match captured record' USING ERRCODE='23514'; END IF;
+    ELSIF NEW.receipt ? 'job_id' THEN
+        IF NOT EXISTS(SELECT 1 FROM core.record_aliases WHERE (tenant_id,project_id,source_namespace,external_id,record_id)=
+             (s.tenant_id,s.project_id,'cortex.core.job',NEW.receipt->>'job_id',e.aggregate_id))
+          THEN RAISE EXCEPTION 'receipt does not match captured job' USING ERRCODE='23514'; END IF;
+    ELSE
+        IF s.action<>'control' OR jsonb_typeof(NEW.receipt->'events') IS DISTINCT FROM 'array'
+          OR jsonb_array_length(NEW.receipt->'events')<1 THEN RAISE EXCEPTION 'receipt does not match captured identity' USING ERRCODE='23514'; END IF;
+        FOR target IN SELECT * FROM jsonb_array_elements(NEW.receipt->'events') LOOP
+            IF NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o
+                ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)
+                WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id,o.event_id)=
+                  (s.tenant_id,s.project_id,'cortex.core.identity',target->>'principal_id',(target->>'event_id')::uuid)
+                  AND o.xmin::text=pg_current_xact_id()::text)
+              THEN RAISE EXCEPTION 'receipt does not match captured identity' USING ERRCODE='23514'; END IF;
+        END LOOP;
+    END IF;
+    RETURN NEW;
+EXCEPTION WHEN invalid_text_representation THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514';
+END;
+$$;
+CREATE TRIGGER c06_receipt_guard BEFORE INSERT OR UPDATE ON coordination.idempotency
+    FOR EACH ROW EXECUTE FUNCTION coordination.c06_receipt_guard();
 
 -- Private verifier capabilities; no runtime membership or table bypass is added.
 GRANT SELECT,INSERT,UPDATE ON core.records,core.record_aliases TO "kaidera-runtime-core-verifier";

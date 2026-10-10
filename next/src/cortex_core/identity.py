@@ -31,6 +31,13 @@ class PrincipalIdentity:
 
 
 @dataclass(frozen=True)
+class RoleChangeReceipt(PrincipalIdentity):
+    event_id: UUID
+    audit_id: UUID
+    replayed: bool = field(compare=False)
+
+
+@dataclass(frozen=True)
 class IssuedCredential:
     principal_id: UUID
     credential_id: UUID
@@ -244,9 +251,11 @@ class Identity:
         _uuid(principal_id); _text(request_key, 256); roles = _roles(roles)
         request_sha = _digest(dict(operation='set_roles', principal_id=str(principal_id), roles=roles))
         with self._control():
-            self.connection.execute('SELECT auth.identity_set_roles(%s,%s,%s,%s)',
-                                    (principal_id, list(roles), request_key, request_sha)).fetchone()
-            result = lookup_bound(self.connection, principal_id)
+            raw = self.connection.execute('SELECT auth.identity_set_roles(%s,%s,%s,%s)',
+                                    (principal_id, list(roles), request_key, request_sha)).fetchone()[0]
+            saved = raw['identity']
+            result = RoleChangeReceipt(UUID(saved['principal_id']),saved['name'],saved['kind'],saved['adopted'],
+                tuple(saved['roles']),saved['generation'],UUID(raw['event_id']),UUID(raw['audit_id']),raw['replayed'])
         return result
 
     def rotate(self, principal_id, old_credential_id, *, request_key, ttl_seconds=86400):
