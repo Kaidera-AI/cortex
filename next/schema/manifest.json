@@ -46,6 +46,11 @@
       "id": "module-consumers-0003",
       "file": "coordination/003-module-consumers.sql",
       "sha256": "460399154d5e657a75916cf0cc6381921ad10a6204f7b6a00e71862198ade629"
+    },
+    {
+      "id": "api-replay-0004",
+      "file": "coordination/004-api-replay.sql",
+      "sha256": "b8f7651132e71ac8080b8be2aa6a38c066a25a8afb794f4060c174bae3780771"
     }
   ]
 }

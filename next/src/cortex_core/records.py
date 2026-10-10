@@ -119,6 +119,16 @@ class Records:
     def _authorized(self, action):
         return authorized(self.connection,self.credential,self.installation_id,self.project_id,action)
 
+    def lookup_request(self, request_key):
+        """Return only this principal's committed C05 write for exact API replay."""
+        if not isinstance(request_key,str) or not 1 <= len(request_key) <= 256:
+            raise RecordError('invalid_input')
+        with self._authorized('write'):
+            row = _private(self.connection,
+                'SELECT * FROM coordination.c11b_request(%s)',(request_key,)).fetchone()
+            result = None if row is None else (row[0],row[1])
+        return result
+
     def get(self, record_id, include_tombstone=False):
         if not isinstance(record_id,UUID) or type(include_tombstone) is not bool:
             raise RecordError('invalid_input')
