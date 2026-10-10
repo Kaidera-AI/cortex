@@ -69,3 +69,30 @@ PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
 The mutation producer replaces raw outputs with fresh timings and temporary paths. Freeze those fresh receipts into a new manifest before checking them; the published manifest verifies the original packet and will reject overwritten outputs. Keep the published packet available in an unchanged checkout for comparison.
 
 The mutation producer uses the vendored synchronous receipt helper for these synchronous `TestCase` targets; it does not qualify that copy for arbitrary async fixtures. C01/shared-helper integration checks additionally require the pinned `next/requirements-test.txt` packages in the same environment. Vera owns re-review and closure. Product-engine verdict remains UNDECIDED.
+
+## B02A GTM offered-load harness
+
+The [accepted B02 plan](B02-PLAN.md) is narrowed by Kai's02:05 ruling to Postgres first, the141,511×768 Marlow export as geometry-only, both editions and confidence windows. Native hosts, transfer/decryption and Mac OS-cache clearance require the CTO's morning gate. This implementation admits **local synthetic data only**, with zero provider calls. It does not import the export, install a product or select an engine.
+
+```sh
+PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
+  -m vector_baseline.corpus next/benchmarks/vector_baseline/synthetic-b02 \
+  --count 24000 --dimension 8 --model synthetic-b02-sql-fixture-8
+PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
+  -m vector_baseline.benchmark next/benchmarks/vector_baseline/synthetic-b02 \
+  /absolute/new/b02-sql-diagnostic.json --duration 5 --warmup 0
+PYTHONPATH=next/src next/benchmarks/vector_baseline/.venv/bin/python \
+  next/tests/benchmarks/mutate_b02.py /absolute/new/b02-mutation-receipts
+```
+
+Eight separately opened persistent async PostgreSQL sessions serve a fixed40RPS round-robin schedule. The scheduler does not await completions; queue wait starts at scheduled arrival. Overdue arrival slots are explicit misses. Requests have a10-second absolute scheduled deadline, including time waiting in the client queue. Errors/timeouts/misses remain in throughput and nearest-rank p95; fast errors retain actual response elapsed time and separately use deadline-or-later latency accounting. Warmup uses the same sessions but stays outside the measured denominator, and its errors prevent diagnostic PASS. Offers scheduled inside the interval count; drain time never enlarges the throughput denominator. Cooperative cancellation is required.
+
+Full exact B01 truth is calculated before offered load. Every returned response is checked against its own query's truth, including duplicates/forbidden/short/empty cases. Repeated cycles are not additional distinct recall queries. Per-query averages and failed observations are retained; no empty-only recall PASS. Natural EXPLAIN and complete per-offer timestamps/IDs/session identifiers are preserved. Geometry/dense SQL timing excludes API/auth/provider/cache/hybrid and remains diagnostic even if its recall/throughput/latency checks pass.
+
+Owned resource observations run without blocking the arrival loop and retain lifecycle-bound sanitized PG stats/database size. Their scope is **PG fixture only**; whole first-release8GB/native resources are explicit missing gates. No environment/DSN/password is stored. Reuse the accepted pending-create cleanup; the report is finalized after owned resources are removed, the credential discarded and the lock released. Existing evidence destinations refuse overwrite. The local5-second/200-offer example is a shortened proof, never a native confidence run.
+
+Defaults300s measured/60s warmup are the proposed GTM windows, with three independent runs per populated dense/filter/cache/edition. Six strata/two caches/two editions imply6 aggregate measured host-hours plus0.6 warmup hours, before setup/index/oracle/reset costs. Missing strata or OS-cold evidence remain NOT_RUN. The old full freeze/soak belongs to B03/B04 by Kai's ruling. No IID confidence or semantic/model/provider equivalence is inferred from repeated document-vector queries. Vera independently reviews the harness and results; Kai rules the engine gate.
+
+Mutation execution uses the canonical `next/tests/test_receipts.py` async-aware phase classifier. Actual recipes run on temporary source copies, with imported module paths/hashes verified inside each child; this is not Git-context-negative qualification. Every kill requires exactly the named test body AssertionError(s), one method, zero errors, and clean/restored22-method B02 baselines. Original source remains unchanged. The initial missing-surface22-assertion RED, fixture-only READY correction and three later behavioral RED controls are retained separately in the author pack; all original assertions are preserved.
+
+Async adapter reference: [Psycopg concurrent/async operations](https://www.psycopg.org/psycopg3/docs/advanced/async.html). The runtime pin remains3.2.9; actual cancellation/session behavior requires the recorded fixture run rather than documentation alone.
