@@ -15,6 +15,7 @@ GRAPH = WT / 'packages/containers/graph-worker'
 OUT = ROOT / 'output/Cortex/design55-r426/2026-10-10/graph-pyc'
 OUT.mkdir(parents=True, exist_ok=True)
 PHASE = sys.argv[1]
+subprocess.run([sys.executable, str(Path(__file__).parent/'verify-fixture-parser.py')], check=True)
 TARGET = OUT / (PHASE + '.json')
 assert not TARGET.exists(), 'append-only attempts'
 TREE = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=WT, text=True).strip()

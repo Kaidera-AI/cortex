@@ -15,7 +15,7 @@ VENV = Path('/opt/bcrg')
 class BuilderBytecodeTests(unittest.TestCase):
     def test_builder_commits_only_checked_hash_venv_bytecode(self):
         source = (HERE / 'Dockerfile').read_text().replace('\\\n', '')
-        builder = source.split('\nFROM ', 2)[1]
+        builder = source.split('\nFROM ', 1)[0]
         run = next(line[4:] for line in builder.splitlines()
                    if line.startswith('RUN ') and '/build/fetch-qwen3-model.py' in line)
         compilers = [part.strip() for part in run.split('&&') if '-m compileall' in part]
