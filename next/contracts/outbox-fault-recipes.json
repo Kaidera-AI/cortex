@@ -550,6 +550,12 @@
           "before": "return rules.get((owner,table,verb))",
           "after": "return rules.get((owner,table,verb), 'incorrectly_admitted_writer')",
           "count": 1
+        },
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "if file_pin is None or normalized_function_digest(tree)!=file_pin:",
+          "after": "if file_pin is None or False:",
+          "count": 1
         }
       ],
       "directory": "outbox_inventory",
@@ -557,7 +563,7 @@
         "test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected"
       ],
       "kind": "artifact",
-      "composition": "One actual Records-specific classifier fault. The unreachable original generic fallback recipe remains in failed attempt002; no auxiliary fault or attribution claim.",
+      "composition": "Remove the whole-file pin as an auxiliary control; it must leave the expected boundary green alone. The original scanner fault must then fail the declared inventory test in its body.",
       "original_change_count": 1
     },
     {
@@ -638,6 +644,12 @@
           "before": "            target=TARGET.match(text,match.end())\n",
           "after": "            target=TARGET.match(text,match.end())\n            if target and ('\"' in target.group(1) or '.' not in target.group(1)):continue\n",
           "count": 1
+        },
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "if file_pin is None or normalized_function_digest(tree)!=file_pin:",
+          "after": "if file_pin is None or False:",
+          "count": 1
         }
       ],
       "directory": "outbox_inventory",
@@ -645,7 +657,9 @@
         "test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected",
         "test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected"
       ],
-      "kind": "artifact"
+      "kind": "artifact",
+      "original_change_count": 1,
+      "composition": "Remove the whole-file pin as an auxiliary control; it must leave the expected boundary green alone. The original scanner fault must then fail the declared inventory test in its body."
     },
     {
       "label": "expired consumers may advance completeness",

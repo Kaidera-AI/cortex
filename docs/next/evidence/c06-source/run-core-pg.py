@@ -185,6 +185,9 @@ try:
             matrices=[('mutate_outbox.py',['--identity','--attribution-red'],1)]
         if 'dense-check' in PHASE:
             matrices=[('mutate_outbox.py',['--only-label=journal allocation skips dense cursor'],1)]
+        if 'inventory-repair' in PHASE:
+            matrices=[('mutate_outbox.py',['--only-label=inventory checker admits unknown writer'],1),
+                      ('mutate_outbox.py',['--only-label=quoted and unqualified writer forms ignored'],1)]
         for script,arguments,count in matrices:
             value=run(env+['python','/tmp/next/scripts/'+script,*arguments],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]
