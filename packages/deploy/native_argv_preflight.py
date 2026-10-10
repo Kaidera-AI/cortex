@@ -69,6 +69,7 @@ def verify_receipt(path, producer_dir, source_sha, instance_id, guard_sha, engin
         if (row.get('producer_argv') != plan['argv'] or row.get('exit') != 0 or
                 row.get('fixed_image_and_layer_clock') is not True or
                 row.get('double_export_byte_equal') is not True or
+                row.get('buildah_identity_label_present') is not True or
                 row.get('fixture_recipe_sha256') != hashlib.sha256(b'FROM scratch\nCOPY preflight-input /preflight-input\n').hexdigest()):
             raise ValueError('native complete argv/fixture/clock proof differs')
         command = row.get('command', [])
@@ -96,6 +97,9 @@ def inspect_archive(archive):
         index = json.load(outer.extractfile('index.json'))
         manifest = json.load(outer.extractfile('blobs/sha256/'+index['manifests'][0]['digest'].split(':')[1]))
         config = json.load(outer.extractfile('blobs/sha256/'+manifest['config']['digest'].split(':')[1]))
+        identity = config.get('config', {}).get('Labels', {}).get('io.buildah.version')
+        if not isinstance(identity, str) or not identity:
+            raise ValueError('native builder identity label missing')
         def epoch(value):
             return datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
         if epoch(config['created']) != EPOCH or any(epoch(row['created']) != EPOCH for row in config['history']):
@@ -196,6 +200,7 @@ def execute(options):
                     raise ValueError('native double export raw bytes differ')
                 record['export_receipts'] = [first, second]
                 record['fixed_image_and_layer_clock'] = inspect_archive(archive)
+                record['buildah_identity_label_present'] = True
                 record['archive_sha256'] = digest(archive)
                 record['archive_size'] = archive.stat().st_size
         receipt['result'] = 'PASS' if options.expected_exit == 0 else 'EXPECTED_RED'
