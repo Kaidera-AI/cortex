@@ -24,9 +24,9 @@ class Scope(unittest.TestCase):
       source=root/(name+'.py');source.write_text('answer = 7\n');os.utime(source,(order.EPOCH+123,order.EPOCH+123));py_compile.compile(str(source),doraise=True,invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP);os.utime(source,(order.EPOCH,order.EPOCH))
      uncached=root/'base_pip_uncached.py';uncached.write_text('base_pip = True\n');os.utime(uncached,(order.EPOCH,order.EPOCH))
      before={str(x.relative_to(root)) for x in root.rglob('*.pyc')}
-     argv=shlex.split(run.removeprefix('RUN '));self.assertEqual(argv[:2],['python','-c'])
+     argv,environment=order.compiler_command(run);self.assertEqual(argv[:2],['python','-c'])
      body='import sysconfig;sysconfig.get_path=lambda name: '+repr(str(root))+'; '+argv[2]
-     subprocess.run([sys.executable,'-c',body],check=True)
+     subprocess.run([sys.executable,'-c',body],check=True,env=environment)
      after={str(x.relative_to(root)) for x in root.rglob('*.pyc')}
      self.assertEqual(after,before,'uncached base source acquired a cache')
      self.assertFalse(Path(importlib.util.cache_from_source(str(uncached))).exists())

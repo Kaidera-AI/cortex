@@ -1,0 +1,7 @@
+{
+  "source_filename": "/usr/local/lib/python3.14/site-packages/_distutils_hack/__init__.py",
+  "reference_body_sha256": "f0ab3fb385fa6438f222e79b38d492afe2314113f4c74a99fa9282222d3429ef",
+  "attempt10_bad_body_sha256": "03b75af230b4bbc39b3322f1b6dfda359c784aa506af16dd3eba0d8541fdae66",
+  "source_sha256": "ced72e54431ecf2d8d7dbd8a1e27724f1b171af3ca1503c304bf11c59a7fe861",
+  "actual_hook_sha256": "2638ce9e2500e572a5e0de7faed6661eb569d1b696fcba07b0dd223da5f5d224"
+}

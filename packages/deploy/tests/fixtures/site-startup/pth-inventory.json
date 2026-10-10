@@ -1,0 +1,33 @@
+{
+  "result": "PASS",
+  "roles": [
+    {
+      "role": "api",
+      "hooks_at_actual_compiler_start": [],
+      "final_hooks_equal_compile_time": true,
+      "no_other_pth_in_merged_image": true
+    },
+    {
+      "role": "embed-worker",
+      "hooks_at_actual_compiler_start": [
+        {
+          "path": "usr/local/lib/python3.14/site-packages/distutils-precedence.pth",
+          "sha256": "2638ce9e2500e572a5e0de7faed6661eb569d1b696fcba07b0dd223da5f5d224",
+          "text": "import os; var = 'SETUPTOOLS_USE_DISTUTILS'; enabled = os.environ.get(var, 'local') == 'local'; enabled and __import__('_distutils_hack').add_shim(); \n",
+          "effect": "execimports_distutils_hack/add_shim atPython startup; installsmetaPathfinder and interns qualifiednames before source recompile",
+          "serialization_changed": "proven exactattempt10badbodySHA03b75a",
+          "neutralizer": "process-only SETUPTOOLS_USE_DISTUTILS=stdlib before interpreter startup"
+        }
+      ],
+      "final_hooks_equal_compile_time": true,
+      "no_other_pth_in_merged_image": true
+    },
+    {
+      "role": "pdf-worker",
+      "hooks_at_actual_compiler_start": [],
+      "final_hooks_equal_compile_time": true,
+      "no_other_pth_in_merged_image": true
+    }
+  ],
+  "reader": "actualOCI layers/precompiler history, whiteout/opaque aware, no image mutation"
+}

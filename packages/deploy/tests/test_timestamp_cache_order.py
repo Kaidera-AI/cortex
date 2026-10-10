@@ -29,6 +29,17 @@ def instructions(text):
     return lines
 
 
+def compiler_command(instruction):
+    """Exact process-prefix parser; compiler/gold assertions below remain unchanged."""
+    command = shlex.split(instruction.removeprefix('RUN '))
+    environment = dict(os.environ)
+    if command and '=' in command[0]:
+        setting = command.pop(0)
+        assert setting == 'SETUPTOOLS_USE_DISTUTILS=stdlib', 'unexpected compiler prefix'
+        environment['SETUPTOOLS_USE_DISTUTILS'] = 'stdlib'
+    return command, environment
+
+
 def exercise(text, root):
     """Pip adapter creates real caches; each RUN commit stamps real physical input mtimes."""
     root.mkdir()
@@ -51,10 +62,10 @@ def exercise(text, root):
                                    invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)
         if 'compileall.compile_dir' in instruction:
             # Execute the actual recipe compiler expression, redirect only purelib to owned fixture.
-            command = shlex.split(instruction.removeprefix('RUN '))
+            command, environment = compiler_command(instruction)
             assert command[:2] == ['python', '-c'] and len(command) == 3
             body = 'import sysconfig; sysconfig.get_path=lambda name: '+repr(str(root))+'; '+command[2]
-            subprocess.run([sys.executable, '-c', body], check=True)
+            subprocess.run([sys.executable, '-c', body], check=True, env=environment)
         # Published --timestamp commit semantics; never edit any cache byte.
         for path in root.rglob('*'):
             os.utime(path, (EPOCH, EPOCH))
