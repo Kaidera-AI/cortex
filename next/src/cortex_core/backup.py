@@ -1,10 +1,15 @@
 """O01a: bind a PostgreSQL base backup to continuous archived WAL."""
 
 import hashlib
+import io
 import json
+import os
 from pathlib import Path
 import re
 import stat
+import subprocess
+import tarfile
+import tempfile
 from uuid import UUID
 
 
@@ -162,4 +167,74 @@ def build_manifest(base_dir, archive_dir, archive_end_lsn, metadata, *, segment_
 
 def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
                           segment_bytes, recipient, destination, age_binary="age"):
-    return None
+    """Stream a validated set into age and publish encrypted bytes atomically.
+
+    The caller owns and removes the plaintext staging directories. This method
+    creates no plaintext tar file and never publishes a partial ciphertext.
+    """
+    if not isinstance(recipient, str) or not recipient.startswith("age1"):
+        raise BackupError("age recipient is required")
+    manifest = build_manifest(base_dir, archive_dir, archive_end_lsn, metadata,
+                              segment_bytes=segment_bytes)
+    destination = Path(destination)
+    if destination.exists() or destination.is_symlink() or not destination.parent.is_dir():
+        raise BackupError("destination must be absent in an owned directory")
+    fd, temporary_name = tempfile.mkstemp(prefix=".o01a-", suffix=".age",
+                                          dir=destination.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "wb") as encrypted:
+            process = subprocess.Popen([age_binary, "-r", recipient], stdin=subprocess.PIPE,
+                                       stdout=encrypted, stderr=subprocess.PIPE)
+            try:
+                with tarfile.open(fileobj=process.stdin, mode="w|") as tar:
+                    body = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+                    header = tarfile.TarInfo("manifest.json")
+                    header.size = len(body)
+                    header.mode = 0o600
+                    tar.addfile(header, io.BytesIO(body))
+
+                    def add_verified(path, name, expected):
+                        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                        descriptor = os.open(path, flags)
+                        with os.fdopen(descriptor, "rb") as source:
+                            details = os.fstat(source.fileno())
+                            if not stat.S_ISREG(details.st_mode) or details.st_size != expected["byte_length"]:
+                                raise BackupError("staged backup file changed during sealing")
+                            item = tarfile.TarInfo(name)
+                            item.size = details.st_size
+                            item.mode = 0o600
+                            digest = hashlib.sha256()
+
+                            class CheckedReader:
+                                def read(self, size):
+                                    chunk = source.read(size)
+                                    digest.update(chunk)
+                                    return chunk
+
+                            tar.addfile(item, CheckedReader())
+                            if digest.hexdigest() != expected["sha256"]:
+                                raise BackupError("staged backup file changed during sealing")
+
+                    for name, expected in manifest["base_files"].items():
+                        add_verified(Path(base_dir) / name, "base/" + name, expected)
+                    for entry in manifest["wal_segments"]:
+                        add_verified(Path(archive_dir) / entry["name"],
+                                     "wal/" + entry["name"], entry)
+                process.stdin.close()
+                error = process.stderr.read()
+                if process.wait() != 0:
+                    raise BackupError("age encryption failed: " + error.decode(errors="replace")[-200:])
+            except Exception:
+                if process.poll() is None:
+                    process.kill()
+                process.wait()
+                raise
+            encrypted.flush()
+            os.fsync(encrypted.fileno())
+        if destination.exists() or destination.is_symlink():
+            raise BackupError("destination appeared during sealing")
+        os.link(temporary, destination)
+        return manifest
+    finally:
+        temporary.unlink(missing_ok=True)
