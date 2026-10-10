@@ -356,7 +356,7 @@
       "verb": "INSERT",
       "table": "coordination.consumer_aggregate_heads",
       "ordinal": 0,
-      "statement_sha256": "8d08da6bc3fe384f41231ce36033c3eebe23d9dbc5d227b558459e7a88d6412a",
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
     },
     {
@@ -365,7 +365,7 @@
       "verb": "INSERT",
       "table": "coordination.consumer_event_outcomes",
       "ordinal": 0,
-      "statement_sha256": "8d08da6bc3fe384f41231ce36033c3eebe23d9dbc5d227b558459e7a88d6412a",
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
     },
     {
@@ -374,7 +374,7 @@
       "verb": "INSERT",
       "table": "coordination.quarantine",
       "ordinal": 0,
-      "statement_sha256": "8d08da6bc3fe384f41231ce36033c3eebe23d9dbc5d227b558459e7a88d6412a",
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
     },
     {
@@ -383,7 +383,7 @@
       "verb": "UPDATE",
       "table": "coordination.consumer_project_checkpoints",
       "ordinal": 0,
-      "statement_sha256": "8d08da6bc3fe384f41231ce36033c3eebe23d9dbc5d227b558459e7a88d6412a",
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
     },
     {
@@ -392,7 +392,7 @@
       "verb": "UPDATE",
       "table": "coordination.consumer_project_checkpoints",
       "ordinal": 1,
-      "statement_sha256": "8d08da6bc3fe384f41231ce36033c3eebe23d9dbc5d227b558459e7a88d6412a",
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
     },
     {
@@ -401,7 +401,7 @@
       "verb": "UPDATE",
       "table": "coordination.quarantine",
       "ordinal": 0,
-      "statement_sha256": "8d08da6bc3fe384f41231ce36033c3eebe23d9dbc5d227b558459e7a88d6412a",
+      "statement_sha256": "eccb6a7b0f2d47743b01a063b5ad23a3ee4d6702cbab86cb766a841f72fd87f8",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
     },
     {
