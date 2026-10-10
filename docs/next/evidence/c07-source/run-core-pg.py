@@ -207,7 +207,7 @@ f.doCleanups()
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
-    if PHASE.startswith('mutation-c07'):
+    if PHASE.startswith('mutation-c07') or PHASE.startswith('c07-debug-mutation'):
         value=run(env+['python','/tmp/next/scripts/mutate_module_consumer.py'],1200)
         rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]
         summary=rows[-1] if rows else {}
