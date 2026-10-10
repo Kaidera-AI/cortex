@@ -1,0 +1,32 @@
+{
+  "fixture_commit": "f7dd73609ae0f5ee4da9badfad80318e24598eb8",
+  "fixtures": [
+    {
+      "path": "next/tests/outbox/test_outbox.py",
+      "sha256": "c06fdb03622484fdab5ee01928a02a23ef066ba81567c93ce3f7ebf4393e9a52",
+      "tests": 32,
+      "commit": "f7dd73609ae0f5ee4da9badfad80318e24598eb8"
+    }
+  ],
+  "historical_bad_shape_probe": "fixture-shape-red-source.py is pre-execution artifact RED only, never the runtime fixture",
+  "predecessor_suites": {
+    "schema": 30,
+    "auth": 40,
+    "records": 14,
+    "coordination": 23,
+    "core_adapters": 6,
+    "acceptance_guards": 7,
+    "auth_identity": 26,
+    "auth_identity_guards": 6,
+    "identity_coordination": 8,
+    "identity_portability": 3,
+    "identity_receipts": 5,
+    "identity_transition": 1,
+    "identity_policy_faults": 2,
+    "identity_binding": 2,
+    "contract": 33,
+    "receipt": 20
+  },
+  "predecessor_tests": 226,
+  "no_host_product_execution": true
+}
