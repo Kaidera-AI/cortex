@@ -1,0 +1,8 @@
+{
+  "accepted_sha": "4bd7717366c2a6c188805a4b4a5d0fabba1a7769",
+  "source_path": "next/src/vector_baseline/postgres.py",
+  "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704",
+  "authority": "H-D45501:32",
+  "review_return": "docs/handoffs/2026-10-10_vera_kai_b01-repair-accepted.md",
+  "scope": "completed-effect lost-ack synchronous bounded producer; no delayed daemon guarantee"
+}

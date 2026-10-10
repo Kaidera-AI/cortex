@@ -1,0 +1,13 @@
+{
+  "kind": "publication_validation_lock_002",
+  "index_sha256": "fa23f989511053e71433d950470afc484aabe748860f69bf5a0b661941646804",
+  "members": 78,
+  "tampered_member": "docs/next/evidence/replay-lifecycle/replay_lifecycle.py",
+  "tamper_red": {
+    "exit_code": 1,
+    "stderr_tail": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-pr40-lock002-20261010/docs/next/evidence/replay-lifecycle/verify-publication-lock.py\", line 15, in <module>\n    assert hashlib.sha256(published).hexdigest() == member['sha256'], ('published_digest', relative)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: ('published_digest', 'docs/next/evidence/replay-lifecycle/replay_lifecycle.py')\n"
+  },
+  "original_green": "{\"members\": 78, \"index_sha256\": \"fa23f989511053e71433d950470afc484aabe748860f69bf5a0b661941646804\", \"all_members_match\": true}",
+  "restored_green": "{\"members\": 78, \"index_sha256\": \"fa23f989511053e71433d950470afc484aabe748860f69bf5a0b661941646804\", \"all_members_match\": true}",
+  "source_unchanged": true
+}

@@ -1,0 +1,653 @@
+{
+  "schema_version": 1,
+  "purpose": "Fresh-context internal kaidera-sdlc section 4 verification of own replay repair, not official review, approval or acceptance.",
+  "created_utc": "2026-10-09T23:59:24.294917+00:00",
+  "verifier": "cox internal fresh-context /root/c01_verify",
+  "inspected_source_sha": "13aee2269d02edc862f8f379f831cc0cd07f5cf4",
+  "origin_main_observed": "b3a241ab334839d308251f849426d413268fa769",
+  "functional_source_unchanged_from": "71d163b1c893f16c00080289025eaff19b5f7f7a",
+  "required_findings": [],
+  "method": [
+    "Read-only filesystem/Git byte inspection and trusted stdlib AST/JSON/hash parsing.",
+    "No author source imported/executed, tests, mutations, builds, containers, services, credentials or official coordination.",
+    "Only this new verifier artifact written; historical evidence unchanged."
+  ],
+  "accepted_pattern": {
+    "accepted_sha": "4bd7717366c2a6c188805a4b4a5d0fabba1a7769",
+    "source_path": "next/src/vector_baseline/postgres.py",
+    "source_sha256": "918c6beefe49ce5625d0c909915c1907941985da198fc0195a98b6cee18ed704",
+    "authority": "H-D45501:32",
+    "review_return": "docs/handoffs/2026-10-10_vera_kai_b01-repair-accepted.md",
+    "scope": "completed-effect lost-ack synchronous bounded producer; no delayed daemon guarantee"
+  },
+  "source_checks": {
+    "pending_before_external_effect": true,
+    "fresh128bit_nonce_owner_exact_name_and64hex_ID_binding": true,
+    "immutable_ID_deletion_containers_before_pod": true,
+    "foreign_lifecycle_and_foreign_pod_children_preserved": true,
+    "failed_inspect_or_remove_stays_pending_and_bounded_retry": true,
+    "output_mkdir_before_launch_and_own_local_lock": true,
+    "bounded_Podman_calls": true,
+    "cleanup_failure_discard_unlock_and_no_GREEN_success": true,
+    "final_inventory_timeout_retains_failed_receipt_then_RuntimeError": true,
+    "controller_helper_hashes_before_launch": true,
+    "frozen_tests": {
+      "test_producer_lifecycle.py": {
+        "first_added_sha": "1e7fd19b07cba682500254634715156c5a48e1b5",
+        "sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+        "test_count": 6,
+        "unchanged": true
+      },
+      "test_lifecycle_pattern.py": {
+        "first_added_sha": "44fd45aece31f02375d52a55eb529f638fce0519",
+        "sha256": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+        "test_count": 8,
+        "unchanged": true
+      },
+      "test_controller_guards.py": {
+        "first_added_sha": "39e1d5fcf854b6173f045fc8eb6e3d053b16bae8",
+        "sha256": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+        "test_count": 4,
+        "unchanged": true
+      },
+      "test_final_inventory.py": {
+        "first_added_sha": "e627ae76de37cfa10a5d9410cdb5e1a07dbd090a",
+        "sha256": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b",
+        "test_count": 3,
+        "unchanged": true
+      }
+    },
+    "final13_tool_input_hashes": {
+      "run-safety.py": "6dd971a45e99ef234adbe01a1f2f13ea5a9c1bd5a62c7ce3be74928c77748106",
+      "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+      "run-safety-red-frozen.py": "87628ef9decdc7c1643624d19dfa5f7c1641696645eca917ace52a3dcdc25a15",
+      "run-controller-guards.py": "e942f3f6035e34d870f05da7f04dc42dcbb4de42b47b6d9ffbc98520a3c3f371",
+      "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+      "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+      "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+      "safe-run-graph.py": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+      "fake_engine.py": "396d6eb979efaa94f1cd7c9b590a289825168ddbbf23cc306d5d2203fbd1d295",
+      "test_controller_guards.py": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+      "old-run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+      "old-run-adoption.py": "d350f436ce738955bee2e1eb9f910492eb35237df52d9447d252e9692531db2d",
+      "test_final_inventory.py": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b"
+    }
+  },
+  "safety_proof": {
+    "receipt": "green-attempt-007.json",
+    "clean_tests": 21,
+    "semantic_mutants": [
+      {
+        "name": "pending-after-ack",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_c03_lost_ack_cleanup_reconciles_effect",
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_lost_ack_cleanup_reconciles_effect",
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_removal_uses_reconciled_immutable_id"
+        ],
+        "assertion_rows": 3,
+        "original_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+        "mutated_sha256": "55ccfc8814ecbf0c5ed4d3fba77e5fbcd36f62718ab1052e204947eb30710248"
+      },
+      {
+        "name": "foreign-nonce-ignored",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_c03_foreign_lifecycle_preserved",
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_same_owner_foreign_lifecycle_preserved"
+        ],
+        "assertion_rows": 2,
+        "original_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+        "mutated_sha256": "356ea670bdb06629c00c5e6bb6a9d2861cc32bb30cbc75c9e24278a4251325ef"
+      },
+      {
+        "name": "remove-by-name",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_removal_uses_reconciled_immutable_id"
+        ],
+        "assertion_rows": 1,
+        "original_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+        "mutated_sha256": "aa6cc78ebf1dd2eee3b1fa17422d1b5b7e8db9f1113cdb886787b4d63060beca"
+      },
+      {
+        "name": "output-not-prepared",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_c03_output_prepared_before_effect"
+        ],
+        "assertion_rows": 1,
+        "original_sha256": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+        "mutated_sha256": "32fb2c6b922193bc19e5a906a5938f41e7c267a60aea2f0ff60b2ba047d73a71"
+      }
+    ],
+    "restored_clean_tests": 21,
+    "errors": 0,
+    "cleanup": {
+      "lifecycle": "909aaa491d6ad2fc61da93c005d997a5",
+      "cleanup_verified": true,
+      "pending": [],
+      "owned": [],
+      "events": [
+        {
+          "event": "created",
+          "kind": "container",
+          "name": "kaidera-test-replay-lifecycle-1",
+          "id": "51d2cdbb223264e8fb9d52a222b2f713f1915e5f2bda85ba526660ae52839df0"
+        },
+        {
+          "event": "removed",
+          "kind": "container",
+          "name": "kaidera-test-replay-lifecycle-1",
+          "id": "51d2cdbb223264e8fb9d52a222b2f713f1915e5f2bda85ba526660ae52839df0"
+        }
+      ],
+      "attempts": [
+        {
+          "errors": [],
+          "verified": true,
+          "pending": [],
+          "owned": [],
+          "password_discarded": true,
+          "lock_released": true
+        }
+      ],
+      "password_discarded": true,
+      "lock_released": true
+    }
+  },
+  "native_proof": [
+    {
+      "receipt": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/lifecycle-pod-fault-attempt-002.json",
+      "sha256": "061a1a106ce1fdc54bd2ed9bd7123c9ca42d98b125622bd7ee2234fd96d0c382",
+      "product_tree": "565227e57724468382bace3d559bdaa85310432d",
+      "source_hash_count": 63,
+      "tool_input_sha256": {
+        "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+        "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "passed": false,
+      "cleanup": {
+        "lifecycle": "f21f12349d6a5ecf27a424c2b0018b9e",
+        "cleanup_verified": true,
+        "pending": [],
+        "owned": [],
+        "events": [
+          {
+            "event": "completed-create-lost-ack-fault",
+            "kind": "pod",
+            "name": "kaidera-test-core-schema-1"
+          },
+          {
+            "event": "removed",
+            "kind": "pod",
+            "name": "kaidera-test-core-schema-1",
+            "id": "8021f6240ab68d15ab1670444b55d22aceeb5adf18234761d103052ff200a3ab"
+          }
+        ],
+        "attempts": [
+          {
+            "errors": [],
+            "verified": true,
+            "pending": [],
+            "owned": [],
+            "password_discarded": true,
+            "lock_released": true
+          }
+        ],
+        "password_discarded": true,
+        "lock_released": true
+      },
+      "qualification": "after successful CLI return before ownership inspection; operational fault, not assertion kill"
+    },
+    {
+      "receipt": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/lifecycle-container-fault-attempt-002.json",
+      "sha256": "813791b67a832d988706f2dc1761940064ecc3545cfc73a7a1109e557d4bbd57",
+      "product_tree": "565227e57724468382bace3d559bdaa85310432d",
+      "source_hash_count": 63,
+      "tool_input_sha256": {
+        "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+        "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "passed": false,
+      "cleanup": {
+        "lifecycle": "5627249ec3ee435e787e08199980c9c6",
+        "cleanup_verified": true,
+        "pending": [],
+        "owned": [],
+        "events": [
+          {
+            "event": "created",
+            "kind": "pod",
+            "name": "kaidera-test-core-schema-1",
+            "id": "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33"
+          },
+          {
+            "event": "completed-create-lost-ack-fault",
+            "kind": "container",
+            "name": "kaidera-test-core-db-1"
+          },
+          {
+            "event": "removed",
+            "kind": "container",
+            "name": "kaidera-test-core-db-1",
+            "id": "edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7"
+          },
+          {
+            "event": "removed",
+            "kind": "pod",
+            "name": "kaidera-test-core-schema-1",
+            "id": "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33"
+          }
+        ],
+        "attempts": [
+          {
+            "errors": [],
+            "verified": true,
+            "pending": [],
+            "owned": [],
+            "password_discarded": true,
+            "lock_released": true
+          }
+        ],
+        "password_discarded": true,
+        "lock_released": true
+      },
+      "qualification": "after successful CLI return before ownership inspection; operational fault, not assertion kill"
+    },
+    {
+      "receipt": "output/Cortex/design55-r426/2026-10-10/graph-cleanup/lifecycle-container-fault-attempt-002.json",
+      "sha256": "dcc5f01386a78a113a0df4670b6ce1454701ab6b2aa83facf53fad6616b3a483",
+      "product_tree": "e9a19f1476d1f6f3be14d7df6ccb3fb7eddd9e7e",
+      "source_hash_count": 18,
+      "tool_input_sha256": {
+        "safe-run-graph.py": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+        "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "passed": false,
+      "cleanup": {
+        "lifecycle": "3640a5c1e4977f0c585ab1770333785d",
+        "cleanup_verified": true,
+        "pending": [],
+        "owned": [],
+        "events": [
+          {
+            "event": "completed-create-lost-ack-fault",
+            "kind": "container",
+            "name": "kaidera-test-graph-cleanup-1"
+          },
+          {
+            "event": "removed",
+            "kind": "container",
+            "name": "kaidera-test-graph-cleanup-1",
+            "id": "858ca97e97c0c498cc18edab46d28b2e91558a88b54c4fd97b0e15bac6336e0c"
+          }
+        ],
+        "attempts": [
+          {
+            "errors": [],
+            "verified": true,
+            "pending": [],
+            "owned": [],
+            "password_discarded": true,
+            "lock_released": true
+          }
+        ],
+        "password_discarded": true,
+        "lock_released": true
+      },
+      "qualification": "after successful CLI return before ownership inspection; operational fault, not assertion kill"
+    },
+    {
+      "receipt": "output/Cortex/design55-r426/2026-10-10/graph-cleanup/lifecycle-green-attempt-002.json",
+      "sha256": "46314bb23372e3cb02dc4764093c2cee33bbb629d31186a664c502dcc2982db5",
+      "product_tree": "e9a19f1476d1f6f3be14d7df6ccb3fb7eddd9e7e",
+      "source_hash_count": 18,
+      "tool_input_sha256": {
+        "safe-run-graph.py": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+        "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "passed": true,
+      "cleanup": {
+        "lifecycle": "a459f122798456eec31b371477329700",
+        "cleanup_verified": true,
+        "pending": [],
+        "owned": [],
+        "events": [
+          {
+            "event": "created",
+            "kind": "container",
+            "name": "kaidera-test-graph-cleanup-1",
+            "id": "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd"
+          },
+          {
+            "event": "removed",
+            "kind": "container",
+            "name": "kaidera-test-graph-cleanup-1",
+            "id": "41e710fe65454409f34aab96dd7ac068e5b6b26c4f830f2ef87dd5a37d5bbcfd"
+          }
+        ],
+        "attempts": [
+          {
+            "errors": [],
+            "verified": true,
+            "pending": [],
+            "owned": [],
+            "password_discarded": true,
+            "lock_released": true
+          }
+        ],
+        "password_discarded": true,
+        "lock_released": true
+      },
+      "clean_tests": 8,
+      "semantic_mutants": 3,
+      "assertion_rows": [
+        2,
+        2,
+        1
+      ],
+      "restored_tests": 8,
+      "restored_files": 18
+    },
+    {
+      "receipt": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-green-attempt-002.json",
+      "sha256": "692985dbc12501221428ca17dbc00d71bce5ad2de9b30237cd1be3ee1b783083",
+      "product_tree": "565227e57724468382bace3d559bdaa85310432d",
+      "source_hash_count": 63,
+      "tool_input_sha256": {
+        "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+        "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "passed": true,
+      "cleanup": {
+        "lifecycle": "bf0b4eee505be65ddfef509c4e94bf42",
+        "cleanup_verified": true,
+        "pending": [],
+        "owned": [],
+        "events": [
+          {
+            "event": "created",
+            "kind": "pod",
+            "name": "kaidera-test-core-schema-1",
+            "id": "2c1409cd9039b3c61d5e05821cb716918d4ab911d3f705d7986bbc7c9ca2b42e"
+          },
+          {
+            "event": "created",
+            "kind": "container",
+            "name": "kaidera-test-core-db-1",
+            "id": "09af9a2a828b842a34b3b517af3a70c1208a64b4d0aa69351a93eac3817cc130"
+          },
+          {
+            "event": "created",
+            "kind": "container",
+            "name": "kaidera-test-core-driver-1",
+            "id": "200f0f514de9eb04adf6bcd7279e316d07afc54a727a632f9552702255ea672f"
+          },
+          {
+            "event": "removed",
+            "kind": "container",
+            "name": "kaidera-test-core-db-1",
+            "id": "09af9a2a828b842a34b3b517af3a70c1208a64b4d0aa69351a93eac3817cc130"
+          },
+          {
+            "event": "removed",
+            "kind": "container",
+            "name": "kaidera-test-core-driver-1",
+            "id": "200f0f514de9eb04adf6bcd7279e316d07afc54a727a632f9552702255ea672f"
+          },
+          {
+            "event": "removed",
+            "kind": "pod",
+            "name": "kaidera-test-core-schema-1",
+            "id": "2c1409cd9039b3c61d5e05821cb716918d4ab911d3f705d7986bbc7c9ca2b42e"
+          }
+        ],
+        "attempts": [
+          {
+            "errors": [],
+            "verified": true,
+            "pending": [],
+            "owned": [],
+            "password_discarded": true,
+            "lock_released": true
+          }
+        ],
+        "password_discarded": true,
+        "lock_released": true
+      }
+    }
+  ],
+  "c03_merged_proof": {
+    "merged_sha": "565227e57724468382bace3d559bdaa85310432d",
+    "clean_schema_tests": 30,
+    "clean_artifact_tests": 8,
+    "schema_mutants": [
+      {
+        "mutation": "tampered valid SQL checksum admitted",
+        "expected_test": "test_semantic_probes.SemanticProbes.test_valid_sql_tamper_refused_without_side_effects",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "610f9efab824e295d8951a9b9a0e3f9187aa2bc3030b60b723fbb58f6ad402b5",
+        "raw_stderr_sha256": "a561aa7dbb74992eaa49aae2804968be450225d9017e265044af46d87fe0c98a"
+      },
+      {
+        "mutation": "applied drift accepted",
+        "expected_test": "test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused",
+        "assertion_rows": 2,
+        "raw_stdout_sha256": "34698467692aebbef701cc433d56eb9bcfcb7a17df1650651d4e06a2f9d7d626",
+        "raw_stderr_sha256": "2ec4250465bf84c55cef41a6458f21b0a0868b74bc98b741827f04a2076badea"
+      },
+      {
+        "mutation": "noninteger manifest accepted",
+        "expected_test": "test_integrity.IntegrityTests.test_noninteger_manifest_version_refused",
+        "assertion_rows": 2,
+        "raw_stdout_sha256": "202b87079561863f3f61eafbdc745c3ba190baa04027577733e55814645a1577",
+        "raw_stderr_sha256": "f27e894c7e23f7726c4b8244c8822aea03a780e2fa70895b181166a3d23a7a74"
+      },
+      {
+        "mutation": "ledger preflight delayed",
+        "expected_test": "test_integrity.IntegrityTests.test_all_applied_hashes_checked_before_any_pending_sql",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "90ce38a7a29139a70e1bbfb443bae4f8ac8b19b9ef065ffc58a990634abb3e03",
+        "raw_stderr_sha256": "d6bf254d1cfcbf1c6d129f1194bf21cab4f4ca444f12d6ed68ffed045e076de9"
+      },
+      {
+        "mutation": "transaction removed",
+        "expected_test": "test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "938fcafee54f619dc4403fb8248fa2eaeea310ebadfc4ae1806343c1f2bf928d",
+        "raw_stderr_sha256": "8c81e2a45fe24f88b1a0f4e82721914a95804b1e0d7db2519c21f63352bab981"
+      },
+      {
+        "mutation": "payload hash unbound",
+        "expected_test": "test_schema.SchemaTests.test_payload_digest_and_immutability",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "beef7044e72de61f14638d696cf828195ac78220efb33a9f2bd22ecfa1d802c4",
+        "raw_stderr_sha256": "c86b4d023b307b95d4d0dc276c5a88c548b7546e9c0c012006e3a609245176f9"
+      },
+      {
+        "mutation": "head history unchecked",
+        "expected_test": "test_schema.SchemaTests.test_head_without_history_fails_at_commit",
+        "assertion_rows": 2,
+        "raw_stdout_sha256": "8f7fd5f8b1d2f99e880f7ee2d5faa914142ad863219ed0d7049a97613cc0e5f0",
+        "raw_stderr_sha256": "026f1a0b9989b34c6b6093d08bb3236f0241375e6ec8be2baac138115ece2ea9"
+      },
+      {
+        "mutation": "analytics history updates accepted",
+        "expected_test": "test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "f608125e87852568ed22b0522eb23ce90d7768e176726c7811c3a95b8ef65dd8",
+        "raw_stderr_sha256": "2e7ccf5e39aa3b9613927ae0c600e2a2ac63ae9934a210856423a12381205b9c"
+      },
+      {
+        "mutation": "untyped grants admitted",
+        "expected_test": "test_schema.SchemaTests.test_principal_credential_and_project_grant_scope",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "c5c45771ab95be181896030096f8dd158ec156babcccbe88023d68dcc3c8f00b",
+        "raw_stderr_sha256": "81557b839c8791961d2d8b99cbeaeabcc5429eb24861456f933a2f35db3c715a"
+      },
+      {
+        "mutation": "fence regression accepted",
+        "expected_test": "test_schema.SchemaTests.test_fence_never_regresses",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "0877ca69b05699c9d95b30892434d6c3db2daa65c633dc7a834f5e03fa9099f4",
+        "raw_stderr_sha256": "36cd668a42738e39f8a646a9ebd171d0152d38c377347113cb2369e44dd0be62"
+      },
+      {
+        "mutation": "unknown event version admitted",
+        "expected_test": "test_semantic_probes.SemanticProbes.test_unknown_event_version_refused",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "08f2cb1be7ca9b2ee15ea78aa3a64c733d4d2488994b3123ed58d74a4fb9545a",
+        "raw_stderr_sha256": "7dc8d452fcb50621d27c2ac6082943b377d2a1438bdcc7d2a4a3f0c1662fd6ea"
+      },
+      {
+        "mutation": "retention default changed",
+        "expected_test": "test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "fa8640aace3240ef55b06e95a0a4d81398f9d0b82b67d6b249c2b5266830d1e1",
+        "raw_stderr_sha256": "ef14f0cf0256d1c0c5e2c3dd8e288928db20be774c59d80b0c753aa6c9638b68"
+      },
+      {
+        "mutation": "consumer expiry shortened",
+        "expected_test": "test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "be52cbd0ec9e450df5a2d8e9ba0274070a0b06acc85923d75a43c9413b5b03b6",
+        "raw_stderr_sha256": "c2080e86b05e89cc3d81391c108d7cceb29e644fb7b07c7777b17f48a15f0204"
+      },
+      {
+        "mutation": "revision payload binding removed",
+        "expected_test": "test_integrity.IntegrityTests.test_outbox_payload_matches_that_exact_revision",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "a5c3c13409c0974c8729036801489c8164c59085519f895056ba3c73deb4015b",
+        "raw_stderr_sha256": "e45fcd978549927ae7e0244b06e4d91a3ea529a441abf55b43cfb9259d24bbca"
+      },
+      {
+        "mutation": "publication installation binding removed",
+        "expected_test": "test_integrity.IntegrityTests.test_publication_installation_matches_event_installation",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "185dae75500a48f0e6f83dbcad252b73523cfbc86e43bd2b6d7f465aa66776ff",
+        "raw_stderr_sha256": "388eda509e27308d883f195a77e4bc221d351f962696f7e15701dc211d9f3249"
+      },
+      {
+        "mutation": "nonfinite embeddings admitted",
+        "expected_test": "test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "aee9b62985f72e31014c0ec4d2385640f4e72580f777feaaa874cfc81ea1ca4d",
+        "raw_stderr_sha256": "8d152f179f648906dbc3f1e1cc23d45b1386305c3d7892a42c399a10f2d18fb1"
+      },
+      {
+        "mutation": "embedding dimensions unbound",
+        "expected_test": "test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision",
+        "assertion_rows": 1,
+        "raw_stdout_sha256": "aee9b62985f72e31014c0ec4d2385640f4e72580f777feaaa874cfc81ea1ca4d",
+        "raw_stderr_sha256": "3dccfcb39f07832ec424d4d4b053da52274d2d6ff588643d8b1090959aee05b9"
+      },
+      {
+        "mutation": "manifest selects relaxed Core",
+        "expected_test": "test_schema.SchemaTests.test_payload_digest_and_immutability",
+        "assertion_rows": 3,
+        "raw_stdout_sha256": "036d9012ce8b729f22ed57ba918ab12f972388e225ecb15b40315af15c4205bb",
+        "raw_stderr_sha256": "d2ddc8fd9e39acab0b9891e642691b657f7c02c7d07016122b8be79057dc4d78"
+      },
+      {
+        "mutation": "runner failure counted as kill",
+        "expected_test": "test_causal_mutations.TeamRule.test_runner_errors_and_missing_receipts_inconclusive",
+        "assertion_rows": 10,
+        "raw_stdout_sha256": "30670db26dcc228e09208fc8fb6646636336df1197d7d61344f662bd5bc9b2a0",
+        "raw_stderr_sha256": "bc3918831aca3aef161479bb6a74b6b85fd1487a452c989085308ae1e9ad6aff"
+      }
+    ],
+    "map_mutant": {
+      "mutation": "neighbor field declarations admitted",
+      "expected_test": "test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed",
+      "assertion_rows": 2,
+      "raw_stdout_sha256": "059f125e3c2754ae31beb9e12d62f697d670135e8e86c98a38768d84a3669e08",
+      "raw_stderr_sha256": "a1b3eed66cf7f7ba7515683395912c502add4b65f3f03926720655322c890184"
+    },
+    "all19_static_schema_recipes_reconstructed_as_nonnoop": true,
+    "map_equality_guard_omission_static_recipe_checked": true,
+    "restored_schema_tests": 30,
+    "restored_artifact_tests": 8,
+    "all63_input_and_complete_restored_file_hashes_match_pinned_Git": true,
+    "generated_cache_hashes_retained_before_removing_only_known2": {
+      "next/scripts/__pycache__/mutate_schema.cpython-312.pyc": "fee8b879b649bf090b2aece1f619d1078c65b368821986b82eca897ec49b3358",
+      "next/tests/__pycache__/test_receipts.cpython-312.pyc": "bb229c765eb7c5e0cd03419c45aaadea8602801ca105747d73610be190600fe6"
+    },
+    "prior_C03_canonical4SQL_manifest_port_caller_tests_map_unchanged_from": "eb00c63b95d3f31a1015e9086e2a85550533f903",
+    "source_paths_checked": [
+      "next/schema/manifest.json",
+      "next/schema/retrieval/000-canonical.sql",
+      "next/schema/core/001-core.sql",
+      "next/schema/auth/001-auth.sql",
+      "next/schema/coordination/001-coordination.sql",
+      "next/src/cortex_core/migrations.py",
+      "next/scripts/mutate_schema.py",
+      "next/scripts/check_legacy_map.py",
+      "next/tests/schema",
+      "next/tests/artifact",
+      "docs/next/evidence/c03-source"
+    ]
+  },
+  "inherited_shared_proof": {
+    "receipt": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/async-receipts/merge-green.json",
+    "tree": "d715d0622bc81def163854c9236a51bbfb107ee2",
+    "all26_input_hashes_equal_merged_C03": true,
+    "historical_raw_expected_assertion_mutants_reparsed": {
+      "shared": 8,
+      "C01": 26
+    },
+    "scope": "Historical proof input byte binding only; no new C01/shared execution."
+  },
+  "resolved_findings": [
+    "C03 previously ignored cleanup_error and printed removed true; frozen controller RED and fixed rejection/receipt gating verified.",
+    "Graph previously retained passed true on cleanup failure; frozen controller RED and corrected field gating verified.",
+    "Direct Podman probes previously unbounded, safety outer cleanup weaker, tool input binding absent; bounded calls/shared lifecycle/prelaunch hashes verified.",
+    "Final inventory timeout previously erased receipt; frozen3-test RED and retained failed receipt behavior verified.",
+    "Python exception target shadow deleted cleanup error variable; green004 body failure retained, renamed variable and clean21 proof verified."
+  ],
+  "history": [
+    "red-attempt-002:6 tests/4 intended body assertions/errors0; earlier red.json remains diagnostic foreign-preseed history.",
+    "red-controller-guards:4 tests/7 body assertion rows/errors0, frozen before product fix.",
+    "red-final-inventory:3 tests/3 intended body assertions/errors0, frozen before product fix.",
+    "green004 passedfalse with sole frozen safety timeout assertion detecting NameError; preserved.",
+    "Initial C03 merge-green passedfalse on exactly2 generated bytecode extras with unchanged source; preserved, superseded by attempt002.",
+    "Older completed14/18/21 proofs remain historical; old-run controllers and red-frozen runner are custody only."
+  ],
+  "limits": [
+    "Completed synchronous create effect with lost acknowledgement only; no arbitrary delayed daemon/cancellation guarantee.",
+    "Retry/foreign collision/pod child/final timeout controls use contained fixtures; actual Podman fault injection is after successful CLI return before ownership inspection.",
+    "Local flock covers participating Cox producers only; no global engine lock or arbitrary external attachment race guarantee.",
+    "Cleanup claims are read-only validation of captured raw exact owner+nonce/name inspections, matching64hex create/removal IDs and absence results, not independent live-engine inspection.",
+    "Graph fixture8/3/restored8 only; no whole graph/model inference, all-base/archive absence, native admission or repeatability acceptance.",
+    "C03 exact merged565 synthetic schema scope only. Inherited retrieval001-pg-search/002-query-cache additions remain their owners gates; no live-transform/C11, API/provider or release qualification.",
+    "Official Mike/Vera/Kai review/closure/acceptance remain separate.",
+    "Root folder-fitness exit1 for tracked dist/packaging remains a separate unresolved estate gate; no all-gates-passed claim."
+  ],
+  "evidence_sha256": {
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/lifecycle-pod-fault-attempt-002.json": "061a1a106ce1fdc54bd2ed9bd7123c9ca42d98b125622bd7ee2234fd96d0c382",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/lifecycle-container-fault-attempt-002.json": "813791b67a832d988706f2dc1761940064ecc3545cfc73a7a1109e557d4bbd57",
+    "output/Cortex/design55-r426/2026-10-10/graph-cleanup/lifecycle-container-fault-attempt-002.json": "dcc5f01386a78a113a0df4670b6ce1454701ab6b2aa83facf53fad6616b3a483",
+    "output/Cortex/design55-r426/2026-10-10/graph-cleanup/lifecycle-green-attempt-002.json": "46314bb23372e3cb02dc4764093c2cee33bbb629d31186a664c502dcc2982db5",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-green-attempt-002.json": "692985dbc12501221428ca17dbc00d71bce5ad2de9b30237cd1be3ee1b783083",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red-attempt-002.json": "f29ec556f444942a7731ebf11b9013935888c08ef743acf2c7dcb6f9c13f8df5",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-001.json": "3e642d2032a650d9b813e889b516d960611681c3008f38e31e80bf98301673e5",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-002.json": "bbc3afaaa27505d6d5a82dad3087e91f58dfed11e86e231fa6b76752b3e8d404",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red-controller-guards.json": "e17b7b866548f3e8527a20e4b705c2e409d313fc1e6db7b9045c7b1fbad73aae",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-controller-guards.json": "ac9c38652af34bb83bb3a7da8d7aba3f3237bb4ccbc01002e3b5d4d2e7e41ea8",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-003.json": "c9bdec20331e46c25db2490cfb09437ef87b9ecf5164a5e95c63074ee4cc18c0",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red-final-inventory.json": "4eab97474b70273b329c86d5735a38899940c0f4e9f8274fcdb95958816318c9",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-004.json": "27f8ea0c9f8f40a986f1d4e03420123ea0234bf3f1b804ee678b31c3a1491dcd",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-005.json": "235c00ebfa032a5ee9e2dcd9c8251bf9f6f429623e70bf8f52a2d6d632e1a00f",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-006.json": "6155b1db18c25cb47482c1b9a059e04bf19e0d9b957ec85f74b76954164674fd",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-007.json": "9e62e69cee61faf61f42528ba26ad8a8ae81ba3feaeff30a3da580881c990e7b",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/accepted-pattern-binding.json": "0fddfcc5263e64f9bef4a82c8b2e486fb1f859fca965ff63ab8afd0f4a8af3ad",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/folder-fitness.json": "25ade33deb0219127683a196cf4b4c57abf51296150102ea4c67941520654b1d",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/target-integration.json": "160b50b1a62ec355d122c5e0cc6e3933c030e88fb2000d55159a0851e93bc172",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/integrity-final.json": "6f59ca4b45bcc54da773483fdb41f24d9065f23ed966bc81e57957b9dd11f18b",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-001.json": "c9034ed7b1415255b0b97abf10c03374625d1bc9a38b8848025f0fca144b4ad1",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-002.json": "879fc956df932336d39a1b9ffc316d0eb4b6286899a0f3ca84239af87f535934",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-003.json": "813ec1116382c8bef0b6571f64569ad2b2ccf5c841c42c7de73ce732de9dbcb7",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-004.json": "a6f2d6950038e3ac5dfe2445cb7cceb2a907fde38ec75f90ddf035bb3da06f14",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-005.json": "cab4ec8db873cd293bfa5f726e43f8320ac292d165f11e0454bde0b2a93a9c5c",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/async-receipts/merge-green.json": "3270d4af1471ccd6b936689436b29cbc491879b7f9cd2d68db43f6b7b1b06e0f",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-integrity.json": "040b626cc1d99140a3004a9c457fab350a4b066b0dd7e0c10aa65e36e122c522",
+    "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-green.json": "d570af5db27fc0108c40962b798984a56420645afa8423735c83f5d50102354d",
+    "Program/Cortex/v2-v0.1.020/gates/c03-merge-565227e5-20261010.json": "55e0bc1d595562aadf311a821c8c848dd9e26e034948e311272c421c3ac82059"
+  }
+}
