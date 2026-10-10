@@ -156,11 +156,15 @@ try:
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
-    for directory,count in [('outbox_retention',4),('outbox_inventory',6),('outbox_late_publication',1)]:
+    for directory,count in [('outbox_retention',5),('outbox_inventory',8),('outbox_late_publication',1)]:
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==count and not report['errors']
-        if PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
+        if PHASE.startswith('pr51-retention-red') and directory=='outbox_retention':
+            assert value.returncode==1 and len(report['failures'])==1
+            assert report['failures'][0]['id'].rsplit('.',1)[-1]=='test_own_expired_cursor_prunes_behind_foreign_quarantine'
+            assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+        elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
             assert value.returncode==1 and len(report['failures'])==1
             assert report['failures'][0]['id'].rsplit('.',1)[-1].startswith('test_expired_checkpoint_cannot_advance_or_reactivate_completeness')
             assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
