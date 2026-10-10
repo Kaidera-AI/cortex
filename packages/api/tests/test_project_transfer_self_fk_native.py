@@ -285,3 +285,18 @@ def test_pg_self_reference_is_valid_input_policy_control(api, scratch_conn, monk
             await conn.execute("INSERT INTO transfer_nodes(id,project,parent_id) VALUES($1,'audit',$1)", identifier)
             assert await conn.fetchval("SELECT count(*) FROM transfer_nodes WHERE id=parent_id") == 1
     run(case())
+
+
+def test_non_self_fk_violation_propagates_and_rolls_back(api, scratch_conn, monkeypatch):
+    async def case():
+        ddl = """CREATE TABLE other_parents(id uuid PRIMARY KEY);
+                 CREATE TABLE transfer_nodes(id uuid PRIMARY KEY,project text,
+                 parent_id uuid REFERENCES transfer_nodes(id),
+                 external_id uuid REFERENCES other_parents(id))"""
+        async with case_context(api, scratch_conn, monkeypatch, ddl) as (conn, attempts, import_rows):
+            with pytest.raises(asyncpg.ForeignKeyViolationError) as caught:
+                await import_rows([row(uuid4(), external_id=str(uuid4()))])
+            assert caught.value.sqlstate == "23503"
+            assert caught.value.constraint_name == "transfer_nodes_external_id_fkey"
+            assert await conn.fetchval("SELECT count(*) FROM transfer_nodes") == 0
+    run(case())
