@@ -10,6 +10,7 @@ import base64
 import collections
 import difflib
 import hashlib
+import heapq
 import hmac
 import json
 import math
@@ -16919,6 +16920,108 @@ async def project_transfer_dependencies(
     ]
 
 
+async def order_project_transfer_self_fk_rows(
+    conn: Any,
+    key: tuple[str, str],
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Order payload parents before children without attempting failing INSERTs."""
+    qualified = ".".join(quote_ident(name) for name in key)
+    constraints = await conn.fetch(
+        """SELECT fk.confmatchtype::text AS match_type,
+                  ARRAY(SELECT a.attname FROM unnest(fk.conkey) WITH ORDINALITY k(attnum, ord)
+                        JOIN pg_attribute a ON a.attrelid=fk.conrelid AND a.attnum=k.attnum
+                        ORDER BY k.ord) AS child_columns,
+                  ARRAY(SELECT a.attname FROM unnest(fk.confkey) WITH ORDINALITY k(attnum, ord)
+                        JOIN pg_attribute a ON a.attrelid=fk.confrelid AND a.attnum=k.attnum
+                        ORDER BY k.ord) AS parent_columns
+             FROM pg_constraint fk
+            WHERE fk.contype='f' AND fk.conrelid=fk.confrelid
+              AND fk.conrelid=to_regclass($1)
+            ORDER BY fk.oid""",
+        qualified,
+    )
+    edges: list[set[int]] = [set() for _ in rows]
+    incoming = [0] * len(rows)
+
+    def edge(parent: int, child: int) -> None:
+        if child not in edges[parent]:
+            edges[parent].add(child)
+            incoming[child] += 1
+
+    for constraint in constraints:
+        parents = list(constraint["parent_columns"])
+        children = list(constraint["child_columns"])
+        # PostgreSQL performs record conversion, FK equality and composite-key
+        # grouping. Python never guesses UUID, numeric or collation equality.
+        parent_aliases = [f"p{i}" for i in range(len(parents))]
+        ref_aliases = [f"r{i}" for i in range(len(children))]
+        projections = [
+            f"t.{quote_ident(column)} AS {alias}"
+            for columns, aliases in ((parents, parent_aliases), (children, ref_aliases))
+            for column, alias in zip(columns, aliases)
+        ]
+        parent_keys = ", ".join(parent_aliases)
+        payload_match = " AND ".join(
+            f"p.{parent} = c.{ref}" for parent, ref in zip(parent_aliases, ref_aliases)
+        )
+        database_match = " AND ".join(
+            f"existing.{quote_ident(column)} = c.{ref}"
+            for column, ref in zip(parents, ref_aliases)
+        )
+        any_null = " OR ".join(f"c.{ref} IS NULL" for ref in ref_aliases)
+        all_null = " AND ".join(f"c.{ref} IS NULL" for ref in ref_aliases)
+        parent_not_null = " AND ".join(f"c.{parent} IS NOT NULL" for parent in parent_aliases)
+        bindings = await conn.fetch(
+            f"""WITH typed AS MATERIALIZED (
+                    SELECT e.ordinality - 1 AS ordinal, {', '.join(projections)}
+                      FROM jsonb_array_elements($1::jsonb) WITH ORDINALITY e(value, ordinality)
+                      CROSS JOIN LATERAL jsonb_populate_record(NULL::{qualified}, e.value) t
+                ), parent_keys AS (
+                    SELECT {parent_keys}, min(ordinal) AS parent_ordinal
+                      FROM typed GROUP BY {parent_keys}
+                ), indexed AS (
+                    SELECT typed.*, lag(ordinal) OVER (
+                        PARTITION BY {parent_keys} ORDER BY ordinal) AS prior_ordinal
+                      FROM typed
+                )
+                SELECT c.ordinal, p.parent_ordinal,
+                       CASE WHEN {parent_not_null} THEN c.prior_ordinal END AS prior_ordinal,
+                       ({any_null}) AS any_null, ({all_null}) AS all_null,
+                       EXISTS(SELECT 1 FROM {qualified} existing WHERE {database_match}) AS present
+                  FROM indexed c LEFT JOIN parent_keys p ON {payload_match}
+                 ORDER BY c.ordinal""",
+            json.dumps(rows, default=str),
+        )
+        for binding in bindings:
+            child = int(binding["ordinal"])
+            # Preserve the first payload row for a duplicate referenced key.
+            if binding["prior_ordinal"] is not None:
+                edge(int(binding["prior_ordinal"]), child)
+            if constraint["match_type"] == "f" and binding["any_null"] and not binding["all_null"]:
+                raise HTTPException(409, "Project import has partially null self-reference")
+            inactive = binding["all_null"] if constraint["match_type"] == "f" else binding["any_null"]
+            if inactive or binding["present"]:
+                continue
+            if binding["parent_ordinal"] is None:
+                raise HTTPException(409, "Project import has missing self-referenced parent")
+            edge(int(binding["parent_ordinal"]), child)
+
+    ready = [i for i, count in enumerate(incoming) if not count]
+    heapq.heapify(ready)
+    ordered: list[dict[str, Any]] = []
+    while ready:
+        parent = heapq.heappop(ready)
+        ordered.append(rows[parent])
+        for child in edges[parent]:
+            incoming[child] -= 1
+            if not incoming[child]:
+                heapq.heappush(ready, child)
+    if len(ordered) != len(rows):
+        raise HTTPException(409, "Project import has cyclic self-references")
+    return ordered
+
+
 async def lock_shared_message_transfer(conn: Any) -> tuple[list[str], bool]:
     """Fence both message tables, then their sequence, for the caller transaction."""
     present_tables = []
@@ -17907,7 +18010,16 @@ async def import_project(
                 target_columns = set(entry["insertable_columns"])
                 inserted = 0
                 skipped = 0
-                for source_row in transfer.rows:
+                source_rows = transfer.rows
+                if (key, key) in dependencies:
+                    source_rows = await order_project_transfer_self_fk_rows(
+                        conn, key, [remap_project_transfer_row(
+                            row, target_columns=target_columns,
+                            target_project_key=target_project_key,
+                            target_project_id=target_project_id,
+                        ) for row in source_rows],
+                    )
+                for source_row in source_rows:
                     mapped = remap_project_transfer_row(
                         source_row,
                         target_columns=target_columns,
