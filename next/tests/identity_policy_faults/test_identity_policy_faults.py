@@ -6,15 +6,15 @@ from uuid import UUID
 
 from cortex_core.coordination import JobError
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'identity_coordination'))
-from test_identity_coordination import IdentityCoordination
+import test_identity_coordination as frozen
 from core_db_fixture import Fixture, uid
 
 
 class IdentityPolicyFaults(Fixture):
-    ports = IdentityCoordination.ports
-    jobs = IdentityCoordination.jobs
-    worker = IdentityCoordination.worker
-    create = IdentityCoordination.create
+    ports = frozen.IdentityCoordination.ports
+    jobs = frozen.IdentityCoordination.jobs
+    worker = frozen.IdentityCoordination.worker
+    create = frozen.IdentityCoordination.create
 
     def test_wrong_adopted_role_cannot_create_a_claim_or_attempt(self):
         self.create(kind='work')
