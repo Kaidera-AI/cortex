@@ -1,4 +1,11 @@
 -- C06 additive capture and committed publication. Bootstrap is not runtime admission.
+-- A project page needs its own retention floor even though publication uses an
+-- installation-wide cursor. The global floor is the highest removed cursor,
+-- conservatively refusing old installation snapshots/checkpoints.
+ALTER TABLE coordination.feed_state
+    ADD COLUMN project_retained_floors jsonb NOT NULL DEFAULT '{}'::jsonb,
+    ADD CONSTRAINT project_retained_floors_object CHECK (jsonb_typeof(project_retained_floors)='object');
+
 CREATE FUNCTION coordination.c06_bootstrap() RETURNS boolean
 LANGUAGE sql STABLE SET search_path=pg_catalog,pg_temp AS $$
     SELECT rolsuper FROM pg_roles WHERE rolname=session_user;
@@ -273,7 +280,7 @@ $$;
 CREATE FUNCTION coordination.outbox_page(p_after bigint,p_limit integer)
 RETURNS TABLE(delivery_cursor bigint,envelope jsonb,payload bytea,head bigint,floor bigint)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
-DECLARE s record; state record;
+DECLARE s record; state record; project_key text; project_floor bigint;
 BEGIN
     SELECT * INTO s FROM auth.identity_scope(false);
     IF NOT FOUND OR s.action<>'read' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
@@ -282,8 +289,10 @@ BEGIN
     IF NOT FOUND THEN
         RETURN QUERY SELECT NULL::bigint,NULL::jsonb,NULL::bytea,0::bigint,0::bigint; RETURN;
     END IF;
-    IF p_after<state.retained_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;
-    RETURN QUERY SELECT e.cursor,e.env,e.body,state.last_published_cursor,state.retained_floor
+    project_key:=s.tenant_id::text||':'||s.project_id::text;
+    project_floor:=COALESCE((state.project_retained_floors->>project_key)::bigint,0);
+    IF p_after<project_floor THEN RAISE EXCEPTION 'outbox_expired'; END IF;
+    RETURN QUERY SELECT e.cursor,e.env,e.body,state.last_published_cursor,project_floor
       FROM (SELECT 1) seed LEFT JOIN LATERAL (
         SELECT p.cursor,to_jsonb(o) env,b.body FROM coordination.published_events p
         JOIN coordination.outbox o ON(o.installation_id,o.tenant_id,o.project_id,o.event_id)=(p.installation_id,p.tenant_id,p.project_id,p.event_id)
@@ -295,7 +304,7 @@ $$;
 
 CREATE FUNCTION coordination.prune_outbox() RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
-DECLARE s record; state record; item record; snapshot bigint; floor_value bigint; blocked text; removed integer:=0;
+DECLARE s record; state record; item record; snapshot bigint; project_key text; project_floor bigint; blocked text; removed integer:=0;
 BEGIN
     SELECT * INTO s FROM auth.identity_scope(true);
     IF NOT FOUND THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
@@ -305,11 +314,11 @@ BEGIN
       WHERE installation_id=s.installation_id AND expires_at<=clock_timestamp() AND consumer.state<>'expired';
     SELECT min(cursor) INTO snapshot FROM coordination.snapshot_floors
       WHERE installation_id=s.installation_id AND expires_at>clock_timestamp();
-    floor_value:=state.retained_floor;
+    project_key:=s.tenant_id::text||':'||s.project_id::text;
+    project_floor:=COALESCE((state.project_retained_floors->>project_key)::bigint,0);
     FOR item IN SELECT * FROM coordination.published_events WHERE installation_id=s.installation_id
-      AND cursor>floor_value ORDER BY cursor LIMIT 1000 LOOP
-        IF item.cursor<>floor_value+1 THEN blocked:='journal_gap'; EXIT; END IF;
-        IF (item.tenant_id,item.project_id)<>(s.tenant_id,s.project_id) THEN blocked:='foreign_scope'; EXIT; END IF;
+      AND (tenant_id,project_id)=(s.tenant_id,s.project_id)
+      AND cursor>project_floor ORDER BY cursor LIMIT 1000 LOOP
         IF item.published_at>clock_timestamp()-make_interval(secs=>state.retention_seconds) THEN EXIT; END IF;
         IF snapshot IS NOT NULL AND item.cursor>snapshot THEN blocked:='snapshot_floor'; EXIT; END IF;
         IF EXISTS(SELECT 1 FROM coordination.quarantine q WHERE (q.tenant_id,q.project_id,q.event_id)=(item.tenant_id,item.project_id,item.event_id)
@@ -317,12 +326,17 @@ BEGIN
         DELETE FROM coordination.published_events WHERE (installation_id,cursor)=(s.installation_id,item.cursor);
         DELETE FROM coordination.quarantine WHERE (tenant_id,project_id,event_id)=(item.tenant_id,item.project_id,item.event_id);
         DELETE FROM coordination.outbox WHERE (tenant_id,project_id,event_id)=(item.tenant_id,item.project_id,item.event_id);
-        floor_value:=item.cursor; removed:=removed+1;
+        project_floor:=item.cursor; removed:=removed+1;
     END LOOP;
-    UPDATE coordination.feed_state SET retained_floor=floor_value WHERE installation_id=s.installation_id;
+    IF removed>0 THEN
+        UPDATE coordination.feed_state SET retained_floor=GREATEST(state.retained_floor,project_floor),
+            project_retained_floors=jsonb_set(project_retained_floors,ARRAY[project_key],to_jsonb(project_floor),true)
+          WHERE installation_id=s.installation_id;
+    END IF;
     UPDATE coordination.consumer_checkpoints AS consumer SET state='expired'
-      WHERE installation_id=s.installation_id AND applied_cursor<floor_value AND consumer.state<>'expired';
-    RETURN jsonb_build_object('removed',removed,'floor',floor_value,'head',state.last_published_cursor,'blocked',blocked);
+      WHERE installation_id=s.installation_id AND applied_cursor<GREATEST(state.retained_floor,project_floor)
+        AND consumer.state<>'expired';
+    RETURN jsonb_build_object('removed',removed,'floor',project_floor,'head',state.last_published_cursor,'blocked',blocked);
 END;
 $$;
 
