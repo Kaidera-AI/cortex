@@ -4,7 +4,8 @@ from pathlib import Path
 import sys
 
 EXPECTED = {'credential_required', 'search_lag', 'core_gap', 'graph_lag',
-            'final_recheck', 'search_rls', 'session_writer', 'session_replay'}
+            'final_recheck', 'search_rls', 'session_writer', 'session_replay',
+            'stats_handler_skip', 'sweep_skip_route'}
 
 
 def receipt(path):
@@ -22,12 +23,12 @@ def receipt(path):
 def qualify(root):
     green, result = receipt(root / 'green.jsonl')
     assert green['exit_code'] == 0 and green['mutation'] is None
-    assert result == {'tests_run': 9, 'failures': [], 'errors': []}
+    assert result == {'tests_run': 13, 'failures': [], 'errors': []}
     killed = {}
     for name in sorted(EXPECTED):
         run, result = receipt(root / f'mutant-{name}.jsonl')
         assert run['mutation'] == name and run['exit_code'] == 1
-        assert result['tests_run'] == 9 and result['errors'] == []
+        assert result['tests_run'] == 13 and result['errors'] == []
         failures = result['failures']
         assert failures and all(f['id'].startswith(('test_read_api.ReadAPI.test_',
                                                     'test_session_api.SessionAPI.test_',

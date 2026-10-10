@@ -150,6 +150,15 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
                                  (503, 'capability_unavailable'), (row['id'], packet))
         self.assertEqual(len(injected), 1)
 
+    async def test_post_read_freshness_rejects_noncurrent_graph_states(self):
+        for state, pending in (('lagging', 0), ('rebuilding', 0),
+                               ('disabled', 0), ('current', 1)):
+            with self.subTest(state=state, pending=pending):
+                with self.assertRaises(GraphUnavailable):
+                    await self.read_port._post_read_freshness(
+                        {'freshness': {'state': state, 'pending_records': pending}},
+                        None)
+
     async def test_real_search_envelopes_paging_and_lag_refusal(self):
         flags = self.admin.execute("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid='retrieval.search_state'::regclass").fetchone()
         self.assertEqual(flags, (True, True))

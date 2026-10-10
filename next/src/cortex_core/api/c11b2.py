@@ -133,6 +133,20 @@ class C11b2ReadPort:
                   AND (s.record_id IS NULL OR s.source_revision<>r.current_revision)''',
                 scope.tenant_id, scope.project_id)
 
+    async def _post_read_freshness(self, result, principal, *, search=None):
+        """Require the returned projection to remain current after the gate."""
+        fresh = result.freshness if search is not None else result.get('freshness')
+        state = getattr(fresh, 'status', None) if search is not None else (
+            fresh.get('state') if isinstance(fresh, dict) else None)
+        pending = getattr(fresh, 'pending_records', None) if search is not None else (
+            fresh.get('pending_records') if isinstance(fresh, dict) else None)
+        if state != 'current' or type(pending) is not int or pending != 0:
+            if search is not None:
+                raise CapabilityUnavailable('index_lagging', fresh)
+            raise GraphUnavailable('index_lagging')
+        if search is not None and await self._core_pending(search, principal):
+            raise CapabilityUnavailable('index_lagging', fresh)
+
     async def capability_source(self, name, principal):
         search, graph = self._ports(principal)
         try:
@@ -189,8 +203,7 @@ class C11b2ReadPort:
         search, _graph = self._ports(principal)
         vector = await self.query_vector(query, self.identity)
         result = await search.search(principal['principal_id'], self.identity, vector, limit=limit)
-        if result.freshness.pending_records or await self._core_pending(search, principal):
-            raise CapabilityUnavailable('index_lagging', result.freshness)
+        await self._post_read_freshness(result, principal, search=search)
         degraded = ['rerank'] if rerank else []
         if graph_requested:
             # There is no released C11 graph-fusion port. Do not claim fused hits.
@@ -222,20 +235,21 @@ class C11b2ReadPort:
         _, graph = self._ports(principal)
         result = await graph.search(principal['principal_id'], query, limit=limit,
                                     depth=depth, **options)
-        if result['freshness']['pending_records']:
-            raise GraphUnavailable('index_lagging')
+        await self._post_read_freshness(result, principal)
         await self._current(principal)
         return result
 
     async def graph_stats(self, principal, _scope, _request_key):
         _, graph = self._ports(principal)
         result = await graph.stats(principal['principal_id'])
+        await self._post_read_freshness(result, principal)
         await self._current(principal)
         return result
 
     async def graph_repository_stats(self, principal, _scope, _request_key):
         _, graph = self._ports(principal)
         result = await graph.repository_stats(principal['principal_id'])
+        await self._post_read_freshness(result, principal)
         await self._current(principal)
         return result
 
@@ -250,8 +264,7 @@ class C11b2ReadPort:
         limit = _integer(_one(params, 'limit', '500'), 1000)
         _, graph = self._ports(principal)
         result = await graph.memory(principal['principal_id'], limit=limit)
-        if result['freshness']['pending_records']:
-            raise GraphUnavailable('index_lagging')
+        await self._post_read_freshness(result, principal)
         await self._current(principal)
         return result
 
