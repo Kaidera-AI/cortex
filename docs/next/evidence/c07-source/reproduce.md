@@ -1,5 +1,18 @@
 # C07 source proof and versioned recovery
 
+C07 was merged forward from C06 PR #51 head
+`cd540850ca61a8b154384c4e13d3c7daff08dde6` without rebase. The final
+copied native receipt is `mutation-c07-final-005.json` at source
+`a9447fa9e655a47e0240879549817c97fec77344`: 27 clean suites/347 tests;
+three archived 28-table guards fail in their bodies before the amended
+31-table guards pass; all 15 C07 faults are killed with 22 expected BODY
+assertions, zero errors/inconclusive; all 439 copied NEXT files are restored
+and all three owned resources removed. `verify-c07-r4.py` independently checks
+the raw receipt, Git source, C06 ancestry, migration hash, wheel bytes,
+classifier outcomes and cleanup. Earlier raw receipts are retained as the
+RED/focused/repair history. The bounded sparse-outcome capacity and completed
+outcome immutability controls were each committed RED before their fixes.
+
 The C07 migration is additive to the eight prior migrations and creates
 `consumer_project_checkpoints`, `consumer_event_outcomes` and
 `consumer_aggregate_heads`. All three are durable recovery state. Once a real
