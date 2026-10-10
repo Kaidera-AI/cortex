@@ -23,12 +23,12 @@ def receipt(path):
 def qualify(root):
     green, result = receipt(root / 'green.jsonl')
     assert green['exit_code'] == 0 and green['mutation'] is None
-    assert result == {'tests_run': 18, 'failures': [], 'errors': []}
+    assert result == {'tests_run': 21, 'failures': [], 'errors': []}
     killed = {}
     for name in sorted(EXPECTED):
         run, result = receipt(root / f'mutant-{name}.jsonl')
         assert run['mutation'] == name and run['exit_code'] == 1
-        assert result['tests_run'] == 18 and result['errors'] == []
+        assert result['tests_run'] == 21 and result['errors'] == []
         failures = result['failures']
         assert failures and all(f['id'].startswith(('test_read_api.ReadAPI.test_',
                                                     'test_session_api.SessionAPI.test_',

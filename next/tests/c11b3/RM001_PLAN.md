@@ -8,12 +8,15 @@ role works on a fresh install and forged plain-GUC scope cannot read them.
 
 1. RED: extend the installer ledger test to demand a new migration, least
    privileges for the request role, sequence usage, and direct forged-GUC
-   denial. Commit the failing assertions before implementation.
+   denial. Commit the failing assertions before implementation. Add a
+   grantless bound-port control using the real non-owner request role.
 2. Append `retrieval-0004` after the existing migrations. Keep Nemo's three
    SQL files and hashes byte-for-byte. Grant SELECT on all nine retrieval
-   tables; grant INSERT/UPDATE/DELETE only on the disposable query cache and
-   USAGE on its fence sequence. Add restrictive C04-bound policies for the
-   request role so the existing plain-GUC policies cannot authorize it alone.
+   tables; grant INSERT/UPDATE/DELETE on the disposable query cache and
+   USAGE on its fence sequence. Search's `FOR SHARE` also requires UPDATE on
+   `search_state`, so grant that privilege with a restrictive false write
+   check. Add restrictive C04-bound policies for the request role so the
+   existing plain-GUC policies cannot authorize it alone.
 3. Remove fixture-only broad grants. Run the real C11 gateway, fresh installer
    ledger/RLS checks, a forged-context denial, source/SQL mutations, and
    affected regressions in bounded disposable PostgreSQL. Ask Nemo to

@@ -23,6 +23,17 @@ runner.MUTANTS = {
         '-- removed FORCE ROW LEVEL SECURITY'),
     'source_claim_sql': ('schema/coordination/005-session-source.sql',
         'IF claimed IS DISTINCT FROM p_record_id THEN', 'IF False THEN'),
+    'request_scope_guard': ('schema/retrieval/004-request-authority.sql',
+        "USING (auth.has_access(tenant_id,project_id,''read'')) ",
+        'USING (true) '),
+    'request_write_guard': ('schema/retrieval/004-request-authority.sql',
+        "ELSE 'false' END;",
+        "ELSE 'auth.has_access(tenant_id,project_id,''read'')' END;"),
+    # RED control: omit installer grants and require the bound non-owner port
+    # to fail in its test body. Other tests may fail too, so this is not a kill.
+    'rm001_red_missing_grants': ('schema/retrieval/004-request-authority.sql',
+        "EXECUTE format('GRANT SELECT ON TABLE retrieval.%I TO \"kaidera-runtime-core-request\"',",
+        "PERFORM format('GRANT SELECT ON TABLE retrieval.%I TO \"kaidera-runtime-core-request\"',"),
 }
 
 

@@ -71,6 +71,11 @@
       "id": "session-source-0005",
       "file": "coordination/005-session-source.sql",
       "sha256": "81e7955f1792852160e384408557c8476abde0830ca72d2863ef51b3f81e8af4"
+    },
+    {
+      "id": "retrieval-0004",
+      "file": "retrieval/004-request-authority.sql",
+      "sha256": "3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e"
     }
   ]
 }

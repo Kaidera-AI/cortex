@@ -11,6 +11,8 @@ EXPECTED = {
     'manifest_ledger': 'test_read_api.ReadAPI.test_installer_ledger_contains_nemo_retrieval_schemas',
     'query_cache_rls': 'test_read_api.ReadAPI.test_installer_ledger_contains_nemo_retrieval_schemas',
     'source_claim_sql': 'test_session_api.SessionAPI.test_source_path_is_unique_across_authorized_projects',
+    'request_scope_guard': 'test_read_api.ReadAPI.test_retrieval_plain_guc_without_c04_binding_cannot_read',
+    'request_write_guard': 'test_read_api.ReadAPI.test_bound_reader_cannot_update_projection_state',
 }
 
 
@@ -29,18 +31,18 @@ def receipt(path):
 def qualify(root):
     green, clean = receipt(root / 'green.jsonl')
     assert green['mutation'] is None and green['exit_code'] == 0
-    assert clean == {'tests_run': 18, 'failures': [], 'errors': []}
+    assert clean == {'tests_run': 21, 'failures': [], 'errors': []}
     killed = {}
     for name, expected_id in EXPECTED.items():
         run, result = receipt(root / f'mutant-{name}.jsonl')
         assert run['mutation'] == name and run['exit_code'] == 1
-        assert result['tests_run'] == 18 and result['errors'] == []
+        assert result['tests_run'] == 21 and result['errors'] == []
         failures = result['failures']
         assert failures and all(f['phase'] == 'test' and f['is_assertion'] is True
                                 for f in failures), name
         assert expected_id in {f['id'] for f in failures}, name
         killed[name] = [f['id'] for f in failures]
-    print(json.dumps({'green_tests': 18, 'mutants_killed': killed,
+    print(json.dumps({'green_tests': 21, 'mutants_killed': killed,
                       'cleanup': 'pass', 'limits': '2cpu/1GiB/no-network'}, sort_keys=True))
 
 

@@ -22,5 +22,8 @@ PG18+pgvector, 2 CPU/1 GiB/no network, 35% free-memory gates and full cleanup.
 - [ ] Regressions pass and source/SQL mutants die by expected test-body
   assertions. Exact-head raw evidence and cleanup are retained.
 
-Manifest entries and ledger proof are green locally; Nemo's required review is
-pending. The exact-head evidence gate closes after commit and qualification.
+Nemo found RM-001 in the first review: auth-0002 predates these tables, and the
+fixture's broad grants masked the absence. A forward-only retrieval authority
+migration and non-owner/forged-scope tests now cover the repair; Nemo's review
+of the new exact head remains pending. The exact-head evidence gate closes
+after commit and qualification.

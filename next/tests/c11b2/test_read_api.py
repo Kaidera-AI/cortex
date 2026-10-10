@@ -37,9 +37,6 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         Fixture.setUp(self)
-        self.admin.execute(f'GRANT USAGE ON SCHEMA retrieval TO "{REQUEST}"')
-        self.admin.execute(f'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA retrieval TO "{REQUEST}"')
-        self.admin.execute(f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA retrieval TO "{REQUEST}"')
         self.admin.execute('INSERT INTO retrieval.search_state VALUES (%s,%s,%s,%s)',
                            (*self.scope, IDENTITY.key, 'ready'))
         self.admin.execute('INSERT INTO retrieval.search_sources VALUES (%s,%s,%s,%s,%s)',
@@ -63,6 +60,15 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         async def init(conn):
             await conn.execute(f'SET ROLE "{REQUEST}"')
         self.pool = await asyncpg.create_pool(dsn, min_size=1, max_size=3, init=init)
+        async with self.pool.acquire() as conn:
+            runtime = await conn.fetchrow("""SELECT current_user AS role,
+                r.rolsuper AS superuser,r.rolbypassrls AS bypass,
+                pg_get_userbyid(c.relowner) AS table_owner
+                FROM pg_roles r,pg_class c
+                WHERE r.rolname=current_user AND c.oid='retrieval.search_state'::regclass""")
+        self.assertEqual(runtime['role'], REQUEST)
+        self.assertFalse(runtime['superuser'] or runtime['bypass'])
+        self.assertNotEqual(runtime['table_owner'], REQUEST)
         async def vector(_query, _identity): return PROBE_VECTOR
         self.read_port = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
                                        FunctionProvider(vector),
@@ -247,6 +253,9 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
             'SELECT migration_id FROM core.schema_migrations').fetchall()}
         self.assertTrue({'retrieval-0001', 'retrieval-0002', 'retrieval-0003',
                          'retrieval-0004'} <= applied)
+        self.assertEqual({value for value in applied if value.startswith('retrieval-')},
+                         {'retrieval-0000', 'retrieval-0001', 'retrieval-0002',
+                          'retrieval-0003', 'retrieval-0004'})
         for table in ('search_state', 'search_sources', 'search_vectors',
                       'query_embeddings', 'graph_state', 'graph_applied'):
             self.assertIsNotNone(self.admin.execute(
@@ -258,6 +267,10 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
              'graph_generations','graph_state','graph_applied','graph_nodes','graph_edges')""").fetchall()
         self.assertEqual(len(flags), 9)
         self.assertTrue(all(enabled and forced for _, enabled, forced in flags))
+        owners = self.admin.execute("""SELECT DISTINCT pg_get_userbyid(c.relowner)
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='retrieval' AND c.relkind='r'""").fetchall()
+        self.assertEqual(owners, [(self.admin.execute('SELECT current_user').fetchone()[0],)])
         tables = ('search_state', 'search_sources', 'search_vectors',
                   'query_embeddings', 'graph_generations', 'graph_state',
                   'graph_applied', 'graph_nodes', 'graph_edges')
@@ -271,7 +284,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(self.admin.execute(
                         'SELECT has_table_privilege(%s,%s,%s)',
                         (REQUEST, relation, privilege)).fetchone()[0],
-                        table == 'query_embeddings')
+                        table == 'query_embeddings' or
+                        (table == 'search_state' and privilege == 'UPDATE'))
         self.assertTrue(self.admin.execute('SELECT has_sequence_privilege(%s,%s,%s)',
             (REQUEST, 'retrieval.query_embedding_fences', 'USAGE')).fetchone()[0])
         policies = self.admin.execute("""SELECT tablename FROM pg_policies
@@ -287,6 +301,28 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
                                  (self.scope[1],))
             count = self.request.execute('SELECT count(*) FROM retrieval.search_state').fetchone()[0]
         self.assertEqual(count, 0)
+
+    async def test_bound_reader_cannot_update_projection_state(self):
+        request = {'method': 'GET', 'path': '/search',
+                   'headers': [(b'authorization', b'Bearer ' + READ_A),
+                               (b'x-project', b'3')], 'query_string': b'q=fixture'}
+        principal = await self.read_port.principal(request)
+        search, _ = self.read_port._ports(principal)
+        with self.assertRaises(asyncpg.InsufficientPrivilegeError):
+            async with search._request(principal['principal_id']) as (conn, scope):
+                await conn.execute("UPDATE retrieval.search_state SET state='disabled' "
+                    'WHERE tenant_id=$1 AND project_id=$2', scope.tenant_id,
+                    scope.project_id)
+        self.assertEqual(self.admin.execute('SELECT state FROM retrieval.search_state '
+            'WHERE tenant_id=%s AND project_id=%s', self.scope).fetchone()[0], 'ready')
+
+    async def test_fresh_installer_bound_ports_as_nonowner_request_role(self):
+        status, search = await self.call('GET', '/search', query=b'q=fixture')
+        self.assertEqual((status, search.get('freshness', {}).get('state')),
+                         (200, 'current'), search)
+        status, stats = await self.call('GET', '/cortex-graph/stats')
+        self.assertEqual((status, stats.get('freshness', {}).get('state')),
+                         (200, 'current'), stats)
 
     async def test_graph_real_port_and_backlog_refusal(self):
         body = b'{"label":"fixture-concept","description":"current","content":"current"}'
