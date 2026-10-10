@@ -8,7 +8,7 @@ from uuid import UUID
 from cortex_core.auth import AuthError
 from .c11b import _credential
 from cortex_core.embeddings.pg_search import (
-    CapabilityUnavailable, EmbeddingIdentity, PostgresSearch,
+    CapabilityUnavailable, CoreUnavailable, EmbeddingIdentity, PostgresSearch,
 )
 from cortex_core.embeddings.query_cache import CacheScope, QueryEmbeddingCache
 from cortex_core.modules.graph.pg_graph import GraphScope, GraphUnavailable, PostgresGraph
@@ -148,6 +148,29 @@ class C11b2ReadPort:
                 WHERE r.tenant_id=$1 AND r.project_id=$2 AND NOT r.tombstone
                   AND (s.record_id IS NULL OR s.source_revision<>r.current_revision)''',
                 scope.tenant_id, scope.project_id)
+
+    async def status_degradation(self, principal, _scope, _request_key):
+        """Keep observed search lag distinct from canonical-write availability."""
+        await self._current(principal)
+        search, _graph = self._ports(principal)
+        try:
+            async with search._request(principal['principal_id']) as (conn, bound):
+                state = await search._state(conn, bound, self.identity.key)
+                freshness = await search._freshness(conn, bound, self.identity.key)
+            core_unprojected = await self._core_pending(search, principal)
+            result = {'state': ('lagging' if state == 'ready' and
+                                (freshness.pending_records or core_unprojected) else state),
+                      'identity': self.identity.key,
+                      'source_pending': freshness.pending_records,
+                      'core_unprojected': core_unprojected}
+        except CapabilityUnavailable as error:
+            result = {'state': 'unavailable', 'reason': error.reason}
+        except CoreUnavailable:
+            raise
+        await self._current(principal)
+        return {'search': result,
+                'canonical_write': {'state': 'unavailable',
+                                    'reason': 'write_observation_unbound'}}
 
     async def _post_read_freshness(self, result, principal, *, search=None):
         """Require the returned projection to remain current after the gate."""
@@ -397,6 +420,7 @@ class C11b2ReadPort:
 
     @property
     def handlers(self):
-        return {'C01-R021': self.search, 'C01-R022': self.search,
+        return {'C01-R006': self.status_degradation,
+                'C01-R021': self.search, 'C01-R022': self.search,
                 'C01-R023': self.graph_search, 'C01-R024': self.graph_stats,
                 'C01-R025': self.graph_memory, 'C01-R034': self.graph_repository_stats}

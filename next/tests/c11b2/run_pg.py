@@ -15,6 +15,28 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    'd3_pending_as_zero': ('src/cortex_core/api/c11b2.py',
+        "'source_pending': freshness.pending_records,",
+        "'source_pending': 0,"),
+    'd3_lag_as_ready': ('src/cortex_core/api/c11b2.py',
+        "'lagging' if state == 'ready' and",
+        "'ready' if state == 'ready' and"),
+    'd3_skip_final_recheck': ('src/cortex_core/api/c11a.py',
+        "if await self.permission_recheck(principal, 'status') is not True:\n"
+        "                    return await _respond(send, 403, _packet('forbidden', retryable=False))\n"
+        "                return await _respond(send, 200, value)",
+        "if False:\n"
+        "                    return await _respond(send, 403, _packet('forbidden', retryable=False))\n"
+        "                return await _respond(send, 200, value)"),
+    'd3_control_dispatch': ('src/cortex_core/api/c11a.py',
+        "if row['id'] in D3_CONTROL_ROUTES:", "if False:"),
+    'd3_backlog_fake_zero': ('src/cortex_core/api/c11a.py',
+        "return await _respond(send, 503, _packet('capability_unavailable',\n"
+        "                    reason='backlog_source_unbound', retryable=False))",
+        "return await _respond(send, 200, {'pending': 0})"),
+    'd3_supervisor_fake_healthy': ('src/cortex_core/api/c11a.py',
+        "supervisor = {'state': raw['state']}",
+        "supervisor = {'state': 'healthy'}"),
     'd2_pending_as_visible': ('src/cortex_core/api/c11b2.py',
         "if observation.state == 'visible':\n                return",
         "if observation.state in ('visible', 'pending'):\n                return"),

@@ -1,6 +1,5 @@
 """D3 status through real C04, search RLS, and the reviewed C08 lease source."""
 
-import asyncio
 import hashlib
 import json
 from unittest import IsolatedAsyncioTestCase
@@ -8,7 +7,7 @@ from uuid import UUID
 
 import asyncpg
 
-from core_db_fixture import READ_A, READ_B, uid
+from core_db_fixture import READ_A, READ_B, WRITE_A, uid
 from cortex_core.api.c11a import ConsumerGateway
 from cortex_core.api.c11b import C11bRecordPort
 from cortex_core.api.c11b2 import C11b2ReadPort
@@ -49,7 +48,9 @@ class D3Status(IsolatedAsyncioTestCase):
     async def call_as(self, key, path, method='GET', *, gateway=None):
         scope = {'type': 'http', 'method': method, 'path': path,
                  'headers': ([(b'authorization', b'Bearer ' + key)] if key is not None else [])
-                            + [(b'x-project', b'3')], 'query_string': b''}
+                            + [(b'x-project', b'3')]
+                            + ([(b'idempotency-key', b'synthetic-d3-control')] if method == 'POST' else []),
+                 'query_string': b''}
         messages = []
         async def receive():
             return {'type': 'http.request', 'body': b'', 'more_body': False}
@@ -109,6 +110,23 @@ class D3Status(IsolatedAsyncioTestCase):
         self.assertEqual((status, body['supervisor']['state']), (200, 'supervisor_down'))
         self.assertNotIn('fence', body)
 
+    async def test_revocation_during_supervisor_read_prevents_late_status(self):
+        async def revoke_after_read(_principal, _scope, _key):
+            value = await self.supervisor.health()
+            self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() '
+                               'WHERE key_digest=%s', (hashlib.sha256(READ_A).hexdigest(),))
+            return value
+        self.gateway.handlers['C01-R030'] = revoke_after_read
+        status, body = await self.call_as(READ_A, '/workers/health')
+        self.assertEqual((status, body.get('error', {}).get('code')), (403, 'forbidden'))
+        self.assertNotIn('supervisor', body)
+
+    async def test_missing_supervisor_source_is_typed_unavailable(self):
+        self.gateway.handlers.pop('C01-R030')
+        status, body = await self.call_as(READ_A, '/workers/health')
+        self.assertEqual((status, body.get('error', {}).get('reason')),
+                         (503, 'supervisor_source_unbound'))
+
     async def test_core_down_and_c04_refusals_precede_status(self):
         async def down(): return False
         async def health(): return {'component': 'cortex', 'status': 'unavailable'}
@@ -133,13 +151,15 @@ class D3Status(IsolatedAsyncioTestCase):
             return {'started': True}
         self.gateway.handlers['C01-R073'] = side_effect
         self.gateway.handlers['C01-R074'] = side_effect
+        observed = []
         for method, path in (('POST', '/beat/embeddings/backfill'),
                              ('GET', '/beat/embeddings/jobs/' + uid(60))):
-            status, body = await self.call_as(READ_A, path, method)
-            self.assertEqual((status, body.get('error', {}).get('code'),
-                              body.get('error', {}).get('state')),
-                             (503, 'capability_unavailable', 'unimplemented'))
+            status, body = await self.call_as(WRITE_A, path, method)
+            observed.append((status, body.get('error', {}).get('code'),
+                             body.get('error', {}).get('state')))
         self.assertEqual(calls, [])
+        self.assertEqual(observed, [(503, 'capability_unavailable', 'unimplemented')] * 2)
+        self.assertEqual((await self.call_as(READ_A, '/beat/embeddings/backfill', 'POST'))[0], 403)
 
 
 if __name__ == '__main__':
