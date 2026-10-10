@@ -36,3 +36,5 @@ Order: plan/consult -> source worktree; committed new regressionRED againstcb
 before fix -> minimalfix+portable receipts -> native baseline125/new0 realfixture
 -> custody+host/EBSretirement -> source/receiptreviewVera -> fresh attempt6.
 Any native preflight failure remainsRED and stops fullbuild. No mainmerge/signing.
+
+Kai10:30 RATIFIED exact one assertion amendment; original archived and baselinePASS retained; amended baseline expectedBODY RED. Proof-only host approved admittedspec,max90min/<=0.30estimate. New native gate runs real make_plan argv for all7; no fullartifact beforeVera.
