@@ -91,6 +91,23 @@ if [ -z "${FALLBACK_AGENT}" ]; then
     exit 2
 fi
 
+# Resolve every parser required by the discovered inputs before any destructive
+# SQL. This CLI projection may omit a parser; an absent/non-executable sibling
+# must never be discovered only after the history purge has already committed.
+require_history_parser() {
+    local parser="$SCRIPT_DIR/$1"
+    if [ ! -f "$parser" ] || [ ! -x "$parser" ]; then
+        echo "ERROR: required history parser unavailable: $1; no history was purged." >&2
+        exit 2
+    fi
+}
+if [ "${#CLAUDE_FILES[@]}" -gt 0 ]; then
+    require_history_parser cortex-ingest-session
+fi
+if [ "${#CODEX_FILES[@]}" -gt 0 ]; then
+    require_history_parser cortex-ingest-codex
+fi
+
 PROJECT_SQL=$(sql_escape "${CORTEX_PROJECT}")
 read -r BEFORE_SESSIONS BEFORE_MESSAGES <<<"$(pg_query "
   SELECT
