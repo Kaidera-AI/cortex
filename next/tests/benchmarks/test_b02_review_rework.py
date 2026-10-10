@@ -75,7 +75,9 @@ class StoredAPI:
                 config['vectors']['distance'] = 'Dot'
             elif self.fault == 'index':
                 indexes.pop('project')
-            return {'result': {'config': config, 'payload_schema': indexes}}
+            return {'result': {'config': {'params': {'vectors': config['vectors']},
+                                          'hnsw_config': config['hnsw_config']},
+                               'payload_schema': indexes}}
         raise AssertionError('unrecognized owned fake operation')
 
 
@@ -215,3 +217,12 @@ class ReviewRework(unittest.IsolatedAsyncioTestCase):
             except Exception as error:
                 caught = type(error)
             self.assertIs(caught, ValueError)
+
+    async def test_observed_qdrant_params_config_shape_is_admitted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            c = prepared(Path(directory)); api = StoredAPI(); caught = None
+            try:
+                await qdrant.upload(api, c)
+            except Exception as error:
+                caught = type(error)
+            self.assertIsNone(caught, 'observed native config.params.vectors must be validated')

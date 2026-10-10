@@ -354,7 +354,9 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
                         row['vector'] = [value / norm for value in row['vector']]
                         self.points[row['id']] = row
                 elif method == 'GET' and path == '/collections/b02':
-                    return {'result': {'config': self.config, 'payload_schema': self.indexes}}
+                    return {'result': {'config': {'params': {'vectors': self.config['vectors']},
+                                                  'hnsw_config': self.config['hnsw_config']},
+                                       'payload_schema': self.indexes}}
                 elif method == 'POST' and path == '/collections/b02/points':
                     return {'result': [self.points[point_id] for point_id in body['ids']]}
                 return {'result': {'status': 'green'}}
