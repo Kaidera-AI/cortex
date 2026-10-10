@@ -1,0 +1,16 @@
+{
+  "receipt": "mutation-identity-attempt-003.json",
+  "sha256": "ae39520cf909579030582bef2c0f62374fafb556ef51b8c83dafeaa29b50a0e2",
+  "tested_sha": "c61f3a3e3fa3ad914a9cf7b9288c964651784d75",
+  "result": "FAILED; identity31/32 expected BODY kills, one survivor; all226 baseline tests clean; cleanup verified",
+  "survivor": "final credential authority uses initial snapshot",
+  "cause": "new final identity_binding_valid() also resolves current authority; replacing only Python final _resolve no longer removes authority validation",
+  "repair": "compound recipe omits final private SQL check and uses initial Python authority snapshot; original owner-expiry-after-actual-registration fixture remains byte-exact",
+  "product_source_changed": false,
+  "new_binding_faults": "both independently qualified in003; source binding repair remains present",
+  "final_qualification": {
+    "path": "mutation-identity-attempt-004.json",
+    "sha256": "2b98a625132b0fa1ebb2330fe8df3ea40f41b7b9aa9ec6114cde7ef8995f0a5d",
+    "passed": true
+  }
+}

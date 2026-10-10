@@ -1,0 +1,10 @@
+{
+  "original_commit": "009ec42f20a94097e1ea83f24b1d356c2d0acb7a",
+  "original_red": "identity-policy-red-attempt-001.json",
+  "disposition": "fixture expectation correction before policy implementation; no failing product guard removed",
+  "incorrect_expectation": "Claim.holder compared to string UUID",
+  "retained_contract": "Claim.holder UUID; original C05 test_coordination.py lines51/56 and coordination.py Claim/_typed",
+  "correction": "assert UUID instance and equal worker.principal_id",
+  "corrected_sha256": "b4d6bf60d9424faa50077fb38d0cf8ab056a6e39809420d754ee677ffa800d23",
+  "predecessor_tests_unchanged": true
+}

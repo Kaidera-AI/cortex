@@ -1,0 +1,7 @@
+{
+  "receipt": "identity-red.json",
+  "qualification": "26 expected missing identity port BODY assertions,0errors; owned cleanup verified",
+  "limit": "controller omitted jobs23/conformance6 in identity phase; complete predecessor gate NOT_RUN in this attempt",
+  "automatic_guard": "phase-selection-red.json exposes exact omitted suites; unchanged AST guard green after phase repair",
+  "replacement": "identity-red-attempt-002.json; preserve first receipt unchanged"
+}

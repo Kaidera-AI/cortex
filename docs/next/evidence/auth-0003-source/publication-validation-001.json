@@ -1,0 +1,8 @@
+{
+  "input_index": "publication-index-001.json",
+  "input_sha256": "5dbfd8fb93ae0f1a96256be37884c91f5d50eca31b4d06b06e92f3e80d7cdf70",
+  "validator_sha256": "bcce1b8d5c3c86b019d319d7fb5800b61b7da9fea316cdfc076e7e8c72cbd6e8",
+  "exit_code": 0,
+  "stdout": "{\"index_sha256\": \"5dbfd8fb93ae0f1a96256be37884c91f5d50eca31b4d06b06e92f3e80d7cdf70\", \"members\": 65, \"all_digests_sizes_canonical_pointers_match\": true}\n",
+  "stderr": ""
+}
