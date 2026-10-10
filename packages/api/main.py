@@ -12756,7 +12756,9 @@ async def graph_build_proxy(
                 held=False,
             )
             return result
-        job_id = await create_graph_build_job(project, scoped_body)
+        job_id = await create_graph_build_job(
+            project, scoped_body, schema_conn=registry_conn
+        )
     if scoped_body.async_job or (scoped_body.full and not scoped_body.sync):
         schedule_graph_build_job(project, job_id, scoped_body)
         return JSONResponse(
@@ -15760,11 +15762,18 @@ async def create_embedding_backfill_job(project: str, body: EmbeddingBackfillReq
     return job_id
 
 
-async def create_graph_build_job(project: str, body: GraphBuildRequest) -> str:
+async def create_graph_build_job(
+    project: str, body: GraphBuildRequest, *, schema_conn: asyncpg.Connection | None = None
+) -> str:
     job_id = str(uuid4())
     payload = body.model_dump()
-    async with acquire_scoped(project) as conn:
+    # The registry lease already holds an admin slot. Reuse it for DDL so
+    # concurrent advisory-lock waiters cannot exhaust a four-slot admin pool.
+    if schema_conn is not None:
+        await _create_graph_build_jobs_schema(schema_conn)
+    else:
         await ensure_graph_build_jobs_schema()
+    async with acquire_scoped(project) as conn:
         await conn.execute(
             """
             INSERT INTO graph_build_jobs (
