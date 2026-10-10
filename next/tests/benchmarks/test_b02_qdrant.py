@@ -375,3 +375,27 @@ class QdrantTests(unittest.IsolatedAsyncioTestCase):
                                   'tmpfs-size': '536870912', 'tmpfs-mode': '0700', 'U': 'true'})
         self.assertFalse(any('uid=' in value or 'gid=' in value for i, value in enumerate(args)
                              if i and args[i-1] == '--tmpfs'))
+
+    def test_podman_empty_capability_sets_are_admitted_but_nonempty_refused(self):
+        import copy
+        module = self.surface()
+        row = {'Config': {'User': '10001:10001', 'Env': []},
+               'EffectiveCaps': None, 'BoundingCaps': None,
+               'HostConfig': {'PortBindings': {}, 'ReadonlyRootfs': True, 'Memory': 805306368,
+                              'NanoCpus': 1500000000, 'CapDrop': ['CAP_CHOWN', 'CAP_SETUID'],
+                              'CapAdd': [], 'Privileged': False, 'SecurityOpt': ['no-new-privileges']}}
+        caught = None
+        try:
+            checked = module.verify_container(row, memory_bytes=805306368, cpus=1.5)
+        except Exception as error:
+            caught = type(error)
+        self.assertIsNone(caught, 'Podman null effective/bounding sets are explicit empty sets')
+        self.assertTrue(checked['cap_drop_all'])
+        for field in ('EffectiveCaps', 'BoundingCaps'):
+            bad = copy.deepcopy(row); bad[field] = ['CAP_NET_ADMIN']
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                module.verify_container(bad, memory_bytes=805306368, cpus=1.5)
+        for field, value in [('CapAdd', ['CAP_NET_ADMIN']), ('Privileged', True)]:
+            bad = copy.deepcopy(row); bad['HostConfig'][field] = value
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                module.verify_container(bad, memory_bytes=805306368, cpus=1.5)
