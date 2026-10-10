@@ -8,7 +8,7 @@ import tarfile
 import tempfile
 import unittest
 
-from cortex_core.backup import BackupError, build_manifest, seal_encrypted_bundle
+from cortex_core.backup import BackupError, basebackup_command, build_manifest, seal_encrypted_bundle
 
 
 SEGMENT_BYTES = 1 << 20
@@ -28,6 +28,12 @@ def metadata():
 
 
 class BackupManifestTests(unittest.TestCase):
+    def test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret(self):
+        command = basebackup_command('/tmp/base', host='127.0.0.1', user='postgres')
+        self.assertEqual(command, ['pg_basebackup', '-h', '127.0.0.1', '-U', 'postgres',
+                                   '-p', '5432', '-D', '/tmp/base', '-Fp', '-X', 'none',
+                                   '--manifest-checksums=SHA256', '--checkpoint=fast'])
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix='cox-o01a-manifest-')
         self.addCleanup(self.temporary.cleanup)
@@ -79,6 +85,7 @@ class BackupManifestTests(unittest.TestCase):
         self.assertEqual(result['metadata'], metadata())
         self.assertEqual([entry['name'] for entry in result['wal_segments']], names)
         self.assertEqual(result['wal_segments'][1]['sha256'], hashlib.sha256((self.archive / names[1]).read_bytes()).hexdigest())
+        self.assertIn('backup_label', result['base_files'])
         self.assertEqual(result['base_files']['backup_label']['sha256'], hashlib.sha256((self.base / 'backup_label').read_bytes()).hexdigest())
 
     def test_complete_set_is_sealed_with_synthetic_age_key(self):

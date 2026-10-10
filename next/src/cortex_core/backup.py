@@ -17,6 +17,10 @@ class BackupError(ValueError):
     """A backup set is incomplete or cannot be sealed."""
 
 
+def basebackup_command(destination, *, host, user, port=5432, executable="pg_basebackup"):
+    return []
+
+
 _LSN = re.compile(r"^[0-9A-Fa-f]{1,8}/[0-9A-Fa-f]{1,8}$")
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _REQUIRED = frozenset({"installation_id", "schema_ledger", "consumer_generations",
