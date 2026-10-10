@@ -18,14 +18,16 @@ def database():
     assert info['HostConfig']['NetworkMode']=='none'
     assert not info['HostConfig'].get('PortBindings')
     def sql(statement):
-        return subprocess.check_output(['podman','exec','-i',name,'psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-At'],input=statement,text=True).strip()
-    sql('DROP TABLE IF EXISTS messages,agent_sessions; CREATE TABLE agent_sessions(id text PRIMARY KEY,project text); CREATE TABLE messages(id text PRIMARY KEY,session_id text,project text); INSERT INTO agent_sessions VALUES(\'old-session\',\'synthetic\'); INSERT INTO messages VALUES(\'old-message\',\'old-session\',\'synthetic\');')
+        return subprocess.check_output(['podman','exec','-i',name,'psql','-U','postgres','-d','cli3_preflight','-v','ON_ERROR_STOP=1','-At'],input=statement,text=True).strip()
+    sql('DROP TABLE IF EXISTS session_sources,messages,agent_sessions; CREATE TABLE agent_sessions(id text PRIMARY KEY,project text,notes jsonb); CREATE TABLE session_sources(session_id text,project text,provider text,source_kind text,source_path text); CREATE TABLE messages(id text PRIMARY KEY,session_id text,project text,metadata jsonb); INSERT INTO agent_sessions VALUES(\'old-session\',\'synthetic\'); INSERT INTO messages VALUES(\'old-message\',\'old-session\',\'synthetic\');')
     yield name,sql
-    sql('DROP TABLE IF EXISTS messages,agent_sessions;')
+    sql('DROP TABLE IF EXISTS session_sources,messages,agent_sessions;')
 
 @pytest.fixture
 def projection(tmp_path,database):
     name,sql=database;script=tmp_path/'cortex-rebuild-history';shutil.copyfile(SOURCE,script)
+    helper=SOURCE.parent/'cortex_history_plan.py'
+    if helper.exists():shutil.copyfile(helper,tmp_path/helper.name)
     codex=tmp_path/'rollout-00000000-0000-0000-0000-000000000001.jsonl';codex.write_text('{}\n')
     claude=tmp_path/'claude.jsonl';claude.write_text('{}\n')
     (tmp_path/'_cortex_lib.sh').write_text('''CORTEX_PROJECT=synthetic
@@ -35,8 +37,8 @@ sql_escape(){ printf '%s' "$1"; }
 discover_claude_dirs(){ [ -z "${PROOF_CLAUDE_DIR:-}" ] || printf '%s\\n' "$PROOF_CLAUDE_DIR"; }
 discover_codex_sessions(){ printf '%s\\n' "$PROOF_CODEX"; }
 build_codex_agent_map(){ :; }
-pg_query(){ podman exec -i "$PROOF_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -At -c "$1"; }
-pg_exec_file(){ podman exec -i "$PROOF_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -At < "$1"; }
+pg_query(){ podman exec -i "$PROOF_CONTAINER" psql -U postgres -d cli3_preflight -v ON_ERROR_STOP=1 -At -c "$1"; }
+pg_exec_file(){ podman exec -i "$PROOF_CONTAINER" psql -U postgres -d cli3_preflight -v ON_ERROR_STOP=1 -At < "$1"; }
 ''')
     shim=tmp_path/'mktemp'
     shim.write_text('#!/usr/bin/env python3\nimport tempfile\nprint(tempfile.mkstemp(prefix="cli3-proof-",dir='+repr(str(tmp_path))+')[1])\n')
@@ -53,7 +55,10 @@ def test_missing_required_parser_preserves_existing_history(projection,mode,kind
         env['PROOF_CODEX']='';directory=root/'claude';directory.mkdir();(directory/'synthetic.jsonl').write_text('{}\n');env['PROOF_CLAUDE_DIR']=str(directory)
     if mode=='not-executable':(root/parser).write_text('#!/bin/sh\nexit 0\n')
     result=subprocess.run([BASH,str(script)],env=env,text=True,capture_output=True)
-    assert result.returncode!=0
+    if kind=='claude':assert result.returncode!=0
+    else:
+        assert result.returncode==0
+        assert 'parser-unavailable' in result.stdout
     assert sql('SELECT count(*) FROM agent_sessions;')=='1',result.stdout+result.stderr
     assert sql('SELECT count(*) FROM messages;')=='1',result.stdout+result.stderr
 
@@ -64,8 +69,8 @@ def test_dry_run_preserves_history_without_parser(projection):
     assert sql('SELECT count(*) FROM messages;')=='1'
 
 
-def test_no_codex_inputs_does_not_require_codex_parser(projection):
+def test_no_codex_inputs_preserves_existing_history_without_parser(projection):
     _,script,env,sql=projection;env['PROOF_CODEX']=''
     result=subprocess.run([BASH,str(script)],env=env,text=True,capture_output=True)
     assert result.returncode==0
-    assert sql('SELECT count(*) FROM messages;')=='0'
+    assert sql('SELECT count(*) FROM messages;')=='1'
