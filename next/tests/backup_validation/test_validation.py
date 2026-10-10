@@ -58,6 +58,7 @@ class ValidationTests(unittest.TestCase):
         (self.blobs/'synthetic/blob').write_bytes(b'synthetic blob')
         self.after = {
             'installation_id': '00000000-0000-4000-8000-000000000001',
+            'replay_lsn': '0/1300000',
             'schema_ledger': [{'id': 'core-0001', 'sha256': 'a'*64}],
             'consumer_generations': [{'module': 'graph', 'project': '00000000-0000-4000-8000-000000000003', 'generation': 1, 'cursor': 8}],
             'model_identities': [{'id': MODEL, 'provider': 'fixture', 'model': 'synthetic-1', 'version': '1', 'dimensions': 3}],
@@ -129,6 +130,14 @@ class ValidationTests(unittest.TestCase):
         mixed['consumer_generations'] = self.before['consumer_generations']
         with self.assertRaises(BackupError):
             self.verify(self.target, digest, snapshot=mixed)
+
+    def test_manifest_endpoint_must_equal_actual_replay_lsn(self):
+        delayed = json.loads(json.dumps(self.after))
+        delayed['replay_lsn'] = '0/1400000'
+        with self.assertRaises(BackupError):
+            seal_complete_bundle(self.base, self.archive, '0/1300000', delayed,
+                                 segment_bytes=SEG, blob_root=self.blobs,
+                                 recipient=self.recipient, destination=self.target)
 
     def test_missing_blob_is_refused(self):
         _, digest = self.seal()

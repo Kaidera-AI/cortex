@@ -18,7 +18,7 @@ from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-o01b-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE/'native-pg-002.json'
+OUT = HERE/'native-pg-final-003.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01b-source/run-native-pg.py'])
@@ -76,7 +76,7 @@ def refused(action):
 life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'),
                  lambda args: subprocess.run(args, text=True, capture_output=True))
 try:
-    for directory, count in [('backup_producer', 6), ('backup_validation', 11)]:
+    for directory, count in [('backup_producer', 6), ('backup_validation', 12)]:
         env = os.environ.copy()
         env['PYTHONPATH'] = str(WT/'next/src')
         result = subprocess.run(['python3.12', str(WT/'next/tests/test_receipts.py'),
@@ -185,6 +185,8 @@ try:
         else:
             raise RuntimeError('isolated recovery did not pause at target')
         replay_lsn = sql('SELECT pg_last_wal_replay_lsn();', 5433)
+        requested_end_lsn = archive_end
+        archive_end = replay_lsn
         assert state(5433) == (2, 2, 2, 1)
         snapshot = json.loads(sql(SNAPSHOT_SQL, 5433))
         assert len(snapshot['schema_ledger']) == 9
@@ -274,6 +276,7 @@ try:
         native.update({'pg_version': '18.4', 'segment_bytes': segment_bytes,
                        'before': before, 'after_source': after_source,
                        'after_recovery': state(5433), 'replay_lsn': replay_lsn,
+                       'requested_end_lsn': requested_end_lsn,
                        'archive_end_lsn': archive_end,
                        'mutation_overlapped_backup': started < mutation_started < mutation_finished < finished,
                        'backup_duration_s': round(finished-started, 3),
