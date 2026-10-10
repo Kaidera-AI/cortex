@@ -68,4 +68,4 @@ def connection_kwargs(dsn: str, role: str = "app") -> dict:
     context.load_cert_chain(str(cert), str(key), password=_reject_password)
     # A callback also blocks accidental PGPASSWORD/.pgpass use if a server is
     # misconfigured to ask for a password instead of performing cert auth.
-    return {"ssl": context, "password": _reject_password, "passfile": os.devnull}
+    return {"ssl": context, "password": "", "passfile": os.devnull}
