@@ -539,14 +539,11 @@ _RETENTION_TABLES: dict[str, dict[str, str]] = {
             "summary, files_changed, acceptance, evidence, completion_report, retry, "
             "escalation, status, created_at, returned_at, completed_at"
         ),
-        "extra_where": (
-            "\n              AND status IN ('completed','abandoned','failed','archived')"
-            "\n              AND NOT EXISTS ("
-            "\n                SELECT 1 FROM handoffs child"
-            "\n                 WHERE child.reply_to_handoff_id = handoffs.id"
-            "\n                   AND (child.status NOT IN ('completed','abandoned','failed','archived')"
-            "\n                        OR child.created_at >= now() - interval '{days} days'))"
-        ),
+        "extra_where": """
+              AND status IN ('completed','abandoned','failed','archived')
+              AND NOT EXISTS (
+                SELECT 1 FROM handoffs child
+                 WHERE child.reply_to_handoff_id = handoffs.id)""",
     },
 }
 
