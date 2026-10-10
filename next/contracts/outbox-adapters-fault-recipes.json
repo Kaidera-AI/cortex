@@ -1,0 +1,667 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "changed request digest ignored",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_changed_body_kind_record_or_operation_under_key_refuses"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "row[0] != digest",
+          "after": "False",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "if saved.get('request_json') != request_json:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new exact request JSON replay check as well as original digest check"
+      ]
+    },
+    {
+      "label": "tombstone exposed by default",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_delete_is_revisioned_tombstone_and_does_not_erase_history"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "(row[2] and not include_tombstone)",
+          "after": "False",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "delete stored as live revision",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_delete_is_revisioned_tombstone_and_does_not_erase_history"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "tombstone = operation == 'delete'",
+          "after": "tombstone = False",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "if tombstone:",
+          "after": "if operation == 'delete':",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "original byte zero discarded",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_create_read_preserves_exact_bytes_and_digest"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "payload_id = uuid4()",
+          "after": "body = body.replace(b'\\x00',b'')\n    payload_id = uuid4()",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "record kind changes accepted",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_kind_cannot_change_after_creation"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "(operation == 'put' and row[0] != kind)",
+          "after": "False",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_record_head() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    IF (TG_OP='INSERT' AND NEW.current_revision<>1) OR (TG_OP='UPDATE' AND\n        ((NEW.tenant_id,NEW.project_id,NEW.id,NEW.kind)<>(OLD.tenant_id,OLD.project_id,OLD.id,OLD.kind)\n         OR NEW.current_revision<>OLD.current_revision+1))\n      THEN RAISE EXCEPTION 'record head must advance exactly one revision' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_record_head() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nBEGIN\n    RETURN NEW;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new immediate immutable-kind/head guard as well as the original adapter kind check"
+      ]
+    },
+    {
+      "label": "bool accepted as revision",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_invalid_inputs_refuse_without_partial_canonical_rows"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "type(revision) is not int",
+          "after": "not isinstance(revision,int)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "trailing newline silently normalized",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_invalid_inputs_refuse_without_partial_canonical_rows"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "_validate(record_id,expected_revision,request_key)\n        if not isinstance(kind,str)",
+          "after": "_validate(record_id,expected_revision,request_key)\n        kind = kind.rstrip('\\n') if isinstance(kind,str) else kind\n        if not isinstance(kind,str)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "stale expected revision ignored",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_update_compare_and_swap_is_atomic"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "row[1] != expected",
+          "after": "False",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "revision = expected + 1",
+          "after": "revision = (row[1] if row is not None else expected) + 1",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "owner control omitted for creation",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_owner_controls_and_read_cannot_write"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if control:",
+          "after": "if control and operation != 'job.create':",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "explicit recipient ignored",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_explicit_recipient_refuses_other_principal"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if recipient is not None and recipient != str(scope.principal_id):",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "running job reclaimed automatically",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_concurrent_claim_has_one_winner"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[3] != 'pending' or row[4]:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "new attempt reuses previous fence",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "previous[0]+1",
+          "after": "previous[0]",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "expired completion accepted",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": " or not current[3]",
+          "after": "",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "self._accept_deadline()",
+          "after": "pass",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "holder and independent reviewer checks omitted",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_owner_worker_cannot_self_accept_or_rework"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if (current[2] == str(scope.principal_id)) == review:",
+          "after": "if False:",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "handoff completed without review",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_handoff_return_requires_independent_accept"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[1] == 'handoff':",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "canceled job eligible for retry",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_cancel_never_becomes_success_and_is_terminal"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[3] not in ('failed','unresolved') or row[4]:",
+          "after": "if False:",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "successful outcome mislabeled failed",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_complete_preserves_exact_result_and_is_immutable"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "return self._terminal(scope,row,attempt_id,'succeeded',body,'completed')",
+          "after": "return self._terminal(scope,row,attempt_id,'failed',body,'completed')",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "pagination descending rather than stable ascending",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_stable_bounded_pagination"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "ORDER BY id LIMIT %s",
+          "after": "ORDER BY id DESC LIMIT %s",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "claim holder receipt forged as creator",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_claim_binds_verified_principal_and_fence"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "attempt_number=number,fence=fence,holder=str(scope.principal_id))",
+          "after": "attempt_number=number,fence=fence,holder=str(UUID(self._metadata(scope,row)['creator'])))",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "fixture original bytes changed",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_fixture_request_hits_real_canonical_record_port"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"657861637400ff\"",
+          "after": "\"657861637401ff\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "eventless API acceptance asserted",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_external_ack_and_role_human_compatibility_remain_explicitly_held"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"canonical_event_ack_qualified\": false",
+          "after": "\"canonical_event_ack_qualified\": true",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "handoff bypass mapped to complete",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_legacy_method_aliases_are_retained_with_real_private_targets"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"C01-R055_put_complete_handoff\": \"accept\"",
+          "after": "\"C01-R055_put_complete_handoff\": \"complete\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "budget enforcement claimed",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_budget_fixture_hits_real_claim_without_enforcement"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"budget_status\": \"not_enforced\"",
+          "after": "\"budget_status\": \"enforced\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "fixture reader silently elevated to owner",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_read_key_cannot_mutate_and_cross_tenant_id_is_hidden"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "tests/core_db_fixture.py",
+          "before": "READ_A=auth_fixture.READ_A",
+          "after": "READ_A=auth_fixture.OWNER_A",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "final deadline acceptance omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_expiry_after_real_result_insert_refuses_and_rolls_back"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "self._accept_deadline()",
+          "after": "pass",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "fence validation before encoding omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_fence_types_refuse_before_encoding_in_every_worker_and_review_port"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if not isinstance(attempt_id,UUID) or type(fence) is not int or not 1 <= fence <= 2**63-1:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "unencodable request key admitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_surrogate_request_key_has_typed_refusal_without_partial_rows"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "key.encode('utf-8')",
+          "after": "pass",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "private record byte bound omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_record_body_over_private_limit_is_typed_and_atomic"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": " or len(body) > MAX_PAYLOAD_BYTES",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "private intent result byte bound omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_job_intent_and_all_result_paths_share_private_byte_bound"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": " or len(value) > MAX_PAYLOAD_BYTES",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    },
+    {
+      "label": "caller accepts exit-code-only faults",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_mutation_caller_refuses_operational_fixture_wrong_test_and_errors"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "scripts/mutate_core_adapters.py",
+          "before": "def mutation_status(result,expected):\n    return classify(result,expected)",
+          "after": "def mutation_status(result,expected):\n    return 'killed' if result.returncode else 'survived'",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "c06_composition": []
+    }
+  ],
+  "frozen_original_script": "mutate_core_adapters.py",
+  "frozen_original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd"
+}

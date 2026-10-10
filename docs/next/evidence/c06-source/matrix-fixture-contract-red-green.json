@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "command": [
+        "python3",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-outbox-20261010/docs/next/evidence/c06-source/verify-fixture-contract.py",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-outbox-20261010/docs/next/evidence/c06-source/pre-matrix-quarantine-fixture-original.py"
+      ],
+      "exit_code": 1,
+      "stdout": "{\"passed\": false, \"source_sha256\": \"4acdfc0338686301f79f399e827ccaa5b0cd3c81f80d43fe85987d0d25238032\", \"checks\": {\"test_raw_bound_job_write_without_parent_capture_refuses_commit\": {\"typed_sql_refusal\": true, \"fixed_code_asserted\": true}, \"test_reserved_alias_and_fact_names_cannot_be_forged_by_writer\": {\"typed_sql_refusal\": true, \"fixed_code_asserted\": true}, \"matrix_repair_fixture\": {\"all_assertions_preserved\": true, \"canonical_published_quarantine_target\": false}}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-outbox-20261010/docs/next/evidence/c06-source/verify-fixture-contract.py",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-outbox-20261010/next/tests/outbox/test_outbox.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"passed\": true, \"source_sha256\": \"352d30112cb10a6cb028dcdfb58c6685cf4ad308743d071faa1e15662d30e1bf\", \"checks\": {\"test_raw_bound_job_write_without_parent_capture_refuses_commit\": {\"typed_sql_refusal\": true, \"fixed_code_asserted\": true}, \"test_reserved_alias_and_fact_names_cannot_be_forged_by_writer\": {\"typed_sql_refusal\": true, \"fixed_code_asserted\": true}, \"matrix_repair_fixture\": {\"all_assertions_preserved\": true, \"canonical_published_quarantine_target\": true}}}\n",
+      "stderr": ""
+    }
+  ],
+  "product_import_test_build_on_host": false
+}

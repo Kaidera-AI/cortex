@@ -144,8 +144,11 @@ try:
         else:
             assert value.returncode==0 and not report['failures']
     if PHASE.startswith('mutation'):
-        for script,count in [('mutate_outbox.py',42),('mutate_identity.py',32),('mutate_core_adapters.py',30),('mutate_contracts.py',26),('mutate_test_receipts.py',8)]:
-            value=run(env+['python','/tmp/next/scripts/'+script],900)
+        matrices=[('mutate_outbox.py',[],42),('mutate_outbox.py',['--identity'],32),('mutate_outbox.py',['--adapters'],30),('mutate_contracts.py',[],26),('mutate_test_receipts.py',[],8)]
+        if 'repair' in PHASE:
+            matrices=[('mutate_outbox.py',['--repair'],3),('mutate_outbox.py',['--identity','--repair'],6),('mutate_outbox.py',['--adapters','--repair'],9)]
+        for script,arguments,count in matrices:
+            value=run(env+['python','/tmp/next/scripts/'+script,*arguments],900)
             rows=[json.loads(line) for line in value.stdout.splitlines() if line.startswith('{')]
             faults=[row for row in rows if 'status' in row]
             valid=value.returncode==0 and len(faults)==count and all(row['status']=='killed' for row in faults)
@@ -155,7 +158,7 @@ try:
                 valid=valid and row['expected_test'] in {r['id'].split(' (')[0] for r in receipt['failures']}
             summary=rows[-1] if rows else {}
             valid=valid and summary.get('mutants')==count and summary.get('killed')==count and not summary.get('survivors') and not summary.get('inconclusive')
-            if not valid:mutation_errors.append({'script':script,'exit_code':value.returncode,'faults':len(faults),'summary':{k:summary.get(k) for k in ('mutants','killed','survivors','inconclusive')}})
+            if not valid:mutation_errors.append({'script':script,'arguments':arguments,'exit_code':value.returncode,'faults':len(faults),'summary':{k:summary.get(k) for k in ('mutants','killed','survivors','inconclusive')}})
     hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
     restored=json.loads(hashes.stdout)
     expected={str(p.relative_to(WT/'next')):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}

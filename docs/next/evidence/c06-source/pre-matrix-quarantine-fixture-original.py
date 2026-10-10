@@ -274,8 +274,8 @@ class OutboxTests(Fixture):
         self.admin.execute("UPDATE coordination.snapshot_floors SET expires_at=clock_timestamp()-interval '1 second'");p.prune();self.assertEqual(self.count(),0)
 
     def test_unresolved_quarantine_is_not_silently_pruned(self):
-        p=self.port();self.create();event=p.publish()[0].envelope['event_id'];self.age()
-        self.admin.execute("INSERT INTO coordination.quarantine(tenant_id,project_id,event_id,module_id,error_code) VALUES(%s,%s,%s,'graph','poison')",(uid(2),uid(3),event))
+        p=self.port();r=self.create();p.publish();self.age()
+        self.admin.execute("INSERT INTO coordination.quarantine(tenant_id,project_id,event_id,module_id,error_code) VALUES(%s,%s,%s,'graph','poison')",(uid(2),uid(3),r.event_id))
         p.prune();self.assertEqual(self.count(),1)
         self.admin.execute('UPDATE coordination.quarantine SET resolved_at=clock_timestamp()');p.prune();self.assertEqual(self.count(),0)
 

@@ -111,13 +111,20 @@
           "before": "CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE aggregate uuid; head bigint; maximum bigint;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;\n    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox\n        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)\n          AND xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;\n    IF TG_TABLE_NAME='record_revisions' THEN\n        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))\n          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$$;",
           "after": "CREATE FUNCTION coordination.c06_record_integrity() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE aggregate uuid; head bigint; maximum bigint;\nBEGIN\n    RETURN NULL;\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    IF TG_TABLE_NAME='records' THEN aggregate:=NEW.id; ELSE aggregate:=NEW.record_id; END IF;\n    SELECT current_revision INTO STRICT head FROM core.records WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    SELECT max(revision) INTO maximum FROM core.record_revisions WHERE (tenant_id,project_id,record_id)=(NEW.tenant_id,NEW.project_id,aggregate);\n    IF head IS DISTINCT FROM maximum OR NOT EXISTS(SELECT 1 FROM coordination.outbox\n        WHERE (tenant_id,project_id,aggregate_id,aggregate_revision)=(NEW.tenant_id,NEW.project_id,aggregate,head)\n          AND xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'record head requires matching current event' USING ERRCODE='23514'; END IF;\n    IF TG_TABLE_NAME='record_revisions' THEN\n        IF NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n            WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,aggregate,NEW.revision-1))\n          THEN RAISE EXCEPTION 'history requires previous revision' USING ERRCODE='23514'; END IF;\n    END IF;\n    RETURN NULL;\nEND;\n$$;",
           "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE head record;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NEW; END IF;\n    SELECT current_revision,tombstone INTO STRICT head FROM core.records\n      WHERE (tenant_id,project_id,id)=(NEW.tenant_id,NEW.project_id,NEW.record_id) FOR UPDATE;\n    IF NEW.revision IS DISTINCT FROM head.current_revision OR NEW.tombstone IS DISTINCT FROM head.tombstone\n       OR (NEW.revision>1 AND NOT EXISTS(SELECT 1 FROM core.record_revisions\n           WHERE (tenant_id,project_id,record_id,revision)=(NEW.tenant_id,NEW.project_id,NEW.record_id,NEW.revision-1)))\n      THEN RAISE EXCEPTION 'history must match sequential authoritative head' USING ERRCODE='23514'; END IF;\n    RETURN NEW;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_revision_order() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE head record;\nBEGIN\n    RETURN NEW;\nEND;\n$$;",
+          "count": 1
         }
       ],
       "directory": "outbox_guards",
       "expected_tests": [
         "test_outbox_guards.OutboxGuards.test_history_without_matching_head_cannot_commit_extra_event"
       ],
-      "kind": "guard"
+      "kind": "guard",
+      "composition": "Both deferred coupling and new immediate order guard must be removed to expose an unheaded history fault."
     },
     {
       "label": "job capture accepts no actual business change",
@@ -541,13 +548,20 @@
           "before": "    return None\n",
           "after": "    return 'incorrectly_admitted_writer'\n",
           "count": 1
+        },
+        {
+          "path": "scripts/verify_writer_inventory.py",
+          "before": "return rules.get((owner,table,verb))",
+          "after": "return rules.get((owner,table,verb), 'incorrectly_admitted_writer')",
+          "count": 1
         }
       ],
       "directory": "outbox_inventory",
       "expected_tests": [
         "test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected"
       ],
-      "kind": "artifact"
+      "kind": "artifact",
+      "composition": "Unknown records writer reaches the records-specific category branch; bypass it along with original generic default."
     },
     {
       "label": "retention age starts at capture instead of publication",

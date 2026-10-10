@@ -40,22 +40,35 @@ def clean(result):
     return result['exit_code']==0 and result['receipt'] is not None and not result['receipt']['failures'] and not result['receipt']['errors']
 
 
-def run():
-    paths=sorted({edit['path'] for row in MUTATIONS for edit in row['changes']} | {MANIFEST,INVENTORY})
+MATRICES = {
+    'outbox': (RECIPES, DIRECTORIES),
+    'identity': (NEXT/'contracts/outbox-identity-fault-recipes.json', ('auth_identity','auth_identity_guards','identity_coordination','identity_portability','identity_receipts','identity_transition','identity_policy_faults','identity_binding')),
+    'adapters': (NEXT/'contracts/outbox-adapters-fault-recipes.json', ('records','coordination','core_adapters','acceptance_guards')),
+}
+
+
+def run(matrix='outbox', repair_only=False):
+    recipes_path,directories=MATRICES[matrix]
+    mutations=json.loads(recipes_path.read_bytes())['mutants']
+    if repair_only:
+        selection=json.loads((NEXT/'contracts/outbox-matrix-repair-selection.json').read_bytes())[matrix]
+        mutations=[row for row in mutations if row['label'] in selection]
+        assert len(mutations)==len(selection), 'repair selection must name exact failed faults'
+    paths=sorted({edit['path'] for row in mutations for edit in row['changes']} | {MANIFEST,INVENTORY})
     originals={name:(NEXT/name).read_bytes() for name in paths}
     hashes={name:hashlib.sha256(body).hexdigest() for name,body in originals.items()}
     # Validate every recipe before any fault. Missing anchors are operational failures.
-    for recipe in MUTATIONS:
+    for recipe in mutations:
         sources={name:body.decode() for name,body in originals.items()}
         for edit in recipe['changes']:
             assert sources[edit['path']].count(edit['before'])==edit['count'],(recipe['label'],edit['path'])
             sources[edit['path']]=sources[edit['path']].replace(edit['before'],edit['after'])
-    baseline={directory:capture(suite(NEXT/'tests'/directory)) for directory in DIRECTORIES}
-    print(json.dumps({'baseline':baseline,'recipes_sha256':hashlib.sha256(RECIPES.read_bytes()).hexdigest()}),flush=True)
+    baseline={directory:capture(suite(NEXT/'tests'/directory)) for directory in directories}
+    print(json.dumps({'baseline':baseline,'recipes_sha256':hashlib.sha256(recipes_path.read_bytes()).hexdigest()}),flush=True)
     if not all(clean(value) for value in baseline.values()):raise SystemExit('C06 baseline is RED')
     rows=[]
     try:
-        for recipe in MUTATIONS:
+        for recipe in mutations:
             checkpoint();changed=set()
             try:
                 for edit in recipe['changes']:
@@ -85,14 +98,15 @@ def run():
     finally:
         for name,body in originals.items():(NEXT/name).write_bytes(body)
     checkpoint()
-    restored={directory:capture(suite(NEXT/'tests'/directory)) for directory in DIRECTORIES}
+    restored={directory:capture(suite(NEXT/'tests'/directory)) for directory in directories}
     final={name:hashlib.sha256((NEXT/name).read_bytes()).hexdigest() for name in paths}
     summary=dict(mutants=len(rows),killed=sum(row['status']=='killed' for row in rows),
         survivors=[r['mutation'] for r in rows if r['status']=='survived'],
         inconclusive=[r['mutation'] for r in rows if r['status']=='inconclusive'],restored_source_sha256=final,restored=restored)
     print(json.dumps(summary),flush=True)
-    if len(rows)!=len(MUTATIONS) or any(row['status']!='killed' for row in rows):raise SystemExit('C06 mutation qualification incomplete')
+    if len(rows)!=len(mutations) or any(row['status']!='killed' for row in rows):raise SystemExit('C06 mutation qualification incomplete')
     if hashes!=final or not all(clean(value) for value in restored.values()):raise SystemExit('C06 source/baseline restoration failed')
 
 
-if __name__=='__main__':run()
+if __name__=='__main__':
+    run(next((key for key in MATRICES if '--'+key in sys.argv),'outbox'), repair_only='--repair' in sys.argv)

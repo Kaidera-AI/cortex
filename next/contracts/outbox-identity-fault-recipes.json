@@ -1,0 +1,669 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "registration and rotation replay redeliver plaintext",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_registration_replay_returns_no_plaintext_and_changed_request_refuses"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "None if raw['replayed'] else secret",
+          "after": "secret",
+          "count": 2
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "human registration silently becomes agent",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_fixed_human_registration_requires_owner_attestation"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "return self._registration('human', principal_id",
+          "after": "return self._registration('agent', principal_id",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "roles implicitly elevate permissions",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_owner_permission_never_infers_human_and_roles_never_infer_permission"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "roles = _roles(roles); permissions = _permissions(permissions)",
+          "after": "roles = _roles(roles); permissions = ('owner',)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "fresh identity generation hidden",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_role_change_increments_generation_and_lookup_is_fresh"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "tuple(row[4]), row[5]) if row else None",
+          "after": "tuple(row[4]), 0) if row else None",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "unreleased donor pin admitted",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_missing_or_unreleased_donor_pin_is_not_run_without_side_effects"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": " or pin.released is not True",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "approved adoption digest ignored",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_changed_manifest_duplicates_ambiguous_ids_and_human_conversion_refuse"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "if approved_sha256 != digest:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "donor hash and registration authority substituted",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_manifest_donor_and_scope_hashes_cannot_be_substituted"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "if manifest['donor'] != {'released_sha': pin.released_sha, 'source_sha256': pin.source_sha256} or manifest['legacy_registration_authority'] != _AUTHORITY:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "both final credential authority checks use initial snapshot",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_owner_expiry_after_actual_registration_rolls_back_before_plaintext_delivery"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "if not c.execute('SELECT auth.identity_binding_valid()').fetchone()[0]:",
+          "after": "if False:",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "after = _resolve(c, arguments)",
+          "after": "after = before",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_identity_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; target uuid;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    SELECT * INTO s FROM auth.identity_scope(true);\n    IF NOT FOUND THEN RAISE EXCEPTION 'identity_forbidden'; END IF;\n    IF TG_TABLE_NAME='principals' THEN target:=NEW.id; ELSE target:=NEW.principal_id; END IF;\n    IF TG_TABLE_NAME='project_grants' THEN\n        IF NEW.project_id<>s.project_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;\n    END IF;\n    IF NEW.tenant_id<>s.tenant_id OR NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n        ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n        WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(s.tenant_id,s.project_id,'cortex.core.identity',target::text)\n          AND o.xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'identity mutation requires captured event' USING ERRCODE='23514'; END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_identity_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; target uuid;\nBEGIN\n    RETURN NULL;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": [
+        "bypass the new deferred identity freshness guard, preserving the original authority fault"
+      ]
+    },
+    {
+      "label": "legacy lead role discarded",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_legacy_add_agent_maps_kind_and_role_but_tightens_lead_to_owner_admin"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "return self.register_agent(principal_id, name, (role,), permissions",
+          "after": "return self.register_agent(principal_id, name, ('ignored',), permissions",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "final private binding survival check omitted",
+      "directory": "identity_binding",
+      "expected_tests": [
+        "test_identity_binding.IdentityBinding.test_private_binding_loss_after_actual_registration_refuses_and_rolls_back"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/identity.py",
+          "before": "if not c.execute('SELECT auth.identity_binding_valid()').fetchone()[0]:",
+          "after": "if False:",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_identity_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; target uuid;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    SELECT * INTO s FROM auth.identity_scope(true);\n    IF NOT FOUND THEN RAISE EXCEPTION 'identity_forbidden'; END IF;\n    IF TG_TABLE_NAME='principals' THEN target:=NEW.id; ELSE target:=NEW.principal_id; END IF;\n    IF TG_TABLE_NAME='project_grants' THEN\n        IF NEW.project_id<>s.project_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;\n    END IF;\n    IF NEW.tenant_id<>s.tenant_id OR NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n        ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n        WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(s.tenant_id,s.project_id,'cortex.core.identity',target::text)\n          AND o.xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'identity mutation requires captured event' USING ERRCODE='23514'; END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_identity_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; target uuid;\nBEGIN\n    RETURN NULL;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": [
+        "bypass the new deferred identity freshness guard, preserving the original authority fault"
+      ]
+    },
+    {
+      "label": "private final binding function accepts missing context",
+      "directory": "identity_binding",
+      "expected_tests": [
+        "test_identity_binding.IdentityBinding.test_private_binding_loss_after_actual_adoption_refuses_and_rolls_back"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "SELECT EXISTS(SELECT 1 FROM auth.identity_scope(true));",
+          "after": "SELECT true;",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_identity_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; target uuid;\nBEGIN\n    IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;\n    SELECT * INTO s FROM auth.identity_scope(true);\n    IF NOT FOUND THEN RAISE EXCEPTION 'identity_forbidden'; END IF;\n    IF TG_TABLE_NAME='principals' THEN target:=NEW.id; ELSE target:=NEW.principal_id; END IF;\n    IF TG_TABLE_NAME='project_grants' THEN\n        IF NEW.project_id<>s.project_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;\n    END IF;\n    IF NEW.tenant_id<>s.tenant_id OR NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o\n        ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)\n        WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(s.tenant_id,s.project_id,'cortex.core.identity',target::text)\n          AND o.xmin::text=pg_current_xact_id()::text)\n      THEN RAISE EXCEPTION 'identity mutation requires captured event' USING ERRCODE='23514'; END IF;\n    RETURN NULL;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_identity_guard() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE s record; target uuid;\nBEGIN\n    RETURN NULL;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": [
+        "bypass the new deferred identity freshness guard, preserving the original authority fault"
+      ]
+    },
+    {
+      "label": "default collation replaces byte ordering",
+      "directory": "identity_portability",
+      "expected_tests": [
+        "test_identity_portability.IdentityPortability.test_python_role_order_is_valid_under_real_non_c_collation"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "p_roles COLLATE \"C\"=ARRAY(SELECT DISTINCT r COLLATE \"C\" FROM unnest(p_roles) r ORDER BY r COLLATE \"C\")",
+          "after": "p_roles=ARRAY(SELECT DISTINCT r FROM unnest(p_roles) r ORDER BY r)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "private coordination schema usage removed",
+      "directory": "auth_identity_guards",
+      "expected_tests": [
+        "test_identity_guards.IdentityGuards.test_actual_registration_commits_without_private_resource_privilege_failure"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "GRANT USAGE ON SCHEMA coordination TO \"kaidera-runtime-core-verifier\";",
+          "after": "",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "EXECUTE format('ALTER FUNCTION %s OWNER TO \"kaidera-runtime-core-verifier\"',f.signature);",
+          "after": "EXECUTE format('ALTER FUNCTION %s OWNER TO \"%s\"',f.signature,session_user);",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": [
+        "C06 trigger functions alone use the trusted installer owner in this fault so bootstrap seed reaches the original frozen runtime authority probe without a new-trigger setup error; original verifier still loses coordination USAGE"
+      ]
+    },
+    {
+      "label": "direct SQL adoption manifest digest ignored",
+      "directory": "auth_identity_guards",
+      "expected_tests": [
+        "test_identity_guards.IdentityGuards.test_sql_adoption_digest_binds_exact_manifest_bytes"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "OR p_manifest_sha IS DISTINCT FROM encode(sha256(convert_to(p_manifest,'UTF8')),'hex')",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "direct SQL adoption scope ignored",
+      "directory": "auth_identity_guards",
+      "expected_tests": [
+        "test_identity_guards.IdentityGuards.test_sql_adoption_rechecks_private_installation_and_project_scope"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "IF manifest->>'installation_id' IS DISTINCT FROM s.installation_id::text\n       OR manifest->>'project_id' IS DISTINCT FROM s.project_id::text THEN RAISE EXCEPTION 'identity_scope_mismatch'; END IF;",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "fixed agent SQL path attempts human registration",
+      "directory": "auth_identity_guards",
+      "expected_tests": [
+        "test_identity_guards.IdentityGuards.test_fixed_agent_path_ignores_caller_kind_context"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "auth.identity_register('agent',p_target",
+          "after": "auth.identity_register('human',p_target",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "duplicate project roles accepted",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_roles_are_normalized_bounded_and_sql_constraints_refuse_duplicates"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "SELECT DISTINCT r COLLATE \"C\" FROM unnest(p_roles)",
+          "after": "SELECT r COLLATE \"C\" FROM unnest(p_roles)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "PUBLIC function execution retained",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_private_lookup_mutators_view_and_public_acl_cannot_bypass_binding"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "REVOKE ALL ON FUNCTION %s FROM PUBLIC,%I",
+          "after": "REVOKE ALL ON FUNCTION %s FROM %I",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "unadopted principal has identity routing authority",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_unadopted_existing_principals_have_no_role_or_human_authority"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": "AND NOT p.disabled AND p.identity_adopted FOR SHARE OF p,g",
+          "after": "AND NOT p.disabled FOR SHARE OF p,g",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "project role membership leaks across projects",
+      "directory": "identity_coordination",
+      "expected_tests": [
+        "test_identity_coordination.IdentityCoordination.test_role_membership_does_not_cross_project_scope"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/auth/003-identity.sql",
+          "before": " AND g.project_id=s.project_id",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "identity entry no longer binds actual SQL",
+      "directory": "identity_receipts",
+      "expected_tests": [
+        "test_identity_receipts.IdentityReceipts.test_manifest_binds_exact_additive_identity_sql"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "schema/manifest.json",
+          "before": "\"id\": \"auth-0003\"",
+          "after": "\"id\": \"auth-0003-unbound\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "worker membership requirement omitted",
+      "directory": "identity_policy_faults",
+      "expected_tests": [
+        "test_identity_policy_faults.IdentityPolicyFaults.test_wrong_adopted_role_cannot_create_a_claim_or_attempt"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "elif role not in actor.roles:",
+          "after": "elif False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "human kind check omitted",
+      "directory": "identity_coordination",
+      "expected_tests": [
+        "test_identity_coordination.IdentityCoordination.test_human_review_uses_core_kind_not_owner_permissions_or_guc"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if actor.kind != 'human':",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "historical replay skips current identity policy",
+      "directory": "identity_coordination",
+      "expected_tests": [
+        "test_identity_coordination.IdentityCoordination.test_role_withdrawal_refuses_current_worker_and_historical_claim_replay"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if operation in ('job.claim'",
+          "after": "if saved is None and operation in ('job.claim'",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "persisted role and human policy silently discarded",
+      "directory": "identity_policy_faults",
+      "expected_tests": [
+        "test_identity_policy_faults.IdentityPolicyFaults.test_policy_persistence_retains_exact_role_and_human_flag"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "recipient_role=recipient_role,human_review=human_review)",
+          "after": "recipient_role=None,human_review=False)",
+          "count": 2
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "optional policy omitted from request digest",
+      "directory": "identity_coordination",
+      "expected_tests": [
+        "test_identity_coordination.IdentityCoordination.test_owner_policy_is_persisted_visible_and_bound_to_create_retry"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "arguments.append(dict(recipient_role=recipient_role,human_review=human_review))",
+          "after": "pass",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "human kind bypasses independent holder review",
+      "directory": "identity_coordination",
+      "expected_tests": [
+        "test_identity_coordination.IdentityCoordination.test_human_kind_never_bypasses_independent_review"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if (current[2] == str(scope.principal_id)) == review:",
+          "after": "if False:",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-outbox.sql",
+          "before": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    raw:=receipt->>'request_json'; request:=raw::jsonb;\n    IF raw IS NULL OR encode(sha256(convert_to(raw,'UTF8')),'hex') IS DISTINCT FROM request_sha\n       OR jsonb_typeof(request) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'receipt requires exact request contract' USING ERRCODE='23514'; END IF;\n    operation:=request->>0;\n    IF receipt ? 'record_id' THEN\n        IF receipt ? 'job_id' OR receipt ? 'type' OR jsonb_array_length(request)<>5\n           OR operation NOT IN ('put','delete') OR request->>1 IS DISTINCT FROM receipt->>'record_id'\n           OR (request->>4)::bigint IS DISTINCT FROM (event->>'aggregate_revision')::bigint-1\n           OR (receipt->>'tombstone')::boolean IS DISTINCT FROM (operation='delete')\n           OR event->>'aggregate_kind'='core' OR event->>'aggregate_kind' LIKE 'core.%'\n           OR (operation='put' AND (request->>2 IS DISTINCT FROM event->>'aggregate_kind'\n                                  OR request->>3 IS DISTINCT FROM event->>'payload_sha256'))\n           OR (operation='delete' AND (request->2 IS DISTINCT FROM 'null'::jsonb OR request->3 IS DISTINCT FROM 'null'::jsonb))\n          THEN RAISE EXCEPTION 'record receipt request mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    IF NOT receipt ? 'job_id' OR receipt ? 'record_id' OR jsonb_array_length(request)<>3\n       OR request->>1 IS DISTINCT FROM receipt->>'job_id' OR event->>'aggregate_kind' IS DISTINCT FROM 'core.job'\n       OR jsonb_typeof(request->2) IS DISTINCT FROM 'array'\n      THEN RAISE EXCEPTION 'job receipt request mismatch' USING ERRCODE='23514'; END IF;\n    arguments:=request->2;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT snapshot FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(event->>'payload_ref')::uuid);\n    attempt:=snapshot->'attempts'->-1;\n    SELECT convert_from(body,'UTF8')::jsonb INTO STRICT metadata FROM core.payloads\n      WHERE (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(snapshot->>'intent_payload_ref')::uuid);\n    IF operation='job.claim' THEN\n        IF receipt->>'type' IS DISTINCT FROM 'claim' OR snapshot->>'state' IS DISTINCT FROM 'running'\n           OR jsonb_array_length(arguments)<>1\n           OR receipt->>'attempt_id' IS DISTINCT FROM attempt->>'id'\n           OR receipt->'attempt_number' IS DISTINCT FROM attempt->'attempt_number'\n           OR receipt->'fence' IS DISTINCT FROM attempt->'fence'\n           OR receipt->>'holder' IS DISTINCT FROM attempt->>'worker_id'\n           OR receipt->>'holder' IS DISTINCT FROM actor::text\n           OR receipt->>'holder' IS DISTINCT FROM snapshot->'lease'->>'holder'\n           OR receipt->'fence' IS DISTINCT FROM snapshot->'lease'->'fence'\n           OR EXTRACT(epoch FROM (snapshot->'lease'->>'expires_at')::timestamptz-(attempt->>'started_at')::timestamptz) IS DISTINCT FROM (arguments->>0)::numeric\n          THEN RAISE EXCEPTION 'claim receipt snapshot mismatch' USING ERRCODE='23514'; END IF;\n        RETURN;\n    END IF;\n    expected_state:=CASE operation WHEN 'job.create' THEN 'pending' WHEN 'job.complete' THEN 'succeeded'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'unresolved' WHEN 'job.retry' THEN 'pending'\n      WHEN 'job.release' THEN 'unresolved' WHEN 'job.abandon' THEN 'canceled' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'running' WHEN 'job.accept' THEN 'succeeded' WHEN 'job.rework' THEN 'failed' END;\n    expected_reason:=CASE operation WHEN 'job.create' THEN 'created' WHEN 'job.complete' THEN 'completed'\n      WHEN 'job.cancel' THEN 'canceled' WHEN 'job.expire' THEN 'expired_unproven' WHEN 'job.retry' THEN 'explicit_retry'\n      WHEN 'job.release' THEN 'released_unproven' WHEN 'job.abandon' THEN 'abandoned' WHEN 'job.fail' THEN 'failed'\n      WHEN 'job.return' THEN 'returned' WHEN 'job.accept' THEN 'accepted' WHEN 'job.rework' THEN 'rework' END;\n    IF expected_state IS NULL OR receipt->>'type' IS DISTINCT FROM 'job'\n       OR receipt->>'state' IS DISTINCT FROM expected_state OR snapshot->>'state' IS DISTINCT FROM expected_state\n       OR receipt->>'reason' IS DISTINCT FROM expected_reason\n      THEN RAISE EXCEPTION 'job receipt state mismatch' USING ERRCODE='23514'; END IF;\n    IF operation='job.create' THEN\n        IF jsonb_array_length(arguments) NOT IN (3,4) OR arguments->>0 IS DISTINCT FROM snapshot->>'job_kind'\n           OR arguments->2 IS DISTINCT FROM metadata->'recipient' OR metadata->>'creator' IS DISTINCT FROM actor::text\n           OR jsonb_array_length(snapshot->'attempts')<>0\n           OR (jsonb_array_length(arguments)=4 AND arguments->3 IS DISTINCT FROM jsonb_build_object(\n                'recipient_role',metadata->'recipient_role','human_review',metadata->'human_review'))\n           OR (jsonb_array_length(arguments)=3 AND (metadata->'recipient_role' IS DISTINCT FROM 'null'::jsonb OR metadata->'human_review' IS DISTINCT FROM 'false'::jsonb))\n           OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->>'body_payload')::uuid) AND sha256=arguments->>1)\n          THEN RAISE EXCEPTION 'create receipt intent mismatch' USING ERRCODE='23514'; END IF;\n    ELSIF operation IN ('job.cancel','job.expire','job.retry') THEN\n        IF jsonb_array_length(arguments)<>0 THEN RAISE EXCEPTION 'job receipt argument mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.retry' AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snapshot->'results') r\n            WHERE r->>'attempt_id'=attempt->>'id' AND r->>'outcome' IN ('failed','unresolved'))\n          THEN RAISE EXCEPTION 'retry requires prior terminal result' USING ERRCODE='23514'; END IF;\n    ELSE\n        IF operation IN ('job.complete','job.release','job.abandon','job.fail','job.return') AND\n           (actor::text IS DISTINCT FROM attempt->>'worker_id' OR actor::text IS DISTINCT FROM snapshot->'lease'->>'holder')\n          THEN RAISE EXCEPTION 'worker receipt actor mismatch' USING ERRCODE='23514'; END IF;\n        IF operation IN ('job.accept','job.rework') AND actor::text=attempt->>'worker_id'\n          THEN RAISE EXCEPTION 'review receipt requires independent actor' USING ERRCODE='23514'; END IF;\n        IF jsonb_array_length(arguments) IS DISTINCT FROM (CASE WHEN operation IN ('job.accept','job.rework') THEN 2 ELSE 3 END)\n           OR arguments->>0 IS DISTINCT FROM attempt->>'id' OR arguments->1 IS DISTINCT FROM attempt->'fence'\n          THEN RAISE EXCEPTION 'job receipt attempt mismatch' USING ERRCODE='23514'; END IF;\n        IF operation='job.return' THEN\n            IF metadata->'review'->>'attempt' IS DISTINCT FROM arguments->>0\n               OR metadata->'review'->'fence' IS DISTINCT FROM arguments->1\n               OR metadata->'review'->>'holder' IS DISTINCT FROM actor::text\n               OR NOT EXISTS(SELECT 1 FROM core.payloads WHERE (tenant_id,project_id,id)=\n                    ((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(metadata->'review'->>'payload')::uuid) AND sha256=arguments->>2)\n              THEN RAISE EXCEPTION 'return receipt payload mismatch' USING ERRCODE='23514'; END IF;\n        ELSE\n            SELECT r INTO result FROM jsonb_array_elements(snapshot->'results') r\n              WHERE r->>'attempt_id'=arguments->>0 AND r->>'outcome'=expected_state;\n            IF result IS NULL OR (jsonb_array_length(arguments)=3 AND NOT EXISTS(SELECT 1 FROM core.payloads WHERE\n                (tenant_id,project_id,id)=((event->>'tenant_id')::uuid,(event->>'project_id')::uuid,(result->>'payload_ref')::uuid)\n                  AND sha256=arguments->>2))\n              THEN RAISE EXCEPTION 'terminal receipt result mismatch' USING ERRCODE='23514'; END IF;\n        END IF;\n    END IF;\nEND;\n$$;",
+          "after": "CREATE FUNCTION coordination.c06_validate_request(receipt jsonb,request_sha text,event jsonb,actor uuid)\nRETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$\nDECLARE raw text; request jsonb; operation text; arguments jsonb; snapshot jsonb;\n  attempt jsonb; result jsonb; metadata jsonb; expected_state text; expected_reason text;\nBEGIN\n    RETURN ;\nEND;\n$$;",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": [
+        "bypass new C06 request/effect validator so the unchanged predecessor BODY assertion sees the original fault"
+      ]
+    },
+    {
+      "label": "default policy changes published C05 digest",
+      "directory": "identity_transition",
+      "expected_tests": [
+        "test_identity_transition.IdentityTransition.test_policy_free_create_keeps_c05_request_digest_and_replay"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if recipient_role is not None or human_review:",
+          "after": "if True:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "roles asserted to grant permissions",
+      "directory": "identity_receipts",
+      "expected_tests": [
+        "test_identity_receipts.IdentityReceipts.test_identity_contract_keeps_authority_and_admission_boundaries"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/identity-conformance.json",
+          "before": "\"roles_imply_permissions\": false",
+          "after": "\"roles_imply_permissions\": true",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "real released adoption falsely qualified",
+      "directory": "identity_receipts",
+      "expected_tests": [
+        "test_identity_receipts.IdentityReceipts.test_identity_contract_keeps_authority_and_admission_boundaries"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/identity-conformance.json",
+          "before": "\"released_donor_adoption\": \"NOT_RUN_until_released_pin\"",
+          "after": "\"released_donor_adoption\": \"QUALIFIED\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "fixture read principal elevated to owner",
+      "directory": "auth_identity",
+      "expected_tests": [
+        "test_identity.IdentityTests.test_read_write_control_only_and_wrong_scope_cannot_register"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "tests/core_db_fixture.py",
+          "before": "READ_A=auth_fixture.READ_A",
+          "after": "READ_A=auth_fixture.OWNER_A",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    },
+    {
+      "label": "caller accepts nonzero exit without body attribution",
+      "directory": "identity_receipts",
+      "expected_tests": [
+        "test_identity_receipts.IdentityReceipts.test_caller_refuses_signals_fixtures_wrong_body_and_operational_errors"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "scripts/mutate_identity.py",
+          "before": "def mutation_status(result, expected):\n    return classify(result, expected)",
+          "after": "def mutation_status(result, expected):\n    return 'killed' if result.returncode else 'survived'",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_identity.py",
+      "original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "c06_composition": []
+    }
+  ],
+  "frozen_original_script": "mutate_identity.py",
+  "frozen_original_script_sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5"
+}
