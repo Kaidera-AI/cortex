@@ -1,0 +1,13 @@
+{
+  "receipt": "mutation-green-attempt-001.json",
+  "passed": false,
+  "mutants": 26,
+  "killed": 23,
+  "survivors": [],
+  "inconclusive": [
+    "delete stored as live revision",
+    "trailing newline accepted as kind",
+    "fixture writer silently elevated to owner"
+  ],
+  "disposition": "failed qualification retained unchanged; repair operational fault recipes without weakening tests; remove invalid broad writer-fixture recipe, retain real reader-fixture fault; add final acceptance/bound guards"
+}

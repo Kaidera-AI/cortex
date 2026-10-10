@@ -1,0 +1,6 @@
+{
+  "private_probe_sha256": "108406eccef1fa4418abce20db1ce0218ee4d93183ba7b467ab1832092fb7f53",
+  "private_cases": 5,
+  "expected_body_red": 4,
+  "original_review_sha256": "de9c49fe07f855cb693f4a19cb1178d8cc987b35af06b6580886a18b8d2e82f7"
+}

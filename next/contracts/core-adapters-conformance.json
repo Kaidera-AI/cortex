@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "source_scope": "private-core-c05",
+  "canonical_event_ack_qualified": false,
+  "role_human_handoff_qualified": false,
+  "held_gates": ["C04a-auth-0003", "C02-released-pins", "C06-capture", "C11-http"],
+  "record_case": {"body_hex": "657861637400ff", "kind": "memory", "expected_revision": 0, "request_key": "fixture-write"},
+  "record_write_operation": "C01-R102_post_write_memory",
+  "handoff_aliases": {
+    "C01-R044_post_create_handoff": "create",
+    "C01-R051_put_claim_handoff": "claim",
+    "C01-R052_post_claim_handoff": "claim",
+    "C01-R053_put_return_handoff": "return_result",
+    "C01-R054_post_return_handoff": "return_result",
+    "C01-R055_put_complete_handoff": "accept",
+    "C01-R056_post_complete_handoff": "accept",
+    "C01-R057_put_release_handoff": "release",
+    "C01-R058_post_release_handoff": "release",
+    "C01-R059_put_abandon_handoff": "abandon",
+    "C01-R060_post_abandon_handoff": "abandon",
+    "C01-R061_put_fail_handoff": "fail",
+    "C01-R062_post_fail_handoff": "fail",
+    "C01-R050_post_claim_handoff_with_budget": "claim_with_budget"
+  },
+  "release_semantics": "unresolved-unproven-core; exact legacy release held",
+  "budget_status": "not_enforced"
+}

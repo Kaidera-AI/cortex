@@ -1,0 +1,28 @@
+{
+  "kind": "replay_lock_source_integrity",
+  "tested_source_commit": "de6dce4a2f0ada34af6e21325293f73a998f9840",
+  "pinned_base": "0028cc418d7e2920763e1f48ba98d803fd5370b5",
+  "red_receipt_sha256": "589e2bae92cf56e78fd10a68d3bdbd1ea1c807fad84952e93e3b7abf1a0ce05d",
+  "green_receipt_sha256": "c605d6014e5613f528c228fb7252cd3b3939baa1f0bdd840cebc008d91c21e6f",
+  "mutant_receipt_sha256": "79b3521ac8d682a72f0f3b5f7f28b4edf396f4b5291eb670b46db2503cbf7f94",
+  "old_helper_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+  "new_helper_sha256": "1302f1c26547c6dbfc211552dcf4189d3711f538f2c62ec1ad792ccd340ce973",
+  "new_test_sha256": "6d6804807894460ac1822d6f567557997acfbb0df6afe5bc79f1050fa3b86310",
+  "four_frozen_tests": {
+    "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+    "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+    "test_controller_guards.py": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+    "test_final_inventory.py": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b"
+  },
+  "red": "22 tests, only expected lock-barrier BODY assertion failed; zero errors",
+  "green": "22 tests clean, including unchanged 21",
+  "mutant": "barrier omission killed at same expected BODY; 22 restored clean",
+  "native_cleanup": "exact-owned container absent; password discarded, lock released, no root dirty marker",
+  "limits": {
+    "cpus": 2,
+    "memory": "1g",
+    "ports": [],
+    "bind_mounts": []
+  },
+  "main_merge": "HELD; no producer reuse"
+}

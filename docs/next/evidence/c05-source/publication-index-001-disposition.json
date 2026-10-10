@@ -1,0 +1,10 @@
+{
+  "original_index_sha256": "08125e704d950fb1ee3c9429544455a5f933abbc8ba5c1074a90f5849ed668cd",
+  "status": "REWORK",
+  "finding": "Incorrect canonical plan custody pointer, detected by independent verifier",
+  "declared_missing_path": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c05-source/c05-implementation-plan.md",
+  "actual_canonical_path": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/C05_IMPLEMENTATION_PLAN.md",
+  "plan_bytes_match": true,
+  "runtime_or_bound_member_edits": false,
+  "repair": "append publication-index-002 with corrected pointer; retain index001 unchanged"
+}
