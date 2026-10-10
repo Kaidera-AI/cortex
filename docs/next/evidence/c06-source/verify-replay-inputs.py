@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-wt=Path(sys.argv[1]); checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':10,'outbox_retention':3,'outbox_inventory':3}
+wt=Path(sys.argv[1]); checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':10,'outbox_retention':4,'outbox_inventory':4}
 for directory,count in expected.items():
  files=list((wt/'next/tests'/directory).glob('test_*.py'))
  actual=sum(sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in ast.walk(ast.parse(p.read_text()))) for p in files)
