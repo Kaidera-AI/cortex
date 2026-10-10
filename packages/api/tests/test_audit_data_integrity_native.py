@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 import importlib.util
 import os
 from pathlib import Path
+import re
 import sys
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -20,11 +21,13 @@ import asyncpg
 import psycopg2
 from psycopg2 import sql as pgsql
 import pytest
+from starlette.requests import Request
 
 
 ROOT = Path(__file__).resolve().parents[3]
 API_ROOT = ROOT / "packages" / "api"
 MIGRATION = ROOT / "packages" / "schema" / "migrations" / "2026-07-29-01-archive-messages-shared-id-sequence.sql"
+SCHEMA = ROOT / "packages" / "schema" / "schema.sql"
 DSN = os.environ.get("CORTEX_AUDIT_PG_DSN", "")
 
 
@@ -44,15 +47,18 @@ def scratch_dsn():
     if not DSN:
         pytest.skip("CORTEX_AUDIT_PG_DSN must name a disposable loopback PostgreSQL")
     parsed = urlsplit(DSN)
-    if parsed.hostname not in {"127.0.0.1", "localhost"} or parsed.port in {5500, 8501, None}:
+    if parsed.query or parsed.fragment:
+        pytest.fail("audit DSN query parameters and fragments are forbidden before any connection")
+    if parsed.scheme not in {"postgresql", "postgres"} or parsed.hostname not in {"127.0.0.1", "localhost"} or parsed.port in {5500, 8501, None}:
         pytest.fail("audit DSN must use an explicit non-live loopback port")
+    admin_dsn = urlunsplit(parsed._replace(query="", fragment=""))
     name = "mike_audit_" + uuid4().hex
-    admin = psycopg2.connect(DSN)
+    admin = psycopg2.connect(admin_dsn)
     admin.autocommit = True
     try:
         with admin.cursor() as cur:
             cur.execute(pgsql.SQL("CREATE DATABASE {}").format(pgsql.Identifier(name)))
-        yield urlunsplit(parsed._replace(path="/" + name))
+        yield urlunsplit(parsed._replace(path="/" + name, query="", fragment=""))
     finally:
         with admin.cursor() as cur:
             cur.execute(pgsql.SQL("DROP DATABASE {} WITH (FORCE)").format(pgsql.Identifier(name)))
@@ -61,6 +67,21 @@ def scratch_dsn():
 
 def run(coro):
     return asyncio.run(coro)
+
+
+@pytest.mark.parametrize("override", ["host=example.com", "hostaddr=203.0.113.10", "port=5500"])
+def test_audit_dsn_rejects_libpq_target_overrides_before_connect(monkeypatch, override):
+    monkeypatch.setattr(sys.modules[__name__], "DSN", f"postgresql://postgres@127.0.0.1:37407/postgres?{override}")
+    calls = []
+
+    def forbidden_connect(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("audit fixture attempted to connect before rejecting a routing override")
+
+    monkeypatch.setattr(psycopg2, "connect", forbidden_connect)
+    with pytest.raises(pytest.fail.Exception, match="query parameters"):
+        next(scratch_dsn.__wrapped__())
+    assert calls == []
 
 
 def test_api1_001_retention_moves_child_before_parent(api, scratch_dsn):
@@ -189,25 +210,65 @@ def test_api4_004_transfer_reset_keeps_shared_sequence_above_archive(api, scratc
     run(case())
 
 
-def test_api4_005_transfer_accepts_child_before_parent_in_same_table(api, scratch_dsn):
+def test_api4_005_transfer_accepts_child_before_parent_in_same_table(api, scratch_dsn, monkeypatch):
     async def case():
         conn = await asyncpg.connect(scratch_dsn)
         try:
-            await conn.execute("CREATE TABLE handoffs(id uuid PRIMARY KEY, project text, reply_to_handoff_id uuid REFERENCES handoffs(id))")
+            await conn.execute("CREATE TABLE sprints(id uuid PRIMARY KEY)")
+            handoffs_ddl = re.search(
+                r"CREATE TABLE IF NOT EXISTS handoffs \(.*?\n\);",
+                SCHEMA.read_text(),
+                re.DOTALL,
+            )
+            assert handoffs_ddl is not None, "source handoffs schema is unavailable"
+            await conn.execute(handoffs_ddl.group())
+            await conn.execute("CREATE TABLE cortex_projects(id uuid PRIMARY KEY, project_key text UNIQUE, status text)")
+            target_project_id = uuid4()
+            await conn.execute("INSERT INTO cortex_projects VALUES($1,'audit','active')", target_project_id)
             deps = await api.project_transfer_dependencies(conn)
             assert (("public", "handoffs"), ("public", "handoffs")) in deps
-            order = api.project_transfer_order({("public", "handoffs")}, deps)
             child, parent = uuid4(), uuid4()
             rows = [
-                {"id": str(child), "project": "audit", "reply_to_handoff_id": str(parent)},
-                {"id": str(parent), "project": "audit", "reply_to_handoff_id": None},
+                {"id": str(child), "project": "source", "kind": "completion_handback", "from_agent": "worker", "to_role": "lead", "summary": "Child before parent", "reply_to_handoff_id": str(parent)},
+                {"id": str(parent), "project": "source", "kind": "task", "from_agent": "lead", "to_role": "worker", "summary": "Parent task", "reply_to_handoff_id": None},
             ]
-            async with conn.transaction():
-                for _table in order:
-                    for row in rows:
-                        statement = api.project_transfer_insert_sql("public", "handoffs", list(row))
-                        await conn.execute(statement, api.json.dumps(row))
-            assert await conn.fetchval("SELECT COUNT(*) FROM handoffs") == 2
+
+            class NativePool:
+                @asynccontextmanager
+                async def acquire(self):
+                    yield conn
+
+            monkeypatch.setattr(api, "pool_admin", NativePool())
+            monkeypatch.setattr(api, "ADMIN_TOKEN", "audit-test-only")
+            request = Request({
+                "type": "http", "method": "POST", "path": "/admin/projects/audit/import",
+                "headers": [(b"x-cortex-admin-token", b"audit-test-only")], "query_string": b"",
+            })
+            transfer = api.ProjectImportRequest(
+                format="kaidera.cortex-project.v1",
+                source_project={"project_key": "source", "project_id": str(uuid4())},
+                tables=[api.ProjectTransferTable(schema_name="public", table_name="handoffs", rows=rows)],
+            )
+            try:
+                result = await api.import_project("audit", transfer, request)
+            except asyncpg.ForeignKeyViolationError:
+                # A parent-first import through this same route must succeed;
+                # otherwise a broken fixture could masquerade as the RED proof.
+                assert await conn.fetchval("SELECT COUNT(*) FROM handoffs") == 0
+                control = api.ProjectImportRequest(
+                    format="kaidera.cortex-project.v1",
+                    source_project=transfer.source_project,
+                    tables=[api.ProjectTransferTable(schema_name="public", table_name="handoffs", rows=list(reversed(rows)))],
+                )
+                control_result = await api.import_project("audit", control, request)
+                assert control_result["inserted"] == 2
+                assert await conn.fetchval("SELECT reply_to_handoff_id FROM handoffs WHERE id=$1", child) == parent
+                raise
+            assert result["inserted"] == 2
+            imported = await conn.fetch("SELECT id, project, reply_to_handoff_id FROM handoffs ORDER BY id")
+            assert {row["id"] for row in imported} == {child, parent}
+            assert all(row["project"] == "audit" for row in imported)
+            assert next(row for row in imported if row["id"] == child)["reply_to_handoff_id"] == parent
         finally:
             await conn.close()
     run(case())
