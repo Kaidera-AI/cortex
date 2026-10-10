@@ -46,6 +46,9 @@ def checked(args,timeout=120):
     return result
 
 
+preflight=run([sys.executable,str(OUT/'verify-replay-inputs.py'),str(WT)])
+assert preflight.returncode==0, 'copied source/test/controller preflight failed before any resource creation'
+
 life=Lifecycle(ROOT,run)
 LABELS=life.labels()+['--label','slice=C06']
 TOOLS['shared/replay_lifecycle.py']=hashlib.sha256((SHARED/'replay_lifecycle.py').read_bytes()).hexdigest()
@@ -102,6 +105,14 @@ try:
     assert report['tests_run']==2 and not report['errors']
     if PHASE.startswith('outbox-red-caller'):
         assert value.returncode==1 and len(report['failures'])==2
+        assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
+    else:
+        assert value.returncode==0 and not report['failures']
+    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_guards'],300)
+    report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+    assert report['tests_run']==10 and not report['errors']
+    if PHASE.startswith('outbox-guards-red'):
+        assert value.returncode==1 and len(report['failures'])==10
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']

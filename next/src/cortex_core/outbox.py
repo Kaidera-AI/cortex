@@ -48,7 +48,14 @@ class Outbox:
     def _auth(self, action):
         try:
             with authorized(self.connection, self.credential, self.installation_id, self.project_id, action) as scope:
-                yield scope
+                try:
+                    yield scope
+                except psycopg.errors.RaiseException as error:
+                    code = {'outbox_expired': 'expired', 'outbox_invalid_input': 'invalid_input',
+                            'outbox_forbidden': 'forbidden'}.get(error.diag.message_primary)
+                    if code == 'forbidden':
+                        raise AuthError(code) from None
+                    raise OutboxError(code or 'core_unavailable') from None
         except AuthError as error:
             if error.code == 'core_unavailable':
                 raise OutboxError(error.code) from None

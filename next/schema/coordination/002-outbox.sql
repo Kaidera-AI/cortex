@@ -235,8 +235,8 @@ BEGIN
     IF NOT FOUND THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
     INSERT INTO coordination.feed_state(installation_id) VALUES(s.installation_id) ON CONFLICT DO NOTHING;
     SELECT * INTO STRICT state FROM coordination.feed_state WHERE installation_id=s.installation_id FOR UPDATE;
-    UPDATE coordination.consumer_checkpoints SET state='expired'
-      WHERE installation_id=s.installation_id AND expires_at<=clock_timestamp() AND state<>'expired';
+    UPDATE coordination.consumer_checkpoints AS consumer SET state='expired'
+      WHERE installation_id=s.installation_id AND expires_at<=clock_timestamp() AND consumer.state<>'expired';
     SELECT min(cursor) INTO snapshot FROM coordination.snapshot_floors
       WHERE installation_id=s.installation_id AND expires_at>clock_timestamp();
     floor_value:=state.retained_floor;
@@ -254,8 +254,8 @@ BEGIN
         floor_value:=item.cursor; removed:=removed+1;
     END LOOP;
     UPDATE coordination.feed_state SET retained_floor=floor_value WHERE installation_id=s.installation_id;
-    UPDATE coordination.consumer_checkpoints SET state='expired'
-      WHERE installation_id=s.installation_id AND applied_cursor<floor_value AND state<>'expired';
+    UPDATE coordination.consumer_checkpoints AS consumer SET state='expired'
+      WHERE installation_id=s.installation_id AND applied_cursor<floor_value AND consumer.state<>'expired';
     RETURN jsonb_build_object('removed',removed,'floor',floor_value,'head',state.last_published_cursor,'blocked',blocked);
 END;
 $$;

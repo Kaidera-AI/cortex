@@ -46,3 +46,7 @@ Before/after receipts must prove: actual mutation+outbox commit/rollback couplin
 ## Build amendment — frozen C05 receipt boundary
 
 Actual first PostgreSQL integration at `a969e0b57c96231fe9aeceddd824202ca5a4d791` retained one expected-boundary failure: the frozen C05 contract forbids an `event_id` field on its original `MutationReceipt`. Preserve that base dataclass and the held transport contract exactly; the C06 private port returns additive `EventMutationReceipt(MutationReceipt)` with its committed event ID. No predecessor test or admission claim changes. Receipt `outbox-green-attempt-001.json` remains failed with cleanup verified; this is an API representation adjustment within the accepted capture scope.
+
+## Build amendment — Kai ratification and fresh verifier regressions
+
+Kai ratified only the two newly frozen exception assertions at05:16 local; see fixture-freeze-amendment and original-frozen-outbox source. Artifact contract RED precedes correction; each corrected case requires an actual guard-removal mutant. Add10 separate unweakened raw-head/history, stale/no-effect job capture, lease reassignment, role receipt/replay and receipt-tamper/fabrication regressions before repairing their product gaps. Preserve the frozen predecessor226 cases. Retention error mapping is caught inside the C04 boundary; prune SQL column references are explicitly qualified. Concurrent floor/quarantine creation must share the publication row-lock protocol before pruning can qualify.
