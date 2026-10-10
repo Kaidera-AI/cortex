@@ -332,7 +332,8 @@ BEGIN
     IF TG_OP='UPDATE' THEN RAISE EXCEPTION 'mutation receipts are immutable' USING ERRCODE='23514'; END IF;
     SELECT * INTO s FROM auth.identity_scope(false);
     IF NOT FOUND OR (NEW.tenant_id,NEW.project_id,NEW.principal_id)<>(s.tenant_id,s.project_id,s.principal_id)
-       OR NEW.outcome<>'committed' THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;
+       THEN RAISE EXCEPTION 'receipt scope is forbidden' USING ERRCODE='42501'; END IF;
+    IF NEW.outcome<>'committed' THEN RETURN NEW; END IF;
     SELECT * INTO e FROM coordination.outbox WHERE (tenant_id,project_id,event_id)=
       (s.tenant_id,s.project_id,(NEW.receipt->>'event_id')::uuid) AND xmin::text=pg_current_xact_id()::text;
     IF NOT FOUND THEN RAISE EXCEPTION 'receipt requires captured mutation' USING ERRCODE='23514'; END IF;
