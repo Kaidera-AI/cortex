@@ -108,12 +108,22 @@ try:
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/c05_review'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run']==8 and not report['errors']
-    if PHASE.startswith('review-red'):
+    if PHASE.startswith(('review-red','private-red')):
         expected={'test_c05_review.ReviewCases.'+name for name in ('test_cancel_pending_after_failure_retry','test_cancel_pending_after_release_retry','test_cancel_pending_after_expiry_retry','test_cancel_pending_after_rework_retry','test_write_only_committed_create_replays_same_receipt','test_write_only_current_revision_update')}
         assert value.returncode==1 and {f['id'] for f in report['failures']}==expected
         assert all(f['phase']=='test' and f['is_assertion'] for f in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
+    if not PHASE.startswith('review-red'):
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/c05_private'],300)
+        report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
+        assert report['tests_run']==5 and not report['errors']
+        if PHASE.startswith('private-red'):
+            expected={'test_c05_private.PrivateCases.'+name for name in ('test_write_only_delete_replays_without_payload_read','test_private_replay_requires_private_bound_write_context','test_replay_is_exact_own_principal_and_request_key','test_direct_private_head_and_payload_enforce_current_cas')}
+            assert value.returncode==1 and {f['id'] for f in report['failures']}==expected
+            assert all(f['phase']=='test' and f['is_assertion'] for f in report['failures'])
+        else:
+            assert value.returncode==0 and not report['failures']
     hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
     restored=json.loads(hashes.stdout)
     expected={str(p.relative_to(WT/'next')):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
@@ -149,4 +159,4 @@ finally:
     if inventory_error:raise RuntimeError('final inventory unverified: '+inventory_error)
     assert gone,'C05 resource absence is unverified'
 
-assert passed, "C06 qualification failed; failed matrix and restoration retained"
+assert passed, "C05 qualification failed; failed matrix and restoration retained"
