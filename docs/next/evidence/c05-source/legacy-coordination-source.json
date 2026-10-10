@@ -1,0 +1,50 @@
+{
+  "source_sha": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "file": "packages/api/main.py",
+  "file_sha256": "baa7fad91a0796d1e7bb19067c199feeee7f7cfff7d70a222ec8fc8fc5243f1a",
+  "read_only_planning_source_not_released_runtime_acceptance": true,
+  "functions": [
+    {
+      "name": "claim_handoff_with_budget",
+      "line": 13831,
+      "end": 13947,
+      "sha256": "7146fa0587283baeb90d59855b563d9b41ff7cecd9700d1eda6cabc4082f9659"
+    },
+    {
+      "name": "claim_handoff",
+      "line": 13952,
+      "end": 14000,
+      "sha256": "04d15f3c9adde8534d738866a4a7585e3ebf7d885b6ffe8f266b9d4a308eb72b"
+    },
+    {
+      "name": "return_handoff",
+      "line": 14061,
+      "end": 14549,
+      "sha256": "6f6d812244f4332efba4ca16bf481ae8e9088cf0dec3f9f593989336fc5a7b70"
+    },
+    {
+      "name": "complete_handoff",
+      "line": 14554,
+      "end": 14625,
+      "sha256": "25da6a676dc008b8feaa2a44d33cf230ec8caa6e590a5c86c984d5a06056ebbc"
+    },
+    {
+      "name": "release_handoff",
+      "line": 14651,
+      "end": 14719,
+      "sha256": "205d99e51d147769b559ac0215c0c38c4703a9a849ccc7e87c7df66860ddecb5"
+    },
+    {
+      "name": "abandon_handoff",
+      "line": 14724,
+      "end": 14794,
+      "sha256": "852f57936cc3a6fd5cfb96581594f0a02295cec7c2736bcb503e10f55fbe9f99"
+    },
+    {
+      "name": "fail_handoff",
+      "line": 14799,
+      "end": 14869,
+      "sha256": "1fb55e979bba52b84424babfc057f5ad692a5fcb3ad2dff363932bf3768601ae"
+    }
+  ]
+}
