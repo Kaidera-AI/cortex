@@ -236,3 +236,50 @@ class OutboxGuards(Fixture):
                 self.request.execute('UPDATE core.records SET current_revision=2 WHERE id=%s',(uid(50),))
                 self.request.execute('INSERT INTO core.record_revisions VALUES(%s,%s,%s,2,%s,true)',(uid(2),uid(3),uid(50),payload))
         self.assertEqual((self.records().get(UUID(uid(50))).revision,self.count()),(1,1))
+
+    def test_authentic_completed_fact_cannot_ack_a_foreign_workers_completion(self):
+        issued=self.identity().register_agent(UUID(uid(70)),'worker',('worker',),('read','write'),request_key='register')
+        worker=self.jobs(issued.secret);self.jobs().create(UUID(uid(60)),'work',b'intent','create')
+        claim=worker.claim(UUID(uid(60)),'claim');worker.complete(claim.job_id,claim.attempt_id,claim.fence,b'result','complete');rejected=False
+        contract=json.dumps(['job.complete',uid(60),[str(claim.attempt_id),claim.fence,hashlib.sha256(b'result').hexdigest()]],separators=(',',':'))
+        try:
+            with self.write():
+                self.request.execute('UPDATE coordination.jobs SET state=state WHERE id=%s',(uid(60),))
+                event=self.request.execute('SELECT coordination.capture_job(%s)',(uid(60),)).fetchone()[0]
+                receipt=dict(type='job',job_id=uid(60),state='succeeded',reason='completed',event_id=str(event),request_json=contract)
+                self.request.execute("INSERT INTO coordination.idempotency VALUES(%s,%s,%s,'forged',%s,'committed',%s)",(uid(2),uid(3),uid(10),hashlib.sha256(contract.encode()).hexdigest(),Jsonb(receipt)))
+        except AuthError:
+            rejected=True
+        observed=None if rejected else self.jobs(WRITE_A).complete(claim.job_id,claim.attempt_id,claim.fence,b'result','forged').state
+        self.assertTrue(rejected,'foreign worker completion replay='+str(observed));self.assertEqual(self.count(),4)
+
+    def test_authentic_reviewed_fact_cannot_ack_a_workers_self_acceptance(self):
+        issued=self.identity().register_agent(UUID(uid(70)),'reviewer',('reviewer',),('owner',),request_key='register')
+        self.jobs().create(UUID(uid(60)),'handoff',b'intent','create');claim=self.jobs().claim(UUID(uid(60)),'claim')
+        self.jobs().return_result(claim.job_id,claim.attempt_id,claim.fence,b'returned','return')
+        self.jobs(issued.secret).accept(claim.job_id,claim.attempt_id,claim.fence,'accept');rejected=False
+        contract=json.dumps(['job.accept',uid(60),[str(claim.attempt_id),claim.fence]],separators=(',',':'))
+        try:
+            with authorized(self.request,OWNER_A,UUID(uid(1)),UUID(uid(3)),'write'):
+                self.request.execute('UPDATE coordination.jobs SET state=state WHERE id=%s',(uid(60),))
+                event=self.request.execute('SELECT coordination.capture_job(%s)',(uid(60),)).fetchone()[0]
+                receipt=dict(type='job',job_id=uid(60),state='succeeded',reason='accepted',event_id=str(event),request_json=contract)
+                self.request.execute("INSERT INTO coordination.idempotency VALUES(%s,%s,%s,'forged',%s,'committed',%s)",(uid(2),uid(3),uid(12),hashlib.sha256(contract.encode()).hexdigest(),Jsonb(receipt)))
+        except AuthError:
+            rejected=True
+        observed=None if rejected else self.jobs().accept(claim.job_id,claim.attempt_id,claim.fence,'forged').state
+        self.assertTrue(rejected,'self acceptance replay='+str(observed));self.assertEqual(self.count(),5)
+
+    def test_authentic_sixty_second_claim_cannot_ack_an_hour_lease(self):
+        self.jobs().create(UUID(uid(60)),'work',b'intent','create');claim=self.jobs(WRITE_A).claim(UUID(uid(60)),'claim',ttl_seconds=60);rejected=False
+        contract=json.dumps(['job.claim',uid(60),[3600]],separators=(',',':'))
+        try:
+            with self.write():
+                self.request.execute('UPDATE coordination.jobs SET state=state WHERE id=%s',(uid(60),))
+                event=self.request.execute('SELECT coordination.capture_job(%s)',(uid(60),)).fetchone()[0]
+                receipt=dict(type='claim',job_id=uid(60),attempt_id=str(claim.attempt_id),attempt_number=claim.attempt_number,fence=claim.fence,holder=str(claim.holder),event_id=str(event),request_json=contract)
+                self.request.execute("INSERT INTO coordination.idempotency VALUES(%s,%s,%s,'forged',%s,'committed',%s)",(uid(2),uid(3),uid(10),hashlib.sha256(contract.encode()).hexdigest(),Jsonb(receipt)))
+        except AuthError:
+            rejected=True
+        observed=None if rejected else self.jobs(WRITE_A).claim(UUID(uid(60)),'forged',ttl_seconds=3600)
+        self.assertTrue(rejected,'hour claim replayed against actual sixty-second lease: '+str(observed));self.assertEqual(self.count(),2)

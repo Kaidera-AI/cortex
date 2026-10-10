@@ -64,3 +64,7 @@ Final receipt probes also bind event kind to its port and reject mixed record/cl
 The immediate history check also binds its tombstone flag to the authoritative record head. Add one explicit mismatched-head/history tombstone RED before this repair; an event cannot acknowledge a delete while its Core head remains live.
 
 The tombstone/head probe was already GREEN under the existing C01 composite foreign key (core001:66–67). Preserve it as positive predecessor-invariant coverage, not a new gap or RED claim. Attempt003 is honestly failed solely because the controller expected an extra RED that did not exist; qualified002 proves the twelve actual gaps. No assertion was changed.
+
+## Build amendment: exact actor and claim duration
+
+The repaired request proof still needs worker equality for terminal/return ACKs and worker inequality for independent review, plus requested claim TTL equal to the captured grant duration. Add three authentic-event RED probes first. Persist attempt.started_at as the actual lease grant time (expires_at minus requested TTL) in the existing row, then validate its immutable timestamp/lease pair; no new table or port is introduced. Keep old request hashing, policy/fence predicates and predecessor fixtures unchanged.
