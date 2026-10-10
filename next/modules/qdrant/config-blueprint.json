@@ -1,0 +1,12 @@
+{
+  "profile": "INERT_BLUEPRINT_ONLY",
+  "assigned_private_interface": "OPERATOR_REQUIRED",
+  "http_port": 6333,
+  "grpc_port": null,
+  "host_network": false,
+  "published_ports": [],
+  "network": "internal",
+  "credential_refs_only": true,
+  "module_binding": "UNBOUND",
+  "no_runtime_actions": true
+}
