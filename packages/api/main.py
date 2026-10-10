@@ -3521,6 +3521,89 @@ async def schema_migration_plan(
     }
 
 
+def _sql_transaction_scan_text(sql: str) -> str:
+    """Blank literal/comment content while preserving scan boundaries and lines.
+
+    Transaction-control words inside function bodies are not SQL statements.
+    Keep the existing safety pattern unchanged and expose the remaining text.
+    """
+    text = str(sql)
+    output = list(text)
+    length = len(text)
+    index = 0
+
+    def identifier_char(char: str) -> bool:
+        return char.isalnum() or char in "_$"
+
+    def blank(start: int, end: int) -> None:
+        for position in range(start, end):
+            if text[position] not in "\r\n":
+                output[position] = " "
+
+    while index < length:
+        if text.startswith("--", index) or text.startswith("/*", index):
+            if text.startswith("--", index):
+                end = text.find("\n", index + 2)
+                end = length if end < 0 else end
+            else:
+                end, depth = index + 2, 1
+                while end < length and depth:
+                    if text.startswith("/*", end):
+                        depth += 1
+                        end += 2
+                    elif text.startswith("*/", end):
+                        depth -= 1
+                        end += 2
+                    else:
+                        end += 1
+            blank(index, end)
+            index = end
+            continue
+        if text[index] == "'":
+            escaped = (index > 0 and text[index - 1] in "Ee"
+                       and (index < 2 or not identifier_char(text[index - 2])))
+            end = index + 1
+            while end < length:
+                if escaped and text[end] == "\\":
+                    end = min(end + 2, length)
+                elif text[end] == "'":
+                    end += 1
+                    if end < length and text[end] == "'":
+                        end += 1
+                    else:
+                        break
+                else:
+                    end += 1
+            blank(index, end)
+            index = end
+            continue
+        if text[index] == "$" and (index == 0 or not identifier_char(text[index - 1])):
+            delimiter = re.match(r"\$(?:[^\W\d]\w*)?\$", text[index:])
+            if delimiter:
+                tag = delimiter.group(0)
+                closing = text.find(tag, index + len(tag))
+                end = length if closing < 0 else closing + len(tag)
+                blank(index, end)
+                index = end
+                continue
+        if text[index] == '"':
+            # Preserve identifiers; their internal quote/comment characters
+            # must not start a different lexical context.
+            index += 1
+            while index < length:
+                if text[index] == '"':
+                    index += 1
+                    if index < length and text[index] == '"':
+                        index += 1
+                    else:
+                        break
+                else:
+                    index += 1
+            continue
+        index += 1
+    return "".join(output)
+
+
 async def apply_schema_migrations(
     conn: asyncpg.Connection,
     *,
@@ -3569,7 +3652,9 @@ async def apply_schema_migrations(
     nontransactional = {
         item["id"]
         for item in pending
-        if nontransactional_pattern.search(str(files_by_id[item["id"]]["sql"]))
+        if nontransactional_pattern.search(
+            _sql_transaction_scan_text(str(files_by_id[item["id"]]["sql"]))
+        )
     }
     blocked = [
         item["id"]
