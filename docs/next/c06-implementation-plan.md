@@ -50,3 +50,13 @@ Actual first PostgreSQL integration at `a969e0b57c96231fe9aeceddd824202ca5a4d791
 ## Build amendment — Kai ratification and fresh verifier regressions
 
 Kai ratified only the two newly frozen exception assertions at05:16 local; see fixture-freeze-amendment and original-frozen-outbox source. Artifact contract RED precedes correction; each corrected case requires an actual guard-removal mutant. Add10 separate unweakened raw-head/history, stale/no-effect job capture, lease reassignment, role receipt/replay and receipt-tamper/fabrication regressions before repairing their product gaps. Preserve the frozen predecessor226 cases. Retention error mapping is caught inside the C04 boundary; prune SQL column references are explicitly qualified. Concurrent floor/quarantine creation must share the publication row-lock protocol before pruning can qualify.
+
+## Build amendment: final independent source audit
+
+Add five unweakened RED-first probes before repairing remaining capture/receipt/inventory gaps: reverse insertion of history3 then2 in one transaction must roll back; authentic current pending/running job events cannot authorize forged completion state or Claim attempt/fence/holder receipts; quoted qualified and search-path unqualified executable writers must fail inventory admission. Enforce immediate history sequencing, validate job receipt facts against the captured snapshot, and conservatively reject unsupported writer forms. Preserve all predecessor fixtures and all failed receipts; extend the final semantic matrix with guard-removal faults. This stays within accepted canonical capture, durable ACK integrity and fail-capable inventory scope.
+
+The same audit also requires immutable job/attempt authoritative parent keys and request semantics bound to durable receipt ACKs. Add four further RED cases: job-ID relocation, attempt reparenting, authentic upsert falsely replayed as delete and authentic pending creation falsely replayed as retry. Store the exact canonical request JSON with its unchanged request digest, validate record/job request semantics against actual captured facts, and reject mismatched replay contracts before ACK. This extends existing receipt integrity proof, without changing frozen predecessor fixtures or C05 public receipt types.
+
+Add one retained-state RED: an expired consumer cannot advance or reactivate its checkpoint before explicit rebuild. C07 apply/checkpoint remains held; C06 protection guard enforces its own existing expiry contract under the installation lock.
+
+Final receipt probes also bind event kind to its port and reject mixed record/claim shapes. Every forged contract carries valid exact request JSON, so mere presence checks cannot satisfy semantic fault qualification.

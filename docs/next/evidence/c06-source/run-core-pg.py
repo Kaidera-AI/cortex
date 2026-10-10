@@ -110,17 +110,29 @@ try:
         assert value.returncode==0 and not report['failures']
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/outbox_guards'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==10 and not report['errors']
-    if PHASE.startswith('outbox-guards-red'):
+    assert report['tests_run']==19 and not report['errors']
+    if PHASE.startswith('outbox-final-review-red'):
+        assert value.returncode==1 and len(report['failures'])==9
+        assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+        assert {r['id'].split(' (')[0] for r in report['failures']}=={'test_reverse_history_insertion_refuses_revision_reordering','test_authentic_pending_event_cannot_forge_successful_completion_receipt','test_authentic_running_event_cannot_forge_claim_attempt_fence_or_holder','test_authentic_upsert_receipt_cannot_ack_a_future_delete','test_authentic_pending_receipt_cannot_ack_a_future_retry','test_job_authoritative_id_cannot_be_relocated_without_old_parent_event','test_attempt_cannot_be_reparented_without_old_job_event','test_job_fact_cannot_be_replayed_as_ordinary_memory_put','test_mixed_record_and_claim_receipt_cannot_bypass_job_contract'}
+    elif PHASE.startswith('outbox-guards-red'):
         assert value.returncode==1 and len(report['failures'])==10
         assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
     else:
         assert value.returncode==0 and not report['failures']
-    for directory,count in [('outbox_retention',3),('outbox_inventory',4),('outbox_late_publication',1)]:
+    for directory,count in [('outbox_retention',4),('outbox_inventory',6),('outbox_late_publication',1)]:
         value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/'+directory],300)
         report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
         assert report['tests_run']==count and not report['errors']
-        if PHASE.startswith('outbox-protocol-red'):
+        if PHASE.startswith('outbox-final-review-red') and directory=='outbox_retention':
+            assert value.returncode==1 and len(report['failures'])==1
+            assert report['failures'][0]['id'].startswith('test_expired_checkpoint_cannot_advance_or_reactivate_completeness')
+            assert report['failures'][0]['phase']=='test' and report['failures'][0]['is_assertion']
+        elif PHASE.startswith('outbox-final-review-red') and directory=='outbox_inventory':
+            assert value.returncode==1 and len(report['failures'])==2
+            assert all(r['phase']=='test' and r['is_assertion'] for r in report['failures'])
+            assert {r['id'].split(' (')[0] for r in report['failures']}=={'test_quoted_qualified_writer_is_rejected','test_unqualified_writer_with_search_path_is_rejected'}
+        elif PHASE.startswith('outbox-protocol-red'):
             assert value.returncode==1 and len(report['failures'])==count
             assert all(row['phase']=='test' and row['is_assertion'] for row in report['failures'])
         else:
