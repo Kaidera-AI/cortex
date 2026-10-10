@@ -175,7 +175,7 @@ def build_manifest(base_dir, archive_dir, archive_end_lsn, metadata, *, segment_
         "segment_bytes": segment_bytes,
         "backup_start_lsn": start_text, "backup_end_lsn": end_text,
         "archive_end_lsn": archive_end_lsn,
-        "metadata": metadata,
+        "metadata": json.loads(canonical_metadata),
         "metadata_sha256": hashlib.sha256(canonical_metadata).hexdigest(),
         "base_files": base_files, "wal_segments": segments,
     }
