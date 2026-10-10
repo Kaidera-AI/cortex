@@ -175,3 +175,25 @@ class ReportTests(unittest.TestCase):
             self.assertTrue(receipt["cleanup_verified"])
             self.assertTrue(receipt["credential_discarded"])
             self.assertTrue(receipt["lock_released"])
+
+
+    def test_mutation_custody_resolves_alias_and_rejects_foreign_source(self):
+        import importlib.util
+        import tempfile
+        path = Path(__file__).with_name("mutate_b02.py")
+        spec = importlib.util.spec_from_file_location("b02_mutation_fixture", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(hasattr(module, "source_custody"), "canonical path custody helper missing")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            owned = root / "owned"
+            owned.mkdir()
+            source = owned / "load.py"
+            source.write_text("fixture")
+            alias = root / "alias"
+            alias.symlink_to(owned, target_is_directory=True)
+            rows = {"load.py": {"path": str(source.resolve()), "sha256": "hash"}}
+            self.assertTrue(module.source_custody(rows, {"load.py": "hash"}, alias))
+            self.assertFalse(module.source_custody(rows, {"load.py": "different"}, alias))
+            self.assertFalse(module.source_custody(rows, {"load.py": "hash"}, root / "foreign"))
