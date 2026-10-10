@@ -2564,9 +2564,9 @@
       "canonical_source": "product Git at tested 6e8d22de80dbb994d049034a355b49aa5959a897"
     },
     "docs/next/evidence/c06-source/test_publication_verifier.py": {
-      "sha256": "338ef0553867312cb305e856ec770badfb2b92fc46368b64a95242ac288e184f",
-      "bytes": 1963,
-      "canonical_source": "product Git at tested 6e8d22de80dbb994d049034a355b49aa5959a897"
+      "sha256": "c1e14075b7e6daca4484e75f784a159c9a48d8e985bca8c03b6e9b9d04fbcee2",
+      "bytes": 2528,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/test_publication_verifier.py"
     },
     "docs/next/evidence/c06-source/test_replay_inputs.py": {
       "sha256": "ae211107bddcfaec1d8fb016bd46ff8d49bf6c5d6c53f0265f08d09dc503a253",
