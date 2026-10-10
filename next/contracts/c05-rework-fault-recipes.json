@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "pending cancel uses a previous immutable attempt",
+      "directory": "c05_review",
+      "expected_tests": [
+        "test_c05_review.ReviewCases.test_cancel_pending_after_failure_retry"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[3] == 'pending':",
+          "after": "if False:",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "private replay replaced with public read",
+      "directory": "c05_review",
+      "expected_tests": [
+        "test_c05_review.ReviewCases.test_write_only_committed_create_replays_same_receipt"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "row = _private(connection,'SELECT * FROM coordination.c05_request(%s,%s)',(key,digest)).fetchone()",
+          "after": "row = connection.execute('SELECT request_sha256,outcome,receipt FROM coordination.idempotency WHERE tenant_id=%s AND project_id=%s AND principal_id=%s AND request_key=%s',(*_scope(scope),scope.principal_id,key)).fetchone()",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "private current head replaced with public read",
+      "directory": "c05_review",
+      "expected_tests": [
+        "test_c05_review.ReviewCases.test_write_only_current_revision_update"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "row = _private(self.connection,'SELECT * FROM coordination.c05_record_head(%s,%s,%s,%s)',\n                    (record_id,operation,kind,expected)).fetchone()",
+          "after": "row = self.connection.execute('SELECT kind,current_revision FROM core.records WHERE tenant_id=%s AND project_id=%s AND id=%s FOR UPDATE',(*_scope(scope),record_id)).fetchone()",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "private transaction binding ignored",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_private_replay_requires_private_bound_write_context"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "OR NOT auth.context_is_bound(current_setting('cortex.credential_digest',true),\n            NULLIF(current_setting('cortex.installation_id',true),'')::uuid,\n            NULLIF(current_setting('cortex.project_id',true),'')::uuid,'write')",
+          "after": "OR false",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "private replay principal restriction removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_replay_is_exact_own_principal_and_request_key"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "i.principal_id=scope.principal_id",
+          "after": "true",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "private replay request key restriction removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_replay_is_exact_own_principal_and_request_key"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "i.request_key=p_key",
+          "after": "true",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "private replay exact digest decision removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_replay_is_exact_own_principal_and_request_key"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "saved.request_sha256 IS DISTINCT FROM p_digest",
+          "after": "false",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "direct header CAS comparison removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_direct_private_head_and_payload_enforce_current_cas"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "OR head.current_revision<>p_expected OR p_expected<1 OR p_expected>=9223372036854775807",
+          "after": "OR false OR p_expected<1 OR p_expected>=9223372036854775807",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "direct header next revision comparison removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_direct_private_head_and_payload_enforce_current_cas"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "OR p_revision<>p_expected+1",
+          "after": "OR false",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "delete reference CAS removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_direct_private_head_and_payload_enforce_current_cas"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "OR head.current_revision<>p_expected OR p_expected<1",
+          "after": "",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "v.record_id=p_record AND v.revision=p_expected",
+          "after": "v.record_id=p_record AND v.revision=head.current_revision",
+          "count": 1
+        }
+      ],
+      "original_change_count": 1
+    },
+    {
+      "label": "private action guard removed",
+      "directory": "c05_private",
+      "expected_tests": [
+        "test_c05_private.PrivateCases.test_private_replay_requires_private_bound_write_context"
+      ],
+      "kind": "c05_private_guard_removal",
+      "changes": [
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "IF current_setting('cortex.action',true) IS DISTINCT FROM 'write'",
+          "after": "IF false",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "NULLIF(current_setting('cortex.project_id',true),'')::uuid,'write') THEN",
+          "after": "NULLIF(current_setting('cortex.project_id',true),'')::uuid,current_setting('cortex.action',true)) THEN",
+          "count": 1
+        }
+      ],
+      "original_change_count": 1
+    }
+  ]
+}

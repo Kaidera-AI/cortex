@@ -124,6 +124,9 @@ try:
             assert all(f['phase']=='test' and f['is_assertion'] for f in report['failures'])
         else:
             assert value.returncode==0 and not report['failures']
+    if PHASE.startswith('mutation'):
+        for script,args in [('mutate_c05_rework.py',['--adapters']),('mutate_c05_rework.py',[]),('mutate_contracts.py',[]),('mutate_test_receipts.py',[])]:
+            checked(env+['python','/tmp/next/scripts/'+script]+args,1200)
     hashes=checked(env+['python','-c',"from pathlib import Path;import hashlib,json;root=Path('/tmp/next');print(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}))"])
     restored=json.loads(hashes.stdout)
     expected={str(p.relative_to(WT/'next')):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}

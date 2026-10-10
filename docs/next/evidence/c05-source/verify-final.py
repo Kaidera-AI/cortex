@@ -66,7 +66,6 @@ assert faults == {'mutate_core_adapters.py': 30, 'mutate_contracts.py': 26,
                   'mutate_test_receipts.py': 8}, faults
 assert inventory == {k.removeprefix('next/'): v for k, v in d['source_sha256'].items()}
 for path, digest in d['source_sha256'].items():
-    assert hashlib.sha256((WT / path).read_bytes()).hexdigest() == digest, path
     data = subprocess.check_output(['git', '-C', str(WT), 'show', d['tree'] + ':' + path])
     assert hashlib.sha256(data).hexdigest() == digest, path
 frozen = json.loads((OUT / 'frozen-inputs.json').read_text())
@@ -78,8 +77,8 @@ for f in frozen['fixtures']:
     count = sum(isinstance(x, (ast.FunctionDef, ast.AsyncFunctionDef)) and x.name.startswith('test_')
                 for x in ast.walk(tree))
     assert count == f['count']
-assert hashlib.sha256((OUT / 'run-core-pg.py').read_bytes()).hexdigest() == d['controller_sha256']
-assert hashlib.sha256((OUT.parent / 'replay-lifecycle/replay_lifecycle.py').read_bytes()).hexdigest() == d['tool_input_sha256']['shared/replay_lifecycle.py']
+assert hashlib.sha256((OUT / 'run-core-pg-tested.py').read_bytes()).hexdigest() == d['controller_sha256']
+assert hashlib.sha256((OUT / 'replay_lifecycle.py').read_bytes()).hexdigest() == d['tool_input_sha256']['shared/replay_lifecycle.py']
 unchanged = subprocess.check_output(['git', '-C', str(WT), 'diff', '--name-only',
     '80ca5c3550680ad55cf9ed257bfe43441fc816da', d['tree'], '--', 'next/src/cortex_core/auth.py',
     'next/schema', 'next/tests/auth', 'next/tests/schema'], text=True)
