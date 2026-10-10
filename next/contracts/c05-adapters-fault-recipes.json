@@ -1,0 +1,653 @@
+{
+  "version": 1,
+  "mutants": [
+    {
+      "label": "changed request digest ignored",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_changed_body_kind_record_or_operation_under_key_refuses"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "row[0] != digest",
+          "after": "False",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "saved.request_sha256 IS DISTINCT FROM p_digest",
+          "after": "false",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": [
+        "new private parallel decision bypass; auxiliary-only full frozen fixture must be GREEN"
+      ]
+    },
+    {
+      "label": "tombstone exposed by default",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_delete_is_revisioned_tombstone_and_does_not_erase_history"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "(row[2] and not include_tombstone)",
+          "after": "False",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "delete stored as live revision",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_delete_is_revisioned_tombstone_and_does_not_erase_history"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "tombstone = operation == 'delete'",
+          "after": "tombstone = False",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "if tombstone:",
+          "after": "if operation == 'delete':",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 2,
+      "c05_composition": []
+    },
+    {
+      "label": "original byte zero discarded",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_create_read_preserves_exact_bytes_and_digest"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "payload_id = uuid4()",
+          "after": "body = body.replace(b'\\x00',b'')\n    payload_id = uuid4()",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "record kind changes accepted",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_kind_cannot_change_after_creation"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "(operation == 'put' and row[0] != kind)",
+          "after": "False",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "(p_operation='put' AND head.kind IS DISTINCT FROM p_kind)",
+          "after": "false",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": [
+        "new private parallel decision bypass; auxiliary-only full frozen fixture must be GREEN"
+      ]
+    },
+    {
+      "label": "bool accepted as revision",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_invalid_inputs_refuse_without_partial_canonical_rows"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "type(revision) is not int",
+          "after": "not isinstance(revision,int)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "trailing newline silently normalized",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_invalid_inputs_refuse_without_partial_canonical_rows"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "_validate(record_id,expected_revision,request_key)\n        if not isinstance(kind,str)",
+          "after": "_validate(record_id,expected_revision,request_key)\n        kind = kind.rstrip('\\n') if isinstance(kind,str) else kind\n        if not isinstance(kind,str)",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "stale expected revision ignored",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_update_compare_and_swap_is_atomic"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "row[1] != expected",
+          "after": "False",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "revision = expected + 1",
+          "after": "revision = (row[1] if row is not None else expected) + 1",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "IF head.current_revision<>p_expected OR (p_operation=",
+          "after": "IF false OR (p_operation=",
+          "count": 1
+        },
+        {
+          "path": "schema/coordination/002-record-replay.sql",
+          "before": "    IF NOT FOUND OR p_expected IS NULL OR p_revision IS NULL OR p_tombstone IS NULL",
+          "after": "    IF FOUND THEN p_expected:=head.current_revision; END IF;\n    IF NOT FOUND OR p_expected IS NULL OR p_revision IS NULL OR p_tombstone IS NULL",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 2,
+      "c05_composition": [
+        "new private parallel decision bypass; auxiliary-only full frozen fixture must be GREEN"
+      ]
+    },
+    {
+      "label": "owner control omitted for creation",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_owner_controls_and_read_cannot_write"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if control:",
+          "after": "if control and operation != 'job.create':",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "explicit recipient ignored",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_explicit_recipient_refuses_other_principal"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if recipient is not None and recipient != str(scope.principal_id):",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "running job reclaimed automatically",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_concurrent_claim_has_one_winner"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[3] != 'pending' or row[4]:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "new attempt reuses previous fence",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "previous[0]+1",
+          "after": "previous[0]",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "expired completion accepted",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_expiry_refuses_completion_and_needs_explicit_retry"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": " or not current[3]",
+          "after": "",
+          "count": 1
+        },
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "self._accept_deadline()",
+          "after": "pass",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 2,
+      "c05_composition": []
+    },
+    {
+      "label": "holder and independent reviewer checks omitted",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_owner_worker_cannot_self_accept_or_rework"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if (current[2] == str(scope.principal_id)) == review:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "handoff completed without review",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_handoff_return_requires_independent_accept"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[1] == 'handoff':",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "canceled job eligible for retry",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_cancel_never_becomes_success_and_is_terminal"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if row[3] not in ('failed','unresolved') or row[4]:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "successful outcome mislabeled failed",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_complete_preserves_exact_result_and_is_immutable"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "return self._terminal(scope,row,attempt_id,'succeeded',body,'completed')",
+          "after": "return self._terminal(scope,row,attempt_id,'failed',body,'completed')",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "pagination descending rather than stable ascending",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_stable_bounded_pagination"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "ORDER BY id LIMIT %s",
+          "after": "ORDER BY id DESC LIMIT %s",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "claim holder receipt forged as creator",
+      "directory": "coordination",
+      "expected_tests": [
+        "test_coordination.JobAdapters.test_claim_binds_verified_principal_and_fence"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "attempt_number=number,fence=fence,holder=str(scope.principal_id))",
+          "after": "attempt_number=number,fence=fence,holder=str(UUID(self._metadata(scope,row)['creator'])))",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "fixture original bytes changed",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_fixture_request_hits_real_canonical_record_port"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"657861637400ff\"",
+          "after": "\"657861637401ff\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "eventless API acceptance asserted",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_external_ack_and_role_human_compatibility_remain_explicitly_held"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"canonical_event_ack_qualified\": false",
+          "after": "\"canonical_event_ack_qualified\": true",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "handoff bypass mapped to complete",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_legacy_method_aliases_are_retained_with_real_private_targets"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"C01-R055_put_complete_handoff\": \"accept\"",
+          "after": "\"C01-R055_put_complete_handoff\": \"complete\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "budget enforcement claimed",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_budget_fixture_hits_real_claim_without_enforcement"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "contracts/core-adapters-conformance.json",
+          "before": "\"budget_status\": \"not_enforced\"",
+          "after": "\"budget_status\": \"enforced\"",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "fixture reader silently elevated to owner",
+      "directory": "records",
+      "expected_tests": [
+        "test_records.RecordAdapters.test_read_key_cannot_mutate_and_cross_tenant_id_is_hidden"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "tests/core_db_fixture.py",
+          "before": "READ_A=auth_fixture.READ_A",
+          "after": "READ_A=auth_fixture.OWNER_A",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "final deadline acceptance omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_expiry_after_real_result_insert_refuses_and_rolls_back"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "self._accept_deadline()",
+          "after": "pass",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "fence validation before encoding omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_fence_types_refuse_before_encoding_in_every_worker_and_review_port"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": "if not isinstance(attempt_id,UUID) or type(fence) is not int or not 1 <= fence <= 2**63-1:",
+          "after": "if False:",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "unencodable request key admitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_surrogate_request_key_has_typed_refusal_without_partial_rows"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": "key.encode('utf-8')",
+          "after": "pass",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "private record byte bound omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_record_body_over_private_limit_is_typed_and_atomic"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/records.py",
+          "before": " or len(body) > MAX_PAYLOAD_BYTES",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "private intent result byte bound omitted",
+      "directory": "acceptance_guards",
+      "expected_tests": [
+        "test_acceptance_guards.AcceptanceGuards.test_job_intent_and_all_result_paths_share_private_byte_bound"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "src/cortex_core/coordination.py",
+          "before": " or len(value) > MAX_PAYLOAD_BYTES",
+          "after": "",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    },
+    {
+      "label": "caller accepts exit-code-only faults",
+      "directory": "core_adapters",
+      "expected_tests": [
+        "test_core_adapters.AdapterConformance.test_mutation_caller_refuses_operational_fixture_wrong_test_and_errors"
+      ],
+      "kind": "frozen_predecessor_semantic_fault",
+      "changes": [
+        {
+          "path": "scripts/mutate_core_adapters.py",
+          "before": "def mutation_status(result,expected):\n    return classify(result,expected)",
+          "after": "def mutation_status(result,expected):\n    return 'killed' if result.returncode else 'survived'",
+          "count": 1
+        }
+      ],
+      "original_script": "mutate_core_adapters.py",
+      "original_script_sha256": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd",
+      "original_change_count": 1,
+      "c05_composition": []
+    }
+  ]
+}
