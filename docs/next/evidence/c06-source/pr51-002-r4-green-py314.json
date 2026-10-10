@@ -1,0 +1,20 @@
+{
+  "phase": "r4-green",
+  "python": "py314",
+  "scanner_sha256": "0625dea6f4826bad6d216977f54fc9d4ba46886e56c18f471eff5b2cf8adc391",
+  "test_sha256": "6d71fdea9dfcfc63309d5cee0dcdbefb134cff3bef65e7527238430742e8c021",
+  "exit_code": 0,
+  "receipt": {
+    "tests_run": 17,
+    "failures": [],
+    "errors": []
+  },
+  "writer_inventory": {
+    "passed": true,
+    "writer_count": 62,
+    "unclassified": [],
+    "missing": [],
+    "stale": []
+  },
+  "resource_operations": 0
+}

@@ -1,0 +1,79 @@
+{
+  "phase": "r4-red",
+  "python": "py314",
+  "test_commit": "61b26b36a14e632fa91fd9777afd69512525fa55",
+  "scanner_sha256": "0f8b265ef767fbd066ee8e6dee6a61c10bb6766d20d2c84c124984f306091150",
+  "test_sha256": "6d71fdea9dfcfc63309d5cee0dcdbefb134cff3bef65e7527238430742e8c021",
+  "exit_code": 1,
+  "receipt": {
+    "tests_run": 17,
+    "failures": [
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_cross_file_private_import_alias_fails_closed",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 151, in test_cross_file_private_import_alias_fails_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_dynamic_name_primitives_fail_closed (call='getattr(object(), name)')",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 161, in test_dynamic_name_primitives_fail_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_dynamic_name_primitives_fail_closed (call='setattr(object(), name, None)')",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 161, in test_dynamic_name_primitives_fail_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_dynamic_name_primitives_fail_closed (call='exec(name)')",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 161, in test_dynamic_name_primitives_fail_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_dynamic_name_primitives_fail_closed (call='eval(name)')",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 161, in test_dynamic_name_primitives_fail_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_dynamic_name_primitives_fail_closed (call='__import__(name)')",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 161, in test_dynamic_name_primitives_fail_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_dynamic_name_primitives_fail_closed (call='importlib.import_module(name)')",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 161, in test_dynamic_name_primitives_fail_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      },
+      {
+        "id": "test_outbox_inventory.WriterInventory.test_private_alias_caller_fails_closed",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r4-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 142, in test_private_alias_caller_fails_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+      }
+    ],
+    "errors": []
+  },
+  "resource_operations": 0
+}
