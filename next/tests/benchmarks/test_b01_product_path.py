@@ -269,6 +269,7 @@ def native_suite():
             self.core.setUp()
             self.addCleanup(self.core.doCleanups)
             self.core_calls = 0
+            self.core_auth_lock = asyncio.Lock()
             self.spec["scope_map"] = [
                 {"tenant": "ta", "project": "pa", "tenant_id": core_fixture.uid(2),
                  "project_id": core_fixture.uid(3)},
@@ -335,14 +336,19 @@ def native_suite():
             bindings = {"reader": (core_fixture.READ_A, 1), "empty": (core_fixture.READ_B, 20)}
             if subject not in bindings: raise PermissionError("fixture_subject_unknown")
             key, installation = bindings[subject]
-            try:
-                # The returned value remains private until Core's context exits.
-                with self.core.auth(key=key, installation=installation) as current:
-                    result = current
-                return result
-            except AuthError as error:
-                if error.code == "core_unavailable": raise CoreUnavailable() from None
-                raise PermissionError("core_fixture_refused") from None
+            def current_scope():
+                try:
+                    # The returned value remains private until Core's context exits.
+                    with self.core.auth(key=key, installation=installation) as current:
+                        result = current
+                    return result
+                except AuthError as error:
+                    if error.code == "core_unavailable": raise CoreUnavailable() from None
+                    raise PermissionError("core_fixture_refused") from None
+            # The existing fixture is synchronous. Serialize its one connection
+            # off-loop so its SQL/refusal cannot stall the fixed-offer dispatcher.
+            async with self.core_auth_lock:
+                return await asyncio.to_thread(current_scope)
 
         async def test_native_actual_cache_provider_search_and_core_scope(self):
             self.assertIsInstance(self.cache, QueryEmbeddingCache)
