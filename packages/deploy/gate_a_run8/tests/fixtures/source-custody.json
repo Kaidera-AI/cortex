@@ -1,0 +1,14 @@
+[
+  {
+    "path": "image_manifest.py.txt",
+    "source": "packages/deploy/image_manifest.py",
+    "commit": "8e854269efd5da8522c2b9b4c2981034f5378c37",
+    "sha256": "62270c0fef1915a18ad93c357d44f71c932287a3a2d98bc0c6c71511b1716a7a"
+  },
+  {
+    "path": "cortex-runtime.txt",
+    "source": "packages/deploy/cortex-runtime",
+    "commit": "8e854269efd5da8522c2b9b4c2981034f5378c37",
+    "sha256": "80c5efc1d8b4ba1a9df98148905ce8c457243697c57346a34d02256440d4e095"
+  }
+]

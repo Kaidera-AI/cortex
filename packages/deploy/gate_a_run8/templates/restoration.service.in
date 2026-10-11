@@ -1,0 +1,29 @@
+[Unit]
+Description=Scoped Cortex and KOS app database restoration for Gate A run8
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=no
+TimeoutStartSec=900
+TimeoutStopSec=90
+KillMode=process
+Environment=HOME=/home/kos
+Environment=PATH=/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/usr/sbin:/sbin:/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=%t
+WorkingDirectory=/home/kos
+ExecStartPre=/usr/bin/sha256sum --check /home/kos/.local/share/cortex-run8-restoration/RESTORE_INPUTS.sha256
+ExecStart=@PODMAN@ --remote=false start @PG@ @APPDB@
+ExecStart=@PODMAN@ --remote=false wait --condition=healthy --interval=1s @PG@ @APPDB@
+ExecStart=@PODMAN@ --remote=false start @PROVIDER@
+ExecStart=@PODMAN@ --remote=false wait --condition=healthy --interval=1s @PROVIDER@
+ExecStart=@PODMAN@ --remote=false start @API@
+ExecStart=@PODMAN@ --remote=false wait --condition=healthy --interval=1s @API@
+ExecStart=@PODMAN@ --remote=false start @EMBED@ @GRAPH@ @PDF@
+ExecStart=@PODMAN@ --remote=false wait --condition=healthy --interval=1s @EMBED@ @GRAPH@ @PDF@
+ExecStop=@PODMAN@ --remote=false stop --time=30 @EMBED@ @GRAPH@ @PDF@
+ExecStop=@PODMAN@ --remote=false stop --time=30 @API@ @PROVIDER@
+ExecStop=@PODMAN@ --remote=false stop --time=30 @APPDB@ @PG@
+
+[Install]
+WantedBy=default.target

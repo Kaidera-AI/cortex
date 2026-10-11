@@ -1,0 +1,11 @@
+{
+  "source": "/Volumes/WD-B-4TB/DevVault/helix/output/KOS/r426-release-C-packet-20261011/build/manage-builder.py",
+  "source_sha256": "e27eb8734d7bc9085df641dbe0bf8aece2f990262429936289efdc4101207db5",
+  "lines": [
+    67,
+    72
+  ],
+  "dedented_block_sha256": "225e51e8947b51693ad43915aff770d8455bf06dc9e3090bfe34f5fe8727fa4a",
+  "contract_source": "C controls-1800/console-ambiguity.GREEN.json",
+  "C_modified": false
+}
