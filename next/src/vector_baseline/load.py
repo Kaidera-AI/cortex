@@ -75,7 +75,7 @@ async def run(queries, factory, config, *, clock=None, observer=None):
                     return
                 row, query = offer
                 row["started_at"] = clock.now()
-                row["queue_seconds"] = max(0., row["started_at"] - row["scheduled_at"])
+                row["queue_seconds"] = max(0., row["started_at"] - row["dispatched_at"])
                 remaining = row["scheduled_at"] + config.deadline_seconds - clock.now()
                 try:
                     if remaining <= 0:
@@ -104,10 +104,13 @@ async def run(queries, factory, config, *, clock=None, observer=None):
                 if delay > 0:
                     await clock.sleep(delay)
                 query = queries[index % len(queries)]
+                dispatched = clock.now()
+                lag = dispatched - scheduled
                 row = {"offer_id": index, "client": index % config.clients, "query_id": query["id"],
                        "phase": name, "scheduled_at": scheduled,
-                       "scheduled_offset_seconds": scheduled - origin, "dispatched_at": clock.now()}
-                if clock.now() - scheduled >= 1 / config.rps:
+                       "scheduled_offset_seconds": scheduled - origin, "dispatched_at": dispatched,
+                       "dispatcher_lag_seconds": lag}
+                if lag >= 1 / config.rps:
                     row.update(status="MISSED", started_at=None, completed_at=clock.now(), queue_seconds=None,
                                latency_seconds=max(config.deadline_seconds, clock.now() - scheduled))
                     records.append(row)

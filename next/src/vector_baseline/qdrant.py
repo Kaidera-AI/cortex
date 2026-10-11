@@ -34,7 +34,20 @@ def configuration(key):
 
 def check_preflight(free_percent, inventory):
     if type(free_percent) is not int or free_percent < 35 or not isinstance(inventory, str) or inventory.strip():
-        raise RuntimeError('test stack needs >=35% free memory and the exclusive team slot')
+        reasons = []
+        if type(free_percent) is not int:
+            reasons.append('invalid_memory_observation')
+        elif not free_percent >= 35:
+            reasons.append('memory_below_floor')
+        if not isinstance(inventory, str):
+            reasons.append('invalid_test_inventory')
+        elif inventory.strip():
+            reasons.append('foreign_test_stack')
+        error = RuntimeError('test stack needs >=35% free memory and the exclusive team slot')
+        error.admission_receipt = {'admitted': False, 'reasons': reasons,
+            'free_percent': free_percent if type(free_percent) is int else None,
+            'foreign_test_count': len(inventory.splitlines()) if isinstance(inventory, str) else None}
+        raise error
 
 
 def verify_container(row, *, memory_bytes, cpus):
@@ -69,7 +82,11 @@ def preflight(runner=postgres.podman, *, allowed_names=()):
         free = fields['MemAvailable'] * 100 // fields['MemTotal']; source = '/proc/meminfo MemAvailable'
     inventory = runner(['ps', '-a', '--filter', 'label=cortex.test', '--format', '{{.Names}}'])
     foreign = '\n'.join(n for n in inventory.splitlines() if n not in allowed_names)
-    check_preflight(free, foreign)
+    try:
+        check_preflight(free, foreign)
+    except RuntimeError as error:
+        error.admission_receipt.update(utc=datetime.now(timezone.utc).isoformat(), memory_source=source)
+        raise
     return {'utc': datetime.now(timezone.utc).isoformat(), 'free_percent': free, 'memory_source': source,
             'team_inventory': inventory, 'allowed_owned_names': list(allowed_names), 'foreign_inventory': foreign}
 
@@ -89,6 +106,8 @@ class DisposableQdrant:
         self.password = self.lock = None
         self.used = self.cleanup_verified = False
         self.binding, self.id_map, self.preflights = {}, {}, []
+        self.failure_receipt, self.phase = None, 'not_started'
+        self.admission_refusals = []
         self.lock_path = Path(lock_path) if lock_path is not None else Path.home()/'.cache/kaidera/b01-podman.lock'
 
     def labels(self):
@@ -147,12 +166,18 @@ class DisposableQdrant:
         return target
 
     def admit_start(self):
-        if self.gate is not None:
-            value = self.gate(self.runner)
-        else:
-            allowed = [name for kind, name in self.owned if kind == 'container'
-                       and self.owned_resource(kind, name) is not None]
-            value = preflight(self.runner, allowed_names=allowed)
+        try:
+            if self.gate is not None:
+                value = self.gate(self.runner)
+            else:
+                allowed = [name for kind, name in self.owned if kind == 'container'
+                           and self.owned_resource(kind, name) is not None]
+                value = preflight(self.runner, allowed_names=allowed)
+        except RuntimeError as error:
+            receipt = getattr(error, 'admission_receipt', None)
+            if receipt is not None:
+                self.admission_refusals.append({'phase': self.phase, **receipt})
+            raise
         if value is not None:
             self.preflights.append(value)
 
@@ -160,23 +185,37 @@ class DisposableQdrant:
         if self.used:
             raise ValueError('single-use disposable lifecycle')
         self.used = True
-        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
-        self.lock = self.lock_path.open('a')
         try:
+            self.phase = 'acquire_mutex'
+            self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+            self.lock = self.lock_path.open('a')
             fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.phase = 'preflight_create'
             self.admit_start()
+            self.phase = 'runtime_info'
             observed = self.runner(['info', '--format', '{{.Host.Arch}}'])
             if observed not in PINS or self.architecture is not None and self.architecture != observed:
                 raise ValueError('runtime architecture differs from admitted pins')
             self.architecture = observed
             self.password = secrets.token_urlsafe(32)
+            self.phase = 'create_network'
             self.create('network', self.network_name, self.network_args())
+            self.phase = 'create_secret'
             self.create('secret', self.secret_name, ['secret', 'create', *self.labels(), self.secret_name, '-'],
                         input=json.dumps(configuration(self.password)))
+            self.phase = 'create_engine'
             q = self.create('container', self.name, self.run_args('qdrant'))
+            self.phase = 'create_client'
             client = self.create('container', self.client_name, self.run_args('client'))
-            self.admit_start(); self.runner(['start', q])
-            self.admit_start(); self.runner(['start', client])
+            self.phase = 'preflight_engine_start'
+            self.admit_start()
+            self.phase = 'start_engine'
+            self.runner(['start', q])
+            self.phase = 'preflight_client_start'
+            self.admit_start()
+            self.phase = 'start_client'
+            self.runner(['start', client])
+            self.phase = 'verify_contract'
             observed_contracts = {}
             for role, target, memory, cpus in [('qdrant', q, 768 * 1024**2, 1.5), ('client', client, 256 * 1024**2, .5)]:
                 row = json.loads(self.runner(['container', 'inspect', target]))[0]
@@ -189,8 +228,17 @@ class DisposableQdrant:
                             'proxy_source_sha256': corpus.digest(qdrant_proxy.__file__),
                             'observed_contracts': observed_contracts}
             return self
-        except BaseException:
-            self.close()
+        except BaseException as error:
+            admission = getattr(error, 'admission_receipt', None)
+            self.failure_receipt = {'primary': {'phase': self.phase, 'error_class': type(error).__name__,
+                'reason': 'admission_refused' if admission else 'operation_failed', 'admission': admission},
+                'cleanup': None}
+            try:
+                self.close()
+            except BaseException as cleanup_error:
+                self.failure_receipt['cleanup'] = {'phase': 'cleanup', 'error_class': type(cleanup_error).__name__,
+                                                    'reason': 'cleanup_incomplete'}
+                raise
             raise
 
     def close(self):

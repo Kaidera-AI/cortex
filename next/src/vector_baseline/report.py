@@ -10,6 +10,93 @@ def nearest_rank(values, percentile):
     return sorted(values)[math.ceil(len(values) * percentile) - 1]
 
 
+def _valid_offer_status(row):
+    return (isinstance(row, dict) and type(row.get("status")) is str
+            and row["status"] in {"OK", "ERROR", "TIMEOUT", "MISSED"})
+
+
+def _report(run, bindings, diagnostic):
+    return {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,
+            "qualification": "SYNTHETIC_SQL_DIAGNOSTIC", "bindings": bindings,
+            "not_run": ["real-Marlow-geometry", "both-native-editions", "verified-OS-cold", "full-GTM-matrix",
+                        "API/auth/provider/cache/hybrid", "whole-first-release-stack", "Vera/Kai-acceptance"],
+            "diagnostic": diagnostic, "run": run}
+
+
+def _invalid_inventory(run, bindings, expected, latency_budget_ms):
+    counts = {phase: {"count": len(rows), "status": "NOT_RUN"}
+              for phase, rows in (("measured", run["records"]), ("warmup", run["warmup_records"]))}
+    return _report(run, bindings, {
+        "accounting_valid": False, "offered": len(run["records"]), "expected_offered": expected,
+        "harness_valid": False, "dispatcher_lag": {"interval_seconds": 1 / 40, **counts},
+        "successful_responses": None, "successful_rps": None, "errors_or_missed": None,
+        "throughput_status": "NOT_RUN", "p95_ms": None, "latency_budget_ms": latency_budget_ms,
+        "latency_status": "NOT_RUN", "mean_tie_recall": None, "mean_strict_recall": None,
+        "distinct_nonempty_queries": None, "recall_status": "NOT_RUN",
+        "heldout_coverage_complete": False, "missing_heldout_queries": [], "unexpected_query_ids": [],
+        "failed_queries": [], "resource_collection_complete": None, "minute_windows": [],
+        "warmup_offers": len(run["warmup_records"]), "warmup_errors": None, "verdict": "INVALID_HARNESS"})
+
+
+def dispatcher_lags(run):
+    """An invalid offer generator cannot measure an engine; legacy times can derive lag."""
+    interval = 1 / 40
+    groups = {}; valid = True
+    def finite(value):
+        return type(value) in (int, float) and math.isfinite(value)
+    for phase, rows in [('measured', run['records']), ('warmup', run['warmup_records'])]:
+        values, late, dropped, invalid = [], [], [], []
+        for row in rows:
+            if not _valid_offer_status(row):
+                invalid.append(row.get('offer_id') if isinstance(row, dict) else None)
+                continue
+            scheduled, dispatched = row.get('scheduled_at'), row.get('dispatched_at')
+            derived = dispatched - scheduled if finite(scheduled) and finite(dispatched) else None
+            lag = row.get('dispatcher_lag_seconds', derived)
+            coherent = (finite(lag) and lag >= 0 and finite(derived) and derived >= 0
+                        and math.isclose(lag, derived, rel_tol=1e-9, abs_tol=1e-9))
+            if not coherent:
+                invalid.append(row['offer_id'])
+            else:
+                values.append(lag * 1000)
+                if lag >= interval:
+                    late.append(row['offer_id'])
+            if row['status'] == 'MISSED':
+                dropped.append(row['offer_id'])
+        valid = valid and not late and not dropped and not invalid
+        groups[phase] = {'count': len(rows), 'valid_lag_count': len(values),
+                         'min_ms': min(values) if values else None, 'max_ms': max(values) if values else None,
+                         'p50_ms': nearest_rank(values, .5) if values else None,
+                         'p95_ms': nearest_rank(values, .95) if values else None,
+                         'p99_ms': nearest_rank(values, .99) if values else None,
+                         'late_offer_ids': late, 'dropped_offer_ids': dropped,
+                         'invalid_lag_offer_ids': invalid}
+    return valid, {'interval_seconds': interval, **groups}
+
+
+def _offers_accounted(rows, phase, duration):
+    """Bind each phase to its configured, complete 40 RPS offered series."""
+    if (type(duration) not in (int, float) or not math.isfinite(duration) or duration < 0
+            or not math.isclose(duration * 40, round(duration * 40), abs_tol=1e-9, rel_tol=0)):
+        return False
+    expected = round(duration * 40)
+    if not all(_valid_offer_status(row) for row in rows):
+        return False
+    return (len(rows) == expected
+            and all(type(r.get("offer_id")) is int for r in rows)
+            and {r["offer_id"] for r in rows} == set(range(expected))
+            and all(r.get("phase") == phase
+                    and type(r.get("client")) is int and r["client"] == r["offer_id"] % 8
+                    and type(r.get("scheduled_offset_seconds")) in (int, float)
+                    and math.isfinite(r["scheduled_offset_seconds"])
+                    and math.isclose(r["scheduled_offset_seconds"], r["offer_id"] / 40,
+                                     abs_tol=1e-8, rel_tol=0)
+                    and type(r.get("scheduled_at")) in (int, float) and math.isfinite(r["scheduled_at"])
+                    and math.isclose(r["scheduled_at"] - rows[0]["scheduled_at"],
+                                     (r["offer_id"] - rows[0]["offer_id"]) / 40, abs_tol=1e-8, rel_tol=0)
+                    for r in rows))
+
+
 def summarize(run, *, latency_budget_ms, bindings):
     if (isinstance(latency_budget_ms, bool) or not isinstance(latency_budget_ms, (float, int))
             or not math.isfinite(latency_budget_ms) or latency_budget_ms <= 0):
@@ -19,13 +106,13 @@ def summarize(run, *, latency_budget_ms, bindings):
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("positive scheduled duration required")
     expected = round(duration * 40)
-    valid = (len(rows) == expected and {r["offer_id"] for r in rows} == set(range(expected))
+    valid = (_offers_accounted(rows, "measured", duration)
+             and _offers_accounted(run["warmup_records"], "warmup", config["warmup_seconds"])
              and config["rps"] == 40 and config["clients"] == 8
-             and run["clients_opened"] == run["clients_closed"] == 8 and not run["close_errors"]
-             and all(r["phase"] == "measured" and r["client"] == r["offer_id"] % 8
-                     and math.isclose(r["scheduled_offset_seconds"], r["offer_id"] / 40, abs_tol=1e-8)
-                     and r["status"] in {"OK", "ERROR", "TIMEOUT", "MISSED"} for r in rows))
-    latencies = [r["latency_seconds"] * 1000 for r in rows]
+             and run["clients_opened"] == run["clients_closed"] == 8 and not run["close_errors"])
+    latencies = [r["latency_seconds"] * 1000 for r in rows] if valid else []
+    if not valid:
+        return _invalid_inventory(run, bindings, expected, latency_budget_ms)
     if any(not math.isfinite(x) or x < 0 for x in latencies):
         raise ValueError("invalid latency observation")
     p95 = nearest_rank(latencies, .95) if latencies else None
@@ -64,6 +151,10 @@ def summarize(run, *, latency_budget_ms, bindings):
     failed = (not valid or errors != 0 or not collection_complete
               or any(r["status"] != "OK" for r in run["warmup_records"])
               or throughput == "FAIL" or latency == "FAIL" or recall == "FAIL")
+    generator_valid, lag_distribution = dispatcher_lags(run)
+    harness_valid = generator_valid and valid
+    if not harness_valid:
+        throughput = latency = recall = "NOT_RUN"
     windows = []
     for minute in range(math.ceil(duration / 60)):
         group = [r for r in rows if minute * 60 <= r["scheduled_offset_seconds"] < (minute + 1) * 60]
@@ -71,11 +162,8 @@ def summarize(run, *, latency_budget_ms, bindings):
         windows.append({"minute": minute, "seconds": seconds, "offered": len(group),
                         "successful_rps": sum(r["status"] == "OK" for r in group) / seconds,
                         "p95_ms": nearest_rank([r["latency_seconds"] * 1000 for r in group], .95) if group else None})
-    return {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,
-            "qualification": "SYNTHETIC_SQL_DIAGNOSTIC", "bindings": bindings,
-            "not_run": ["real-Marlow-geometry", "both-native-editions", "verified-OS-cold", "full-GTM-matrix",
-                        "API/auth/provider/cache/hybrid", "whole-first-release-stack", "Vera/Kai-acceptance"],
-            "diagnostic": {"accounting_valid": valid, "offered": len(rows), "expected_offered": expected,
+    return _report(run, bindings, {"accounting_valid": valid, "offered": len(rows), "expected_offered": expected,
+                           "harness_valid": harness_valid, "dispatcher_lag": lag_distribution,
                            "successful_responses": len(successes), "successful_rps": successful_rps,
                            "errors_or_missed": errors, "throughput_status": throughput, "p95_ms": p95,
                            "latency_budget_ms": latency_budget_ms, "latency_status": latency,
@@ -87,5 +175,5 @@ def summarize(run, *, latency_budget_ms, bindings):
                            "resource_collection_complete": collection_complete, "minute_windows": windows,
                            "warmup_offers": len(run["warmup_records"]),
                            "warmup_errors": sum(r["status"] != "OK" for r in run["warmup_records"]),
-                           "verdict": "FAIL" if failed else "NOT_RUN" if recall == "NOT_RUN" else "PASS"},
-            "run": run}
+                           "verdict": "INVALID_HARNESS" if not harness_valid else
+                                      "FAIL" if failed else "NOT_RUN" if recall == "NOT_RUN" else "PASS"})

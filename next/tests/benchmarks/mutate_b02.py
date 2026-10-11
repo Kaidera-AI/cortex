@@ -20,7 +20,7 @@ MUTATIONS = [
     ("load.py", "queue-exclusive-latency", 'row["latency_seconds"] = row["completed_at"] - row["scheduled_at"]',
      'row["latency_seconds"] = row["completed_at"] - row["started_at"]',
      "test_b02_load.LoadTests.test_queue_wait_is_part_of_scheduled_latency", 1),
-    ("load.py", "missed-arrivals-hidden", "if clock.now() - scheduled >= 1 / config.rps:", "if False:",
+    ("load.py", "missed-arrivals-hidden", "if lag >= 1 / config.rps:", "if False:",
      "test_b02_load.LoadTests.test_scheduler_stall_records_missed_arrivals_without_retiming", 1),
     ("load.py", "fast-error-latency-omitted",
      'response_elapsed_seconds=max(0., clock.now() - row["scheduled_at"]),\n                               latency_seconds=max(config.deadline_seconds, clock.now() - row["scheduled_at"]))',

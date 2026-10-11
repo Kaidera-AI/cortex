@@ -109,6 +109,39 @@ MUTATIONS = [
      "vectors = collection['config']['vectors']", R+'test_observed_qdrant_params_config_shape_is_admitted', 1),
 ]
 
+
+P = 'test_b02_prerequisites.PrerequisiteTests.'
+MUTATIONS += [
+    ('load.py', 'offer-lag-not-recorded', '"dispatcher_lag_seconds": lag', '"unqualified_lag_seconds": lag',
+     P+'test_every_offer_records_coherent_dispatcher_lag_in_both_phases', 1),
+    ('report.py', 'dispatcher-lag-ignored', 'generator_valid, lag_distribution = dispatcher_lags(run)',
+     'generator_valid, lag_distribution = True, dispatcher_lags(run)[1]',
+     P+'test_sent_late_response_is_invalid_harness_not_engine_pass_or_fail', 1),
+    ('report.py', 'dropped-offer-compared-as-engine', "if row['status'] == 'MISSED':", 'if False:',
+     P+'test_dropped_offer_is_invalid_harness_even_with_zero_reported_lag', 1),
+    ('report.py', 'warmup-lag-excluded', "('warmup', run['warmup_records'])", "('warmup', [])",
+     P+'test_warmup_late_offer_invalidates_the_cell', 1),
+    ('report.py', 'incoherent-recorded-lag-admitted', "lag = row.get('dispatcher_lag_seconds', derived)", 'lag = derived',
+     P+'test_legacy_timestamps_derive_lag_but_missing_or_incoherent_lag_is_invalid', 3),
+    ('report.py', 'lag-distribution-max-forged', "'max_ms': max(values) if values else None", "'max_ms': 0.0 if values else None",
+     P+'test_sent_late_response_is_invalid_harness_not_engine_pass_or_fail', 1),
+    ('benchmark.py', 'invalid-harness-cli-success', 'return 2 if verdict == "INVALID_HARNESS"',
+     'return 0 if verdict == "INVALID_HARNESS"', P+'test_invalid_harness_cli_has_distinct_nonzero_status', 1),
+    ('qdrant.py', 'setup-primary-receipt-lost', "            self.failure_receipt = {'primary':",
+     "            self._lost_failure_receipt = {'primary':", P+'test_setup_memory_or_foreign_refusal_records_actual_phase_and_reason', 2),
+    ('qdrant.py', 'prestart-refusal-phase-wrong', "self.phase = 'preflight_engine_start'", "self.phase = 'start_engine'",
+     P+'test_setup_memory_or_foreign_refusal_records_actual_phase_and_reason', 2),
+    ('qdrant.py', 'admission-reason-omitted', "'reasons': reasons", "'reasons': []",
+     P+'test_setup_memory_or_foreign_refusal_records_actual_phase_and_reason', 2),
+    ('qdrant.py', 'cleanup-overwrites-primary-cause', "self.failure_receipt['cleanup'] =", "self.failure_receipt['primary'] =",
+     P+'test_failed_effect_primary_cause_survives_cleanup_failure', 1),
+    ('benchmark.py', 'raw-error-text-leaked', 'failed = type(error).__name__', 'failed = str(error)',
+     P+'test_bound_setup_receipt_never_serializes_error_text_or_secret', 1),
+    ('geometry.py', 'reserved-set-rebuilt-per-row', "if row['id'] in reserved}",
+     "if row['id'] in set(split['tuning']) | set(split['heldout'])}",
+     P+'test_reserved_traversal_is_bounded_and_frozen_output_matches_reference', 2),
+]
+
 CHILD = r'''
 import hashlib, importlib, json, pathlib, sys, unittest
 from test_receipts import AssertionResult, MARKER
