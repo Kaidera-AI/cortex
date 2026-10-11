@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCHEMA = Path(__file__).resolve().parents[2] / 'schema' / 'manifest.json'
@@ -110,7 +111,20 @@ class SignedAdmission(unittest.TestCase):
         policy, old, new = self.pair()
         manifest = json.loads(SCHEMA.read_text())
         self.assertEqual([row['id'] for row in manifest['migrations'][15:]], STEPS)
-        admission = self.admit(policy, old, new)
+        real_run = subprocess.run
+        verify_argv = []
+        def observe(command, *args, **kwargs):
+            if '-V' in command:
+                verify_argv.append(tuple(command))
+            return real_run(command, *args, **kwargs)
+        with patch('cortex_core.upgrade.subprocess.run', side_effect=observe):
+            admission = self.admit(policy, old, new)
+        self.assertEqual(len(verify_argv), 2)
+        secret_flags = {'-W', '-s', '-S', '-G', '-f'}
+        for index, command in enumerate(verify_argv):
+            with self.subTest(verification=index):
+                self.assertFalse(secret_flags.intersection(command),
+                                 'verify argv contains a secret-key flag')
         self.assertEqual(admission.expand_steps, tuple(STEPS))
         self.assertEqual((admission.old_release, admission.new_release),
                          ('v0.1.002', 'v0.1.020'))
