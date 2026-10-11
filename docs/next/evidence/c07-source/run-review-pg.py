@@ -23,7 +23,10 @@ for old_guard_input in ('run-old-table-guards.py','frozen/auth-test_authorizatio
                         'frozen/auth_identity-test_identity.py','frozen/outbox-test_outbox.py',
                         'native-memory-admission.py','frozen/mike-repair-manifest.py',
                         'reviewer-reusable-control/test_held_continuation.py',
-                        'reviewer-reusable-control/page-boundary.py'):
+                        'reviewer-reusable-control/page-boundary.py',
+                        'durable-reviewer-control/test_resumable_repair.py',
+                        'durable-reviewer-control/page-boundary-model.py',
+                        'durable-reviewer-control/run-probe.py'):
     local=(OUT/old_guard_input).read_bytes()
     committed=subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/'+old_guard_input])
     assert local==committed,('old_guard_input_not_git_bound',old_guard_input)
@@ -223,11 +226,11 @@ f.doCleanups()
         checked(env+['python','-c',probe],120)
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],900)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==37 and not report['errors']
+    assert report['tests_run']==40 and not report['errors']
     if PHASE.startswith('c07-review-red'):
         assert value.returncode==1 and report['failures']
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
-        assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.','test_review_pagination.Pagination.')) for r in report['failures'])
+        assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.','test_review_pagination.Pagination.','test_durable_continuation.DurableContinuation.')) for r in report['failures'])
     elif 'downgrade-red' in PHASE:
         assert value.returncode==1 and len(report['failures'])==1
         assert report['failures'][0]['id'].split(' (')[0]=='test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'
