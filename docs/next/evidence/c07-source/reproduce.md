@@ -69,3 +69,28 @@ the additive ninth migration, restores the amended 31-table guards, runs every
 inherited suite and the C07 module suite, then executes actual fault recipes
 under the fixed active test-body classifier. Final raw receipt and verifier
 are linked from the C07 return and PR.
+
+## Integrated PR71 C07 finding repair (current)
+
+The earlier C07 receipts above remain historical. The repaired integrated source is `4cf4c8080c66d4a3186733e83d39591074029c92`, with current main `903fd729c56cf719bbb15e9f986a70b9160497c1` incorporated. Current proof is `mutation-c07-review-003.json`: 27 suites / 379 native tests, 35 consumer tests, 24/24 body-killed faults with 76 expected assertions, no errors/survivors/inconclusive results, 480 copied inputs restored, three resources removed. Three frozen old-table assertions remain intentional RED lineage, separate from the clean suites.
+
+`c07-review-red-002.json` records 34 tests / 55 body failures / zero errors before the four fixes; `c07-review-green-001.json` records their 34 clean tests. `c07-review-red-scan-001.json` adds the observed-range control: 35 tests, one body failure before the scan-boundary fix. `mutation-c07-review-001.json` remains FAILED (one INCONCLUSIVE legacy poison-fence abort); attempt 002 passes 23 faults but precedes the additional scan-boundary control. Neither is substituted for the final run. An unexpected ConsumerError from the specifically asserted normal cycle now fails that test body; setup/import failures remain INCONCLUSIVE and the shared classifier is unchanged.
+
+The unchanged Mike AST controls are in `frozen/mike-repair-manifest.py`; `run-mike-repair-controls.py` supplies only constructor-owned module_id and observed scan cursor omitted by the original doubles. `reviewer-source-red.log` is three tests / five assertions / zero errors; `reviewer-source-green.log` is three clean tests at the repaired source. These are stdlib source controls, not native receipts. The proposed incomplete-receipt native control is preserved in `next/tests/module_consumer/test_review_incomplete_receipt.py`.
+
+From a publication checkout, stdlib verification imports no product:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-c07-repair.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/run-mike-repair-controls.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/test-native-memory-admission.py docs/next/evidence/c07-source/native-memory-admission.py
+```
+
+A fresh native replay requires the already installed pinned images and the eight hash-bound offline ARM wheels staged in `tmp/wheels`; no dependency or image install is authorized. Use a fresh basename phase whose output does not exist:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/run-review-pg.py mutation-c07-review-fresh-004
+PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-forward.py native-pg-repair-fresh-002.json
+```
+
+Run these sequentially. Both controllers record actual Mac `memory_pressure -Q` and active Podman VM MemAvailable before creating any resource and refuse if either is below 35%. Admission script bytes are Git-bound in the final receipts. Synthetic admission controls prove low Mac and low VM refusal and admission at both floors, with zero resource operations. No historical ≥35%-free admission is claimed for the original forward runs: their controllers did not record or enforce it. The fresh O01a receipt is `../o01a-source/native-pg-c07-repair-001.json` at the same repaired source; seven tests, 973 base files, four WAL segments, pg_verifybackup and synthetic age roundtrip, refusals and complete owned cleanup. Backup product/test/mutator bytes stay identical to be52491; accepted seven-fault backup proof remains bound to these unchanged bytes.
