@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 from fixture import canonical, digest
 from receipt_fixture import receipt_fixture
+from test_unit1_red import ROOT
 from cortex_core.cli import release
 from cortex_core.release.custody import RootReader
 
@@ -31,7 +32,11 @@ class CliGuards(unittest.TestCase):
             root=Path(directory);value,receipt,policy=self.files(root)
             for wrong in ([],None,1,True,'public'):
                 (root/'policy.json').write_bytes(canonical(wrong))
-                self.assertEqual(release.main(self.args(root,value,wrong)),2)
+                try:
+                    result = release.main(self.args(root,value,wrong))
+                except AttributeError:
+                    result = 'unstructured-AttributeError'
+                self.assertEqual(result,2)
 
     def test_failed_evidence_root_closes_already_open_readers(self):
         with tempfile.TemporaryDirectory(prefix='r01-cli-') as directory:
