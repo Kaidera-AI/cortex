@@ -20,9 +20,12 @@ class ModuleManifest:
         module_id = value['module_id']
         kinds = value['aggregate_kinds']
         if (not isinstance(module_id, str) or not 1 <= len(module_id) <= 128
+                or type(value['protocol_version']) not in (int, float)
+                or type(value['schema_version']) not in (int, float)
                 or value['protocol_version'] != 1 or value['schema_version'] != 1
                 or value['sink'] != 'postgres' or not isinstance(kinds, list)
-                or not kinds or any(not isinstance(kind, str) or not kind for kind in kinds)):
+                or not kinds or any(not isinstance(kind, str) or not 1 <= len(kind) <= 64 for kind in kinds)
+                or len(set(kinds)) != len(kinds)):
             raise ValueError('invalid_manifest')
         return cls(module_id, 1, 1, tuple(kinds), 'postgres')
 

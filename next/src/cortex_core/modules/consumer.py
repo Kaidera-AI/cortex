@@ -57,6 +57,8 @@ class ModuleConsumer:
                     row = self.connection.execute('SELECT coordination.c07_expire(%s,%s)', args)
                 elif signature == 'c07_poisoned(%s,%s,%s)':
                     row = self.connection.execute('SELECT coordination.c07_poisoned(%s,%s,%s)', args)
+                elif signature == 'c07_quarantined(%s,%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c07_quarantined(%s,%s,%s)', args)
                 elif signature == 'c07_record(%s,%s,%s,%s,%s,%s,%s)':
                     row = self.connection.execute('SELECT coordination.c07_record(%s,%s,%s,%s,%s,%s,%s::jsonb)', args)
                 elif signature == 'c07_scan(%s,%s,%s)':
@@ -143,22 +145,42 @@ class ModuleConsumer:
             if repairing:
                 raise ConsumerError('poison_still_present')
             self._record(state, event, 'poison', error=error)
-            return
+            return False
         if not repairing and self._call('c07_poisoned(%s,%s,%s)',
                 (self.module_id, state['generation'], aggregate)):
             self._record(state, event, 'held')
-            return
+            return False
         try:
             receipt = self.sink.apply(event, state['generation'])
         except ValueError as error:
             if str(error) != 'target_conflict':
                 raise ConsumerError('target_unavailable') from error
             self._record(state, event, 'poison', error='target_conflict')
-            return
+            return False
         except Exception as error:
             raise ConsumerError('target_unavailable') from error
-        if not isinstance(receipt, dict) or receipt.get('event_id') != env['event_id']:
+        required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}
+        if not isinstance(receipt, dict) or set(receipt) != required:
             raise ConsumerError('invalid_target_receipt')
+        try:
+            if (not isinstance(receipt['event_id'], str) or UUID(receipt['event_id']) != UUID(env['event_id'])
+                    or not isinstance(receipt['aggregate_id'], str) or UUID(receipt['aggregate_id']) != aggregate
+                    or type(receipt['revision']) not in (int, float)
+                    or not 1 <= receipt['revision'] <= (1 << 63)-1
+                    or int(receipt['revision']) != receipt['revision']
+                    or receipt['revision'] != env['aggregate_revision']
+                    or type(receipt['generation']) not in (int, float)
+                    or not 1 <= receipt['generation'] <= (1 << 63)-1
+                    or int(receipt['generation']) != receipt['generation']
+                    or receipt['generation'] != state['generation']
+                    or type(receipt['tombstone']) is not bool or receipt['tombstone'] != env['tombstone']
+                    or type(receipt['stale']) is not bool
+                    or not isinstance(receipt['payload_sha256'], str)
+                    or not re.fullmatch('[0-9a-f]{64}', receipt['payload_sha256'])
+                    or receipt['payload_sha256'] != env['payload_sha256']):
+                raise ConsumerError('invalid_target_receipt')
+        except (ValueError, TypeError, OverflowError):
+            raise ConsumerError('invalid_target_receipt') from None
         outcome = 'stale' if receipt.get('stale') is True else 'applied'
         self._record(state, event, outcome, receipt=receipt)
         if self.after_checkpoint is not None:
@@ -166,6 +188,7 @@ class ModuleConsumer:
                 self.after_checkpoint()
             except Exception as error:
                 raise ConsumerError('after_checkpoint') from error
+        return True
 
     def cycle(self, *, limit=100):
         if type(limit) is not int or not 1 <= limit <= 1000:
@@ -198,8 +221,15 @@ class ModuleConsumer:
                 page = self.feed.page(after=state['applied_cursor'], limit=1000)
             except OutboxError as error:
                 raise ConsumerError(error.code) from error
-            if not any(UUID(event.envelope['event_id']) == event_id for event in page.events):
+            requested = next((event for event in page.events if UUID(event.envelope['event_id']) == event_id), None)
+            if requested is None:
                 raise ConsumerError('repair_event_missing')
+            if not self._call('c07_quarantined(%s,%s,%s)', (self.module_id, state['generation'], event_id)):
+                raise ConsumerError('repair_event_not_poison')
+            aggregate = UUID(requested.envelope['aggregate_id'])
+            if not self._apply_event(state, requested, repairing=True):
+                return self.status()
             for event in page.events:
-                self._apply_event(state, event, repairing=True)
+                if event.cursor > requested.cursor and UUID(event.envelope['aggregate_id']) == aggregate:
+                    self._apply_event(state, event)
             return self.status()

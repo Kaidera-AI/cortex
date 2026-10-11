@@ -86,5 +86,6 @@ class ApplyCheckpoint(ConsumerFixture):
                     ('graph',1,event.cursor,UUID(event.envelope['event_id']),
                      'poison','invalid_digest',None))
         self.assertEqual(self.checkpoint()[1],1)
-        self.assertEqual([row[1] for row in self.outcomes()],['applied'])
+        self.assertEqual(self.outcomes(),[])  # accepted completed-prefix compaction contract
+        self.assertEqual(self.target()[5],1)
         self.assertEqual(self.quarantine(),[])

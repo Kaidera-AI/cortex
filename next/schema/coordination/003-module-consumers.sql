@@ -146,6 +146,26 @@ BEGIN
       AND o.outcome='poison' AND q.resolved_at IS NULL);
 END $$;
 
+CREATE FUNCTION coordination.c07_quarantined(p_module text,p_generation bigint,p_event uuid) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,auth,coordination,pg_temp AS $$
+DECLARE s record;
+BEGIN
+  SELECT * INTO STRICT s FROM coordination.c07_scope();
+  RETURN EXISTS(SELECT 1 FROM coordination.consumer_event_outcomes o
+    JOIN coordination.quarantine q ON (q.tenant_id,q.project_id,q.event_id,q.module_id)=
+      (o.tenant_id,o.project_id,o.event_id,o.module_id)
+    WHERE (o.installation_id,o.module_id,o.tenant_id,o.project_id,o.generation,o.event_id)=
+      (s.installation_id,p_module,s.tenant_id,s.project_id,p_generation,p_event)
+      AND o.outcome='poison' AND q.resolved_at IS NULL
+      AND NOT EXISTS(SELECT 1 FROM coordination.consumer_event_outcomes earlier
+        JOIN coordination.quarantine unresolved ON
+          (unresolved.tenant_id,unresolved.project_id,unresolved.event_id,unresolved.module_id)=
+          (earlier.tenant_id,earlier.project_id,earlier.event_id,earlier.module_id)
+        WHERE (earlier.installation_id,earlier.module_id,earlier.tenant_id,earlier.project_id,earlier.generation,earlier.aggregate_id)=
+          (o.installation_id,o.module_id,o.tenant_id,o.project_id,o.generation,o.aggregate_id)
+          AND earlier.cursor<o.cursor AND earlier.outcome='poison' AND unresolved.resolved_at IS NULL));
+END $$;
+
 CREATE FUNCTION coordination.c07_record(p_module text,p_generation bigint,p_cursor bigint,p_event uuid,
   p_outcome text,p_error text,p_receipt jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
@@ -162,7 +182,7 @@ BEGIN
     WHERE (p.installation_id,p.tenant_id,p.project_id,p.cursor,p.event_id)=
       (s.installation_id,s.tenant_id,s.project_id,p_cursor,p_event);
   IF NOT FOUND THEN RAISE EXCEPTION 'consumer_event_mismatch'; END IF;
-  IF p_outcome NOT IN ('applied','stale','poison','held') OR p_cursor<=c.snapshot_cursor
+  IF p_outcome IS NULL OR p_outcome NOT IN ('applied','stale','poison','held') OR p_cursor<=c.snapshot_cursor
     THEN RAISE EXCEPTION 'consumer_invalid_input'; END IF;
   SELECT * INTO existing FROM coordination.consumer_event_outcomes
     WHERE (installation_id,module_id,tenant_id,project_id,generation,cursor)=
@@ -170,15 +190,39 @@ BEGIN
   IF FOUND AND existing.event_id<>p_event THEN RAISE EXCEPTION 'consumer_event_mismatch'; END IF;
   IF FOUND AND existing.outcome IN ('applied','stale') AND p_outcome IN ('poison','held')
     THEN RAISE EXCEPTION 'consumer_outcome_immutable'; END IF;
+  IF p_cursor<=c.applied_cursor AND p_outcome IN ('poison','held')
+    THEN RAISE EXCEPTION 'consumer_outcome_immutable'; END IF;
   IF p_outcome IN ('applied','stale') THEN
-    IF p_receipt IS NULL OR p_receipt->>'event_id'<>p_event::text
-       OR p_receipt->>'aggregate_id'<>e.aggregate_id::text
-       OR (p_receipt->>'revision')::bigint<>e.aggregate_revision
-       OR (p_receipt->>'tombstone')::boolean<>e.tombstone
-       OR p_receipt->>'payload_sha256'<>e.payload_sha256
-       OR (p_receipt->>'generation')::bigint<>p_generation
-       OR (p_receipt->>'stale')::boolean<>(p_outcome='stale')
+    IF p_receipt IS NULL OR jsonb_typeof(p_receipt) IS DISTINCT FROM 'object'
+      THEN RAISE EXCEPTION 'consumer_receipt_mismatch'; END IF;
+    IF NOT p_receipt ?& ARRAY['event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale']
+       OR (SELECT count(*) FROM jsonb_object_keys(p_receipt))<>7
+       OR jsonb_typeof(p_receipt->'event_id') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(p_receipt->'aggregate_id') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(p_receipt->'revision') IS DISTINCT FROM 'number'
+       OR jsonb_typeof(p_receipt->'generation') IS DISTINCT FROM 'number'
+       OR jsonb_typeof(p_receipt->'payload_sha256') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(p_receipt->'tombstone') IS DISTINCT FROM 'boolean'
+       OR jsonb_typeof(p_receipt->'stale') IS DISTINCT FROM 'boolean'
+      THEN RAISE EXCEPTION 'consumer_receipt_mismatch'; END IF;
+    IF (p_receipt->>'event_id')::uuid IS DISTINCT FROM p_event
+       OR (p_receipt->>'aggregate_id')::uuid IS DISTINCT FROM e.aggregate_id
+       OR (p_receipt->>'revision')::numeric IS DISTINCT FROM e.aggregate_revision
+       OR (p_receipt->>'tombstone')::boolean IS DISTINCT FROM e.tombstone
+       OR p_receipt->>'payload_sha256' IS DISTINCT FROM e.payload_sha256
+       OR (p_receipt->>'generation')::numeric IS DISTINCT FROM p_generation
+       OR (p_receipt->>'stale')::boolean IS DISTINCT FROM (p_outcome='stale')
        THEN RAISE EXCEPTION 'consumer_receipt_mismatch'; END IF;
+    IF EXISTS(SELECT 1 FROM coordination.consumer_event_outcomes prior
+      JOIN coordination.quarantine q ON (q.tenant_id,q.project_id,q.event_id,q.module_id)=
+        (prior.tenant_id,prior.project_id,prior.event_id,prior.module_id)
+      WHERE (prior.installation_id,prior.module_id,prior.tenant_id,prior.project_id,prior.generation,prior.aggregate_id)=
+        (s.installation_id,p_module,s.tenant_id,s.project_id,p_generation,e.aggregate_id)
+        AND prior.cursor<p_cursor AND prior.outcome='poison' AND q.resolved_at IS NULL)
+      THEN RAISE EXCEPTION 'consumer_aggregate_poisoned'; END IF;
+    -- Retired completed-prefix replay is validated but cannot allocate a row or
+    -- overwrite durable heads. Cursor evidence also preserves anti-downgrade.
+    IF p_cursor<=c.applied_cursor THEN RETURN coordination.c07_status(p_module); END IF;
     INSERT INTO coordination.consumer_aggregate_heads
       (installation_id,module_id,tenant_id,project_id,generation,aggregate_id,revision,event_id,payload_sha256,tombstone)
       VALUES(s.installation_id,p_module,s.tenant_id,s.project_id,p_generation,e.aggregate_id,
@@ -218,6 +262,10 @@ BEGIN
   UPDATE coordination.consumer_project_checkpoints SET applied_cursor=GREATEST(applied_cursor,new_applied)
     WHERE (installation_id,module_id,tenant_id,project_id,generation)=
       (s.installation_id,p_module,s.tenant_id,s.project_id,p_generation);
+  DELETE FROM coordination.consumer_event_outcomes
+    WHERE (installation_id,module_id,tenant_id,project_id,generation)=
+      (s.installation_id,p_module,s.tenant_id,s.project_id,p_generation)
+      AND cursor<=new_applied AND outcome IN ('applied','stale');
   RETURN coordination.c07_status(p_module);
 END $$;
 
