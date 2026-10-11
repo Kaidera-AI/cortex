@@ -123,7 +123,7 @@ def trgm_scans(stats):
     found = {}
     if not stats:
         return found
-    for table in (stats.get("tables") or []):
+    for table in (stats.get("objects") or {}).values():
         for idx in (table.get("indexes") or []):
             name = idx.get("name", "")
             if "trgm" in name:
