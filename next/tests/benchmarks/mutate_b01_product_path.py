@@ -275,7 +275,23 @@ def native(destination):
         raise RuntimeError("Fresh engine35percent memory admission refused")
     postgres.podman(["image", "exists", postgres.IMAGE])
 
+    memory_admissions = []
+
+    def admit_resource_memory(phase):
+        allowed = (stack.name,) if "container" in stack.owned else ()
+        observed = qdrant.preflight(allowed_names=allowed)
+        engine = json.loads(postgres.podman(["info", "--format", "json"])).get("host", {})
+        total, free = engine.get("memTotal"), engine.get("memFree")
+        valid = (observed["free_percent"] >= 35 and type(total) is int and type(free) is int
+                 and total > 0 and 0 <= free <= total and free * 100 >= 35 * total)
+        memory_admissions.append({"phase": phase, "host": observed,
+            "vm_memTotal": total, "vm_memFree": free, "passed": valid})
+        if not valid: raise RuntimeError("Fresh create/start host and engine35percent admission refused")
+
     def cached_runner(arguments, *, input=None):
+        if arguments and (arguments[0] in ("create", "start")
+                or len(arguments) > 1 and arguments[1] == "create"):
+            admit_resource_memory(":".join(arguments[:2]) if arguments[0] in ("volume", "secret") else arguments[0])
         if arguments and arguments[0] == "create":
             arguments = ["create", "--pull=never", *arguments[1:]]
         return postgres.podman(arguments, input=input)
@@ -285,6 +301,7 @@ def native(destination):
     previous = {name: os.environ.get(name) for name in names}
     receipt = {"status": "RUNNING", "scope": "SOURCE_REAL_PG_COMPONENTS", "profile": profile,
                "host_admission": admission, "engine_free_percent": free * 100 // total,
+               "resource_memory_admissions": memory_admissions,
                "tested_head": tested_head, "native_qualified": False, "gtm_qualified": False,
                "fixture_sha256": sha((NEXT / "tests/benchmarks/test_b01_product_path.py").read_bytes()),
                "controller_sha256": sha(Path(__file__).read_bytes())}

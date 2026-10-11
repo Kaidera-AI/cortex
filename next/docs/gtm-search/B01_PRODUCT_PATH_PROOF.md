@@ -71,7 +71,9 @@ It first requires the tracked, integrated
 base903fd729 that file is absent, so the result is BLOCKED, zero tests and zero
 engine/resource access. The real-PG controller and nine component cases are
 prepared, with the existing owned lifecycle, cached-image-only policy and fresh
-host/engine35% admission. Those are the documented host memory fields in
+host/engine35% admission repeated before each resource create and container start.
+Only its already ownership-verified container name may be excluded from the
+foreign inventory during that admission. Those are the documented host memory fields in
 [Podman info](https://docs.podman.io/en/latest/markdown/podman-info.1.html).
 The additional negative witnesses compare actual Core scope with an independently
 frozen mapping, bind the real mocked provider/cache vector, reject an actual
