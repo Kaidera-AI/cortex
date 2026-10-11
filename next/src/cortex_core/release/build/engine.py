@@ -112,9 +112,21 @@ def run_operation(
 
 
 def build(
-    engine, source, iidfile, epoch, store, runroot, environment, timeout, stdout, stderr
+    engine,
+    source,
+    iidfile,
+    epoch,
+    store,
+    runroot,
+    environment,
+    timeout,
+    stdout,
+    stderr,
+    *,
+    resources,
 ):
     argv = build_argv(engine, source, iidfile, epoch)
+    argv = [*argv[:2], *resource_argv(resources), *argv[2:]]
     argv = [argv[0], "--root", str(store), "--runroot", str(runroot), *argv[1:]]
     return run_operation(argv, source, environment, timeout, stdout, stderr)
 
@@ -193,3 +205,18 @@ def _directory_descriptor(descriptor):
         yield descriptor
     finally:
         os.close(descriptor)
+
+
+def resource_argv(resources):
+    """Use the admitted integer limits; disk enforcement is a separate observation."""
+    for key in ("cpu_millicores", "memory_bytes", "disk_bytes"):
+        if type(resources.get(key)) is not int or resources[key] <= 0:
+            raise ValueError("explicit positive resource limit required: " + key)
+    return [
+        "--cpu-period",
+        "1000000",
+        "--cpu-quota",
+        str(resources["cpu_millicores"] * 1000),
+        "--memory",
+        str(resources["memory_bytes"]),
+    ]

@@ -246,16 +246,72 @@ class StdioOwnership(unittest.TestCase):
             )
         self.assertEqual(seen.get("stdin"), subprocess.DEVNULL)
 
+
 class ResourceArguments(unittest.TestCase):
     def test_exact_cpu_memory_limits_are_passed_to_build_adapter(self):
-        limits = {'cpu_millicores': 2500, 'memory_bytes': 1073741824, 'disk_bytes': 2147483648}
-        self.assertEqual(engine.resource_argv(limits), ['--cpu-period', '1000000', '--cpu-quota', '2500000', '--memory', '1073741824'])
+        limits = {
+            "cpu_millicores": 2500,
+            "memory_bytes": 1073741824,
+            "disk_bytes": 2147483648,
+        }
+        self.assertEqual(
+            engine.resource_argv(limits),
+            [
+                "--cpu-period",
+                "1000000",
+                "--cpu-quota",
+                "2500000",
+                "--memory",
+                "1073741824",
+            ],
+        )
 
     def test_missing_boolean_or_nonpositive_limit_refuses(self):
-        good = {'cpu_millicores': 2500, 'memory_bytes': 1073741824, 'disk_bytes': 2147483648}
+        good = {
+            "cpu_millicores": 2500,
+            "memory_bytes": 1073741824,
+            "disk_bytes": 2147483648,
+        }
         for key in good:
             for value in [None, True, 0, -1, 1.5]:
                 mutant = dict(good)
                 mutant[key] = value
                 with self.assertRaises(ValueError):
                     engine.resource_argv(mutant)
+
+
+class BuilderResourceWiring(unittest.TestCase):
+    def test_actual_build_function_keeps_limits_and_isolated_storage_in_full_argv(self):
+        limits = {
+            "cpu_millicores": 2500,
+            "memory_bytes": 1073741824,
+            "disk_bytes": 2147483648,
+        }
+        with patch.object(
+            engine, "run_operation", return_value={"exit": 0}
+        ) as operation:
+            engine.build(
+                "/usr/bin/podman",
+                "/source",
+                "/iid",
+                123,
+                "/store",
+                "/runroot",
+                {},
+                300,
+                "/out",
+                "/err",
+                resources=limits,
+            )
+        argv = operation.call_args.args[0]
+        self.assertEqual(
+            argv[:6],
+            ["/usr/bin/podman", "--root", "/store", "--runroot", "/runroot", "build"],
+        )
+        for option, expected in [
+            ("--cpu-period", "1000000"),
+            ("--cpu-quota", "2500000"),
+            ("--memory", "1073741824"),
+        ]:
+            self.assertEqual(argv[argv.index(option) + 1], expected)
+        self.assertEqual(operation.call_args.args[3], 300)
