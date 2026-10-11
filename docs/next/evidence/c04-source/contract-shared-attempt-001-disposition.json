@@ -1,0 +1,11 @@
+{
+  "attempt": "contract-shared-green.json",
+  "passed": false,
+  "container_removed": true,
+  "no_changed_or_missing_input_files": true,
+  "generated_extras": {
+    "next/tests/__pycache__/test_receipts.cpython-312.pyc": "74b0833224834c576388bd93c79b43da6dd92abd2ea273e3b60e8cf728f1e49e",
+    "next/scripts/__pycache__/mutate_contracts.cpython-312.pyc": "7ba66ba3d32ce06de02b93a732285e20f4f799e3dd8f74334d60645449ffc7fe"
+  },
+  "disposition": "retained operational restoration-check failure; no mutant failure relabelled; remove known caches after asserting all copied-source hashes, then check complete file manifest again"
+}

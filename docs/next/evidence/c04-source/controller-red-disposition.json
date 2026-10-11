@@ -1,0 +1,10 @@
+{
+  "receipt": "controller-guards-red.json",
+  "raw_body_red_valid": true,
+  "body_failures": 3,
+  "errors": 0,
+  "outer_exit": 1,
+  "outer_qualification": false,
+  "reason": "Phase suffix -red was initially treated as GREEN by the runner; actual unchanged guard suite still emitted all three declared expected-body assertion failures. Phase dispatch corrected separately; original receipt remains failed and immutable.",
+  "original_controller_commit": "c359d31"
+}
