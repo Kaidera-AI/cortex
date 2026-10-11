@@ -7,9 +7,13 @@ BEGIN
             NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
     END IF;
     SELECT * INTO installer FROM pg_roles WHERE rolname='kaidera-runtime-core-installer';
-    IF NOT installer.rolcanlogin OR installer.rolinherit OR installer.rolsuper
-       OR installer.rolcreatedb OR installer.rolcreaterole OR installer.rolreplication
-       OR installer.rolbypassrls OR EXISTS (
+    IF NOT FOUND OR installer.rolcanlogin IS DISTINCT FROM true
+       OR installer.rolinherit IS DISTINCT FROM false
+       OR installer.rolsuper IS DISTINCT FROM false
+       OR installer.rolcreatedb IS DISTINCT FROM false
+       OR installer.rolcreaterole IS DISTINCT FROM false
+       OR installer.rolreplication IS DISTINCT FROM false
+       OR installer.rolbypassrls IS DISTINCT FROM false OR EXISTS (
            SELECT 1 FROM pg_auth_members WHERE member=installer.oid OR roleid=installer.oid
        ) THEN
         RAISE EXCEPTION 'unsafe first-identity installer role' USING ERRCODE='42501';
@@ -43,18 +47,19 @@ RETURNS TABLE(installation_id uuid,tenant_id uuid,project_id uuid,principal_id u
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,auth,core,pg_temp AS $$
 BEGIN
-    IF session_user <> 'kaidera-runtime-core-installer' THEN RETURN; END IF;
+    IF session_user IS DISTINCT FROM 'kaidera-runtime-core-installer' THEN RETURN; END IF;
     RETURN QUERY SELECT r.installation_id,r.tenant_id,r.project_id,r.principal_id
       FROM auth.first_identity_receipts r
       JOIN core.tenants t ON (t.id,t.installation_id)=(r.tenant_id,r.installation_id)
       JOIN core.projects p ON (p.tenant_id,p.id)=(r.tenant_id,r.project_id)
-      WHERE p.name='default' AND r.xmin::text=pg_current_xact_id()::text
+      WHERE p.name IS NOT DISTINCT FROM 'default'
+        AND r.xmin::text IS NOT DISTINCT FROM pg_current_xact_id()::text
         AND NOT EXISTS (
           SELECT 1 FROM core.record_aliases a JOIN core.tenants at ON at.id=a.tenant_id
           WHERE at.installation_id=r.installation_id
-            AND a.source_namespace='cortex.core.identity'
-            AND (a.external_id<>r.principal_id::text
-                 OR a.xmin::text<>pg_current_xact_id()::text));
+            AND a.source_namespace IS NOT DISTINCT FROM 'cortex.core.identity'
+            AND (a.external_id IS DISTINCT FROM r.principal_id::text
+                 OR a.xmin::text IS DISTINCT FROM pg_current_xact_id()::text));
 END;
 $$;
 ALTER FUNCTION auth.first_identity_bootstrap_scope()
@@ -70,16 +75,18 @@ BEGIN
     SELECT * INTO s FROM auth.identity_scope(false);
     IF NOT FOUND THEN
         SELECT * INTO s FROM auth.first_identity_bootstrap_scope();
-        IF NOT FOUND OR p_kind<>'identity' OR p_target IS DISTINCT FROM s.principal_id
+        IF NOT FOUND OR p_kind IS DISTINCT FROM 'identity'
+           OR p_target IS DISTINCT FROM s.principal_id
            OR p_payload IS NULL THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
         SELECT convert_from(p.body,'UTF8')::jsonb INTO audit FROM core.payloads p
           WHERE (p.tenant_id,p.project_id,p.id)=(s.tenant_id,s.project_id,p_payload)
-            AND p.xmin::text=pg_current_xact_id()::text;
-        IF audit IS NULL OR audit->>'actor_kind'<>'installer'
-           OR audit->>'actor'<>'kaidera-runtime-core-installer'
-           OR audit->>'operation'<>'first_identity'
-           OR audit->>'principal_id'<>p_target::text
-           OR audit - ARRAY['actor_kind','actor','operation','principal_id'] <> '{}'::jsonb
+            AND p.xmin::text IS NOT DISTINCT FROM pg_current_xact_id()::text;
+        IF audit IS NULL OR audit->>'actor_kind' IS DISTINCT FROM 'installer'
+           OR audit->>'actor' IS DISTINCT FROM 'kaidera-runtime-core-installer'
+           OR audit->>'operation' IS DISTINCT FROM 'first_identity'
+           OR audit->>'principal_id' IS DISTINCT FROM p_target::text
+           OR audit - ARRAY['actor_kind','actor','operation','principal_id']
+              IS DISTINCT FROM '{}'::jsonb
            THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
         bootstrap:=true;
     ELSIF s.action NOT IN ('write','control') OR p_kind NOT IN ('job','identity')
@@ -115,8 +122,11 @@ BEGIN
     SELECT * INTO s FROM auth.identity_scope(false);
     IF NOT FOUND THEN
         SELECT * INTO s FROM auth.first_identity_bootstrap_scope();
-        IF NOT FOUND OR NEW.tenant_id<>s.tenant_id OR NEW.project_id<>s.project_id
-           OR NEW.revision<>1 OR NEW.tombstone THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
+        IF NOT FOUND OR NEW.tenant_id IS DISTINCT FROM s.tenant_id
+           OR NEW.project_id IS DISTINCT FROM s.project_id
+           OR NEW.revision IS DISTINCT FROM 1
+           OR NEW.tombstone IS DISTINCT FROM false
+           THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
         IF NOT EXISTS (SELECT 1 FROM core.record_aliases a
             WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id,a.record_id)=
               (s.tenant_id,s.project_id,'cortex.core.identity',s.principal_id::text,NEW.record_id)
@@ -132,7 +142,7 @@ BEGIN
     END IF;
     SELECT kind INTO STRICT k FROM core.records WHERE (tenant_id,project_id,id)=
       (NEW.tenant_id,NEW.project_id,NEW.record_id);
-    IF bootstrap AND k<>'core.identity' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
+    IF bootstrap AND k IS DISTINCT FROM 'core.identity' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;
     SELECT sha256 INTO STRICT digest FROM core.payloads WHERE (tenant_id,project_id,id)=
       (NEW.tenant_id,NEW.project_id,NEW.payload_ref);
     INSERT INTO coordination.outbox(event_id,installation_id,tenant_id,project_id,aggregate_id,aggregate_kind,
@@ -151,15 +161,15 @@ BEGIN
     SELECT * INTO s FROM auth.identity_scope(true);
     IF NOT FOUND THEN
         SELECT * INTO s FROM auth.first_identity_bootstrap_scope();
-        IF NOT FOUND OR TG_OP<>'INSERT' THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
+        IF NOT FOUND OR TG_OP IS DISTINCT FROM 'INSERT' THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
         bootstrap:=true;
     END IF;
     IF TG_TABLE_NAME='principals' THEN target:=NEW.id; ELSE target:=NEW.principal_id; END IF;
     IF TG_TABLE_NAME='project_grants' THEN
-        IF NEW.project_id<>s.project_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
+        IF NEW.project_id IS DISTINCT FROM s.project_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
     END IF;
-    IF bootstrap AND target<>s.principal_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
-    IF NEW.tenant_id<>s.tenant_id OR NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o
+    IF bootstrap AND target IS DISTINCT FROM s.principal_id THEN RAISE EXCEPTION 'identity_forbidden'; END IF;
+    IF NEW.tenant_id IS DISTINCT FROM s.tenant_id OR NOT EXISTS(SELECT 1 FROM core.record_aliases a JOIN coordination.outbox o
         ON(o.tenant_id,o.project_id,o.aggregate_id)=(a.tenant_id,a.project_id,a.record_id)
         WHERE (a.tenant_id,a.project_id,a.source_namespace,a.external_id)=(s.tenant_id,s.project_id,'cortex.core.identity',target::text)
           AND o.xmin::text=pg_current_xact_id()::text)
