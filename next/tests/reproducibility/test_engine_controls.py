@@ -316,21 +316,57 @@ class BuilderResourceWiring(unittest.TestCase):
             self.assertEqual(argv[argv.index(option) + 1], expected)
         self.assertEqual(operation.call_args.args[3], 300)
 
+
 class EarlyOperationEvidence(unittest.TestCase):
     def test_argv_journal_exists_before_child_and_survives_start_failure(self):
         import json
+
         seen = []
         with tempfile.TemporaryDirectory() as t:
             p = Path(t)
+
             def fail(argv, **kwargs):
-                self.assertTrue((p/"out.operation.jsonl").is_file(), "argv custody must exist before child start")
-                seen.append(json.loads((p/'out.operation.jsonl').read_text().splitlines()[0]))
-                raise OSError('fixture start failure')
+                self.assertTrue(
+                    (p / "out.operation.jsonl").is_file(),
+                    "argv custody must exist before child start",
+                )
+                seen.append(
+                    json.loads((p / "out.operation.jsonl").read_text().splitlines()[0])
+                )
+                raise OSError("fixture start failure")
+
             with self.assertRaises(OSError):
-                engine.run_operation(['/pinned/engine', 'prepare', '196-inputs'], p, {'PYTHONHASHSEED': '0'}, 240, p/'out', p/'err', popen=fail)
-            journal = [json.loads(line) for line in (p/'out.operation.jsonl').read_text().splitlines()]
-            self.assertEqual(seen[0]['argv'], ['/pinned/engine', 'prepare', '196-inputs'])
-            self.assertEqual(seen[0]['environment_names'], ['PYTHONHASHSEED'])
-            self.assertEqual(journal[-1]['status'], 'failed')
-            self.assertEqual(journal[-1]['error'], 'OSError')
-            self.assertIsNone(journal[-1]['exit'])
+                engine.run_operation(
+                    ["/pinned/engine", "prepare", "196-inputs"],
+                    p,
+                    {"PYTHONHASHSEED": "0"},
+                    240,
+                    p / "out",
+                    p / "err",
+                    popen=fail,
+                )
+            journal = [
+                json.loads(line)
+                for line in (p / "out.operation.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual(
+                seen[0]["argv"], ["/pinned/engine", "prepare", "196-inputs"]
+            )
+            self.assertEqual(seen[0]["environment_names"], ["PYTHONHASHSEED"])
+            self.assertEqual(journal[-1]["status"], "failed")
+            self.assertEqual(journal[-1]["error"], "OSError")
+            self.assertIsNone(journal[-1]["exit"])
+
+class RealCancellationEvidence(unittest.TestCase):
+    def test_real_timeout_keeps_partial_stdout_journal_and_observed_exit(self):
+        import json
+        import sys
+        with tempfile.TemporaryDirectory() as t:
+            p = Path(t)
+            with self.assertRaises(subprocess.TimeoutExpired):
+                engine.run_operation([sys.executable, '-c', 'import time; print("partial", flush=True); time.sleep(30)'], p, {}, 2, p/'out', p/'err')
+            self.assertEqual((p/'out').read_bytes(), b'partial\n')
+            rows = [json.loads(line) for line in (p/'out.operation.jsonl').read_text().splitlines()]
+            self.assertEqual([row['status'] for row in rows], ['started', 'failed'])
+            self.assertEqual(rows[-1]['error'], 'TimeoutExpired')
+            self.assertEqual(rows[-1]['exit'], -15)
