@@ -38,6 +38,15 @@ MUTANTS = {
         'connect_timeout_seconds=1000,\n'
         '                statement_timeout_ms=1000000',
     )],
+    'subsecond_rejection_restored': [(
+        'or not 0.001 <= connect_timeout_seconds <= 10',
+        'or not 1 <= connect_timeout_seconds <= 10',
+    )],
+    'close_inside_flight': [(
+        'cleanup = asyncio.create_task(retire(connection))\n'
+        '                cleanup.add_done_callback(observe_close)',
+        'await retire(connection)',
+    )],
 }
 
 

@@ -9,6 +9,8 @@ from dataclasses import dataclass
 import hashlib
 import inspect
 import json
+import logging
+import math
 from pathlib import Path
 import re
 from uuid import UUID
@@ -16,6 +18,9 @@ from uuid import UUID
 
 class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class PostgresProbeFactory:
@@ -28,13 +33,14 @@ class PostgresProbeFactory:
 
     async def connect(self, *, connect_timeout_seconds, statement_timeout_ms):
         if (type(connect_timeout_seconds) not in (int, float)
-                or not 1 <= connect_timeout_seconds <= 10
+                or not 0.001 <= connect_timeout_seconds <= 10
                 or type(statement_timeout_ms) is not int
                 or not 1 <= statement_timeout_ms <= 10000):
             raise GatewayError('Core probe deadlines are invalid')
         import psycopg
         return await psycopg.AsyncConnection.connect(
-            self.dsn, autocommit=True, connect_timeout=int(connect_timeout_seconds),
+            self.dsn, autocommit=True,
+            connect_timeout=max(1, math.ceil(connect_timeout_seconds)),
             options=f'-c statement_timeout={statement_timeout_ms}')
 
 
@@ -46,6 +52,29 @@ def postgres_core_probe(connection_factory, *, timeout_seconds=2):
             or not 0.001 <= timeout_seconds <= 10):
         raise GatewayError('Core probe configuration is invalid')
     flight = None
+
+    def observe_close(task):
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            LOGGER.warning('Core probe connection close failed', exc_info=True)
+
+    async def retire(connection):
+        close_task = asyncio.create_task(connection.close())
+        try:
+            done, _ = await asyncio.wait({close_task}, timeout=timeout_seconds)
+            if done:
+                observe_close(close_task)
+            else:
+                close_task.cancel()
+                close_task.add_done_callback(observe_close)
+                LOGGER.warning('Core probe connection close timed out')
+        except asyncio.CancelledError:
+            close_task.cancel()
+            close_task.add_done_callback(observe_close)
+            raise
 
     async def check():
         deadline = asyncio.get_running_loop().time() + timeout_seconds
@@ -67,10 +96,8 @@ def postgres_core_probe(connection_factory, *, timeout_seconds=2):
             return False
         finally:
             if connection is not None:
-                try:
-                    await connection.close()
-                except Exception:
-                    pass
+                cleanup = asyncio.create_task(retire(connection))
+                cleanup.add_done_callback(observe_close)
 
     async def probe():
         nonlocal flight
