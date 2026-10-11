@@ -1,0 +1,9 @@
+# PR71 accepted-tip main-forward qualification
+
+Authority: Kai's Cox DO NOW 2026-10-11 16:31. Accepted starting head 3438b9e; main 903fd729. No main merge is authorized.
+
+1. Verify local starting head against accepted origin before merge. The stale local 1119689 was caught before committing, its staged merge aborted, and the branch fast-forwarded to 3438b9e. Forward merge 433bcec has exact accepted/main parents and zero textual conflicts.
+2. Record the full delta from main, including inherited C07 ancestry. C07 #69 is not individually accepted; do not describe this integrated tip as backup-only. Mike owns the complete delta review.
+3. Preserve backup.py and the seven frozen backup tests. Refresh proof orchestration for 41 inherited receipt tests and seven O01a tests. Retain the historical native/fault receipts. Execute inherited C07/Core real-PG checks in the restricted copied pod; execute O01a synthetic staging/encryption through its published host contract with already installed Python3.12/age and one owned network-none PG container. Never use live data/keys/services or install host dependencies.
+4. Run the six legacy backup faults with current seven-test attribution plus the caller-owned metadata regression fault; every kill must be an expected BODY assertion, zero errors/inconclusive. Run new native base/WAL/verify/encrypt/decrypt proof at the committed source head. One owned pod/container stack at a time, ≤2CPU/1GiB, ≥35% free, no binds/ports, full cleanup.
+5. Publish fresh raw receipts and source/controller bindings as a documents-only successor. Verify tested/publication product and controller equivalence, complete path table, origin head and all hosted checks. Return to Mike for delta review; Kai gives a separate GO naming the predecessor. No live backup, restore, migration or adoption.
