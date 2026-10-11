@@ -1,0 +1,14 @@
+{
+  "reviewed_sha": "850ae79df94f15a825d0e455f4ac0dfea16a3fc1",
+  "read_only": true,
+  "official_acceptance": false,
+  "required": [
+    "late lease acceptance linearization",
+    "pre-encoding bounded fence input",
+    "private payload bound"
+  ],
+  "source_sha256": {
+    "next/src/cortex_core/records.py": "ab019bfe5d325fa8deece38fedfb55a6290cd4d82cc769e0082da45fc52e301e",
+    "next/src/cortex_core/coordination.py": "9d3d93b46f819d32c0f6cce5fff85ecdbf1a195a2d992f374e90b87e720b3482"
+  }
+}

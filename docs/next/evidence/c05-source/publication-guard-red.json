@@ -1,0 +1,10 @@
+{
+  "tree": "3c9111e2770ea9be7e26ff2055dcca618e731739",
+  "scope": "stdlib artifact byte/canonical pointer inspection; no product execution",
+  "script_sha256": "bcce1b8d5c3c86b019d319d7fb5800b61b7da9fea316cdfc076e7e8c72cbd6e8",
+  "index_sha256": "08125e704d950fb1ee3c9429544455a5f933abbc8ba5c1074a90f5849ed668cd",
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c05-source/verify-publication.py\", line 20, in <module>\n    assert Path(canonical).is_file(), ('missing_canonical_source', relative, canonical)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^\nAssertionError: ('missing_canonical_source', 'docs/next/c05-implementation-plan.md', '/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c05-source/c05-implementation-plan.md')\n",
+  "qualified_expected_result": true
+}
