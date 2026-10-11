@@ -21,3 +21,5 @@ Depth tree: rebase custody → O01b inherited/fault/native qualification → exa
 Old native/verifiers remain historical at original commits. Necessary controller fixes bind fresh admission and current schema ledger; do not change product/test assertions to clear refresh failures. No Gavel/Jev or host install. Named base is pinned9f5cbd3 by Kai23:15.
 
 Measured G1: clean9-commit rebase,23 O01b paths,accepted product/tests equal c3cad3ed. G2: stale14-test driver RED reports8 INCONCLUSIVE with16 actual tests/0errors; corrected16 baseline/restored +postcheck fault →9/9 O01b kills/12 BODY assertions; unchanged inherited7/7 kills/12 BODY assertions. No product or frozen test change.
+
+Native inherited attempt001:40 bodies clean and all485 copied sources restored; rejected by existing frozen-HEAD assertion because author committed controller-only change during run (de86be9 →56fc876). No qualification credit. Owned3 resources removed. Current source/controllers are frozen before sequential native refresh and attempt002; no commits until both jobs complete.
