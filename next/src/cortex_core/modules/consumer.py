@@ -217,19 +217,39 @@ class ModuleConsumer:
             raise ConsumerError('invalid_input')
         with self.hold_lock():
             state = self._state()
-            try:
-                page = self.feed.page(after=state['applied_cursor'], limit=1000)
-            except OutboxError as error:
-                raise ConsumerError(error.code) from error
-            requested = next((event for event in page.events if UUID(event.envelope['event_id']) == event_id), None)
-            if requested is None:
-                raise ConsumerError('repair_event_missing')
             if not self._call('c07_quarantined(%s,%s,%s)', (self.module_id, state['generation'], event_id)):
                 raise ConsumerError('repair_event_not_poison')
-            aggregate = UUID(requested.envelope['aggregate_id'])
-            if not self._apply_event(state, requested, repairing=True):
-                return self.status()
-            for event in page.events:
-                if event.cursor > requested.cursor and event.cursor <= state['scan_cursor'] and UUID(event.envelope['aggregate_id']) == aggregate:
-                    self._apply_event(state, event)
+            # Admission is captured once while locked: successful root apply
+            # resolves its quarantine, but does not invalidate continuation.
+            cursor = state['applied_cursor']
+            scan_fence = state['scan_cursor']
+            requested = None
+            aggregate = None
+            while cursor < scan_fence:
+                try:
+                    page = self.feed.page(after=cursor, limit=1000)
+                except OutboxError as error:
+                    raise ConsumerError(error.code) from error
+                page_cursor = cursor
+                for event in page.events:
+                    if event.cursor > scan_fence:
+                        break
+                    if event.cursor <= page_cursor:
+                        raise ConsumerError('invalid_repair_page')
+                    page_cursor = event.cursor
+                    if requested is None:
+                        if UUID(event.envelope['event_id']) != event_id:
+                            continue
+                        requested = event
+                        aggregate = UUID(event.envelope['aggregate_id'])
+                        if not self._apply_event(state, event, repairing=True):
+                            return self.status()
+                    elif UUID(event.envelope['aggregate_id']) == aggregate:
+                        if not self._apply_event(state, event):
+                            return self.status()
+                if page_cursor == cursor:
+                    break
+                cursor = page_cursor
+            if requested is None:
+                raise ConsumerError('repair_event_missing')
             return self.status()
