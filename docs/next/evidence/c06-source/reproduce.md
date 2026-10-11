@@ -1,5 +1,9 @@
 # C06 copied PostgreSQL source proof
 
+## Current forward qualification
+
+See [FM-001 / FM-002 reproduction and publication bindings](reproduce-forward.md). Host discovery is isolated, and the full native matrix has a new Git-bound raw receipt. Sections below, including their historical uses of “current”, belong to their named old heads and indices. They are not relabeled as forward-tip proof.
+
 ## PR #51 writer-inventory rework r4 — current proof
 
 Mike's aliased `_private` caller and a cross-file import alias passed the old
