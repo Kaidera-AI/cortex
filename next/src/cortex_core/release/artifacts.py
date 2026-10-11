@@ -1,7 +1,13 @@
 """Remeasure OCI closure and deterministic layer metadata without extraction."""
 import io
+import _imp
+import importlib.util
+import marshal
+import posixpath
 import re
 import tarfile
+from datetime import datetime, timezone
+from types import CodeType
 from .codec import canonical_bytes, decode_json, relative_path, sha256
 from .contracts import ReceiptRefusal
 
@@ -27,30 +33,49 @@ def measure(record, reader, limit):
     return raw
 
 
-def tar_members(raw, limit, *, metadata=None):
-    result, inventory = {}, []
+def tar_members(raw, limit, *, metadata=None, layer_policy=None):
+    result, inventory, seen, total, end = {}, [], set(), 0, 0
     try:
         with tarfile.open(fileobj=io.BytesIO(raw), mode='r:') as archive:
             for member in archive:
-                relative_path(member.name)
-                require(member.name not in result and len(result) < 50000, 'tar_duplicate_or_count')
-                require(member.isfile() and not member.issparse() and not member.pax_headers,
+                path = relative_path(member.name.rstrip('/') if member.isdir() else member.name)
+                require(path not in seen and len(seen) < 50000, 'tar_duplicate_or_count')
+                seen.add(path)
+                require(not member.issparse() and not member.pax_headers and
+                        (member.isfile() or member.isdir() or member.issym()),
                         'tar_nonregular_or_extended')
-                require(member.size <= limit and sum(len(v) for v in result.values()) + member.size <= limit,
+                require(member.size <= limit and total + member.size <= limit,
                         'tar_byte_bound')
-                require(not member.uname and not member.gname and not member.linkname,
+                require(not member.uname and not member.gname and (member.issym() or not member.linkname),
                         'tar_identity_or_alias')
-                stream = archive.extractfile(member)
-                require(stream is not None, 'tar_missing_member')
-                body = stream.read(member.size + 1)
-                require(len(body) == member.size, 'tar_truncated')
-                result[member.name] = body
+                total += member.size
+                end = max(end, member.offset_data + ((member.size + 511)//512)*512)
+                if member.isfile():
+                    stream = archive.extractfile(member)
+                    require(stream is not None, 'tar_missing_member')
+                    body = stream.read(member.size + 1)
+                    require(len(body) == member.size, 'tar_truncated')
+                    result[path] = body
+                elif member.isdir():
+                    require(member.size == 0 and (not metadata or layer_policy['allow_directories']), 'layer_directory_policy')
+                    body = b''
+                else:
+                    require(metadata is not None and layer_policy['symlinks'].get(path) == member.linkname and member.size == 0,
+                            'layer_symlink_policy')
+                    destination = posixpath.normpath(posixpath.join(posixpath.dirname(path),member.linkname))
+                    relative_path(destination)
+                    body = member.linkname.encode('utf-8')
+                    result[path] = body
                 if metadata:
                     require(member.uid == metadata['uid'] and member.gid == metadata['gid'] and
-                            member.mtime == metadata['mtime_epoch'] and member.mode in (420, 493),
+                            member.mtime == metadata['mtime_epoch'] and member.mode in ((511,) if member.issym() else (493,) if member.isdir() else (420,493)),
                             'layer_metadata_policy')
-                inventory.append(dict(path=member.name, bytes=len(body), sha256=sha256(body),
-                                      mode=member.mode, uid=member.uid, gid=member.gid, mtime=member.mtime))
+                record=dict(path=path, bytes=len(body), sha256=sha256(body),mode=member.mode,
+                            uid=member.uid,gid=member.gid,mtime=member.mtime)
+                if member.isdir():record['kind']='directory'
+                if member.issym():record.update(kind='symlink',link_target=member.linkname)
+                inventory.append(record)
+        require(len(raw) % 512 == 0 and len(raw) - end >= 1024 and not any(raw[end:]), 'tar_unlisted_trailing_bytes')
         require(bool(result), 'empty_tar')
         return result, sorted(inventory, key=lambda r: r['path'])
     except (tarfile.TarError, EOFError, OSError) as error:
@@ -67,9 +92,11 @@ def _descriptor(desc, media, blobs):
     return key
 
 
-def inspect_oci(raw_archive, output_records, output_bytes, oci, value):
+def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module_policy=None):
     limit = value['resources']['disk_bytes']
-    members, _ = tar_members(raw_archive, limit)
+    module_policy = module_policy or {'oci_config':{},'history':[], 'layer_policy':{'allow_replacements':False,'allow_directories':False,'symlinks':{}}}
+    members, outer_inventory = tar_members(raw_archive, limit)
+    require(all(row.get('kind') != 'directory' or row['path'] in ('blobs','blobs/sha256') for row in outer_inventory), 'oci_unknown_directory')
     require('oci-layout' in members and 'index.json' in members, 'oci_layout_missing')
     require(decode_json(members['oci-layout'], 1024, canonical=False) == {'imageLayoutVersion': '1.0.0'},
             'oci_layout_version')
@@ -93,6 +120,12 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value):
     config = decode_json(blobs[config_key], 8 * 1024 * 1024, canonical=False)
     require(isinstance(config, dict) and config.get('os') == 'linux' and
             config.get('architecture') == platform.split('/')[1], 'oci_config_platform')
+    require(set(config) <= {'architecture','os','rootfs','config','created','history'}, 'oci_unknown_config_metadata')
+    epoch = datetime.fromtimestamp(value['determinism']['epoch'],timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
+    history = config.get('history',[])
+    require(('created' not in config or config['created'] == epoch) and isinstance(history,list) and
+            all(isinstance(row,dict) and row.get('created') == epoch for row in history), 'oci_clock_policy')
+    require([{k:v for k,v in row.items() if k != 'created'} for row in history] == module_policy['history'], 'oci_history_policy')
     layers = [_descriptor(desc, LAYER, blobs) for desc in manifest['layers']]
     require(len(layers) == len(set(layers)), 'oci_duplicate_layer')
     require(config.get('rootfs') == {'type': 'layers', 'diff_ids': ['sha256:' + key for key in layers]},
@@ -107,19 +140,59 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value):
     for role, (media, body) in expected.items():
         record = roles[role]
         require(record['media_type'] == media and output_bytes[record['path']] == body, 'oci_inventory_body')
-    files = {}
+    files, contents = {}, {}
     for key in layers:
-        contents, inventory = tar_members(blobs[key], limit, metadata=value['determinism']['file_metadata'])
+        bodies, inventory = tar_members(blobs[key], limit, metadata=value['determinism']['file_metadata'],layer_policy=module_policy['layer_policy'])
         for record in inventory:
             path = record['path']
             # This closed policy denies generated accounts/logs/caches and aliases.
             require(not path.startswith(('var/log/', 'var/cache/', 'tmp/', 'root/', 'home/')) and
                     path not in ('etc/passwd', 'etc/group', 'etc/shadow', 'etc/gshadow') and
-                    '/__pycache__/' not in '/' + path and not path.endswith(('.pyc', '.pyo')),
+                    not path.endswith('.pyo') and ('/__pycache__/' not in '/' + path or path.endswith('.pyc')),
                     'generated_account_log_cache')
-            require(path not in files, 'layer_overwrite_or_whiteout')
+            require(path not in files or (module_policy['layer_policy']['allow_replacements'] and
+                    record.get('kind','regular') == files[path].get('kind','regular')), 'layer_overwrite_or_whiteout')
             require(not any(p.startswith('.wh.') for p in path.split('/')), 'layer_whiteout')
             files[path] = record
-    require(config.get('config') == {}, 'unreviewed_runtime_config_or_labels')
+        contents.update(bodies)
+    for path, record in files.items():
+        if record.get('kind') == 'symlink':
+            destination=posixpath.normpath(posixpath.join(posixpath.dirname(path),record['link_target']))
+            require(destination in files and files[destination].get('kind','regular') == 'regular', 'layer_symlink_target')
+        elif path.endswith('.pyc'):
+            _check_pyc(path,contents[path],contents,value)
+    require(config.get('config') == module_policy['oci_config'], 'unreviewed_runtime_config_or_labels')
     inventory = [files[path] for path in sorted(files)]
     return tuple(sorted(closure)), inventory
+
+
+def _check_pyc(path, raw, contents, value):
+    policy=value['determinism']['python']
+    require(policy['applicable'] and len(raw) <= 1024*1024 and len(raw) >= 16 and
+            int.from_bytes(raw[4:8],'little') == 3, 'python_checked_hash_policy')
+    magic={'3.12':bytes.fromhex('cb0d0d0a'),'3.13':bytes.fromhex('f30d0d0a'),'3.14':bytes.fromhex('2b0e0d0a')}
+    version='.'.join(value['builder_requirements']['toolchain']['version'].split('.')[:2])
+    require(raw[:4] == magic.get(version) and raw[:4] == importlib.util.MAGIC_NUMBER, 'python_verifier_compiler_unqualified')
+    if '/__pycache__/' in path:
+        prefix,name=path.rsplit('/__pycache__/',1)
+        suffix='.cpython-'+version.replace('.','')+('.opt-'+str(policy['optimization']) if policy['optimization'] else '')+'.pyc'
+        require(name.endswith(suffix), 'python_cache_name_policy')
+        source=prefix+'/'+name[:-len(suffix)]+'.py'
+    else:
+        source=path[:-1]
+    require(source in contents and raw[8:16] == _imp.source_hash(int.from_bytes(raw[:4],'little'),contents[source]), 'python_source_hash_policy')
+    filename='/'+source
+    require(filename.startswith(policy['final_root'].rstrip('/')+'/'), 'python_final_root_policy')
+    try:
+        stream=io.BytesIO(raw[16:]);code=marshal.load(stream)
+        require(not stream.read(1) and isinstance(code,CodeType), 'python_bytecode_shape')
+        def filenames(current):
+            require(current.co_filename == filename, 'python_final_filename_policy')
+            for constant in current.co_consts:
+                if isinstance(constant,CodeType):filenames(constant)
+        filenames(code)
+        expected=compile(contents[source],filename,'exec',dont_inherit=True,optimize=policy['optimization'])
+        require(code == expected, 'python_compilation_policy')
+    except (EOFError, ValueError, TypeError, SyntaxError, RecursionError) as error:
+        if isinstance(error,ReceiptRefusal):raise
+        raise ReceiptRefusal('python_bytecode_shape') from error

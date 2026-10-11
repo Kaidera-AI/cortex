@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from .codec import canonical_bytes, decode_json, ordered_inventory, relative_path, schema_validate, sha256
 from .contracts import BuildRefusal, ParsedBuildInput, VerifiedBuildInput, _SEAL, freeze, thaw
+from .metadata import parse_metadata
 
 
 @dataclass(frozen=True)
@@ -110,8 +111,6 @@ def admit_build_input(input, input_reader, accepted_policy):
             raise BuildRefusal('input_bytes_mismatch')
         actual[row['path']] = raw
         measured.append(row)
-    descriptor = decode_json(actual[value['descriptor']['path']], 1024 * 1024, canonical=False)
-    if descriptor.get('module_id') != value['target']['module_id'] or descriptor.get('module_version') != value['target']['module_version']:
-        raise BuildRefusal('descriptor_target_mismatch')
+    metadata = parse_metadata(value, actual, native)
     return VerifiedBuildInput(parsed.sha256, freeze(value['target']), tuple(freeze(r) for r in measured),
-                              freeze(requirements), freeze(value), native, _SEAL)
+                              freeze(requirements), freeze(value), native, freeze(metadata), _SEAL)

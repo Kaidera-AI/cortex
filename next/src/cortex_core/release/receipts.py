@@ -92,7 +92,8 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
         roles = {r['role']: r for r in outputs}
         require('archive' in roles and roles['archive']['media_type'] == 'application/x-tar', 'raw_archive_media')
         archive = actual[roles['archive']['path']]
-        closure, layer_inventory = inspect_oci(archive, outputs, actual, build['oci'], input_value)
+        closure, layer_inventory = inspect_oci(archive, outputs, actual, build['oci'], input_value,
+                                              module_policy=thaw(verified_input.metadata)['release_policy'])
         require(build['provenance'] == roles['provenance'] and roles['provenance']['media_type'] == 'application/json', 'provenance_record_binding')
         provenance = decode_json(actual[roles['provenance']['path']], 8 * 1024 * 1024)
         expected = {key: build[key] for key in ('build_id','source_sha256','recipe_sha256','dependency_sha256','observed_builder')}

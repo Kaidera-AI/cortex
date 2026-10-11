@@ -63,6 +63,7 @@ class VerifiedBuildInput:
     requirements: Mapping
     document: Mapping
     native_qualified: bool
+    metadata: Mapping
     _seal: object
 
 
