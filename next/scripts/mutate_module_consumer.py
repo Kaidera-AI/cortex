@@ -38,7 +38,7 @@ RECIPES = [
      'if False:',
      'test_poison.Poison.test_sparse_outcome_capacity_refuses_without_dropping_peer'),
     ('complete outcome downgrade guard removed',SQL,
-     "IF FOUND AND existing.outcome IN ('applied','stale') AND p_outcome IN ('poison','held')",
+     "IF p_cursor<=c.applied_cursor AND p_outcome IN ('poison','held')",
      'IF false',
      'test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'),
     ('poisoned aggregate not held',CONSUMER,
@@ -76,6 +76,36 @@ RECIPES = [
      "ALTER TABLE coordination.%I NO FORCE ROW LEVEL SECURITY",
      'test_manifest.Manifest.test_new_tables_force_rls_and_request_has_no_direct_write'),
 ]
+
+RECIPES.extend([
+    ('review Python receipt admission bypassed',CONSUMER,
+     "        required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}",
+     "        self._record(state,event,'applied',receipt=receipt)\n        return True\n        required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}",
+     'test_review_repairs.ReviewRepairs.test_python_complete_typed_receipt_refuses_before_record'),
+    ('review SQL receipt admission bypassed',SQL,
+     "  IF p_outcome IN ('applied','stale') THEN", "  IF p_outcome IN ('applied','stale') AND false THEN",
+     'test_review_repairs.ReviewRepairs.test_sql_complete_typed_receipt_is_null_safe_and_atomic'),
+    ('review repair scope and ordinary fence bypassed',CONSUMER,
+     "if event.cursor > requested.cursor and UUID(event.envelope['aggregate_id']) == aggregate:\n                    self._apply_event(state, event)",
+     "if event.cursor > requested.cursor:\n                    self._apply_event(state, event, repairing=True)",
+     'test_review_repairs.ReviewRepairs.test_unrelated_poison_does_not_block_or_change_requested_repair'),
+    ('review quarantine root admission bypassed',CONSUMER,
+     "if not self._call('c07_quarantined(%s,%s,%s)',", "if False and self._call('c07_quarantined(%s,%s,%s)',",
+     'test_review_repairs.ReviewRepairs.test_held_event_cannot_be_used_as_quarantine_root'),
+    ('review completed prefix retirement omitted',SQL,
+     "AND cursor<=new_applied AND outcome IN ('applied','stale');",
+     "AND false AND cursor<=new_applied AND outcome IN ('applied','stale');",
+     'test_review_repairs.ReviewRepairs.test_healthy_completed_prefix_is_compacted_with_durable_head'),
+    ('review numeric version type omitted','src/cortex_core/modules/protocol.py',
+     "or type(value['protocol_version']) not in (int, float)", "or False",
+     'test_review_repairs.ReviewRepairs.test_manifest_matches_numeric_unique_bounded_kind_schema'),
+    ('review kind uniqueness omitted','src/cortex_core/modules/protocol.py',
+     'or len(set(kinds)) != len(kinds)', 'or False',
+     'test_review_repairs.ReviewRepairs.test_manifest_matches_numeric_unique_bounded_kind_schema'),
+    ('review kind length bound omitted','src/cortex_core/modules/protocol.py',
+     'not 1 <= len(kind) <= 64', 'not kind',
+     'test_review_repairs.ReviewRepairs.test_manifest_matches_numeric_unique_bounded_kind_schema'),
+])
 
 
 def digest(data):
@@ -119,7 +149,7 @@ def run():
         assert expected.startswith('test_')
     baseline = suite(DIRECTORY)
     baseline_receipt = check_receipt(baseline)
-    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 24
+    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 34
     assert not baseline_receipt['failures'] and not baseline_receipt['errors']
     print(json.dumps({'baseline':baseline_receipt,'source_sha256':original_sha}),flush=True)
     rows = []
@@ -134,8 +164,9 @@ def run():
                     manifest['migrations'][-1]['sha256'] = digest((NEXT/SQL).read_bytes())
                     (NEXT/MANIFEST).write_text(json.dumps(manifest,indent=2)+'\n')
                 effective = {name:digest((NEXT/name).read_bytes()) for name in paths}
-                result = (exact_suite(expected) if label == 'sparse gap promoted'
-                          else suite(DIRECTORY))
+                # A fault can make unrelated repair cases fail operationally;
+                # isolate its declared boundary, retaining full baselines.
+                result = exact_suite(expected)
                 receipt = check_receipt(result)
                 status = classify(result,{expected})
                 failed = {row['id'].split(' (')[0] for row in receipt['failures']}
@@ -166,7 +197,7 @@ def run():
                'restored_source_sha256':final_sha,'restored_receipt':restored}
     print(json.dumps(summary),flush=True)
     assert len(rows)==len(RECIPES) and summary['killed']==len(RECIPES)
-    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==24
+    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==34
     assert not restored['failures'] and not restored['errors']
 
 

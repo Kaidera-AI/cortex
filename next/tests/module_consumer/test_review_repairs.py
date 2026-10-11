@@ -70,7 +70,10 @@ class ReviewRepairs(ConsumerFixture):
             def apply(self,event,generation):
                 if event.cursor==first.cursor:raise ValueError('target_conflict')
                 return original.apply(event,generation)
-        p.sink=ConflictRoot();p.repair(UUID(first.envelope['event_id']))
+        p.sink=ConflictRoot()
+        try:p.repair(UUID(first.envelope['event_id']))
+        except self.module().ConsumerError as error:
+            self.fail('conflicting repair must preserve the fence without aborting: '+error.code)
         self.assertIsNone(self.target());self.assertEqual(self.checkpoint()[1],0)
         self.assertEqual([r[1] for r in self.outcomes()],['poison','held'])
         self.assertIsNone(self.quarantine()[0][2])
