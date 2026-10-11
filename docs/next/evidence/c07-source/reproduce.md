@@ -70,7 +70,7 @@ inherited suite and the C07 module suite, then executes actual fault recipes
 under the fixed active test-body classifier. Final raw receipt and verifier
 are linked from the C07 return and PR.
 
-## Integrated PR71 C07 finding repair (current)
+## Integrated PR71 C07 finding repair (historical at7d0c458)
 
 The earlier C07 receipts above remain historical. The repaired integrated source is `4cf4c8080c66d4a3186733e83d39591074029c92`, with current main `903fd729c56cf719bbb15e9f986a70b9160497c1` incorporated. Current proof is `mutation-c07-review-003.json`: 27 suites / 379 native tests, 35 consumer tests, 24/24 body-killed faults with 76 expected assertions, no errors/survivors/inconclusive results, 480 copied inputs restored, three resources removed. Three frozen old-table assertions remain intentional RED lineage, separate from the clean suites.
 
@@ -78,7 +78,7 @@ The earlier C07 receipts above remain historical. The repaired integrated source
 
 The unchanged Mike AST controls are in `frozen/mike-repair-manifest.py`; `run-mike-repair-controls.py` supplies only constructor-owned module_id and observed scan cursor omitted by the original doubles. `reviewer-source-red.log` is three tests / five assertions / zero errors; `reviewer-source-green.log` is three clean tests at the repaired source. These are stdlib source controls, not native receipts. The proposed incomplete-receipt native control is preserved in `next/tests/module_consumer/test_review_incomplete_receipt.py`.
 
-From a publication checkout, stdlib verification imports no product:
+At the7d0c458 publication checkout, historical stdlib verification imports no product:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-c07-repair.py .
