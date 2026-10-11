@@ -157,3 +157,22 @@ PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-f
 ```
 
 Renewed backup is `../o01a-source/native-pg-durable-001.json` at the same3f4d562 tested source;seven tests,973 base files,four16MiB WAL segments,pg_verifybackup,synthetic age roundtrip/refusals and exact owned cleanup. Admission requires actual Mac/active VM both≥35 before create. Publication successors modify only proof docs outside NEXT;typed source/publication commits stay distinct. No live migration,adoption or main merge.
+
+
+## Current C07-PR71-005 scoped exhaustion
+
+Kai23:33 rework preserves the durable continuation and closes the installation-global/project-scoped empty-interval gap. Current publication uses `verify-pr71-scoped.py` and `pr71-scoped-binding.json`; earlier durable/pagination verifiers are historical at their own source-bound publications. The only product correction ends observed traversal on trusted scoped exhaustion, then polls new history. No stored cursor reset or foreign completeness credit.
+
+Sealed Mike `scoped-reviewer-control/test_scoped_head.py` and `scoped-head-probe.py` are byte-exact. Declared author `run-probe.py` changes only the probe's candidate Git source pin; every fixture method and desired assertion remains unchanged. It regenerates adjacent result data. Source RED6/4 BODY failures/0errors → GREEN6/0/0, separate from native PostgreSQL RED4/4 BODY failures/0errors and expanded44 module controls. Native repeated polling and later local events use new request clients/connections and check local completeness/target effects. Thirty original literal fault recipes remain; the31st restores the exhausted-interval refusal and must fail its exact expected body. Native admission and owned cleanup remain mandatory. PR72 local refresh is parked by this rework, not pushed or CI-qualified.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/scoped-reviewer-control/run-probe.py .
+PYTHONDONTWRITEBYTECODE=1 python3 next/tests/test_receipts.py docs/next/evidence/c07-source/scoped-reviewer-control
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/durable-reviewer-control/run-probe.py .
+PYTHONDONTWRITEBYTECODE=1 python3 next/tests/test_receipts.py docs/next/evidence/c07-source/durable-reviewer-control
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/run-mike-repair-controls.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-scoped.py .
+```
+
+The official wrapper requires the explicit root argument. Two author exploratory wrong-invocation logs are archived as `scoped-official-reviewer-attempt-001.log` and `-002.log`, excluded from credit; the documented command passes separately. Every command result must be checked before logging a success. Native and publication commits are distinct; verifier checks all source/controller/receipt bytes rather than inferring equivalence from chronology. Source/receipt green does not grant reviewer ACCEPT or merge GO.

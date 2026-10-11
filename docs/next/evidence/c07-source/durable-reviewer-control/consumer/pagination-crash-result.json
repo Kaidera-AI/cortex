@@ -1,6 +1,6 @@
 {
-  "head": "3f4d5621b31b0aa358fa6e213fa84443c1811eba",
-  "consumer_sha256": "42442fff36c3f24b3d1e01cb57515444e77f7c30adfd696889ea7c4463be0b19",
+  "head": "bb06616c5d870d008108fe08c7143f524e9a8d29",
+  "consumer_sha256": "d8843c3170c30945d2aec20ffa220c3df6248cd7bde9f3d77ee0997c1fe93d45",
   "model_sha256": "9465118df9004ac0c8ee5f4bc5f931df34daf29d0071b8a9abd9f2a9706116d2",
   "scope": "exact AST source flow, native NOT_RUN",
   "cases": [
