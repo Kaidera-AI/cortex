@@ -27,7 +27,7 @@ def sha(raw):
 
 
 def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_archive=False,
-                    bad_report=False, bad_exit=False, bad_index=False):
+                    bad_report=False, bad_exit=False, bad_index=False, wrong_recipe_argv=False):
     value, inputs = build_input()
     outputs, evidence = {}, {}
     def artifact(storage, role, path, raw, media='application/json'):
@@ -76,6 +76,8 @@ def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_arc
                   'environment_policy_sha256': 'e' * 64, 'status': 'exited', 'exit_code': 0,
                   'started_at_unix_ns': PHASES.index(phase) * 1000,
                   'finished_at_unix_ns': (PHASES.index(phase) + 1) * 1000}
+            if phase == 'build':
+                op['argv'] = ['true'] if wrong_recipe_argv else value['recipe']['argv_template']
             if slot == 'B' and phase == 'build' and bad_exit:
                 op['exit_code'] = 17
             raw_record = dict(op, build_id=identity, qualification_scope='fixture')

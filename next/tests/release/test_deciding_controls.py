@@ -36,6 +36,10 @@ class DecidingControls(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '^operation_exit_or_budget$'):
             self.verify(receipt_fixture(bad_exit=True))
 
+    def test_recipe_execution_guard(self):
+        with self.assertRaisesRegex(ValueError, '^operation_recipe_argv$'):
+            self.verify(receipt_fixture(wrong_recipe_argv=True))
+
     def test_index_closure_guard(self):
         with self.assertRaisesRegex(ValueError, '^evidence_index_closure$'):
             self.verify(receipt_fixture(bad_index=True))
