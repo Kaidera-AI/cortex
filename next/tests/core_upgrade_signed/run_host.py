@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,8 +15,9 @@ SUITE = Path(__file__).resolve().parent
 
 
 def main():
-    if len(sys.argv) != 3 or sys.argv[1] not in ('red', 'green'):
-        raise RuntimeError('usage: run_host.py red|green /absolute/minisign')
+    if (len(sys.argv) != 3 or
+            sys.argv[1] not in ('red', 'green') and not sys.argv[1].startswith('mutant-')):
+        raise RuntimeError('usage: run_host.py red|green|mutant-NAME /absolute/minisign')
     mode = sys.argv[1]
     binary = Path(sys.argv[2])
     if not binary.is_absolute() or not binary.is_file() or not os.access(binary, os.X_OK):
@@ -37,7 +39,19 @@ def main():
         env['SIGNED_CASE_ROOT'] = str(cases)
         env['SIGNED_KEY_PATH_LOG'] = str(key_log)
         env['SIGNED_MINISIGN_BIN'] = str(binary)
-        env['PYTHONPATH'] = str(ROOT / 'src')
+        source_paths = [str(ROOT / 'src')]
+        if mode.startswith('mutant-'):
+            overlay = root / 'overlay' / 'cortex_core'
+            overlay.mkdir(parents=True)
+            (overlay / '__init__.py').write_text('')
+            target = overlay / 'upgrade.py'
+            shutil.copyfile(ROOT / 'src/cortex_core/upgrade.py', target)
+            mutation = subprocess.run(
+                [sys.executable, str(SUITE / 'mutants.py'), mode[7:], str(target)],
+                capture_output=True, text=True, check=True)
+            output['mutation'] = json.loads(mutation.stdout)
+            source_paths.insert(0, str(overlay.parent))
+        env['PYTHONPATH'] = os.pathsep.join(source_paths)
         env['PYTHONDONTWRITEBYTECODE'] = '1'
         result = subprocess.run([sys.executable, str(ROOT / 'tests/test_receipts.py'),
                                  str(SUITE)], capture_output=True, text=True,
