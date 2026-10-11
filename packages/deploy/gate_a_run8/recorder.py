@@ -78,3 +78,9 @@ class PersistentRecorder:
                     self.process.kill()
                     self.process.wait(timeout=2)
         self.selector.close()
+        for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
+            if stream is not None and not stream.closed:
+                try:
+                    stream.close()
+                except BrokenPipeError:
+                    pass
