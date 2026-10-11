@@ -17,6 +17,25 @@ class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
 
 
+def postgres_core_probe(connection_factory, *, timeout_seconds=2):
+    """Return an uncached availability probe over the configured Core connection."""
+    if (not callable(connection_factory) or type(timeout_seconds) not in (int, float)
+            or not 0 < timeout_seconds <= 10):
+        raise GatewayError('Core probe configuration is invalid')
+
+    def check():
+        with connection_factory() as db:
+            return db.execute('SELECT 1').fetchone() == (1,)
+
+    async def probe():
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(check), timeout_seconds)
+        except Exception:
+            return False
+
+    return probe
+
+
 class EnrollmentHealth:
     """Compose reviewed Core health with a private enum-only enrollment read."""
 
