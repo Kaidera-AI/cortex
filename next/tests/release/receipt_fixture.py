@@ -93,7 +93,7 @@ def receipt_fixture():
         reports[slot] = build_reports
         custody_record = artifact(evidence, slot + '.custody', 'evidence/' + slot + '/custody.json',
                                    canonical({'build_id': identity, 'outputs': sorted(build_outputs, key=lambda r: r['path']), 'complete': True}))
-        cleanup_record = artifact(evidence, slot + '.cleanup', 'evidence/' + slot + '/cleanup.json',
+        cleanup_record = artifact(evidence, slot + '.cleanup', 'evidence/' + slot + '/cleanup-result.json',
                                    canonical({'build_id': identity, 'removed_resources': [observed[k] for k in ('execution_id', 'store_id', 'runroot_id', 'container_id', 'source_id')], 'remaining_owned_resources': [], 'complete': True}))
         all_evidence += [custody_record, cleanup_record]
         builds[slot] = {'build_id': identity, 'observed_builder': observed, 'source_sha256': source_sha,
