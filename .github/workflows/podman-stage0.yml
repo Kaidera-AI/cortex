@@ -1,0 +1,22 @@
+name: podman-stage0
+on:
+  push:
+    branches: [ren-cx/v004-podman-stage0-20261011]
+jobs:
+  hosted-rootless-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: finite rootless cgroup qualification (no database)
+        run: python3 .github/scripts/podman_stage0.py --output "${{ runner.temp }}/podman-stage0"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: podman-stage0-receipts
+          path: |
+            ${{ runner.temp }}/podman-stage0/*.json
+            ${{ runner.temp }}/podman-stage0/*.txt
+          if-no-files-found: warn
