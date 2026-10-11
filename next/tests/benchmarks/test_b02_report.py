@@ -86,6 +86,9 @@ class ReportTests(unittest.TestCase):
     def test_warmup_is_excluded_and_collection_gaps_are_not_hidden(self):
         run = fixture()
         run["warmup_records"] = copy.deepcopy(run["records"])
+        run["config"]["warmup_seconds"] = 1
+        for row in run["warmup_records"]:
+            row["phase"] = "warmup"
         result = self.summarize(run)
         self.assertEqual(result["diagnostic"]["offered"], 40)
         self.assertEqual(result["diagnostic"]["successful_rps"], 40)
@@ -128,6 +131,9 @@ class ReportTests(unittest.TestCase):
     def test_warmup_failure_is_visible_and_prevents_diagnostic_pass(self):
         run = fixture()
         run["warmup_records"] = copy.deepcopy(run["records"])
+        run["config"]["warmup_seconds"] = 1
+        for row in run["warmup_records"]:
+            row["phase"] = "warmup"
         run["warmup_records"][0]["status"] = "ERROR"
         result = self.summarize(run)
         self.assertEqual(result["diagnostic"]["warmup_errors"], 1)

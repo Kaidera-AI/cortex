@@ -105,6 +105,9 @@ class PrerequisiteTests(unittest.IsolatedAsyncioTestCase):
 
     def test_warmup_late_offer_invalidates_the_cell(self):
         run = valid_run(); run['warmup_records'] = copy.deepcopy(run['records'])
+        run['config']['warmup_seconds'] = 1
+        for row in run['warmup_records']:
+            row['phase'] = 'warmup'
         row = run['warmup_records'][3]
         row.update(dispatched_at=row['scheduled_at'] + .03, dispatcher_lag_seconds=.03)
         d = summarize(run)['diagnostic']
