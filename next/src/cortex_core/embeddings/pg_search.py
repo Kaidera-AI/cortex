@@ -312,8 +312,24 @@ class PostgresSearch:
 
     @retry_authorized_transaction
     async def search(
-        self, subject: str, identity: EmbeddingIdentity, vector, *, limit: int = 20
+        self,
+        subject: str,
+        identity: EmbeddingIdentity,
+        vector,
+        *,
+        limit: int = 20,
+        kind: str | None = None,
     ):
+        if kind is not None and (
+            not isinstance(kind, str)
+            or not kind.strip()
+            or kind != kind.strip()
+            or not kind.isprintable()
+            or not 1 <= len(kind.encode("utf-8")) <= 64
+        ):
+            raise ValueError(
+                "Kind must be an exact printable string of at most 64 UTF-8 bytes"
+            )
         key = identity.key
         literal = vector_literal(vector, identity.dimensions)
         if (
@@ -338,12 +354,14 @@ class PostgresSearch:
                 JOIN retrieval.search_sources s USING(tenant_id,project_id,record_id)
                 WHERE v.tenant_id=$1 AND v.project_id=$2 AND v.identity=$3
                 AND v.source_revision=s.source_revision
+                AND ($6::text IS NULL OR s.kind=$6)
                 ORDER BY v.embedding <=> $4::vector LIMIT $5""",
                 scope.tenant_id,
                 scope.project_id,
                 key,
                 literal,
                 limit,
+                kind,
             )
             return SearchResult(
                 tuple(

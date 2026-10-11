@@ -1,6 +1,7 @@
 """Supplemental real-index witness; original frozen kind tests stay byte-identical."""
 from contextlib import asynccontextmanager
 import os
+from pathlib import Path
 import unittest
 import test_pg_search_kind_filter as frozen
 
@@ -25,12 +26,14 @@ class TestHnswCompanion(unittest.IsolatedAsyncioTestCase):
             def __getattr__(self,name):return getattr(self.conn,name)
             async def execute(self,query,*args):
                 value=await self.conn.execute(query,*args)
-                if "hnsw.iterative_scan" in query: await self.conn.execute('SET LOCAL enable_seqscan=off')
+                if "hnsw.iterative_scan" in query: await self.conn.execute('SET LOCAL enable_seqscan=off; SET LOCAL enable_sort=off; SET LOCAL enable_bitmapscan=off')
                 return value
             async def fetch(self,query,*args):
                 values=await self.conn.fetch(query,*args)
                 if 'FROM retrieval.search_vectors v' in query:
                     plans.append(await self.conn.fetchval('EXPLAIN (ANALYZE,FORMAT JSON) '+query,*args))
+                    receipt = os.environ.get('REN_CX_REPORT')
+                    if receipt: Path(receipt).with_suffix('.hnsw-plan.json').write_text(plans[-1]+'\n')
                 return values
         class PoolProxy:
             @asynccontextmanager
@@ -41,3 +44,10 @@ class TestHnswCompanion(unittest.IsolatedAsyncioTestCase):
         finally:self.store.pool=original
         assert result is not None and [h.record_id for h in result.hits]==['wanted-index']
         assert plans and 'search_vectors_hnsw' in plans[0], 'real product SQL did not traverse the forced HNSW fixture path'
+
+    async def test_native_limit_applies_to_ranked_matching_kinds(self):
+        await self.seed_kind('alice','closer-wrong','memory')
+        await self.seed_kind('alice','match-first','decision',[0.8,0.6]+[0.0]*766)
+        await self.seed_kind('alice','match-second','decision',[0.6,0.8]+[0.0]*766)
+        result=await self.selected('decision',1)
+        assert result is not None and [h.record_id for h in result.hits]==['match-first']
