@@ -86,6 +86,11 @@
       "id": "auth-0005",
       "file": "auth/005-first-identity.sql",
       "sha256": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d"
+    },
+    {
+      "id": "auth-0006",
+      "file": "auth/006-enrollment-readiness.sql",
+      "sha256": "848840260b90e3cd88dc77d25acad908c63bcf711452eb1669e7ae4e833cee72"
     }
   ]
 }
