@@ -79,6 +79,36 @@ def _digest(path):
     return {"sha256": digest.hexdigest(), "byte_length": path.stat().st_size}
 
 
+def _metadata_scope(entry):
+    """Missing tenant/project fields form a real, empty identity scope."""
+    tenant = entry.get("tenant_id")
+    project = entry.get("project_id", entry.get("project"))
+    if ("project_id" in entry and "project" in entry
+            and entry["project_id"] != entry["project"]):
+        raise BackupError("backup metadata scope differs")
+    values = []
+    for value in (tenant, project):
+        if value is None:
+            values.append(None)
+            continue
+        if not isinstance(value, str):
+            raise BackupError("backup metadata scope is invalid")
+        try:
+            values.append(str(UUID(value)))
+        except ValueError as error:
+            raise BackupError("backup metadata scope is invalid") from error
+    return tuple(values)
+
+
+def _unique_metadata(rows, identity, label):
+    seen = set()
+    for row in rows:
+        key = identity(row)
+        if key in seen:
+            raise BackupError("duplicate " + label + " identity")
+        seen.add(key)
+
+
 def _validated_metadata(value):
     if (not isinstance(value, dict) or not _REQUIRED <= set(value)
             or not set(value) <= _REQUIRED | _OPTIONAL
@@ -121,6 +151,22 @@ def _validated_metadata(value):
                 or type(entry.get("revision")) is not int or entry["revision"] < 1
                 or not _SHA.fullmatch(str(entry.get("sha256", "")))):
             raise BackupError("vector identity is invalid")
+    _unique_metadata(value["schema_ledger"], lambda row: row["id"], "schema ledger")
+    _unique_metadata(value["consumer_generations"],
+                     lambda row: (*_metadata_scope(row), row["module"], row["generation"]),
+                     "consumer generation")
+    _unique_metadata(value["model_identities"],
+                     lambda row: (*_metadata_scope(row), row["id"]), "model")
+    _unique_metadata(value["blob_inventory"],
+                     lambda row: (*_metadata_scope(row), row["object_key"]), "blob")
+    # v1 tar members use only object_key; distinct scopes cannot share one name.
+    _unique_metadata(value["blob_inventory"],
+                     lambda row: row["object_key"], "physical blob member")
+    _unique_metadata(value.get("record_heads", []),
+                     lambda row: (*_metadata_scope(row), row["id"]), "record head")
+    _unique_metadata(value.get("vectors", []),
+                     lambda row: (*_metadata_scope(row), row["record_id"],
+                                  row["revision"], row["model_id"]), "vector")
     if "replay_lsn" in value:
         _lsn(value["replay_lsn"])
     try:
