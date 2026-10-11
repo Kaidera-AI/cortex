@@ -199,3 +199,15 @@ class TransportBounds(unittest.TestCase):
         with self.assertRaises(ValueError):
             custody.complete_transport(chunks(), 1, hashlib.sha256(b"a").hexdigest())
         self.assertEqual(seen, [])
+
+class IndependentPhysicalRoots(unittest.TestCase):
+    def test_alias_or_cross_role_store_reuse_refuses(self):
+        from cortex_core.release.build import compare
+        def lane(prefix):
+            return {k: prefix+k for k in ['build_id', 'source', 'store', 'runroot', 'output']}
+        a, b = lane('a'), lane('b')
+        for field, value in [('store', 'astore/../astore'), ('store', a['runroot']), ('store', a['store']+'/child')]:
+            mutant = dict(b)
+            mutant[field] = value
+            with self.assertRaises(ValueError):
+                compare.require_independent(a, mutant)
