@@ -60,6 +60,16 @@ class DispatchReceiptCase(unittest.TestCase):
     def invocation(self):
         return measured_file(next(self.invocations.glob('*.json')))
 
+    def successful_output(self, role):
+        rows, records = self.S.read()
+        phase = rows[-1]['phase']
+        target = {'launcher': 'ALLOCATED', 'manager': 'HOST_BOUND', 'retirer': 'RETIRED'}[role]
+        payload = {'instance_id': INSTANCE, 'volume_id': VOLUME}
+        raw = {'schema': 'cortex.gate-a.run8.native-facts.v2', **self.f.A.context,
+               'execution_scope': 'native', 'phase': target, 'from_phase': phase,
+               'observation_predecessor': records[-1], 'input_digests': {'authority': '9' * 64}, 'facts': payload}
+        return SimpleNamespace(returncode=0, stdout=json_bytes(raw), stderr=b'')
+
     def native(self, row, phase='ALLOCATED'):
         kwargs = {'store': self.S} if 'store' in inspect.signature(native_receipts.admit).parameters else {}
         return native_receipts.admit(self.f.A, phase, row, **kwargs)
@@ -77,7 +87,7 @@ class DispatchReceiptCase(unittest.TestCase):
     def test_phase_specific_command_and_invocation_prefix(self):
         self.spec('manager', 'ALLOCATED'); self.spec('manager', 'PRE_ALLOC_CHECKED')
         self.f.refresh(); self.store('ALLOCATED')
-        result = self.attempt(lambda: self.call('manager', lambda *a, **k: SimpleNamespace(returncode=0, stdout=b'', stderr=b'')))
+        result = self.attempt(lambda: self.call('manager', lambda *a, **k: self.successful_output('manager')))
         self.assertFalse(isinstance(result, str), result)
         invocation = bound_json(self.invocation()); _, records = self.S.read()
         self.assertEqual(invocation.get('from_phase'), 'ALLOCATED')
@@ -92,12 +102,12 @@ class DispatchReceiptCase(unittest.TestCase):
         self.assertEqual(rows[-1]['phase'], 'FAILURE')
         self.assertEqual(rows[-1]['payload']['instance_id'], INSTANCE)
         self.assertEqual(rows[-1]['payload']['volume_id'], VOLUME)
-        result = self.attempt(lambda: self.call('retirer', lambda *a, **k: SimpleNamespace(returncode=0, stdout=b'', stderr=b'')))
+        result = self.attempt(lambda: self.call('retirer', lambda *a, **k: self.successful_output('retirer')))
         self.assertFalse(isinstance(result, str), result)
 
     def test_header_claim_cannot_substitute_arbitrary_raw_file(self):
         self.spec('launcher', 'PRE_ALLOC_CHECKED'); self.f.refresh(); self.f.checks = self.f.measured_checks(); self.store()
-        self.call('launcher', lambda *a, **k: SimpleNamespace(returncode=0, stdout=b'', stderr=b''))
+        self.call('launcher', lambda *a, **k: self.successful_output('launcher'))
         row = {'schema': 'cortex.gate-a.run8.native-output.v2', **self.f.A.context,
                'execution_scope': 'native', 'phase': 'ALLOCATED', 'checked_invocation': self.invocation(),
                'raw_evidence': {'facts': self.f.file('unrelated.json', b'{}\n')},
