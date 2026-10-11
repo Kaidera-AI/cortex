@@ -15,6 +15,14 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    '2aii_drop_installation_lock': ('schema/auth/005-first-identity.sql',
+        'PERFORM 1 FROM core.installations WHERE id=p_installation FOR UPDATE;',
+        'PERFORM 1 FROM core.installations WHERE id=p_installation;'),
+    '2aii_004_installer_inherit': ('schema/auth/004-first-identity-capture.sql',
+        'CREATE ROLE "kaidera-runtime-core-installer" LOGIN NOINHERIT NOSUPERUSER',
+        'CREATE ROLE "kaidera-runtime-core-installer" LOGIN INHERIT NOSUPERUSER',
+        'installer.rolinherit IS DISTINCT FROM false',
+        'installer.rolinherit IS DISTINCT FROM true'),
     '2aii_exec_leak': ('schema/auth/005-first-identity.sql',
         'FROM PUBLIC,"kaidera-runtime-core-request";',
         'FROM "kaidera-runtime-core-request";'),
@@ -207,21 +215,27 @@ def main():
         run('podman', 'cp', str(ROOT), driver + ':/tmp/next')
         run('podman', 'cp', str(wheels), driver + ':/tmp/wheels')
         if mutation:
-            path, before, after = MUTANTS[mutation]
-            mutate = (
-                'import hashlib,json,sys;from pathlib import Path;'
-                'p=Path("/tmp/next")/sys.argv[1];b=p.read_text();'
-                'assert b.count(sys.argv[2])==1;'
-                'p.write_text(b.replace(sys.argv[2],sys.argv[3]));'
-                'm=Path("/tmp/next/schema/manifest.json");'
-                'v=json.loads(m.read_text());'
-                'file=sys.argv[1][7:] if sys.argv[1].startswith("schema/") else None;'
-                '[(x.__setitem__("sha256",hashlib.sha256(p.read_bytes()).hexdigest())) '
-                'for x in v["migrations"] if x["file"]==file] if file and file!="manifest.json" else None;'
-                'm.write_text(json.dumps(v)) '
-                'if file and file!="manifest.json" else None'
-            )
-            run('podman', 'exec', driver, 'python', '-c', mutate, path, before, after)
+            path, *edits = MUTANTS[mutation]
+            if len(edits) not in {2, 4}:
+                raise RuntimeError('invalid mutation edit count')
+            mutate = '''import hashlib,json,sys
+from pathlib import Path
+p=Path('/tmp/next')/sys.argv[1]
+body=p.read_text()
+for old,new in zip(sys.argv[2::2],sys.argv[3::2]):
+    assert body.count(old)==1
+    body=body.replace(old,new)
+p.write_text(body)
+file=sys.argv[1][7:] if sys.argv[1].startswith('schema/') else None
+if file and file!='manifest.json':
+    m=Path('/tmp/next/schema/manifest.json')
+    value=json.loads(m.read_text())
+    for row in value['migrations']:
+        if row['file']==file:
+            row['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
+    m.write_text(json.dumps(value))
+'''
+            run('podman', 'exec', driver, 'python', '-c', mutate, path, *edits)
         run('podman', 'exec', driver, 'python', '-m', 'pip', 'install', '--no-index',
             '--find-links=/tmp/wheels', '--no-cache-dir', '--target=/tmp/deps',
             '-r', '/tmp/next/requirements-db-test.txt', timeout=300)
