@@ -25,7 +25,7 @@ import pytest
 CORTEX_API = "http://localhost:8501"
 TEST_PROJECT = os.environ.get("CORTEX_TEST_PROJECT", "").strip()
 TEST_AGENT = "kai"
-ADMIN_TOKEN = "cortex-local-admin"
+ADMIN_TOKEN = os.environ.get("CORTEX_ADMIN_TOKEN", "").strip()
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -232,7 +232,7 @@ def test_artifact_visible_through_api_event_search_and_cli(http_client):
     )
     cli = subprocess.run(
         [
-            str(ROOT / ".agents/scripts/cortex-search"),
+            str(ROOT / "packages/cli/cortex-search"),
             marker,
             "--type",
             "artifacts",
