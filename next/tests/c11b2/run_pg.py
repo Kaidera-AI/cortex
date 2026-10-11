@@ -15,6 +15,13 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    'session_ids_drop_scope_filter': ('schema/coordination/007-session-ids-read.sql',
+        'WHERE s.installation_id=scoped.installation_id\n'
+        '        AND s.tenant_id=scoped.tenant_id AND s.project_id=scoped.project_id',
+        'WHERE true'),
+    'session_ids_skip_final_authority': ('src/cortex_core/api/c11b.py',
+        "await self._current_read(principal, scope)\n        return {'project':",
+        "pass\n        return {'project':"),
     '2aii_drop_installation_lock': ('schema/auth/005-first-identity.sql',
         'PERFORM 1 FROM core.installations WHERE id=p_installation FOR UPDATE;',
         'PERFORM 1 FROM core.installations WHERE id=p_installation;'),
@@ -195,11 +202,11 @@ def preflight():
     for image in (PG, PY):
         if run('podman', 'image', 'exists', image, check=False).returncode:
             raise RuntimeError('pinned image is not cached')
-    return int(match.group(1))
+    return int(match.group(1)), int(memory[6]), int(memory[1])
 
 
 def main():
-    mac_free = preflight()
+    mac_free, vm_free, vm_total = preflight()
     wheels = Path(os.environ['C11B2_WHEELS']).resolve()
     if not wheels.is_dir() or not any(wheels.glob('psycopg*.whl')):
         raise RuntimeError('pinned offline dependency wheels absent')
@@ -207,7 +214,10 @@ def main():
     pod, db, driver = (f'kaidera-test-c11b2-{kind}-{token}' for kind in ('pod', 'pg', 'driver'))
     label = f'cox-c11b2-{token}'
     labels = ['--label', 'cortex.test=' + label, '--label', 'cortex.worker=cox']
-    output = {'mac_free_percent': mac_free, 'images': [PG, PY], 'cpus': 2,
+    output = {'source_head': run('git', 'rev-parse', 'HEAD').stdout.strip(),
+              'source_dirty': bool(run('git', 'status', '--porcelain').stdout.strip()),
+              'mac_free_percent': mac_free, 'vm_free_mib': vm_free,
+              'vm_total_mib': vm_total, 'images': [PG, PY], 'cpus': 2,
               'memory_gib': 1, 'network': 'none', 'published_ports': [],
               'wheels_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                 for p in sorted(wheels.glob('*.whl'))}}
@@ -216,7 +226,7 @@ def main():
         raise RuntimeError('unknown C11b2 mutation')
     output['mutation'] = mutation
     suite = os.environ.get('C11B2_SUITE', 'c11b2')
-    if suite not in {'c11b2', 'auth', 'auth_identity', 'outbox'}:
+    if suite not in {'c11b2', 'c11_ids_scale', 'auth', 'auth_identity', 'outbox'}:
         raise RuntimeError('unknown C11b2 suite')
     output['suite'] = suite
     try:
@@ -277,7 +287,7 @@ if file and file!='manifest.json':
                    '--env', 'PYTHONDONTWRITEBYTECODE=1',
                    '--env', 'TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',
                    driver, 'python', '/tmp/next/tests/test_receipts.py', '/tmp/next/tests/' + suite]
-        result = run(*command, check=False, timeout=300)
+        result = run(*command, check=False, timeout=900 if suite == 'c11_ids_scale' else 300)
         output.update(exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
         print(json.dumps(output, sort_keys=True), flush=True)
         return result.returncode

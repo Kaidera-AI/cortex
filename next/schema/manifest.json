@@ -96,6 +96,11 @@
       "id": "ingest-head-0006",
       "file": "coordination/006-ingest-head.sql",
       "sha256": "d2710d31edfdf67fe0ab147117ad94a39b6de1168506eee5153f4b0ec24bfac9"
+    },
+    {
+      "id": "session-ids-read-0007",
+      "file": "coordination/007-session-ids-read.sql",
+      "sha256": "449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64"
     }
   ]
 }
