@@ -19,8 +19,14 @@ MUTATIONS = {
     'physical-blob-bypass': ('backup.py', 'if key in seen:',
                              'if key in seen and label != "physical blob member":'),
     'scope-vector-bypass': ('backup_validation.py',
-                            'if any((*_metadata_scope(row), row["record_id"],',
-                            'if False and any((*_metadata_scope(row), row["record_id"],'),
+                            'if any((*_metadata_scope(row), _uuid_identity(row["record_id"]),',
+                            'if False and any((*_metadata_scope(row), _uuid_identity(row["record_id"]),'),
+    'raw-blob-member-bypass': ('backup.py',
+                               'lambda row: _blob_member(row["object_key"]), "physical blob member")',
+                               'lambda row: row["object_key"], "physical blob member")'),
+    'raw-uuid-model-bypass': ('backup.py',
+                              'lambda row: (*_metadata_scope(row), _uuid_identity(row["id"])),\n                     "model")',
+                              'lambda row: (*_metadata_scope(row), row["id"]),\n                     "model")'),
 }
 
 

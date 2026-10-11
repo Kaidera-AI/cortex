@@ -13,8 +13,8 @@ import subprocess
 import tarfile
 import tempfile
 
-from cortex_core.backup import (BackupError, _backup_binary, _lsn, _metadata_scope,
-                                _validated_metadata,
+from cortex_core.backup import (BackupError, _backup_binary, _blob_member, _lsn,
+                                _metadata_scope, _uuid_identity, _validated_metadata,
                                 _wal_filename, build_manifest,
                                 seal_encrypted_bundle)
 
@@ -172,15 +172,15 @@ def _expected_members(manifest):
         raise BackupError("full recovered-snapshot inventory is absent")
     if hashlib.sha256(canonical).hexdigest() != manifest.get("metadata_sha256"):
         raise BackupError("backup metadata digest differs")
-    heads = {(*_metadata_scope(row), row["id"], row["revision"])
+    heads = {(*_metadata_scope(row), _uuid_identity(row["id"]), row["revision"])
              for row in metadata["record_heads"]}
     if len(heads) != len(metadata["record_heads"]):
         raise BackupError("duplicate record head")
-    if any((*_metadata_scope(row), row["record_id"], row["revision"]) not in heads
+    if any((*_metadata_scope(row), _uuid_identity(row["record_id"]), row["revision"]) not in heads
            for row in metadata["vectors"]):
         raise BackupError("vector revision lacks a matching record head")
-    if len({row["object_key"] for row in metadata["blob_inventory"]}) != len(metadata["blob_inventory"]):
-        raise BackupError("duplicate blob key")
+    if len({_blob_member(row["object_key"]) for row in metadata["blob_inventory"]}) != len(metadata["blob_inventory"]):
+        raise BackupError("duplicate blob member")
     segment_bytes = manifest.get("segment_bytes")
     timeline = manifest.get("timeline")
     if (type(segment_bytes) is not int or segment_bytes < (1 << 20)
@@ -215,10 +215,7 @@ def _expected_members(manifest):
     for row in wal:
         expected["wal/" + row["name"]] = row
     for row in metadata["blob_inventory"]:
-        key = PurePosixPath(row["object_key"])
-        if key.is_absolute() or ".." in key.parts:
-            raise BackupError("invalid blob member path")
-        expected["blobs/" + key.as_posix()] = row
+        expected[_blob_member(row["object_key"])] = row
     for details in expected.values():
         if (not isinstance(details, dict) or not _SHA.fullmatch(str(details.get("sha256", "")))
                 or type(details.get("byte_length")) is not int or details["byte_length"] < 0):
