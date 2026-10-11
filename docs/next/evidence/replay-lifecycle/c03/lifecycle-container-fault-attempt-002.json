@@ -1,0 +1,386 @@
+{
+  "final_inventory_error": null,
+  "tool_input_sha256": {
+    "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+    "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+  },
+  "phase": "lifecycle-container-fault-attempt-002",
+  "tree": "565227e57724468382bace3d559bdaa85310432d",
+  "passed": false,
+  "cleanup": {
+    "lifecycle": "5627249ec3ee435e787e08199980c9c6",
+    "cleanup_verified": true,
+    "pending": [],
+    "owned": [],
+    "events": [
+      {
+        "event": "created",
+        "kind": "pod",
+        "name": "kaidera-test-core-schema-1",
+        "id": "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33"
+      },
+      {
+        "event": "completed-create-lost-ack-fault",
+        "kind": "container",
+        "name": "kaidera-test-core-db-1"
+      },
+      {
+        "event": "removed",
+        "kind": "container",
+        "name": "kaidera-test-core-db-1",
+        "id": "edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7"
+      },
+      {
+        "event": "removed",
+        "kind": "pod",
+        "name": "kaidera-test-core-schema-1",
+        "id": "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33"
+      }
+    ],
+    "attempts": [
+      {
+        "errors": [],
+        "verified": true,
+        "pending": [],
+        "owned": [],
+        "password_discarded": true,
+        "lock_released": true
+      }
+    ],
+    "password_discarded": true,
+    "lock_released": true
+  },
+  "source_before_sha256": {
+    "next/contracts/README.md": "690dd3870c7d47d8d22cc9d6f446843a1d5c899013ef48ea948c14d1e9b8177a",
+    "next/contracts/fixtures/capability-ready.json": "8146d58c3756d82790c50d947d1f37ce6f08197b423b768fb6032b46949e84c4",
+    "next/contracts/fixtures/capability-unavailable.json": "e7fa20b15f7cf7e6c6beb4c93e71c38cd6fdfe924894d4be000dbe3bdc2b0f3c",
+    "next/contracts/fixtures/core-unavailable.json": "7fa6dff23bd563b1b907248231f7d25b6f98527e10907ad5c2e879313a6a5b9e",
+    "next/contracts/fixtures/event-delete.json": "c29a770d680daf60dda33a3c71f51bae7ba36a0fbf176946bf8aea9121daaddc",
+    "next/contracts/fixtures/event-upsert.json": "1ba742369005bf5454b40546264082dd4c8c6179a51ab12fde7e41dd11ae9b09",
+    "next/contracts/fixtures/write-committed.json": "11bb8289934a4017c2861baff2b9da112cb7428c06d6acb755549e635b2548d0",
+    "next/contracts/openapi.json": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+    "next/contracts/outbox-event.schema.json": "5fa8789b346764a2dc319b0770ca362eff6c76c36d65fb21cd8f2ee46865055a",
+    "next/contracts/provenance.json": "c6ad94ffc41197fb3cc7e85b3c118341e1ff91c57fc6d0f2f7f87e3055aea050",
+    "next/contracts/route-matrix.md": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+    "next/docs/gtm-provider/PLAN.md": "153d470565e1ea56312ad5b0d564043861f9b768e689a4f33d31139a62aac811",
+    "next/docs/gtm-provider/REVIEW-REWORK.md": "7ffdb1230f43aa06db84cbd934bbbeddbec5e06eb13135fe9d8a188182bcde28",
+    "next/docs/gtm-search/PLAN.md": "d6dfe004f5af3c2acd1cd02323fab99f2e66c6e3ada9d1563b82dea36c8135a7",
+    "next/docs/gtm-search/REVIEW-REWORK.md": "14f387307525f89c2934a849bf5c2e36209ee60e3a9b153a1252d9699e119a7f",
+    "next/requirements-db-test.txt": "b318285ac8359fbb745d54cb4fc54847477012e102f7bf928bc706706c778295",
+    "next/requirements-test.txt": "ea127b6bd9e3bdbd4543b356ce8f2c71ee4ba731a38e7ec13ac20a4b11e92cc5",
+    "next/schema/auth/001-auth.sql": "97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e",
+    "next/schema/coordination/001-coordination.sql": "c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1",
+    "next/schema/core/001-core.sql": "e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147",
+    "next/schema/manifest.json": "96a9a784e0ec0428f87d25f2f6cb54b7c732e64ea81dac20976f10663c05eee2",
+    "next/schema/retrieval/000-canonical.sql": "5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2",
+    "next/schema/retrieval/001-pg-search.sql": "bf1a5c1b14d57da70013e9ba4c90126797ab1e85533ad1d04db7f7780f113d84",
+    "next/schema/retrieval/002-query-cache.sql": "02f5baf51828ae920988e37aac19169f78039e79481e413a6e1b0907fc62d868",
+    "next/scripts/check_legacy_map.py": "733f58ee3ac80f4e98a865ecc6a71a61094e698e04f80e4dee2b7f09df994c98",
+    "next/scripts/mutate_contracts.py": "062e7df49e67fde0d8eabde9b9aa8dbff3e224a0924241abc2625165a8506849",
+    "next/scripts/mutate_schema.py": "d3bb422dd9507cd44ff8250cf4451922c82c2fab640ece63d0f6e35cf94f8aff",
+    "next/scripts/mutate_test_receipts.py": "fabe129ac5d4dc37ec223b96719c01084400ebb7447718a9dfc86914489841d5",
+    "next/src/cortex_core/contracts.py": "294919224493e4edd5486493d8d3ce1fab312b29f7eb0bd081b08c1377ced72c",
+    "next/src/cortex_core/embeddings/pg_search.py": "6a563eb723800b544147724b64fae8491b08c680be85c8e2e664d6e0647a8ed3",
+    "next/src/cortex_core/embeddings/query_cache.py": "a404bc914ce6db1a39f89bca2707770b92535e2b06753c5169a9b91bb3ba7d0e",
+    "next/src/cortex_core/migrations.py": "15c6fe1472c78ba4ef34288cd26b9f0100d921cc0f77039f9b103ac4e8e8de8c",
+    "next/src/cortex_core/modules/providers/hosted.py": "15e1244005b8238455da18d4d969ab306dc5ace4f1841aaf009ca8fd707c02ac",
+    "next/tests/artifact/test_c03_receipts.py": "a6a523239c2e5e3aca86747afd5e80aa75700855d268872e92819e3ccfd0c262",
+    "next/tests/artifact/test_legacy_map.py": "f6f9373f074be991a692bb20315fca24cc79779eede5f743d18b030b482ad5fd",
+    "next/tests/contract/test_contracts.py": "0efa7498dab02e451437c6c93be15b033cb620774ec53adf3381b2f924e56180",
+    "next/tests/contract/test_receipt_shape.py": "760a8815a7adff072c0895b73bb44d5e5bdf39aecadbf63931657dbac4f33405",
+    "next/tests/contract/test_review_regressions.py": "0c69d749eb6ecb7d131c2d75f2cc90be18484dede9397285d6a5be3e07f8072c",
+    "next/tests/contract/test_rfc3339.py": "eebdc7d8aeaa1175e18bfb74b0fc7cc7c28fcfeaa13f5242c2a0db17eae6ed7a",
+    "next/tests/contract/test_runner_phases.py": "5149d65df61f2dd4d332c18aed84b0e77bf2389e340dd4e3cd81c00f03ce7374",
+    "next/tests/contract/test_schema_index.py": "aee4077b044d5b90a1f325066615ba21fb55c099de57bd379851f2470709710f",
+    "next/tests/integration/mutate_pg_search.py": "d680c07d21a3c65797c4c277f37b2efe41d4619a41ff8f753e3c678f18b4efc4",
+    "next/tests/integration/mutate_query_cache.py": "c4b029de2528302fa1bdcc15268cde080838c0020588c67ea5fe4f22aeeb0b61",
+    "next/tests/integration/provider-requirements.txt": "a3b062eb9ac21c95b854abb80feb71e1bf8f7b51977bbd1e25de54fb284c9950",
+    "next/tests/integration/run_pg_search.py": "2c53bdf4c51013b69a6a4b90d65cb5dda9a5369a82d6f9b62a2675d1b799698e",
+    "next/tests/integration/run_pg_search_review.py": "6435d01bf26920333e30b0e326263c13d7dae05105a7c8a7c0027d557b0e7a32",
+    "next/tests/integration/run_query_cache.py": "7da283ecf67ff915767aadef18f5a9fb3c01efd7715bbcbd29fd9f49cd980055",
+    "next/tests/integration/search-requirements.txt": "5db6f31f60a115ca01ae68dcb635ebb5c09dc0f5a983a92e73cb5b7ee181135f",
+    "next/tests/integration/test_pg_search.py": "c14ac86055045dc86668d2ee777a2e39f5c9dd2103a4dfab5f87b6fae9c57f00",
+    "next/tests/integration/test_pg_search_review.py": "607d7192059fc712eeaced4c3d038b6bee568accb9da61943c3dff0d44dc2e9c",
+    "next/tests/integration/test_pg_search_tools.py": "ab457b4c3668fe3765473078f4c0f9fff25ea3a3c2ed18484f3d5e6c9b916d56",
+    "next/tests/integration/test_query_cache.py": "30c43605209e56b651766fce6d846ae25f289784e0b88cc908c28b1dc8cbcf21",
+    "next/tests/integration/test_query_cache_tools.py": "39fc161f8a27afbce842bb850f5908cfd33cbc30ccca42562e7f695830cdc799",
+    "next/tests/receipt/fixture-reuse-probe.py": "5665077dea98fae0219849cf6478495a2e4b0acd3b0370088a979e26ff253db8",
+    "next/tests/receipt/test_async_fixture_reuse.py": "c54139607ce014d9bad0bc9a8b339870509472a2307ab7de69856b772cc25a8d",
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/receipt/test_shared_location.py": "1c64c4459433d9bee41218cf3443def1102f95b9237d9ceb52c012de406905ec",
+    "next/tests/schema/test_causal_mutations.py": "4cf25b4f36447004f052d4eee69eac98c3e5f9e3a7d7ddf986546273e14fc863",
+    "next/tests/schema/test_integrity.py": "b9aa9be540aab2cb3d63e5cf738087f9760f41523a57a9b73e369955273ee266",
+    "next/tests/schema/test_mutation_receipts.py": "fcaa00c64cd5001a04b3aeae4c6a07a89cd5616c2f45df7783bac11c16498bb9",
+    "next/tests/schema/test_schema.py": "ea8bc174acafd0dffc1706b1ea3e0335ad051e25ef7dac517837ffea910abfde",
+    "next/tests/schema/test_semantic_probes.py": "5029009eac76918a21936ff4a36f8d006b1c8fbc5d7bfd4766103063408ec07b",
+    "next/tests/test_receipts.py": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+  },
+  "images": [
+    "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+    "sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9"
+  ],
+  "native_arch": "arm64",
+  "network": "none; shared loopback only",
+  "published_ports": [],
+  "bind_mounts": [],
+  "limits": {
+    "pod_cpus": 2,
+    "pod_memory": "1g",
+    "pg_memory": "768m",
+    "driver_memory": "256m"
+  },
+  "wheel_hashes": {
+    "psycopg_binary-3.2.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl": "96a551e4683f1c307cfc3d9a05fec62c00a7264f320c9962a67a543e3ce0d8ff",
+    "psycopg-3.2.9-py3-none-any.whl": "01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6",
+    "typing_extensions-4.16.0-py3-none-any.whl": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+  },
+  "results": [
+    {
+      "command": [
+        "podman",
+        "pod",
+        "create",
+        "--name",
+        "kaidera-test-core-schema-1",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "1g",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "kaidera.cox.lifecycle=5627249ec3ee435e787e08199980c9c6",
+        "--label",
+        "slice=C03"
+      ],
+      "exit_code": 0,
+      "stdout": "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "exists",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "inspect",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "[\n     {\n          \"Id\": \"5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33\",\n          \"Name\": \"kaidera-test-core-schema-1\",\n          \"Created\": \"2026-10-10T03:47:43.906457834+04:00\",\n          \"CreateCommand\": [\n               \"podman\",\n               \"pod\",\n               \"create\",\n               \"--name\",\n               \"kaidera-test-core-schema-1\",\n               \"--network\",\n               \"none\",\n               \"--cpus\",\n               \"2\",\n               \"--memory\",\n               \"1g\",\n               \"--label\",\n               \"owner=cox@helix\",\n               \"--label\",\n               \"kaidera.cox.lifecycle=5627249ec3ee435e787e08199980c9c6\",\n               \"--label\",\n               \"slice=C03\"\n          ],\n          \"ExitPolicy\": \"continue\",\n          \"State\": \"Created\",\n          \"Hostname\": \"\",\n          \"Labels\": {\n               \"kaidera.cox.lifecycle\": \"5627249ec3ee435e787e08199980c9c6\",\n               \"owner\": \"cox@helix\",\n               \"slice\": \"C03\"\n          },\n          \"CreateCgroup\": true,\n          \"CgroupParent\": \"user.slice\",\n          \"CgroupPath\": \"user.slice/user-501.slice/user@501.service/user.slice/user-libpod_pod_5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33.slice\",\n          \"CreateInfra\": true,\n          \"InfraContainerID\": \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n          \"InfraConfig\": {\n               \"PortBindings\": {},\n               \"HostNetwork\": false,\n               \"StaticIP\": \"\",\n               \"StaticMAC\": \"\",\n               \"NoManageResolvConf\": false,\n               \"DNSServer\": null,\n               \"DNSSearch\": null,\n               \"DNSOption\": null,\n               \"NoManageHostname\": false,\n               \"NoManageHosts\": false,\n               \"HostAdd\": null,\n               \"HostsFile\": \"\",\n               \"Networks\": null,\n               \"NetworkOptions\": null,\n               \"cpu_period\": 100000,\n               \"cpu_quota\": 200000,\n               \"pid_ns\": \"private\",\n               \"userns\": \"host\",\n               \"uts_ns\": \"private\"\n          },\n          \"SharedNamespaces\": [\n               \"ipc\",\n               \"net\",\n               \"uts\"\n          ],\n          \"NumContainers\": 1,\n          \"Containers\": [\n               {\n                    \"Id\": \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n                    \"Name\": \"5a6b51793bde-infra\",\n                    \"State\": \"created\"\n               }\n          ],\n          \"cpu_period\": 100000,\n          \"cpu_quota\": 200000,\n          \"memory_limit\": 1073741824,\n          \"memory_swap\": 2147483648,\n          \"LockNumber\": 29\n     }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "-d",
+        "--label",
+        "owner=cox@helix",
+        "--label",
+        "kaidera.cox.lifecycle=5627249ec3ee435e787e08199980c9c6",
+        "--pod",
+        "kaidera-test-core-schema-1",
+        "--name",
+        "kaidera-test-core-db-1",
+        "--cpus",
+        "1",
+        "--memory",
+        "768m",
+        "--read-only",
+        "--user",
+        "70:70",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--image-volume=ignore",
+        "--tmpfs",
+        "/var/lib/postgresql:rw,size=536870912,mode=1777",
+        "--tmpfs",
+        "/var/run/postgresql:rw,size=16777216,mode=1777",
+        "--tmpfs",
+        "/tmp:rw,size=16777216,mode=1777",
+        "--env",
+        "PGDATA=/var/lib/postgresql/18/data",
+        "--env",
+        "POSTGRES_HOST_AUTH_METHOD=trust",
+        "sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+        "-c",
+        "max_wal_size=64MB",
+        "-c",
+        "min_wal_size=32MB",
+        "-c",
+        "checkpoint_timeout=30s"
+      ],
+      "exit_code": 0,
+      "stdout": "edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "exists",
+        "kaidera-test-core-db-1"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "inspect",
+        "kaidera-test-core-db-1"
+      ],
+      "exit_code": 0,
+      "stdout": "[\n     {\n          \"Id\": \"edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7\",\n          \"Created\": \"2026-10-10T03:47:44.15672117+04:00\",\n          \"Path\": \"docker-entrypoint.sh\",\n          \"Args\": [\n               \"-c\",\n               \"max_wal_size=64MB\",\n               \"-c\",\n               \"min_wal_size=32MB\",\n               \"-c\",\n               \"checkpoint_timeout=30s\"\n          ],\n          \"State\": {\n               \"OciVersion\": \"1.3.0\",\n               \"Status\": \"running\",\n               \"Running\": true,\n               \"Paused\": false,\n               \"Restarting\": false,\n               \"OOMKilled\": false,\n               \"Dead\": false,\n               \"Pid\": 945901,\n               \"ConmonPid\": 945899,\n               \"ExitCode\": 0,\n               \"Error\": \"\",\n               \"StartedAt\": \"2026-10-10T03:47:44.229541188+04:00\",\n               \"FinishedAt\": \"0001-01-01T00:00:00Z\",\n               \"CgroupPath\": \"/user.slice/user-501.slice/user@501.service/user.slice/user-libpod_pod_5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33.slice/libpod-edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7.scope\",\n               \"CheckpointedAt\": \"0001-01-01T00:00:00Z\",\n               \"RestoredAt\": \"0001-01-01T00:00:00Z\"\n          },\n          \"Image\": \"db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d\",\n          \"ImageDigest\": \"sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15\",\n          \"ImageName\": \"sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d\",\n          \"Rootfs\": \"\",\n          \"Pod\": \"5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33\",\n          \"ResolvConfPath\": \"\",\n          \"HostnamePath\": \"/run/user/501/containers/overlay-containers/edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7/userdata/hostname\",\n          \"HostsPath\": \"/run/user/501/containers/overlay-containers/edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7/userdata/hosts\",\n          \"StaticDir\": \"/var/home/core/.local/share/containers/storage/overlay-containers/edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7/userdata\",\n          \"OCIConfigPath\": \"/var/home/core/.local/share/containers/storage/overlay-containers/edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7/userdata/config.json\",\n          \"OCIRuntime\": \"crun\",\n          \"ConmonPidFile\": \"/run/user/501/containers/overlay-containers/edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7/userdata/conmon.pid\",\n          \"PidFile\": \"/run/user/501/containers/overlay-containers/edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7/userdata/pidfile\",\n          \"Name\": \"kaidera-test-core-db-1\",\n          \"RestartCount\": 0,\n          \"Driver\": \"overlay\",\n          \"MountLabel\": \"system_u:object_r:container_file_t:s0:c244,c373\",\n          \"ProcessLabel\": \"system_u:system_r:container_t:s0:c244,c373\",\n          \"AppArmorProfile\": \"\",\n          \"EffectiveCaps\": null,\n          \"BoundingCaps\": null,\n          \"ExecIDs\": [],\n          \"GraphDriver\": {\n               \"Name\": \"overlay\",\n               \"Data\": {\n                    \"LowerDir\": \"/var/home/core/.local/share/containers/storage/overlay/ca600a8d9549b82f79894d1780faf9d6719159a338cdf04b9b72129b059dbdce/diff:/var/home/core/.local/share/containers/storage/overlay/7b333a0e2229f3a236d19309e968279a09d57753a4f3c0b9024693112cb7eb94/diff:/var/home/core/.local/share/containers/storage/overlay/062690a25e9b6d9aabd46991209a46938e1ae5cf8d2eefd50732e7ca97c6d3d5/diff:/var/home/core/.local/share/containers/storage/overlay/9ff2ba39261b29d7118787dfd6919b759a6c441527cd3a77f6f817196120c90a/diff:/var/home/core/.local/share/containers/storage/overlay/3422e825b47c57b50fdd430bd427a4fc60424ed4f39bac98c45215c2055777cf/diff:/var/home/core/.local/share/containers/storage/overlay/961745e8fc470cab003ce20810b851e96e6adb14468c678cc6b1afadfdacd56b/diff:/var/home/core/.local/share/containers/storage/overlay/6a18d14369d45975aec17f3128c649676695c283e9b71faf4a302f2e9b11c7c2/diff:/var/home/core/.local/share/containers/storage/overlay/0549a6babae50ce3225ec17925f59fea808e2e8ce1605458a6d88c668189cc44/diff:/var/home/core/.local/share/containers/storage/overlay/b2848c02ac6ff53d265469b5b30f649f335e546a83330cd8916d54e65e640409/diff\",\n                    \"MergedDir\": \"/var/home/core/.local/share/containers/storage/overlay/e20340c2c8bcd9414fbb9bcaeeef1ca18d04101f153477fda794954c1fc5afdd/merged\",\n                    \"UpperDir\": \"/var/home/core/.local/share/containers/storage/overlay/e20340c2c8bcd9414fbb9bcaeeef1ca18d04101f153477fda794954c1fc5afdd/diff\",\n                    \"WorkDir\": \"/var/home/core/.local/share/containers/storage/overlay/e20340c2c8bcd9414fbb9bcaeeef1ca18d04101f153477fda794954c1fc5afdd/work\"\n               }\n          },\n          \"Mounts\": [],\n          \"Dependencies\": [\n               \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\"\n          ],\n          \"NetworkSettings\": {\n               \"EndpointID\": \"\",\n               \"Gateway\": \"\",\n               \"IPAddress\": \"\",\n               \"IPPrefixLen\": 0,\n               \"IPv6Gateway\": \"\",\n               \"GlobalIPv6Address\": \"\",\n               \"GlobalIPv6PrefixLen\": 0,\n               \"MacAddress\": \"\",\n               \"Bridge\": \"\",\n               \"SandboxID\": \"\",\n               \"HairpinMode\": false,\n               \"LinkLocalIPv6Address\": \"\",\n               \"LinkLocalIPv6PrefixLen\": 0,\n               \"Ports\": {},\n               \"SandboxKey\": \"/proc/945896/ns/net\",\n               \"Networks\": {\n                    \"none\": {\n                         \"EndpointID\": \"\",\n                         \"Gateway\": \"\",\n                         \"IPAddress\": \"\",\n                         \"IPPrefixLen\": 0,\n                         \"IPv6Gateway\": \"\",\n                         \"GlobalIPv6Address\": \"\",\n                         \"GlobalIPv6PrefixLen\": 0,\n                         \"MacAddress\": \"\",\n                         \"NetworkID\": \"none\",\n                         \"DriverOpts\": null,\n                         \"IPAMConfig\": null,\n                         \"Links\": null\n                    }\n               }\n          },\n          \"Namespace\": \"\",\n          \"IsInfra\": false,\n          \"IsService\": false,\n          \"KubeExitCodePropagation\": \"invalid\",\n          \"lockNumber\": 36,\n          \"Config\": {\n               \"Hostname\": \"kaidera-test-core-schema-1\",\n               \"Domainname\": \"\",\n               \"User\": \"70:70\",\n               \"AttachStdin\": false,\n               \"AttachStdout\": false,\n               \"AttachStderr\": false,\n               \"Tty\": false,\n               \"OpenStdin\": false,\n               \"StdinOnce\": false,\n               \"Env\": [\n                    \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                    \"container=podman\",\n                    \"PGDATA=/var/lib/postgresql/18/data\",\n                    \"GOSU_VERSION=1.19\",\n                    \"PG_MAJOR=18\",\n                    \"PG_SHA256=81a81ec695fb0c7901407defaa1d2f7973617154cf27ba74e3a7ab8e64436094\",\n                    \"DOCKER_PG_LLVM_DEPS=llvm21-dev \\t\\tclang21\",\n                    \"LANG=en_US.utf8\",\n                    \"PG_VERSION=18.4\",\n                    \"POSTGRES_HOST_AUTH_METHOD=trust\",\n                    \"HOME=/var/lib/postgresql\",\n                    \"HOSTNAME=kaidera-test-core-schema-1\"\n               ],\n               \"Cmd\": [\n                    \"-c\",\n                    \"max_wal_size=64MB\",\n                    \"-c\",\n                    \"min_wal_size=32MB\",\n                    \"-c\",\n                    \"checkpoint_timeout=30s\"\n               ],\n               \"Image\": \"sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d\",\n               \"Volumes\": null,\n               \"WorkingDir\": \"/\",\n               \"Entrypoint\": [\n                    \"docker-entrypoint.sh\"\n               ],\n               \"OnBuild\": null,\n               \"Labels\": {\n                    \"kaidera.cox.lifecycle\": \"5627249ec3ee435e787e08199980c9c6\",\n                    \"owner\": \"cox@helix\"\n               },\n               \"Annotations\": {\n                    \"io.container.manager\": \"libpod\",\n                    \"io.kubernetes.cri-o.SandboxID\": \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n                    \"org.opencontainers.image.stopSignal\": \"2\",\n                    \"org.systemd.property.KillSignal\": \"2\",\n                    \"org.systemd.property.TimeoutStopUSec\": \"uint64 10000000\"\n               },\n               \"StopSignal\": \"SIGINT\",\n               \"HealthcheckOnFailureAction\": \"none\",\n               \"HealthLogDestination\": \"local\",\n               \"HealthcheckMaxLogCount\": 5,\n               \"HealthcheckMaxLogSize\": 500,\n               \"CreateCommand\": [\n                    \"podman\",\n                    \"run\",\n                    \"-d\",\n                    \"--label\",\n                    \"owner=cox@helix\",\n                    \"--label\",\n                    \"kaidera.cox.lifecycle=5627249ec3ee435e787e08199980c9c6\",\n                    \"--pod\",\n                    \"kaidera-test-core-schema-1\",\n                    \"--name\",\n                    \"kaidera-test-core-db-1\",\n                    \"--cpus\",\n                    \"1\",\n                    \"--memory\",\n                    \"768m\",\n                    \"--read-only\",\n                    \"--user\",\n                    \"70:70\",\n                    \"--cap-drop=ALL\",\n                    \"--security-opt=no-new-privileges\",\n                    \"--image-volume=ignore\",\n                    \"--tmpfs\",\n                    \"/var/lib/postgresql:rw,size=536870912,mode=1777\",\n                    \"--tmpfs\",\n                    \"/var/run/postgresql:rw,size=16777216,mode=1777\",\n                    \"--tmpfs\",\n                    \"/tmp:rw,size=16777216,mode=1777\",\n                    \"--env\",\n                    \"PGDATA=/var/lib/postgresql/18/data\",\n                    \"--env\",\n                    \"POSTGRES_HOST_AUTH_METHOD=trust\",\n                    \"sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d\",\n                    \"-c\",\n                    \"max_wal_size=64MB\",\n                    \"-c\",\n                    \"min_wal_size=32MB\",\n                    \"-c\",\n                    \"checkpoint_timeout=30s\"\n               ],\n               \"Umask\": \"0022\",\n               \"Timeout\": 0,\n               \"StopTimeout\": 10,\n               \"Passwd\": true,\n               \"sdNotifyMode\": \"container\",\n               \"ExposedPorts\": {\n                    \"5432/tcp\": {}\n               }\n          },\n          \"HostConfig\": {\n               \"Binds\": [],\n               \"CgroupManager\": \"systemd\",\n               \"CgroupMode\": \"private\",\n               \"ContainerIDFile\": \"\",\n               \"LogConfig\": {\n                    \"Type\": \"journald\",\n                    \"Config\": null,\n                    \"Path\": \"\",\n                    \"Tag\": \"\",\n                    \"Size\": \"-1B\"\n               },\n               \"NetworkMode\": \"container:c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n               \"PortBindings\": {},\n               \"RestartPolicy\": {\n                    \"Name\": \"no\",\n                    \"MaximumRetryCount\": 0\n               },\n               \"AutoRemove\": false,\n               \"AutoRemoveImage\": false,\n               \"Annotations\": {\n                    \"io.container.manager\": \"libpod\",\n                    \"io.kubernetes.cri-o.SandboxID\": \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n                    \"org.opencontainers.image.stopSignal\": \"2\",\n                    \"org.systemd.property.KillSignal\": \"2\",\n                    \"org.systemd.property.TimeoutStopUSec\": \"uint64 10000000\"\n               },\n               \"VolumeDriver\": \"\",\n               \"VolumesFrom\": null,\n               \"CapAdd\": [],\n               \"CapDrop\": [\n                    \"CAP_CHOWN\",\n                    \"CAP_DAC_OVERRIDE\",\n                    \"CAP_FOWNER\",\n                    \"CAP_FSETID\",\n                    \"CAP_KILL\",\n                    \"CAP_NET_BIND_SERVICE\",\n                    \"CAP_SETFCAP\",\n                    \"CAP_SETGID\",\n                    \"CAP_SETPCAP\",\n                    \"CAP_SETUID\",\n                    \"CAP_SYS_CHROOT\"\n               ],\n               \"Dns\": [],\n               \"DnsOptions\": null,\n               \"DnsSearch\": null,\n               \"ExtraHosts\": null,\n               \"HostsFile\": \"\",\n               \"GroupAdd\": null,\n               \"IpcMode\": \"container:c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n               \"Cgroup\": \"\",\n               \"Cgroups\": \"default\",\n               \"Links\": null,\n               \"OomScoreAdj\": 0,\n               \"PidMode\": \"private\",\n               \"Privileged\": false,\n               \"PublishAllPorts\": false,\n               \"ReadonlyRootfs\": true,\n               \"SecurityOpt\": [\n                    \"no-new-privileges\"\n               ],\n               \"Tmpfs\": {\n                    \"/tmp\": \"rw,size=16777216,mode=1777,rprivate,nosuid,nodev,tmpcopyup\",\n                    \"/var/lib/postgresql\": \"rw,size=536870912,mode=1777,rprivate,nosuid,nodev,tmpcopyup\"\n               },\n               \"UTSMode\": \"container:c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n               \"UsernsMode\": \"\",\n               \"ShmSize\": 65536000,\n               \"Runtime\": \"oci\",\n               \"ConsoleSize\": [\n                    0,\n                    0\n               ],\n               \"Isolation\": \"\",\n               \"CpuShares\": 0,\n               \"Memory\": 805306368,\n               \"NanoCpus\": 1000000000,\n               \"CgroupParent\": \"user.slice/user-501.slice/user@501.service/user.slice/user-libpod_pod_5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33.slice\",\n               \"BlkioWeight\": 0,\n               \"BlkioWeightDevice\": null,\n               \"BlkioDeviceReadBps\": null,\n               \"BlkioDeviceWriteBps\": null,\n               \"BlkioDeviceReadIOps\": null,\n               \"BlkioDeviceWriteIOps\": null,\n               \"CpuPeriod\": 100000,\n               \"CpuQuota\": 100000,\n               \"CpuRealtimePeriod\": 0,\n               \"CpuRealtimeRuntime\": 0,\n               \"CpusetCpus\": \"\",\n               \"CpusetMems\": \"\",\n               \"Devices\": [],\n               \"DiskQuota\": 0,\n               \"KernelMemory\": 0,\n               \"MemoryReservation\": 0,\n               \"MemorySwap\": 1610612736,\n               \"MemorySwappiness\": null,\n               \"OomKillDisable\": false,\n               \"PidsLimit\": 0,\n               \"Ulimits\": [\n                    {\n                         \"Name\": \"RLIMIT_NOFILE\",\n                         \"Soft\": 524288,\n                         \"Hard\": 524288\n                    },\n                    {\n                         \"Name\": \"RLIMIT_NPROC\",\n                         \"Soft\": 31613,\n                         \"Hard\": 31613\n                    }\n               ],\n               \"CpuCount\": 0,\n               \"CpuPercent\": 0,\n               \"IOMaximumIOps\": 0,\n               \"IOMaximumBandwidth\": 0,\n               \"CgroupConf\": null\n          },\n          \"UseImageHosts\": false,\n          \"UseImageHostname\": false\n     }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "rm",
+        "-f",
+        "edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7"
+      ],
+      "exit_code": 0,
+      "stdout": "edd1e51cf347c71804b3ecdd7ae29dad3170b9489da7f065e05ca304bd6aebd7\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "container",
+        "exists",
+        "kaidera-test-core-db-1"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "exists",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "inspect",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 0,
+      "stdout": "[\n     {\n          \"Id\": \"5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33\",\n          \"Name\": \"kaidera-test-core-schema-1\",\n          \"Created\": \"2026-10-10T03:47:43.906457834+04:00\",\n          \"CreateCommand\": [\n               \"podman\",\n               \"pod\",\n               \"create\",\n               \"--name\",\n               \"kaidera-test-core-schema-1\",\n               \"--network\",\n               \"none\",\n               \"--cpus\",\n               \"2\",\n               \"--memory\",\n               \"1g\",\n               \"--label\",\n               \"owner=cox@helix\",\n               \"--label\",\n               \"kaidera.cox.lifecycle=5627249ec3ee435e787e08199980c9c6\",\n               \"--label\",\n               \"slice=C03\"\n          ],\n          \"ExitPolicy\": \"continue\",\n          \"State\": \"Running\",\n          \"Hostname\": \"\",\n          \"Labels\": {\n               \"kaidera.cox.lifecycle\": \"5627249ec3ee435e787e08199980c9c6\",\n               \"owner\": \"cox@helix\",\n               \"slice\": \"C03\"\n          },\n          \"CreateCgroup\": true,\n          \"CgroupParent\": \"user.slice\",\n          \"CgroupPath\": \"user.slice/user-501.slice/user@501.service/user.slice/user-libpod_pod_5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33.slice\",\n          \"CreateInfra\": true,\n          \"InfraContainerID\": \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n          \"InfraConfig\": {\n               \"PortBindings\": {},\n               \"HostNetwork\": false,\n               \"StaticIP\": \"\",\n               \"StaticMAC\": \"\",\n               \"NoManageResolvConf\": false,\n               \"DNSServer\": null,\n               \"DNSSearch\": null,\n               \"DNSOption\": null,\n               \"NoManageHostname\": false,\n               \"NoManageHosts\": false,\n               \"HostAdd\": null,\n               \"HostsFile\": \"\",\n               \"Networks\": null,\n               \"NetworkOptions\": null,\n               \"cpu_period\": 100000,\n               \"cpu_quota\": 200000,\n               \"pid_ns\": \"private\",\n               \"userns\": \"host\",\n               \"uts_ns\": \"private\"\n          },\n          \"SharedNamespaces\": [\n               \"ipc\",\n               \"net\",\n               \"uts\"\n          ],\n          \"NumContainers\": 1,\n          \"Containers\": [\n               {\n                    \"Id\": \"c3ffc370da6e3fc5b6d7c2af9197ade68bf7852de0201bd59d8db8dc6b3ce66d\",\n                    \"Name\": \"5a6b51793bde-infra\",\n                    \"State\": \"running\"\n               }\n          ],\n          \"cpu_period\": 100000,\n          \"cpu_quota\": 200000,\n          \"memory_limit\": 1073741824,\n          \"memory_swap\": 2147483648,\n          \"LockNumber\": 29\n     }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "rm",
+        "-f",
+        "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33"
+      ],
+      "exit_code": 0,
+      "stdout": "5a6b51793bdec00975a06ffc99f957ff0ac320882f1c07dc95a5ee19be844a33\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "pod",
+        "exists",
+        "kaidera-test-core-schema-1"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "stack_removed": true,
+  "source_sha256": {
+    "next/contracts/README.md": "690dd3870c7d47d8d22cc9d6f446843a1d5c899013ef48ea948c14d1e9b8177a",
+    "next/contracts/fixtures/capability-ready.json": "8146d58c3756d82790c50d947d1f37ce6f08197b423b768fb6032b46949e84c4",
+    "next/contracts/fixtures/capability-unavailable.json": "e7fa20b15f7cf7e6c6beb4c93e71c38cd6fdfe924894d4be000dbe3bdc2b0f3c",
+    "next/contracts/fixtures/core-unavailable.json": "7fa6dff23bd563b1b907248231f7d25b6f98527e10907ad5c2e879313a6a5b9e",
+    "next/contracts/fixtures/event-delete.json": "c29a770d680daf60dda33a3c71f51bae7ba36a0fbf176946bf8aea9121daaddc",
+    "next/contracts/fixtures/event-upsert.json": "1ba742369005bf5454b40546264082dd4c8c6179a51ab12fde7e41dd11ae9b09",
+    "next/contracts/fixtures/write-committed.json": "11bb8289934a4017c2861baff2b9da112cb7428c06d6acb755549e635b2548d0",
+    "next/contracts/openapi.json": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+    "next/contracts/outbox-event.schema.json": "5fa8789b346764a2dc319b0770ca362eff6c76c36d65fb21cd8f2ee46865055a",
+    "next/contracts/provenance.json": "c6ad94ffc41197fb3cc7e85b3c118341e1ff91c57fc6d0f2f7f87e3055aea050",
+    "next/contracts/route-matrix.md": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+    "next/docs/gtm-provider/PLAN.md": "153d470565e1ea56312ad5b0d564043861f9b768e689a4f33d31139a62aac811",
+    "next/docs/gtm-provider/REVIEW-REWORK.md": "7ffdb1230f43aa06db84cbd934bbbeddbec5e06eb13135fe9d8a188182bcde28",
+    "next/docs/gtm-search/PLAN.md": "d6dfe004f5af3c2acd1cd02323fab99f2e66c6e3ada9d1563b82dea36c8135a7",
+    "next/docs/gtm-search/REVIEW-REWORK.md": "14f387307525f89c2934a849bf5c2e36209ee60e3a9b153a1252d9699e119a7f",
+    "next/requirements-db-test.txt": "b318285ac8359fbb745d54cb4fc54847477012e102f7bf928bc706706c778295",
+    "next/requirements-test.txt": "ea127b6bd9e3bdbd4543b356ce8f2c71ee4ba731a38e7ec13ac20a4b11e92cc5",
+    "next/schema/auth/001-auth.sql": "97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e",
+    "next/schema/coordination/001-coordination.sql": "c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1",
+    "next/schema/core/001-core.sql": "e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147",
+    "next/schema/manifest.json": "96a9a784e0ec0428f87d25f2f6cb54b7c732e64ea81dac20976f10663c05eee2",
+    "next/schema/retrieval/000-canonical.sql": "5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2",
+    "next/schema/retrieval/001-pg-search.sql": "bf1a5c1b14d57da70013e9ba4c90126797ab1e85533ad1d04db7f7780f113d84",
+    "next/schema/retrieval/002-query-cache.sql": "02f5baf51828ae920988e37aac19169f78039e79481e413a6e1b0907fc62d868",
+    "next/scripts/check_legacy_map.py": "733f58ee3ac80f4e98a865ecc6a71a61094e698e04f80e4dee2b7f09df994c98",
+    "next/scripts/mutate_contracts.py": "062e7df49e67fde0d8eabde9b9aa8dbff3e224a0924241abc2625165a8506849",
+    "next/scripts/mutate_schema.py": "d3bb422dd9507cd44ff8250cf4451922c82c2fab640ece63d0f6e35cf94f8aff",
+    "next/scripts/mutate_test_receipts.py": "fabe129ac5d4dc37ec223b96719c01084400ebb7447718a9dfc86914489841d5",
+    "next/src/cortex_core/contracts.py": "294919224493e4edd5486493d8d3ce1fab312b29f7eb0bd081b08c1377ced72c",
+    "next/src/cortex_core/embeddings/pg_search.py": "6a563eb723800b544147724b64fae8491b08c680be85c8e2e664d6e0647a8ed3",
+    "next/src/cortex_core/embeddings/query_cache.py": "a404bc914ce6db1a39f89bca2707770b92535e2b06753c5169a9b91bb3ba7d0e",
+    "next/src/cortex_core/migrations.py": "15c6fe1472c78ba4ef34288cd26b9f0100d921cc0f77039f9b103ac4e8e8de8c",
+    "next/src/cortex_core/modules/providers/hosted.py": "15e1244005b8238455da18d4d969ab306dc5ace4f1841aaf009ca8fd707c02ac",
+    "next/tests/artifact/test_c03_receipts.py": "a6a523239c2e5e3aca86747afd5e80aa75700855d268872e92819e3ccfd0c262",
+    "next/tests/artifact/test_legacy_map.py": "f6f9373f074be991a692bb20315fca24cc79779eede5f743d18b030b482ad5fd",
+    "next/tests/contract/test_contracts.py": "0efa7498dab02e451437c6c93be15b033cb620774ec53adf3381b2f924e56180",
+    "next/tests/contract/test_receipt_shape.py": "760a8815a7adff072c0895b73bb44d5e5bdf39aecadbf63931657dbac4f33405",
+    "next/tests/contract/test_review_regressions.py": "0c69d749eb6ecb7d131c2d75f2cc90be18484dede9397285d6a5be3e07f8072c",
+    "next/tests/contract/test_rfc3339.py": "eebdc7d8aeaa1175e18bfb74b0fc7cc7c28fcfeaa13f5242c2a0db17eae6ed7a",
+    "next/tests/contract/test_runner_phases.py": "5149d65df61f2dd4d332c18aed84b0e77bf2389e340dd4e3cd81c00f03ce7374",
+    "next/tests/contract/test_schema_index.py": "aee4077b044d5b90a1f325066615ba21fb55c099de57bd379851f2470709710f",
+    "next/tests/integration/mutate_pg_search.py": "d680c07d21a3c65797c4c277f37b2efe41d4619a41ff8f753e3c678f18b4efc4",
+    "next/tests/integration/mutate_query_cache.py": "c4b029de2528302fa1bdcc15268cde080838c0020588c67ea5fe4f22aeeb0b61",
+    "next/tests/integration/provider-requirements.txt": "a3b062eb9ac21c95b854abb80feb71e1bf8f7b51977bbd1e25de54fb284c9950",
+    "next/tests/integration/run_pg_search.py": "2c53bdf4c51013b69a6a4b90d65cb5dda9a5369a82d6f9b62a2675d1b799698e",
+    "next/tests/integration/run_pg_search_review.py": "6435d01bf26920333e30b0e326263c13d7dae05105a7c8a7c0027d557b0e7a32",
+    "next/tests/integration/run_query_cache.py": "7da283ecf67ff915767aadef18f5a9fb3c01efd7715bbcbd29fd9f49cd980055",
+    "next/tests/integration/search-requirements.txt": "5db6f31f60a115ca01ae68dcb635ebb5c09dc0f5a983a92e73cb5b7ee181135f",
+    "next/tests/integration/test_pg_search.py": "c14ac86055045dc86668d2ee777a2e39f5c9dd2103a4dfab5f87b6fae9c57f00",
+    "next/tests/integration/test_pg_search_review.py": "607d7192059fc712eeaced4c3d038b6bee568accb9da61943c3dff0d44dc2e9c",
+    "next/tests/integration/test_pg_search_tools.py": "ab457b4c3668fe3765473078f4c0f9fff25ea3a3c2ed18484f3d5e6c9b916d56",
+    "next/tests/integration/test_query_cache.py": "30c43605209e56b651766fce6d846ae25f289784e0b88cc908c28b1dc8cbcf21",
+    "next/tests/integration/test_query_cache_tools.py": "39fc161f8a27afbce842bb850f5908cfd33cbc30ccca42562e7f695830cdc799",
+    "next/tests/receipt/fixture-reuse-probe.py": "5665077dea98fae0219849cf6478495a2e4b0acd3b0370088a979e26ff253db8",
+    "next/tests/receipt/test_async_fixture_reuse.py": "c54139607ce014d9bad0bc9a8b339870509472a2307ab7de69856b772cc25a8d",
+    "next/tests/receipt/test_classifier.py": "6dd26eee90242427f2a4b7ff5812ad17c9e20b06df49fb96753aa727db795002",
+    "next/tests/receipt/test_shared_location.py": "1c64c4459433d9bee41218cf3443def1102f95b9237d9ceb52c012de406905ec",
+    "next/tests/schema/test_causal_mutations.py": "4cf25b4f36447004f052d4eee69eac98c3e5f9e3a7d7ddf986546273e14fc863",
+    "next/tests/schema/test_integrity.py": "b9aa9be540aab2cb3d63e5cf738087f9760f41523a57a9b73e369955273ee266",
+    "next/tests/schema/test_mutation_receipts.py": "fcaa00c64cd5001a04b3aeae4c6a07a89cd5616c2f45df7783bac11c16498bb9",
+    "next/tests/schema/test_schema.py": "ea8bc174acafd0dffc1706b1ea3e0335ad051e25ef7dac517837ffea910abfde",
+    "next/tests/schema/test_semantic_probes.py": "5029009eac76918a21936ff4a36f8d006b1c8fbc5d7bfd4766103063408ec07b",
+    "next/tests/test_receipts.py": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+  },
+  "legacy_source_sha256": "173d55001d71493961500001f49e208786b1e5bed5aea7198acbdf1b4e8b1783"
+}

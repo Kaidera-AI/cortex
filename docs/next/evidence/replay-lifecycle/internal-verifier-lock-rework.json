@@ -1,0 +1,53 @@
+{
+  "kind": "independent_internal_source_verification",
+  "verdict": "REWORK",
+  "reviewed_commit": "de6dce4a2f0ada34af6e21325293f73a998f9840",
+  "predecessor_commit": "0028cc418d7e2920763e1f48ba98d803fd5370b5",
+  "source": "docs/next/evidence/replay-lifecycle/replay_lifecycle.py",
+  "source_sha256": "1302f1c26547c6dbfc211552dcf4189d3711f538f2c62ec1ad792ccd340ce973",
+  "required_findings": [
+    {
+      "id": "LOCK-VERIFY-001",
+      "severity": "required",
+      "title": "Owned marker entries can omit their immutable binding",
+      "evidence": "_read_marker validates each supplied binding at lines 92-101 but does not require every owned resource to have a binding. A valid-shaped marker with owned=[[container,name]] and binding=[] is accepted. acquire loads that state; inspect only compares an immutable ID when binding.get(resource) is not None at lines 174-176.",
+      "effect": "A malformed owned marker can remove the original immutable-ID constraint from reconciliation, permitting deletion of a matching name/owner/lifecycle without comparing the previously owned ID.",
+      "required_change": "Require exactly one valid binding for every owned resource before admission or cleanup. Permit an unbound pending entry only for the completed-create/lost-ack reconciliation case.",
+      "verification": "Source-derived; not executed by this verifier. Add a frozen native regression demonstrating refusal of an owned entry with an absent binding, then prove the repaired decision and its actual removal."
+    },
+    {
+      "id": "LOCK-VERIFY-002",
+      "severity": "required",
+      "title": "Name absence can clear a marker while its known immutable ID survives",
+      "evidence": "inspect returns None immediately when podman <kind> exists <name> exits 1 at lines 155-157. It does not check the recorded binding ID. _cleanup_resources then discards the resource and binding at lines 222-224, and acquire clears the durable marker and admits a new lifecycle at lines 135-141.",
+      "effect": "If a previously bound resource is renamed, its recorded name can be absent while its immutable ID remains alive. The current reconciliation path can clear the barrier and admit another producer without proving exact owned absence.",
+      "required_change": "For a known binding, verify immutable-ID absence before treating a missing name as reconciled; if the ID remains or its identity is unverified, reconcile that exact owned ID safely or refuse admission while preserving the marker.",
+      "verification": "Source-derived; not executed by this verifier. Add a frozen native regression for a surviving renamed known ID and prove that admission remains blocked until exact reconciliation or absence."
+    }
+  ],
+  "findings_count": 2,
+  "bounded_checks": {
+    "durable_pending_marker_precedes_create": true,
+    "failed_cleanup_marker_precedes_unlock": true,
+    "normal_competing_acquire_reads_marker_under_lock": true,
+    "marker_write_uses_atomic_replace_file_and_directory_fsync": true,
+    "marker_checks_nofollow_regular_file_mode_uid_size_and_shape": true,
+    "strict_owned_binding_and_exact_absence_checks_incomplete": true,
+    "original_four_test_files_and_21_cases_unchanged_against_predecessor": true,
+    "tested_lock_fixture_sha256": "6d6804807894460ac1822d6f567557997acfbb0df6afe5bc79f1050fa3b86310",
+    "intended_red_002": {"tests": 22, "expected_body_assertion_errors": 1, "errors": 0},
+    "green_001": {"tests": 22, "failures": 0, "errors": 0},
+    "actual_dirty_marker_read_omission_mutant_001": {"tests": 22, "expected_body_assertion_errors": 1, "errors": 0},
+    "mutant_001_restored": {"tests": 22, "failures": 0, "errors": 0},
+    "qualified_receipts_record_cleanup_verified_password_discard_and_unlock": true,
+    "lock_red_001": "Preserved wrong fixture variant; excluded from the product verdict."
+  },
+  "receipts": {
+    "lock-red-002.json": "589e2bae92cf56e78fd10a68d3bdbd1ea1c807fad84952e93e3b7abf1a0ce05d",
+    "lock-green-001.json": "c605d6014e5613f528c228fb7252cd3b3939baa1f0bdd840cebc008d91c21e6f",
+    "lock-mutant-001.json": "79b3521ac8d682a72f0f3b5f7f28b4edf396f4b5291eb670b46db2503cbf7f94",
+    "lock-red-001.json": "ba2dfb88c648e85a4070c1a304ad67ec018744156297b98aadc1c7ea5d1e7664"
+  },
+  "scope": "Local Helix replay lifecycle fixture only. Read-only git/source/raw-receipt audit; no imports, tests, builds, resources or live-target actions by this verifier. Sole authorized write is this canonical rework record.",
+  "next_gate": "Hold final audit until the repaired exact source head and new raw RED/GREEN/mutation receipts are supplied. Official Vera/Kai acceptance and producer reuse remain separate."
+}

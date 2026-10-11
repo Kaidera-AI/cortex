@@ -3,6 +3,69 @@ on:
   push: { branches: [main] }
   pull_request:
 jobs:
+  pytest-pg:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14.7'
+      - name: bounded locked dependencies
+        run: |
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python -m pip install --only-binary=:all: --require-hashes \
+            -r packages/api/requirements.lock --target "${{ runner.temp }}/cortex-pg-site"
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python -m pip install --only-binary=:all: pytest==8.4.2 pytest-asyncio==1.2.0 \
+            psycopg2-binary==2.9.11 PyYAML==6.0.3 --target "${{ runner.temp }}/cortex-pg-site"
+      - name: fail-capable pytest gate controls
+        run: |
+          PYTHONPATH="${{ runner.temp }}/cortex-pg-site" \
+            python .github/scripts/pytest_pg_gate_checks.py --output "${{ runner.temp }}/cortex-pytest-pg/gate"
+      - name: rootless PG contract (51 tests; cold and warm; no skips or deselections)
+        run: |
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python .github/scripts/pytest_pg.py --output "${{ runner.temp }}/cortex-pytest-pg" \
+            --site "${{ runner.temp }}/cortex-pg-site"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-pg-receipts
+          path: |
+            ${{ runner.temp }}/cortex-pytest-pg/**/*.json
+            ${{ runner.temp }}/cortex-pytest-pg/**/*.txt
+          if-no-files-found: warn
+          retention-days: 7
+  pytest-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14.7'
+      - name: locked API and test dependencies
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r packages/api/requirements.lock
+          python -m pip install --only-binary=:all: pytest==8.4.2 pytest-asyncio==1.2.0
+      - name: offline Python contract (145 tests; no skips or deselections)
+        run: python .github/scripts/pytest_offline.py --output "${{ runner.temp }}/cortex-pytest-offline"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-offline-receipts
+          path: |
+            ${{ runner.temp }}/cortex-pytest-offline/*.json
+            ${{ runner.temp }}/cortex-pytest-offline/*.txt
+          if-no-files-found: warn
   launcher-contract:
     # One launcher behind every channel means one behavioural contract, proven under both
     # runtimes on every change. The runner is NOT a compliant Cortex host, so the gate

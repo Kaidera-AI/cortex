@@ -22,9 +22,10 @@ import pytest
 
 MIGRATION_PATH = (
     Path(__file__).resolve().parents[3]
-    / "local-cortex"
+    / "packages"
+    / "schema"
     / "migrations"
-    / "005_skills_rules_bindings.sql"
+    / "2026-06-05-skills-rules-bindings.sql"
 )
 TEST_DSN = os.environ.get("CORTEX_TEST_PG_DSN", "")
 

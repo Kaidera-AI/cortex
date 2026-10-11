@@ -1,0 +1,27 @@
+{
+  "aggregate_receipt": "red-attempt-002.json",
+  "aggregate_sha256": "f29ec556f444942a7731ebf11b9013935888c08ef743acf2c7dcb6f9c13f8df5",
+  "producer": "c03",
+  "tests_run": 3,
+  "failures": [
+    {
+      "id": "test_producer_lifecycle.ProducerLifecycle.test_c03_lost_ack_cleanup_reconciles_effect",
+      "phase": "test",
+      "is_assertion": true,
+      "exception_type": "builtins.AssertionError",
+      "traceback": "Traceback (most recent call last):\n  File \"/tmp/proof/test_producer_lifecycle.py\", line 77, in test_c03_lost_ack_cleanup_reconciles_effect\n    self.assertFalse(state['resources'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\nAssertionError: {'kaidera-test-core-schema-1': {'kind': 'pod', 'name': 'kaidera-test-core-schema-1', 'id': 'b8d23cdc1998f47c50eaffd9ae5b2a7ae9e6a8e3c89d2adb4b4883a2cf874fbc', 'labels': {'owner': 'cox@helix', 'slice': 'C03'}}} is not false\n"
+    },
+    {
+      "id": "test_producer_lifecycle.ProducerLifecycle.test_c03_output_prepared_before_effect",
+      "phase": "test",
+      "is_assertion": true,
+      "exception_type": "builtins.AssertionError",
+      "traceback": "Traceback (most recent call last):\n  File \"/tmp/proof/test_producer_lifecycle.py\", line 81, in test_c03_output_prepared_before_effect\n    self.assertTrue(state['output_present_before_create'])\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n"
+    }
+  ],
+  "errors": [],
+  "fixture_sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+  "frozen_sha": "1e7fd19",
+  "aggregate_raw_output_preserved": true,
+  "scope": "producer CLI safety only; no PG/model application tests"
+}

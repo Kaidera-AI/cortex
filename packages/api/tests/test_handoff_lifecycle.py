@@ -116,7 +116,9 @@ def test_release_404_for_non_claimed(http_client):
     """Cannot release a handoff that isn't currently claimed."""
     hid = _create_test_handoff(http_client, "RCA test — release-not-claimed")
     r = http_client.put(f"/handoffs/{hid}/release")
-    assert r.status_code == 404
+    # Existing non-claimed rows conflict: 4e534265; accepted review 2160a6bf,
+    # merge 391be254 (Kai's HTTP1/2 ruling, 2026-10-11).
+    assert r.status_code == 409
     http_client.post("/admin/sql/exec",
                      json={"sql": f"DELETE FROM handoffs WHERE id = '{hid}'"})
 
@@ -191,8 +193,9 @@ def test_cannot_release_completed_handoff(http_client):
     assert r_complete.status_code == 200
 
     r_release = http_client.put(f"/handoffs/{hid}/release")
-    # 404 (not in claimed state) — same semantics as release-not-claimed
-    assert r_release.status_code == 404
+    # 409 (not in claimed state) — same reviewed contract as release-not-claimed:
+    # 4e534265; accepted review 2160a6bf, merge 391be254.
+    assert r_release.status_code == 409
 
     http_client.post("/admin/sql/exec",
                      json={"sql": f"DELETE FROM handoffs WHERE id = '{hid}'"})

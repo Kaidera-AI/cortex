@@ -24,7 +24,7 @@ DB='kaidera-test-core-db-1'
 DRIVER='kaidera-test-core-driver-1'
 PG='sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
 PY='sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
-SUITES=[('schema', 30), ('auth', 40), ('records', 14), ('coordination', 23), ('core_adapters', 6), ('acceptance_guards', 7), ('auth_identity', 26), ('auth_identity_guards', 6), ('identity_coordination', 8), ('identity_portability', 3), ('identity_receipts', 5), ('identity_transition', 1), ('identity_policy_faults', 2), ('identity_binding', 2), ('contract', 33), ('receipt', 20), ('c05_review',8), ('c05_private',5)]
+SUITES=[('schema', 30), ('auth', 40), ('records', 14), ('coordination', 23), ('core_adapters', 6), ('acceptance_guards', 7), ('auth_identity', 26), ('auth_identity_guards', 6), ('identity_coordination', 8), ('identity_portability', 3), ('identity_receipts', 5), ('identity_transition', 1), ('identity_policy_faults', 2), ('identity_binding', 2), ('contract', 33), ('receipt', 41), ('c05_review',8), ('c05_private',5)]
 results=[]
 passed=False
 mutation_errors=[]
@@ -92,6 +92,16 @@ try:
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-db-test.txt'])
     checked(['podman','exec',DRIVER,'python','-m','pip','install','--no-index',
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-test.txt'])
+    env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src',
+         '--env','PYTHONDONTWRITEBYTECODE=1',
+         '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
+    # Discovery imports tests and invokes load_tests: isolate it before any
+    # product migration/test. Host orchestration only compares the reported count.
+    value=checked(env+['python','-c',
+        "import json,unittest;loader=unittest.defaultTestLoader;tests=loader.discover('/tmp/next/tests/receipt');assert not loader.errors,loader.errors;print('CORTEX_RECEIPT_DISCOVERY='+json.dumps({'tests_run':tests.countTestCases()}))"],300)
+    discovery=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines()
+               if line.startswith('CORTEX_RECEIPT_DISCOVERY=')]
+    assert discovery==[{'tests_run':dict(SUITES)['receipt']}], 'isolated receipt suite count differs'
     for attempt in range(30):
         if run(['podman','exec',DB,'pg_isready','-U','postgres']).returncode==0:
             break
@@ -99,9 +109,6 @@ try:
     else:
         raise RuntimeError('C05 disposable PG did not become ready')
     checked(['podman','exec',DB,'psql','-U','postgres','-At','-c','SELECT version();'])
-    env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src',
-         '--env','PYTHONDONTWRITEBYTECODE=1',
-         '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','-c',"import os,psycopg;from cortex_core.migrations import apply_migrations;c=psycopg.connect(os.environ['TEST_DATABASE_URL'],autocommit=True);print('CORTEX_MIGRATION_CHECK='+str(apply_migrations(c)));c.close()"])
     for directory,count in SUITES:
         if PHASE.startswith('write-only-event-red') and directory in ('c05_review','c05_private'):continue

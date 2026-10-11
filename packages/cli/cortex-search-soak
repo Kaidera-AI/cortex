@@ -123,7 +123,7 @@ def trgm_scans(stats):
     found = {}
     if not stats:
         return found
-    for table in (stats.get("tables") or []):
+    for table in (stats.get("objects") or {}).values():
         for idx in (table.get("indexes") or []):
             name = idx.get("name", "")
             if "trgm" in name:
@@ -341,6 +341,7 @@ def main():
         threads.append(t)
 
     start = time.monotonic()
+    interrupted = False
     try:
         while time.monotonic() - start < args.duration:
             time.sleep(15)
@@ -349,6 +350,7 @@ def main():
             el = int(time.monotonic() - start)
             print(f"   [{el:4d}s] {done} req, {shed} shed(503), {hard} hard-5xx")
     except KeyboardInterrupt:
+        interrupted = True
         print("   interrupted - reporting partial results")
     stop.set()
     for t in threads:
@@ -380,6 +382,8 @@ def main():
     print(f"  trgm scans after    : {after or '(unavailable)'}")
 
     fails = []
+    if interrupted:
+        fails.append("soak interrupted before completion")
     if stats.hard_5xx:
         fails.append(f"{stats.hard_5xx} hard 5xx (untyped - 503 search_overloaded is exempt)")
     if pg_crashes:

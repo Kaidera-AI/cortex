@@ -1,0 +1,15 @@
+{
+  "kind": "publication_validation_red_green",
+  "index_sha256": "7bb86724a25ece63406ca47aebfa188287983609d34f99792fa83bd160a62de4",
+  "target": "docs/next/evidence/replay-lifecycle/replay-lock-reproduce.md",
+  "red": {
+    "exit": 1,
+    "marker": "published_digest",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/verify-publication-lock.py\", line 15, in <module>\n    assert hashlib.sha256(published).hexdigest() == member['sha256'], ('published_digest', relative)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: ('published_digest', 'docs/next/evidence/replay-lifecycle/replay-lock-reproduce.md')\n"
+  },
+  "green": {
+    "exit": 0,
+    "stdout": "{\"members\": 73, \"index_sha256\": \"7bb86724a25ece63406ca47aebfa188287983609d34f99792fa83bd160a62de4\", \"all_members_match\": true}\n"
+  },
+  "restored_sha256": "5c7b468f093818891c0447515d9ffe957e4915318bb20a16adb73ac6df2efb8e"
+}

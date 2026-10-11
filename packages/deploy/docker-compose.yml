@@ -82,11 +82,13 @@ services:
 
   cortex-migrate:
     <<: *runtime
+    mem_limit: 536870912
+    cpus: 1.5
     build: {context: ../api, args: *build-args}
     image: localhost/cortex/api:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     restart: 'no'
     command: [python, /app/standalone/migrate.py]
-    environment: *api-env
+    environment: {<<: *api-env, PYTHONPATH: /app}
     depends_on: {cortex-pg: {condition: service_healthy}}
     volumes:
       - cortex-tls-admin:/tls/admin:ro
@@ -109,6 +111,8 @@ services:
 
   cortex-api:
     <<: *runtime
+    mem_limit: 536870912
+    cpus: 1.5
     image: localhost/cortex/api:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     environment: *api-env
     depends_on:
@@ -129,6 +133,8 @@ services:
 
   cortex-embed-worker:
     <<: *runtime
+    mem_limit: 2885681152
+    cpus: 2.0
     build: {context: ../containers/embed-worker, args: *build-args}
     image: localhost/cortex/embed-worker:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     depends_on: {cortex-api: {condition: service_healthy}}
@@ -153,6 +159,8 @@ services:
 
   cortex-pdf-worker:
     <<: *runtime
+    mem_limit: 536870912
+    cpus: 2.0
     build: {context: ../containers/pdf-worker, args: *build-args}
     image: localhost/cortex/pdf-worker:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     depends_on: {cortex-api: {condition: service_healthy}}
