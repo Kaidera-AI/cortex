@@ -1,0 +1,16 @@
+{
+  "upstream": "FiloSottile/age",
+  "tag": "v1.3.1",
+  "asset": "age-v1.3.1-linux-arm64.tar.gz",
+  "url": "https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-arm64.tar.gz",
+  "archive_sha256": "c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a",
+  "binary_sha256": {
+    "age": "92da3edf27811a65a599342d743a13bb50b7f0b07f8947530d4e83249f2e4532",
+    "age-keygen": "8d6ae68268f2ba9f469a85e460a7e9bb3218c451db050e29c294d6d1bcac2dbd"
+  },
+  "elf_machine": 183,
+  "host_install": false,
+  "host_execution": false,
+  "destination": "owned disposable pod /tmp/age-bin only",
+  "release_trust_admission": false
+}
