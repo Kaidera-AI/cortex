@@ -11,7 +11,7 @@ Base: origin/main903fd729c56cf719bbb15e9f986a70b9160497c1.
 - Remeasure raw archive/media/OCI closure, semantic/evidence/custody/cleanup; no header-only PASS.
 - Product API and CLI round-trip same bytes; deciding guard-removal mutations die in unchanged assertions.
 - No production aggregate/trust/signature/install implementation in this unit; later Vera boundary explicit.
-- Inherited real-PG test_manifest.py is absent on main; run unchanged Cox source at a named SHA, report source overlay and owned cleanup at exact R01 head.
+- Inherited real-PG test_manifest.py: Cox #71 source is an early diagnostic only (Kai22:53). Acceptance requires #71 on main, rebase, then unchanged main test at exact final head. Record named head/blob and owned cleanup for each run.
 - Early feature push, verified on origin, for Ren-KOS shared-parser import; final head/receipts to Mike.
 
 No native hosts, cloud, keys, signing, installation, old run8 changes or gavel/Jev.
