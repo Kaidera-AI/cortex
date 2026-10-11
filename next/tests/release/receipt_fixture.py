@@ -26,7 +26,8 @@ def sha(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
-def receipt_fixture():
+def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_archive=False,
+                    bad_report=False, bad_exit=False, bad_index=False):
     value, inputs = build_input()
     outputs, evidence = {}, {}
     def artifact(storage, role, path, raw, media='application/json'):
@@ -53,6 +54,8 @@ def receipt_fixture():
     recipe_sha = digest(value['recipe'])
     dependency_sha = digest(value['dependencies'])
     for slot in ('A', 'B'):
+        if slot == 'B' and unequal_archive:
+            archive += b'\0' * 512
         identity = 'fixture-' + slot
         observed = {'qualification_scope': 'fixture', 'os': 'linux', 'architecture': 'amd64',
                     'kernel': 'fixture-kernel', 'uid': 1001, 'rootless': True,
@@ -61,12 +64,20 @@ def receipt_fixture():
                     **{key: identity + '-' + key for key in ('build_id', 'execution_id', 'store_id', 'runroot_id', 'container_id', 'source_id')},
                     'fresh_store': True, 'mutable_shared': False}
         observed['build_id'] = identity
+        if slot == 'B' and reuse_identity:
+            observed[reuse_identity] = builds['A']['observed_builder'][reuse_identity]
+            identity = observed['build_id']
+        components = {'source_sha256': source_sha, 'recipe_sha256': recipe_sha, 'dependency_sha256': dependency_sha}
+        if slot == 'B' and component_mutation:
+            components[component_mutation] = 'f'*64
         operations = []
         for phase in PHASES:
             op = {'phase': phase, 'argv': ['fixture', phase], 'environment_names': ['PYTHONHASHSEED'],
                   'environment_policy_sha256': 'e' * 64, 'status': 'exited', 'exit_code': 0,
                   'started_at_unix_ns': PHASES.index(phase) * 1000,
                   'finished_at_unix_ns': (PHASES.index(phase) + 1) * 1000}
+            if slot == 'B' and phase == 'build' and bad_exit:
+                op['exit_code'] = 17
             raw_record = dict(op, build_id=identity, qualification_scope='fixture')
             record = artifact(evidence, slot + '.operation.' + phase,
                               'evidence/' + slot + '/' + phase + '.json', canonical(raw_record))
@@ -78,7 +89,7 @@ def receipt_fixture():
                          artifact(outputs, 'config', slot + '/config.json', config, 'application/vnd.oci.image.config.v1+json'),
                          artifact(outputs, 'blob.' + sha(layer), slot + '/layer.tar', layer, 'application/octet-stream')]
         provenance = {'build_id': identity, 'input_sha256': digest(value), 'output_sha256': sha(archive),
-                      'source_sha256': source_sha, 'recipe_sha256': recipe_sha, 'dependency_sha256': dependency_sha,
+                      **components,
                       'policy_sha256': 'e' * 64, 'observed_builder': observed, 'qualification_scope': 'fixture'}
         provenance_record = artifact(outputs, 'provenance', slot + '/provenance.json', canonical(provenance))
         build_outputs += [provenance_record, artifact(outputs, 'sbom', slot + '/sbom.json',
@@ -87,7 +98,7 @@ def receipt_fixture():
         for category in CLASSES:
             record = artifact(evidence, slot + '.audit.' + category, 'evidence/' + slot + '/audit-' + category + '.json',
                               canonical({'build_id': identity, 'class': category, 'output_sha256': sha(archive),
-                                         'inventory_sha256': digest(layer_inventory), 'findings': []}))
+                                         'inventory_sha256': digest(layer_inventory), 'findings': ['cache-present'] if slot == 'B' and category == 'cache' and bad_report else []}))
             build_reports[category] = record
             all_evidence.append(record)
         reports[slot] = build_reports
@@ -96,8 +107,7 @@ def receipt_fixture():
         cleanup_record = artifact(evidence, slot + '.cleanup', 'evidence/' + slot + '/cleanup-result.json',
                                    canonical({'build_id': identity, 'removed_resources': [observed[k] for k in ('execution_id', 'store_id', 'runroot_id', 'container_id', 'source_id')], 'remaining_owned_resources': [], 'complete': True}))
         all_evidence += [custody_record, cleanup_record]
-        builds[slot] = {'build_id': identity, 'observed_builder': observed, 'source_sha256': source_sha,
-                        'recipe_sha256': recipe_sha, 'dependency_sha256': dependency_sha,
+        builds[slot] = {'build_id': identity, 'observed_builder': observed, **components,
                         'started_at_unix_ns': 0, 'finished_at_unix_ns': 6000, 'operations': operations,
                         'outputs': sorted(build_outputs, key=lambda r: r['path']),
                         'oci': {'index': sha(index), 'manifest': sha(manifest), 'config': sha(config),
@@ -108,7 +118,7 @@ def receipt_fixture():
     custody = artifact(evidence, 'custody', 'evidence/custody.json', canonical({'complete': True, 'partial': False, 'missing_roles': [], 'outputs': sorted([r for s in ('A', 'B') for r in builds[s]['outputs']], key=lambda r:r['path'])}))
     all_evidence.append(custody)
     all_evidence.sort(key=lambda r:r['path'])
-    index_record = artifact(evidence, 'evidence-index', 'evidence/index.json', canonical({'inventory': all_evidence}))
+    index_record = artifact(evidence, 'evidence-index', 'evidence/index.json', canonical({'inventory': all_evidence[:-1] if bad_index else all_evidence}))
     receipt = {'schema': 'cortex.build-receipt.v1', 'format_version': 1, 'input_sha256': digest(value),
                'target': value['target'], 'qualification_scope': 'fixture', 'result': 'PASS', 'reason': 'complete',
                'builds': builds, 'comparison': {'raw_archives_equal': True, 'raw_archive_sha256': sha(archive), 'raw_archive_bytes': len(archive), 'oci_closure_equal': True, 'semantic_audit_equal': True},
