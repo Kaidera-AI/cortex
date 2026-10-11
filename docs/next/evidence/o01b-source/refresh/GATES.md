@@ -8,7 +8,7 @@ Depth tree: rebase custody → O01b inherited/fault/native qualification → exa
 - [x] G2: rerun seven inherited O01a and16 O01b controls; eight original O01b,seven inherited O01a and postcheck-digest fault all kill by exact expected BODY assertions; restore originals.
   CHECK: typed test receipts and source hashes.
   EXPECT: no errors/survivors/inconclusive; exact restoration.
-- [ ] G3: rerun actual native PG18.4 concurrent backup/paused recovery, full snapshot/blob/native member checks and ten refusal controls under actual ≥35% Mac+VM pre-create gate; same cached image/lifecycle/networknone/2CPU1GiB/no ports/binds; exact-owned cleanup.
+- [x] G3: rerun actual native PG18.4 concurrent backup/paused recovery, full snapshot/blob/native member checks and ten refusal controls under actual ≥35% Mac+VM pre-create gate; same cached image/lifecycle/networknone/2CPU1GiB/no ports/binds; exact-owned cleanup.
   CHECK: current-source native receipt, admission ordering, snapshot ledger against current manifest, member inventory and cleanup identity.
   EXPECT: passed true and empty errors; no real credentials/data/adoption.
 - [ ] G4: inherited C07 manifest gate at integrated candidate under owned PG; bind full current source/controller/inputs, separate native source from proof publication; verifier must refuse altered receipt and redirected source.
@@ -23,3 +23,5 @@ Old native/verifiers remain historical at original commits. Necessary controller
 Measured G1: clean9-commit rebase,23 O01b paths,accepted product/tests equal c3cad3ed. G2: stale14-test driver RED reports8 INCONCLUSIVE with16 actual tests/0errors; corrected16 baseline/restored +postcheck fault →9/9 O01b kills/12 BODY assertions; unchanged inherited7/7 kills/12 BODY assertions. No product or frozen test change.
 
 Native inherited attempt001:40 bodies clean and all485 copied sources restored; rejected by existing frozen-HEAD assertion because author committed controller-only change during run (de86be9 →56fc876). No qualification credit. Owned3 resources removed. Current source/controllers are frozen before sequential native refresh and attempt002; no commits until both jobs complete.
+
+G3 native PASS at2d4da9d:23 focused tests,1112 base/4 WAL/2blob/1119 encrypted members,10 refusal controls,actual37%Mac/70.369%VM,owned1 cleanup. Inherited attempt002 PASS at same frozen2d4da9d:40 clean module tests including both manifest controls,485 exact restored inputs,owned3 cleanup. G4 independent binding follows in this publication; G5 final CI/cleanup completion is an external exact-head receipt to avoid changing the head while it is being qualified.
