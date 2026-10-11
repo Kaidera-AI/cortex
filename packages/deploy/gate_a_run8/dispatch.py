@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 from custody import Refusal, actual_source_file, bound_json, exclusive_json, parse_json, private_directory, public_data, require
 from payload import pre_load, validate_literals, validate_projects
+from observations import allowed_next, validate_payload
 
 
 PHASE_ROLES = {
@@ -127,6 +128,13 @@ def _execute(authority, store, role, actual_literals, *, runner, invocation_dire
                     "from_phase", "observation_predecessor", "input_digests", "facts"},
                     "command_public_output_fields")
             public_data(facts)
+            require(facts.get("phase") in allowed_next(rows), "command_public_output_destination")
+            expected_destination = {"launcher": "ALLOCATED", "manager": "HOST_BOUND",
+                "literal_recorder": "INSTALLED", "cleanup_verifier": "RETIRED",
+                "restoration_observer": "ARMED" if phase == "INSTALLED" else "REBOOT_VERIFIED"}.get(role)
+            require(expected_destination is None or facts["phase"] == expected_destination,
+                    "command_public_output_destination")
+            validate_payload(facts["phase"], facts.get("facts"), rows)
             output_directory = directory / "public-output"
             private_directory(output_directory, create=not output_directory.exists())
             receipt["public_output"] = exclusive_json(output_directory / (nonce + ".json"), facts)

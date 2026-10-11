@@ -191,7 +191,7 @@ def public_data(value, *, credential_metadata=False):
         for key, item in value.items():
             require(isinstance(key, str) and not key.startswith("_"), "private_internal_receipt_field")
             lower = key.lower()
-            require(not re.search(r"password|private_key|secret_value|bearer|dsn|token_value|token_sha|credential_hash", lower),
+            require(not re.search(r"password|private_key|secret|bearer|dsn|token_value|token_sha|credential_hash|api_key|access_token|authorization", lower),
                     "secret_field_in_receipt")
             require(lower not in {"env", "environment_values", "authorization", "token"},
                     "secret_field_in_receipt")

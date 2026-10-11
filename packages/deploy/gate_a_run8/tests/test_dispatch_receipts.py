@@ -65,6 +65,12 @@ class DispatchReceiptCase(unittest.TestCase):
         phase = rows[-1]['phase']
         target = {'launcher': 'ALLOCATED', 'manager': 'HOST_BOUND', 'retirer': 'RETIRED'}[role]
         payload = {'instance_id': INSTANCE, 'volume_id': VOLUME}
+        if role == 'manager':
+            payload = {'instance_id': INSTANCE, 'owner_uid': 1001, 'boot_id': 'fixture-boot',
+                       'engine': {}, 'host_key_binding': {}, 'local_watchdog': {'state': 'ARMED'},
+                       'guest_watchdog': {'state': 'ARMED'}}
+        if role == 'retirer':
+            payload = {'retirement_receipt': {'fixture': True}, 'custody_complete': False}
         raw = {'schema': 'cortex.gate-a.run8.native-facts.v2', **self.f.A.context,
                'execution_scope': 'native', 'phase': target, 'from_phase': phase,
                'observation_predecessor': records[-1], 'input_digests': {'authority': '9' * 64}, 'facts': payload}

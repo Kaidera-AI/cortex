@@ -63,9 +63,15 @@ def decoded_outcome(text, representation="donor-auto"):
 
 def bind_console(invoke, retire, clock, sleep, *, watchdog_armed):
     require(watchdog_armed is True, "key_wait_watchdog_missing")
+    started = clock()
     def attempt():
+        if clock() - started >= 600:
+            return {"state": "WAIT_NO_CONSOLE_ED25519", "exit": 75, "retryable": True, "count": 0}
         try:
-            return decoded_outcome(invoke())
+            result = decoded_outcome(invoke())
+            if clock() - started >= 600:
+                return {"state": "WAIT_NO_CONSOLE_ED25519", "exit": 75, "retryable": True, "count": 0}
+            return result
         except Refusal as error:
             if error.code != "STOP_CONSOLE_DECODE_FAILURE":
                 raise

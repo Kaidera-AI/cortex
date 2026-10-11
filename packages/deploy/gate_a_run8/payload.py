@@ -60,6 +60,18 @@ def pre_load(authority, manifest, actual, delivery_row):
     require(installation["delivery_kind"] == "prebuilt" and installation["platform"] == "linux/amd64",
             "closed_installation_delivery")
     require(inventory == manifest["oci_inventory"], "closed_inventory_signed_main_mismatch")
+    # The extracted install's checksums are useful source policy, but cannot
+    # approve changed delivery bytes. This map is independently sealed from the
+    # signed source archive, including install.json itself and every payload file.
+    signed_files = authority.B.get("payload_files")
+    require(isinstance(signed_files, dict) and signed_files, "signed_payload_file_map_unbound")
+    paths = list(root.rglob("*"))
+    require(not any(p.is_symlink() for p in paths), "signed_payload_alias")
+    actual_files = {p.relative_to(root).as_posix() for p in paths if p.is_file()}
+    require(set(signed_files) == actual_files, "signed_payload_file_membership")
+    for name, row in signed_files.items():
+        require(row.get("path") == str(root / name), "signed_payload_file_path")
+        bound_file(row)
     return {"closed_installation": True, "before_image_load": True,
             "source_revision": identity["source_revision"], "schema_revision": identity["schema_revision"],
             "platform": installation["platform"], "runtime_sha256": values["cto_runtime_sha"]}

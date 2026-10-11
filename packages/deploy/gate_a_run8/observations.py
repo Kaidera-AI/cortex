@@ -41,6 +41,10 @@ def allowed_next(rows):
 def validate_payload(phase, payload, rows):
     require(isinstance(payload, dict) and REQUIRED[phase] <= set(payload), "observation_required_facts")
     public_data(payload)
+    optional = {"admitted_command_inputs"}
+    if phase == "FAILURE":
+        optional |= {"instance_id", "volume_id", "checked_invocation"}
+    require(set(payload) <= REQUIRED[phase] | optional, "observation_public_fields")
     if phase == "ALLOCATED":
         require(isinstance(payload["instance_id"], str) and
                 re.fullmatch(r"i-[0-9a-f]{8,17}", payload["instance_id"]), "allocated_instance_id")

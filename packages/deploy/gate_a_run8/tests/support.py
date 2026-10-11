@@ -104,6 +104,8 @@ class Fixture:
                    "files": {p.relative_to(payload).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in members}}
         self.install = install
         self.file("payload/packages/deploy/install.json", json_bytes(install))
+        self.B["payload_files"] = {p.relative_to(payload).as_posix(): measured_file(p)
+                                   for p in payload.rglob("*") if p.is_file()}
         self.B["payload_dir"] = str(payload)
         self.B["source_members"] = {"packages/deploy/image_manifest.py": self.image,
                                     "packages/deploy/cortex-runtime": self.runtime,

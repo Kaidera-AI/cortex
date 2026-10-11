@@ -81,6 +81,7 @@
   "operation": "POST_SIGNED_GATE_A_INSTALL",
   "owner_tag": null,
   "payload_dir": null,
+  "payload_files": null,
   "phase_command_inputs": null,
   "production_public_key": null,
   "projects_root": null,

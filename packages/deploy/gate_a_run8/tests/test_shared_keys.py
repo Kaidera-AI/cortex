@@ -48,7 +48,7 @@ class SharedKeysCase(unittest.TestCase):
         result = caller(lambda: calls.append(clock[0]) or '', lambda: retire.append('retire'),
                         lambda: clock[0], sleep, watchdog_armed=True)
         self.assertEqual(result['exit'], 75)
-        self.assertEqual(calls, list(range(0, 601, 60)))
+        self.assertEqual(calls, list(range(0, 600, 60)))
         self.assertEqual(retire, ['retire'])
 
 
