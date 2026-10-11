@@ -15,6 +15,26 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    '2aii_exec_leak': ('schema/auth/005-first-identity.sql',
+        'FROM PUBLIC,"kaidera-runtime-core-request";',
+        'FROM "kaidera-runtime-core-request";'),
+    '2aii_lost_login': ('schema/auth/005-first-identity.sql',
+        "IF session_user IS DISTINCT FROM 'kaidera-runtime-core-installer'", 'IF false'),
+    '2aii_skip_replay': ('schema/auth/005-first-identity.sql',
+        'SELECT * INTO prior FROM auth.first_identity_receipts\n'
+        '      WHERE installation_id=p_installation;\n    IF FOUND THEN',
+        'SELECT * INTO prior FROM auth.first_identity_receipts\n'
+        '      WHERE installation_id=p_installation;\n    IF false THEN'),
+    '2aii_widen_permissions': ('schema/auth/005-first-identity.sql',
+        "ARRAY['read','write']::text[]", "ARRAY['read','write','control']::text[]"),
+    '2aii_scope_mismatch': ('schema/auth/005-first-identity.sql',
+        "AND p.id=p_project AND p.name='default';", 'AND p.id=p_project;'),
+    '2aii_omit_audit_actor': ('schema/auth/005-first-identity.sql',
+        "'actor','kaidera-runtime-core-installer',", "'actor','omitted',"),
+    '2aii_omit_capture': ('schema/auth/005-first-identity.sql',
+        "PERFORM coordination.c06_fact('identity',p_principal,audit_payload);", 'PERFORM 1;'),
+    '2aii_owner_leak': ('schema/auth/005-first-identity.sql',
+        'OWNER TO "kaidera-runtime-core-verifier";', 'OWNER TO "postgres";'),
     '2ai_bare_audit_comparison': ('schema/auth/004-first-identity-capture.sql',
         "audit->>'actor_kind' IS DISTINCT FROM 'installer'",
         "audit->>'actor_kind'<>'installer'"),
