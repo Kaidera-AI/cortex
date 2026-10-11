@@ -94,7 +94,15 @@ def test_authoritative_mapping_and_all_containment_refusals(tmp_path):
     assert e.value.status_code == 503
 
 
-def test_installer_authority_is_required_physical_and_readable(tmp_path, monkeypatch):
+@pytest.fixture
+def safe_authority_dir():
+    # /tmp is now an API reserved namespace; test a valid owner-home project tree.
+    with tempfile.TemporaryDirectory(prefix='source-authority-', dir=Path.home()) as directory:
+        yield Path(directory).resolve()
+
+
+def test_installer_authority_is_required_physical_and_readable(safe_authority_dir, monkeypatch):
+    tmp_path = safe_authority_dir
     source = ROOT/'packages/deploy/cortex-runtime'
     tree = ast.parse(source.read_text())
     selected = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'validated_projects_root']

@@ -2,6 +2,7 @@
 import ast
 import json
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -80,5 +81,9 @@ def test_default_and_B_fixture_namespaces_pass_exact_overlap_predicate():
         exec(code,{'Path':Path,'path':Path(root)})
 
 
-def test_valid_existing_isolated_projects_root_passes(tmp_path,monkeypatch):
-    root=(tmp_path/'projects');root.mkdir();root=root.resolve();monkeypatch.setenv('CORTEX_PROJECTS_ROOT',str(root));function,_=validator();assert function()==str(root)
+def test_valid_existing_isolated_projects_root_passes(monkeypatch):
+    # Valid authority must not live under the now-reserved /tmp namespace on Linux.
+    with tempfile.TemporaryDirectory(prefix='source-authority-',dir=Path.home()) as directory:
+        root=Path(directory).resolve()/'projects';root.mkdir()
+        monkeypatch.setenv('CORTEX_PROJECTS_ROOT',str(root));function,_=validator()
+        assert function()==str(root)

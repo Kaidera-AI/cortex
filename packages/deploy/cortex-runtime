@@ -134,6 +134,18 @@ def validated_projects_root():
             or any(ord(c) < 32 or ord(c) == 127 for c in raw)
             or ':' in raw or os.path.normpath(raw) != raw):
         raise ValueError('CORTEX_PROJECTS_ROOT must be a physical absolute projects directory')
+    # Same-path project binds must never cover API code, executables, virtual
+    # filesystems, tmpfs or dedicated control/TLS/provider mounts. The focused
+    # tripwire reads actual Compose destinations and retained image PATH/workdir.
+    reserved = (
+        '/usr', '/bin', '/sbin', '/lib', '/lib64', '/etc', '/opt', '/app',
+        '/proc', '/sys', '/dev', '/run', '/tmp',
+        '/run/cortex-owner', '/tls/app', '/tls/admin',
+        '/run/openkai-provider', '/run/openkai-registry.json',
+    )
+    for protected in map(Path, reserved):
+        if path == protected or path in protected.parents or protected in path.parents:
+            raise ValueError('CORTEX_PROJECTS_ROOT overlaps a reserved API runtime or mount path')
     try:
         physical = path.resolve(strict=True)
     except (OSError, RuntimeError) as exc:
