@@ -36,6 +36,18 @@ def _code_equal(left, right):
         return len(left) == len(right) and all(
             _code_equal(a, b) for a, b in zip(left, right)
         )
+    if isinstance(left, frozenset):
+        if len(left) != len(right):
+            return False
+        remaining = list(right)
+        for value in left:
+            for index, candidate in enumerate(remaining):
+                if _code_equal(value, candidate):
+                    remaining.pop(index)
+                    break
+            else:
+                return False
+        return not remaining
     return left == right
 
 
