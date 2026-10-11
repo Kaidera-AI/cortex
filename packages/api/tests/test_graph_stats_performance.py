@@ -7,7 +7,7 @@ import pytest
 
 
 API_MAIN_PATH = Path(__file__).resolve().parents[1] / "main.py"
-SCHEMA_PATH = Path(__file__).resolve().parents[2] / "data" / "cortex-schema-full.sql"
+SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schema" / "cortex-schema-full.sql"
 
 
 def load_module(path: Path, name: str):

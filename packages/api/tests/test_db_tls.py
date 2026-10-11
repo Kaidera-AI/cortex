@@ -12,10 +12,10 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
-spec = importlib.util.spec_from_file_location("db_tls", ROOT / ".agents/api/db_tls.py")
+spec = importlib.util.spec_from_file_location("db_tls", ROOT / "packages/api/db_tls.py")
 db_tls = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(db_tls)
-INIT = ROOT / "local-cortex/standalone/tls/init.sh"
+INIT = ROOT / "packages/deploy/tls/init.sh"
 APP_DSN = "postgresql://cortex_app@cortex-pg:5432/cortex"
 ADMIN_DSN = "postgresql://postgres@cortex-pg:5432/cortex"
 
@@ -115,8 +115,8 @@ def test_verified_mutual_tls_uses_separate_client_identities(pki, role, dsn, cn)
     assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
     peer = handshake(context, pki)
     assert peer["subject"] == ((("commonName", cn),),)
-    with pytest.raises(RuntimeError, match="refuses password"):
-        options["password"]()
+    assert options["password"] == ""
+    assert options["passfile"] == os.devnull
 
 
 def test_wrong_server_hostname_is_rejected(pki):
