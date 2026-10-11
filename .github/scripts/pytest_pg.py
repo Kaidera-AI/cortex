@@ -41,6 +41,9 @@ class Fixture:
     def command(self, args, *, timeout=120, check=True, input=None):
         result = subprocess.run(["podman", *args], text=True, capture_output=True,
                                 timeout=timeout, input=input)
+        for secret in self.secret_values:
+            result.stdout = result.stdout.replace(secret, "[REDACTED]")
+            result.stderr = result.stderr.replace(secret, "[REDACTED]")
         # Secret bodies are stdin only; inspect Config.Env is never retained.
         if args[0] != "inspect":
             self.receipt["commands"].append({"args": args, "exit": result.returncode,
