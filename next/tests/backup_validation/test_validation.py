@@ -345,6 +345,53 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(destination.is_file())
         self.assertEqual(len(manifest['metadata']['model_identities']), 3)
 
+    def test_aliases_of_physical_blob_members_and_uuid_identities_refuse_preseal(self):
+        cases = {}
+        for spelling in ('synthetic//blob', 'synthetic/./blob',
+                         'synthetic/blob/', './synthetic/blob'):
+            value = json.loads(json.dumps(self.after))
+            second = dict(value['blob_inventory'][0])
+            second.update(object_key=spelling,
+                          tenant_id='00000000-0000-4000-8000-000000000002',
+                          project_id='00000000-0000-4000-8000-000000000003')
+            value['blob_inventory'].append(second)
+            cases['blob_member:' + spelling] = value
+        for field, key in (('model_identities', 'id'),
+                           ('record_heads', 'id'),
+                           ('vectors', 'record_id'),
+                           ('vectors', 'model_id')):
+            value = json.loads(json.dumps(self.after))
+            value[field][0][key] = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+            second = dict(value[field][0])
+            second[key] = second[key].upper()
+            value[field].append(second)
+            cases['uuid_alias:' + field + ':' + key] = value
+            invalid = json.loads(json.dumps(self.after))
+            invalid[field][0][key] = 'not-a-uuid'
+            cases['invalid_uuid:' + field + ':' + key] = invalid
+        for index, (name, metadata) in enumerate(cases.items()):
+            for entrypoint in ('complete', 'lower'):
+                with self.subTest(identity=name, entrypoint=entrypoint):
+                    destination = self.root / f'alias-{index}-{entrypoint}.age'
+                    with patch('cortex_core.backup.subprocess.Popen',
+                               side_effect=BackupError('age spawned')) as spawn:
+                        with self.assertRaises(BackupError):
+                            options = dict(segment_bytes=SEG, blob_root=self.blobs,
+                                           recipient=self.recipient,
+                                           destination=destination,
+                                           age_binary=self.age_binary)
+                            if entrypoint == 'complete':
+                                seal_complete_bundle(
+                                    self.base, self.archive, '0/1300000', metadata,
+                                    pg_verifybackup_binary=self.pg_verifybackup_binary,
+                                    pg_waldump_binary=self.pg_waldump_binary, **options)
+                            else:
+                                seal_encrypted_bundle(
+                                    self.base, self.archive, '0/1300000', metadata,
+                                    **options)
+                        spawn.assert_not_called()
+                    self.assertFalse(destination.exists())
+
     def test_scoped_record_heads_and_vectors_verify_independently(self):
         metadata = json.loads(json.dumps(self.after))
         first = ('00000000-0000-4000-8000-000000000002',
