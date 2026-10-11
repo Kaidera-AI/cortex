@@ -42,8 +42,9 @@ for directory,count in expected.items():
 # Receipt tests deliberately hide synthetic failing cases in load_tests.
 # Use the runner's discovery contract instead of counting every AST method.
 discovered=subprocess.check_output([sys.executable,'-c',
-    'import sys,unittest;print(unittest.defaultTestLoader.discover(sys.argv[1]).countTestCases())',
-    str(wt/'next/tests/receipt')],text=True,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})
+    'import sys,unittest;loader=unittest.defaultTestLoader;tests=loader.discover(sys.argv[1]);assert not loader.errors,loader.errors;print(tests.countTestCases())',
+    str(wt/'next/tests/receipt')],text=True,
+    env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','PYTHONPATH':str((wt/'next/src').resolve())})
 actual_receipt_count=int(discovered.strip())
 checks['receipt']={'actual':actual_receipt_count,'expected':declared_suites['receipt'],
                    'passed':actual_receipt_count==declared_suites['receipt']}
