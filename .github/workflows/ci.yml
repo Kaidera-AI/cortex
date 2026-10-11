@@ -23,7 +23,9 @@ jobs:
         if: always()
         with:
           name: pytest-offline-receipts
-          path: ${{ runner.temp }}/cortex-pytest-offline
+          path: |
+            ${{ runner.temp }}/cortex-pytest-offline/*.json
+            ${{ runner.temp }}/cortex-pytest-offline/*.txt
           if-no-files-found: warn
   launcher-contract:
     # One launcher behind every channel means one behavioural contract, proven under both

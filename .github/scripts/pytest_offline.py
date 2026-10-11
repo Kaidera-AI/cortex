@@ -84,6 +84,7 @@ def run(output):
                 "PYTHONDONTWRITEBYTECODE": "1", "CORTEX_TEST_PROJECT": "",
                 "CORTEX_API_URL": "http://127.0.0.1:1",
                 "CORTEX_ADMIN_TOKEN": "offline-ci-unused"})
+    env["PYTHONPATH"] = str(ROOT / "packages/api") + os.pathsep + env.get("PYTHONPATH", "")
     receipts = []
     failed = False
     for index, targets in enumerate(TARGETS):
