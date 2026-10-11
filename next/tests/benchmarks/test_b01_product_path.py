@@ -252,5 +252,129 @@ class ProductPathTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(receipt["engine_decision"], "UNDECIDED")
 
 
+def native_suite():
+    """Only the admitted controller calls this; no ambient database discovery."""
+    import asyncpg
+    import core_db_fixture as core_fixture
+    from cortex_core.auth import AuthError
+    from cortex_core.embeddings.pg_search import CoreUnavailable, PostgresSearch
+    from cortex_core.embeddings.query_cache import CacheScope, QueryEmbeddingCache
+    import os
+
+    class NativeProductPathTests(ProductPathTests):
+        async def asyncSetUp(self):
+            await super().asyncSetUp()
+            self.core = core_fixture.Fixture()
+            self.core.setUp()
+            self.addCleanup(self.core.doCleanups)
+            self.core_calls = 0
+            self.spec["scope_map"] = [
+                {"tenant": "ta", "project": "pa", "tenant_id": core_fixture.uid(2),
+                 "project_id": core_fixture.uid(3)},
+                {"tenant": "tb", "project": "empty", "tenant_id": core_fixture.uid(21),
+                 "project_id": core_fixture.uid(3)}]
+            self.spec["queries"][1]["tenant"] = "tb"
+            self.spec["record_map"] = {"r1": core_fixture.uid(6), "r2": core_fixture.uid(1001),
+                                       "r3": core_fixture.uid(1002)}
+            # Canonical synthetic sources, before projection population. No public
+            # product write or fabricated grant replaces the existing Core fixture.
+            for record in (1001, 1002):
+                with self.core.admin.transaction():
+                    self.core.admin.execute("""INSERT INTO core.records
+                        (tenant_id,project_id,id,kind,current_revision,tombstone)
+                        VALUES (%s,%s,%s,'memory',1,false)""",
+                        (core_fixture.uid(2), core_fixture.uid(3), core_fixture.uid(record)))
+                    self.core.admin.execute("""INSERT INTO core.record_revisions
+                        (tenant_id,project_id,record_id,revision,payload_ref,tombstone)
+                        VALUES (%s,%s,%s,1,%s,false)""",
+                        (core_fixture.uid(2), core_fixture.uid(3), core_fixture.uid(record), core_fixture.uid(5)))
+            for name in ("001-pg-search.sql", "002-query-cache.sql"):
+                self.core.admin.execute((NEXT / "schema/retrieval" / name).read_text())
+            self.core.admin.execute("""GRANT USAGE ON SCHEMA retrieval TO search_runtime;
+                GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA retrieval TO search_runtime;
+                GRANT USAGE ON ALL SEQUENCES IN SCHEMA retrieval TO search_runtime""")
+            self.pool = await asyncpg.create_pool(os.environ["B01_OWNED_SEARCH_DSN"], min_size=1, max_size=8)
+            self.addAsyncCleanup(self.pool.close)
+
+            async def authorize_component(connection, subject):
+                current = await self.authorize(subject)
+                partition = hashlib.sha256(canonical([str(v) for v in current.cache_partition])).hexdigest()
+                return CacheScope(current.tenant_id, current.project_id, partition)
+
+            self.cache = QueryEmbeddingCache(self.pool, authorize_component, self.provider.embed)
+            self.search = PostgresSearch(self.pool, authorize_component)
+            for subject in ("reader", "empty"):
+                await self.search.configure(subject, IDENTITY, "ready")
+            for index, public_id in enumerate(("r1", "r2", "r3")):
+                record_id = self.spec["record_map"][public_id]
+                await self.search.note_revision("reader", record_id, "memory", 1)
+                await self.search.store_embedding("reader", record_id, 1, IDENTITY,
+                                                  self.corpus.vectors[index].tolist())
+            self.spec["source_sha256"] = {name: corpus.digest(NEXT / name) for name in (
+                "src/cortex_core/auth.py", "src/cortex_core/embeddings/pg_search.py",
+                "src/cortex_core/embeddings/query_cache.py", "src/cortex_core/modules/providers/hosted.py")}
+            self.expected = hashlib.sha256(canonical(self.spec)).hexdigest()
+            self.cache.calls, self.search.calls = 0, []
+            actual_get, actual_search = self.cache.get, self.search.search
+
+            async def observe_get(*args, **kwargs):
+                self.cache.calls += 1
+                return await actual_get(*args, **kwargs)
+
+            async def observe_search(*args, **kwargs):
+                self.search.calls.append((args, kwargs))
+                return await actual_search(*args, **kwargs)
+
+            self.cache.get, self.search.search = observe_get, observe_search
+            self.core_calls = self.auth_calls = 0
+
+        async def authorize(self, subject):
+            self.core_calls += 1
+            self.auth_calls += 1
+            bindings = {"reader": (core_fixture.READ_A, 1), "empty": (core_fixture.READ_B, 20)}
+            if subject not in bindings: raise PermissionError("fixture_subject_unknown")
+            key, installation = bindings[subject]
+            try:
+                # The returned value remains private until Core's context exits.
+                with self.core.auth(key=key, installation=installation) as current:
+                    result = current
+                return result
+            except AuthError as error:
+                if error.code == "core_unavailable": raise CoreUnavailable() from None
+                raise PermissionError("core_fixture_refused") from None
+
+        async def test_native_actual_cache_provider_search_and_core_scope(self):
+            self.assertIsInstance(self.cache, QueryEmbeddingCache)
+            self.assertIsInstance(self.search, PostgresSearch)
+            await self.test_actual_calls_cold_warm_and_independent_tiny_truth()
+            self.assertGreaterEqual(self.core_calls, 6)
+
+        async def test_native_empty_under_k_and_current_permission_generation(self):
+            await self.test_empty_and_less_than_k_are_not_fictional_recall()
+            before = self.provider_calls
+            # Existing Core grant update owns its generation, no invented counter.
+            self.core.admin.execute("""UPDATE auth.project_grants SET permissions=ARRAY['read','write']
+                WHERE tenant_id=%s AND project_id=%s AND principal_id=%s""",
+                (core_fixture.uid(2), core_fixture.uid(3), core_fixture.uid(8)))
+            row = await self.evaluate()
+            self.assertEqual(row["status"], "MEASURED")
+            self.assertFalse(row["cache_hit"])
+            self.assertEqual(self.provider_calls, before + 1)
+
+        async def test_native_unsupported_inputs_and_frozen_binding_no_effect(self):
+            before = self.core_calls
+            await self.test_unsupported_filter_sparse_hybrid_and_metric_have_no_credit()
+            self.assertEqual(self.core_calls, before)
+            await self.test_changed_input_mapping_refused_before_any_port()
+
+        async def test_native_fixed_offered_load_receipt_and_cleaned_connections(self):
+            await self.test_fixed_offers_and_receipt_preserve_errors_and_no_gtm_credit()
+            self.assertGreater(len(self.search.calls), 0)
+            self.assertGreater(self.provider_calls, 0)
+
+    methods = [name for name in dir(NativeProductPathTests) if name.startswith("test_native_")]
+    return unittest.TestSuite(NativeProductPathTests(name) for name in methods)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
