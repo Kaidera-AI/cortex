@@ -131,3 +131,29 @@ PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-pagi
 ```
 
 The native controller now binds the official wrapper/probe in its input inventory. `mutation-c07-pagination-002.json` repeats the full381/27 matrix at committed7edf883 with unchanged481 NEXT bytes; the private wrapper is not the current control. All original native1001/multi-page assertions and product/test/mutator bytes remain unchanged from the preceding qualification. The fresh backup receipt for this controller-bound source is `../o01a-source/native-pg-pagination-002.json`. Publication changes only proof documents; every receipt retains its source commit and is re-bound to current Git inputs.
+
+## Interrupted continuation (Kai20:12, current)
+
+`cycle` now derives recovery from the durable applied/scan gap and sparse outcomes. It reads monotonic bounded pages through the original observed scan fence before fetching new history, skips unresolved poisoned aggregates without overwriting poison/held outcomes, and replays eligible observed work through ordinary fencing and idempotent target admission. New-work capacity limits never block existing observed recovery. No manual cursor reset, held-as-poison root admission, new table or SQL/protocol change. A new client/new PG request connection needs no repair-local continuation variables.
+
+`c07-review-red-durable-001.json`:40 tests /3 expected BODY failures /zero errors atd582fe9 before code. Original native37 controls are unchanged. New cases cover root-checkpoint hook interruption plus temporary retry failure,held target commits then fails before Core ACK with exactly-once retry,and independent poisonA1/requestedB1001/heldB2001/full pending capacity after interruption. `mutation-c07-durable-001.json` at3f4d562:27 suites /384 clean tests /40 module tests /30 body-killed faults /82 expected assertions /zero errors,survivors or inconclusive results /482 copied inputs restored /owned cleanup.
+
+Mike's desired `durable-reviewer-control/test_resumable_repair.py` remains byte-exact. Its review originally read a fixed JSON snapshot. The declared `run-probe.py` regenerates equivalent case fields from the exact current consumer AST and unchanged9465118d scaffold,with constructor-owned persistent state copied into fresh Harness objects;original diagnostic probe is archived. Fresh RED3 tests /2 BODY failures /0 errors;GREEN3/3. This source-flow model is not native proof. The official reusable uninterrupted wrapper remains byte-exact and GREEN1/1;original three controls stay GREEN.
+
+Current stdlib verification/replay:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-durable.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/durable-reviewer-control/run-probe.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/durable-reviewer-control/test_resumable_repair.py
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py .
+```
+
+The preceding pagination verifier/receipt bindings remain historical at86bc36c;current artifact is `pr71-durable-binding.json`. Fresh sequential native output names (same already installed images/hash-bound offline wheels,no install):
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/run-review-pg.py mutation-c07-durable-fresh-002
+PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-forward.py native-pg-durable-fresh-002.json
+```
+
+Renewed backup is `../o01a-source/native-pg-durable-001.json` at the same3f4d562 tested source;seven tests,973 base files,four16MiB WAL segments,pg_verifybackup,synthetic age roundtrip/refusals and exact owned cleanup. Admission requires actual Mac/active VM both≥35 before create. Publication successors modify only proof docs outside NEXT;typed source/publication commits stay distinct. No live migration,adoption or main merge.

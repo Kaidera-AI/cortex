@@ -1,0 +1,26 @@
+test_positive_uninterrupted_repair (__main__.ResumeRepair.test_positive_uninterrupted_repair) ... ok
+test_resume_after_root_checkpoint_interruption (__main__.ResumeRepair.test_resume_after_root_checkpoint_interruption) ... FAIL
+test_resume_after_successor_transient_failure (__main__.ResumeRepair.test_resume_after_successor_transient_failure) ... FAIL
+
+======================================================================
+FAIL: test_resume_after_root_checkpoint_interruption (__main__.ResumeRepair.test_resume_after_root_checkpoint_interruption)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-durable-20261011/docs/next/evidence/c07-source/durable-reviewer-control/test_resumable_repair.py", line 13, in test_resume_after_root_checkpoint_interruption
+    self.assertEqual(rows['after_root_checkpoint_interruption']['after_resumed_cycle']['applied_cursor'], 1001)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1000 != 1001
+
+======================================================================
+FAIL: test_resume_after_successor_transient_failure (__main__.ResumeRepair.test_resume_after_successor_transient_failure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-durable-20261011/docs/next/evidence/c07-source/durable-reviewer-control/test_resumable_repair.py", line 16, in test_resume_after_successor_transient_failure
+    self.assertEqual(rows['transient_successor_failure_then_restoration']['status']['applied_cursor'], 1001)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1000 != 1001
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+FAILED (failures=2)
