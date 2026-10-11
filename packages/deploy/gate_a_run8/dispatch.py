@@ -8,7 +8,7 @@ import time
 import uuid
 from types import SimpleNamespace
 
-from custody import actual_source_file, exclusive_json, private_directory, require
+from custody import actual_source_file, exclusive_json, parse_json, private_directory, public_data, require
 from payload import validate_literals
 
 
@@ -33,8 +33,9 @@ def checked_command(authority, store, role, actual_literals=None):
     phase = rows[-1]["phase"]
     require(role in PHASE_ROLES.get(phase, set()), "command_phase_scope")
     specs = authority.B.get("commands")
-    require(isinstance(specs, dict) and role in specs, "command_slot_unbound")
-    spec = specs[role]
+    require(isinstance(specs, dict) and isinstance(specs.get(phase), dict)
+            and role in specs[phase], "command_slot_unbound")
+    spec = specs[phase][role]
     require(spec.get("phase") == phase, "command_spec_phase")
     record_key = authority.B["command_inventory"]["root_roles"][role]
     executable = actual_source_file(authority.B["sealed_files"][record_key])
@@ -52,11 +53,31 @@ def checked_command(authority, store, role, actual_literals=None):
     require(isinstance(spec.get("input_digests"), dict) and spec["input_digests"] and
             spec["input_digests"] == rows[-1]["payload"].get("admitted_command_inputs", {}).get(role),
             "command_observed_inputs_missing")
+    if role == "launcher":
+        # Observing a fresh check does not extend its lifetime.
+        authority.check_measured_receipts(rows[-1]["payload"]["checks"])
     return argv, spec["timeout_sec"]
 
 
 def execute(authority, store, role, actual_literals=None, *, runner=subprocess.run, invocation_directory=None):
+    # A single checked effect and its invocation receipt share the writer lock.
+    with store.locked():
+        result, failure = _execute(authority, store, role, actual_literals, runner=runner,
+                                   invocation_directory=invocation_directory)
+    if failure is not None:
+        # Failed cleanup remains FAILURE and retains its invocation for retry.
+        rows, _ = store.read()
+        if rows[-1]["phase"] != "FAILURE":
+            store.append("FAILURE", failure)
+        require(False, "checked_command_failed")
+    return result
+
+
+def _execute(authority, store, role, actual_literals, *, runner, invocation_directory):
     argv, deadline = checked_command(authority, store, role, actual_literals)
+    rows, records = store.read()
+    phase = rows[-1]["phase"]
+    spec = authority.B["commands"][phase][role]
     clean = {k: os.environ[k] for k in ("PATH", "HOME", "XDG_RUNTIME_DIR") if k in os.environ}
     if actual_literals:
         clean.update(actual_literals)
@@ -78,10 +99,37 @@ def execute(authority, store, role, actual_literals=None, *, runner=subprocess.r
     row = authority.B["sealed_files"][source_key]
     receipt = {"schema": "cortex.gate-a.run8.invocation.v2", **authority.context,
                "role": role, "source_sha256": row["sha256"], "executable_path": argv[0],
+               "from_phase": phase, "observation_predecessor": records[-1],
+               "input_digests": spec["input_digests"],
                "started_at_unix": started, "finished_at_unix": time.time(), "exit": result.returncode,
                "timeout_sec": deadline, "captured_streams_exported": False}
     if failure_kind:
         receipt["failure_kind"] = failure_kind
-    exclusive_json(directory / (role + "-" + uuid.uuid4().hex + ".json"), receipt)
-    require(result.returncode == 0, "checked_command_failed")
-    return result
+    nonce = role + "-" + uuid.uuid4().hex
+    # Only an explicit public JSON contract is exported. Raw streams stay private.
+    if result.returncode == 0 and result.stdout and spec.get("output_contract") == "native-facts-json-v2":
+        facts = parse_json(result.stdout)
+        authority.validate_context(facts)
+        require(facts.get("schema") == "cortex.gate-a.run8.native-facts.v2"
+                and facts.get("execution_scope") == "native"
+                and facts.get("from_phase") == phase
+                and facts.get("observation_predecessor") == records[-1]
+                and facts.get("input_digests") == spec["input_digests"], "command_public_output_binding")
+        require(set(facts) == set(authority.context) | {"schema", "execution_scope", "phase",
+                "from_phase", "observation_predecessor", "input_digests", "facts"},
+                "command_public_output_fields")
+        public_data(facts)
+        output_directory = directory / "public-output"
+        private_directory(output_directory, create=not output_directory.exists())
+        receipt["public_output"] = exclusive_json(output_directory / (nonce + ".json"), facts)
+    invocation = exclusive_json(directory / (nonce + ".json"), receipt)
+    if result.returncode != 0:
+        allocated = next((r["payload"] for r in rows if r["phase"] == "ALLOCATED"), {})
+        failure = {"failed_phase": phase, "refusal": "checked_command_failed",
+                   "checked_invocation": invocation,
+                   "admitted_command_inputs": authority.B["phase_command_inputs"]["FAILURE"]}
+        for key in ("instance_id", "volume_id"):
+            if key in allocated:
+                failure[key] = allocated[key]
+        return result, failure
+    return result, None

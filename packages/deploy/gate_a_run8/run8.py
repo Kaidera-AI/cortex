@@ -21,7 +21,7 @@ from workflow import Workflow
 
 
 def file_row(path, expected):
-    measured = measured_file(Path(path).resolve(strict=True))
+    measured = measured_file(Path(path))
     require(measured["sha256"] == expected, "independent_expected_hash_mismatch")
     return measured
 
@@ -101,7 +101,7 @@ def main(argv=None):
         elif args.command == "observe":
             store = ObservationStore(Path(args.observations), A)
             row = file_row(args.receipt, args.receipt_sha256)
-            data = admit_native(A, args.phase, row)
+            data = admit_native(A, args.phase, row, store=store)
             flow = Workflow(A, store, signature_runner=subprocess.run)
             if args.phase == "INSTALLED":
                 flow.initial_install(data["kos_install_receipt"], data, doctor_runner=subprocess.run)
