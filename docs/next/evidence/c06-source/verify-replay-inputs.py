@@ -9,7 +9,7 @@ wt=Path(sys.argv[1]);
 required_inputs=('run-core-pg.py','replay_lifecycle.py','verify-replay-inputs.py',
                  'verify-fixture-contract.py','verify-expiry-fixture.py',
                  'verify-fixture-shapes.py','verify-publication.py','offline-wheel-inputs.json',
-                 'test_host_no_product_import.py')
+                 'test_host_no_product_import.py','verify-forward-native.py')
 input_sha256={}
 for name in required_inputs:
  relative='docs/next/evidence/c06-source/'+name
