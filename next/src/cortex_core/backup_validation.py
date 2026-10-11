@@ -67,10 +67,16 @@ SELECT CASE WHEN pg_is_in_recovery() AND pg_is_wal_replay_paused() THEN
 
 def read_restored_snapshot(connection):
     """Read the source inventory from one paused, isolated recovery statement."""
-    row = connection.execute(SNAPSHOT_SQL).fetchone()
+    try:
+        row = connection.execute(SNAPSHOT_SQL).fetchone()
+    except Exception as error:
+        raise BackupError("paused PostgreSQL recovery is unavailable") from error
     if row is None or row[0] is None:
         raise BackupError("snapshot requires a paused isolated PostgreSQL recovery")
-    value = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+    try:
+        value = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+    except (TypeError, ValueError) as error:
+        raise BackupError("recovered PostgreSQL inventory is invalid") from error
     _validated_metadata(value)
     return value
 
@@ -217,9 +223,11 @@ def _expected_members(manifest):
     return expected
 
 
-def verify_complete_bundle(path, identity, expected_manifest_sha256, snapshot, *,
+def verify_complete_bundle(path, identity, expected_manifest_sha256, recovery_connection, *,
                            age_binary, pg_verifybackup_binary, pg_waldump_binary):
     """Authenticate, stream-check every member, then compare restored PG state."""
+    if not callable(getattr(recovery_connection, "execute", None)):
+        raise BackupError("paused PostgreSQL recovery connection is required")
     age = _backup_binary(age_binary)
     verifybackup = _backup_binary(pg_verifybackup_binary)
     waldump = _backup_binary(pg_waldump_binary)
@@ -308,7 +316,10 @@ def verify_complete_bundle(path, identity, expected_manifest_sha256, snapshot, *
         if native_body is None:
             raise BackupError("native PostgreSQL manifest member is missing")
         _verify_native_contents(native_body, manifest["base_files"])
-        if not isinstance(snapshot, dict) or snapshot != manifest["metadata"]:
+        snapshot = read_restored_snapshot(recovery_connection)
+        if ("replay_lsn" not in snapshot
+                or _lsn(snapshot["replay_lsn"]) != _lsn(manifest["archive_end_lsn"])
+                or snapshot != manifest["metadata"]):
             raise BackupError("restored PostgreSQL snapshot differs from bound metadata")
         _validate_native_pg(Path(scratch.name)/"base", Path(scratch.name)/"wal", manifest,
                             pg_verifybackup_binary=verifybackup,
