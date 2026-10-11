@@ -75,7 +75,7 @@ async def run(queries, factory, config, *, clock=None, observer=None):
                     return
                 row, query = offer
                 row["started_at"] = clock.now()
-                row["queue_seconds"] = max(0., row["started_at"] - row["scheduled_at"])
+                row["queue_seconds"] = max(0., row["started_at"] - row["dispatched_at"])
                 remaining = row["scheduled_at"] + config.deadline_seconds - clock.now()
                 try:
                     if remaining <= 0:

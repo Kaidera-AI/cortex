@@ -43,6 +43,24 @@ def dispatcher_lags(run):
     return valid, {'interval_seconds': interval, **groups}
 
 
+def _offers_accounted(rows, phase, duration):
+    """Bind each phase to its configured, complete 40 RPS offered series."""
+    if (type(duration) not in (int, float) or not math.isfinite(duration) or duration < 0
+            or not math.isclose(duration * 40, round(duration * 40), abs_tol=1e-9, rel_tol=0)):
+        return False
+    expected = round(duration * 40)
+    return (len(rows) == expected
+            and all(type(r.get("offer_id")) is int for r in rows)
+            and {r["offer_id"] for r in rows} == set(range(expected))
+            and all(r.get("phase") == phase
+                    and type(r.get("client")) is int and r["client"] == r["offer_id"] % 8
+                    and type(r.get("scheduled_offset_seconds")) in (int, float)
+                    and math.isfinite(r["scheduled_offset_seconds"])
+                    and math.isclose(r["scheduled_offset_seconds"], r["offer_id"] / 40,
+                                     abs_tol=1e-8, rel_tol=0)
+                    and r.get("status") in {"OK", "ERROR", "TIMEOUT", "MISSED"} for r in rows))
+
+
 def summarize(run, *, latency_budget_ms, bindings):
     if (isinstance(latency_budget_ms, bool) or not isinstance(latency_budget_ms, (float, int))
             or not math.isfinite(latency_budget_ms) or latency_budget_ms <= 0):
@@ -52,12 +70,10 @@ def summarize(run, *, latency_budget_ms, bindings):
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("positive scheduled duration required")
     expected = round(duration * 40)
-    valid = (len(rows) == expected and {r["offer_id"] for r in rows} == set(range(expected))
+    valid = (_offers_accounted(rows, "measured", duration)
+             and _offers_accounted(run["warmup_records"], "warmup", config["warmup_seconds"])
              and config["rps"] == 40 and config["clients"] == 8
-             and run["clients_opened"] == run["clients_closed"] == 8 and not run["close_errors"]
-             and all(r["phase"] == "measured" and r["client"] == r["offer_id"] % 8
-                     and math.isclose(r["scheduled_offset_seconds"], r["offer_id"] / 40, abs_tol=1e-8)
-                     and r["status"] in {"OK", "ERROR", "TIMEOUT", "MISSED"} for r in rows))
+             and run["clients_opened"] == run["clients_closed"] == 8 and not run["close_errors"])
     latencies = [r["latency_seconds"] * 1000 for r in rows]
     if any(not math.isfinite(x) or x < 0 for x in latencies):
         raise ValueError("invalid latency observation")
