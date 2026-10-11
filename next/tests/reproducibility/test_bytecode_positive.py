@@ -67,3 +67,13 @@ class Bytecode(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             audit.audit_cache(raw, source, "/app/module.py")
+
+class ConstantMutation(unittest.TestCase):
+    def test_equal_frozenset_values_with_different_types_are_not_equal_code(self):
+        source = b'VALUES = {1, 2, 3}\n'
+        filename = '/app/module.py'
+        code = compile(source, filename, 'exec')
+        mutant = code.replace(co_consts=tuple(frozenset({True, 2, 3}) if isinstance(value, frozenset) else value for value in code.co_consts))
+        raw = importlib.util.MAGIC_NUMBER + struct.pack('<I', 3) + importlib.util.source_hash(source) + marshal.dumps(mutant)
+        with self.assertRaises(ValueError):
+            audit.audit_cache(raw, source, filename)
