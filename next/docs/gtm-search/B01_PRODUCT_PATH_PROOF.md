@@ -69,7 +69,7 @@ PYTHONPATH=next/src python next/tests/benchmarks/mutate_b01_product_path.py <fre
 It first requires the tracked, integrated
 `next/tests/module_consumer/test_manifest.py`. On the initial authorized main
 base903fd729 that file is absent, so the result is BLOCKED, zero tests and zero
-engine/resource access. The real-PG controller and four component cases are
+engine/resource access. The real-PG controller and five component cases are
 prepared, with the existing owned lifecycle, cached-image-only policy and fresh
 host/engine35% admission. Those are the documented host memory fields in
 [Podman info](https://docs.podman.io/en/latest/markdown/podman-info.1.html).

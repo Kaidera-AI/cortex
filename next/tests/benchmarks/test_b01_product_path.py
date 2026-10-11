@@ -372,6 +372,17 @@ def native_suite():
             self.assertGreater(len(self.search.calls), 0)
             self.assertGreater(self.provider_calls, 0)
 
+        async def test_native_warm_cache_core_down_has_no_favorable_credit(self):
+            first = await self.evaluate()
+            self.assertEqual(first["status"], "MEASURED")
+            self.assertFalse(first["cache_hit"])
+            before = (self.cache.calls, self.provider_calls, len(self.search.calls))
+            self.core.request.close()
+            row = await self.evaluate()
+            self.assertEqual(row["status"], "UNAVAILABLE")
+            self.assertNotIn("measurement", row)
+            self.assertEqual((self.cache.calls, self.provider_calls, len(self.search.calls)), before)
+
     methods = [name for name in dir(NativeProductPathTests) if name.startswith("test_native_")]
     return unittest.TestSuite(NativeProductPathTests(name) for name in methods)
 
