@@ -146,8 +146,9 @@ def vector_digest(vector):
 
 def freeze_input(c, rows, vectors, split):
     """Produce the import-review anchor before any engine evaluation."""
+    reserved = set(split['tuning']) | set(split['heldout'])
     sources = {row['id']: vector_digest(vectors[row['offset']]) for row in rows
-               if row['id'] in set(split['tuning']) | set(split['heldout'])}
+               if row['id'] in reserved}
     queries = {}
     for name in ('tuning', 'heldout'):
         path = c.path / (name + '.jsonl')
