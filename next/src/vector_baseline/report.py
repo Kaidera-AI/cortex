@@ -58,6 +58,9 @@ def _offers_accounted(rows, phase, duration):
                     and math.isfinite(r["scheduled_offset_seconds"])
                     and math.isclose(r["scheduled_offset_seconds"], r["offer_id"] / 40,
                                      abs_tol=1e-8, rel_tol=0)
+                    and type(r.get("scheduled_at")) in (int, float) and math.isfinite(r["scheduled_at"])
+                    and math.isclose(r["scheduled_at"] - rows[0]["scheduled_at"],
+                                     (r["offer_id"] - rows[0]["offer_id"]) / 40, abs_tol=1e-8, rel_tol=0)
                     and r.get("status") in {"OK", "ERROR", "TIMEOUT", "MISSED"} for r in rows))
 
 
