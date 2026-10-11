@@ -227,9 +227,18 @@ class FirstIdentityPort(Fixture):
         self.assertEqual(self.receipt_count(), 0)
         self.admin.execute('DELETE FROM auth.credentials WHERE tenant_id=%s', (uid(31),))
         self.admin.execute('DELETE FROM auth.principals WHERE tenant_id=%s', (uid(31),))
-        self.admin.execute("INSERT INTO core.records(tenant_id,project_id,id,kind,current_revision,tombstone) "
-                           "VALUES (%s,%s,%s,'memory',1,false)",
-                           (uid(31), uid(32), uid(50)))
+        body = b'synthetic preexisting identity alias fixture'
+        self.admin.execute('INSERT INTO core.payloads(tenant_id,project_id,id,body,sha256) '
+                           'VALUES (%s,%s,%s,%s,%s)',
+                           (uid(31), uid(32), uid(52), body, hashlib.sha256(body).hexdigest()))
+        with self.admin.transaction():
+            self.admin.execute("INSERT INTO core.records(tenant_id,project_id,id,kind,current_revision,tombstone) "
+                               "VALUES (%s,%s,%s,'memory',1,false)",
+                               (uid(31), uid(32), uid(50)))
+            self.admin.execute('INSERT INTO core.record_revisions '
+                '(tenant_id,project_id,record_id,revision,payload_ref,tombstone) '
+                'VALUES (%s,%s,%s,1,%s,false)',
+                (uid(31), uid(32), uid(50), uid(52)))
         self.admin.execute('INSERT INTO core.record_aliases '
             '(tenant_id,project_id,source_namespace,external_id,record_id) '
             'VALUES (%s,%s,%s,%s,%s)',
