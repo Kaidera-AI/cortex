@@ -86,7 +86,10 @@ class ReviewRepairs(ConsumerFixture):
             events=tuple(PublishedEvent(e.cursor,e.envelope,b'bad-b' if e.cursor==2 else e.payload) for e in page.events)
             return FeedPage(events,page.head,page.floor)
         feed.page=initial;p.cycle();feed.page=base
-        requested=self.page().events[1];p.repair(UUID(requested.envelope['event_id']))
+        requested=self.page().events[1]
+        try:p.repair(UUID(requested.envelope['event_id']))
+        except self.module().ConsumerError as error:
+            self.fail('unrelated aggregate blocked requested repair: '+error.code)
         self.assertIsNone(self.target(50));self.assertEqual(self.target(51)[0],2)
         rows=dict(self.outcomes());self.assertEqual(rows[1],'poison');self.assertEqual(rows[4],'held')
         self.assertEqual(self.checkpoint()[1],0)

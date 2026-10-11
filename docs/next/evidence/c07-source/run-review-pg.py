@@ -221,7 +221,7 @@ f.doCleanups()
     value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],300)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run']==34 and not report['errors']
-    if PHASE=='c07-review-red':
+    if PHASE.startswith('c07-review-red'):
         assert value.returncode==1 and report['failures']
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
         assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.')) for r in report['failures'])
