@@ -15,12 +15,14 @@ import psycopg
 
 from core_db_fixture import Fixture, REQUEST, uid
 from cortex_core.api import c11a
+from cortex_core.auth import AuthError, authorized
 
 
 INSTALLER = 'kaidera-runtime-core-installer'
 FUNCTION = 'auth.enrollment_readiness(uuid)'
 STATE_TYPE = 'auth.enrollment_readiness_state'
-DIGEST = hashlib.sha256(b'synthetic-readiness-console').hexdigest()
+SECRET = b'synthetic-readiness-console'
+DIGEST = hashlib.sha256(SECRET).hexdigest()
 
 
 class HealthReadiness(Fixture):
@@ -48,7 +50,7 @@ class HealthReadiness(Fixture):
                 (DIGEST, 'synthetic-readiness-first')).fetchone()[0]
         self.assertFalse(result['replayed'])
 
-    def adapter(self, installation=30, reader=None):
+    def adapter(self, installation=30, reader=None, timeout_seconds=1.0):
         cls = getattr(c11a, 'EnrollmentHealth', None)
         self.assertIsNotNone(cls, '2b reviewed-Core/receipt health adapter is absent before build')
 
@@ -63,7 +65,8 @@ class HealthReadiness(Fixture):
             return self.request.execute('SELECT auth.enrollment_readiness(%s)::text',
                                         (bound_installation,)).fetchone()[0]
 
-        return cls(core_health, reader or private_reader, UUID(uid(installation)))
+        return cls(core_health, reader or private_reader, UUID(uid(installation)),
+                   timeout_seconds=timeout_seconds)
 
     def gateway(self, health):
         async def ready():
@@ -170,6 +173,16 @@ class HealthReadiness(Fixture):
         self.assertEqual(body, {'component': 'cortex', 'status': 'degraded',
                                 'readiness': 'unavailable'})
 
+    def test_reader_deadline_keeps_core_up_http_200_without_false_ready(self):
+        async def slow(_installation):
+            await asyncio.sleep(0.05)
+            return 'ready'
+
+        status, body = self.call(self.gateway(self.adapter(reader=slow, timeout_seconds=0.005)))
+        self.assertEqual(status, 200)
+        self.assertEqual(body, {'component': 'cortex', 'status': 'degraded',
+                                'readiness': 'unavailable'})
+
     def test_supervisor_down_is_degraded_but_independent_readiness(self):
         self.core_state = 'supervisor_down'
 
@@ -192,6 +205,10 @@ class HealthReadiness(Fixture):
         self.assertTrue(security_definer)
         self.assertIn('search_path=pg_catalog, auth, core, pg_temp', config)
         self.assertEqual(result_type, STATE_TYPE)
+        definition = self.admin.execute('SELECT pg_get_functiondef(%s::regprocedure)',
+                                        (FUNCTION,)).fetchone()[0]
+        self.assertNotIn('auth.credentials', definition)
+        self.assertNotIn('key_digest', definition)
         self.assertFalse(self.admin.execute(
             "SELECT EXISTS(SELECT 1 FROM aclexplode(proacl) a "
             "WHERE a.grantee=0 AND a.privilege_type='EXECUTE') "
@@ -231,6 +248,24 @@ class HealthReadiness(Fixture):
         self.assertEqual(status, 200)
         self.assertEqual(body, {'component': 'cortex', 'status': 'degraded',
                                 'readiness': 'unavailable'})
+
+    def test_preexisting_identity_without_receipt_is_unavailable_not_new_enrollment(self):
+        self.admin.execute("INSERT INTO auth.principals(tenant_id,id,name) "
+                           "VALUES (%s,%s,'synthetic prior principal')", (uid(31), uid(42)))
+        status, body = self.call(self.gateway(self.adapter()))
+        self.assertEqual(status, 200)
+        self.assertEqual(body, {'component': 'cortex', 'status': 'degraded',
+                                'readiness': 'unavailable'})
+
+    def test_revoked_first_key_stays_refused_despite_ready_enrollment_marker(self):
+        self.enroll()
+        self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() '
+                           'WHERE tenant_id=%s AND id=%s', (uid(31), uid(34)))
+        with self.assertRaises(AuthError):
+            with authorized(self.request, SECRET, UUID(uid(30)), UUID(uid(32))):
+                pass
+        status, body = self.call(self.gateway(self.adapter()))
+        self.assertEqual((status, body['readiness']), (200, 'ready'))
 
     def test_openkai_health_exchange_stays_unauthenticated_with_readiness(self):
         fixture = json.loads((Path(__file__).resolve().parents[2] /
