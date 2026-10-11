@@ -10,9 +10,9 @@ def build_input():
        'contracts/descriptor.json':canonical({'module_id':'api','module_version':'0.1.020','interface_version':1}),
        'contracts/compatibility.json':canonical({'version':1}),
        'contracts/schema.json':canonical({'version':1,'migrations':[]}),
-       'contracts/api.json':canonical({'version':1}),
-       'contracts/events.json':canonical({'version':1}),
-       'contracts/event-v1.json':canonical({'version':1})}
+       'contracts/api.json':canonical({'version':1,'module_id':'api','module_version':'0.1.020','interface_version':1}),
+       'contracts/events.json':canonical({'version':1,'producer_module_id':'api','producer_module_version':'0.1.020','event_version':1}),
+       'contracts/event-v1.json':canonical({'version':1,'producer_module_id':'api','producer_module_version':'0.1.020','event_version':1})}
  rows={path:file(path,body) for path,body in data.items()}
  value={'schema':'cortex.build-input.v1','format_version':1,
   'target':{'module_id':'api','module_version':'0.1.020','oci_platform':'linux/amd64'},

@@ -1,5 +1,6 @@
 """Accepted input still has to satisfy structural and actual-byte semantics."""
 import unittest
+import json
 from fixture import build_input, canonical, digest, file
 from test_unit1_red import product
 
@@ -24,6 +25,22 @@ class InputGuards(unittest.TestCase):
         for argv in (['sh','-c','echo public'],['bash','-lc','public'],['python3','foreign.py']):
             value,files=build_input();value['recipe']['argv_template']=argv
             with self.subTest(argv=argv),self.assertRaises(ValueError):self.admit(value,files)
+
+    def test_compatibility_documents_are_decoded_and_bind_producer_identity(self):
+        for field in ('compatibility_contract','schema_manifest','api_descriptor','event_index'):
+            value,files=build_input();record=value['compatibility_inputs'][field]
+            files[record['path']]=b'not-json\n';value['compatibility_inputs'][field]=file(record['path'],files[record['path']])
+            with self.subTest(field=field),self.assertRaises(ValueError):self.admit(value,files)
+        value,files=build_input();record=value['compatibility_inputs']['api_descriptor'];bad=json.loads(files[record['path']]);bad['module_id']='foreign'
+        files[record['path']]=canonical(bad);value['compatibility_inputs']['api_descriptor']=file(record['path'],files[record['path']])
+        with self.assertRaises(ValueError):self.admit(value,files)
+
+    def test_wrong_descriptor_primitive_is_typed_refusal(self):
+        value,files=build_input();path=value['descriptor']['path'];files[path]=canonical([]);value['descriptor']=file(path,files[path])
+        try:self.admit(value,files);result='admitted'
+        except ValueError:result='refused'
+        except AttributeError:result='untyped-AttributeError'
+        self.assertEqual(result,'refused')
 
 
 if __name__=='__main__':unittest.main(verbosity=2)

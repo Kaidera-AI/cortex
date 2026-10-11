@@ -1,8 +1,12 @@
 """R02-compatible inert producer: actual OCI bytes, fixture qualification only."""
 import hashlib
 import io
+import json
+import importlib.util
+import marshal
+import sys
 import tarfile
-from fixture import build_input, canonical, digest
+from fixture import build_input, canonical, digest, file
 
 CLASSES = ['accounts', 'cache', 'clock', 'files', 'input', 'labels', 'logs',
            'python', 'runtime', 'serialization', 'xattrs-acls']
@@ -27,28 +31,44 @@ def sha(raw):
 
 
 def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_archive=False,
-                    bad_report=False, bad_exit=False, bad_index=False, wrong_recipe_argv=False):
+                    bad_report=False, bad_exit=False, bad_index=False, wrong_recipe_argv=False,
+                    config_created=None, config_history=None, runtime_config=None,
+                    approved_runtime_config=None, checked_pyc=False, replace_layer=False):
     value, inputs = build_input()
+    if approved_runtime_config is not None or replace_layer:
+        path=value['descriptor']['path'];descriptor_value=json.loads(inputs[path])
+        descriptor_value['release_policy']={'oci_config':approved_runtime_config or {},'history':[],
+            'layer_policy':{'allow_replacements':replace_layer,'allow_directories':False,'symlinks':{}}}
+        inputs[path]=canonical(descriptor_value);value['descriptor']=file(path,inputs[path])
     outputs, evidence = {}, {}
     def artifact(storage, role, path, raw, media='application/json'):
         storage[path] = raw
         return dict(role=role, path=path, media_type=media, bytes=len(raw), sha256=sha(raw))
-    layer = tar({'app/module.py': b'pass\n'})
-    config = canonical({'architecture': 'amd64', 'os': 'linux', 'config': {},
-                        'rootfs': {'type': 'layers', 'diff_ids': ['sha256:' + sha(layer)]}})
+    content={'app/module.py':b'pass\n'}
+    if checked_pyc:
+        value['builder_requirements']['toolchain']['version']=sys.version.split()[0]
+        pyc=importlib.util.MAGIC_NUMBER+(3).to_bytes(4,'little')+importlib.util.source_hash(content['app/module.py'])+marshal.dumps(compile(content['app/module.py'],'/app/module.py','exec'))
+        content['app/__pycache__/module.cpython-'+str(sys.version_info.major)+str(sys.version_info.minor)+'.pyc']=pyc
+    layers=[tar(content)]
+    if replace_layer:
+        content['app/module.py']=b'print("fixture")\n';layers.append(tar({'app/module.py':content['app/module.py']}))
+    config_value={'architecture':'amd64','os':'linux','config':runtime_config or {},
+                  'rootfs':{'type':'layers','diff_ids':['sha256:'+sha(layer) for layer in layers]}}
+    if config_created is not None:config_value['created']=config_created
+    if config_history is not None:config_value['history']=config_history
+    config=canonical(config_value)
     def descriptor(media, raw):
         return {'mediaType': media, 'digest': 'sha256:' + sha(raw), 'size': len(raw)}
     manifest = canonical({'schemaVersion': 2, 'mediaType': 'application/vnd.oci.image.manifest.v1+json',
                           'config': descriptor('application/vnd.oci.image.config.v1+json', config),
-                          'layers': [descriptor('application/vnd.oci.image.layer.v1.tar', layer)]})
+                          'layers': [descriptor('application/vnd.oci.image.layer.v1.tar', layer) for layer in layers]})
     index = canonical({'schemaVersion': 2, 'mediaType': 'application/vnd.oci.image.index.v1+json',
                        'manifests': [dict(descriptor('application/vnd.oci.image.manifest.v1+json', manifest),
                                           platform={'os': 'linux', 'architecture': 'amd64'})]})
-    blobs = {sha(raw): raw for raw in (manifest, config, layer)}
+    blobs = {sha(raw): raw for raw in (manifest, config, *layers)}
     archive = tar({'oci-layout': canonical({'imageLayoutVersion': '1.0.0'}), 'index.json': index,
                    **{'blobs/sha256/' + key: raw for key, raw in blobs.items()}})
-    layer_inventory = [{'path': 'app/module.py', 'bytes': 5, 'sha256': sha(b'pass\n'),
-                        'mode': 420, 'uid': 1001, 'gid': 1001, 'mtime': 0}]
+    layer_inventory = [{'path':path,'bytes':len(raw),'sha256':sha(raw),'mode':420,'uid':1001,'gid':1001,'mtime':0} for path,raw in sorted(content.items())]
     builds, reports, all_evidence = {}, {}, []
     source_sha = digest(value['source'])
     recipe_sha = digest(value['recipe'])
@@ -88,8 +108,8 @@ def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_arc
         build_outputs = [artifact(outputs, 'archive', slot + '/image.tar', archive, 'application/x-tar'),
                          artifact(outputs, 'index', slot + '/index.json', index, 'application/vnd.oci.image.index.v1+json'),
                          artifact(outputs, 'manifest', slot + '/manifest.json', manifest, 'application/vnd.oci.image.manifest.v1+json'),
-                         artifact(outputs, 'config', slot + '/config.json', config, 'application/vnd.oci.image.config.v1+json'),
-                         artifact(outputs, 'blob.' + sha(layer), slot + '/layer.tar', layer, 'application/octet-stream')]
+                         artifact(outputs, 'config', slot + '/config.json', config, 'application/vnd.oci.image.config.v1+json')]
+        build_outputs += [artifact(outputs,'blob.'+sha(layer),slot+'/layer-'+sha(layer)+'.tar',layer,'application/octet-stream') for layer in layers]
         provenance = {'build_id': identity, 'input_sha256': digest(value), 'output_sha256': sha(archive),
                       **components,
                       'policy_sha256': 'e' * 64, 'observed_builder': observed, 'qualification_scope': 'fixture'}
@@ -100,7 +120,7 @@ def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_arc
         for category in CLASSES:
             record = artifact(evidence, slot + '.audit.' + category, 'evidence/' + slot + '/audit-' + category + '.json',
                               canonical({'build_id': identity, 'class': category, 'output_sha256': sha(archive),
-                                         'inventory_sha256': digest(layer_inventory), 'findings': ['cache-present'] if slot == 'B' and category == 'cache' and bad_report else []}))
+                                         'inventory_sha256': digest(layer_inventory), 'findings': ['cache-present'] if category == 'cache' and bad_report else []}))
             build_reports[category] = record
             all_evidence.append(record)
         reports[slot] = build_reports
