@@ -230,6 +230,6 @@ class ModuleConsumer:
             if not self._apply_event(state, requested, repairing=True):
                 return self.status()
             for event in page.events:
-                if event.cursor > requested.cursor and UUID(event.envelope['aggregate_id']) == aggregate:
+                if event.cursor > requested.cursor and event.cursor <= state['scan_cursor'] and UUID(event.envelope['aggregate_id']) == aggregate:
                     self._apply_event(state, event)
             return self.status()
