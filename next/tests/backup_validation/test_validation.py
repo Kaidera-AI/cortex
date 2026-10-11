@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -56,6 +57,11 @@ class ValidationTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix='cox-o01b-')
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
+        self.age_binary = shutil.which('age')
+        self.pg_verifybackup_binary = shutil.which('pg_verifybackup')
+        self.pg_waldump_binary = shutil.which('pg_waldump')
+        self.assertTrue(all((self.age_binary, self.pg_verifybackup_binary,
+                             self.pg_waldump_binary)))
         self.base = self.root/'base'
         self.archive = self.root/'archive'
         self.blobs = self.root/'blobs'
@@ -107,7 +113,10 @@ class ValidationTests(unittest.TestCase):
     def seal(self):
         manifest = seal_complete_bundle(self.base, self.archive, '0/1300000', self.after,
                                          segment_bytes=SEG, blob_root=self.blobs,
-                                         recipient=self.recipient, destination=self.target)
+                                         recipient=self.recipient, destination=self.target,
+                                         age_binary=self.age_binary,
+                                         pg_verifybackup_binary=self.pg_verifybackup_binary,
+                                         pg_waldump_binary=self.pg_waldump_binary)
         digest = sha(json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode())
         return manifest, digest
 
@@ -131,9 +140,88 @@ class ValidationTests(unittest.TestCase):
         self.assertFalse(marker.exists(), 'backup plaintext reached a PATH-substituted age')
         self.assertFalse(self.target.exists(), 'invalid executable published ciphertext')
 
+    def test_invalid_executable_shapes_refuse_before_output_or_verdict(self):
+        not_executable = self.root/'not-executable'
+        not_executable.write_text('synthetic')
+        not_executable.chmod(0o600)
+        invalid = ('age', str(self.root/'missing'), str(self.root), str(not_executable))
+        for binary in invalid:
+            with self.subTest(binary=binary):
+                with self.assertRaises(BackupError):
+                    basebackup_command(self.root/'base-out', host='127.0.0.1',
+                                       user='postgres', executable=binary)
+                with patch('cortex_core.backup.subprocess.Popen') as spawn:
+                    with self.assertRaises(BackupError):
+                        seal_encrypted_bundle(self.base, self.archive, '0/1300000',
+                                              self.after, segment_bytes=SEG,
+                                              blob_root=self.blobs, recipient=self.recipient,
+                                              destination=self.target, age_binary=binary)
+                    spawn.assert_not_called()
+                for name in ('age_binary', 'pg_verifybackup_binary',
+                             'pg_waldump_binary'):
+                    options = {'age_binary': self.age_binary,
+                               'pg_verifybackup_binary': self.pg_verifybackup_binary,
+                               'pg_waldump_binary': self.pg_waldump_binary}
+                    options[name] = binary
+                    with self.subTest(entrypoint='seal_complete_bundle', tool=name):
+                        with patch('cortex_core.backup.subprocess.Popen') as spawn:
+                            with self.assertRaises(BackupError):
+                                seal_complete_bundle(self.base, self.archive, '0/1300000',
+                                                     self.after, segment_bytes=SEG,
+                                                     blob_root=self.blobs,
+                                                     recipient=self.recipient,
+                                                     destination=self.target, **options)
+                            spawn.assert_not_called()
+                    with self.subTest(entrypoint='verify_complete_bundle', tool=name):
+                        with patch('cortex_core.backup_validation.subprocess.Popen') as spawn:
+                            with self.assertRaises(BackupError):
+                                verify_complete_bundle(self.target, self.identity, 'a'*64,
+                                                       self.after, **options)
+                            spawn.assert_not_called()
+                self.assertFalse(self.target.exists())
+
+    def test_explicit_decryption_binary_ignores_path_substitution(self):
+        _, digest = self.seal()
+        fake_dir = self.root/'fake-decrypt-path'
+        fake_dir.mkdir()
+        marker = self.root/'fake-decrypt-ran'
+        fake = fake_dir/'age'
+        fake.write_text(f'#!{sys.executable}\nimport pathlib,sys\n'
+                        f'sys.stdin.buffer.read()\npathlib.Path({str(marker)!r}).write_text("ran")\n')
+        fake.chmod(0o700)
+        with patch.dict(os.environ, {'PATH': str(fake_dir) + os.pathsep + os.environ['PATH']}):
+            try:
+                result = self.verify(self.target, digest)
+            except BackupError:
+                result = None
+        self.assertFalse(marker.exists(), 'decryption used an ambient PATH executable')
+        self.assertIsNotNone(result)
+        self.assertEqual(result['recoverable'], True)
+
+    def test_explicit_native_verifiers_ignore_path_substitution(self):
+        fake_dir = self.root/'fake-native-path'
+        fake_dir.mkdir()
+        marker = self.root/'fake-native-ran'
+        for name in ('pg_verifybackup', 'pg_waldump'):
+            fake = fake_dir/name
+            fake.write_text(f'#!{sys.executable}\nimport pathlib\n'
+                            f'pathlib.Path({str(marker)!r}).write_text({name!r})\n')
+            fake.chmod(0o700)
+        trusted = self.root/'synthetic-native-verifier'
+        trusted.write_text('#!/bin/sh\nexit 0\n')
+        trusted.chmod(0o700)
+        manifest = {'timeline': 1, 'backup_start_lsn': '0/1000010',
+                    'archive_end_lsn': '0/1300000'}
+        with patch.dict(os.environ, {'PATH': str(fake_dir) + os.pathsep + os.environ['PATH']}):
+            _validate_native_pg(self.base, self.archive, manifest,
+                                pg_verifybackup_binary=trusted, pg_waldump_binary=trusted)
+        self.assertFalse(marker.exists(), 'native recovery verdict used an ambient PATH tool')
+
     def verify(self, path, digest, snapshot=None, identity=None):
         return verify_complete_bundle(path, identity or self.identity, digest,
-                                      snapshot or self.after)
+                                      snapshot or self.after, age_binary=self.age_binary,
+                                      pg_verifybackup_binary=self.pg_verifybackup_binary,
+                                      pg_waldump_binary=self.pg_waldump_binary)
 
     def changed_bundle(self, target_name, replacement=None):
         plain = subprocess.run(['age', '-d', '-i', str(self.identity)],
@@ -183,7 +271,10 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(BackupError):
             seal_complete_bundle(self.base, self.archive, '0/1300000', delayed,
                                  segment_bytes=SEG, blob_root=self.blobs,
-                                 recipient=self.recipient, destination=self.target)
+                                 recipient=self.recipient, destination=self.target,
+                                 age_binary=self.age_binary,
+                                 pg_verifybackup_binary=self.pg_verifybackup_binary,
+                                 pg_waldump_binary=self.pg_waldump_binary)
 
     def test_missing_blob_is_refused(self):
         _, digest = self.seal()

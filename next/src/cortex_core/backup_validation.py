@@ -13,7 +13,7 @@ import subprocess
 import tarfile
 import tempfile
 
-from cortex_core.backup import (BackupError, _lsn, _validated_metadata,
+from cortex_core.backup import (BackupError, _backup_binary, _lsn, _validated_metadata,
                                 _wal_filename, build_manifest,
                                 seal_encrypted_bundle)
 
@@ -80,8 +80,12 @@ def _canonical(value):
 
 
 def seal_complete_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
-                         segment_bytes, blob_root, recipient, destination):
+                         segment_bytes, blob_root, recipient, destination,
+                         age_binary, pg_verifybackup_binary, pg_waldump_binary):
     """Seal all authoritative blob bytes alongside the O01a PG/WAL members."""
+    age = _backup_binary(age_binary)
+    verifybackup = _backup_binary(pg_verifybackup_binary)
+    waldump = _backup_binary(pg_waldump_binary)
     if not isinstance(metadata, dict) or not {"record_heads", "vectors", "replay_lsn"} <= set(metadata):
         raise BackupError("full recovered-snapshot inventory is required")
     if _lsn(metadata["replay_lsn"]) != _lsn(archive_end_lsn):
@@ -92,10 +96,13 @@ def seal_complete_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
                                  segment_bytes=segment_bytes)
     _verify_native_contents((Path(base_dir)/"backup_manifest").read_bytes(),
                             preliminary["base_files"])
-    _validate_native_pg(Path(base_dir), Path(archive_dir), preliminary)
+    _validate_native_pg(Path(base_dir), Path(archive_dir), preliminary,
+                        pg_verifybackup_binary=verifybackup,
+                        pg_waldump_binary=waldump)
     return seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata,
                                  segment_bytes=segment_bytes, blob_root=blob_root,
-                                 recipient=recipient, destination=destination)
+                                 recipient=recipient, destination=destination,
+                                 age_binary=age)
 
 
 def _verify_native_contents(body, base_files):
@@ -130,11 +137,14 @@ def _verify_native_contents(body, base_files):
         raise BackupError("native PostgreSQL file inventory is incomplete")
 
 
-def _validate_native_pg(base, archive, manifest):
+def _validate_native_pg(base, archive, manifest, *, pg_verifybackup_binary,
+                        pg_waldump_binary):
     """Use upstream PostgreSQL tools for physical files and full WAL records."""
+    verifybackup = _backup_binary(pg_verifybackup_binary)
+    waldump = _backup_binary(pg_waldump_binary)
     commands = [
-        ["pg_verifybackup", "-q", "-w", str(archive), str(base)],
-        ["pg_waldump", "-q", "-p", str(archive), "-t", str(manifest["timeline"]),
+        [verifybackup, "-q", "-w", str(archive), str(base)],
+        [waldump, "-q", "-p", str(archive), "-t", str(manifest["timeline"]),
          "-s", manifest["backup_start_lsn"], "-e", manifest["archive_end_lsn"]],
     ]
     for command in commands:
@@ -207,8 +217,12 @@ def _expected_members(manifest):
     return expected
 
 
-def verify_complete_bundle(path, identity, expected_manifest_sha256, snapshot):
+def verify_complete_bundle(path, identity, expected_manifest_sha256, snapshot, *,
+                           age_binary, pg_verifybackup_binary, pg_waldump_binary):
     """Authenticate, stream-check every member, then compare restored PG state."""
+    age = _backup_binary(age_binary)
+    verifybackup = _backup_binary(pg_verifybackup_binary)
+    waldump = _backup_binary(pg_waldump_binary)
     if not isinstance(expected_manifest_sha256, str) or not _SHA.fullmatch(expected_manifest_sha256):
         raise BackupError("independent manifest digest is required")
     path, identity = Path(path), Path(identity)
@@ -225,7 +239,7 @@ def verify_complete_bundle(path, identity, expected_manifest_sha256, snapshot):
     scratch = tempfile.TemporaryDirectory(prefix="cortex-o01b-verify-")
     try:
         with path.open("rb") as encrypted:
-            process = subprocess.Popen(["age", "-d", "-i", str(identity)],
+            process = subprocess.Popen([age, "-d", "-i", str(identity)],
                                        stdin=encrypted, stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
             try:
@@ -296,7 +310,9 @@ def verify_complete_bundle(path, identity, expected_manifest_sha256, snapshot):
         _verify_native_contents(native_body, manifest["base_files"])
         if not isinstance(snapshot, dict) or snapshot != manifest["metadata"]:
             raise BackupError("restored PostgreSQL snapshot differs from bound metadata")
-        _validate_native_pg(Path(scratch.name)/"base", Path(scratch.name)/"wal", manifest)
+        _validate_native_pg(Path(scratch.name)/"base", Path(scratch.name)/"wal", manifest,
+                            pg_verifybackup_binary=verifybackup,
+                            pg_waldump_binary=waldump)
         return {"recoverable": True, "manifest_sha256": expected_manifest_sha256,
                 "member_count": len(expected) + 1}
     finally:
