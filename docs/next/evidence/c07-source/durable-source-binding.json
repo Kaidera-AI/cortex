@@ -1,0 +1,17 @@
+{
+  "test_sha256": "01ad581147a8299291c2172775cb4fc5cba182d70ba8c61301ef54b66a749460",
+  "model_sha256": "9465118df9004ac0c8ee5f4bc5f931df34daf29d0071b8a9abd9f2a9706116d2",
+  "red": {
+    "tests": 3,
+    "failures": 2,
+    "errors": 0,
+    "data": "durable-reviewer-control/consumer/pagination-crash-red.json"
+  },
+  "green": {
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "data": "durable-reviewer-control/consumer/pagination-crash-green.json"
+  },
+  "scope": "fresh exact AST data, constructor-owned persisted ledger copy; native proof separate"
+}

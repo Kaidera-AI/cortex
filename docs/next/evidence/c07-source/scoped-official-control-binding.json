@@ -1,0 +1,23 @@
+{
+  "control_sha256": "040b452ea1a7f183c8fda958cb034f30ac3a41800ce7576a0b0e518eed340c92",
+  "model_sha256": "9465118df9004ac0c8ee5f4bc5f931df34daf29d0071b8a9abd9f2a9706116d2",
+  "official_wrapper": "Mike 19:03 reusable addendum, byte-exact; no private adapter in current proof",
+  "red": {
+    "head": "7d0c4586f4ab4fed9b647449e293547313b6c987",
+    "consumer_sha256": "c9d701a36f832d1d1b925b11ce66b82dd7c3fff4a89d227f01872ee9b6d876fb",
+    "exit_code": 1,
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "log_sha256": "5ba662748c73fdee58e5ea959f080c50934a75f6ab623d4e16bb35c950b65361"
+  },
+  "green": {
+    "head": "bb06616c5d870d008108fe08c7143f524e9a8d29",
+    "consumer_sha256": "d8843c3170c30945d2aec20ffa220c3df6248cd7bde9f3d77ee0997c1fe93d45",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "log_sha256": "45cb8586f63939eefaaddcfdf106f6639bc5af85eb1954083714db2e4e1fffd6"
+  }
+}

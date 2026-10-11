@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "protocol": "project-scoped durable target before Core outcome",
+  "page_default": 100,
+  "page_max": 1000,
+  "pending_outcome_default": 10000,
+  "pending_outcome_range": [1, 100000],
+  "states": ["active", "blocked", "expired", "rebuilding"],
+  "outcomes": ["applied", "stale", "poison", "held"],
+  "control_ids": [
+    "crash_before_apply", "crash_after_durable_apply", "crash_after_core_outcome",
+    "duplicate_equal_revision", "equal_revision_conflict", "stale_after_tombstone",
+    "revision_order", "full_project_page", "empty_project_page", "runner_exclusion",
+    "foreign_project_rollup", "aggregate_poison", "peer_sparse_progress",
+    "held_successor_repair", "complete_outcome_immutable", "transient_failure", "untrusted_scope", "retention_expiry",
+    "snapshot_floor", "poison_retention", "graph_fact_exact_bytes",
+    "migration_append_only", "new_table_privileges"
+  ],
+  "typed_errors": ["invalid_input", "invalid_manifest", "untrusted_scope", "target_unavailable", "capacity",
+    "core_unavailable", "expired", "busy", "repair_event_missing"],
+  "held_capabilities": ["external_sink", "production_service_admission", "full_shadow_rebuild",
+    "cross_project_installation_completeness", "automatic_module_switching"],
+  "recovery": "After expiry or schema rollback, preserve old generation and take a new consistent Core snapshot. Register a greater generation at or above the retained project floor before replay. Never reset an existing cursor in place."
+}

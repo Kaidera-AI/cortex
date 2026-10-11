@@ -1,0 +1,9 @@
+# C07-PR71-005 scoped exhaustion — Kai23:33 accepted correction
+
+Depth tree: unchanged reviewer desired assertions and native repeated/later-local RED → minimal consumer traversal correction → integrated native/fault/source/backup restoration → pushed-head CI and Mike review.
+
+Gates before product: preserve40 original native controls and30 fault recipes; add4 actual-PG cases (empty-project foreign head/repeated cycle; later-local beyond that fence; completed-local foreign tail/repeated cycle; later-local beyond tail), new consumer/PG request connection, exact local completeness, no foreign target effect or duplicate effect. Archive byte-exact Mike probe/test; declared author entry only replaces its candidate source pin with current Git HEAD and regenerates adjacent data. Desired6 assertions unchanged. RED before fix.
+
+Only product change: when trusted scoped replay produces no observed-range cursor progress, finish this in-memory traversal, then ordinary new-history cycle. This covers empty page and first row above captured observed fence. Never update stored cursors to manufacture progress or credit foreign work. Existing floor/expiry, monotonic page validation, observed fence, poison isolation, idempotence and new-work capacity remain unchanged.
+
+GREEN integrated388 tests/44 module,31 expected BODY fault kills (one new exhaustion-refusal fault),all483 inputs exact-restored; renew native backup7,35% actual Mac+VM admission,networknone,2CPU1GiB sequential fixtures,exact cleanup. New source/native/proof/publication bindings,byte-preserved official and durable3 controls,fresh desired6,full path table,2fail-capable verifier tamper controls,origin push/all4 CI,review gate. Original9f receipts remain historical; no author ACCEPT,main merge,PR72 push/adoption,Gavel/Jev. PR72 local07bc66d proof parked by preemption; remote stillc3cad3ed.

@@ -1,0 +1,9 @@
+test_manifest_refuses_shapes_outside_published_schema (<run_path>.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) ... ok
+test_unrelated_poison_does_not_block_requested_aggregate_repair (<run_path>.ReviewRed.test_unrelated_poison_does_not_block_requested_aggregate_repair) ... ok
+test_unresolved_conflict_does_not_apply_held_successor (<run_path>.ReviewRed.test_unresolved_conflict_does_not_apply_held_successor) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+{"head": "3f4d5621b31b0aa358fa6e213fa84443c1811eba", "control_sha256": "977095e57d25e4abad8ca3b5f012ef3c8aa6fd2612615e095f17f66298bdfd24", "source_sha256": {"next/src/cortex_core/modules/consumer.py": "42442fff36c3f24b3d1e01cb57515444e77f7c30adfd696889ea7c4463be0b19", "next/src/cortex_core/modules/protocol.py": "14c2995aed7a4f9e07cf719d2018885a8ed7f27d76387db7c801a4cc00ad3a0e"}, "tests_run": 3, "failures": 0, "errors": 0, "adapter": "constructor module_id plus observed scan cursor; unchanged test/control bodies"}

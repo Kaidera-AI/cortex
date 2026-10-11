@@ -1,0 +1,28 @@
+{
+  "command": [
+    "python3.12",
+    "next/tests/test_receipts.py",
+    "next/tests/backup_producer"
+  ],
+  "exit_code": 1,
+  "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 6, \"failures\": [{\"id\": \"test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\\\", line 33, in test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret\\n    self.assertEqual(command, ['pg_basebackup', '-h', '127.0.0.1', '-U', 'postgres',\\nAssertionError: Lists differ: [] != ['pg_basebackup', '-h', '127.0.0.1', '-U',[113 chars]ast']\\n\\nSecond list contains 14 additional elements.\\nFirst extra element 0:\\n'pg_basebackup'\\n\\n- []\\n+ ['pg_basebackup',\\n+  '-h',\\n+  '127.0.0.1',\\n+  '-U',\\n+  'postgres',\\n+  '-p',\\n+  '5432',\\n+  '-D',\\n+  '/tmp/base',\\n+  '-Fp',\\n+  '-X',\\n+  'none',\\n+  '--manifest-checksums=SHA256',\\n+  '--checkpoint=fast']\\n\"}], \"errors\": []}\n",
+  "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... ok\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... ok\ntest_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key) ... ok\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... ok\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... ok\ntest_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret (test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret) ... FAIL\n\n======================================================================\nFAIL: test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret (test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 33, in test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret\n    self.assertEqual(command, ['pg_basebackup', '-h', '127.0.0.1', '-U', 'postgres',\nAssertionError: Lists differ: [] != ['pg_basebackup', '-h', '127.0.0.1', '-U',[113 chars]ast']\n\nSecond list contains 14 additional elements.\nFirst extra element 0:\n'pg_basebackup'\n\n- []\n+ ['pg_basebackup',\n+  '-h',\n+  '127.0.0.1',\n+  '-U',\n+  'postgres',\n+  '-p',\n+  '5432',\n+  '-D',\n+  '/tmp/base',\n+  '-Fp',\n+  '-X',\n+  'none',\n+  '--manifest-checksums=SHA256',\n+  '--checkpoint=fast']\n\n----------------------------------------------------------------------\nRan 6 tests in 0.091s\n\nFAILED (failures=1)\n",
+  "receipt": {
+    "tests_run": 6,
+    "failures": [
+      {
+        "id": "test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 33, in test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret\n    self.assertEqual(command, ['pg_basebackup', '-h', '127.0.0.1', '-U', 'postgres',\nAssertionError: Lists differ: [] != ['pg_basebackup', '-h', '127.0.0.1', '-U',[113 chars]ast']\n\nSecond list contains 14 additional elements.\nFirst extra element 0:\n'pg_basebackup'\n\n- []\n+ ['pg_basebackup',\n+  '-h',\n+  '127.0.0.1',\n+  '-U',\n+  'postgres',\n+  '-p',\n+  '5432',\n+  '-D',\n+  '/tmp/base',\n+  '-Fp',\n+  '-X',\n+  'none',\n+  '--manifest-checksums=SHA256',\n+  '--checkpoint=fast']\n"
+      }
+    ],
+    "errors": []
+  },
+  "source_sha256": {
+    "next/src/cortex_core/backup.py": "81bb30cc23aba91f0ae8e1cb367252779cfdb40f0044e69b91546533b36a37d7",
+    "next/tests/backup_producer/test_manifest.py": "40cab6932ee476b1e8fc0a1084c9f3c40524901f2906653fd24584f68a48bb4d"
+  }
+}

@@ -41,6 +41,11 @@
       "id": "outbox-0002",
       "file": "coordination/002-outbox.sql",
       "sha256": "125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e"
+    },
+    {
+      "id": "module-consumers-0003",
+      "file": "coordination/003-module-consumers.sql",
+      "sha256": "bbde558b050a8121fe63e6eba1002058a8ec47731158a1c8375fbf633f33451a"
     }
   ]
 }

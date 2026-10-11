@@ -1,0 +1,9 @@
+CORTEX_TEST_RESULT={"tests_run": 3, "failures": [], "errors": []}
+test_positive_uninterrupted_repair (test_resumable_repair.ResumeRepair.test_positive_uninterrupted_repair) ... ok
+test_resume_after_root_checkpoint_interruption (test_resumable_repair.ResumeRepair.test_resume_after_root_checkpoint_interruption) ... ok
+test_resume_after_successor_transient_failure (test_resumable_repair.ResumeRepair.test_resume_after_successor_transient_failure) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK

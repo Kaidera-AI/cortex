@@ -1,0 +1,75 @@
+{"head": "8ac4146f0fdeba85b3de8d6cccd9f9abb4f13b74", "source_sha256": {"next/src/cortex_core/modules/consumer.py": "58225cc263807f41c1a2e8f3dd0cb88833899f108272b82b195d27a3ebcea460", "next/src/cortex_core/modules/protocol.py": "378a55c02c18934177dc9cb45624b414f1a1c73d94bd2954eb221878eff3c078"}}
+test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) ... 
+  test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) (case={'protocol_version': True, 'schema_version': True}) ... FAIL
+  test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) (case={'aggregate_kinds': ['memory', 'memory']}) ... FAIL
+  test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) (case={'aggregate_kinds': ['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']}) ... FAIL
+test_unrelated_poison_does_not_block_requested_aggregate_repair (__main__.ReviewRed.test_unrelated_poison_does_not_block_requested_aggregate_repair) ... FAIL
+test_unresolved_conflict_does_not_apply_held_successor (__main__.ReviewRed.test_unresolved_conflict_does_not_apply_held_successor) ... FAIL
+
+======================================================================
+FAIL: test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) (case={'protocol_version': True, 'schema_version': True})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-mike-review-20261011/test_c07_repair_manifest.py", line 128, in test_manifest_refuses_shapes_outside_published_schema
+    with self.assertRaises(ValueError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) (case={'aggregate_kinds': ['memory', 'memory']})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-mike-review-20261011/test_c07_repair_manifest.py", line 128, in test_manifest_refuses_shapes_outside_published_schema
+    with self.assertRaises(ValueError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_manifest_refuses_shapes_outside_published_schema (__main__.ReviewRed.test_manifest_refuses_shapes_outside_published_schema) (case={'aggregate_kinds': ['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-mike-review-20261011/test_c07_repair_manifest.py", line 128, in test_manifest_refuses_shapes_outside_published_schema
+    with self.assertRaises(ValueError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_unrelated_poison_does_not_block_requested_aggregate_repair (__main__.ReviewRed.test_unrelated_poison_does_not_block_requested_aggregate_repair)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-mike-review-20261011/test_c07_repair_manifest.py", line 115, in test_unrelated_poison_does_not_block_requested_aggregate_repair
+    harness.repair(UUID(requested.envelope['event_id']))
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<exact-C07-method>", line 204, in repair
+  File "<exact-C07-method>", line 144, in _apply_event
+ConsumerError: poison_still_present
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-mike-review-20261011/test_c07_repair_manifest.py", line 117, in test_unrelated_poison_does_not_block_requested_aggregate_repair
+    self.fail('unrelated aggregate blocked requested repair: ' + error.code)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: unrelated aggregate blocked requested repair: poison_still_present
+
+======================================================================
+FAIL: test_unresolved_conflict_does_not_apply_held_successor (__main__.ReviewRed.test_unresolved_conflict_does_not_apply_held_successor)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-mike-review-20261011/test_c07_repair_manifest.py", line 107, in test_unresolved_conflict_does_not_apply_held_successor
+    self.assertEqual(sink.calls, [1], 'unresolved poison must still fence its successor')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [1, 2] != [1]
+
+First list contains 1 additional elements.
+First extra element 1:
+2
+
+- [1, 2]
++ [1] : unresolved poison must still fence its successor
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.006s
+
+FAILED (failures=5)
+{"tests_run": 3, "failures": 5, "errors": 0}
