@@ -1,0 +1,7 @@
+{
+  "path": "/Volumes/WD-B-4TB/DevVault/helix/output/KOS/bob-native-linux-plan-rework-20261011/kos-layer/console_keys.py",
+  "sha256": "3ff62b762e6a3274e7c58394121e312519dc2f37716fd64ec5e17a9969fd4d67",
+  "packet_index_sha256": "7b6a1b82523d5b24fd8a16b8d40de9d8d11e8b18ef2153734c45db657f16b8de",
+  "implementation": "console_keys.classify_console_keys",
+  "custody": "byte-identical public source copy; no C packet changes"
+}

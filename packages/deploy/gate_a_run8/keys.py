@@ -3,15 +3,22 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import importlib
 from pathlib import Path
 import re
 
 from custody import Refusal, require
 
 
-CARDINALITY_SHA = "225e51e8947b51693ad43915aff770d8455bf06dc9e3090bfe34f5fe8727fa4a"
-ZERO_REASON = "fresh AWS console ED25519 host key not available; no trust-on-first-use"
-CONFLICT_REASON = "multiple distinct AWS console ED25519 host keys; permanent identity refusal"
+SHARED_SHA = "3ff62b762e6a3274e7c58394121e312519dc2f37716fd64ec5e17a9969fd4d67"
+
+
+def shared_classifier():
+    source = Path(__file__).with_name("console_keys.py")
+    require(hashlib.sha256(source.read_bytes()).hexdigest() == SHARED_SHA, "shared_classifier_source_drift")
+    module = importlib.import_module("console_keys")
+    require(Path(module.__file__).resolve() == source.resolve(), "shared_classifier_module_alias")
+    return module
 
 
 def decode_console(text, representation="donor-auto"):
@@ -32,31 +39,38 @@ def console_keys(text, representation="donor-auto"):
 
 def classify(keys):
     require(isinstance(keys, list) and all(isinstance(k, str) and k for k in keys), "console_keys_shape")
-    # Extraction and cardinality have ONE source: C's frozen 67-72 block. This
-    # adapter translates its public refusal into GateA's typed caller contract.
-    return classify_decoded("\n".join("ssh-ed25519 " + key for key in keys))
+    outcome = shared_classifier().classify_console_keys(keys)
+    if outcome == {"status": "WAIT", "exit": 75}:
+        return {"state": "WAIT_NO_CONSOLE_ED25519", "exit": 75, "retryable": True, "count": 0}
+    if outcome == {"status": "CONFLICT", "exit": 76}:
+        return {"state": "STOP_CONFLICTING_CONSOLE_ED25519", "exit": 76, "retryable": False,
+                "count": len(set(keys))}
+    require(outcome.get("status") == "ONE" and outcome.get("exit") == 0
+            and outcome.get("key") in keys, "unclassified_console_outcome")
+    return {"state": "ONE_CONSOLE_ED25519", "exit": 0, "retryable": False, "count": 1,
+            "key": outcome["key"]}
 
 
 def classify_decoded(text):
-    source = Path(__file__).with_name("templates") / "console-cardinality.inc"
-    body = source.read_bytes()
-    require(hashlib.sha256(body).hexdigest() == CARDINALITY_SHA, "shared_classifier_source_drift")
-    scope = {"text": text, "re": re}
-    try:
-        exec(compile(body, str(source), "exec"), scope)
-    except SystemExit as error:
-        reason = str(error.code)
-        if reason == ZERO_REASON:
-            return {"state": "WAIT_NO_CONSOLE_ED25519", "exit": 75, "retryable": True, "count": 0}
-        require(reason == CONFLICT_REASON, "unrecognised_cardinality_refusal")
-        return {"state": "STOP_CONFLICTING_CONSOLE_ED25519", "exit": 76, "retryable": False,
-                "count": len(set(scope["keys"]))}
-    return {"state": "ONE_CONSOLE_ED25519", "exit": 0, "retryable": False, "count": 1,
-            "key": scope["expected"]}
+    # Keep donor line 67 extraction, then call the shared cardinality function.
+    keys = re.findall(r"^ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)", text, flags=re.M)
+    return classify(keys)
 
 
 def decoded_outcome(text, representation="donor-auto"):
     return classify_decoded(decode_console(text, representation))
+
+
+def bind_console(invoke, retire, clock, sleep, *, watchdog_armed):
+    require(watchdog_armed is True, "key_wait_watchdog_missing")
+    def attempt():
+        try:
+            return decoded_outcome(invoke())
+        except Refusal as error:
+            if error.code != "STOP_CONSOLE_DECODE_FAILURE":
+                raise
+            return {"state": "DECODE_STOP", "exit": 76, "retryable": False}
+    return shared_classifier().bind_with_wait(attempt, retire, clock, sleep)
 
 
 def scan_binding(console, scan_text, expected_host, representation="donor-auto"):
