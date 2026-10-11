@@ -15,6 +15,24 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    '2ai_lost_login': ('schema/auth/004-first-identity-capture.sql',
+        "IF session_user <> 'kaidera-runtime-core-installer' THEN RETURN; END IF;",
+        'IF false THEN RETURN; END IF;'),
+    '2ai_lost_current_xact': ('schema/auth/004-first-identity-capture.sql',
+        "WHERE p.name='default' AND r.xmin::text=pg_current_xact_id()::text",
+        "WHERE p.name='default' AND true"),
+    '2ai_broaden_fact_kind': ('schema/auth/004-first-identity-capture.sql',
+        "IF NOT FOUND OR p_kind<>'identity' OR p_target IS DISTINCT FROM s.principal_id",
+        "IF NOT FOUND OR p_kind='__none__' OR p_target IS DISTINCT FROM s.principal_id"),
+    '2ai_skip_capture': ('schema/auth/004-first-identity-capture.sql',
+        "IF bootstrap AND k<>'core.identity' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;",
+        'IF bootstrap THEN RETURN NEW; END IF;'),
+    '2ai_bypass_guard': ('schema/auth/004-first-identity-capture.sql',
+        'IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;',
+        'IF true THEN RETURN NULL; END IF;'),
+    '2ai_allow_existing_alias': ('schema/auth/004-first-identity-capture.sql',
+        "AND a.source_namespace='cortex.core.identity'",
+        "AND a.source_namespace='__none__'"),
     'd4_omit_completeness': ('src/cortex_core/api/c11b2.py',
         "response['complete'] = True", "response['complete'] = False"),
     'd4_lag_as_empty': ('src/cortex_core/api/c11b2.py',
@@ -140,7 +158,9 @@ def main():
     if mutation and mutation not in MUTANTS:
         raise RuntimeError('unknown C11b2 mutation')
     output['mutation'] = mutation
-    suite = 'c11b2'
+    suite = os.environ.get('C11B2_SUITE', 'c11b2')
+    if suite not in {'c11b2', 'auth', 'auth_identity', 'outbox'}:
+        raise RuntimeError('unknown C11b2 suite')
     output['suite'] = suite
     try:
         run('podman', 'pod', 'create', '--name', pod, '--network', 'none',
