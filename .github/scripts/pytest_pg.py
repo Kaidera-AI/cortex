@@ -199,7 +199,7 @@ class Fixture:
         self.command(["pod", "create", "--name", self.pod, "--infra=false", "--share=",
                       "--memory=1g", "--memory-swap=1g", "--cpus=2", *self.labels()])
         pod = self.owned("pod", self.pod)
-        assert not pod["CreateInfra"] and not pod["SharedNamespaces"]
+        assert not pod["CreateInfra"] and not pod.get("SharedNamespaces")
         self.coordinator = None
         self.coordinator = self.run("coordinator", podman_stage0.IMAGE,
             ["python", "-c", "import signal,time;signal.signal(signal.SIGTERM,lambda *args:exit(0));time.sleep(1800)"],
