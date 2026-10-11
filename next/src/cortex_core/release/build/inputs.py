@@ -165,6 +165,25 @@ def materialize(verified, reader, destination):
     reader.assert_unchanged()
     if reader.inventory(context) != source_names:
         raise ValueError("complete source inventory changed during materialization")
+    staged = FilesystemReader(destination, max_bytes=reader.max_bytes)
+    staged_names = {
+        path.relative_to(destination).as_posix()
+        for path in destination.rglob("*")
+        if not path.is_dir() or path.is_symlink()
+    }
+    if staged_names != names:
+        raise ValueError("final clone inventory differs")
+    for row in verified.inventory:
+        actual = staged(row["path"])
+        if (
+            len(actual.data) != row["bytes"]
+            or sha256(actual.data) != row["sha256"]
+            or actual.kind != row["kind"]
+            or actual.mode != row["mode"]
+            or actual.link_target != row.get("link_target")
+        ):
+            raise ValueError("final cloned input differs")
+    staged.assert_unchanged()
     return destination
 
 

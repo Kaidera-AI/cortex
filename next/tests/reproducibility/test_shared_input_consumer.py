@@ -140,18 +140,22 @@ class AdmissionBeforeStage(unittest.TestCase):
                     )
                 self.assertFalse(destination.exists())
 
+
 class CloneCustody(unittest.TestCase):
     def test_final_clone_tamper_is_refused_before_prepared_result(self):
         from unittest.mock import patch
+
         original_chmod = Path.chmod
         with tempfile.TemporaryDirectory() as t:
             p = Path(t)
             helper = StagingMutations()
-            reader, verified = helper.fixture(p/'original')
-            destination = p/'clone'
+            reader, verified = helper.fixture(p / "original")
+            destination = p / "clone"
+
             def tamper(path, mode, **kwargs):
-                if path == destination/'source/module.py':
-                    path.write_bytes(b'changed after write')
+                if path == destination / "source/module.py":
+                    path.write_bytes(b"changed after write")
                 return original_chmod(path, mode, **kwargs)
-            with patch.object(Path, 'chmod', tamper), self.assertRaises(ValueError):
+
+            with patch.object(Path, "chmod", tamper), self.assertRaises(ValueError):
                 inputs.materialize(verified, reader, destination)
