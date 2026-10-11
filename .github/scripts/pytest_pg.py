@@ -24,6 +24,7 @@ import podman_stage0
 
 PYTHON = "docker.io/library/python:3.14.7-trixie@sha256:608322fe51a9b889eee5ed6015c854e77dc44d00c116435f56b69bf6f14c88f4"
 POSTGRES = "docker.io/pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a"
+PAUSE = "registry.k8s.io/pause:3.10@sha256:7c38f24774e3cbd906d2d33c38354ccf787635581c122965132c9bd309754d4a"
 LABEL = "cortex.pytest-pg"
 
 
@@ -35,7 +36,7 @@ class Fixture:
         self.containers, self.volumes, self.secret_names = [], [], []
         self.pod = None
         self.secret_values = [secrets.token_hex(32), secrets.token_hex(32)]
-        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES},
+        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "infra": PAUSE},
                         "admissions": [], "commands": [], "cgroups": [], "passes": []}
 
     def command(self, args, *, timeout=120, check=True, input=None):
@@ -116,10 +117,13 @@ class Fixture:
         path = next(line.split("::", 1)[1] for line in Path(f"/proc/{pid}/cgroup").read_text().splitlines()
                     if line.startswith("0::"))
         leaf = Path("/sys/fs/cgroup") / path.lstrip("/")
-        parent = leaf.parent
+        pod = self.owned("pod", self.pod)
+        parent = Path("/sys/fs/cgroup") / pod["CgroupPath"].lstrip("/")
+        assert leaf.is_relative_to(parent), (leaf, parent)
         values = {"leaf": {key: (leaf / key).read_text().strip() for key in ["memory.max", "memory.swap.max", "cpu.max"]},
                   "parent": {key: (parent / key).read_text().strip() for key in ["memory.max", "memory.swap.max", "cpu.max"]},
                   "name": row["Name"], "uid": row["Config"]["User"], "path": path,
+                  "pod_path": str(parent),
                   "ports": row["NetworkSettings"].get("Ports", {})}
         expected = int(memory.removesuffix("m")) * 1024 ** 2
         assert values["leaf"]["memory.max"] == str(expected), values
@@ -181,7 +185,7 @@ class Fixture:
 
     def prepare(self):
         start = time.monotonic()
-        for image in [PYTHON, POSTGRES]:
+        for image in [PYTHON, POSTGRES, PAUSE]:
             self.admission()
             self.command(["pull", image], timeout=240)
         self.receipt["pull_seconds"] = time.monotonic() - start
@@ -191,8 +195,7 @@ class Fixture:
         self.pod = self.prefix + "-pod"
         self.command(["pod", "create", "--name", self.pod, "--network=none", "--hostname=cortex-pg",
                       "--add-host=cortex-pg:127.0.0.1", "--memory=1g", "--memory-swap=1g", "--cpus=2",
-                      "--infra-image", podman_stage0.IMAGE,
-                      "--infra-command", '/usr/local/bin/python -c "import time;time.sleep(1800)"', *self.labels()])
+                      "--infra-image", PAUSE, "--infra-command=/pause", *self.labels()])
         self.owned("pod", self.pod)
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
         self.deps = self.volume(pass_name + "-deps", 10001)
