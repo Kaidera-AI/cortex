@@ -2,6 +2,7 @@
 import ast
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -24,8 +25,7 @@ controller_ast=ast.parse(Path(__file__).with_name('run-core-pg.py').read_text())
 suite_values=next(node.value for node in controller_ast.body if isinstance(node,ast.Assign)
                   and any(isinstance(target,ast.Name) and target.id=='SUITES' for target in node.targets))
 declared_suites=dict(ast.literal_eval(suite_values))
-checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':23,'outbox_retention':5,'outbox_inventory':17,'outbox_late_publication':1,'c05_review':8,'c05_private':5,'outbox_write_only':2,'outbox_private_namespace':2,
-                     'receipt':declared_suites['receipt']}
+checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':23,'outbox_retention':5,'outbox_inventory':17,'outbox_late_publication':1,'c05_review':8,'c05_private':5,'outbox_write_only':2,'outbox_private_namespace':2}
 for directory,count in expected.items():
  files=list((wt/'next/tests'/directory).glob('test_*.py'))
  actual=sum(sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in ast.walk(ast.parse(p.read_text()))) for p in files)
@@ -39,6 +39,14 @@ for directory,count in expected.items():
       if alias.name in definitions:
        actual+=sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in definitions[alias.name].body)
  checks[directory]={'actual':actual,'expected':count,'passed':actual==count}
+# Receipt tests deliberately hide synthetic failing cases in load_tests.
+# Use the runner's discovery contract instead of counting every AST method.
+discovered=subprocess.check_output([sys.executable,'-c',
+    'import sys,unittest;print(unittest.defaultTestLoader.discover(sys.argv[1]).countTestCases())',
+    str(wt/'next/tests/receipt')],text=True,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})
+actual_receipt_count=int(discovered.strip())
+checks['receipt']={'actual':actual_receipt_count,'expected':declared_suites['receipt'],
+                   'passed':actual_receipt_count==declared_suites['receipt']}
 recipe_count=0
 for filename in ('outbox-fault-recipes.json','outbox-identity-fault-recipes.json','outbox-adapters-fault-recipes.json','outbox-c05-fault-recipes.json','outbox-write-only-fault-recipes.json','outbox-private-namespace-fault-recipes.json'):
  for recipe in json.loads((wt/'next/contracts'/filename).read_text())['mutants']:
