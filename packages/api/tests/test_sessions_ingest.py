@@ -82,6 +82,44 @@ def _new_session_uuid() -> str:
 # ── Happy path: brand-new session with messages ─────────────────────────────
 
 
+@pytest.fixture
+def second_tenant(http_client):
+    """Register an owned tenant so the collision test reaches its 409 oracle."""
+    project = f"kai-session-other-{uuid.uuid4().hex[:8]}"
+    response = http_client.post(
+        "/projects",
+        headers={"X-Cortex-Project-Mode": "create-only"},
+        json={
+            "project_key": project,
+            "display_name": "Session collision test",
+            "repo_root": f"/tmp/{project}",
+            "default_agent": TEST_AGENT,
+            "agents": [
+                {"name": TEST_AGENT, "role": "test-runner", "writer_scope": "work"},
+                {"name": "kai-test", "role": "test-runner", "writer_scope": "work"},
+            ],
+        },
+    )
+    response.raise_for_status()
+    try:
+        yield project
+    finally:
+        cleanup = http_client.post(
+            "/admin/sql/exec",
+            json={"sql": f"""
+                DELETE FROM messages WHERE project = '{project}';
+                DELETE FROM agent_sessions WHERE project = '{project}';
+                DELETE FROM session_sources WHERE project = '{project}';
+                DELETE FROM team_events WHERE project = '{project}';
+                DELETE FROM agents WHERE project = '{project}';
+                DELETE FROM roles WHERE project = '{project}';
+                DELETE FROM cortex_project_paths WHERE project_key = '{project}';
+                DELETE FROM cortex_projects WHERE project_key = '{project}';
+            """},
+        )
+        cleanup.raise_for_status()
+
+
 def test_sessions_ingest_creates_agent_session_source_and_messages(http_client):
     """Single call lands rows in all 4 tables atomically."""
     session_uuid = _new_session_uuid()
@@ -184,7 +222,7 @@ def test_sessions_ingest_is_idempotent_on_source_path(http_client):
     assert r2.json()["messages_inserted"] == 2
 
 
-def test_sessions_ingest_rejects_cross_project_session_uuid(http_client):
+def test_sessions_ingest_rejects_cross_project_session_uuid(http_client, second_tenant):
     """A provider session UUID cannot be reassigned to a different project."""
     session_uuid = _new_session_uuid()
     body = {
@@ -205,7 +243,7 @@ def test_sessions_ingest_rejects_cross_project_session_uuid(http_client):
         base_url=CORTEX_API,
         timeout=15.0,
         headers={
-            "X-Project": "asw-connect",
+            "X-Project": second_tenant,
             "X-Agent-Name": TEST_AGENT,
             "X-Cortex-Admin-Token": os.environ.get(
                 "CORTEX_ADMIN_TOKEN", "cortex-local-admin"

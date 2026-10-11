@@ -5,13 +5,13 @@ from pathlib import Path
 
 MIGRATION = (
     Path(__file__).resolve().parents[2]
-    / "data"
+    / "schema"
     / "migrations"
     / "2026-08-16-02-messages-bm25-security-definer.sql"
 )
 REPAIR_MIGRATION = (
     Path(__file__).resolve().parents[2]
-    / "data"
+    / "schema"
     / "migrations"
     / "2026-08-31-02-repair-messages-bm25-security-definer.sql"
 )

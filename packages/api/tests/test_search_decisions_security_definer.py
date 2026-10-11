@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-MIGRATION_ROOT = Path(__file__).resolve().parents[2] / "data" / "migrations"
+MIGRATION_ROOT = Path(__file__).resolve().parents[2] / "schema" / "migrations"
 MIGRATION = MIGRATION_ROOT / "2026-08-04-01-decisions-trigram-security-definer.sql"
 REPAIR_MIGRATION = (
     MIGRATION_ROOT / "2026-08-31-03-repair-decisions-trigram-security-definer.sql"

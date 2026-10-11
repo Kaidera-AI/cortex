@@ -81,7 +81,7 @@ names = sys.argv[1:] or ["test_b02_load", "test_b02_report"]
 suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(n) for n in names)
 result = unittest.TextTestRunner(verbosity=2, resultclass=AssertionResult).run(suite)
 sources = {}
-for name in ["load", "report", "benchmark", "corpus", "oracle", "postgres"]:
+for name in ["load", "report", "benchmark", "corpus", "oracle", "postgres", "geometry", "qdrant", "qdrant_proxy"]:
     module = importlib.import_module("vector_baseline." + name)
     path = pathlib.Path(module.__file__).resolve()
     sources[name + ".py"] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}

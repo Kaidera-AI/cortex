@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 from typing import Optional
 
@@ -28,10 +29,21 @@ async def _ensure_model(client: httpx.AsyncClient, model: str):
         _pulled.add(model)
         return
     # Pull (streaming) — first call is slow; subsequent calls cached in volume
+    pull_succeeded = False
     async with client.stream("POST", f"{OLLAMA_BASE}/api/pull", json={"name": model}, timeout=None) as resp:
         resp.raise_for_status()
-        async for _ in resp.aiter_lines():
-            pass
+        async for line in resp.aiter_lines():
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            if not isinstance(event, dict):
+                raise RuntimeError("Ollama model pull failed")
+            if "error" in event:
+                raise RuntimeError("Ollama model pull failed")
+            if event.get("status") == "success":
+                pull_succeeded = True
+    if not pull_succeeded:
+        raise RuntimeError("Ollama model pull failed")
     _pulled.add(model)
 
 
