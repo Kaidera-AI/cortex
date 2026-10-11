@@ -116,7 +116,7 @@ def main(argv=None):
         else:
             validate_release(A)
             store = ObservationStore(Path(args.observations), A)
-            actual = {k: os.environ.get(k) for k in ("cto_payload", "cto_runtime", "cto_runtime_sha")}
+            actual = {k: os.environ.get(k) for k in ("cto_payload", "cto_runtime", "cto_runtime_sha", "CORTEX_PROJECTS_ROOT")}
             execute(A, store, args.role, actual, invocation_directory=args.invocations)
             # Never echo a role's captured stdout/stderr into a public CLI receipt.
             print(json.dumps({"checked_role_completed": args.role, **A.context}))

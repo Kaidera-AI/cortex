@@ -8,8 +8,8 @@ import time
 import uuid
 from types import SimpleNamespace
 
-from custody import Refusal, actual_source_file, exclusive_json, parse_json, private_directory, public_data, require
-from payload import validate_literals
+from custody import Refusal, actual_source_file, bound_json, exclusive_json, parse_json, private_directory, public_data, require
+from payload import pre_load, validate_literals, validate_projects
 
 
 PHASE_ROLES = {
@@ -47,9 +47,14 @@ def checked_command(authority, store, role, actual_literals=None):
             and 0 < spec["timeout_sec"] <= 900, "command_deadline_shell")
     require(not any(arg in {"-S", "--sign", "--publish", "--all", "--latest", "--ignore"} for arg in argv),
             "command_forbidden_effect")
-    if role in {"payload_extractor", "runtime", "provider_prepare", "provider_labels", "ordinary_restart"}:
+    if role in {"payload_extractor", "cached_image_verifier", "runtime", "provider_prepare", "provider_labels", "ordinary_restart"}:
         require(actual_literals is not None, "literal_inputs_required")
         validate_literals(authority, actual_literals, authority.B["delivery_binding"])
+    if role in {"cached_image_verifier", "runtime", "provider_prepare", "provider_labels", "ordinary_restart"}:
+        # These guards sit on the actual invocation path before any load/up effect.
+        pre_load(authority, bound_json(authority.B["manifest"]), actual_literals, authority.B["delivery_binding"])
+        validate_projects(authority, actual_literals, authority.B["delivery_binding"],
+                          {"CORTEX_PROJECTS_ROOT": actual_literals.get("CORTEX_PROJECTS_ROOT")})
     require(isinstance(spec.get("input_digests"), dict) and spec["input_digests"] and
             spec["input_digests"] == rows[-1]["payload"].get("admitted_command_inputs", {}).get(role),
             "command_observed_inputs_missing")
@@ -81,7 +86,7 @@ def _execute(authority, store, role, actual_literals, *, runner, invocation_dire
     spec = authority.B["commands"][phase][role]
     clean = {k: os.environ[k] for k in ("PATH", "HOME", "XDG_RUNTIME_DIR") if k in os.environ}
     if actual_literals:
-        clean.update(actual_literals)
+        clean.update({k: v for k, v in actual_literals.items() if isinstance(v, str)})
     # Every operational endpoint is a sealed reviewed command. No fallback SDK,
     # .env reader, browser/SSO or arbitrary shell text exists in this dispatcher.
     require(invocation_directory is not None, "invocation_receipt_directory_required")
