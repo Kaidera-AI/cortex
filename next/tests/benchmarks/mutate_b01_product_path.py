@@ -264,15 +264,37 @@ def native(destination):
     required = {"numpy": "2.3.4", "httpx": "0.28.1", "asyncpg": "0.31.0", "psycopg": "3.2.9"}
     if not (3, 12) <= sys.version_info[:2] < (3, 14) or profile != required:
         raise RuntimeError("Declared existing test profile required; no installation fallback")
-    admission = qdrant.preflight()
-    if admission["free_percent"] < 35:
-        raise RuntimeError("Fresh host35percent admission refused")
-    info = json.loads(postgres.podman(["info", "--format", "json"]))
-    host = info.get("host", {})
-    total, free = host.get("memTotal"), host.get("memFree")
-    if (type(total) is not int or type(free) is not int or total <= 0
-            or not 0 <= free <= total or free * 100 < 35 * total):
-        raise RuntimeError("Fresh engine35percent memory admission refused")
+    def engine_available_memory():
+        connections = json.loads(postgres.podman(["system", "connection", "list", "--format", "json"]))
+        defaults = [row for row in connections if row.get("Default")]
+        if len(defaults) != 1:
+            raise RuntimeError("Existing local machine context is not unique")
+        current = defaults[0]
+        if (current.get("Name") != "kos-e020-uat" or not current.get("IsMachine")
+                or not current.get("URI", "").startswith("ssh://core@127.0.0.1:")):
+            raise RuntimeError("Only the existing local rootless fixture machine is admitted")
+        raw = postgres.podman(["machine", "ssh", current["Name"], "--", "cat", "/proc/meminfo"])
+        fields = {line.split(":")[0]: int(line.split()[1]) for line in raw.splitlines()
+                  if ":" in line and len(line.split()) > 1 and line.split()[1].isdigit()}
+        return {"machine": current["Name"], "MemTotal_kB": fields.get("MemTotal"),
+                "MemAvailable_kB": fields.get("MemAvailable"), "raw_meminfo": raw}
+
+    admission = None
+    engine = None
+    try:
+        admission = qdrant.preflight()
+        engine = engine_available_memory()
+        total, free = engine["MemTotal_kB"], engine["MemAvailable_kB"]
+        if (admission["free_percent"] < 35 or type(total) is not int or type(free) is not int
+                or total <= 0 or not 0 <= free <= total or free * 100 < 35 * total):
+            raise RuntimeError("Fresh host and VM35percent admission refused")
+    except RuntimeError:
+        row = {"status": "BLOCKED", "reason": "memory_or_local_context_admission_refused",
+               "tested_head": tested_head, "host_admission": admission, "engine_admission": engine,
+               "native_resources_created": 0, "tests_run": 0, "native_qualified": False}
+        (destination / "native-receipt.json").write_text(json.dumps(row, indent=2) + "\n")
+        print(json.dumps(row, indent=2))
+        return 2
     postgres.podman(["image", "exists", postgres.IMAGE])
 
     memory_admissions = []
@@ -280,12 +302,12 @@ def native(destination):
     def admit_resource_memory(phase):
         allowed = (stack.name,) if "container" in stack.owned else ()
         observed = qdrant.preflight(allowed_names=allowed)
-        engine = json.loads(postgres.podman(["info", "--format", "json"])).get("host", {})
-        total, free = engine.get("memTotal"), engine.get("memFree")
+        engine = engine_available_memory()
+        total, free = engine["MemTotal_kB"], engine["MemAvailable_kB"]
         valid = (observed["free_percent"] >= 35 and type(total) is int and type(free) is int
                  and total > 0 and 0 <= free <= total and free * 100 >= 35 * total)
         memory_admissions.append({"phase": phase, "host": observed,
-            "vm_memTotal": total, "vm_memFree": free, "passed": valid})
+            "vm_observation": engine, "passed": valid})
         if not valid: raise RuntimeError("Fresh create/start host and engine35percent admission refused")
 
     def cached_runner(arguments, *, input=None):
@@ -300,7 +322,8 @@ def native(destination):
     names = ("TEST_DATABASE_URL", "B01_OWNED_SEARCH_DSN")
     previous = {name: os.environ.get(name) for name in names}
     receipt = {"status": "RUNNING", "scope": "SOURCE_REAL_PG_COMPONENTS", "profile": profile,
-               "host_admission": admission, "engine_free_percent": free * 100 // total,
+               "host_admission": admission, "engine_available_percent": free * 100 // total,
+               "engine_admission": engine,
                "resource_memory_admissions": memory_admissions,
                "tested_head": tested_head, "native_qualified": False, "gtm_qualified": False,
                "fixture_sha256": sha((NEXT / "tests/benchmarks/test_b01_product_path.py").read_bytes()),

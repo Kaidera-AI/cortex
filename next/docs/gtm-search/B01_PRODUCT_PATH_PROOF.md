@@ -67,14 +67,17 @@ PYTHONPATH=next/src python next/tests/benchmarks/mutate_b01_product_path.py <fre
 ```
 
 It first requires the tracked, integrated
-`next/tests/module_consumer/test_manifest.py`. On the initial authorized main
-base903fd729 that file is absent, so the result is BLOCKED, zero tests and zero
-engine/resource access. The real-PG controller and nine component cases are
+`next/tests/module_consumer/test_manifest.py`. The initial main903fd729 lacked
+that file and refused before any resource access; Kai00:32 re-pins execution
+to merged main9309ea77. The real-PG controller and nine component cases are
 prepared, with the existing owned lifecycle, cached-image-only policy and fresh
 host/engine35% admission repeated before each resource create and container start.
 Only its already ownership-verified container name may be excluded from the
-foreign inventory during that admission. Those are the documented host memory fields in
-[Podman info](https://docs.podman.io/en/latest/markdown/podman-info.1.html).
+foreign inventory during that admission. The accepted existing fixture policy
+uses host memory_pressure and VM /proc/meminfo MemAvailable/MemTotal, rather
+than rejecting reclaimable cache through Podman memFree. The VM read is only
+through the validated existing local rootless machine context, with raw public
+memory observations retained; no remote host or new machine is selected.
 The additional negative witnesses compare actual Core scope with an independently
 frozen mapping, bind the real mocked provider/cache vector, reject an actual
 projected kind/revision inconsistent with the frozen corpus, and charge warm Core-down

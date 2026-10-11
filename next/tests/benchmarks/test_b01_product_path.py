@@ -430,7 +430,7 @@ class PreparedMemoryAdmissionTests(unittest.TestCase):
         source = (NEXT / "tests/benchmarks/mutate_b01_product_path.py").read_text()
         native = next(n for n in ast.parse(source).body if isinstance(n, ast.FunctionDef) and n.name == "native")
         methods = [n for n in native.body if isinstance(n, ast.FunctionDef)
-                   and n.name in ("admit_resource_memory", "cached_runner")]
+                   and n.name in ("engine_available_memory", "admit_resource_memory", "cached_runner")]
         self.memory = {"memTotal": 1000, "memFree": 350}
         self.available = None
         self.commands = []
