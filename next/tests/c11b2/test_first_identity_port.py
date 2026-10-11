@@ -213,7 +213,8 @@ class FirstIdentityPort(Fixture):
                        {'project': 3}, {'digest': 'not-a-digest'},
                        {'digest': 'A' * 64}, {'digest': None}):
             with self.subTest(kwargs=kwargs):
-                self.assertEqual(self.attempt(**kwargs)[0], 'error')
+                self.assertEqual(self.attempt(**kwargs),
+                                 ('error', ('42501', 'first_identity_forbidden')))
                 self.assertEqual(self.receipt_count(), 0)
                 self.assertEqual(self.counts()['coordination.outbox'], 0)
 
@@ -281,7 +282,8 @@ class FirstIdentityPort(Fixture):
     def test_wrong_login_revocation_and_reconnect_cannot_expand_authority(self):
         self.function_present()
         self.assertEqual(self.attempt(connection=self.request)[0], 'error')
-        self.assertEqual(self.attempt(connection=self.admin)[0], 'error')
+        self.assertEqual(self.attempt(connection=self.admin),
+                         ('error', ('42501', 'first_identity_forbidden')))
         self.assertEqual(self.receipt_count(), 0)
         self.assertEqual(self.attempt()[0], 'ok')
         self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() '
