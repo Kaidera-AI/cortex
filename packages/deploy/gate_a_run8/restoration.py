@@ -5,7 +5,7 @@ import hashlib
 from pathlib import Path
 import re
 
-from custody import bound_file, bound_json, hex_value, require
+from custody import actual_source_file, bound_file, bound_json, hex_value, measured_file, require
 
 
 SLOTS = {"PG": "cortex-pg", "PROVIDER": "cortex-provider", "API": "cortex-api",
@@ -53,7 +53,11 @@ def render(authority, installed, host, *, template_row):
                 and row.get("healthy") is True, "restoration_initial_effect")
         require(row.get("source_revision") == (authority.B["kos_signed_binding"]["source_revision"]
                 if name == "kos-appdb" else authority.B["source_revision"]), "restoration_source")
-    podman = str(bound_file(host["engine"]["executable"]))
+    inventory = authority.validate_files()
+    sealed = authority.B["sealed_files"][inventory["root_roles"]["podman"]]
+    executable = actual_source_file(sealed)
+    require(host["engine"]["executable"] == measured_file(executable), "restoration_engine_not_sealed")
+    podman = str(executable)
     require(not any(c.isspace() or c in "@%" for c in podman), "restoration_engine_path")
     text = text.replace("@PODMAN@", podman)
     for slot, name in SLOTS.items():
@@ -86,6 +90,15 @@ def armed(authority, installed, host, row):
     require(actual_unit == expected_unit, "restoration_filled_unit_drift")
     for key in ("console_dropin", "input_checksum_map", "native_properties_receipt"):
         bound_file(receipt[key])
+    require(bound_file(receipt["console_dropin"], read=True, limit=64 * 1024) ==
+            Path(__file__).with_name("templates").joinpath("console-dropin.conf.in").read_bytes(),
+            "restoration_console_dropin_drift")
+    # The admitted engine must appear in the unit's independently checked prelude.
+    checksums = bound_file(receipt["input_checksum_map"], read=True, limit=64 * 1024).decode().splitlines()
+    engine = host["engine"]["executable"]
+    require(engine["sha256"] + "  " + engine["path"] in checksums, "restoration_checksum_engine_missing")
+    _raw_effects(authority, receipt, "ARMED", receipt["native_properties_receipt"],
+                 {"unit_file", "console_dropin", "input_checksum_map", "native_properties_receipt"})
     require(receipt.get("cortex_check") == installed["cortex_check"] and
             receipt.get("appdb_doctor") == installed["initial_appdb_doctor"], "restoration_before_effects")
     return receipt
@@ -111,4 +124,15 @@ def recovered(authority, installed, initial_armed, row):
     for record in receipt.get("raw_evidence", {}).values():
         bound_file(record)
     require(receipt.get("raw_evidence"), "recovery_raw_proof_missing")
+    require(set(receipt["raw_evidence"]) == {"facts"}, "recovery_raw_membership")
+    _raw_effects(authority, receipt, "REBOOT_VERIFIED", receipt["raw_evidence"]["facts"], {"raw_evidence"})
     return receipt
+
+
+def _raw_effects(authority, receipt, phase, row, record_fields):
+    raw = bound_json(row)
+    authority.validate_context(raw)
+    require(raw.get("schema") == "cortex.gate-a.run8.restoration-native.v2"
+            and raw.get("phase") == phase, "restoration_raw_schema")
+    expected = {k: v for k, v in receipt.items() if k not in {"schema", *authority.context, *record_fields}}
+    require(raw.get("facts") == expected, "restoration_raw_facts_disagree")

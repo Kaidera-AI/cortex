@@ -8,7 +8,7 @@ import time
 import uuid
 from types import SimpleNamespace
 
-from custody import actual_source_file, exclusive_json, parse_json, private_directory, public_data, require
+from custody import Refusal, actual_source_file, exclusive_json, parse_json, private_directory, public_data, require
 from payload import validate_literals
 
 
@@ -64,11 +64,12 @@ def execute(authority, store, role, actual_literals=None, *, runner=subprocess.r
     with store.locked():
         result, failure = _execute(authority, store, role, actual_literals, runner=runner,
                                    invocation_directory=invocation_directory)
+        if failure is not None:
+            # Commit STOP before releasing the effect's writer lock.
+            rows, _ = store.read()
+            if rows[-1]["phase"] != "FAILURE":
+                store.append_locked("FAILURE", failure)
     if failure is not None:
-        # Failed cleanup remains FAILURE and retains its invocation for retry.
-        rows, _ = store.read()
-        if rows[-1]["phase"] != "FAILURE":
-            store.append("FAILURE", failure)
         require(False, "checked_command_failed")
     return result
 
@@ -107,23 +108,28 @@ def _execute(authority, store, role, actual_literals, *, runner, invocation_dire
         receipt["failure_kind"] = failure_kind
     nonce = role + "-" + uuid.uuid4().hex
     # Only an explicit public JSON contract is exported. Raw streams stay private.
-    if result.returncode == 0 and result.stdout and spec.get("output_contract") == "native-facts-json-v2":
-        facts = parse_json(result.stdout)
-        authority.validate_context(facts)
-        require(facts.get("schema") == "cortex.gate-a.run8.native-facts.v2"
-                and facts.get("execution_scope") == "native"
-                and facts.get("from_phase") == phase
-                and facts.get("observation_predecessor") == records[-1]
-                and facts.get("input_digests") == spec["input_digests"], "command_public_output_binding")
-        require(set(facts) == set(authority.context) | {"schema", "execution_scope", "phase",
-                "from_phase", "observation_predecessor", "input_digests", "facts"},
-                "command_public_output_fields")
-        public_data(facts)
-        output_directory = directory / "public-output"
-        private_directory(output_directory, create=not output_directory.exists())
-        receipt["public_output"] = exclusive_json(output_directory / (nonce + ".json"), facts)
+    if result.returncode == 0 and spec.get("output_contract") == "native-facts-json-v2":
+        try:
+            require(result.stdout and len(result.stdout) <= 4 * 1024 * 1024, "command_public_output_missing")
+            facts = parse_json(result.stdout)
+            authority.validate_context(facts)
+            require(facts.get("schema") == "cortex.gate-a.run8.native-facts.v2"
+                    and facts.get("execution_scope") == "native"
+                    and facts.get("from_phase") == phase
+                    and facts.get("observation_predecessor") == records[-1]
+                    and facts.get("input_digests") == spec["input_digests"], "command_public_output_binding")
+            require(set(facts) == set(authority.context) | {"schema", "execution_scope", "phase",
+                    "from_phase", "observation_predecessor", "input_digests", "facts"},
+                    "command_public_output_fields")
+            public_data(facts)
+            output_directory = directory / "public-output"
+            private_directory(output_directory, create=not output_directory.exists())
+            receipt["public_output"] = exclusive_json(output_directory / (nonce + ".json"), facts)
+        except (Refusal, ValueError, TypeError, OSError):
+            # The effect already happened: retain its exit and typed proof failure.
+            receipt["failure_kind"] = "public_output_refused"
     invocation = exclusive_json(directory / (nonce + ".json"), receipt)
-    if result.returncode != 0:
+    if result.returncode != 0 or receipt.get("failure_kind"):
         allocated = next((r["payload"] for r in rows if r["phase"] == "ALLOCATED"), {})
         failure = {"failed_phase": phase, "refusal": "checked_command_failed",
                    "checked_invocation": invocation,

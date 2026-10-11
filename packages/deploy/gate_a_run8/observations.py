@@ -128,19 +128,28 @@ class ObservationStore:
 
     def append(self, phase, payload):
         with self.locked():
-            rows, records = self.read()
-            require(phase in allowed_next(rows), "observation_phase_transition")
-            validate_payload(phase, payload, rows)
-            sequence = len(rows) + 1
-            event = {"schema": "cortex.gate-a.run8.observation.v2", **self.authority.context,
-                     "sequence": sequence, "phase": phase,
-                     "previous_receipt_sha256": records[-1]["sha256"] if records else None,
-                     "observed_at_unix": time.time(), "payload": payload}
-            record = exclusive_json(self.directory / f"{sequence:04d}-event.json", event)
-            exclusive_json(self.directory / f"{sequence:04d}-prefix.json", {
-                "schema": "cortex.gate-a.run8.prefix.v2", **self.authority.context,
-                "events": [*records, record]})
-            return record
+            return self.append_locked(phase, payload)
+
+    def append_locked(self, phase, payload):
+        """Caller must hold locked() across admission, effect and commit."""
+        rows, records = self.read()
+        require(phase in allowed_next(rows), "observation_phase_transition")
+        validate_payload(phase, payload, rows)
+        sequence = len(rows) + 1
+        event = {"schema": "cortex.gate-a.run8.observation.v2", **self.authority.context,
+                 "sequence": sequence, "phase": phase,
+                 "previous_receipt_sha256": records[-1]["sha256"] if records else None,
+                 "observed_at_unix": time.time(), "payload": payload}
+        record = exclusive_json(self.directory / f"{sequence:04d}-event.json", event)
+        exclusive_json(self.directory / f"{sequence:04d}-prefix.json", {
+            "schema": "cortex.gate-a.run8.prefix.v2", **self.authority.context,
+            "events": [*records, record]})
+        return record
+
+    def current(self, expected):
+        rows, _ = self.read()
+        require(rows and rows[-1]["phase"] == expected, "workflow_current_phase")
+        return rows[-1]["payload"]
 
     def phase(self, name):
         rows, _ = self.read()

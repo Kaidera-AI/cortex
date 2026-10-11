@@ -38,6 +38,7 @@ def command(authority, install_row):
     bound_file({"path": str(module), "bytes": K["managed_appdb"]["bytes"], "sha256": K["managed_appdb"]["sha256"]})
     config = physical(Path(R["data_root"]) / "secrets")
     require(config.is_dir() and config.stat().st_uid == os.getuid(), "kos_config_owner")
+    require(config.stat().st_mode & 0o777 == 0o700, "kos_config_private_mode")
     return [str(python), str(script), "doctor"], config, app["port"]
 
 
