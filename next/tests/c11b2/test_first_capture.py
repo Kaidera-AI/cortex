@@ -65,6 +65,52 @@ ALTER FUNCTION auth.cxgap2ai_test_scope() OWNER TO "kaidera-runtime-core-verifie
 REVOKE ALL ON FUNCTION auth.cxgap2ai_test_scope() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION auth.cxgap2ai_test_scope() TO "kaidera-runtime-core-installer";
 """
+MALFORMED_PROBE_SQL = """
+CREATE FUNCTION auth.cxgap2ai_test_malformed(p_audit jsonb,p_kind text,p_target uuid)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE payload uuid:=gen_random_uuid(); body bytea;
+BEGIN
+    INSERT INTO auth.principals(tenant_id,id,name,kind,identity_adopted)
+      VALUES('00000000-0000-4000-8000-000000000002',
+             '00000000-0000-4000-8000-000000000070','fixture-malformed','human',true);
+    INSERT INTO auth.project_grants(tenant_id,project_id,principal_id,permissions,roles)
+      VALUES('00000000-0000-4000-8000-000000000002',
+             '00000000-0000-4000-8000-000000000003',
+             '00000000-0000-4000-8000-000000000070',
+             ARRAY['read','write'],ARRAY[]::text[]);
+    INSERT INTO auth.credentials(tenant_id,id,principal_id,key_digest)
+      VALUES('00000000-0000-4000-8000-000000000002',
+             '00000000-0000-4000-8000-000000000170',
+             '00000000-0000-4000-8000-000000000070',
+             'f9e37e8f7ec1db48783c4e1d32ae77af18d0964db56a388737f97e5164fd0eaa');
+    INSERT INTO auth.first_identity_receipts(
+      installation_id,tenant_id,project_id,principal_id,credential_id,key_digest,request_key)
+      VALUES('00000000-0000-4000-8000-000000000001',
+             '00000000-0000-4000-8000-000000000002',
+             '00000000-0000-4000-8000-000000000003',
+             '00000000-0000-4000-8000-000000000070',
+             '00000000-0000-4000-8000-000000000170',
+             'f9e37e8f7ec1db48783c4e1d32ae77af18d0964db56a388737f97e5164fd0eaa',
+             'fixture-malformed');
+    body:=convert_to(p_audit::text,'UTF8');
+    INSERT INTO core.payloads(tenant_id,project_id,id,body,sha256)
+      VALUES('00000000-0000-4000-8000-000000000002',
+             '00000000-0000-4000-8000-000000000003',payload,body,
+             encode(sha256(body),'hex'));
+    RETURN coordination.c06_fact(p_kind,p_target,payload);
+END;
+$$;
+ALTER FUNCTION auth.cxgap2ai_test_malformed(jsonb,text,uuid)
+    OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION auth.cxgap2ai_test_malformed(jsonb,text,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth.cxgap2ai_test_malformed(jsonb,text,uuid)
+    TO "kaidera-runtime-core-installer";
+"""
+
+
+class _Rollback(Exception):
+    """Discard each malformed fixture attempt, including a wrongly accepted one."""
 
 
 class FirstCapture(Fixture):
@@ -213,4 +259,54 @@ class FirstCapture(Fixture):
             (uid(1), uid(2), uid(3), uid(70), uid(170), DIGEST, 'fixture-prior'))
         with self.connection() as db:
             self.assertIsNone(db.execute('SELECT auth.cxgap2ai_test_scope()').fetchone()[0])
+
+    def malformed(self, audit, kind='identity', target=70):
+        result = None
+        with self.connection() as db:
+            try:
+                with db.transaction():
+                    try:
+                        event = db.execute('SELECT auth.cxgap2ai_test_malformed(%s::jsonb,%s,%s)',
+                            (json.dumps(audit), kind, uid(target) if target is not None else None)).fetchone()[0]
+                        result = ('ok', event)
+                    except psycopg.Error as error:
+                        result = ('error', error.diag.message_primary)
+                    raise _Rollback
+            except _Rollback:
+                pass
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM core.records '
+            "WHERE tenant_id=%s AND kind='core.identity'", (uid(2),)).fetchone()[0], 0)
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM core.record_aliases '
+            "WHERE tenant_id=%s AND source_namespace='cortex.core.identity'",
+            (uid(2),)).fetchone()[0], 0)
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM core.record_revisions r '
+            'JOIN core.records h ON (h.tenant_id,h.project_id,h.id)='
+            '(r.tenant_id,r.project_id,r.record_id) '
+            "WHERE r.tenant_id=%s AND h.kind='core.identity'", (uid(2),)).fetchone()[0], 0)
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM coordination.outbox '
+            'WHERE tenant_id=%s', (uid(2),)).fetchone()[0], 0)
+        return result
+
+    def test_each_required_audit_key_missing_or_json_null_refuses(self):
+        self.gate()
+        self.admin.execute(MALFORMED_PROBE_SQL, prepare=False)
+        audit = {'actor_kind': 'installer', 'actor': INSTALLER,
+                 'operation': 'first_identity', 'principal_id': uid(70)}
+        for key in audit:
+            for replacement in ('missing', 'json-null'):
+                with self.subTest(key=key, replacement=replacement):
+                    malformed = dict(audit)
+                    if replacement == 'missing':
+                        del malformed[key]
+                    else:
+                        malformed[key] = None
+                    self.assertEqual(self.malformed(malformed), ('error', 'outbox_forbidden'))
+
+    def test_null_fact_kind_and_target_refuse_at_c06_fact(self):
+        self.gate()
+        self.admin.execute(MALFORMED_PROBE_SQL, prepare=False)
+        audit = {'actor_kind': 'installer', 'actor': INSTALLER,
+                 'operation': 'first_identity', 'principal_id': uid(70)}
+        self.assertEqual(self.malformed(audit, kind=None), ('error', 'outbox_forbidden'))
+        self.assertEqual(self.malformed(audit, target=None), ('error', 'outbox_forbidden'))
 
