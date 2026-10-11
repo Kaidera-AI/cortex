@@ -111,19 +111,31 @@ class StagingMutations(unittest.TestCase):
                 inputs.materialize(verified, reader, p / "clone")
             self.assertFalse((p / "clone").exists())
 
+
 class AdmissionBeforeStage(unittest.TestCase):
     def test_rehashed_changed_input_cannot_create_clone_under_original_policy(self):
         value, data = fixture.build_input()
-        policy = {'input_sha256':sha256(canonical_bytes(value)), 'policy_sha256':'e'*64, 'qualification_scope':'fixture'}
+        policy = {
+            "input_sha256": sha256(canonical_bytes(value)),
+            "policy_sha256": "e" * 64,
+            "qualification_scope": "fixture",
+        }
         with tempfile.TemporaryDirectory() as t:
-            for kind in ['inventory', 'recipe', 'platform', 'mode']:
+            for kind in ["inventory", "recipe", "platform", "mode"]:
                 import copy
+
                 changed = copy.deepcopy(value)
-                if kind == 'inventory': changed['source']['inventory'] = []
-                elif kind == 'recipe': changed['recipe']['recipe_id'] = 'foreign'
-                elif kind == 'platform': changed['target']['oci_platform'] = 'linux/arm64'
-                else: changed['source']['inventory'][0]['mode'] = 0o777
-                destination = Path(t)/kind
+                if kind == "inventory":
+                    changed["source"]["inventory"] = []
+                elif kind == "recipe":
+                    changed["recipe"]["recipe_id"] = "foreign"
+                elif kind == "platform":
+                    changed["target"]["oci_platform"] = "linux/arm64"
+                else:
+                    changed["source"]["inventory"][0]["mode"] = 0o777
+                destination = Path(t) / kind
                 with self.subTest(kind=kind), self.assertRaises(ValueError):
-                    inputs.prepare(canonical_bytes(changed), data.__getitem__, policy, destination)
+                    inputs.prepare(
+                        canonical_bytes(changed), data.__getitem__, policy, destination
+                    )
                 self.assertFalse(destination.exists())

@@ -166,3 +166,9 @@ def materialize(verified, reader, destination):
     if reader.inventory(context) != source_names:
         raise ValueError("complete source inventory changed during materialization")
     return destination
+
+
+def prepare(raw, input_reader, accepted_policy, destination):
+    """Admission precedes any clone creation; no builder is invoked here."""
+    verified = admit(raw, input_reader, accepted_policy)
+    return verified, materialize(verified, input_reader, destination)
