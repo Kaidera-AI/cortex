@@ -88,3 +88,13 @@ class ConstantMutation(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             audit.audit_cache(raw, source, filename)
+
+class SignedZeroMutation(unittest.TestCase):
+    def test_float_sign_body_mutation_refuses_even_when_python_values_compare_equal(self):
+        source = b'VALUE = 0.0\n'
+        filename = '/app/module.py'
+        code = compile(source, filename, 'exec')
+        mutant = code.replace(co_consts=tuple(-0.0 if type(value) is float else value for value in code.co_consts))
+        raw = importlib.util.MAGIC_NUMBER + struct.pack('<I', 3) + importlib.util.source_hash(source) + marshal.dumps(mutant)
+        with self.assertRaises(ValueError):
+            audit.audit_cache(raw, source, filename)
