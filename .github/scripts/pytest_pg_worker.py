@@ -58,6 +58,7 @@ class OutcomeGate:
         complete = set(self.items) == self.passed | self.failed and bool(self.items)
         ok = complete and not self.skipped and not self.deselected
         ok &= len(self.failed) == self.expected_failures and self.failed == body_failures
+        ok &= all(row["phase"] == "call" for row in self.reports if row["outcome"] == "failed")
         ok &= int(exitstatus) == (1 if self.expected_failures else 0)
         ok &= self.expected_selected is None or len(self.items) == self.expected_selected
         session.exitstatus = 0 if ok else 1
@@ -78,6 +79,24 @@ def pytest_worker(args):
         "--basetemp=/tmp/" + args.report.stem,
         *[str(TESTS / target) for target in args.targets],
     ], plugins=[gate]))
+
+
+def runtime_contract(output):
+    assert os.getuid() == os.getgid() == 10001
+    status = dict(line.split(":", 1) for line in Path("/proc/self/status").read_text().splitlines() if ":" in line)
+    assert int(status["CapEff"].strip(), 16) == 0
+    assert status["NoNewPrivs"].strip() == "1"
+    root_options = next(line.split()[3].split(",") for line in Path("/proc/mounts").read_text().splitlines() if line.split()[1] == "/")
+    assert "ro" in root_options
+    cg = Path("/sys/fs/cgroup")
+    limits = {name: (cg / name).read_text().strip() for name in ["memory.max", "memory.swap.max", "cpu.max"]}
+    assert limits["memory.max"] == str(768 * 1024 ** 2)
+    assert limits["memory.swap.max"] == "0"
+    quota, period = map(int, limits["cpu.max"].split())
+    assert quota / period == 1.5
+    (output / "runtime-contract.json").write_text(json.dumps({"uid": os.getuid(), "gid": os.getgid(),
+        "cap_eff": status["CapEff"].strip(), "no_new_privs": 1, "root_options": root_options,
+        "limits": limits, "python": sys.version}, indent=2) + "\n")
 
 
 async def database_snapshot(dsn):
@@ -126,6 +145,7 @@ async def provision_marker_and_api_project(project):
 
 def general(output):
     output.mkdir(parents=True, exist_ok=True)
+    runtime_contract(output)
     environment = dict(os.environ)
     api_project = os.environ["CORTEX_CI_API_PROJECT"]
     rls_project = os.environ["CORTEX_CI_RLS_PROJECT"]
@@ -229,6 +249,7 @@ def general(output):
 
 def certificate(output):
     output.mkdir(parents=True, exist_ok=True)
+    runtime_contract(output)
     report = output / "certificates.json"
     result = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--pytest-worker",
                              "--report", str(report), "--expected-failures", "0", "--",

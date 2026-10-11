@@ -40,6 +40,7 @@ def checks(output):
         "collection-error": ("def test_ok(): pass\n", ["--continue-on-collection-errors", "test_broken.py"], 1, 0, 1),
         "setup-error": ("import pytest\n@pytest.fixture\ndef bad(): raise RuntimeError('control')\ndef test_bad(bad): pass\n", [], 1, 0, 1),
         "teardown-error": ("import pytest\n@pytest.fixture\ndef bad():\n yield\n raise RuntimeError('control')\ndef test_bad(bad): pass\n", [], 1, 0, 1),
+        "body-red-plus-teardown-error": ("import pytest\n@pytest.fixture\ndef bad():\n yield\n raise RuntimeError('control')\ndef test_bad(bad): assert False\n", [], 1, 1, 1),
     }
     receipts = []
     with tempfile.TemporaryDirectory(prefix="cortex-pg-gate-") as directory:
@@ -60,7 +61,7 @@ def checks(output):
             receipts.append({"name": name, "expected": expected, "actual": result.returncode})
     (output / "gate-controls.json").write_text(json.dumps(receipts, indent=2) + "\n")
     assert all(row["expected"] == row["actual"] for row in receipts), receipts
-    print("nine real pytest gate controls and ownership/Podman 4.9 shapes passed")
+    print("ten real pytest gate controls and ownership/Podman 4.9 shapes passed")
 
 
 if __name__ == "__main__":

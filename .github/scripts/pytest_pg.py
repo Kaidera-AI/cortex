@@ -199,7 +199,12 @@ class Fixture:
         self.command(["pod", "create", "--name", self.pod, "--network=none", "--hostname=cortex-pg",
                       "--add-host=cortex-pg:127.0.0.1", "--memory=1g", "--memory-swap=1g", "--cpus=2",
                       "--infra-image", PAUSE, "--infra-command=/pause", *self.labels()])
-        self.owned("pod", self.pod)
+        pod = self.owned("pod", self.pod)
+        assert not pod["InfraConfig"]["HostNetwork"] and not pod["InfraConfig"]["PortBindings"]
+        infra = self.owned("container", pod["InfraContainerID"])
+        assert infra["Config"]["User"] == "65535:65535"
+        self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "infra_id": infra["Id"],
+            "infra_user": infra["Config"]["User"], "host_network": False, "ports": {}, "labels": pod["Labels"]})
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
         self.deps = self.volume(pass_name + "-deps", 10001)
         results = self.output / pass_name
