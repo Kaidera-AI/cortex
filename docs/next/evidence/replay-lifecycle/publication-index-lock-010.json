@@ -1,0 +1,397 @@
+{
+  "kind": "PR40 REPLAY-LOCK-002 publication index010",
+  "tested_source_commit": "515b756aaf5e309040f74079d316587a5f496f2d",
+  "old_index": "publication-index-lock-009.json (historical exact prior repair)",
+  "members": {
+    "docs/next/evidence/replay-lifecycle/accepted-pattern-binding.json": {
+      "sha256": "0fddfcc5263e64f9bef4a82c8b2e486fb1f859fca965ff63ab8afd0f4a8af3ad",
+      "bytes": 416,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/accepted-pattern-binding.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03-final-green.json": {
+      "sha256": "668ac3df027eb0c1df3227e52efe638d5bb5e7fc0c6eed88a5667af9075912ad",
+      "bytes": 898,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/c03-final-green.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03-green.json": {
+      "sha256": "a5882358870dda36d8cb31675e706cce1a24be175b77c9ee77f97b02ebd762a4",
+      "bytes": 394,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/c03-green.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03-merged-ci.json": {
+      "sha256": "234f10b169a09512cb431d1871c2b52699c80ad0e3eb5c314513bb29c04ab665",
+      "bytes": 186,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/c03-merged-ci.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03-red.json": {
+      "sha256": "ae6b28926f1b2fdb153bcc6c3db6a5ab9c66878504f5e6574d6256de0b74e88a",
+      "bytes": 1673,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/c03-red.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03/lifecycle-container-fault-attempt-002.json": {
+      "sha256": "813791b67a832d988706f2dc1761940064ecc3545cfc73a7a1109e557d4bbd57",
+      "bytes": 43075,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/lifecycle-container-fault-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03/lifecycle-pod-fault-attempt-002.json": {
+      "sha256": "061a1a106ce1fdc54bd2ed9bd7123c9ca42d98b125622bd7ee2234fd96d0c382",
+      "bytes": 20887,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/lifecycle-pod-fault-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03/merge-green-attempt-002.json": {
+      "sha256": "692985dbc12501221428ca17dbc00d71bce5ad2de9b30237cd1be3ee1b783083",
+      "bytes": 274608,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-green-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03/merge-green.json": {
+      "sha256": "d570af5db27fc0108c40962b798984a56420645afa8423735c83f5d50102354d",
+      "bytes": 265893,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-green.json"
+    },
+    "docs/next/evidence/replay-lifecycle/c03/merge-integrity.json": {
+      "sha256": "040b626cc1d99140a3004a9c457fab350a4b066b0dd7e0c10aa65e36e122c522",
+      "bytes": 6471,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c03-adoption/merge-integrity.json"
+    },
+    "docs/next/evidence/replay-lifecycle/fake_engine.py": {
+      "sha256": "396d6eb979efaa94f1cd7c9b590a289825168ddbbf23cc306d5d2203fbd1d295",
+      "bytes": 2434,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/fake_engine.py"
+    },
+    "docs/next/evidence/replay-lifecycle/folder-fitness.json": {
+      "sha256": "25ade33deb0219127683a196cf4b4c57abf51296150102ea4c67941520654b1d",
+      "bytes": 478,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/folder-fitness.json"
+    },
+    "docs/next/evidence/replay-lifecycle/graph-final-green.json": {
+      "sha256": "c20a38574b58c80922216599e9c9943f16207e2c304c7037cb5f7afe4af7c2ae",
+      "bytes": 900,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/graph-final-green.json"
+    },
+    "docs/next/evidence/replay-lifecycle/graph-green.json": {
+      "sha256": "16e58950d58133acc4be9602f97244105133ebda74a3bf3d96a5d6ce1a2270e2",
+      "bytes": 396,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/graph-green.json"
+    },
+    "docs/next/evidence/replay-lifecycle/graph-red.json": {
+      "sha256": "ac4394f51ed8ad69b33893ddf61ef3eac624220e35893bc20d6e7f5e859beabe",
+      "bytes": 1720,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/graph-red.json"
+    },
+    "docs/next/evidence/replay-lifecycle/graph/lifecycle-container-fault-attempt-002.json": {
+      "sha256": "dcc5f01386a78a113a0df4670b6ce1454701ab6b2aa83facf53fad6616b3a483",
+      "bytes": 20872,
+      "canonical_root": "output/Cortex/design55-r426/2026-10-10/graph-cleanup/lifecycle-container-fault-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/graph/lifecycle-green-attempt-002.json": {
+      "sha256": "46314bb23372e3cb02dc4764093c2cee33bbb629d31186a664c502dcc2982db5",
+      "bytes": 66768,
+      "canonical_root": "output/Cortex/design55-r426/2026-10-10/graph-cleanup/lifecycle-green-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-001.json": {
+      "sha256": "3e642d2032a650d9b813e889b516d960611681c3008f38e31e80bf98301673e5",
+      "bytes": 49950,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-001.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-002.json": {
+      "sha256": "bbc3afaaa27505d6d5a82dad3087e91f58dfed11e86e231fa6b76752b3e8d404",
+      "bytes": 416730,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-003.json": {
+      "sha256": "c9bdec20331e46c25db2490cfb09437ef87b9ecf5164a5e95c63074ee4cc18c0",
+      "bytes": 438112,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-003.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-004.json": {
+      "sha256": "27f8ea0c9f8f40a986f1d4e03420123ea0234bf3f1b804ee678b31c3a1491dcd",
+      "bytes": 68721,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-004.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-005.json": {
+      "sha256": "235c00ebfa032a5ee9e2dcd9c8251bf9f6f429623e70bf8f52a2d6d632e1a00f",
+      "bytes": 439752,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-005.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-006.json": {
+      "sha256": "6155b1db18c25cb47482c1b9a059e04bf19e0d9b957ec85f74b76954164674fd",
+      "bytes": 439756,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-006.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-007.json": {
+      "sha256": "9e62e69cee61faf61f42528ba26ad8a8ae81ba3feaeff30a3da580881c990e7b",
+      "bytes": 439756,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-007.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-attempt-008.json": {
+      "sha256": "19aeed3d498f6b7f5d1c3a21217852e5d64d351b46696105f5aa2d61c0da88bf",
+      "bytes": 439754,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-008.json"
+    },
+    "docs/next/evidence/replay-lifecycle/green-controller-guards.json": {
+      "sha256": "ac9c38652af34bb83bb3a7da8d7aba3f3237bb4ccbc01002e3b5d4d2e7e41ea8",
+      "bytes": 33378,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-controller-guards.json"
+    },
+    "docs/next/evidence/replay-lifecycle/held-scope-index.json": {
+      "sha256": "b1c92c8202196dbd2e3c0a931eb557ba7e18252a92839b9fb28cffa72094258f",
+      "bytes": 1453,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/held-scope-index.json"
+    },
+    "docs/next/evidence/replay-lifecycle/integrity-final.json": {
+      "sha256": "6f59ca4b45bcc54da773483fdb41f24d9065f23ed966bc81e57957b9dd11f18b",
+      "bytes": 2933,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/integrity-final.json"
+    },
+    "docs/next/evidence/replay-lifecycle/integrity-lock-001.json": {
+      "sha256": "a7bb33191e54f1fb56a24faf62cd51fa0435cc320086bbee7fd6b349bf80d563",
+      "bytes": 1622,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/integrity-lock-001.json"
+    },
+    "docs/next/evidence/replay-lifecycle/integrity-lock-002.json": {
+      "sha256": "63319b9fac8b139a73ff6896dfaedeeb4030184e88322b76b7868fdfdd02f65e",
+      "bytes": 3459,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/integrity-lock-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/integrity-lock-final.json": {
+      "sha256": "d5d308ce84adc7957636736e028fbd5a114a5739eb5a4092108a7c9a25299c69",
+      "bytes": 2003,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/integrity-lock-final.json"
+    },
+    "docs/next/evidence/replay-lifecycle/integrity.json": {
+      "sha256": "7994d618a079f879a9151f910b87fcc77c2c802d9823193bb53b0be9f03987bf",
+      "bytes": 3522,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/integrity.json"
+    },
+    "docs/next/evidence/replay-lifecycle/internal-verifier-final.json": {
+      "sha256": "9011c860a471b48e75ee5572d49b344b7f879824b471014ed7e5003cea00190c",
+      "bytes": 33508,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/internal-verifier-final.json"
+    },
+    "docs/next/evidence/replay-lifecycle/internal-verifier-integration-008.json": {
+      "sha256": "dff660c00b1df0fcaaa5d13ac3ea8653801848cc49f1ad4592e65deed6d6ed2d",
+      "bytes": 12501,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/internal-verifier-integration-008.json"
+    },
+    "docs/next/evidence/replay-lifecycle/internal-verifier-lock-final.json": {
+      "sha256": "4b3c05fd2908a203968be86202ac2f0371026023ca5bfb01b55b4c84b2082134",
+      "bytes": 6068,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/internal-verifier-lock-final.json"
+    },
+    "docs/next/evidence/replay-lifecycle/internal-verifier-lock-rework.json": {
+      "sha256": "aa495c77c59054588eb4e4eb200754511e1c427d0aeba6f4c4d1d3b1d61d611e",
+      "bytes": 4672,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/internal-verifier-lock-rework.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-green-001.json": {
+      "sha256": "c605d6014e5613f528c228fb7252cd3b3939baa1f0bdd840cebc008d91c21e6f",
+      "bytes": 77572,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-green-001.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-green-002.json": {
+      "sha256": "9e0fccbd8b24783e47900bb94eeced4d19a7999ee7d49170a366b4a3d361643a",
+      "bytes": 78086,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-green-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-green-003.json": {
+      "sha256": "9c4ddf81b1e2612ef1e2f6fa6f57e7d3eadf8544c5ad68680d79bd2b75440cc9",
+      "bytes": 77585,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-green-003.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-mutant-001.json": {
+      "sha256": "79b3521ac8d682a72f0f3b5f7f28b4edf396f4b5291eb670b46db2503cbf7f94",
+      "bytes": 142268,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-mutant-001.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-mutant-002.json": {
+      "sha256": "775af2b7bb2608356592c8ef6fc563e87e0f4199e6d9c1940595ed165c16b548",
+      "bytes": 246166,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-mutant-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-mutant-003.json": {
+      "sha256": "0802d560cc78f73246c9f67353365ec7a940e0195a9de05f58ad5c49eeec5e18",
+      "bytes": 180093,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-mutant-003.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-red-001.json": {
+      "sha256": "ba2dfb88c648e85a4070c1a304ad67ec018744156297b98aadc1c7ea5d1e7664",
+      "bytes": 74446,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-red-001.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-red-002.json": {
+      "sha256": "589e2bae92cf56e78fd10a68d3bdbd1ea1c807fad84952e93e3b7abf1a0ce05d",
+      "bytes": 78702,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-red-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-red-003.json": {
+      "sha256": "3399edf8ff2c70e5c140801c505d24d3822bb90163b29967e6af043a6efc0d37",
+      "bytes": 79949,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-red-003.json"
+    },
+    "docs/next/evidence/replay-lifecycle/lock-red-004.json": {
+      "sha256": "8733b9c15aa1de7998a6239701ab67862876c31e22f984d04c3be278378b281b",
+      "bytes": 78722,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/lock-red-004.json"
+    },
+    "docs/next/evidence/replay-lifecycle/native-final-step-001.json": {
+      "sha256": "c9034ed7b1415255b0b97abf10c03374625d1bc9a38b8848025f0fca144b4ad1",
+      "bytes": 5936,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-001.json"
+    },
+    "docs/next/evidence/replay-lifecycle/native-final-step-002.json": {
+      "sha256": "879fc956df932336d39a1b9ffc316d0eb4b6286899a0f3ca84239af87f535934",
+      "bytes": 15710,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/native-final-step-003.json": {
+      "sha256": "813ec1116382c8bef0b6571f64569ad2b2ccf5c841c42c7de73ce732de9dbcb7",
+      "bytes": 6666,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-003.json"
+    },
+    "docs/next/evidence/replay-lifecycle/native-final-step-004.json": {
+      "sha256": "a6f2d6950038e3ac5dfe2445cb7cceb2a907fde38ec75f90ddf035bb3da06f14",
+      "bytes": 30919,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-004.json"
+    },
+    "docs/next/evidence/replay-lifecycle/native-final-step-005.json": {
+      "sha256": "cab4ec8db873cd293bfa5f726e43f8320ac292d165f11e0454bde0b2a93a9c5c",
+      "bytes": 51862,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/native-final-step-005.json"
+    },
+    "docs/next/evidence/replay-lifecycle/old-run-adoption.py": {
+      "sha256": "d350f436ce738955bee2e1eb9f910492eb35237df52d9447d252e9692531db2d",
+      "bytes": 6473,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/old-run-adoption.py"
+    },
+    "docs/next/evidence/replay-lifecycle/old-run-graph.py": {
+      "sha256": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+      "bytes": 10601,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/old-run-graph.py"
+    },
+    "docs/next/evidence/replay-lifecycle/publication-index-008.json": {
+      "sha256": "aaa267e7a2d0a1f091f32a50a196f2346705fa93de1df3b8b2c9e6bcbc74fd94",
+      "bytes": 16687,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/publication-index-008.json"
+    },
+    "docs/next/evidence/replay-lifecycle/publication-index.json": {
+      "sha256": "4df109d368ead2f152fdcb25525b231c71af35c6fb8821f8e57241b5f49e2178",
+      "bytes": 9643,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/publication-index.json"
+    },
+    "docs/next/evidence/replay-lifecycle/red-attempt-002.json": {
+      "sha256": "f29ec556f444942a7731ebf11b9013935888c08ef743acf2c7dcb6f9c13f8df5",
+      "bytes": 44575,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red-attempt-002.json"
+    },
+    "docs/next/evidence/replay-lifecycle/red-controller-guards.json": {
+      "sha256": "e17b7b866548f3e8527a20e4b705c2e409d313fc1e6db7b9045c7b1fbad73aae",
+      "bytes": 88047,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red-controller-guards.json"
+    },
+    "docs/next/evidence/replay-lifecycle/red-final-inventory.json": {
+      "sha256": "4eab97474b70273b329c86d5735a38899940c0f4e9f8274fcdb95958816318c9",
+      "bytes": 39217,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red-final-inventory.json"
+    },
+    "docs/next/evidence/replay-lifecycle/red.json": {
+      "sha256": "808b15a2ba207c8be2d9b5e12548da3f816dc174562337b10c76d8c2ad58c652",
+      "bytes": 39027,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/red.json"
+    },
+    "docs/next/evidence/replay-lifecycle/replay-lock-plan.md": {
+      "sha256": "099a5bffabf3d6e76bf8fb13610ce03364d9a696200327e8f03d0bd8bab244a3",
+      "bytes": 4396,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/REPLAY_LOCK_REWORK_PLAN.md"
+    },
+    "docs/next/evidence/replay-lifecycle/replay-lock-reproduce.md": {
+      "sha256": "5c7b468f093818891c0447515d9ffe957e4915318bb20a16adb73ac6df2efb8e",
+      "bytes": 3108,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/replay-lock-reproduce.md"
+    },
+    "docs/next/evidence/replay-lifecycle/replay_lifecycle.py": {
+      "sha256": "514012d3c7b813762c905ca1065e0cab1ed3bd10dd9fe61b6970ec0b66a8e8e3",
+      "bytes": 13495,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/replay_lifecycle.py"
+    },
+    "docs/next/evidence/replay-lifecycle/reproduce.md": {
+      "sha256": "9826519db17d5caae094793e9cdd5ff76c34459e890ce968b45a810af65fffb1",
+      "bytes": 5139,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/reproduce.md"
+    },
+    "docs/next/evidence/replay-lifecycle/run-controller-guards.py": {
+      "sha256": "e942f3f6035e34d870f05da7f04dc42dcbb4de42b47b6d9ffbc98520a3c3f371",
+      "bytes": 3767,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/run-controller-guards.py"
+    },
+    "docs/next/evidence/replay-lifecycle/run-lock-002.py": {
+      "sha256": "8037453a53fabaf72b3900bddf1dde507cf51c7e33631bd8096ba99402ce72e7",
+      "bytes": 7115,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/run-lock-002.py"
+    },
+    "docs/next/evidence/replay-lifecycle/run-lock-barrier.py": {
+      "sha256": "f8f9be6b9990e307aff3aaec0e5b3d562c3bc2b70feeba176e775a90f4e81129",
+      "bytes": 8078,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/run-lock-barrier.py"
+    },
+    "docs/next/evidence/replay-lifecycle/run-safety-red-frozen.py": {
+      "sha256": "87628ef9decdc7c1643624d19dfa5f7c1641696645eca917ace52a3dcdc25a15",
+      "bytes": 3588,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/run-safety-red-frozen.py"
+    },
+    "docs/next/evidence/replay-lifecycle/run-safety.py": {
+      "sha256": "6dd971a45e99ef234adbe01a1f2f13ea5a9c1bd5a62c7ce3be74928c77748106",
+      "bytes": 7321,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/run-safety.py"
+    },
+    "docs/next/evidence/replay-lifecycle/safe-run-adoption.py": {
+      "sha256": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+      "bytes": 8737,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/safe-run-adoption.py"
+    },
+    "docs/next/evidence/replay-lifecycle/safe-run-graph.py": {
+      "sha256": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+      "bytes": 11108,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/safe-run-graph.py"
+    },
+    "docs/next/evidence/replay-lifecycle/target-integration-008.json": {
+      "sha256": "d1ad46108add0ab69db13e47596c832596bb8db011acb2d5cdb16e451ad335f2",
+      "bytes": 469,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/target-integration-008.json"
+    },
+    "docs/next/evidence/replay-lifecycle/target-integration.json": {
+      "sha256": "160b50b1a62ec355d122c5e0cc6e3933c030e88fb2000d55159a0851e93bc172",
+      "bytes": 418,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/target-integration.json"
+    },
+    "docs/next/evidence/replay-lifecycle/test_controller_guards.py": {
+      "sha256": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+      "bytes": 4372,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/test_controller_guards.py"
+    },
+    "docs/next/evidence/replay-lifecycle/test_final_inventory.py": {
+      "sha256": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b",
+      "bytes": 2948,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/test_final_inventory.py"
+    },
+    "docs/next/evidence/replay-lifecycle/test_lifecycle_pattern.py": {
+      "sha256": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+      "bytes": 5682,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/test_lifecycle_pattern.py"
+    },
+    "docs/next/evidence/replay-lifecycle/test_lock_barrier.py": {
+      "sha256": "099d179d0459605aa8608b544cbba711a3eb68d131d7ccc39b91aa61954c9caf",
+      "bytes": 7024,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/test_lock_barrier.py"
+    },
+    "docs/next/evidence/replay-lifecycle/test_producer_lifecycle.py": {
+      "sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+      "bytes": 4953,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/test_producer_lifecycle.py"
+    },
+    "docs/next/evidence/replay-lifecycle/verify-publication-lock.py": {
+      "sha256": "39dbe1f758c504298036be434078b3da904cf3a6095e5c7172645eeb3009922d",
+      "bytes": 870,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/verify-publication-lock.py"
+    }
+  }
+}

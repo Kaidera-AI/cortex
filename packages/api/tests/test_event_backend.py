@@ -11,7 +11,7 @@ API_MAIN_PATH = Path(__file__).resolve().parents[1] / "main.py"
 TEST_ADMIN_TOKEN = "test-admin-token"
 MIGRATION_PATH = (
     Path(__file__).resolve().parents[2]
-    / "data"
+    / "schema"
     / "migrations"
     / "2026-05-16-team-events-hardening.sql"
 )

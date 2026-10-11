@@ -1,0 +1,50 @@
+{
+  "kind": "replay_lock_final_integrity",
+  "tested_source_commit": "55001797ec738571870d31c26fedc693986aa5fe",
+  "pinned_base": "0028cc418d7e2920763e1f48ba98d803fd5370b5",
+  "source_sha256": {
+    "replay_lifecycle.py": "cf3a84a187c1f3d15861eaad755b5ce38099a935d446a537b27d4e21b2fdb310",
+    "test_lock_barrier.py": "7ef61253317e204da4a77b1c86db4292fa68b01a182528a23db0bdf36cea9864",
+    "run-lock-barrier.py": "f8f9be6b9990e307aff3aaec0e5b3d562c3bc2b70feeba176e775a90f4e81129"
+  },
+  "frozen_original_tests": {
+    "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+    "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+    "test_controller_guards.py": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+    "test_final_inventory.py": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b"
+  },
+  "raw_sha256": {
+    "lock-red-003": "3399edf8ff2c70e5c140801c505d24d3822bb90163b29967e6af043a6efc0d37",
+    "lock-green-002": "9e0fccbd8b24783e47900bb94eeced4d19a7999ee7d49170a366b4a3d361643a",
+    "lock-mutant-002": "775af2b7bb2608356592c8ef6fc563e87e0f4199e6d9c1940595ed165c16b548"
+  },
+  "red": {
+    "tests": 24,
+    "expected_body_failures": [
+      "test_lock_barrier.LockBarrier.test_dirty_owned_marker_requires_immutable_binding",
+      "test_lock_barrier.LockBarrier.test_renamed_bound_id_prevents_name_only_absence"
+    ],
+    "errors": 0
+  },
+  "green": {
+    "tests": 24,
+    "failures": 0,
+    "errors": 0
+  },
+  "mutation": {
+    "faults": 2,
+    "each_expected_body_assertion": true,
+    "restored_tests": 24
+  },
+  "native": {
+    "platform": "arm64 copied fixture",
+    "cpus": 2,
+    "memory": "1g",
+    "ports": [],
+    "bind_mounts": [],
+    "all_owned_cleanup_verified": true,
+    "host_dirty_marker_absent": true
+  },
+  "prior_rework_receipt": "aa495c77c59054588eb4e4eb200754511e1c427d0aeba6f4c4d1d3b1d61d611e",
+  "main_merge": "HELD; producer reuse held"
+}

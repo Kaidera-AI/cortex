@@ -1,0 +1,28 @@
+{
+  "authority": "Latest H-D45500:57 defers repair until Mike cleanup pattern accepted",
+  "status": "paused; no producer reuse",
+  "preserved_git": "fd727516cb48cee51585eebcc67037d5f994c7c9",
+  "c04_publication": "remove only duplicated off-slice docs, no canonical source/history loss",
+  "files": [
+    {
+      "product_path": "docs/next/evidence/replay-lifecycle/fake_engine.py",
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/fake_engine.py",
+      "sha256": "8ff0451e87302b161ab0eb56ea12f4b0be87dec42f09671db8049ca29f9263f8"
+    },
+    {
+      "product_path": "docs/next/evidence/replay-lifecycle/old-run-adoption.py",
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/old-run-adoption.py",
+      "sha256": "d350f436ce738955bee2e1eb9f910492eb35237df52d9447d252e9692531db2d"
+    },
+    {
+      "product_path": "docs/next/evidence/replay-lifecycle/old-run-graph.py",
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/old-run-graph.py",
+      "sha256": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9"
+    },
+    {
+      "product_path": "docs/next/evidence/replay-lifecycle/test_producer_lifecycle.py",
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/test_producer_lifecycle.py",
+      "sha256": "8c1db25dd6061527f2fa4bb6dd8030107c7eecfd751fb069b7fd98a8b1f58933"
+    }
+  ]
+}

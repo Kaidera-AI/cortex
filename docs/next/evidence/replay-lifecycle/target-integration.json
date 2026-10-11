@@ -1,0 +1,11 @@
+{
+  "tested_publication_base": "13aee2269d02edc862f8f379f831cc0cd07f5cf4",
+  "incorporated_main": "b3a241ab334839d308251f849426d413268fa769",
+  "receipt": "green-attempt-007.json",
+  "sha256": "9e62e69cee61faf61f42528ba26ad8a8ae81ba3feaeff30a3da580881c990e7b",
+  "full_suite": 21,
+  "actual_semantic_mutants": 4,
+  "restored_suite": 21,
+  "all_root_and_git_tool_hashes_match": true,
+  "owned_cleanup_verified": true
+}

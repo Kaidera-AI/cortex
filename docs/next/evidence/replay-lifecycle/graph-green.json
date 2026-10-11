@@ -1,0 +1,14 @@
+{
+  "aggregate_receipt": "green-attempt-002.json",
+  "aggregate_sha256": "bbc3afaaa27505d6d5a82dad3087e91f58dfed11e86e231fa6b76752b3e8d404",
+  "producer": "graph",
+  "producer_tests": 3,
+  "full_suite": {
+    "tests_run": 14,
+    "failures": [],
+    "errors": []
+  },
+  "container_removed": true,
+  "actual_semantic_mutants": 4,
+  "scope": "CLI safety only; application proof separately bound"
+}

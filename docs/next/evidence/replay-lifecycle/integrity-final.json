@@ -1,0 +1,75 @@
+{
+  "source_tip": "71d163b1c893f16c00080289025eaff19b5f7f7a",
+  "receipt": "green-attempt-005.json",
+  "receipt_sha256": "235c00ebfa032a5ee9e2dcd9c8251bf9f6f429623e70bf8f52a2d6d632e1a00f",
+  "source_sha256": {
+    "run-safety.py": "6dd971a45e99ef234adbe01a1f2f13ea5a9c1bd5a62c7ce3be74928c77748106",
+    "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+    "run-safety-red-frozen.py": "87628ef9decdc7c1643624d19dfa5f7c1641696645eca917ace52a3dcdc25a15",
+    "run-controller-guards.py": "e942f3f6035e34d870f05da7f04dc42dcbb4de42b47b6d9ffbc98520a3c3f371",
+    "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+    "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+    "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+    "safe-run-graph.py": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+    "fake_engine.py": "396d6eb979efaa94f1cd7c9b590a289825168ddbbf23cc306d5d2203fbd1d295",
+    "test_controller_guards.py": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+    "old-run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+    "old-run-adoption.py": "d350f436ce738955bee2e1eb9f910492eb35237df52d9447d252e9692531db2d",
+    "test_final_inventory.py": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b"
+  },
+  "frozen_tests": [
+    {
+      "file": "test_producer_lifecycle.py",
+      "frozen_commit": "1e7fd19",
+      "sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+      "unchanged": true
+    },
+    {
+      "file": "test_lifecycle_pattern.py",
+      "frozen_commit": "44fd45a",
+      "sha256": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+      "unchanged": true
+    },
+    {
+      "file": "test_controller_guards.py",
+      "frozen_commit": "39e1d5f",
+      "sha256": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+      "unchanged": true
+    },
+    {
+      "file": "test_final_inventory.py",
+      "frozen_commit": "e627ae7",
+      "sha256": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b",
+      "unchanged": true
+    }
+  ],
+  "mutants": [
+    {
+      "name": "pending-after-ack",
+      "expected_body_assertions": 3,
+      "errors": 0,
+      "recipe_hash_verified": true
+    },
+    {
+      "name": "foreign-nonce-ignored",
+      "expected_body_assertions": 2,
+      "errors": 0,
+      "recipe_hash_verified": true
+    },
+    {
+      "name": "remove-by-name",
+      "expected_body_assertions": 1,
+      "errors": 0,
+      "recipe_hash_verified": true
+    },
+    {
+      "name": "output-not-prepared",
+      "expected_body_assertions": 1,
+      "errors": 0,
+      "recipe_hash_verified": true
+    }
+  ],
+  "full_suite": 21,
+  "restored_suite": 21,
+  "cleanup_verified": true
+}

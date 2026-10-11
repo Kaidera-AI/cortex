@@ -1,0 +1,96 @@
+{
+  "kind": "replay_lock_002_source_integrity",
+  "tested_source_commit": "515b756aaf5e309040f74079d316587a5f496f2d",
+  "previous_published_head": "4f32c2c2e99be9791555fbdcae2fe7aa0360dbc3",
+  "source_sha256": {
+    "replay_lifecycle.py": "514012d3c7b813762c905ca1065e0cab1ed3bd10dd9fe61b6970ec0b66a8e8e3",
+    "test_lock_barrier.py": "099d179d0459605aa8608b544cbba711a3eb68d131d7ccc39b91aa61954c9caf",
+    "run-lock-002.py": "8037453a53fabaf72b3900bddf1dde507cf51c7e33631bd8096ba99402ce72e7"
+  },
+  "frozen_original_tests": {
+    "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+    "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+    "test_controller_guards.py": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+    "test_final_inventory.py": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b"
+  },
+  "phases": {
+    "lock-red-004": {
+      "raw_sha256": "8733b9c15aa1de7998a6239701ab67862876c31e22f984d04c3be278378b281b",
+      "observations": [
+        {
+          "tests": 25,
+          "failures": [
+            {
+              "id": "test_lock_barrier.LockBarrier.test_renamed_owned_id_with_foreign_original_name_blocks_admission",
+              "phase": "test",
+              "is_assertion": true
+            }
+          ],
+          "errors": 0
+        }
+      ],
+      "container_id": "70ebbbb1103547af88df32ff6b2a0cb7811aa76052b78c34eea3fec0ac28775c",
+      "cleanup_verified": true,
+      "mutations": []
+    },
+    "lock-green-003": {
+      "raw_sha256": "9c4ddf81b1e2612ef1e2f6fa6f57e7d3eadf8544c5ad68680d79bd2b75440cc9",
+      "observations": [
+        {
+          "tests": 25,
+          "failures": [],
+          "errors": 0
+        }
+      ],
+      "container_id": "8904e9335d31c8f01bfcc6d7e45dfc9e606900adc92462fa0a96089cf5ce91f4",
+      "cleanup_verified": true,
+      "mutations": []
+    },
+    "lock-mutant-003": {
+      "raw_sha256": "0802d560cc78f73246c9f67353365ec7a940e0195a9de05f58ad5c49eeec5e18",
+      "observations": [
+        {
+          "tests": 25,
+          "failures": [],
+          "errors": 0
+        },
+        {
+          "tests": 25,
+          "failures": [
+            {
+              "id": "test_lock_barrier.LockBarrier.test_renamed_owned_id_with_foreign_original_name_blocks_admission",
+              "phase": "test",
+              "is_assertion": true
+            }
+          ],
+          "errors": 0
+        },
+        {
+          "tests": 25,
+          "failures": [],
+          "errors": 0
+        }
+      ],
+      "container_id": "5b2844dbd6a5ff8a47bfaf16f622d3c8ed939c95efc42e25dee450d5afed4d22",
+      "cleanup_verified": true,
+      "mutations": [
+        {
+          "name": "foreign-name-bound-id-required",
+          "source_sha256": "514012d3c7b813762c905ca1065e0cab1ed3bd10dd9fe61b6970ec0b66a8e8e3",
+          "mutated_sha256": "fe6bdc97d72a7f0d0c62bf324c1236bab7ed131ffa2db0459b7b2d5bcddcc8e1",
+          "expected_body_assertion": "test_lock_barrier.LockBarrier.test_renamed_owned_id_with_foreign_original_name_blocks_admission"
+        }
+      ]
+    }
+  },
+  "native": {
+    "image": "sha256:b4600cb7d697d46d382b9581a7c52fa76f32d19536309c5096994757e62f3700",
+    "platform": "arm64 copied Python fixture",
+    "cpus": 2,
+    "memory": "1g",
+    "ports": [],
+    "bind_mounts": [],
+    "owned_cleanup_verified": true
+  },
+  "main_merge": "HELD; producer reuse held"
+}

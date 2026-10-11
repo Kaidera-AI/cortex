@@ -1,0 +1,14 @@
+{
+  "tested_sha": "ffb660ea35a46e75ebc1f1aa3ed1d0a2ae05e1f4",
+  "target_sha": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "receipt": "green-attempt-008.json",
+  "receipt_sha256": "19aeed3d498f6b7f5d1c3a21217852e5d64d351b46696105f5aa2d61c0da88bf",
+  "baseline_tests": 21,
+  "causal_mutants": 4,
+  "restored_tests": 21,
+  "source_tools_frozen_tests_match": true,
+  "cleanup_verified": true,
+  "pending": [],
+  "owned": [],
+  "no_off_slice_auth_runtime_changes": true
+}
