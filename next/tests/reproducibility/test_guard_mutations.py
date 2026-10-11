@@ -41,3 +41,23 @@ class Mutations(unittest.TestCase):
                 test_attempt_lessons.Attempts(test).run(result)
                 self.assertTrue(result.failures)
                 self.assertEqual(result.errors, [])
+
+
+class SharedGuardMutations(unittest.TestCase):
+    def test_actual_owner_operation_guard_removal_dies_at_original_assertion(self):
+        import test_shared_receipt_consumer
+        import cortex_core.release.receipts as owner
+
+        original = owner.require
+
+        def omit_operation(condition, reason):
+            if reason != "operation_raw_evidence":
+                original(condition, reason)
+
+        with patch.object(owner, "require", omit_operation):
+            result = unittest.TestResult()
+            test_shared_receipt_consumer.DecidingSharedGuards(
+                "test_changed_actual_argv_is_rejected_at_raw_operation_evidence"
+            ).run(result)
+        self.assertEqual(len(result.failures), 1)
+        self.assertEqual(result.errors, [])

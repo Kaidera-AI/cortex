@@ -19,6 +19,16 @@ def main(argv=None):
     write.add_argument("--layout", type=Path, required=True)
     write.add_argument("--output", type=Path, required=True)
     write.add_argument("--epoch", type=int, required=True)
+    prepare = commands.add_parser("prepare")
+    for flag in (
+        "input",
+        "input-sha256",
+        "input-root",
+        "policy",
+        "policy-record-sha256",
+        "output",
+    ):
+        prepare.add_argument("--" + flag, required=True)
     commands.add_parser("contract")
     args = parser.parse_args(argv)
     try:
@@ -37,6 +47,33 @@ def main(argv=None):
                 qualification_scope="fixture",
                 native_build_qualified=False,
             )
+        elif args.command == "prepare":
+            from cortex_core.cli.release import _document
+            from cortex_core.release.codec import decode_json
+            from cortex_core.release.inputs import parse_build_input
+            from .inputs import FilesystemReader, prepare
+
+            raw_input = _document(args.input, args.input_sha256, 1024 * 1024)
+            policy = decode_json(
+                _document(args.policy, args.policy_record_sha256, 1024 * 1024),
+                1024 * 1024,
+            )
+            if not isinstance(policy, dict):
+                raise ValueError("independently supplied policy object required")
+            parsed = parse_build_input(raw_input)
+            reader = FilesystemReader(
+                args.input_root, max_bytes=parsed["resources"]["memory_bytes"]
+            )
+            admitted, clone = prepare(raw_input, reader, policy, args.output)
+            result = {
+                "result": "PREPARED",
+                "input_sha256": admitted.input_sha256,
+                "qualification_scope": admitted.document["admission_policy"][
+                    "qualification_scope"
+                ],
+                "clone": str(clone),
+                "native_build_qualified": False,
+            }
         else:
             # Import only the real owner implementation; never invent its parser.
             from cortex_core.release.inputs import parse_build_input, admit_build_input
