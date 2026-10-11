@@ -62,7 +62,8 @@ class Fixture:
 
     def owned(self, kind, name):
         args = ["inspect", name] if kind == "container" else [kind, "inspect", name]
-        row = json.loads(self.command(args).stdout)[0]
+        inspected = json.loads(self.command(args).stdout)
+        row = inspected[0] if isinstance(inspected, list) else inspected
         labels = row.get("Labels", row.get("Spec", {}).get("Labels", row.get("Config", {}).get("Labels", {})))
         if labels.get(LABEL) != self.run_id:
             raise RuntimeError("ownership mismatch: " + kind + " " + name)
