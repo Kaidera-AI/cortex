@@ -80,6 +80,7 @@ PG_GRAPH_ROUTES = frozenset({"C01-R023", "C01-R024", "C01-R025", "C01-R026",
 RETIRED_SQL_ROUTES = frozenset({"C01-R125", "C01-R126"})
 D3_STATUS_ROUTES = frozenset({"C01-R006", "C01-R030", "C01-R072"})
 D3_CONTROL_ROUTES = frozenset({"C01-R073", "C01-R074"})
+INGEST_ROUTES = frozenset({"C01-R010", "C01-R011", "C01-R012"})
 D1_ROUTE = {"id": "C11-D1", "method": "GET", "path": "/records/{id}",
             "disposition": "add", "observed": False, "openkai_production": False,
             "effect": "read", "capability": None}
@@ -208,6 +209,37 @@ def _packet(code, *, capability=None, reason=None, retryable=True, message=None,
     if state is not None:
         error["state"] = state
     return {"error": error}
+
+
+def _canonical_uuid(value):
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(UUID(value)) == value
+    except (ValueError, TypeError):
+        return False
+
+
+def _ingest_ack_is_committed(value):
+    response = value.response
+    if (not isinstance(response, dict)
+            or set(response) != {'id', 'status', 'created', 'updated', 'embedded', 'receipt'}
+            or not _canonical_uuid(response['id'])
+            or response['status'] not in {'created', 'updated', 'unchanged'}
+            or type(response['created']) is not bool or type(response['updated']) is not bool
+            or response['created'] != (response['status'] == 'created')
+            or response['updated'] != (response['status'] == 'updated')
+            or response['embedded'] is not False):
+        return False
+    receipt = response['receipt']
+    if (not isinstance(receipt, dict)
+            or set(receipt) != {'record_id', 'revision', 'event_id'}
+            or receipt != value.receipt or receipt['record_id'] != response['id']
+            or type(receipt['revision']) is not int or receipt['revision'] < 1):
+        return False
+    event_id = receipt['event_id']
+    return (event_id is None if response['status'] == 'unchanged'
+            else _canonical_uuid(event_id))
 
 
 def _error_status(error):
@@ -430,7 +462,8 @@ class ConsumerGateway:
         handler = self.handlers.get(row["id"])
         if handler is None:
             return await _respond(send, 503, _packet("capability_unavailable",
-                                  reason="adapter_unbound"))
+                                  reason="adapter_unbound",
+                                  retryable=row['id'] not in INGEST_ROUTES))
         request_key = None
         if row["effect"] == "write":
             headers = dict(scope.get("headers") or [])
@@ -464,6 +497,11 @@ class ConsumerGateway:
             if (not request_key or not 1 <= len(request_key) <= 256
                     or any(ord(char) < 32 for char in request_key)):
                 return await _respond(send, 400, _packet("idempotency_key_required", retryable=False))
+            if row['id'] in INGEST_ROUTES:
+                try:
+                    scope['_c11b_body'] = await _memory_body(receive, 16 * 1024 * 1024)
+                except GatewayError:
+                    return await _respond(send, 400, _packet('invalid_input', retryable=False))
         try:
             value = await handler(principal, scope, request_key)
             if row["effect"] == "write":
@@ -471,6 +509,8 @@ class ConsumerGateway:
                         or value.request_key != request_key or not isinstance(value.receipt, dict)
                         or not value.receipt):
                     raise GatewayError("write did not commit through C05")
+                if row['id'] in INGEST_ROUTES and not _ingest_ack_is_committed(value):
+                    raise GatewayError('ingest acknowledgement is invalid')
                 if value.response is not None:
                     if not isinstance(value.response, dict):
                         raise GatewayError('write response is invalid')

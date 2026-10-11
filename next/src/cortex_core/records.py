@@ -34,6 +34,14 @@ class EventMutationReceipt(MutationReceipt):
 
 
 @dataclass(frozen=True)
+class IngestReceipt:
+    record_id: UUID
+    revision: int
+    event_id: UUID | None
+    status: str
+
+
+@dataclass(frozen=True)
 class Record:
     record_id: UUID
     kind: str
@@ -87,11 +95,11 @@ def _request(connection, scope, key, digest):
     return row[2]
 
 
-def _save_request(connection, scope, key, digest, receipt):
+def _save_request(connection, scope, key, digest, receipt, outcome='committed'):
     connection.execute('''INSERT INTO coordination.idempotency
         (tenant_id,project_id,principal_id,request_key,request_sha256,outcome,receipt)
-        VALUES (%s,%s,%s,%s,%s,'committed',%s)''',
-        (*_scope(scope),scope.principal_id,key,digest,Jsonb(receipt)))
+        VALUES (%s,%s,%s,%s,%s,%s,%s)''',
+        (*_scope(scope),scope.principal_id,key,digest,outcome,Jsonb(receipt)))
 
 
 def _validate(record_id, revision, key):
@@ -106,6 +114,20 @@ def _validate(record_id, revision, key):
 
 def _receipt(data):
     return EventMutationReceipt(UUID(data['record_id']),data['revision'],data['tombstone'],data['payload_sha256'],UUID(data['event_id']) if data.get('event_id') else None)
+
+
+def _ingest_receipt(data):
+    if (not isinstance(data, dict) or data.get('status') not in {'created', 'updated', 'unchanged'}
+            or type(data.get('revision')) is not int or data['revision'] < 1
+            or data.get('status') == 'unchanged' and data.get('event_id') is not None
+            or data.get('status') != 'unchanged' and not data.get('event_id')):
+        raise RecordError('core_unavailable')
+    try:
+        return IngestReceipt(UUID(data['record_id']), data['revision'],
+                             UUID(data['event_id']) if data['event_id'] else None,
+                             data['status'])
+    except (ValueError, TypeError, KeyError):
+        raise RecordError('core_unavailable') from None
 
 
 class Records:
@@ -156,6 +178,79 @@ class Records:
         if expected_revision == 0:
             raise RecordError('invalid_input')
         return self._mutate('delete',record_id,None,None,expected_revision,request_key)
+
+    def ingest(self, record_id, kind, body, on_conflict, request_key):
+        """Commit one legacy ingest identity, including a durable no-op outcome."""
+        _validate(record_id, 0, request_key)
+        if (kind not in {'knowledge', 'lesson', 'decision'}
+                or not isinstance(body, bytes) or len(body) > MAX_PAYLOAD_BYTES
+                or on_conflict not in {'conflict', 'update'}):
+            raise RecordError('invalid_input')
+        payload_digest = hashlib.sha256(body).hexdigest()
+        with self._authorized('write') as scope:
+            _lock(self.connection, 'request', (*_scope(scope), scope.principal_id, request_key))
+            row = _private(self.connection,
+                'SELECT coordination.c11_ingest_request(%s)', (request_key,)).fetchone()
+            saved = row[0] if row is not None else None
+            if saved is not None:
+                if (saved.get('record_id') != str(record_id)
+                        or saved.get('ingest_kind') != kind
+                        or saved.get('payload_sha256') != payload_digest
+                        or saved.get('ingest_mode') != on_conflict):
+                    raise RecordError('conflict')
+                result = _ingest_receipt(saved)
+            else:
+                _lock(self.connection, 'record', (*_scope(scope), record_id))
+                head = _private(self.connection,
+                    'SELECT * FROM coordination.c11_ingest_head(%s,%s)',
+                    (record_id, kind)).fetchone()
+                if head is not None and head[1]:
+                    raise RecordError('conflict')
+                if head is not None and head[2] == payload_digest:
+                    status, revision, event_id = 'unchanged', head[0], None
+                    request = ['ingest.observe', str(record_id), kind,
+                               payload_digest, revision, on_conflict]
+                    outcome = 'observed'
+                else:
+                    if head is not None and on_conflict != 'update':
+                        raise RecordError('conflict')
+                    status = 'created' if head is None else 'updated'
+                    revision = 1 if head is None else head[0] + 1
+                    request = ['put', str(record_id), kind, payload_digest, revision - 1]
+                    outcome = 'committed'
+                    payload_id, _ = _payload(self.connection, scope, body)
+                    if head is None:
+                        try:
+                            self.connection.execute('''INSERT INTO core.records
+                                (tenant_id,project_id,id,kind,current_revision,tombstone)
+                                VALUES (%s,%s,%s,%s,%s,false)''',
+                                (*_scope(scope), record_id, kind, revision))
+                        except psycopg.errors.UniqueViolation:
+                            raise RecordError('conflict') from None
+                    else:
+                        _private(self.connection,
+                            'SELECT coordination.c05_update_head(%s,%s,%s,false)',
+                            (record_id, head[0], revision))
+                    _append_revision(self.connection, scope, record_id, revision,
+                                     payload_id, False)
+                    row = _private(self.connection,
+                        'SELECT coordination.c06_record_event(%s,%s)',
+                        (record_id, revision)).fetchone()
+                    if row is None or row[0] is None:
+                        raise RecordError('core_unavailable')
+                    event_id = str(row[0])
+                request_json = json.dumps(request, separators=(',', ':'))
+                digest = hashlib.sha256(request_json.encode()).hexdigest()
+                data = {'record_id': str(record_id), 'revision': revision,
+                        'event_id': event_id, 'status': status, 'tombstone': False,
+                        'payload_sha256': payload_digest, 'ingest_kind': kind,
+                        'ingest_mode': on_conflict,
+                        'request_json': request_json}
+                _save_request(self.connection, scope, request_key, digest, data, outcome)
+                result = _ingest_receipt(data)
+            if self.before_commit is not None:
+                self.before_commit(self.connection, scope, record_id, kind)
+        return result
 
     def _mutate(self, operation, record_id, kind, body, expected, key):
         digest = hashlib.sha256(json.dumps([operation,str(record_id),kind,
