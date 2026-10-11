@@ -345,6 +345,45 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(destination.is_file())
         self.assertEqual(len(manifest['metadata']['model_identities']), 3)
 
+    def test_scoped_record_heads_and_vectors_verify_independently(self):
+        metadata = json.loads(json.dumps(self.after))
+        first = ('00000000-0000-4000-8000-000000000002',
+                 '00000000-0000-4000-8000-000000000003')
+        second = ('00000000-0000-4000-8000-000000000002',
+                  '00000000-0000-4000-8000-000000000004')
+        for field in ('record_heads', 'vectors'):
+            metadata[field][0].update(tenant_id=first[0], project_id=first[1])
+            repeated = dict(metadata[field][0])
+            repeated.update(tenant_id=second[0], project_id=second[1])
+            metadata[field].append(repeated)
+        destination = self.root/'distinct-record-scopes.age'
+        manifest = seal_complete_bundle(
+            self.base, self.archive, '0/1300000', metadata,
+            segment_bytes=SEG, blob_root=self.blobs, recipient=self.recipient,
+            destination=destination, age_binary=self.age_binary,
+            pg_verifybackup_binary=self.pg_verifybackup_binary,
+            pg_waldump_binary=self.pg_waldump_binary)
+        digest = sha(json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode())
+        try:
+            verdict = self.verify(destination, digest, snapshot=metadata)
+        except BackupError as error:
+            self.fail(f'distinct scoped record heads must verify: {error}')
+        self.assertTrue(verdict['recoverable'])
+
+        orphan = json.loads(json.dumps(metadata))
+        orphan['vectors'][1]['project_id'] = '00000000-0000-4000-8000-000000000005'
+        orphan_destination = self.root/'orphan-vector-scope.age'
+        orphan_manifest = seal_complete_bundle(
+            self.base, self.archive, '0/1300000', orphan,
+            segment_bytes=SEG, blob_root=self.blobs, recipient=self.recipient,
+            destination=orphan_destination, age_binary=self.age_binary,
+            pg_verifybackup_binary=self.pg_verifybackup_binary,
+            pg_waldump_binary=self.pg_waldump_binary)
+        orphan_digest = sha(json.dumps(orphan_manifest, sort_keys=True,
+                                       separators=(',', ':')).encode())
+        with self.assertRaises(BackupError):
+            self.verify(orphan_destination, orphan_digest, snapshot=orphan)
+
     def test_handbuilt_snapshot_cannot_issue_recovery_verdict(self):
         _, digest = self.seal()
         with self.assertRaises(BackupError):
