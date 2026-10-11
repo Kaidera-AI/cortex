@@ -92,6 +92,7 @@ class Fixture:
         self.admission()
         name = self.prefix + "-" + suffix
         args = ["run", "--name", name, "--pod", self.pod, "--pull=never", "--user", user,
+                "--add-host=cortex-pg:127.0.0.1",
                 "--read-only", "--memory", memory, "--memory-swap", memory, "--cpus", cpus,
                 "--pids-limit=256", "--cap-drop=ALL", "--security-opt=no-new-privileges",
                 "--tmpfs=/tmp:rw,size=64m,mode=1777", *self.labels()]
@@ -291,7 +292,7 @@ class Fixture:
                                  "--secret", self.secrets["password"] + ",type=env,target=PGPASSWORD"])
         result = self.command(["exec", driver, "python", "/source/.github/scripts/pytest_pg_worker.py",
                                "--mode", mode, "--output", "/results/" + mode], timeout=900, check=False)
-        (self.results / (mode + "-driver.txt")).write_text(result.stdout + result.stderr)
+        (self.output / (self.results.name + "-" + mode + "-driver.txt")).write_text(result.stdout + result.stderr)
         print(mode, result.stdout, result.stderr, flush=True)
         self.remove_container(driver)
         return result.returncode
