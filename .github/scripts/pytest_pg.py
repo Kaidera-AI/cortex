@@ -24,7 +24,7 @@ import podman_stage0
 
 PYTHON = "docker.io/library/python:3.14.7-trixie@sha256:608322fe51a9b889eee5ed6015c854e77dc44d00c116435f56b69bf6f14c88f4"
 POSTGRES = "docker.io/pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a"
-PAUSE = "registry.k8s.io/pause:3.10@sha256:7c38f24774e3cbd906d2d33c38354ccf787635581c122965132c9bd309754d4a"
+INFRA_DROP = "import os,ctypes,time;os.setgid(65535);os.setuid(65535);assert ctypes.CDLL(None).prctl(38,1,0,0,0)==0;time.sleep(1800)"
 LABEL = "cortex.pytest-pg"
 
 
@@ -36,7 +36,7 @@ class Fixture:
         self.containers, self.volumes, self.secret_names = [], [], []
         self.pod = None
         self.secret_values = [secrets.token_hex(32), secrets.token_hex(32)]
-        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "infra": PAUSE},
+        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "infra": podman_stage0.IMAGE},
                         "admissions": [], "commands": [], "cgroups": [], "passes": []}
 
     def command(self, args, *, timeout=120, check=True, input=None):
@@ -188,17 +188,19 @@ class Fixture:
 
     def prepare(self):
         start = time.monotonic()
-        for image in [PYTHON, POSTGRES, PAUSE]:
+        for image in [PYTHON, POSTGRES]:
             self.admission()
             self.command(["pull", image], timeout=240)
         self.receipt["pull_seconds"] = time.monotonic() - start
 
     def create(self, pass_name):
+        import shlex
         self.admission()
         self.pod = self.prefix + "-pod"
         self.command(["pod", "create", "--name", self.pod, "--network=none", "--hostname=cortex-pg",
                       "--add-host=cortex-pg:127.0.0.1", "--memory=1g", "--memory-swap=1g", "--cpus=2",
-                      "--infra-image", PAUSE, "--infra-command=/pause", *self.labels()])
+                      "--infra-image", podman_stage0.IMAGE, "--infra-command",
+                      "/usr/local/bin/python -c " + shlex.quote(INFRA_DROP), *self.labels()])
         pod = self.owned("pod", self.pod)
         assert not pod["InfraConfig"]["HostNetwork"] and not pod["InfraConfig"]["PortBindings"]
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
@@ -222,11 +224,25 @@ class Fixture:
         infra = self.owned("container", pod["InfraContainerID"])
         config = json.loads(Path(infra["OCIConfigPath"]).read_text())
         infra_user = config["process"]["user"]
+        proc = Path("/proc") / str(infra["State"]["Pid"])
+        status = dict(line.split(":", 1) for line in (proc / "status").read_text().splitlines() if ":" in line)
+        def container_id(value, filename):
+            for line in (proc / filename).read_text().splitlines():
+                inside, outside, count = map(int, line.split())
+                if outside <= value < outside + count:
+                    return inside + value - outside
+            raise RuntimeError("infra runtime identity is outside the rootless map")
+        uid = container_id(int(status["Uid"].split()[1]), "uid_map")
+        gid = container_id(int(status["Gid"].split()[1]), "gid_map")
         self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "infra_id": infra["Id"],
             "infra_config_user": infra["Config"]["User"], "infra_oci_user": infra_user,
+            "infra_runtime_uid": uid, "infra_runtime_gid": gid, "infra_cap_eff": status["CapEff"].strip(),
+            "infra_no_new_privs": status["NoNewPrivs"].strip(),
             "host_network": False, "ports": {}, "labels": pod["Labels"]})
-        # Podman 4.9 explicitly blanks the infra inspect Config.User; use OCI.
-        assert infra_user["uid"] == infra_user["gid"] == 65535, infra_user
+        # 4.9 forces the infra launcher to user0, even for a non-root image.
+        # Trusted, mount-free setup drops UID/GID before holding the namespace.
+        assert uid == gid == 65535, (uid, gid)
+        assert int(status["CapEff"].strip(), 16) == 0 and status["NoNewPrivs"].strip() == "1"
         self.secrets = {}
         for suffix, value in zip(["admin", "password"], self.secret_values):
             name = self.prefix + "-" + suffix
