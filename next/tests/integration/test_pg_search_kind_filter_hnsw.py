@@ -1,8 +1,17 @@
 """Supplemental real-index witness; original frozen kind tests stay byte-identical."""
 from contextlib import asynccontextmanager
-from test_pg_search_kind_filter import TestNativeKindFilter as FrozenFixture
+import os
+import unittest
+import test_pg_search_kind_filter as frozen
 
-class TestHnswCompanion(FrozenFixture):
+class TestHnswCompanion(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        if os.environ.get('NEMO_KIND_FILTER_OWNED_FIXTURE')!='1':
+            raise RuntimeError('explicit owned disposable fixture authority required')
+        await frozen.existing.SearchTests.asyncSetUp(self)
+    asyncTearDown = frozen.existing.SearchTests.asyncTearDown
+    seed_kind = frozen.TestNativeKindFilter.seed_kind
+    selected = frozen.TestNativeKindFilter.selected
     async def test_native_real_hnsw_index_path_keeps_the_kind_restriction(self):
         # Nontrivial synthetic corpus and explicit index-path fixture: this is
         # one query witness, never real-data ANN recall/benchmark qualification.
