@@ -245,3 +245,17 @@ class StdioOwnership(unittest.TestCase):
                 ["engine"], p, {}, 1, p / "out", p / "err", popen=popen
             )
         self.assertEqual(seen.get("stdin"), subprocess.DEVNULL)
+
+class ResourceArguments(unittest.TestCase):
+    def test_exact_cpu_memory_limits_are_passed_to_build_adapter(self):
+        limits = {'cpu_millicores': 2500, 'memory_bytes': 1073741824, 'disk_bytes': 2147483648}
+        self.assertEqual(engine.resource_argv(limits), ['--cpu-period', '1000000', '--cpu-quota', '2500000', '--memory', '1073741824'])
+
+    def test_missing_boolean_or_nonpositive_limit_refuses(self):
+        good = {'cpu_millicores': 2500, 'memory_bytes': 1073741824, 'disk_bytes': 2147483648}
+        for key in good:
+            for value in [None, True, 0, -1, 1.5]:
+                mutant = dict(good)
+                mutant[key] = value
+                with self.assertRaises(ValueError):
+                    engine.resource_argv(mutant)
