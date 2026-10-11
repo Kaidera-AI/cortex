@@ -60,6 +60,44 @@ class SubsecondAndCloseTests(unittest.TestCase):
         self.assertEqual(passed[0]['connect_timeout'], 1)
         self.assertEqual(passed[0]['options'], '-c statement_timeout=10')
 
+    def test_psycopg_stalled_handshake_closes_after_probe_deadline(self):
+        async def run():
+            accepted = asyncio.Event()
+            disconnected = asyncio.Event()
+
+            async def stalled_peer(reader, writer):
+                accepted.set()
+                try:
+                    while await reader.read(1024):
+                        pass  # Accept the startup bytes; never answer the handshake.
+                finally:
+                    disconnected.set()
+                    writer.close()
+                    await writer.wait_closed()
+
+            server = await asyncio.start_server(stalled_peer, '127.0.0.1', 0)
+            try:
+                port = server.sockets[0].getsockname()[1]
+                factory = PostgresProbeFactory(
+                    f'postgresql://postgres@127.0.0.1:{port}/postgres')
+                probe = postgres_core_probe(factory, timeout_seconds=0.1)
+                began = asyncio.get_running_loop().time()
+                value = await probe()
+                elapsed = asyncio.get_running_loop().time() - began
+                try:
+                    await asyncio.wait_for(accepted.wait(), 0.2)
+                    await asyncio.wait_for(disconnected.wait(), 0.2)
+                except TimeoutError as error:
+                    self.fail(f'async psycopg connect lingered after cancellation: {error}')
+                return value, elapsed
+            finally:
+                server.close()
+                await server.wait_closed()
+
+        value, elapsed = asyncio.run(run())
+        self.assertIs(value, False)
+        self.assertLess(elapsed, 0.2)
+
     def test_held_close_cannot_keep_success_inside_stale_flight(self):
         class Cursor:
             async def fetchone(self):
