@@ -92,6 +92,16 @@ try:
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-db-test.txt'])
     checked(['podman','exec',DRIVER,'python','-m','pip','install','--no-index',
              '--find-links=/tmp/wheels','--no-cache-dir','--target=/tmp/deps','-r','/tmp/next/requirements-test.txt'])
+    env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src',
+         '--env','PYTHONDONTWRITEBYTECODE=1',
+         '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
+    # Discovery imports tests and invokes load_tests: isolate it before any
+    # product migration/test. Host orchestration only compares the reported count.
+    value=checked(env+['python','-c',
+        "import json,unittest;loader=unittest.defaultTestLoader;tests=loader.discover('/tmp/next/tests/receipt');assert not loader.errors,loader.errors;print('CORTEX_RECEIPT_DISCOVERY='+json.dumps({'tests_run':tests.countTestCases()}))"],300)
+    discovery=[json.loads(line.split('=',1)[1]) for line in value.stdout.splitlines()
+               if line.startswith('CORTEX_RECEIPT_DISCOVERY=')]
+    assert discovery==[{'tests_run':dict(SUITES)['receipt']}], 'isolated receipt suite count differs'
     for attempt in range(30):
         if run(['podman','exec',DB,'pg_isready','-U','postgres']).returncode==0:
             break
@@ -99,9 +109,6 @@ try:
     else:
         raise RuntimeError('C05 disposable PG did not become ready')
     checked(['podman','exec',DB,'psql','-U','postgres','-At','-c','SELECT version();'])
-    env=['podman','exec','--env','PYTHONPATH=/tmp/deps:/tmp/next/src',
-         '--env','PYTHONDONTWRITEBYTECODE=1',
-         '--env','TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',DRIVER]
     checked(env+['python','-c',"import os,psycopg;from cortex_core.migrations import apply_migrations;c=psycopg.connect(os.environ['TEST_DATABASE_URL'],autocommit=True);print('CORTEX_MIGRATION_CHECK='+str(apply_migrations(c)));c.close()"])
     for directory,count in SUITES:
         if PHASE.startswith('write-only-event-red') and directory in ('c05_review','c05_private'):continue
