@@ -79,6 +79,50 @@ def _digest(path):
     return {"sha256": digest.hexdigest(), "byte_length": path.stat().st_size}
 
 
+def _metadata_scope(entry):
+    """Missing tenant/project fields form a real, empty identity scope."""
+    tenant = entry.get("tenant_id")
+    project = entry.get("project_id", entry.get("project"))
+    if ("project_id" in entry and "project" in entry
+            and _uuid_identity(entry["project_id"], allow_none=True)
+            != _uuid_identity(entry["project"], allow_none=True)):
+        raise BackupError("backup metadata scope differs")
+    return (_uuid_identity(tenant, allow_none=True),
+            _uuid_identity(project, allow_none=True))
+
+
+def _uuid_identity(value, *, allow_none=False):
+    """Compare PostgreSQL UUID columns by value, not textual spelling."""
+    if value is None and allow_none:
+        return None
+    if not isinstance(value, str):
+        raise BackupError("backup metadata UUID identity is invalid")
+    try:
+        return UUID(value)
+    except ValueError as error:
+        raise BackupError("backup metadata UUID identity is invalid") from error
+
+
+def _blob_member(object_key):
+    """Return the exact v1 tar member name used when sealing."""
+    if not isinstance(object_key, str):
+        raise BackupError("invalid blob object key")
+    key = PurePosixPath(object_key)
+    if (key.is_absolute() or not key.parts or
+            any(part in ("", ".", "..") for part in key.parts)):
+        raise BackupError("invalid blob object key")
+    return "blobs/" + key.as_posix()
+
+
+def _unique_metadata(rows, identity, label):
+    seen = set()
+    for row in rows:
+        key = identity(row)
+        if key in seen:
+            raise BackupError("duplicate " + label + " identity")
+        seen.add(key)
+
+
 def _validated_metadata(value):
     if (not isinstance(value, dict) or not _REQUIRED <= set(value)
             or not set(value) <= _REQUIRED | _OPTIONAL
@@ -121,6 +165,25 @@ def _validated_metadata(value):
                 or type(entry.get("revision")) is not int or entry["revision"] < 1
                 or not _SHA.fullmatch(str(entry.get("sha256", "")))):
             raise BackupError("vector identity is invalid")
+    _unique_metadata(value["schema_ledger"], lambda row: row["id"], "schema ledger")
+    _unique_metadata(value["consumer_generations"],
+                     lambda row: (*_metadata_scope(row), row["module"], row["generation"]),
+                     "consumer generation")
+    _unique_metadata(value["model_identities"],
+                     lambda row: (*_metadata_scope(row), _uuid_identity(row["id"])),
+                     "model")
+    _unique_metadata(value["blob_inventory"],
+                     lambda row: (*_metadata_scope(row), row["object_key"]), "blob")
+    # v1 tar members use only object_key; distinct scopes cannot share one name.
+    _unique_metadata(value["blob_inventory"],
+                     lambda row: _blob_member(row["object_key"]), "physical blob member")
+    _unique_metadata(value.get("record_heads", []),
+                     lambda row: (*_metadata_scope(row), _uuid_identity(row["id"])),
+                     "record head")
+    _unique_metadata(value.get("vectors", []),
+                     lambda row: (*_metadata_scope(row),
+                                  _uuid_identity(row["record_id"]), row["revision"],
+                                  _uuid_identity(row["model_id"])), "vector")
     if "replay_lsn" in value:
         _lsn(value["replay_lsn"])
     try:
@@ -230,10 +293,8 @@ def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
         if not root.is_dir() or root.is_symlink():
             raise BackupError("blob root is missing or linked")
         for entry in metadata["blob_inventory"]:
+            member = _blob_member(entry["object_key"])
             key = PurePosixPath(entry["object_key"])
-            if (key.is_absolute() or not key.parts or
-                    any(part in ("", ".", "..") for part in key.parts)):
-                raise BackupError("invalid blob object key")
             path = root.joinpath(*key.parts)
             for parent in (root, *(root.joinpath(*key.parts[:index])
                                    for index in range(1, len(key.parts)))):
@@ -242,7 +303,7 @@ def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
             if _digest(path) != {"sha256": entry["sha256"],
                                  "byte_length": entry["byte_length"]}:
                 raise BackupError("blob bytes differ from authoritative inventory")
-            blobs.append((path, "blobs/" + key.as_posix(), entry))
+            blobs.append((path, member, entry))
     destination = Path(destination)
     if destination.exists() or destination.is_symlink() or not destination.parent.is_dir():
         raise BackupError("destination must be absent in an owned directory")

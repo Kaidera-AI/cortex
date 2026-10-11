@@ -273,6 +273,164 @@ class ValidationTests(unittest.TestCase):
             self.assertIn('blobs/synthetic/blob', archive.getnames())
         self.assertTrue(self.verify(self.target, digest)['recoverable'])
 
+    def test_duplicate_authoritative_identities_refuse_before_age_or_output(self):
+        cases = {}
+        for name, field in (
+            ('schema_ledger', 'schema_ledger'),
+            ('consumer_generations', 'consumer_generations'),
+            ('model_unscoped', 'model_identities'),
+            ('model_scoped', 'model_identities'),
+            ('blob_inventory', 'blob_inventory'),
+            ('blob_cross_scope_member', 'blob_inventory'),
+            ('record_heads', 'record_heads'),
+            ('vectors', 'vectors'),
+        ):
+            value = json.loads(json.dumps(self.after))
+            if name == 'model_scoped':
+                value[field][0].update(
+                    tenant_id='00000000-0000-4000-8000-000000000002',
+                    project_id='00000000-0000-4000-8000-000000000003')
+            repeated = dict(value[field][0])
+            if name == 'schema_ledger':
+                repeated['sha256'] = 'b'*64
+            elif name == 'consumer_generations':
+                repeated['cursor'] += 1
+            elif name == 'record_heads':
+                repeated['revision'] += 1
+            elif name == 'blob_cross_scope_member':
+                repeated.update(
+                    tenant_id='00000000-0000-4000-8000-000000000002',
+                    project_id='00000000-0000-4000-8000-000000000003')
+            value[field].append(repeated)
+            cases[name] = value
+        for name, metadata in cases.items():
+            for entrypoint in ('complete', 'lower'):
+                with self.subTest(identity=name, entrypoint=entrypoint):
+                    destination = self.root/f'duplicate-{name}-{entrypoint}.age'
+                    with patch('cortex_core.backup.subprocess.Popen',
+                               side_effect=BackupError('age spawned')) as spawn:
+                        with self.assertRaises(BackupError):
+                            options = dict(segment_bytes=SEG, blob_root=self.blobs,
+                                           recipient=self.recipient,
+                                           destination=destination,
+                                           age_binary=self.age_binary)
+                            if entrypoint == 'complete':
+                                seal_complete_bundle(
+                                    self.base, self.archive, '0/1300000', metadata,
+                                    pg_verifybackup_binary=self.pg_verifybackup_binary,
+                                    pg_waldump_binary=self.pg_waldump_binary, **options)
+                            else:
+                                seal_encrypted_bundle(
+                                    self.base, self.archive, '0/1300000', metadata,
+                                    **options)
+                        spawn.assert_not_called()
+                    self.assertFalse(destination.exists())
+
+    def test_unscoped_and_explicit_scope_same_model_id_are_distinct(self):
+        metadata = json.loads(json.dumps(self.after))
+        scoped = dict(metadata['model_identities'][0])
+        scoped.update(tenant_id='00000000-0000-4000-8000-000000000002',
+                      project_id='00000000-0000-4000-8000-000000000003')
+        metadata['model_identities'].append(scoped)
+        other_scoped = dict(scoped)
+        other_scoped['project_id'] = '00000000-0000-4000-8000-000000000004'
+        metadata['model_identities'].append(other_scoped)
+        destination = self.root/'distinct-scopes.age'
+        manifest = seal_complete_bundle(
+            self.base, self.archive, '0/1300000', metadata,
+            segment_bytes=SEG, blob_root=self.blobs, recipient=self.recipient,
+            destination=destination, age_binary=self.age_binary,
+            pg_verifybackup_binary=self.pg_verifybackup_binary,
+            pg_waldump_binary=self.pg_waldump_binary)
+        self.assertTrue(destination.is_file())
+        self.assertEqual(len(manifest['metadata']['model_identities']), 3)
+
+    def test_aliases_of_physical_blob_members_and_uuid_identities_refuse_preseal(self):
+        cases = {}
+        for spelling in ('synthetic//blob', 'synthetic/./blob',
+                         'synthetic/blob/', './synthetic/blob'):
+            value = json.loads(json.dumps(self.after))
+            second = dict(value['blob_inventory'][0])
+            second.update(object_key=spelling,
+                          tenant_id='00000000-0000-4000-8000-000000000002',
+                          project_id='00000000-0000-4000-8000-000000000003')
+            value['blob_inventory'].append(second)
+            cases['blob_member:' + spelling] = value
+        for field, key in (('model_identities', 'id'),
+                           ('record_heads', 'id'),
+                           ('vectors', 'record_id'),
+                           ('vectors', 'model_id')):
+            value = json.loads(json.dumps(self.after))
+            value[field][0][key] = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+            second = dict(value[field][0])
+            second[key] = second[key].upper()
+            value[field].append(second)
+            cases['uuid_alias:' + field + ':' + key] = value
+            invalid = json.loads(json.dumps(self.after))
+            invalid[field][0][key] = 'not-a-uuid'
+            cases['invalid_uuid:' + field + ':' + key] = invalid
+        for index, (name, metadata) in enumerate(cases.items()):
+            for entrypoint in ('complete', 'lower'):
+                with self.subTest(identity=name, entrypoint=entrypoint):
+                    destination = self.root / f'alias-{index}-{entrypoint}.age'
+                    with patch('cortex_core.backup.subprocess.Popen',
+                               side_effect=BackupError('age spawned')) as spawn:
+                        with self.assertRaises(BackupError):
+                            options = dict(segment_bytes=SEG, blob_root=self.blobs,
+                                           recipient=self.recipient,
+                                           destination=destination,
+                                           age_binary=self.age_binary)
+                            if entrypoint == 'complete':
+                                seal_complete_bundle(
+                                    self.base, self.archive, '0/1300000', metadata,
+                                    pg_verifybackup_binary=self.pg_verifybackup_binary,
+                                    pg_waldump_binary=self.pg_waldump_binary, **options)
+                            else:
+                                seal_encrypted_bundle(
+                                    self.base, self.archive, '0/1300000', metadata,
+                                    **options)
+                        spawn.assert_not_called()
+                    self.assertFalse(destination.exists())
+
+    def test_scoped_record_heads_and_vectors_verify_independently(self):
+        metadata = json.loads(json.dumps(self.after))
+        first = ('00000000-0000-4000-8000-000000000002',
+                 '00000000-0000-4000-8000-000000000003')
+        second = ('00000000-0000-4000-8000-000000000002',
+                  '00000000-0000-4000-8000-000000000004')
+        for field in ('record_heads', 'vectors'):
+            metadata[field][0].update(tenant_id=first[0], project_id=first[1])
+            repeated = dict(metadata[field][0])
+            repeated.update(tenant_id=second[0], project_id=second[1])
+            metadata[field].append(repeated)
+        destination = self.root/'distinct-record-scopes.age'
+        manifest = seal_complete_bundle(
+            self.base, self.archive, '0/1300000', metadata,
+            segment_bytes=SEG, blob_root=self.blobs, recipient=self.recipient,
+            destination=destination, age_binary=self.age_binary,
+            pg_verifybackup_binary=self.pg_verifybackup_binary,
+            pg_waldump_binary=self.pg_waldump_binary)
+        digest = sha(json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode())
+        try:
+            verdict = self.verify(destination, digest, snapshot=metadata)
+        except BackupError as error:
+            self.fail(f'distinct scoped record heads must verify: {error}')
+        self.assertTrue(verdict['recoverable'])
+
+        orphan = json.loads(json.dumps(metadata))
+        orphan['vectors'][1]['project_id'] = '00000000-0000-4000-8000-000000000005'
+        orphan_destination = self.root/'orphan-vector-scope.age'
+        orphan_manifest = seal_complete_bundle(
+            self.base, self.archive, '0/1300000', orphan,
+            segment_bytes=SEG, blob_root=self.blobs, recipient=self.recipient,
+            destination=orphan_destination, age_binary=self.age_binary,
+            pg_verifybackup_binary=self.pg_verifybackup_binary,
+            pg_waldump_binary=self.pg_waldump_binary)
+        orphan_digest = sha(json.dumps(orphan_manifest, sort_keys=True,
+                                       separators=(',', ':')).encode())
+        with self.assertRaises(BackupError):
+            self.verify(orphan_destination, orphan_digest, snapshot=orphan)
+
     def test_handbuilt_snapshot_cannot_issue_recovery_verdict(self):
         _, digest = self.seal()
         with self.assertRaises(BackupError):
