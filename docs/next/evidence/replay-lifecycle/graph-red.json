@@ -1,0 +1,27 @@
+{
+  "aggregate_receipt": "red-attempt-002.json",
+  "aggregate_sha256": "f29ec556f444942a7731ebf11b9013935888c08ef743acf2c7dcb6f9c13f8df5",
+  "producer": "graph",
+  "tests_run": 3,
+  "failures": [
+    {
+      "id": "test_producer_lifecycle.ProducerLifecycle.test_graph_removal_uses_reconciled_immutable_id",
+      "phase": "test",
+      "is_assertion": true,
+      "exception_type": "builtins.AssertionError",
+      "traceback": "Traceback (most recent call last):\n  File \"/tmp/proof/test_producer_lifecycle.py\", line 96, in test_graph_removal_uses_reconciled_immutable_id\n    self.assertEqual(state['removed'][0]['target'], state['removed'][0]['id'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'kaidera-test-graph-cleanup-1' != '82458405f0e53d7a9247b5459b71f01e606be7847944d807327c31083deac955'\n- kaidera-test-graph-cleanup-1\n+ 82458405f0e53d7a9247b5459b71f01e606be7847944d807327c31083deac955\n\n"
+    },
+    {
+      "id": "test_producer_lifecycle.ProducerLifecycle.test_graph_same_owner_foreign_lifecycle_preserved",
+      "phase": "test",
+      "is_assertion": true,
+      "exception_type": "builtins.AssertionError",
+      "traceback": "Traceback (most recent call last):\n  File \"/tmp/proof/test_producer_lifecycle.py\", line 90, in test_graph_same_owner_foreign_lifecycle_preserved\n    self.assertTrue(state['resources'])\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\nAssertionError: {} is not true\n"
+    }
+  ],
+  "errors": [],
+  "fixture_sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+  "frozen_sha": "1e7fd19",
+  "aggregate_raw_output_preserved": true,
+  "scope": "producer CLI safety only; no PG/model application tests"
+}

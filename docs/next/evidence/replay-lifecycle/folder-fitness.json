@@ -1,0 +1,10 @@
+{
+  "command": [
+    "bash",
+    "scripts/fitness/check-folder-structure.sh"
+  ],
+  "exit_code": 1,
+  "stdout": "     tracked top-level file not in the allowlist: dist\n     tracked top-level file not in the allowlist: packaging\n  \u274c folder-structure \u2014 top level outside the allowlist; see docs/FOLDER_STRUCTURE_SOP.md \u00a71 and \u00a73\n",
+  "stderr": "",
+  "scope": "root estate read-only check; source/tooling work does not repair unrelated estate directories"
+}

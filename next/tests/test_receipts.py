@@ -31,6 +31,10 @@ def classify(result, expected):
         return "inconclusive"
     if any(row.get("phase") != "test" or row.get("is_assertion") is not True for row in value["failures"]):
         return "inconclusive"
+    if any(" (" in row["id"] and row.get("phase_attribution") != "traceback+active-unittest-v2"
+           for row in value["failures"]):
+        # A retained subtest traceback omits the active fixture callback.
+        return "inconclusive"
     failed = {row["id"].split(" (")[0] for row in value["failures"]}
     if result.returncode == 0:
         return "survived" if not failed else "inconclusive"
@@ -54,12 +58,20 @@ class AssertionResult(unittest.TextTestResult):
         while tb is not None:
             frames.append(tb.tb_frame.f_code)
             tb = tb.tb_next
+        # subTest catches the exception before the fixture wrapper unwinds into
+        # its traceback. The wrapper is still present in the callback's stack.
+        import sys
+        active = sys._getframe()
+        while active is not None:
+            frames.append(active.f_code)
+            active = active.f_back
         fixture_codes = {getattr(cls, name).__code__
                          for cls in (unittest.TestCase, unittest.IsolatedAsyncioTestCase)
                          for name in ("_callSetUp", "_callTearDown", "_callCleanup")}
         fixture = any(frame in fixture_codes for frame in frames)
         phase = "test" if code is not None and code in frames and not fixture else "fixture"
         self.assertions.append({"id": test.id(), "phase": phase,
+                                "phase_attribution": "traceback+active-unittest-v2",
                                 "is_assertion": issubclass(err[0], AssertionError),
                                 "exception_type": err[0].__module__ + "." + err[0].__qualname__,
                                 "traceback": self._exc_info_to_string(err, test)})

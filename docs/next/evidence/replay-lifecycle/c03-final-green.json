@@ -1,0 +1,36 @@
+{
+  "producer": "c03",
+  "producer_tests": 3,
+  "aggregate": "green-attempt-005.json",
+  "aggregate_sha256": "235c00ebfa032a5ee9e2dcd9c8251bf9f6f429623e70bf8f52a2d6d632e1a00f",
+  "full_suite": 21,
+  "restored_suite": 21,
+  "mutants": [
+    {
+      "name": "pending-after-ack",
+      "expected_body_assertions": 3,
+      "errors": 0,
+      "recipe_hash_verified": true
+    },
+    {
+      "name": "foreign-nonce-ignored",
+      "expected_body_assertions": 2,
+      "errors": 0,
+      "recipe_hash_verified": true
+    },
+    {
+      "name": "remove-by-name",
+      "expected_body_assertions": 1,
+      "errors": 0,
+      "recipe_hash_verified": true
+    },
+    {
+      "name": "output-not-prepared",
+      "expected_body_assertions": 1,
+      "errors": 0,
+      "recipe_hash_verified": true
+    }
+  ],
+  "cleanup_verified": true,
+  "scope": "contained CLI safety; actual application proof separate"
+}

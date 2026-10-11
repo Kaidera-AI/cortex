@@ -40,8 +40,8 @@ EXTENSION_TABLES = PROJECT_KEY_TABLES | PROJECT_ID_TABLES
 
 
 @pytest_asyncio.fixture
-async def conn():
-    c = await asyncpg.connect(PG_DSN)
+async def conn(owned_rls_environment):
+    c = await asyncpg.connect(owned_rls_environment["dsn"])
     yield c
     await c.close()
 

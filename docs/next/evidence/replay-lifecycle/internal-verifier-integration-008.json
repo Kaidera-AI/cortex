@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "purpose": "Append-only fresh read-only integration verification for replay PR40 after main advancement; no official acceptance.",
+  "created_utc": "2026-10-10T00:06:15.381121+00:00",
+  "verifier": "cox internal /root/c01_verify",
+  "inspected_source_sha": "ffb660ea35a46e75ebc1f1aa3ed1d0a2ae05e1f4",
+  "origin_main_observed": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "origin_main_is_ancestor": true,
+  "prior_certificate": {
+    "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/internal-verifier-final.json",
+    "sha256": "9011c860a471b48e75ee5572d49b344b7f879824b471014ed7e5003cea00190c",
+    "inspected_source_sha": "13aee2269d02edc862f8f379f831cc0cd07f5cf4",
+    "unchanged": true
+  },
+  "required_findings": [],
+  "source_checks": {
+    "all13_replay_tool_bytes_equal_sealed_certificate_and_current_Git": true,
+    "functional_tool_source_changes": [],
+    "frozen_tests": {
+      "test_producer_lifecycle.py": {
+        "first_added_sha": "1e7fd19b07cba682500254634715156c5a48e1b5",
+        "sha256": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+        "test_count": 6,
+        "unchanged": true
+      },
+      "test_lifecycle_pattern.py": {
+        "first_added_sha": "44fd45aece31f02375d52a55eb529f638fce0519",
+        "sha256": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+        "test_count": 8,
+        "unchanged": true
+      },
+      "test_controller_guards.py": {
+        "first_added_sha": "39e1d5fcf854b6173f045fc8eb6e3d053b16bae8",
+        "sha256": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+        "test_count": 4,
+        "unchanged": true
+      },
+      "test_final_inventory.py": {
+        "first_added_sha": "e627ae76de37cfa10a5d9410cdb5e1a07dbd090a",
+        "sha256": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b",
+        "test_count": 3,
+        "unchanged": true
+      }
+    },
+    "own_diff_from_origin_confined_to_replay_docs_and_tooling": true,
+    "own_paths_changed_from_origin": [
+      "docs/next/evidence/replay-lifecycle/accepted-pattern-binding.json",
+      "docs/next/evidence/replay-lifecycle/c03-final-green.json",
+      "docs/next/evidence/replay-lifecycle/c03-green.json",
+      "docs/next/evidence/replay-lifecycle/c03-merged-ci.json",
+      "docs/next/evidence/replay-lifecycle/c03-red.json",
+      "docs/next/evidence/replay-lifecycle/c03/lifecycle-container-fault-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/c03/lifecycle-pod-fault-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/c03/merge-green-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/c03/merge-green.json",
+      "docs/next/evidence/replay-lifecycle/c03/merge-integrity.json",
+      "docs/next/evidence/replay-lifecycle/fake_engine.py",
+      "docs/next/evidence/replay-lifecycle/folder-fitness.json",
+      "docs/next/evidence/replay-lifecycle/graph-final-green.json",
+      "docs/next/evidence/replay-lifecycle/graph-green.json",
+      "docs/next/evidence/replay-lifecycle/graph-red.json",
+      "docs/next/evidence/replay-lifecycle/graph/lifecycle-container-fault-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/graph/lifecycle-green-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-001.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-003.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-004.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-005.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-006.json",
+      "docs/next/evidence/replay-lifecycle/green-attempt-007.json",
+      "docs/next/evidence/replay-lifecycle/green-controller-guards.json",
+      "docs/next/evidence/replay-lifecycle/held-scope-index.json",
+      "docs/next/evidence/replay-lifecycle/integrity-final.json",
+      "docs/next/evidence/replay-lifecycle/integrity.json",
+      "docs/next/evidence/replay-lifecycle/internal-verifier-final.json",
+      "docs/next/evidence/replay-lifecycle/native-final-step-001.json",
+      "docs/next/evidence/replay-lifecycle/native-final-step-002.json",
+      "docs/next/evidence/replay-lifecycle/native-final-step-003.json",
+      "docs/next/evidence/replay-lifecycle/native-final-step-004.json",
+      "docs/next/evidence/replay-lifecycle/native-final-step-005.json",
+      "docs/next/evidence/replay-lifecycle/old-run-adoption.py",
+      "docs/next/evidence/replay-lifecycle/old-run-graph.py",
+      "docs/next/evidence/replay-lifecycle/publication-index.json",
+      "docs/next/evidence/replay-lifecycle/red-attempt-002.json",
+      "docs/next/evidence/replay-lifecycle/red-controller-guards.json",
+      "docs/next/evidence/replay-lifecycle/red-final-inventory.json",
+      "docs/next/evidence/replay-lifecycle/red.json",
+      "docs/next/evidence/replay-lifecycle/replay_lifecycle.py",
+      "docs/next/evidence/replay-lifecycle/reproduce.md",
+      "docs/next/evidence/replay-lifecycle/run-controller-guards.py",
+      "docs/next/evidence/replay-lifecycle/run-safety-red-frozen.py",
+      "docs/next/evidence/replay-lifecycle/run-safety.py",
+      "docs/next/evidence/replay-lifecycle/safe-run-adoption.py",
+      "docs/next/evidence/replay-lifecycle/safe-run-graph.py",
+      "docs/next/evidence/replay-lifecycle/target-integration.json",
+      "docs/next/evidence/replay-lifecycle/test_controller_guards.py",
+      "docs/next/evidence/replay-lifecycle/test_final_inventory.py",
+      "docs/next/evidence/replay-lifecycle/test_lifecycle_pattern.py",
+      "docs/next/evidence/replay-lifecycle/test_producer_lifecycle.py",
+      "docs/next/replay-lifecycle-plan.md"
+    ],
+    "no_own_product_next_source_changes": true
+  },
+  "receipt_checks": {
+    "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/green-attempt-008.json",
+    "sha256": "19aeed3d498f6b7f5d1c3a21217852e5d64d351b46696105f5aa2d61c0da88bf",
+    "source_sha256": {
+      "run-safety.py": "6dd971a45e99ef234adbe01a1f2f13ea5a9c1bd5a62c7ce3be74928c77748106",
+      "test_producer_lifecycle.py": "2a949093ca35836274a6028be8223d5de53c99977aac40391a99a00825624d87",
+      "run-safety-red-frozen.py": "87628ef9decdc7c1643624d19dfa5f7c1641696645eca917ace52a3dcdc25a15",
+      "run-controller-guards.py": "e942f3f6035e34d870f05da7f04dc42dcbb4de42b47b6d9ffbc98520a3c3f371",
+      "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+      "test_lifecycle_pattern.py": "035d567460f68ba02c0f3dce61bbda5d3b9aef26c549809242e6de4c73a6ca12",
+      "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+      "safe-run-graph.py": "1927c0f3d62a9a2fb0c680d8487bb8f5b59bbdc1d93db674074393c5ec3364c0",
+      "fake_engine.py": "396d6eb979efaa94f1cd7c9b590a289825168ddbbf23cc306d5d2203fbd1d295",
+      "test_controller_guards.py": "288f08ca43f111bdd6f5727b6c19b97f022abd4a5f8ef680d59437c2820b010a",
+      "old-run-graph.py": "c3318b8a06fd3e2a153073305ed3099b439523aa41bfaf234d1aad73bc9a1bf9",
+      "old-run-adoption.py": "d350f436ce738955bee2e1eb9f910492eb35237df52d9447d252e9692531db2d",
+      "test_final_inventory.py": "20340246714403abba8e00ed80911cffdd2a0b9b5ed95fae236ff8d98591772b"
+    },
+    "full_clean_tests": 21,
+    "actual_semantic_mutants": [
+      {
+        "name": "pending-after-ack",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_c03_lost_ack_cleanup_reconciles_effect",
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_lost_ack_cleanup_reconciles_effect",
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_removal_uses_reconciled_immutable_id"
+        ],
+        "assertion_rows": 3,
+        "original_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+        "mutated_sha256": "55ccfc8814ecbf0c5ed4d3fba77e5fbcd36f62718ab1052e204947eb30710248",
+        "raw_stdout_sha256": "b0881d4e365f5afd86434cb95d36bd40b6f5cf2a94fd8137ae72f24a90f8ca14",
+        "raw_stderr_sha256": "c9df542b6ec52718fe6409a9ee9ae633c3c9dcd3c692a19adef42c9f7d2a3fa1"
+      },
+      {
+        "name": "foreign-nonce-ignored",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_c03_foreign_lifecycle_preserved",
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_same_owner_foreign_lifecycle_preserved"
+        ],
+        "assertion_rows": 2,
+        "original_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+        "mutated_sha256": "356ea670bdb06629c00c5e6bb6a9d2861cc32bb30cbc75c9e24278a4251325ef",
+        "raw_stdout_sha256": "79dd44b79e400cbe5b116796e2ed8ee57bdc65712b9c21970420603a3877a208",
+        "raw_stderr_sha256": "44063a5f204cfebc7f4cbf010397c05b9b0a8ae907edabeb90c3dac6df95478a"
+      },
+      {
+        "name": "remove-by-name",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_graph_removal_uses_reconciled_immutable_id"
+        ],
+        "assertion_rows": 1,
+        "original_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+        "mutated_sha256": "aa6cc78ebf1dd2eee3b1fa17422d1b5b7e8db9f1113cdb886787b4d63060beca",
+        "raw_stdout_sha256": "18adf1f8d390c05fa34f6982fb381dd9bd296eb804572c05156293d6ec0e99f3",
+        "raw_stderr_sha256": "c4f0570665ff8af895ab8609714b124641d60073ef0ccb3b6bb55af7d3f513dc"
+      },
+      {
+        "name": "output-not-prepared",
+        "expected_ids": [
+          "test_producer_lifecycle.ProducerLifecycle.test_c03_output_prepared_before_effect"
+        ],
+        "assertion_rows": 1,
+        "original_sha256": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+        "mutated_sha256": "32fb2c6b922193bc19e5a906a5938f41e7c267a60aea2f0ff60b2ba047d73a71",
+        "raw_stdout_sha256": "4f680d5b8ae1dfb63b174ff9a6e6782d3aa07e9bd0c9a9f0c147dd980a35cbf4",
+        "raw_stderr_sha256": "127e4e01826032f983ad9ddaeb7bbc5b19bec1f31459c0acc22242e5471a5957"
+      }
+    ],
+    "raw_suite_test_counts": [
+      21,
+      6,
+      6,
+      6,
+      6,
+      21
+    ],
+    "raw_assertion_rows": [
+      0,
+      3,
+      2,
+      1,
+      1,
+      0
+    ],
+    "errors": 0,
+    "restore_original_copy_commands_verified": true,
+    "full_restored_clean_tests": 21,
+    "cleanup": {
+      "lifecycle": "3fb123a974d91f1ed797850dc09b9db7",
+      "cleanup_verified": true,
+      "pending": [],
+      "owned": [],
+      "events": [
+        {
+          "event": "created",
+          "kind": "container",
+          "name": "kaidera-test-replay-lifecycle-1",
+          "id": "4bfb6b7b99dacffe262045c727fdf79b2315e990f5b71e8d34a4e456c9cd9bf6"
+        },
+        {
+          "event": "removed",
+          "kind": "container",
+          "name": "kaidera-test-replay-lifecycle-1",
+          "id": "4bfb6b7b99dacffe262045c727fdf79b2315e990f5b71e8d34a4e456c9cd9bf6"
+        }
+      ],
+      "attempts": [
+        {
+          "errors": [],
+          "verified": true,
+          "pending": [],
+          "owned": [],
+          "password_discarded": true,
+          "lock_released": true
+        }
+      ],
+      "password_discarded": true,
+      "lock_released": true
+    },
+    "actual_created_inspected_immutable_removal_id": "4bfb6b7b99dacffe262045c727fdf79b2315e990f5b71e8d34a4e456c9cd9bf6",
+    "captured_owned_absence": true
+  },
+  "method": [
+    "Read-only filesystem and Git bytes plus trusted stdlib JSON/hash parsing. No author source imported/executed, tests, mutations, builds, Podman actions, services, credentials or Git writes.",
+    "Only this new unique verifier artifact written."
+  ],
+  "limits": [
+    "Bounded integration refresh only: earlier source/native C03/graph checks remain in prior certificate; no new C03/graph replay executed by verifier.",
+    "Captured safety fixture proofs qualify completed synchronous create/lost acknowledgement and bounded retries; no delayed daemon, engine-wide lock or arbitrary external attachment race guarantee.",
+    "Fresh cleanup validated from captured raw CLI output; no independent live engine inventory.",
+    "Nemo gateway changes are inherited current-main changes and are not requalified here.",
+    "C04 review remains separate and pending; no C04 resumption or acceptance implied.",
+    "Official Mike/Vera/Kai gates, native/release/deployment gates and previously disclosed root folder-fitness RED remain separate."
+  ]
+}

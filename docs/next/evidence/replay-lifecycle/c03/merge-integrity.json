@@ -1,0 +1,193 @@
+{
+  "merged_sha": "565227e57724468382bace3d559bdaa85310432d",
+  "receipt": "merge-green-attempt-002.json",
+  "receipt_sha256": "692985dbc12501221428ca17dbc00d71bce5ad2de9b30237cd1be3ee1b783083",
+  "all_input_file_count": 63,
+  "all_input_hashes_match_merged_git": true,
+  "all_copied_input_files_restored": true,
+  "cleanup": {
+    "lifecycle": "bf0b4eee505be65ddfef509c4e94bf42",
+    "cleanup_verified": true,
+    "pending": [],
+    "owned": [],
+    "events": [
+      {
+        "event": "created",
+        "kind": "pod",
+        "name": "kaidera-test-core-schema-1",
+        "id": "2c1409cd9039b3c61d5e05821cb716918d4ab911d3f705d7986bbc7c9ca2b42e"
+      },
+      {
+        "event": "created",
+        "kind": "container",
+        "name": "kaidera-test-core-db-1",
+        "id": "09af9a2a828b842a34b3b517af3a70c1208a64b4d0aa69351a93eac3817cc130"
+      },
+      {
+        "event": "created",
+        "kind": "container",
+        "name": "kaidera-test-core-driver-1",
+        "id": "200f0f514de9eb04adf6bcd7279e316d07afc54a727a632f9552702255ea672f"
+      },
+      {
+        "event": "removed",
+        "kind": "container",
+        "name": "kaidera-test-core-db-1",
+        "id": "09af9a2a828b842a34b3b517af3a70c1208a64b4d0aa69351a93eac3817cc130"
+      },
+      {
+        "event": "removed",
+        "kind": "container",
+        "name": "kaidera-test-core-driver-1",
+        "id": "200f0f514de9eb04adf6bcd7279e316d07afc54a727a632f9552702255ea672f"
+      },
+      {
+        "event": "removed",
+        "kind": "pod",
+        "name": "kaidera-test-core-schema-1",
+        "id": "2c1409cd9039b3c61d5e05821cb716918d4ab911d3f705d7986bbc7c9ca2b42e"
+      }
+    ],
+    "attempts": [
+      {
+        "errors": [],
+        "verified": true,
+        "pending": [],
+        "owned": [],
+        "password_discarded": true,
+        "lock_released": true
+      }
+    ],
+    "password_discarded": true,
+    "lock_released": true
+  },
+  "tool_input_sha256": {
+    "safe-run-adoption.py": "8fd39b4ac3d1161796ff2324624ea73a05f99bbff6a4e3e5c1e9075c85f399b9",
+    "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+  },
+  "clean_schema": 30,
+  "clean_artifact": 8,
+  "mutants": [
+    {
+      "mutation": "tampered valid SQL checksum admitted",
+      "expected_test": "test_semantic_probes.SemanticProbes.test_valid_sql_tamper_refused_without_side_effects",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "applied drift accepted",
+      "expected_test": "test_schema.SchemaTests.test_ledger_idempotence_and_applied_drift_refused",
+      "body_assertions": 2,
+      "errors": 0
+    },
+    {
+      "mutation": "noninteger manifest accepted",
+      "expected_test": "test_integrity.IntegrityTests.test_noninteger_manifest_version_refused",
+      "body_assertions": 2,
+      "errors": 0
+    },
+    {
+      "mutation": "ledger preflight delayed",
+      "expected_test": "test_integrity.IntegrityTests.test_all_applied_hashes_checked_before_any_pending_sql",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "transaction removed",
+      "expected_test": "test_schema.SchemaTests.test_migration_failure_rolls_back_whole_install",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "payload hash unbound",
+      "expected_test": "test_schema.SchemaTests.test_payload_digest_and_immutability",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "head history unchecked",
+      "expected_test": "test_schema.SchemaTests.test_head_without_history_fails_at_commit",
+      "body_assertions": 2,
+      "errors": 0
+    },
+    {
+      "mutation": "analytics history updates accepted",
+      "expected_test": "test_schema.SchemaTests.test_fact_history_is_canonical_and_immutable",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "untyped grants admitted",
+      "expected_test": "test_schema.SchemaTests.test_principal_credential_and_project_grant_scope",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "fence regression accepted",
+      "expected_test": "test_schema.SchemaTests.test_fence_never_regresses",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "unknown event version admitted",
+      "expected_test": "test_semantic_probes.SemanticProbes.test_unknown_event_version_refused",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "retention default changed",
+      "expected_test": "test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "consumer expiry shortened",
+      "expected_test": "test_schema.SchemaTests.test_feed_retention_floor_and_publication_identity",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "revision payload binding removed",
+      "expected_test": "test_integrity.IntegrityTests.test_outbox_payload_matches_that_exact_revision",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "publication installation binding removed",
+      "expected_test": "test_integrity.IntegrityTests.test_publication_installation_matches_event_installation",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "nonfinite embeddings admitted",
+      "expected_test": "test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "embedding dimensions unbound",
+      "expected_test": "test_schema.SchemaTests.test_embedding_model_dimensions_and_source_revision",
+      "body_assertions": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "manifest selects relaxed Core",
+      "expected_test": "test_schema.SchemaTests.test_payload_digest_and_immutability",
+      "body_assertions": 3,
+      "errors": 0
+    },
+    {
+      "mutation": "runner failure counted as kill",
+      "expected_test": "test_causal_mutations.TeamRule.test_runner_errors_and_missing_receipts_inconclusive",
+      "body_assertions": 10,
+      "errors": 0
+    },
+    {
+      "mutation": "neighbor field declarations admitted",
+      "expected_test": "test_legacy_map.LegacyMap.test_neighbor_declaration_cannot_be_borrowed",
+      "body_assertions": 2,
+      "errors": 0
+    }
+  ],
+  "scope": "exact merged source; disposable PG18.4 arm64 fixture; no native release or live service test"
+}

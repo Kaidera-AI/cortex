@@ -16,7 +16,7 @@ import pytest
 
 
 API = Path(__file__).resolve().parents[1]
-MIGRATION = API.parent / 'data/migrations/2026-09-05-01-service-auth.sql'
+MIGRATION = API.parent / 'schema/migrations/2026-09-05-01-service-auth.sql'
 
 
 class AdmissionError(Exception):
