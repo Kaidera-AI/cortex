@@ -82,6 +82,11 @@ class CurrentManifestStaging(unittest.TestCase):
                         "VALUES (%s,%s,%s,ARRAY['read'])", (*scope, uid(21)))
         self.db.execute('UPDATE auth.permission_generations SET generation=7 '
                         'WHERE tenant_id=%s AND project_id=%s', scope)
+        self.db.execute('INSERT INTO coordination.idempotency '
+                        '(tenant_id,project_id,principal_id,request_key,request_sha256,'
+                        'outcome,receipt) VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb)',
+                        (*scope, uid(21), 'migration-replay', digest, 'committed',
+                         json.dumps({'event_id': uid(7), 'revision': 1})))
         self.db.execute('INSERT INTO coordination.outbox '
                         '(event_id,installation_id,tenant_id,project_id,aggregate_id,'
                         'aggregate_kind,aggregate_revision,operation,tombstone,'
@@ -110,6 +115,8 @@ class CurrentManifestStaging(unittest.TestCase):
             'blob': 'SELECT id,object_key,sha256,byte_length FROM core.blob_manifests',
             'grant': 'SELECT principal_id,permissions FROM auth.project_grants',
             'generation': 'SELECT generation FROM auth.permission_generations',
+            'receipt': 'SELECT principal_id,request_key,request_sha256,outcome,receipt '
+                       'FROM coordination.idempotency',
             'outbox': 'SELECT event_id,payload_sha256,aggregate_revision FROM coordination.outbox',
             'published': 'SELECT cursor,event_id FROM coordination.published_events',
             'feed': 'SELECT last_published_cursor,retained_floor FROM coordination.feed_state',
@@ -135,6 +142,9 @@ class CurrentManifestStaging(unittest.TestCase):
             except Exception as error:
                 self.fail(f'committed re-entry raised {type(error).__name__}: {error}')
             self.assertEqual(replay, [], 'one ledger row and no duplicate execution')
+            if offset > 16:
+                self.assertEqual(self.staged(STEPS[0]), [],
+                                 'a target behind the applied prefix is an idempotent no-op')
             self.assertEqual(self.ledger(), self.expected_ledger(offset))
             self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.staged(STEPS[-1]), [])
@@ -167,8 +177,15 @@ class CurrentManifestStaging(unittest.TestCase):
                                     '(migration_id,sha256) VALUES (%s,%s)',
                                     ('unlisted-future-0001', '0' * 64))
                 try:
-                    with self.assertRaises(MigrationError):
+                    try:
                         self.staged(STEPS[0])
+                    except MigrationError:
+                        pass
+                    except Exception as error:
+                        self.fail(f'invalid ledger reached SQL: '
+                                  f'{type(error).__name__}: {error}')
+                    else:
+                        self.fail('invalid ledger was accepted')
                     self.assertIsNone(self.db.execute(
                         "SELECT to_regclass('auth.first_identity_receipts')").fetchone()[0])
                 finally:
