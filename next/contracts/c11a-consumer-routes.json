@@ -1,0 +1,882 @@
+{
+  "c01_matrix_sha256": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+  "format": "c11a-consumer-routes-v1",
+  "includes_metrics_guard": true,
+  "observed_legacy_count": 82,
+  "openkai_production_count": 9,
+  "released_api_sha256": "baa7fad91a0796d1e7bb19067c199feeee7f7cfff7d70a222ec8fc8fc5243f1a",
+  "released_cortex_commit": "c427d5ae73c65807631d9f00fa05e47f0480cf75",
+  "released_cortex_tag": "v0.1.002",
+  "routes": [
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R001",
+      "method": "GET",
+      "observed": false,
+      "openkai_production": false,
+      "path": "/metrics"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "health",
+      "id": "C01-R002",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": true,
+      "path": "/health"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R003",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/boot/{agent}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R004",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/bootstrap/{agent}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R005",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/agents/{agent}/persona"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R006",
+      "method": "GET",
+      "observed": false,
+      "openkai_production": true,
+      "path": "/degradation"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R008",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/log"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R010",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/knowledge/ingest"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R011",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/lessons/ingest"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R012",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/decisions/ingest"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R013",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": true,
+      "path": "/sessions/ingest"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R015",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": true,
+      "path": "/artifacts"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R016",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/work-products"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R017",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/work-products"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R018",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/work-products/{work_product_id}"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R019",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/work-products/check-freshness"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R020",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/brief"
+    },
+    {
+      "capability": "pg_search",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R021",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/search"
+    },
+    {
+      "capability": "pg_search",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R022",
+      "method": "POST",
+      "observed": false,
+      "openkai_production": true,
+      "path": "/search"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R023",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/cortex-graph-search"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R024",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/cortex-graph/stats"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R025",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/cortex-graph/memory"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R026",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/cortex-graph-extract"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R027",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/projections/status"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R028",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/artifacts/transcribe"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R029",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/artifacts/describe-image"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R030",
+      "method": "GET",
+      "observed": false,
+      "openkai_production": true,
+      "path": "/workers/health"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R034",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/graph/stats"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R035",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/graph/prune"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R036",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/graph/build"
+    },
+    {
+      "capability": "pg_graph",
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R037",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/graph/build/jobs/{job_id}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R042",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R043",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs/{handoff_id}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R044",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R045",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs/cross-project"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R046",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/skills"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R047",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/skills"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R048",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/skills/{slug}/bind"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R052",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs/{handoff_id}/claim"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R055",
+      "method": "PUT",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs/{handoff_id}/complete"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R056",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs/{handoff_id}/complete"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R058",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/handoffs/{handoff_id}/release"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R064",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/status"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R065",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/roles"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R072",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": true,
+      "path": "/beat/embeddings/backlog"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R073",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/embeddings/backfill"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R074",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/embeddings/jobs/{job_id}"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R075",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/events"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R076",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/events"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R077",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/beat/handoffs/archive-stale"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R078",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/diary/{agent}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R079",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/save-chat/{agent}"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R080",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/projects"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R081",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/projects"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R082",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": true,
+      "path": "/projects/{project_key}"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R087",
+      "method": "PATCH",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/projects/{project_key}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R088",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/onboard/diagnostics"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R089",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/projects/{project_key}/runtime"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R091",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/state"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R092",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/roster"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R093",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/epics"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R096",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/board"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R097",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/board"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R098",
+      "method": "PATCH",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/board/{task_id}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R099",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/history"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R100",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/diary/{agent}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R101",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/diary/{agent}/stats"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R102",
+      "method": "POST",
+      "observed": false,
+      "openkai_production": true,
+      "path": "/memory"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "write",
+      "id": "C01-R103",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/invalidate/{item_id}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R105",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/verify/decision"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R106",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/verify/table/{table_name}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R107",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/verify/write"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R108",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/agents"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R109",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/agents/remove"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R111",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/cortex/doctor"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R115",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/cortex/entities"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R116",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/cortex/config"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R117",
+      "method": "PATCH",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/cortex/config"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R118",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/counts/{table}"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R119",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/decisions/stats"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R120",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/decisions/recent-count"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R121",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/sessions/ingested-ids"
+    },
+    {
+      "capability": null,
+      "disposition": "keep",
+      "effect": "read",
+      "id": "C01-R122",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/messages/counts/by-agent-role"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "read",
+      "id": "C01-R123",
+      "method": "GET",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/migrations"
+    },
+    {
+      "capability": null,
+      "disposition": "change",
+      "effect": "write",
+      "id": "C01-R124",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/migrations/apply"
+    },
+    {
+      "capability": null,
+      "disposition": "retire",
+      "effect": "retired_sql",
+      "id": "C01-R125",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/sql/query"
+    },
+    {
+      "capability": null,
+      "disposition": "retire",
+      "effect": "retired_sql",
+      "id": "C01-R126",
+      "method": "POST",
+      "observed": true,
+      "openkai_production": false,
+      "path": "/admin/sql/exec"
+    }
+  ]
+}
