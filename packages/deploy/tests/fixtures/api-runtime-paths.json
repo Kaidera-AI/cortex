@@ -1,0 +1,7 @@
+{
+  "source_revision": "e47b81cda3bf2b9e5ed9b0d969ef2cdd0304a8aa",
+  "config_id": "sha256:26a2c0b23de383137f205247be5cb1ae22648d2dfb700d951aeceeb80609476e",
+  "config_raw_sha256": "26a2c0b23de383137f205247be5cb1ae22648d2dfb700d951aeceeb80609476e",
+  "PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+  "WorkingDir": "/app"
+}
