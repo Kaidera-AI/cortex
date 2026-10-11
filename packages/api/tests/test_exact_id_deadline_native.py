@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import asyncpg
 
-from test_audit_runtime_proofs import api as api, scratch_pg as scratch_pg
+pytest_plugins = ("test_audit_runtime_proofs",)
 
 
 async def seed(connection):
