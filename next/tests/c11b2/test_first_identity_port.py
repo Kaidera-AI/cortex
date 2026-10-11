@@ -71,7 +71,7 @@ class FirstIdentityPort(Fixture):
         try:
             try:
                 value = db.execute('SELECT auth.first_identity(%s,%s,%s,%s,%s,%s,%s)',
-                    tuple(uid(n) for n in (installation, tenant, project,
+                    tuple(uid(n) if n is not None else None for n in (installation, tenant, project,
                                            principal, credential)) + (digest, key)).fetchone()[0]
                 return ('ok', value)
             except psycopg.Error as error:
@@ -211,7 +211,9 @@ class FirstIdentityPort(Fixture):
         self.function_present()
         for kwargs in ({'installation': 1}, {'tenant': 2}, {'project': 37},
                        {'project': 3}, {'digest': 'not-a-digest'},
-                       {'digest': 'A' * 64}, {'digest': None}):
+                       {'digest': 'A' * 64}, {'digest': None}, {'key': None},
+                       {'installation': None}, {'tenant': None}, {'project': None},
+                       {'principal': None}, {'credential': None}):
             with self.subTest(kwargs=kwargs):
                 self.assertEqual(self.attempt(**kwargs),
                                  ('error', ('42501', 'first_identity_forbidden')))
