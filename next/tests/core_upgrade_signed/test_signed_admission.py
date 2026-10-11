@@ -114,7 +114,15 @@ class SignedAdmission(unittest.TestCase):
         self.assertEqual(admission.expand_steps, tuple(STEPS))
         self.assertEqual((admission.old_release, admission.new_release),
                          ('v0.1.002', 'v0.1.020'))
+        self.assertEqual((admission.old_schema, admission.new_schema), (1, 2))
+        self.assertEqual((getattr(admission, 'old_event', None),
+                          getattr(admission, 'new_event', None)), (1, 1))
+        self.assertEqual(admission.readers,
+                         (('v0.1.002', 1), ('v0.1.020', 2)))
+        self.assertEqual(admission.writers,
+                         (('v0.1.002', 1), ('v0.1.020', 2)))
         self.assertTrue(admission.reader_allowed('v0.1.002', 1))
+        self.assertFalse(admission.reader_allowed('v0.1.020', 1))
         self.assertTrue(admission.writer_allowed('v0.1.020', 2))
         self.assertFalse(admission.writer_allowed('v0.1.020', 1))
 
