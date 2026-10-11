@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from custody import Refusal, actual_source_file, bound_json, exclusive_json, parse_json, private_directory, public_data, require
 from payload import pre_load, validate_literals, validate_projects
 from observations import allowed_next, validate_payload
+from protocols import console_effect, literal_effect, validate_protocol
 
 
 PHASE_ROLES = {
@@ -62,25 +63,37 @@ def checked_command(authority, store, role, actual_literals=None):
     if role == "launcher":
         # Observing a fresh check does not extend its lifetime.
         authority.check_measured_receipts(rows[-1]["payload"]["checks"])
+    validate_protocol(authority, store, role, spec)
     return argv, spec["timeout_sec"]
 
 
-def execute(authority, store, role, actual_literals=None, *, runner=subprocess.run, invocation_directory=None):
+def execute(authority, store, role, actual_literals=None, *, runner=subprocess.run, invocation_directory=None,
+            clock=time.monotonic, sleep=time.sleep):
     # A single checked effect and its invocation receipt share the writer lock.
     with store.locked():
         result, failure = _execute(authority, store, role, actual_literals, runner=runner,
-                                   invocation_directory=invocation_directory)
+                                   invocation_directory=invocation_directory, clock=clock, sleep=sleep)
         if failure is not None:
             # Commit STOP before releasing the effect's writer lock.
             rows, _ = store.read()
             if rows[-1]["phase"] != "FAILURE":
+                retire_now = failure.pop("retire_now", False)
                 store.append_locked("FAILURE", failure)
+                if retire_now:
+                    for cleanup in ("retirer", "cleanup_verifier"):
+                        cleaned, cleanup_failure = _execute(authority, store, cleanup, None,
+                            runner=runner, invocation_directory=invocation_directory, clock=clock, sleep=sleep)
+                        require(cleanup_failure is None, "console_retirement_failed")
+                    facts = parse_json(cleaned.stdout)
+                    require(facts.get("phase") == "RETIRED", "console_retirement_proof_missing")
+                    store.append_locked("RETIRED", {**facts["facts"],
+                        "admitted_command_inputs": authority.B["phase_command_inputs"]["RETIRED"]})
     if failure is not None:
         require(False, "checked_command_failed")
     return result
 
 
-def _execute(authority, store, role, actual_literals, *, runner, invocation_directory):
+def _execute(authority, store, role, actual_literals, *, runner, invocation_directory, clock, sleep):
     argv, deadline = checked_command(authority, store, role, actual_literals)
     rows, records = store.read()
     phase = rows[-1]["phase"]
@@ -95,13 +108,22 @@ def _execute(authority, store, role, actual_literals, *, runner, invocation_dire
     started = time.time()
     failure_kind = None
     try:
-        result = runner(argv, env=clean, capture_output=True, timeout=deadline)
+        protocol = spec.get("protocol", "command")
+        if protocol == "bounded-console-v2":
+            result = console_effect(authority, store, argv, spec, clean, runner, directory, clock, sleep)
+        elif protocol == "persistent-literals-v2":
+            result = literal_effect(authority, argv, spec, clean, directory)
+        else:
+            result = runner(argv, env=clean, capture_output=True, timeout=deadline)
     except subprocess.TimeoutExpired:
         failure_kind = "timeout"
         result = SimpleNamespace(returncode=124, stdout=b"", stderr=b"")
     except OSError:
         failure_kind = "adapter_start_failed"
         result = SimpleNamespace(returncode=125, stdout=b"", stderr=b"")
+    except (Refusal, ValueError, TypeError, KeyError):
+        failure_kind = "protocol_refused"
+        result = SimpleNamespace(returncode=126, stdout=b"", stderr=b"")
     source_key = authority.B["command_inventory"]["root_roles"][role]
     row = authority.B["sealed_files"][source_key]
     receipt = {"schema": "cortex.gate-a.run8.invocation.v2", **authority.context,
@@ -147,6 +169,8 @@ def _execute(authority, store, role, actual_literals, *, runner, invocation_dire
         failure = {"failed_phase": phase, "refusal": "checked_command_failed",
                    "checked_invocation": invocation,
                    "admitted_command_inputs": authority.B["phase_command_inputs"]["FAILURE"]}
+        if spec.get("protocol") == "bounded-console-v2":
+            failure["retire_now"] = True
         for key in ("instance_id", "volume_id"):
             if key in allocated:
                 failure[key] = allocated[key]
