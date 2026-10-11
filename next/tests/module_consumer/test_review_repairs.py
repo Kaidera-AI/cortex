@@ -106,6 +106,17 @@ class ReviewRepairs(ConsumerFixture):
         self.assertEqual(caught.exception.code,'repair_event_not_poison')
         self.assertIsNone(self.target());self.assertEqual(self.checkpoint()[1],0)
 
+    def test_repair_leaves_unobserved_successor_for_normal_cycle(self):
+        self.seed(50);self.seed(50,body=b'held',revision=1)
+        feed=self.feed(bad_payload_at=1);p=self.port(feed=feed);p.register(snapshot_cursor=0);p.cycle()
+        first=self.page().events[0]
+        self.seed(50,body=b'newly-published',revision=2)
+        feed.bad_payload_at=None;p.repair(UUID(first.envelope['event_id']))
+        self.assertEqual(self.target()[0],2)
+        self.assertEqual(self.checkpoint()[:2],(2,2))
+        p.cycle();self.assertEqual(self.target()[0],3)
+        self.assertEqual(self.checkpoint()[:2],(3,3))
+
     def test_healthy_completed_prefix_is_compacted_with_durable_head(self):
         p=self.port();p.register(snapshot_cursor=0)
         for revision in range(8):

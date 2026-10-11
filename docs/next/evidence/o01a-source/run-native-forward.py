@@ -19,14 +19,17 @@ from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-o01a-pg-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE / 'native-pg-forward-001.json'
+output_name = sys.argv[1] if len(sys.argv) == 2 else 'native-pg-forward-001.json'
+assert len(sys.argv) <= 2 and Path(output_name).name == output_name and output_name.endswith('.json')
+OUT = HERE / output_name
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01a-source/run-native-forward.py'])
 source = {str(path.relative_to(WT)): hashlib.sha256(path.read_bytes()).hexdigest()
           for path in [WT/'next/src/cortex_core/backup.py',
                        WT/'next/tests/backup_producer/test_manifest.py',
-                       WT/'docs/next/evidence/o01a-source/run-native-forward.py']}
+                       WT/'docs/next/evidence/o01a-source/run-native-forward.py',
+                       WT/'docs/next/evidence/c07-source/native-memory-admission.py']}
 tree = subprocess.check_output(['git', '-C', str(WT), 'rev-parse', 'HEAD'], text=True).strip()
 results = []
 errors = []
@@ -62,6 +65,8 @@ try:
     report = json.loads(next(line.split('=', 1)[1] for line in local.stdout.splitlines()
                              if line.startswith('CORTEX_TEST_RESULT=')))
     assert report['tests_run'] == 7 and not report['failures'] and not report['errors']
+    admission = run([sys.executable, str(WT/'docs/next/evidence/c07-source/native-memory-admission.py')])
+    assert json.loads(admission.stdout)['passed'], 'memory floor refuses before create'
     life.acquire()
     assert subprocess.run(['podman', 'container', 'exists', NAME]).returncode == 1
     life.create('container', NAME, ['podman', 'run', '-d', '--name', NAME,
