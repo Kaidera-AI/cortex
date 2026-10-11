@@ -432,10 +432,17 @@ class PreparedMemoryAdmissionTests(unittest.TestCase):
         methods = [n for n in native.body if isinstance(n, ast.FunctionDef)
                    and n.name in ("admit_resource_memory", "cached_runner")]
         self.memory = {"memTotal": 1000, "memFree": 350}
+        self.available = None
         self.commands = []
         self.stack = SimpleNamespace(name="owned-fixture", owned=set())
         def command(arguments, **kwargs):
             if arguments[0] == "info": return json.dumps({"host": self.memory})
+            if arguments[:3] == ["system", "connection", "list"]:
+                return json.dumps([{"Default": True, "Name": "kos-e020-uat", "IsMachine": True,
+                                    "URI": "ssh://core@127.0.0.1:1234/run/podman/podman.sock"}])
+            if arguments[:2] == ["machine", "ssh"]:
+                available = self.memory["memFree"] if self.available is None else self.available
+                return f'MemTotal: {self.memory["memTotal"]} kB\nMemAvailable: {available} kB\nMemFree: {self.memory["memFree"]} kB\n'
             self.commands.append(arguments)
             return "synthetic-owned-id"
         namespace = {"json": json, "stack": self.stack, "memory_admissions": [],
@@ -459,6 +466,12 @@ class PreparedMemoryAdmissionTests(unittest.TestCase):
         self.memory["memFree"] = 349
         with self.assertRaises(RuntimeError): self.runner(["start", "synthetic-owned-id"])
         self.assertEqual(len(self.commands), 1)
+
+    def test_available_memory_admits_reclaimable_cache_without_lowering_floor(self):
+        self.memory["memFree"] = 100
+        self.available = 350
+        self.runner(["create", "--name", "fixture"])
+        self.assertEqual(self.commands, [["create", "--pull=never", "--name", "fixture"]])
 
 
 if __name__ == "__main__":
