@@ -281,6 +281,7 @@ class FirstIdentityPort(Fixture):
     def test_wrong_login_revocation_and_reconnect_cannot_expand_authority(self):
         self.function_present()
         self.assertEqual(self.attempt(connection=self.request)[0], 'error')
+        self.assertEqual(self.attempt(connection=self.admin)[0], 'error')
         self.assertEqual(self.receipt_count(), 0)
         self.assertEqual(self.attempt()[0], 'ok')
         self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() '
