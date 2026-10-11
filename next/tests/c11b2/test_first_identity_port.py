@@ -281,17 +281,19 @@ class FirstIdentityPort(Fixture):
         self.assertTrue(replay['replayed'])
         self.assertEqual(self.counts()['coordination.outbox'], 1)
 
-    def test_open_attempt_holds_installation_lock_until_commit(self):
+    def test_open_attempt_holds_installation_lock_until_transaction_end(self):
         self.function_present()
-        with self.installer() as installer:
-            with installer.transaction():
-                self.assertEqual(self.attempt(connection=installer)[0], 'ok')
-                with psycopg.connect(os.environ['TEST_DATABASE_URL'], autocommit=True) as rival:
-                    with self.assertRaises(psycopg.errors.LockNotAvailable):
-                        rival.execute('SELECT 1 FROM core.installations WHERE id=%s '
-                                      'FOR NO KEY UPDATE NOWAIT', (uid(30),))
-        self.assertEqual(self.receipt_count(), 1)
-        self.assertEqual(self.counts()['coordination.outbox'], 1)
+        with self.assertRaisesRegex(RuntimeError, 'synthetic lock probe rollback'):
+            with self.installer() as installer:
+                with installer.transaction():
+                    self.assertEqual(self.attempt(connection=installer)[0], 'ok')
+                    with psycopg.connect(os.environ['TEST_DATABASE_URL'], autocommit=True) as rival:
+                        with self.assertRaises(psycopg.errors.LockNotAvailable):
+                            rival.execute('SELECT 1 FROM core.installations WHERE id=%s '
+                                          'FOR NO KEY UPDATE NOWAIT', (uid(30),))
+                    raise RuntimeError('synthetic lock probe rollback')
+        self.assertEqual(self.receipt_count(), 0)
+        self.assertEqual(self.counts()['coordination.outbox'], 0)
 
     def test_wrong_login_revocation_and_reconnect_cannot_expand_authority(self):
         self.function_present()
