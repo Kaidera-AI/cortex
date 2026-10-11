@@ -165,7 +165,7 @@ def applied_row(migration_id: str, path: Path, checksum: str) -> dict:
 def test_applied_roster_migration_remains_byte_immutable():
     migration = (
         REPO_ROOT
-        / ".agents/data/migrations/2026-06-01-roster-as-data.sql"
+        / "packages/schema/migrations/2026-06-01-roster-as-data.sql"
     ).read_bytes()
 
     assert hashlib.sha256(migration).hexdigest() == (
@@ -178,7 +178,7 @@ async def test_unfiltered_plan_accepts_recorded_roster_migration_checksum():
     api = load_api_module()
     migration = (
         REPO_ROOT
-        / ".agents/data/migrations/2026-06-01-roster-as-data.sql"
+        / "packages/schema/migrations/2026-06-01-roster-as-data.sql"
     )
     checksum = hashlib.sha256(migration.read_bytes()).hexdigest()
     conn = MigrationConn(
@@ -203,7 +203,7 @@ async def test_v02001_comment_only_roster_checksum_is_an_exact_compatibility_ali
     api = load_api_module()
     migration = (
         REPO_ROOT
-        / ".agents/data/migrations/2026-06-01-roster-as-data.sql"
+        / "packages/schema/migrations/2026-06-01-roster-as-data.sql"
     )
     old_release_checksum = (
         "26f8e808b9f4b38542ca6a9e79ddad153f78db8855ed2ea3d8ea789e5f0c2da5"
@@ -227,7 +227,7 @@ async def test_v02001_comment_only_roster_checksum_is_an_exact_compatibility_ali
 def test_applied_blocking_ivfflat_migration_remains_byte_immutable():
     migration = (
         REPO_ROOT
-        / ".agents/data/migrations/2026-08-16-03-drop-degenerate-ivfflat-indexes.sql"
+        / "packages/schema/migrations/2026-08-16-03-drop-degenerate-ivfflat-indexes.sql"
     ).read_bytes()
 
     assert hashlib.sha256(migration).hexdigest() == (
@@ -329,7 +329,7 @@ async def test_reviewed_online_create_reconciles_sql_success_ledger_failure(
     tmp_path, migration_name
 ):
     api = load_api_module()
-    source = REPO_ROOT / ".agents/data/migrations" / migration_name
+    source = REPO_ROOT / "packages/schema/migrations" / migration_name
     migration = tmp_path / migration_name
     shutil.copyfile(source, migration)
     protocol = api.REVIEWED_ONLINE_INDEX_MIGRATIONS[migration_name]
@@ -358,7 +358,7 @@ async def test_reviewed_online_create_reconciles_sql_success_ledger_failure(
 async def test_reviewed_online_drop_reconciles_absence_after_ledger_failure(tmp_path):
     api = load_api_module()
     migration_name = "2026-08-17-04-drop-work-products-embedding-ivfflat.sql"
-    source = REPO_ROOT / ".agents/data/migrations" / migration_name
+    source = REPO_ROOT / "packages/schema/migrations" / migration_name
     migration = tmp_path / migration_name
     shutil.copyfile(source, migration)
     protocol = api.REVIEWED_ONLINE_INDEX_MIGRATIONS[migration_name]
@@ -406,7 +406,7 @@ async def test_reviewed_online_drop_refuses_same_name_wrong_definition_without_m
     api = load_api_module()
     migration_name = "2026-08-17-04-drop-work-products-embedding-ivfflat.sql"
     shutil.copyfile(
-        REPO_ROOT / ".agents/data/migrations" / migration_name,
+        REPO_ROOT / "packages/schema/migrations" / migration_name,
         tmp_path / migration_name,
     )
     protocol = api.REVIEWED_ONLINE_INDEX_MIGRATIONS[migration_name]
@@ -438,7 +438,7 @@ async def test_reviewed_online_drop_requires_exact_valid_ready_obsolete_index(
     api = load_api_module()
     migration_name = "2026-08-17-04-drop-work-products-embedding-ivfflat.sql"
     shutil.copyfile(
-        REPO_ROOT / ".agents/data/migrations" / migration_name,
+        REPO_ROOT / "packages/schema/migrations" / migration_name,
         tmp_path / migration_name,
     )
     protocol = api.REVIEWED_ONLINE_INDEX_MIGRATIONS[migration_name]
@@ -464,7 +464,7 @@ async def test_reviewed_online_drop_requires_exact_valid_ready_obsolete_index(
 async def test_reviewed_online_create_rejects_wrong_existing_identity_without_mutation(tmp_path):
     api = load_api_module()
     migration_name = "2026-08-18-03-messages-project-ts-hot-path-index.sql"
-    source = REPO_ROOT / ".agents/data/migrations" / migration_name
+    source = REPO_ROOT / "packages/schema/migrations" / migration_name
     migration = tmp_path / migration_name
     shutil.copyfile(source, migration)
     protocol = api.REVIEWED_ONLINE_INDEX_MIGRATIONS[migration_name]
@@ -666,9 +666,9 @@ def test_schema_migration_files_rejects_unsafe_filename(tmp_path):
 def test_completion_handback_parent_is_protected_from_retention_delete():
     migration = (
         REPO_ROOT
-        / ".agents/data/migrations/2026-07-26-handoff-completion-handback.sql"
+        / "packages/schema/migrations/2026-07-26-handoff-completion-handback.sql"
     ).read_text(encoding="utf-8")
-    retain = (REPO_ROOT / ".agents/scripts/cortex-retain").read_text(
+    retain = (REPO_ROOT / "packages/cli/cortex-retain").read_text(
         encoding="utf-8"
     )
 
@@ -684,7 +684,7 @@ def test_completion_handback_parent_is_protected_from_retention_delete():
 
 
 def test_ivfflat_successors_require_hnsw_and_drop_one_index_concurrently():
-    migration_root = REPO_ROOT / ".agents/data/migrations"
+    migration_root = REPO_ROOT / "packages/schema/migrations"
     preflight = (
         migration_root
         / "2026-08-17-03-verify-vector-hnsw-replacements.sql"
@@ -714,7 +714,7 @@ def test_ivfflat_successors_require_hnsw_and_drop_one_index_concurrently():
 
 
 def test_e2e4_upgrade_convergence_supplies_runtime_columns_and_online_index():
-    migration_root = REPO_ROOT / ".agents/data/migrations"
+    migration_root = REPO_ROOT / "packages/schema/migrations"
     columns = (
         migration_root
         / "2026-08-17-01-e2e4-storage-columns-convergence.sql"
