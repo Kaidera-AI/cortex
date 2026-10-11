@@ -40,7 +40,21 @@ cases = [
      'for path, name, entry in blobs:', 'for path, name, entry in []:',
      'test_validation.ValidationTests.test_complete_bundle_binds_blob_and_full_snapshot'),
 ]
+cases.append(('postcheck_streaming_digest', 'backup.py',
+              'if digest.hexdigest() != expected["sha256"]:', 'if False:',
+              'test_validation.ValidationTests.test_base_file_changed_after_native_validation_cannot_publish'))
 rows = []
+def clean_baseline():
+    result = subprocess.run(['python3.12', str(RUNNER), str(TESTS)],
+                            capture_output=True, text=True,
+                            env={**os.environ, 'PYTHONPATH': str(ROOT/'next/src'),
+                                 'PYTHONDONTWRITEBYTECODE': '1'})
+    reports = [json.loads(line.split('=', 1)[1]) for line in result.stdout.splitlines()
+               if line.startswith('CORTEX_TEST_RESULT=')]
+    assert result.returncode == 0 and reports == [{'tests_run': 16, 'failures': [], 'errors': []}]
+    return {'exit_code': result.returncode, 'receipt': reports[0],
+            'stdout': result.stdout, 'stderr': result.stderr}
+baseline = clean_baseline()
 for name, filename, before, after, expected in cases:
     assert sources[filename].count(before) == 1, name
     with tempfile.TemporaryDirectory(prefix='cox-o01b-fault-') as folder:
@@ -59,7 +73,7 @@ for name, filename, before, after, expected in cases:
         receipt = json.loads(lines[0]) if len(lines) == 1 else None
         failures = receipt['failures'] if receipt else []
         killed = (result.returncode == 1 and receipt is not None and
-                  receipt['tests_run'] == 14 and not receipt['errors'] and
+                  receipt['tests_run'] == 16 and not receipt['errors'] and
                   any(row['id'] == expected for row in failures) and
                   all(row['phase'] == 'test' and row['is_assertion'] and
                       row['phase_attribution'] == 'traceback+active-unittest-v2'
@@ -77,6 +91,6 @@ assert all(hashlib.sha256((CORE/name).read_bytes()).hexdigest() == digest
 print(json.dumps({'source_sha256': hashes, 'mutants': len(rows),
                   'killed': sum(row['status'] == 'killed' for row in rows),
                   'inconclusive': [row['name'] for row in rows if row['status'] != 'killed'],
-                  'rows': rows}), flush=True)
+                  'rows': rows, 'baseline': baseline, 'restored': clean_baseline()}), flush=True)
 if any(row['status'] != 'killed' for row in rows):
     raise SystemExit(1)
