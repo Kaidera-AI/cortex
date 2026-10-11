@@ -144,14 +144,16 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
     async def test_repository_stats_lag_arrives_after_real_pg_ready_gate(self):
         await self._assert_stats_lag_after_ready('/graph/stats')
 
-    async def test_every_capability_read_route_refuses_lag_after_gate(self):
+    async def test_projection_read_routes_refuse_lag_after_gate(self):
+        # R037 reports durable C05 job state; it does not return a projection.
         rows = [row for row in load_routes() if row['capability'] in
-                {'pg_search', 'pg_graph'} and row['effect'] == 'read']
+                {'pg_search', 'pg_graph'} and row['effect'] == 'read'
+                and row['id'] != 'C01-R037']
         self.assertEqual({row['id'] for row in rows},
                          {'C01-R021', 'C01-R022', 'C01-R023', 'C01-R024',
-                          'C01-R025', 'C01-R034', 'C01-R037'})
+                          'C01-R025', 'C01-R034'})
         self.assertEqual(set(self.read_port.handlers) & {row['id'] for row in rows},
-                         {row['id'] for row in rows} - {'C01-R037'})
+                         {row['id'] for row in rows})
         gateway, injected = await self._gateway_lagging_after_ready()
         for row in rows:
             path = row['path'].replace('{job_id}', str(uuid4()))
