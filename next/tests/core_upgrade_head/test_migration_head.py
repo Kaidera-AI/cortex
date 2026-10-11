@@ -14,7 +14,8 @@ from cortex_core.migrations import MigrationError, apply_migrations
 
 
 SCHEMA = Path(__file__).resolve().parents[2] / 'schema'
-STEPS = ('auth-0004', 'auth-0005', 'auth-0006', 'ingest-head-0006')
+STEPS = ('auth-0004', 'auth-0005', 'auth-0006', 'ingest-head-0006',
+         'session-ids-read-0007')
 
 
 def uid(n):
@@ -127,8 +128,8 @@ class CurrentManifestStaging(unittest.TestCase):
         }
         return {name: self.db.execute(sql).fetchall() for name, sql in queries.items()}
 
-    def test_current_four_steps_reconnect_reenter_and_preserve_seed(self):
-        self.assertEqual(len(self.entries), 19)
+    def test_current_five_steps_reconnect_reenter_and_preserve_seed(self):
+        self.assertEqual(len(self.entries), 20)
         self.assertEqual(tuple(row['id'] for row in self.entries[15:]), STEPS)
         self.assertEqual(self.ledger(), self.expected_ledger(15))
         self.seed()

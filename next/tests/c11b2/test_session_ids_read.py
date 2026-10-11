@@ -130,6 +130,29 @@ class SessionIdsRead(unittest.TestCase):
             with self.request.transaction():
                 self.request.execute('SELECT session_uuid FROM coordination.session_sources')
 
+    def test_read_function_privileges_and_unbound_context(self):
+        row = self.admin.execute('''SELECT pg_get_userbyid(p.proowner),p.prosecdef,p.proconfig,
+            has_function_privilege('public','coordination.c11b4_session_ids()','EXECUTE'),
+            has_function_privilege(%s,'coordination.c11b4_session_ids()','EXECUTE'),
+            has_table_privilege(%s,'coordination.session_sources','SELECT')
+            FROM pg_proc p WHERE p.oid='coordination.c11b4_session_ids()'::regprocedure''',
+            (REQUEST, REQUEST)).fetchone()
+        self.assertEqual(row[0], 'kaidera-runtime-core-verifier')
+        self.assertIs(row[1], True)
+        self.assertIn('search_path=pg_catalog, auth, core, coordination, pg_temp', row[2])
+        self.assertEqual(row[3:], (False, True, False))
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            with self.request.transaction():
+                self.request.execute('SELECT * FROM coordination.c11b4_session_ids()')
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            with self.request.transaction():
+                self.request.execute("SELECT set_config('cortex.credential_digest',%s,true),"
+                                     "set_config('cortex.installation_id',%s,true),"
+                                     "set_config('cortex.project_id',%s,true),"
+                                     "set_config('cortex.action','read',true)",
+                                     (hashlib.sha256(READ_A).hexdigest(), uid(1), uid(3)))
+                self.request.execute('SELECT * FROM coordination.c11b4_session_ids()')
+
     def test_late_revocation_and_permission_change_refuse_before_success(self):
         for change in ('revoke', 'generation'):
             with self.subTest(change=change):
