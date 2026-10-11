@@ -1,0 +1,17 @@
+{
+  "receipt_sha256": "3fe5e1ed4bbd40c05b8dc883f94c3afbe4120f6d0a2ca8a17070ef63adea341d",
+  "tree": "5ba1b5fa9da86d0ca7f6f1ad0aeb7cda93440ca4",
+  "passed": false,
+  "actual": {
+    "mutants": 30,
+    "killed": 29,
+    "survived": 1,
+    "inconclusive": 0
+  },
+  "survivor": "expired completion accepted",
+  "cause": "Removing early expiry check alone leaves the new original-deadline acceptance predicate intact; refusal is preserved.",
+  "repair": "Compound semantic fault removes early expiry check and final deadline acceptance. Expected frozen expiry test is unchanged; separate final-deadline fault still targets delayed-result guard.",
+  "source_repair": false,
+  "test_edits": false,
+  "cleanup_verified": true
+}

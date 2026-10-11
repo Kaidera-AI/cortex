@@ -1,0 +1,23 @@
+{
+  "plan": "docs/plans/cortex-v2-v0.1.020/PLAN.md",
+  "before_sha256": "5a98eac2b5ab5c9baec70bb7856fad2bbba0bc805b5294fce08f0bf26ca16be6",
+  "after_sha256": "7f17b162461dec157d8ceb53dafc972a315f1326dd31204c8f014dcc95c3645f",
+  "note_sha256": "cb4cc3352a73fb5f5a50f7e7bac06e642d3fe9f7e5ed5a001ee31c49bfd1fe59",
+  "units": [
+    {
+      "gap": "CX-GAP-2",
+      "unit": "C11a",
+      "owner": "cox",
+      "day": 11
+    },
+    {
+      "gap": "CX-GAP-4",
+      "unit": "E01/E02 installer",
+      "owner": "ren-tk",
+      "day": 8
+    }
+  ],
+  "code_changed": false,
+  "runtime_executed": false,
+  "gaps_closed": false
+}

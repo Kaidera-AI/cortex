@@ -1,0 +1,11 @@
+{
+  "base": "c41d5a469ffe6a1f5076d89546bd5362333ece39",
+  "target_main": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "initial_tree_clean": true,
+  "owner": "cox@helix",
+  "branch": "cox/c05-records-coordination-20261010",
+  "scope": "next Core record/coordination adapters only; inherited C04 source pending official review",
+  "authority": "H-D455 named chain C05; accepted PLAN C05 row; detailed plan in lane-A",
+  "runtime_implementation_started": false,
+  "no_shared_git_writes": true
+}

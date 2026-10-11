@@ -1,0 +1,11 @@
+{
+  "resource_operations": 0,
+  "invalid_anchors": [
+    {
+      "recipe": "delete reference CAS removed",
+      "path": "schema/coordination/002-record-replay.sql",
+      "expected": 1,
+      "actual": 2
+    }
+  ]
+}

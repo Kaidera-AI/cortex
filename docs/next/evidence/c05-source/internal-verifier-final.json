@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "kind": "bounded-internal-sdlc-verification",
+  "task": "C05 private records and coordination",
+  "verifier": "fresh-context SDLC verifier subagent /root/c01_verify",
+  "decision": {
+    "remaining_required_findings": [],
+    "official_acceptance": false
+  },
+  "bindings": {
+    "tested_product_sha": "46b0cd49b2a00b7a3079f70d818178c853e3f7b6",
+    "reviewed_publication_sha": "35f6f3d8cb158f7dc1ff63351e5977a7533a8e23",
+    "incorporated_main": "3401d1a1b4be7a3a115a440d5415ea937ff8e003",
+    "evidence_snapshot_sha": "cd6bb3bf06a80d6e4f788d0983e31e8b3d8866aa",
+    "final_application_proof": {
+      "path": "mutation-integration-attempt-003.json",
+      "sha256": "27a35edf9cea2749e1048e30543be9b0f818287d72e91e8e228777c274345a79"
+    },
+    "independent_author_integrity": {
+      "path": "integrity-final.json",
+      "sha256": "f819f16dc6497e9fc3723810ec22156524123a04e9292a9406aa66b588131689"
+    },
+    "initial_publication_index": {
+      "path": "publication-index-001.json",
+      "sha256": "08125e704d950fb1ee3c9429544455a5f933abbc8ba5c1074a90f5849ed668cd",
+      "status": "REWORK: nonexistent canonical plan custody pointer; retained unchanged"
+    },
+    "qualified_publication_index": {
+      "path": "publication-index-002.json",
+      "sha256": "c36bd4c8234440a2c36a1718aed6e29310f7bf78a7f38931be12ecf9f21d5409",
+      "members": 58
+    },
+    "canonical_plan": {
+      "path": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/C05_IMPLEMENTATION_PLAN.md",
+      "sha256": "8468f118163d9cda88de9f6ab19d557a3e83a35da818a2c73b0244f24401d2fe",
+      "bytes": 15436
+    }
+  },
+  "checks": {
+    "method": "Read-only source/Git/AST inspection and independent stdlib parsing of retained raw receipts and byte hashes; no author program, product import/test, container, service or Git mutation was executed by this verifier.",
+    "publication": {
+      "all_58_current_Git_members_canonical_bytes_sizes_and_hashes_match": true,
+      "original_56_member_content_unchanged": true,
+      "index001_pointer_repaired_by_append_only_index002": true,
+      "original_index001_and_disposition_retained": true,
+      "publication_guard": "Read validator source and actual RED/GREEN stdout/stderr. Same validator hash bcce1b8d5c3c86b019d319d7fb5800b61b7da9fea316cdfc076e7e8c72cbd6e8; retained index001 exit1 expected missing_canonical_source assertion, corrected index002 exit0 all58. Independently checked every pointer rather than executing the validator.",
+      "product_next_tree_identical_to_tested_sha": true,
+      "upstream_main_six_status_paths_equal_incorporated_main": true
+    },
+    "runtime": {
+      "inspected": "records.py, coordination.py, original and added frozen tests, core DB fixture, conformance fixture, actual mutation recipes, native controller and shared receipt/lifecycle helpers.",
+      "records": "Exact-byte revision/tombstone history, CAS, principal-scoped idempotency, replay authorization, immutable history and rollback paths inspected.",
+      "coordination": "Claim/attempt/fence binding, authoritative holder/deadline checks, explicit retry/cancel/expire states, independent handoff review, serialized transitions and rollback inspected.",
+      "required_gaps_resolved": "Late lease acceptance predicate retains the originally verified DB deadline in a context-local token and resets it on all exits; fence validation precedes JSON encoding; UTF-8 request keys and shared private 16MiB body bound have typed atomic refusals.",
+      "lease_boundary": "Fresh database-clock check after writes defines final acceptance linearization within the owned transaction. It does not claim exact physical commit-time scheduling.",
+      "predecessor_auth_and_schema_bytes_unchanged": true,
+      "no_new_persistent_schema_or_business_table": true
+    },
+    "evidence": {
+      "clean_suite_tests": {
+        "schema": 30,
+        "auth": 40,
+        "records": 14,
+        "coordination": 23,
+        "core_adapters": 6,
+        "acceptance_guards": 7,
+        "contract": 33,
+        "receipt": 20
+      },
+      "actual_expected_test_body_assertion_kills": {
+        "core": 30,
+        "contract": 26,
+        "shared": 8
+      },
+      "total_semantic_mutants": 64,
+      "expected_target_required_among_body_failures": true,
+      "raw_report_markers_stdout_stderr_hashes_and_recipe_mutated_hashes_checked": true,
+      "classifier_conditions": "exit1; expected test or its subtest among failures; phase test; is_assertion exactly true; builtins.AssertionError with nonempty traceback; zero errors. Additional valid body assertions do not invalidate expected-target attribution.",
+      "errors": 0,
+      "survivors": 0,
+      "inconclusive": 0,
+      "baseline_and_restored_suites_clean": true,
+      "restored_input_files": 384,
+      "every_input_bound_to_tested_Git_reviewed_Git_current_source_and_restored_copy": true,
+      "generated_cache_extras": "Exactly two documented generated __pycache__ files were captured with raw hashes then removed from the disposable copy; final complete manifest matches all384 inputs.",
+      "frozen_tests": [
+        {
+          "path": "next/tests/records/test_records.py",
+          "commit": "cff91818a2b98a01f8a4f15f9eabdc0a89847e8c",
+          "sha256": "3da56e991d703128b2e0f1ecc9153f597a30db98b739b65192c42ee45d77b675",
+          "tests": 14
+        },
+        {
+          "path": "next/tests/coordination/test_coordination.py",
+          "commit": "fc49735f4f3d3c5a18a7cf53f0fb06ec2941bbf5",
+          "sha256": "422ed73fc7e9575fad03d2be297070c10f52dbb160aabfe95eee8755e11b0e78",
+          "tests": 23
+        },
+        {
+          "path": "next/tests/core_adapters/test_core_adapters.py",
+          "commit": "dc8578889df6c1542e10ad2df39fcf807d9d6187",
+          "sha256": "9b302f1bdbaf2a9eae7808a2c21d5384c38c22e2c6969af4155104a8a0a22b28",
+          "tests": 6
+        },
+        {
+          "path": "next/tests/acceptance_guards/test_acceptance_guards.py",
+          "commit": "dd05c28f94a63f6ece5499ebda88872cfe73125f",
+          "sha256": "81634eb7b4fcb5b129cbcc1ea42c76ed30443c4e9af472c5188493b97acf6240",
+          "tests": 7
+        }
+      ]
+    },
+    "containment": {
+      "controller_and_shared_lifecycle_tool_hashes": {
+        "run-core-pg.py": "232a76b54fdd8cb9a51c60cb0fc01a77ffb0feac054f8d0e33c54fe1b3fe27dd",
+        "shared/replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "prelaunch_tools_source_binding_and_final_receipt_truth_gates_checked": true,
+      "raw_native_arch": "arm64",
+      "read_only_no_bind_mounts_no_published_ports_capabilities_dropped_no_new_privileges": true,
+      "exact_owner_slice_nonce_name_and_immutable_ID_custody_checked": true,
+      "removed_owned_resources": [
+        {
+          "kind": "container",
+          "name": "kaidera-test-core-db-1",
+          "id": "3aae6d7c58d7ade77d2977de25f7543575e50f7762e94bfd420a96aee1666625"
+        },
+        {
+          "kind": "container",
+          "name": "kaidera-test-core-driver-1",
+          "id": "6bf3572b1cdc0bb7da9db5cee40ef3192e58e98dd1ca015418ff32bfc3aac764"
+        },
+        {
+          "kind": "pod",
+          "name": "kaidera-test-core-schema-1",
+          "id": "24c79fb73b3da85373121b8ad74a09f9bacb87c3577d6a9465c9995ef662728e"
+        }
+      ],
+      "cleanup_verified": true,
+      "pending_empty": true,
+      "owned_empty": true,
+      "credentials_discarded": true,
+      "local_lock_released": true
+    }
+  },
+  "retained_history": {
+    "red_receipts": "records14, coordination23, conformance2 and guards24 BODY failures with no errors are qualified expected-RED receipts; their passed=true qualifies the controller's RED observation, not application GREEN.",
+    "failed_mutation_attempt_001": "Retained 23 killed / 3 operationally inconclusive of26; not a successful proof.",
+    "failed_mutation_attempt_002": "Retained 29 killed / 1 survivor of30; not a successful proof. Compound expiry fault now removes both protective predicates; separate delayed-result fault tests the final predicate. Frozen tests were not weakened.",
+    "folder_fitness": "Retained exit1 for preexisting tracked dist/packaging outside the root allowlist; separate gate, not waived here."
+  },
+  "limits": [
+    "Internal SDLC verification only; no official Mike review, Kai acceptance, source/merge authorization or deployment approval.",
+    "Private source record/job/fence behavior only, using synthetic disposable native PostgreSQL evidence under the private owned-transaction and no-client-SQL-credentials contract.",
+    "auth-0003 role/kind/human authority remains the separate C04a slice; C06 event capture/outbox/external event-bearing ACK, C02 released HTTP pins and C11 HTTP/live transformation/admission remain held.",
+    "Budget enforcement, released/native amd64 compatibility, live legacy migration, repeatability/model or whole-graph acceptance are not established by this bounded proof.",
+    "This verifier inspected retained native evidence and bytes; it did not independently rerun application suites or mutation fixtures."
+  ]
+}

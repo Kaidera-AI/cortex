@@ -1,0 +1,6 @@
+{
+  "command": "scripts/fitness/check-folder-structure.sh",
+  "exit_code": 1,
+  "stdout": "tracked top-level file not in the allowlist: dist\ntracked top-level file not in the allowlist: packaging\nfolder-structure: top level outside the allowlist",
+  "scope": "Root estate; preexisting unrelated RED retained, no folder gate waiver."
+}

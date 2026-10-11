@@ -1,0 +1,90 @@
+{
+  "fixtures": [
+    {
+      "path": "next/tests/records/test_records.py",
+      "commit": "cff91818a2b98a01f8a4f15f9eabdc0a89847e8c",
+      "sha256": "3da56e991d703128b2e0f1ecc9153f597a30db98b739b65192c42ee45d77b675",
+      "count": 14,
+      "tests": [
+        "test_create_read_preserves_exact_bytes_and_digest",
+        "test_update_compare_and_swap_is_atomic",
+        "test_delete_is_revisioned_tombstone_and_does_not_erase_history",
+        "test_same_request_after_committed_lost_response_replays_one_result",
+        "test_changed_body_kind_record_or_operation_under_key_refuses",
+        "test_principal_scoped_same_key_cannot_return_another_receipt",
+        "test_read_key_cannot_mutate_and_cross_tenant_id_is_hidden",
+        "test_revoked_credential_cannot_replay_an_old_receipt",
+        "test_kind_cannot_change_after_creation",
+        "test_invalid_inputs_refuse_without_partial_canonical_rows",
+        "test_failure_after_history_append_rolls_back_every_partial_row",
+        "test_concurrent_same_key_has_one_logical_result",
+        "test_concurrent_record_revision_has_one_winner",
+        "test_closed_core_connection_fails_typed_without_result"
+      ]
+    },
+    {
+      "path": "next/tests/coordination/test_coordination.py",
+      "commit": "fc49735f4f3d3c5a18a7cf53f0fb06ec2941bbf5",
+      "sha256": "422ed73fc7e9575fad03d2be297070c10f52dbb160aabfe95eee8755e11b0e78",
+      "count": 23,
+      "tests": [
+        "test_create_get_preserves_exact_intent_bytes",
+        "test_create_replays_after_commit_and_changed_request_refuses",
+        "test_owner_controls_and_read_cannot_write",
+        "test_claim_binds_verified_principal_and_fence",
+        "test_explicit_recipient_refuses_other_principal",
+        "test_concurrent_claim_has_one_winner",
+        "test_same_key_claim_replay_is_one_attempt",
+        "test_complete_preserves_exact_result_and_is_immutable",
+        "test_nonholder_and_wrong_attempt_or_fence_cannot_complete",
+        "test_expiry_refuses_completion_and_needs_explicit_retry",
+        "test_cancel_never_becomes_success_and_is_terminal",
+        "test_cancel_complete_race_has_one_terminal_state",
+        "test_failure_after_actual_result_insert_rolls_back",
+        "test_cross_tenant_job_is_hidden_and_cannot_claim",
+        "test_revoked_credential_cannot_replay_claim",
+        "test_invalid_inputs_and_ttl_refuse_without_partial_rows",
+        "test_release_is_unresolved_abandon_and_fail_are_distinct",
+        "test_stable_bounded_pagination",
+        "test_handoff_return_requires_independent_accept",
+        "test_owner_worker_cannot_self_accept_or_rework",
+        "test_rework_needs_explicit_retry_and_new_attempt",
+        "test_claim_budget_alias_is_explicitly_not_enforced",
+        "test_closed_core_connection_has_typed_failure"
+      ]
+    },
+    {
+      "path": "next/tests/core_adapters/test_core_adapters.py",
+      "commit": "dc8578889df6c1542e10ad2df39fcf807d9d6187",
+      "sha256": "9b302f1bdbaf2a9eae7808a2c21d5384c38c22e2c6969af4155104a8a0a22b28",
+      "count": 6,
+      "tests": [
+        "test_fixture_request_hits_real_canonical_record_port",
+        "test_legacy_method_aliases_are_retained_with_real_private_targets",
+        "test_external_ack_and_role_human_compatibility_remain_explicitly_held",
+        "test_budget_fixture_hits_real_claim_without_enforcement",
+        "test_mutation_caller_refuses_operational_fixture_wrong_test_and_errors",
+        "test_mutation_caller_requires_expected_body_and_zero_error_clean_baseline"
+      ]
+    },
+    {
+      "path": "next/tests/acceptance_guards/test_acceptance_guards.py",
+      "commit": "dd05c28f94a63f6ece5499ebda88872cfe73125f",
+      "sha256": "81634eb7b4fcb5b129cbcc1ea42c76ed30443c4e9af472c5188493b97acf6240",
+      "count": 7,
+      "tests": [
+        "test_expiry_after_real_result_insert_refuses_and_rolls_back",
+        "test_expiry_during_independent_accept_refuses_and_rolls_back",
+        "test_expiry_after_actual_claim_attempt_refuses_and_rolls_back",
+        "test_fence_types_refuse_before_encoding_in_every_worker_and_review_port",
+        "test_surrogate_request_key_has_typed_refusal_without_partial_rows",
+        "test_record_body_over_private_limit_is_typed_and_atomic",
+        "test_job_intent_and_all_result_paths_share_private_byte_bound"
+      ]
+    }
+  ],
+  "original_14_23_6_unchanged": true,
+  "acceptance_guards_red": "guards-red.json",
+  "preceding_auth_schema_unchanged": true,
+  "note": "Auth/schema source additionally bound by the complete tested NEXT source inventory"
+}

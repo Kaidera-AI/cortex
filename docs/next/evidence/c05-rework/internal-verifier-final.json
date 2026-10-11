@@ -1,0 +1,40 @@
+{
+  "tested_commit": "3951e6008a76b3aa939c73afc01e0d8207a193af",
+  "raw_sha256": "09f01cba0ddab6168587c1539b540b8ddb814d74bf19a22b239b04c720245854",
+  "baseline": {
+    "schema": 30,
+    "auth": 40,
+    "records": 14,
+    "coordination": 23,
+    "core_adapters": 6,
+    "acceptance_guards": 7,
+    "contract": 33,
+    "receipt": 20,
+    "c05_review": 8,
+    "c05_private": 5
+  },
+  "total_tests": 186,
+  "body_faults": 75,
+  "matrices": [
+    30,
+    11,
+    26,
+    8
+  ],
+  "auxiliary_only_green": 5,
+  "source_files": 390,
+  "all_original_173_and_mike8_unchanged": true,
+  "all_source_restored": true,
+  "append_only_manifest": true,
+  "wheels_host_and_copy_match": true,
+  "cleanup_verified": true,
+  "password_discarded": true,
+  "lock_released": true,
+  "verifier": "/root/c06_verify",
+  "required_findings": [],
+  "scope": "bounded C05 repair; independent raw reconstruction/source/fixture/manifest/cleanup audit",
+  "modern_primary_faults_reconstructed": 41,
+  "auxiliary_controls_reconstructed": 5,
+  "protected_original_files": 381,
+  "official_acceptance": "Mike/Kai separately; security/main/C06/PR40 held separately"
+}
