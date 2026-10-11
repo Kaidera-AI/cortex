@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -73,13 +74,26 @@ def apply_schema(db):
 
 
 def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else 'green'
+    mutations = {
+        'mutant-bypass-database': (
+            'snapshot = read_restored_snapshot(recovery_connection)',
+            'snapshot = manifest["metadata"]',
+        ),
+        'mutant-unpaused-allowed': (
+            'pg_is_in_recovery() AND pg_is_wal_replay_paused()',
+            'pg_is_in_recovery()',
+        ),
+    }
+    if mode != 'green' and mode not in mutations:
+        raise RuntimeError('invalid recovery proof mode')
     mac_free, vm_free_mib = preflight()
     token = uuid4().hex[:10]
     pod = f'kaidera-test-o01recovery-pod-{token}'
     db = f'kaidera-test-o01recovery-pg-{token}'
     label = f'cox-o01recovery-{token}'
     labels = ['--label', 'cortex.test=' + label, '--label', 'cortex.worker=cox']
-    output = {'source_head': run('git', 'rev-parse', 'HEAD').stdout.strip(),
+    output = {'mode': mode, 'source_head': run('git', 'rev-parse', 'HEAD').stdout.strip(),
               'image': PG, 'pod': pod, 'network': 'none', 'published_ports': [],
               'cpus': 2, 'memory_gib': 1, 'mac_free_percent': mac_free,
               'vm_free_mib': vm_free_mib, 'setup': {}, 'suite': None,
@@ -141,7 +155,19 @@ def main():
             output['setup']['recovery_is_paused'] = psql(db, 'SELECT pg_is_wal_replay_paused()', port=5433)
             run('podman', 'cp', db + ':/var/lib/postgresql/base', str(root/'base'))
             run('podman', 'cp', db + ':/var/lib/postgresql/archive', str(root/'archive'))
-            env = dict(os.environ, PYTHONPATH=str(ROOT/'src'), PYTHONDONTWRITEBYTECODE='1',
+            source = ROOT/'src'
+            if mode in mutations:
+                source = root/'mutant-src'
+                shutil.copytree(ROOT/'src', source)
+                path = source/'cortex_core/backup_validation.py'
+                before, after = mutations[mode]
+                body = path.read_text()
+                if body.count(before) != 1:
+                    raise RuntimeError('source-copy mutation anchor differs')
+                path.write_text(body.replace(before, after, 1))
+                output['mutation'] = {'name': mode, 'before': before, 'after': after,
+                                      'source_sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+            env = dict(os.environ, PYTHONPATH=str(source), PYTHONDONTWRITEBYTECODE='1',
                        O01_RECOVERY_CONTAINER=db, O01_BASE_DIR=str(root/'base'),
                        O01_ARCHIVE_DIR=str(root/'archive'))
             suite = subprocess.run([sys.executable, str(ROOT/'tests/test_receipts.py'),
