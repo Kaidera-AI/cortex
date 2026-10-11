@@ -24,9 +24,10 @@ sys.path[:0] = [str(API), str(TESTS), str(SOURCE / ".github/scripts")]
 
 
 class OutcomeGate:
-    def __init__(self, report, expected_failures=0):
+    def __init__(self, report, expected_failures=0, expected_selected=None):
         self.report = report
         self.expected_failures = expected_failures
+        self.expected_selected = expected_selected
         self.items = []
         self.passed = set()
         self.failed = set()
@@ -57,6 +58,8 @@ class OutcomeGate:
         complete = set(self.items) == self.passed | self.failed and bool(self.items)
         ok = complete and not self.skipped and not self.deselected
         ok &= len(self.failed) == self.expected_failures and self.failed == body_failures
+        ok &= int(exitstatus) == (1 if self.expected_failures else 0)
+        ok &= self.expected_selected is None or len(self.items) == self.expected_selected
         session.exitstatus = 0 if ok else 1
         self.report.write_text(json.dumps({
             "selected": self.items, "passed": sorted(self.passed), "failed": sorted(self.failed),
@@ -68,7 +71,7 @@ class OutcomeGate:
 
 def pytest_worker(args):
     import pytest
-    gate = OutcomeGate(args.report, args.expected_failures)
+    gate = OutcomeGate(args.report, args.expected_failures, args.expected_selected)
     return int(pytest.main([
         "-p", "pytest_asyncio.plugin", *(["-p", "pytest_pg_bypass"] if args.bypass else []),
         "--strict-markers", "-q", "--tb=short", "-o", "cache_dir=/tmp/pytest-pg-cache",
@@ -137,7 +140,8 @@ def general(output):
                      CORTEX_MARKED_RLS_TEST_DSN=ADMIN_DSN)
         report = output / (name + ".json")
         argv = [sys.executable, str(Path(__file__).resolve()), "--pytest-worker",
-                "--report", str(report), "--expected-failures", str(failures)]
+                "--report", str(report), "--expected-failures", str(failures),
+                "--expected-selected", str(expected)]
         if bypass:
             argv.append("--bypass")
         argv.extend(["--", *targets])
@@ -242,6 +246,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--expected-failures", type=int, default=0)
+    parser.add_argument("--expected-selected", type=int)
     parser.add_argument("--bypass", action="store_true")
     parser.add_argument("targets", nargs="*")
     args = parser.parse_args()

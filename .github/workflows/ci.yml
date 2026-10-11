@@ -21,6 +21,10 @@ jobs:
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             python -m pip install --only-binary=:all: pytest==8.4.2 pytest-asyncio==1.2.0 \
             psycopg2-binary==2.9.11 PyYAML==6.0.3 --target "${{ runner.temp }}/cortex-pg-site"
+      - name: fail-capable pytest gate controls
+        run: |
+          PYTHONPATH="${{ runner.temp }}/cortex-pg-site" \
+            python .github/scripts/pytest_pg_gate_checks.py --output "${{ runner.temp }}/cortex-pytest-pg/gate"
       - name: rootless PG contract (51 tests; cold and warm; no skips or deselections)
         run: |
           python .github/scripts/pytest_pg.py --output "${{ runner.temp }}/cortex-pytest-pg" \

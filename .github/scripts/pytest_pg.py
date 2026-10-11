@@ -168,8 +168,9 @@ class Fixture:
         inventory = {}
         for kind, args in [("containers", ["ps", "-a"]), ("pods", ["pod", "ps"]),
                            ("volumes", ["volume", "ls"]), ("secrets", ["secret", "ls"])]:
-            result = self.command([*args, "--filter", "label=" + LABEL + "=" + self.run_id, "--format=json"], check=False)
-            inventory[kind] = json.loads(result.stdout) if result.returncode == 0 else {"error": result.stderr}
+            filtering = "name=^" + self.prefix + "-" if kind == "secrets" else "label=" + LABEL + "=" + self.run_id
+            result = self.command([*args, "--filter", filtering, "--quiet"], check=False)
+            inventory[kind] = result.stdout.splitlines() if result.returncode == 0 else {"error": result.stderr}
         ok = not errors and all(value == [] for value in inventory.values())
         self.receipt["cleanup"] = {"ok": ok, "errors": errors, "inventory": inventory}
         return ok
@@ -197,7 +198,10 @@ class Fixture:
         self.command(["unshare", "chmod", "0755", str(results)])
         self.results = results
         tls_mounts = [(name, "/tls/" + role, False) for role, name in self.tls.items()]
-        helper = self.run("prepare", PYTHON, ["sh", "-c", "cp -a /wheels/. /deps/ && sh /source/packages/deploy/tls/init.sh"],
+        finite_limits = podman_stage0.LIMITS.replace("os.getuid()==10001 and os.getgid()==10001", "os.getuid()==0 and os.getgid()==0")
+        import shlex
+        helper = self.run("prepare", PYTHON, ["sh", "-c", "python -c " + shlex.quote(finite_limits) +
+                          " && cp -a /wheels/. /deps/ && sh /source/packages/deploy/tls/init.sh"],
                           user="0:0", memory="1024m", cpus="2", finite=True,
                           mounts=[(self.source, "/source", True), (self.site, "/wheels", True),
                                   (self.deps, "/deps", False), *tls_mounts],
@@ -343,6 +347,7 @@ def provision(output, site):
     except BaseException as exc:
         fixture.receipt["status"] = "FAIL"
         fixture.receipt["reason"] = type(exc).__name__ + ": " + str(exc)
+        print(fixture.receipt["reason"], flush=True)
     finally:
         if not fixture.cleanup():
             fixture.receipt["status"] = "FAIL"
