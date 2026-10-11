@@ -94,3 +94,27 @@ PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-f
 ```
 
 Run these sequentially. Both controllers record actual Mac `memory_pressure -Q` and active Podman VM MemAvailable before creating any resource and refuse if either is below 35%. Admission script bytes are Git-bound in the final receipts. Synthetic admission controls prove low Mac and low VM refusal and admission at both floors, with zero resource operations. No historical ≥35%-free admission is claimed for the original forward runs: their controllers did not record or enforce it. The final fresh O01a receipt is `../o01a-source/native-pg-c07-repair-002.json` at `2063fbf4b65594335e164d4343e1599950e12eac`, a proof-controller-only successor with the exact same 480 NEXT input bytes; seven tests, 973 base files, four WAL segments, pg_verifybackup and synthetic age roundtrip, refusals and complete owned cleanup. Backup attempt 001 passed its native checks but omitted lifecycle commands from its raw results; independent verification rejected that omission. Attempt 002 records admission before the actual create command and is the qualified receipt. Backup product/test/mutator bytes stay identical to be52491; accepted seven-fault backup proof remains bound to these unchanged bytes.
+
+## PR71 pagination continuation repair (current after 7d0c458 re-review)
+
+Kai's18:36 DO NOW retains C07-PR69-002 until long observed histories recover. Product change is only `consumer.py:repair`: capture quarantine-root eligibility once under the lock; search and continue monotonic pages of at most1000 events through the original scan fence; stop on conflict; apply only the requested aggregate through the ordinary fence. No completed/unseen event becomes a repair root. Schema/protocol/backup product bytes stay unchanged.
+
+`c07-review-red-pagination-001.json`:37 native tests / two expected BODY failures / zero errors at80d2f7c before the loop. Cases exercise1001 observed events and an independent poison A1, requested poison B1001, held B2001, conflict stop, three-page replay and newly published B2002 held for normal cycle. `mutation-c07-pagination-001.json` is the final381-clean-test/27-fault run at43f9318, with79 expected BODY assertions and481 copied inputs restored. Three frozen table guards remain expected RED lineage. Raw cleanup and measured35%-free admission are required.
+
+The unchanged reviewer `pagination-controls/test_held_continuation.py` fails one assertion before code and passes afterward. Its companion helper is archived byte-exact as `page-boundary-red-original.py`; the adjacent adapter drops only four top-level RED diagnostics that assert the old bug. Every model method/event/dataflow and the unchanged test's target/cursor assertions are preserved. This is AST source evidence, separate from native PostgreSQL controls. Logs, hashes and source commits are bound in `pagination-source-control-binding.json`.
+
+The prior exact-source verifier `verify-pr71-c07-repair.py` remains historical at7d0c458, including closed001/003/004 and the first short-page fix. At this successor use:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-pagination.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/pagination-controls/test_held_continuation.py .
+```
+
+Fresh sequential replay uses non-existing output basenames with the same already available hash-bound offline wheels/images (no install):
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/run-review-pg.py mutation-c07-pagination-fresh-002
+PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-forward.py native-pg-pagination-fresh-002.json
+```
+
+The native backup receipt is `../o01a-source/native-pg-pagination-001.json`; its source hashes bind unchanged backup product/test/controller inputs to this publication. All receipts retain distinct tested-source commits and publication head. No main merge or live adoption.

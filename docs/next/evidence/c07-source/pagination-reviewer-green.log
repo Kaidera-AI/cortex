@@ -1,0 +1,6 @@
+test_observed_held_successor_reaches_target_after_repair (__main__.HeldContinuation.test_observed_held_successor_reaches_target_after_repair) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK

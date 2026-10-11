@@ -1,0 +1,24 @@
+{
+  "control_sha256": "8d6681dbdda2cc68c62de0141c0e4a68d450ef451b15d156801a93385590259d",
+  "model_sha256": "9465118df9004ac0c8ee5f4bc5f931df34daf29d0071b8a9abd9f2a9706116d2",
+  "adapter_sha256": "9c7af61d17dd6f0808230e691ed7d453839c464cd0a900b041d0fac4fe0eb288",
+  "adapter": "four module-level RED-only diagnostics omitted; every model method, event and unchanged test assertion preserved",
+  "red": {
+    "head": "80d2f7ccc0fc72bbbb731f939b0161585d718c2d",
+    "consumer_sha256": "c9d701a36f832d1d1b925b11ce66b82dd7c3fff4a89d227f01872ee9b6d876fb",
+    "exit_code": 1,
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "log_sha256": "b4019458054bf5d7f4e25bae94fd8c300b16391910336fc95b101f5d617cac72"
+  },
+  "green": {
+    "head": "43f93189c947fc6a69305bdaae35deedfc1d3e2e",
+    "consumer_sha256": "a137bfab63c542388614249eb95d256e0ae446879fe3ad0012dffd7e787a88c1",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "log_sha256": "8af384ceef536f8b4e41fbd41ec890694b4c2b9cc07743dfbb149ee6152140c7"
+  }
+}
