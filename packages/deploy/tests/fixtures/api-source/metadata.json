@@ -1,0 +1,42 @@
+{
+  "before": {
+    "app/db_tls.py": {
+      "sha256": "6a58a2389d902be67cf9ffb1a57c4e932b56108a0d0ac082dd97a8cc68cd34c8",
+      "size": 3364,
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {}
+    },
+    "app/main.py": {
+      "sha256": "11c23c39c31c650d1a015fd8419e601baa74fbadf680d6d7f28adfcdc101100f",
+      "size": 855185,
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {}
+    }
+  },
+  "after": {
+    "app/db_tls.py": {
+      "sha256": "d519309009ec2479316853250ae8c77c8d582e275a1688eaa5f1089f5fff9079",
+      "size": 3350,
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {}
+    },
+    "app/main.py": {
+      "sha256": "b634ed969d3da3f871d0828c03993dd1e6e11e06a7fe5810bb7d78bd2f79dc8b",
+      "size": 858274,
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {}
+    }
+  }
+}
