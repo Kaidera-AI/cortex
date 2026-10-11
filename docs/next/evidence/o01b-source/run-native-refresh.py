@@ -20,7 +20,7 @@ from replay_lifecycle import Lifecycle
 
 NAME = 'kaidera-test-backup-validation-db-1'
 IMAGE = 'sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d'
-OUT = HERE/'native-pg-refresh-001.json'
+OUT = HERE/'native-pg-refresh-002.json'
 assert not OUT.exists()
 assert Path(__file__).read_bytes() == subprocess.check_output([
     'git', '-C', str(WT), 'show', 'HEAD:docs/next/evidence/o01b-source/run-native-refresh.py'])

@@ -25,3 +25,7 @@ Measured G1: clean9-commit rebase,23 O01b paths,accepted product/tests equal c3c
 Native inherited attempt001:40 bodies clean and all485 copied sources restored; rejected by existing frozen-HEAD assertion because author committed controller-only change during run (de86be9 →56fc876). No qualification credit. Owned3 resources removed. Current source/controllers are frozen before sequential native refresh and attempt002; no commits until both jobs complete.
 
 G3 native PASS at2d4da9d:23 focused tests,1112 base/4 WAL/2blob/1119 encrypted members,10 refusal controls,actual37%Mac/70.369%VM,owned1 cleanup. Inherited attempt002 PASS at same frozen2d4da9d:40 clean module tests including both manifest controls,485 exact restored inputs,owned3 cleanup. G4 independent binding follows in this publication; G5 final CI/cleanup completion is an external exact-head receipt to avoid changing the head while it is being qualified.
+
+## Kai00:13 re-pin (12 Oct)
+
+Previous local07bc66d was unpushed and preempted. Clean rebase onto435da3df accepted now. Re-run9+7 faults,backup23,current44 module (including scoped-exhaustion and manifest),486 inputs,same native boundaries; freeze all source/controllers and HEAD before either native job. Do not credit old source-bound native receipts at this new source. Current source/proof/native output names are fresh; push with exact old remote c3cad3ed lease,CI4,formal return,own cleanup. PR72 held; Mike PR71 rework preempts. G1/G2/G3/G4 completion resets for this new pin; final completion is exact-head external receipt.

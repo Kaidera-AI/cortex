@@ -40,7 +40,7 @@ def admission(data):
 binding_path='docs/next/evidence/o01b-source/refresh-binding.json'
 assert (WT/binding_path).read_bytes()==blob('HEAD',binding_path)
 b=json.loads((WT/binding_path).read_text())
-assert b['base']=='9f5cbd3b3ede6e074f9619da44c95d88747e61a7'
+assert b['base']=='435da3df7a253b3e0f5a41dd0d188320a40f882b'
 assert subprocess.run(['git','-C',str(WT),'merge-base','--is-ancestor',b['base'],'HEAD']).returncode==0
 for path,digest in b['published_inputs'].items():
     assert sha((WT/path).read_bytes())==sha(blob('HEAD',path))==digest,path
@@ -53,14 +53,14 @@ for path in ['next/src/cortex_core/modules/consumer.py','next/src/cortex_core/mo
     assert blob('HEAD',path)==blob(b['base'],path),path
 next_paths=git('ls-tree','-r','--name-only','HEAD','next').decode().splitlines()
 current={p:sha(blob('HEAD',p)) for p in next_paths}
-assert len(current)==485
+assert len(current)==486
 for path,digest in current.items(): assert sha((WT/path).read_bytes())==digest,path
 
 red=json.loads((OUT/'refresh/o01b-driver-red.jsonl').read_text().splitlines()[-1])
 assert red['mutants']==8 and red['killed']==0 and len(red['inconclusive'])==8
 assert all(r['receipt']['tests_run']==16 and not r['receipt']['errors'] for r in red['rows'])
 body_count=0
-for name,count,tests in [('o01b-faults-green.jsonl',9,16),('o01a-faults-green.jsonl',7,7)]:
+for name,count,tests in [('o01b-faults-green-002.jsonl',9,16),('o01a-faults-green-002.jsonl',7,7)]:
     data=json.loads((OUT/'refresh'/name).read_text().splitlines()[-1])
     assert data['mutants']==data['killed']==count and not data['inconclusive']
     if isinstance(data['source_sha256'],dict):
@@ -97,7 +97,7 @@ for name,digest in core['tool_input_sha256'].items():
     assert sha(blob('HEAD',path))==sha(blob(core['tree'],path))==digest,path
 rows=[r for r in core['results'] if any(str(a).endswith('/module_consumer') for a in r['command'])]
 assert len(rows)==1 and rows[0]['exit_code']==0
-assert report(rows[0])==dict(tests_run=40,failures=[],errors=[])
+assert report(rows[0])==dict(tests_run=44,failures=[],errors=[])
 for method in ['test_ninth_migration_and_exact_three_tables_are_additive','test_new_tables_force_rls_and_request_has_no_direct_write']:
     assert method in rows[0]['stderr'],method
 assert core['stack_removed'] and core['network']=='none; private loopback' and core['native_arch']=='arm64'
@@ -116,7 +116,7 @@ for key in ['mixed_snapshot_refused','missing_blob_refused','altered_vector_refu
 assert backup['synthetic_only'] and all('18.' in v['client_tools'][k] for k in ['pg_verifybackup','pg_waldump'])
 print(json.dumps(dict(passed=True,publication_head=git('rev-parse','HEAD').decode().strip(),
                      core_tested_commit=core['tree'],backup_tested_commit=backup['tree'],source_files=len(current),
-                     module_tests=40,backup_tests=23,faults=16,body_assertions=body_count,
+                     module_tests=44,backup_tests=23,faults=16,body_assertions=body_count,
                      base_files=v['base_files'],wal_segments=4,encrypted_members=v['verified_member_count'],
                      owned_removed=4,core_mac_free_percent=core_admission['mac_free_percent'],
                      core_vm_free_percent=core_admission['vm_free_percent'],
