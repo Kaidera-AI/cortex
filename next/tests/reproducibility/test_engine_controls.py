@@ -226,16 +226,22 @@ class RuntimeContract(unittest.TestCase):
             with self.assertRaises(ValueError):
                 policy.runtime_argv(*args)
 
+
 class StdioOwnership(unittest.TestCase):
     def test_child_cannot_inherit_operator_stdin(self):
         seen = {}
+
         class Process:
             def wait(self, timeout):
                 return 0
+
         def popen(*args, **kwargs):
             seen.update(kwargs)
             return Process()
+
         with tempfile.TemporaryDirectory() as t:
             p = Path(t)
-            engine.run_operation(['engine'], p, {}, 1, p/'out', p/'err', popen=popen)
-        self.assertEqual(seen.get('stdin'), subprocess.DEVNULL)
+            engine.run_operation(
+                ["engine"], p, {}, 1, p / "out", p / "err", popen=popen
+            )
+        self.assertEqual(seen.get("stdin"), subprocess.DEVNULL)

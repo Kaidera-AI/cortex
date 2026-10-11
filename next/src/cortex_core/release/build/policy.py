@@ -59,3 +59,56 @@ def public_environment(values, allowed):
     if set(values) - set(allowed) or any(forbidden.search(k) for k in values):
         raise ValueError("unadmitted or private environment")
     return dict(values)
+
+
+def runtime_argv(
+    engine, image, uid, home, project_source, project_destination, arguments
+):
+    """Construct the smoke command without replacing the image's actual entrypoint.
+
+    Inputs must come from the admitted module runtime contract. This is command
+    construction only; executing it remains part of the separately gated native run.
+    """
+    if not Path(engine).is_absolute() or type(uid) is not int or uid < 1:
+        raise ValueError("explicit engine and final nonroot uid required")
+    if (
+        not isinstance(image, str)
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", image) is None
+    ):
+        raise ValueError("immutable local image identity required")
+    for value in (home, project_source, project_destination):
+        if (
+            not isinstance(value, str)
+            or not Path(value).is_absolute()
+            or ".." in Path(value).parts
+            or any(c in value for c in (",", "\x00", "\n", "\r"))
+        ):
+            raise ValueError("unambiguous absolute runtime path required")
+    if (
+        not isinstance(arguments, (list, tuple))
+        or not arguments
+        or any(not isinstance(a, str) or "\x00" in a for a in arguments)
+    ):
+        raise ValueError("actual module command arguments required")
+    return [
+        str(engine),
+        "run",
+        "--pull=never",
+        "--rm",
+        "--read-only",
+        "--network=none",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--user",
+        str(uid),
+        "--env",
+        "HOME=" + home,
+        "--mount",
+        "type=bind,source="
+        + project_source
+        + ",destination="
+        + project_destination
+        + ",ro",
+        image,
+        *arguments,
+    ]

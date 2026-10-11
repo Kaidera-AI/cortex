@@ -81,6 +81,7 @@ def run_operation(
                 argv,
                 cwd=str(cwd),
                 env=environment,
+                stdin=subprocess.DEVNULL,
                 stdout=out,
                 stderr=err,
                 start_new_session=True,
