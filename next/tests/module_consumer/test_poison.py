@@ -20,7 +20,11 @@ class Poison(ConsumerFixture):
 
     def test_held_successors_replay_in_order_after_repair(self):
         self.seed(50);self.seed(50,body=b'next',revision=1);self.seed(51)
-        feed=self.feed(bad_payload_at=1);p=self.port(feed=feed);p.register(snapshot_cursor=0);p.cycle()
+        feed=self.feed(bad_payload_at=1);p=self.port(feed=feed);p.register(snapshot_cursor=0)
+        try:
+            p.cycle()
+        except self.module().ConsumerError as error:
+            self.fail(f'cycle must hold the poisoned successor and progress its peer: {error}')
         self.assertEqual([row[1] for row in self.outcomes()],['poison','held','applied'])
         self.assertEqual(self.target(51)[0],1);self.assertIsNone(self.target(50))
         event=Outbox(self.request,OWNER_A,UUID(uid(1)),UUID(uid(3))).page().events[0]

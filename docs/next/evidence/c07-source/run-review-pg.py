@@ -20,7 +20,8 @@ TREE=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 SOURCE={str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (WT/'next').rglob('*') if p.is_file()}
 TOOLS={Path(__file__).name:hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 for old_guard_input in ('run-old-table-guards.py','frozen/auth-test_authorization.py',
-                        'frozen/auth_identity-test_identity.py','frozen/outbox-test_outbox.py'):
+                        'frozen/auth_identity-test_identity.py','frozen/outbox-test_outbox.py',
+                        'native-memory-admission.py','frozen/mike-repair-manifest.py'):
     local=(OUT/old_guard_input).read_bytes()
     committed=subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/'+old_guard_input])
     assert local==committed,('old_guard_input_not_git_bound',old_guard_input)
