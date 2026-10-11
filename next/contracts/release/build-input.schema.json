@@ -1,0 +1,751 @@
+{
+  "$defs": {
+    "engine": {
+      "additionalProperties": false,
+      "properties": {
+        "engine_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine_id",
+        "version",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "input_file": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "not": {
+              "required": [
+                "link_target"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "symlink"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "link_target"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "regular",
+            "symlink"
+          ],
+          "type": "string"
+        },
+        "link_target": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            384,
+            420,
+            448,
+            493,
+            511
+          ],
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "bytes",
+        "sha256",
+        "mode"
+      ],
+      "type": "object"
+    },
+    "target": {
+      "additionalProperties": false,
+      "properties": {
+        "module_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "module_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "oci_platform": {
+          "enum": [
+            "linux/amd64",
+            "linux/arm64"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "module_id",
+        "module_version",
+        "oci_platform"
+      ],
+      "type": "object"
+    },
+    "toolchain": {
+      "additionalProperties": false,
+      "properties": {
+        "compiler_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "compiler_id",
+        "version",
+        "sha256"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "cortex.build-input.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admission_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "qualification_scope": {
+          "enum": [
+            "fixture",
+            "native"
+          ],
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "policy_sha256",
+        "qualification_scope"
+      ],
+      "type": "object"
+    },
+    "builder_requirements": {
+      "additionalProperties": false,
+      "properties": {
+        "architecture": {
+          "enum": [
+            "amd64",
+            "arm64"
+          ],
+          "type": "string"
+        },
+        "engine": {
+          "$ref": "#/$defs/engine"
+        },
+        "execution_kind": {
+          "const": "native",
+          "type": "string"
+        },
+        "os": {
+          "const": "linux",
+          "type": "string"
+        },
+        "rootless": {
+          "const": true,
+          "type": "boolean"
+        },
+        "storage_policy": {
+          "additionalProperties": false,
+          "properties": {
+            "fresh_private": {
+              "const": true,
+              "type": "boolean"
+            },
+            "mutable_shared": {
+              "const": false,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "fresh_private",
+            "mutable_shared"
+          ],
+          "type": "object"
+        },
+        "toolchain": {
+          "$ref": "#/$defs/toolchain"
+        },
+        "uid_min": {
+          "const": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "execution_kind",
+        "os",
+        "architecture",
+        "rootless",
+        "uid_min",
+        "toolchain",
+        "engine",
+        "storage_policy"
+      ],
+      "type": "object"
+    },
+    "compatibility_inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "api_descriptor": {
+          "$ref": "#/$defs/input_file"
+        },
+        "compatibility_contract": {
+          "$ref": "#/$defs/input_file"
+        },
+        "dependency_interfaces": {
+          "items": {
+            "$ref": "#/$defs/input_file"
+          },
+          "maxItems": 20000,
+          "minItems": 0,
+          "type": "array"
+        },
+        "event_index": {
+          "$ref": "#/$defs/input_file"
+        },
+        "event_schemas": {
+          "items": {
+            "$ref": "#/$defs/input_file"
+          },
+          "maxItems": 20000,
+          "minItems": 0,
+          "type": "array"
+        },
+        "schema_manifest": {
+          "$ref": "#/$defs/input_file"
+        }
+      },
+      "required": [
+        "compatibility_contract",
+        "schema_manifest",
+        "api_descriptor",
+        "event_index",
+        "event_schemas",
+        "dependency_interfaces"
+      ],
+      "type": "object"
+    },
+    "dependencies": {
+      "additionalProperties": false,
+      "properties": {
+        "assets": {
+          "items": {
+            "$ref": "#/$defs/input_file"
+          },
+          "maxItems": 20000,
+          "minItems": 0,
+          "type": "array"
+        },
+        "base_images": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "config_digest": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "manifest_digest": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "platform": {
+                "enum": [
+                  "linux/amd64",
+                  "linux/arm64"
+                ],
+                "type": "string"
+              },
+              "provenance": {
+                "$ref": "#/$defs/input_file"
+              },
+              "reference": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "role": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "reference",
+              "platform",
+              "manifest_digest",
+              "config_digest",
+              "provenance"
+            ],
+            "type": "object"
+          },
+          "maxItems": 20000,
+          "minItems": 0,
+          "type": "array"
+        },
+        "locks": {
+          "items": {
+            "$ref": "#/$defs/input_file"
+          },
+          "maxItems": 20000,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      "required": [
+        "locks",
+        "assets",
+        "base_images"
+      ],
+      "type": "object"
+    },
+    "descriptor": {
+      "$ref": "#/$defs/input_file"
+    },
+    "determinism": {
+      "additionalProperties": false,
+      "properties": {
+        "account_log_cache": {
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": "deny-generated",
+              "type": "string"
+            }
+          },
+          "required": [
+            "policy"
+          ],
+          "type": "object"
+        },
+        "clock_channel": {
+          "enum": [
+            "engine_timestamp",
+            "source_date_epoch"
+          ],
+          "type": "string"
+        },
+        "environment": {
+          "additionalProperties": false,
+          "properties": {
+            "names": {
+              "items": {
+                "pattern": "^[A-Z][A-Z0-9_]{0,127}$",
+                "type": "string"
+              },
+              "maxItems": 256,
+              "minItems": 0,
+              "type": "array"
+            }
+          },
+          "required": [
+            "names"
+          ],
+          "type": "object"
+        },
+        "epoch": {
+          "maximum": 253402300799,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "file_metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "acls": {
+              "const": "deny",
+              "type": "string"
+            },
+            "gid": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "mtime_epoch": {
+              "maximum": 253402300799,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "uid": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "xattrs": {
+              "const": "deny",
+              "type": "string"
+            }
+          },
+          "required": [
+            "uid",
+            "gid",
+            "mtime_epoch",
+            "xattrs",
+            "acls"
+          ],
+          "type": "object"
+        },
+        "policy_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "python": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "applicable": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "cache_mode": {
+                  "const": "CHECKED_HASH",
+                  "type": "string"
+                },
+                "compiler_sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "final_root": {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "hash_seed": {
+                  "maximum": 4294967295,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "optimization": {
+                  "maximum": 2,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "applicable",
+                "cache_mode",
+                "final_root",
+                "optimization",
+                "hash_seed",
+                "compiler_sha256"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "applicable": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "reason": {
+                  "const": "non-python",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "applicable",
+                "reason"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "serialization": {
+          "additionalProperties": false,
+          "properties": {
+            "compression": {
+              "const": "none",
+              "type": "string"
+            },
+            "json": {
+              "const": "canonical-v1",
+              "type": "string"
+            },
+            "tar": {
+              "const": "uncompressed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "json",
+            "tar",
+            "compression"
+          ],
+          "type": "object"
+        },
+        "version": {
+          "const": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "epoch",
+        "clock_channel",
+        "python",
+        "file_metadata",
+        "account_log_cache",
+        "serialization",
+        "environment"
+      ],
+      "type": "object"
+    },
+    "format_version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "recipe": {
+      "additionalProperties": false,
+      "properties": {
+        "argv_template": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array"
+        },
+        "entrypoint": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "inventory": {
+          "items": {
+            "$ref": "#/$defs/input_file"
+          },
+          "maxItems": 50000,
+          "minItems": 1,
+          "type": "array"
+        },
+        "recipe_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recipe_id",
+        "version",
+        "entrypoint",
+        "inventory",
+        "argv_template"
+      ],
+      "type": "object"
+    },
+    "resources": {
+      "additionalProperties": false,
+      "properties": {
+        "absolute_timeout_sec": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "cpu_millicores": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "disk_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "memory_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "phase_timeouts_sec": {
+          "additionalProperties": false,
+          "properties": {
+            "audit": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "build": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "cleanup": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "export": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "input": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "parser": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "input",
+            "parser",
+            "build",
+            "export",
+            "audit",
+            "cleanup"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "cpu_millicores",
+        "memory_bytes",
+        "disk_bytes",
+        "phase_timeouts_sec",
+        "absolute_timeout_sec"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "cortex.build-input.v1",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "context_root": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "inventory": {
+          "items": {
+            "$ref": "#/$defs/input_file"
+          },
+          "maxItems": 50000,
+          "minItems": 1,
+          "type": "array"
+        },
+        "repository": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "tree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "revision",
+        "tree",
+        "context_root",
+        "inventory"
+      ],
+      "type": "object"
+    },
+    "target": {
+      "$ref": "#/$defs/target"
+    }
+  },
+  "required": [
+    "schema",
+    "format_version",
+    "target",
+    "source",
+    "descriptor",
+    "recipe",
+    "dependencies",
+    "builder_requirements",
+    "determinism",
+    "resources",
+    "compatibility_inputs",
+    "admission_policy"
+  ],
+  "type": "object"
+}
