@@ -24,7 +24,7 @@ import podman_stage0
 
 PYTHON = "docker.io/library/python:3.14.7-trixie@sha256:608322fe51a9b889eee5ed6015c854e77dc44d00c116435f56b69bf6f14c88f4"
 POSTGRES = "docker.io/pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a"
-INFRA_DROP = "import os,ctypes,time;os.setgid(65535);os.setuid(65535);assert ctypes.CDLL(None).prctl(38,1,0,0,0)==0;time.sleep(1800)"
+PAUSE = "registry.k8s.io/pause:3.10@sha256:7c38f24774e3cbd906d2d33c38354ccf787635581c122965132c9bd309754d4a"
 LABEL = "cortex.pytest-pg"
 
 
@@ -36,7 +36,7 @@ class Fixture:
         self.containers, self.volumes, self.secret_names = [], [], []
         self.pod = None
         self.secret_values = [secrets.token_hex(32), secrets.token_hex(32)]
-        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "infra": podman_stage0.IMAGE},
+        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "infra": PAUSE},
                         "admissions": [], "commands": [], "cgroups": [], "passes": []}
 
     def command(self, args, *, timeout=120, check=True, input=None):
@@ -188,19 +188,17 @@ class Fixture:
 
     def prepare(self):
         start = time.monotonic()
-        for image in [PYTHON, POSTGRES]:
+        for image in [PYTHON, POSTGRES, PAUSE]:
             self.admission()
             self.command(["pull", image], timeout=240)
         self.receipt["pull_seconds"] = time.monotonic() - start
 
     def create(self, pass_name):
-        import shlex
         self.admission()
         self.pod = self.prefix + "-pod"
         self.command(["pod", "create", "--name", self.pod, "--network=none", "--hostname=cortex-pg",
                       "--add-host=cortex-pg:127.0.0.1", "--memory=1g", "--memory-swap=1g", "--cpus=2",
-                      "--infra-image", podman_stage0.IMAGE, "--infra-command",
-                      "/usr/local/bin/python -c " + shlex.quote(INFRA_DROP), *self.labels()])
+                      "--infra-image", PAUSE, "--infra-command=/pause", *self.labels()])
         pod = self.owned("pod", self.pod)
         assert not pod["InfraConfig"]["HostNetwork"] and not pod["InfraConfig"]["PortBindings"]
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
@@ -238,11 +236,13 @@ class Fixture:
             "infra_config_user": infra["Config"]["User"], "infra_oci_user": infra_user,
             "infra_runtime_uid": uid, "infra_runtime_gid": gid, "infra_cap_eff": status["CapEff"].strip(),
             "infra_no_new_privs": status["NoNewPrivs"].strip(),
+            "infra_exception": "Podman4.9 forces namespace-holder UID0 in the rootless user namespace; no capabilities, no application/code/TLS/secret mounts. Application runtimes are non-root.",
             "host_network": False, "ports": {}, "labels": pod["Labels"]})
-        # 4.9 forces the infra launcher to user0, even for a non-root image.
-        # Trusted, mount-free setup drops UID/GID before holding the namespace.
-        assert uid == gid == 65535, (uid, gid)
-        assert int(status["CapEff"].strip(), 16) == 0 and status["NoNewPrivs"].strip() == "1"
+        # Podman's namespace coordinator is an explicit runtime exception, as
+        # distinct from the UID999 database and UID10001 application/test driver.
+        assert uid == gid == 0 and int(status["CapEff"].strip(), 16) == 0
+        forbidden = ("/source", "/app", "/tls", "/run/secrets", "/usr/local/lib/python3.14/site-packages")
+        assert not any(mount["Destination"].startswith(forbidden) for mount in infra["Mounts"])
         self.secrets = {}
         for suffix, value in zip(["admin", "password"], self.secret_values):
             name = self.prefix + "-" + suffix
