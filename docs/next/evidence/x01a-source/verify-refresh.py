@@ -37,7 +37,7 @@ assert n['native_arch']=='arm64' and n['network']=='none; private loopback' and 
 assert n['controller_sha256']==sha(blob(n['tree'],'docs/next/evidence/x01a-source/run-inherited-pg.py'))==sha(blob('HEAD','docs/next/evidence/x01a-source/run-inherited-pg.py'))
 for name,digest in n['tool_input_sha256'].items():
     if isinstance(digest,dict):continue
-    path=('docs/next/evidence/x01a-source/'+name[6:] if name.startswith('x01a/') else 'docs/next/evidence/c06-source/'+name[7:] if name.startswith('shared/') else 'docs/next/evidence/c07-source/'+name)
+    path=('docs/next/evidence/x01a-source/'+name[5:] if name.startswith('x01a/') else 'docs/next/evidence/c06-source/'+name[7:] if name.startswith('shared/') else 'docs/next/evidence/c07-source/'+name)
     assert sha(blob(n['tree'],path))==sha(blob('HEAD',path))==digest,path
 w=json.loads((WT/'docs/next/evidence/c06-source/offline-wheel-inputs.json').read_text())['wheels'];assert n['tool_input_sha256']['actual_wheels']==n['tool_input_sha256']['copied_wheels']==w
 clean={}

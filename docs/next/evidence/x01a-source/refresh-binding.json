@@ -22,7 +22,7 @@
     "docs/next/evidence/x01a-source/pre-change-custody.json": "50163c9ec3ed3644c70c8793f62592ce1cf67d390faaca585963547d1bf1e929",
     "docs/next/evidence/x01a-source/pre-integration-faults.jsonl": "171fd7ccd08d5fc8d375f2bfb0002466cb758b139980f695e10e0241602914b1",
     "docs/next/evidence/x01a-source/run-inherited-pg.py": "e2d13e20fd5d8440699066455fbcda750bb2cca3cda77a6e147d246391efe00d",
-    "docs/next/evidence/x01a-source/verify-refresh.py": "f0293e4a4fed2bb9bde4307785f175b20e252fae95c72db638b98443304446bc"
+    "docs/next/evidence/x01a-source/verify-refresh.py": "e42302b1f3d40709838c724d1a98b9399fda4e6ddcfba76400de3e83a36f9cea"
   },
   "note": "Actualone-stack82/490 at310c4c3;main87fd tree==0372a25;publicationdocsoutsidenext,fullinput/controllerdigestsverified.Source/pubdistinct,noX01b."
 }
