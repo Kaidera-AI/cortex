@@ -113,3 +113,45 @@ class DecidingSharedGuards(unittest.TestCase):
                 evidence.__getitem__,
                 policy,
             )
+
+
+class ClosedWireAndPhase(unittest.TestCase):
+    def test_wire_alias_unknown_field_bool_and_digest_version_refuse(self):
+        value, data, receipt, outputs, evidence, policy = receipt_fixture()
+        verified = inputs.admit(canonical_bytes(value), data.__getitem__, policy)
+        for kind in ["size-alias", "unknown", "bool", "version", "path"]:
+            bad = copy.deepcopy(receipt)
+            if kind == "size-alias":
+                row = bad["builds"]["A"]["outputs"][0]
+                row["size"] = row.pop("bytes")
+            elif kind == "unknown":
+                bad["owner_override"] = True
+            elif kind == "bool":
+                bad["format_version"] = True
+            elif kind == "version":
+                bad["schema"] = "cortex.build-receipt.v2"
+            else:
+                bad["evidence"]["index"]["path"] = "../outside.json"
+            with self.subTest(kind=kind), self.assertRaises(ValueError):
+                receipts.verify_shared_receipt(
+                    canonical_bytes(bad),
+                    verified,
+                    outputs.__getitem__,
+                    evidence.__getitem__,
+                    policy,
+                )
+
+    def test_deployment_lookalike_cannot_be_used_as_build_admission(self):
+        value, data, receipt, outputs, evidence, policy = receipt_fixture()
+        with self.assertRaises(ValueError):
+            receipts.emit(
+                {"schema": "cortex.deployment.v1", "verified": True},
+                receipt["builds"],
+                receipt["audit"],
+                receipt["evidence"],
+                receipt["custody"],
+                receipt["cleanup"],
+                outputs.__getitem__,
+                evidence.__getitem__,
+                policy,
+            )
