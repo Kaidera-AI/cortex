@@ -1,16 +1,20 @@
 """O01b: no mixed boundary and no corrupt set reported recoverable."""
 import hashlib
 import io
+import inspect
 import json
+import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from cortex_core.backup import BackupError
-from cortex_core.backup_validation import seal_complete_bundle, verify_complete_bundle
+from cortex_core.backup import BackupError, basebackup_command, seal_encrypted_bundle
+from cortex_core.backup_validation import (_validate_native_pg, seal_complete_bundle,
+                                           verify_complete_bundle)
 
 
 SEG = 1 << 20
@@ -23,6 +27,28 @@ def sha(data):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_backup_entrypoints_require_caller_supplied_executables(self):
+        for function, names in (
+            (basebackup_command, ('executable',)),
+            (seal_encrypted_bundle, ('age_binary',)),
+            (seal_complete_bundle, ('age_binary', 'pg_verifybackup_binary',
+                                    'pg_waldump_binary')),
+            (_validate_native_pg, ('pg_verifybackup_binary', 'pg_waldump_binary')),
+            (verify_complete_bundle, ('age_binary', 'pg_verifybackup_binary',
+                                      'pg_waldump_binary')),
+        ):
+            for name in names:
+                with self.subTest(function=function.__name__, executable=name):
+                    parameter = inspect.signature(function).parameters.get(name)
+                    if parameter is None:
+                        self.fail(f'{function.__name__} lacks required {name}')
+                    self.assertIs(parameter.default, inspect.Parameter.empty)
+
+    def test_bare_basebackup_executable_refuses(self):
+        with self.assertRaises(BackupError):
+            basebackup_command('/tmp/synthetic-base', host='127.0.0.1',
+                               user='postgres', executable='pg_basebackup')
+
     def setUp(self):
         native = patch('cortex_core.backup_validation._validate_native_pg')
         native.start()
@@ -84,6 +110,26 @@ class ValidationTests(unittest.TestCase):
                                          recipient=self.recipient, destination=self.target)
         digest = sha(json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode())
         return manifest, digest
+
+    def test_path_substitution_cannot_receive_synthetic_backup_plaintext(self):
+        fake_dir = self.root/'fake-path'
+        fake_dir.mkdir()
+        marker = self.root/'fake-age-ran'
+        fake = fake_dir/'age'
+        fake.write_text(f'#!{sys.executable}\nimport pathlib,sys\n'
+                        f'sys.stdin.buffer.read()\npathlib.Path({str(marker)!r}).write_text("ran")\n'
+                        'sys.stdout.buffer.write(b"fake-ciphertext")\n')
+        fake.chmod(0o700)
+        with patch.dict(os.environ, {'PATH': str(fake_dir) + os.pathsep + os.environ['PATH']}):
+            try:
+                seal_encrypted_bundle(self.base, self.archive, '0/1300000', self.after,
+                                      segment_bytes=SEG, blob_root=self.blobs,
+                                      recipient=self.recipient, destination=self.target,
+                                      age_binary='age')
+            except BackupError:
+                pass
+        self.assertFalse(marker.exists(), 'backup plaintext reached a PATH-substituted age')
+        self.assertFalse(self.target.exists(), 'invalid executable published ciphertext')
 
     def verify(self, path, digest, snapshot=None, identity=None):
         return verify_complete_bundle(path, identity or self.identity, digest,
