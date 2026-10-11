@@ -1,0 +1,16 @@
+# C07 findings repaired once on integrated PR71
+
+Authority: Kai's 2026-10-11 17:14 DO NOW, Mike's integrated PR71 REWORK. Base publication be52491297337cb67035fdaa6daa0dfdc5f503fa. O01a product/test bytes remain frozen.
+
+Acceptance gates written before code:
+
+1. Receipt: all seven schema fields required, no extra fields, UUID/string/integer/boolean/digest shape and exact event/generation binding. Python refuses malformed receipts before recording; SQL independently uses complete/type checks and NULL-safe comparisons before any head/outcome/cursor write. Native missing/null/wrong-type cases show no target/Core effect.
+2. Repair: identify the requested unresolved quarantine root under Core scope, filter its aggregate/root-and-successor range, preserve poison until acknowledged, then replay successors through the ordinary aggregate fence. Unrelated poison/outcomes stay untouched; held or already-complete events are not repair roots. Mike's exact controls remain unchanged; native conflict/unrelated/held-root cases precede code.
+3. Compaction: checkpoint plus durable aggregate heads retain completeness/replay evidence. Retire only completed prefix outcomes after contiguous advancement; keep sparse poison/held/peer rows above that cursor. Reject completed-prefix downgrade after retirement; harmless completed replay cannot allocate a new terminal ledger row or repeat target effect. Implement the already accepted compaction contract, not a new retention policy. Replace the one legacy retained-row expectation with cursor/head/no-downgrade checks only after RED is recorded, explaining the old contradiction.
+4. Manifest: numeric version 1 excludes booleans, valid kinds remain nonempty/unique and each length ≤64. Preserve valid numeric cases, enforce published schema.
+
+Changed source: consumer.py, protocol.py, unshipped coordination/003-module-consumers.sql, its manifest digest, writer inventory/pins required by the new private helper, current tests and fault recipes. No shipped SQL is rewritten: C07 has not merged/adopted; new private functions preserve the existing owner/revoke/grant protocol. Add named SQL quarantine-root helper and Core earlier-poison defense. Preserve independent review controls and original fixture setup.
+
+Sequence: commit tests/controls first; admitted disposable native RED; implement; exact-source GREEN; body-attributed old/new fault matrix; full integrated inherited native requalification; publish raw receipts/bindings/path table; Mike reviews; Kai gives separate GO. No main merge/live migration/adoption/signing.
+
+Admission: record actual Mac memory_pressure and active Podman-machine MemAvailable before every stack, both ≥35%; otherwise refuse before create and wait. No historical admission is asserted without a measurement. One network-none native-arm64 stack at a time ≤2CPU/1GiB, no ports/binds, complete owned cleanup. Fix replay instructions/output naming so canonical evidence cannot be overwritten. Structural graph tool currently fails missing better_code_review_graph; use fresh rg caller/SQL-contract checks without host installation.
