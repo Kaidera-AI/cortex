@@ -364,6 +364,8 @@ def test_run_bcrg_uses_the_installed_venv_without_uv_or_runtime_resolution(monke
 def test_bcrg_preamble_forces_the_receipt_pinned_qwen_cache_offline(
     tmp_path, monkeypatch
 ):
+    import runpy
+    monkeypatch.setattr(runpy, "run_path", lambda *a, **kw: {"verify_and_configure": lambda: {}})
     module = load_worker("graph_worker_offline_qwen_preamble_test")
     module.GRAPHS_DIR = tmp_path / "graphs"
     repo = tmp_path / "repo"

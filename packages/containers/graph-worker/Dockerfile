@@ -28,6 +28,14 @@ RUN HF_HUB_DISABLE_TELEMETRY=1 \
  && rm -rf /build
 
 
+# Pin/hash the manifest and platform bundle before the upstream decoder sees them.
+# Retain only the complete supported grammar set outside disposable HOME caches.
+COPY tree-sitter-grammar-pins.json /build/tree-sitter-grammar-pins.json
+COPY fetch-tree-sitter-grammars.py /build/fetch-tree-sitter-grammars.py
+RUN /opt/bcrg/bin/python /build/fetch-tree-sitter-grammars.py \
+ && rm -rf /build
+
+
 FROM python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
 
 ENV PYTHONUNBUFFERED=1 \
@@ -82,6 +90,7 @@ RUN set -eux; \
 # resolver cache or network package-resolution path exists in the final stage.
 COPY --from=bcrg-builder /opt/bcrg /opt/bcrg
 COPY --from=bcrg-builder /opt/kaidera-qwen3 /opt/kaidera-qwen3
+COPY --from=bcrg-builder /opt/kaidera-grammars /opt/kaidera-grammars
 
 # Worker runtime: FastAPI + DuckDB + sqlite-vec, wheel-only and hash-complete.
 COPY requirements.runtime.lock /build/requirements.runtime.lock
@@ -93,7 +102,9 @@ WORKDIR /app
 COPY worker.py /app/
 COPY worker-entrypoint /usr/local/bin/worker-entrypoint
 COPY verify-qwen3-model.py /usr/local/libexec/kaidera/verify-qwen3-model.py
+COPY verify-tree-sitter-grammars.py /usr/local/libexec/kaidera/verify-tree-sitter-grammars.py
 
+ENV TREE_SITTER_LANGUAGE_PACK_CACHE_DIR=/opt/kaidera-grammars/cache
 ENV CORTEX_GRAPHS_DIR=/var/lib/cortex/graphs
 ENV PROJECTS_DIR=/projects
 
@@ -107,7 +118,10 @@ RUN install -d -o 10001 -g 10001 -m 0750 \
  && find /opt/kaidera-qwen3 -type d -exec chmod 0555 {} + \
  && find /opt/kaidera-qwen3 -type f -exec chmod 0444 {} + \
  && chmod 0555 /usr/local/libexec/kaidera/verify-qwen3-model.py \
- && chmod 0755 /usr/local/bin/worker-entrypoint
+ && chown -R 10001:10001 /opt/kaidera-grammars \
+ && find /opt/kaidera-grammars -type d -exec chmod 0555 {} + \
+ && find /opt/kaidera-grammars -type f -exec chmod 0444 {} + \
+ && chmod 0555 /usr/local/libexec/kaidera/verify-tree-sitter-grammars.py && chmod 0755 /usr/local/bin/worker-entrypoint
 
 ARG KOS_VERSION
 ARG KOS_SOURCE_REVISION
@@ -145,6 +159,7 @@ USER 10001:10001
 
 # Prove the receipt, exact cache and local-only inference path as the final user. Runtime
 # entrypoint repeats the receipt/hash check before Uvicorn can expose a healthy endpoint.
+RUN /opt/bcrg/bin/python -I /usr/local/libexec/kaidera/verify-tree-sitter-grammars.py
 RUN /usr/local/bin/python -I /usr/local/libexec/kaidera/verify-qwen3-model.py \
  && "$BCRG_PYTHON" -I -c "import os; import better_code_review_graph; from fastretrieval import TextEmbedding; cache=os.environ['QWEN3_EMBED_CACHE_PATH']; snapshot=cache+'/models--n24q02m--Qwen3-Embedding-0.6B-ONNX/snapshots/dc873d64d6143f27ad68dadbd1f0d9a4371b994e'; model=TextEmbedding(model_name='n24q02m/Qwen3-Embedding-0.6B-ONNX', cache_dir=cache, specific_model_path=snapshot, local_files_only=True, cuda=False); vector=next(model.embed(['Kaidera offline runtime probe'], dim=768)); assert tuple(vector.shape) == (768,)" \
  && /usr/local/bin/python -I /usr/local/libexec/kaidera/finalize-build.py --cleanup-only --cleanup-scope runtime

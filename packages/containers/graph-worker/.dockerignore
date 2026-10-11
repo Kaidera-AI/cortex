@@ -11,3 +11,7 @@
 !requirements.runtime.in
 !requirements.runtime.lock
 !finalize-build.py
+
+!tree-sitter-grammar-pins.json
+!fetch-tree-sitter-grammars.py
+!verify-tree-sitter-grammars.py

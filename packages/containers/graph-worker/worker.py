@@ -572,6 +572,11 @@ def _tool_preamble(
 from pathlib import Path
 import os
 import stat
+import runpy
+try:
+    runpy.run_path("/usr/local/libexec/kaidera/verify-tree-sitter-grammars.py")["verify_and_configure"]()
+except Exception as exc:
+    raise RuntimeError("graph_environment_error: offline parser provisioning failed: " + str(exc)) from exc
 import better_code_review_graph.embeddings as embeddings
 import better_code_review_graph.tools as tools
 
@@ -1349,6 +1354,8 @@ def _run_bcrg(code: str, *, timeout: float = 120) -> dict:
     stdout = stdout_bytes.decode("utf-8", errors="replace")
     stderr = stderr_bytes.decode("utf-8", errors="replace")
     if returncode != 0:
+        if "graph_environment_error:" in stderr:
+            raise HTTPException(503, {"code": "graph_environment_error", "message": stderr[-1000:]})
         raise HTTPException(500, stderr[-1000:] or stdout[-1000:])
     try:
         result = json.loads(stdout.strip().splitlines()[-1])
@@ -1814,6 +1821,30 @@ def _require_populated_graph_db(
         db_stat.st_ino,
     ) != expected_identity:
         raise HTTPException(409, "authorized graph database identity changed")
+    try:
+        nodes = _sqlite_count(db, "nodes")
+    except ValueError as exc:
+        raise HTTPException(409, {"code": "graph_not_populated", "message": "managed graph is not a readable populated graph database"}) from exc
+    final_stat = db.lstat()
+    if (final_stat.st_dev, final_stat.st_ino) != (db_stat.st_dev, db_stat.st_ino):
+        raise HTTPException(409, "authorized graph database identity changed during semantic check")
+    parsed_generation = expected_identity is not None
+    if not parsed_generation:
+        try:
+            con = sqlite3.connect(f"file:{quote(os.fspath(db), safe='/')}?mode=ro", uri=True, timeout=1.0)
+            try:
+                con.execute("PRAGMA query_only=ON")
+                metadata = dict(con.execute("SELECT key,value FROM metadata WHERE key IN ('files_parsed','last_build_type')"))
+                parsed_generation = int(metadata.get("files_parsed", "0")) > 0 or metadata.get("last_build_type") in {"full", "incremental"}
+            finally:
+                con.close()
+        except sqlite3.OperationalError as exc:
+            if "no such table: metadata" not in str(exc):
+                raise HTTPException(409, {"code": "graph_not_populated", "message": "cannot inspect graph generation metadata"}) from exc
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(409, {"code": "graph_not_populated", "message": "invalid graph generation metadata"}) from exc
+    if parsed_generation and nodes <= 0:
+        raise HTTPException(409, {"code": "graph_not_populated", "message": "parsed graph generation contains no nodes"})
     return db
 
 
@@ -1961,6 +1992,35 @@ async def prune(body: PruneBody):
     return await _run_single_flight(_prune_graphs, body)
 
 
+def _validated_graph_build_result(result: dict) -> dict:
+    def systemic(message):
+        raise HTTPException(503, {"code": "graph_environment_error", "message": str(message)[:MAX_GRAPH_RESPONSE_TEXT_CHARS]})
+    if not isinstance(result, dict) or result.get("status") != "ok":
+        systemic(result.get("error", "invalid graph build response") if isinstance(result, dict) else "invalid graph build response")
+    errors = result.get("errors", [])
+    if not isinstance(errors, list):
+        systemic("invalid graph parser error collection")
+    warnings = []
+    content_markers = ("syntaxerror", "syntax error", "invalid source syntax", "parse error", "unicodedecodeerror", "codec can't decode")
+    for error in errors:
+        if not isinstance(error, dict) or not isinstance(error.get("file"), str) or not isinstance(error.get("error"), str):
+            systemic("invalid graph parser error entry")
+        message = error["error"]
+        systemic_markers = ("grammar", "download", "provision", "permission", "read-only", "no such file", "space left", "memoryerror", "database", "module", "environment")
+        if any(marker in message.lower() for marker in systemic_markers) or not any(marker in message.lower() for marker in content_markers):
+            systemic(message)
+        warnings.append({"file": error["file"][:MAX_GRAPH_RESPONSE_TEXT_CHARS], "error": message[:MAX_GRAPH_RESPONSE_TEXT_CHARS]})
+    files = result.get("supported_files_count", result.get("files_parsed", result.get("files_updated")))
+    nodes = result.get("total_nodes")
+    if type(files) is not int or files < 0 or type(nodes) is not int or nodes < 0:
+        systemic("invalid graph build counts")
+    if files == 0:
+        raise HTTPException(422, {"code": "no_supported_sources", "message": "graph build found no supported sources"})
+    if nodes == 0:
+        raise HTTPException(409, {"code": "graph_not_populated", "message": "supported sources produced no graph nodes"})
+    return dict(result, warnings=warnings[:MAX_GRAPH_RESPONSE_ITEMS], warning_count=len(warnings))
+
+
 def _build_graph(body: BuildBody, *, timeout: float = 600) -> dict:
     deadline = time.monotonic() + timeout
     repo_path = _resolve_repo(body.repo, body.registered_repo)
@@ -1993,7 +2053,18 @@ import json
 from better_code_review_graph.tools import build_or_update_graph, embed_graph
 
 repo_root = {json.dumps(str(repo_path))}
+from better_code_review_graph.incremental import collect_all_files
+supported_files = collect_all_files(Path(repo_root))
 r = build_or_update_graph(full_rebuild={full_flag}, repo_root=repo_root)
+if isinstance(r, dict):
+    r["supported_files_count"] = len(supported_files)
+    if not {full_flag} and r.get("status") == "ok" and not r.get("errors"):
+        from better_code_review_graph.tools import _get_store
+        _store, _root = _get_store(repo_root)
+        try:
+            r["total_nodes"] = int(_store._conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0])
+        finally:
+            _store.close()
 if isinstance(r, str):
     r = json.loads(r)
 if {embed_flag}:
@@ -2004,7 +2075,7 @@ if {embed_flag}:
 _cortex_emit(r)
 """
     )
-    result = _run_bcrg(code, timeout=_remaining_operation_timeout(deadline))
+    result = _validated_graph_build_result(_run_bcrg(code, timeout=_remaining_operation_timeout(deadline)))
     _require_populated_graph_db(
         body.storage_key,
         expected_identity=expected_db_identity,

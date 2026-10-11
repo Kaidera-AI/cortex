@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "bcrg_version": "3.24.0",
+  "language_pack_version": "1.16.1",
+  "source_commit": "38899fed8631f76134287ecc7ffd4089d06b1516",
+  "manifest": {
+    "url": "https://github.com/xberg-io/tree-sitter-language-pack/releases/download/v1.16.1/parsers.json",
+    "sha256": "1d46f652c339653c7469552260d604f4d0950868fcca494574cbb8bf1a107a7e",
+    "size": 29981
+  },
+  "supported_languages": [
+    "c",
+    "cpp",
+    "csharp",
+    "dart",
+    "go",
+    "java",
+    "javascript",
+    "kotlin",
+    "php",
+    "python",
+    "ruby",
+    "rust",
+    "solidity",
+    "swift",
+    "tsx",
+    "typescript"
+  ],
+  "platforms": {
+    "linux-x86_64": {
+      "url": "https://github.com/xberg-io/tree-sitter-language-pack/releases/download/v1.16.1/parsers-linux-x86_64.tar.zst",
+      "sha256": "95d39c61bf85382e6f20758556535c2f7e6414baafab97bb6bfe13ebb9452b57",
+      "size": 22389852
+    },
+    "linux-aarch64": {
+      "url": "https://github.com/xberg-io/tree-sitter-language-pack/releases/download/v1.16.1/parsers-linux-aarch64.tar.zst",
+      "sha256": "5e51a7083cf4d08619d49c673b034d627d3f35f9705c7f81ead59d2baa07219a",
+      "size": 21932089
+    }
+  },
+  "grammar_artifacts": {
+    "linux-x86_64": [
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_c.so",
+        "size": 623280,
+        "sha256": "03be54bfe63944b3462d08b0e2069ffc339046fdcfe3fcb304108df284a8a528"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_cpp.so",
+        "size": 5934016,
+        "sha256": "511f4cb6afc4189da88c23eb2fc684a7297f05842627d8dfbc84f718173e6385"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_c_sharp.so",
+        "size": 6197080,
+        "sha256": "5ecdbbf378a90dc53eec4cfd2d3b3ab923b1328908f3b47826f720d625fdf168"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_dart.so",
+        "size": 1519368,
+        "sha256": "01f6d3149917c1193e7fb853451ada73420ded579b0464c20536d14067a1d513"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_go.so",
+        "size": 233712,
+        "sha256": "582e52d3b1803642b641db038b6c40f467c27244f8cfeda93e8e953b27a6e87c"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_java.so",
+        "size": 433720,
+        "sha256": "38d7debeacab7eb5be73fff12cff9c14ce4162baaa80e165ac9d18076874e380"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_javascript.so",
+        "size": 777408,
+        "sha256": "c636e7aca772dfcafaef6fbdfbf194dc0fa63607fd1588a2081dbdaf33294038"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_kotlin.so",
+        "size": 6113984,
+        "sha256": "40abf2de70b5b67912e204c65d5d2b3e5135865d2f234db1f221d0c46162a4c1"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_php.so",
+        "size": 1437776,
+        "sha256": "52f6e0b973eae844ef22dcf436714f81209c9a46aa22166d2026747e7351c8f6"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_python.so",
+        "size": 826248,
+        "sha256": "0a39a054ae5e50132fbf969697e3e5932a9d5636db3e4810b829c95d8019a281"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_ruby.so",
+        "size": 2466328,
+        "sha256": "24bd94ea9bc6baef8290dbe828bd42d5b5ddbbcf0829e6a5ad4e1af594168b82"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_rust.so",
+        "size": 1478328,
+        "sha256": "fe0ef376e1927c8a77002e84b54ee21a88f42d33058e16e4b9fe3565969825bf"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_solidity.so",
+        "size": 536832,
+        "sha256": "e10117145a8333d8e5b14f4549309c3572257dc3be7f9e110f22878d07461a49"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_swift.so",
+        "size": 4046800,
+        "sha256": "c5818cd02e391c1638d2e295cf2ff7dd0d68070704ee974ae8bb5eaccb6f1943"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_tsx.so",
+        "size": 1818232,
+        "sha256": "ef44143187f5804cabe5031f2c00d6eefa11862c9caa41e467f2cb4c9ba3ca3e"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_typescript.so",
+        "size": 1785432,
+        "sha256": "5afc27fbe28f53e72a43911085f7fd9c10820dd284bd2dc755b19589e1dcba6a"
+      }
+    ],
+    "linux-aarch64": [
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_c.so",
+        "size": 662344,
+        "sha256": "a0bcf25445b4a34f03dc817665577eb602f525c274130eee57756b3c7de4121d"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_cpp.so",
+        "size": 5980944,
+        "sha256": "dc564b41c7880e3956716e7f3ec9d97ab95a4c85f001772fae246011b7ebc112"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_c_sharp.so",
+        "size": 6237488,
+        "sha256": "ce1f6a0e889ddbf8ba9a7cde23369321ad068011b94e6772d1ce35f4f9cf48b9"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_dart.so",
+        "size": 1518760,
+        "sha256": "283dc577659d0d9c885015ce72bd689fd3f42a47277ee23310708117333e2f44"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_go.so",
+        "size": 268216,
+        "sha256": "7c307aabc0441549d6e84be416da88e56f5e4259834b4537010b037756c6fff7"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_java.so",
+        "size": 476360,
+        "sha256": "4d7e4cf14fe076f7c7712257b99e7a1c4ee814dcf800002af18b8c77085e7121"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_javascript.so",
+        "size": 796760,
+        "sha256": "7ee7c55dca0139d94812746886c083583905922dacfc5fd601d40cc8e436940b"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_kotlin.so",
+        "size": 6178608,
+        "sha256": "c9d4b6e4694dc849b1e97218acfa969ece44cc6e121a3e979e6c7d16436e5bb2"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_php.so",
+        "size": 1453616,
+        "sha256": "3e796e53b8972298f6a7c841e339a1ed9770e5b04d7d73b61ae11a6e754fb646"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_python.so",
+        "size": 861816,
+        "sha256": "3000e5ddf5ce489008f9b2ad47c8011ef829450067bd1d1e61ab63d044802218"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_ruby.so",
+        "size": 2503168,
+        "sha256": "11b7c59b9ef5fc6586f148a057cd8c87a4a789983fa6676514572c315e5dddd0"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_rust.so",
+        "size": 1518560,
+        "sha256": "1403fd22cc78bb547d70e3e6fdcef66261cdcd97af0f4b2ce30828d15760a7ff"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_solidity.so",
+        "size": 530424,
+        "sha256": "23a2855fb3d12a04358751887a1f94d0a46825700eeb6d98db771a38a6b94296"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_swift.so",
+        "size": 4147232,
+        "sha256": "83c41d81e22a4a8aef2eabba49d99788c8afa8f63414b4c9003d845b7ccd7385"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_tsx.so",
+        "size": 1845856,
+        "sha256": "806df33564c91283dcf5e23f221de1dcd657b149d5169e704f916b63e30ffe6e"
+      },
+      {
+        "path": "cache/tree-sitter-language-pack/v1.16.1/libs/libtree_sitter_typescript.so",
+        "size": 1845784,
+        "sha256": "21cbdb38125353805a01cce72e8e5dfbff06934c20eb6a9d9208fb08047a51c7"
+      }
+    ]
+  }
+}
