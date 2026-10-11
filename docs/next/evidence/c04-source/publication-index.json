@@ -1,0 +1,249 @@
+{
+  "tested_sha": "b7238063e443dc7088f853a04a25d6fd79d78232",
+  "evidence_snapshot_sha": "c41d5a469ffe6a1f5076d89546bd5362333ece39",
+  "incorporated_main": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "official_acceptance": false,
+  "members": {
+    "docs/next/evidence/c04-source/auth-attempt-001.json": {
+      "sha256": "eff67f5ab73af0c0139e793293fbd0cb4c381b936923bf2cf068e5572599d746",
+      "bytes": 41338,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/auth-attempt-001.json"
+    },
+    "docs/next/evidence/c04-source/auth-green-attempt-001.json": {
+      "sha256": "511e19c607bfa674a2bce9b171e551649219edde406caa8844ff70196c8f42f0",
+      "bytes": 493990,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/auth-green-attempt-001.json"
+    },
+    "docs/next/evidence/c04-source/auth-red.json": {
+      "sha256": "3c535f6bf80c5298c957b4c69eb2ab21c8ff26cbfc9b04f9d85dc2e011f5a280",
+      "bytes": 30290,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/auth-red.json"
+    },
+    "docs/next/evidence/c04-source/binding-green-attempt-001.json": {
+      "sha256": "babc93b1cb9c2cdff205f041d6819b8eec2efe39a746d6e51caedccefb04f326",
+      "bytes": 511874,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/binding-green-attempt-001.json"
+    },
+    "docs/next/evidence/c04-source/binding-green-attempt-002.json": {
+      "sha256": "e5cedbecb04e5c1bb5eece7c00905702ab03b76004a6dfc6a1e03870f0210fd4",
+      "bytes": 692869,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/binding-green-attempt-002.json"
+    },
+    "docs/next/evidence/c04-source/binding-green-attempt-003.json": {
+      "sha256": "68cc8ed9daf0916935564f871fa43e012d3d9c0b9857879db93c461dfe67c701",
+      "bytes": 773564,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/binding-green-attempt-003.json"
+    },
+    "docs/next/evidence/c04-source/binding-green-attempt-004.json": {
+      "sha256": "d9d8f29bcb2334f4b070dcc5e56047c1464fe2aa360560156ea5f2414bfb7110",
+      "bytes": 773913,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/binding-green-attempt-004.json"
+    },
+    "docs/next/evidence/c04-source/binding-red.json": {
+      "sha256": "3240f80da658d58ced0637a8b395ad6a3c5595e3a64c3e2279316981ebab8095",
+      "bytes": 181972,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/binding-red.json"
+    },
+    "docs/next/evidence/c04-source/consumer-green-attempt-002.json": {
+      "sha256": "d0910a30f95227f8926569fb4e8b830a5f40a192d03f5d9a1b1f0a9cf5d4cfad",
+      "bytes": 43608,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/consumer-green-attempt-002.json"
+    },
+    "docs/next/evidence/c04-source/consumer-green.json": {
+      "sha256": "4e2c97b95ad8d4d7b287e53630b7271f553b818764b1b0131d95fc13ca6fbe34",
+      "bytes": 31467,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/consumer-green.json"
+    },
+    "docs/next/evidence/c04-source/consumer-missing-red.json": {
+      "sha256": "e51143a770ab209300b32e0dbef97c76da353a21ad604ff85b962ef11ee31e0e",
+      "bytes": 40102,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/consumer-missing-red.json"
+    },
+    "docs/next/evidence/c04-source/context-auth-red.json": {
+      "sha256": "05a04bf7c776360a926f00975db4a9e02cb6228146f3dfe81e505be4e9be778c",
+      "bytes": 30297,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/context-auth-red.json"
+    },
+    "docs/next/evidence/c04-source/contract-shared-attempt-001-disposition.json": {
+      "sha256": "449a6068b247a9bd7efa328eaf4a17957ea778e8764659d42bbe39101b82f01e",
+      "bytes": 628,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/contract-shared-attempt-001-disposition.json"
+    },
+    "docs/next/evidence/c04-source/contract-shared-green-attempt-002.json": {
+      "sha256": "49671fe21c337770e3c9350aced4f0ff1807c03292c6bfddb9da83dea52cd12c",
+      "bytes": 1232659,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/contract-shared-green-attempt-002.json"
+    },
+    "docs/next/evidence/c04-source/contract-shared-green.json": {
+      "sha256": "763c600077fbea9786e5a588b4e776b131e60fc5a6cfba6cba64dd52c1ebb514",
+      "bytes": 1094862,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/contract-shared-green.json"
+    },
+    "docs/next/evidence/c04-source/controller-guards-green-attempt-002.json": {
+      "sha256": "92f434bcabad8e6bcad2b8b1f060ee0c8e190875548ebe2ca1bbfb318d1bf3d5",
+      "bytes": 32887,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/controller-guards-green-attempt-002.json"
+    },
+    "docs/next/evidence/c04-source/controller-guards-green.json": {
+      "sha256": "04b9016112988944bcc15573de0933dc68f3d0b1056dab058a07bb397b9c4c13",
+      "bytes": 32855,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/controller-guards-green.json"
+    },
+    "docs/next/evidence/c04-source/controller-guards-red.json": {
+      "sha256": "b3e6f838d00baacff445535db00efb011b80c689ef1e000fcc98cd6f72a7a72c",
+      "bytes": 37985,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/controller-guards-red.json"
+    },
+    "docs/next/evidence/c04-source/controller-red-disposition.json": {
+      "sha256": "a4f7134a2ea9875677d5b2ea717845c3932d8c23c05585c632cd7a90f5495df1",
+      "bytes": 466,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/controller-red-disposition.json"
+    },
+    "docs/next/evidence/c04-source/fixture-confirmed-auth-red.json": {
+      "sha256": "b1b21be76a13d5e5d5185ab9ac98288ab8c59017d86d644654bd02cb1528ff7f",
+      "bytes": 32440,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/fixture-confirmed-auth-red.json"
+    },
+    "docs/next/evidence/c04-source/fixture-diagnostic-red.json": {
+      "sha256": "c22e643491ebc693cb91f607802a74804f527f0b235659c8fef83936b7fc989e",
+      "bytes": 30813,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/fixture-diagnostic-red.json"
+    },
+    "docs/next/evidence/c04-source/folder-fitness.json": {
+      "sha256": "6148402bb1f980662177f0fcaebeb72752ba7f8013ca2504aa7478c90ffee258",
+      "bytes": 453,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/folder-fitness.json"
+    },
+    "docs/next/evidence/c04-source/frozen-inputs.json": {
+      "sha256": "0cb76d0c1569f10b7e4179ba5cb0d849d2bfeb1dc7424bb09daf8ef970f5df06",
+      "bytes": 1730,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/frozen-inputs.json"
+    },
+    "docs/next/evidence/c04-source/initial-auth-red.json": {
+      "sha256": "354c067267a5f76d9ddbb3cce353105c29397a00496dc1ab31a9c72700e4ee10",
+      "bytes": 30290,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/initial-auth-red.json"
+    },
+    "docs/next/evidence/c04-source/integrity-final.json": {
+      "sha256": "d00ee31c2205956fb8ef84790731b928c9f72ab566d5de43bb11d8c5502ed6a7",
+      "bytes": 1908,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/integrity-final.json"
+    },
+    "docs/next/evidence/c04-source/internal-verifier-final.json": {
+      "sha256": "b0174643e1d635635e7caa39d75f11fdb02bed634358a9ad3be6d68908949c00",
+      "bytes": 39359,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/internal-verifier-final.json"
+    },
+    "docs/next/evidence/c04-source/pre-edit.json": {
+      "sha256": "328c3736782877954253dfb9207247e40133f4eaeffd07d18987294bd4559f85",
+      "bytes": 12218,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/pre-edit.json"
+    },
+    "docs/next/evidence/c04-source/pre-fixture-auth-red.json": {
+      "sha256": "a611977536ccf7192a517231630cdcd4347eec399aa9277a609d1f25abb4fb02",
+      "bytes": 30289,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/pre-fixture-auth-red.json"
+    },
+    "docs/next/evidence/c04-source/private-red.json": {
+      "sha256": "6675c15f639330e4e4673f8844cfe740b74e127d46487d8e828a53311b6ef1a9",
+      "bytes": 183005,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/private-red.json"
+    },
+    "docs/next/evidence/c04-source/reproduce.md": {
+      "sha256": "b417ebc0a5b7de442e961b71aa26276cd4616952f13d4c055cd3a7afb601d318",
+      "bytes": 8747,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/reproduce.md"
+    },
+    "docs/next/evidence/c04-source/run-auth-diagnostic.py": {
+      "sha256": "ed1b45d5c6df7273fb6eabbd79604c5bde427ba98da7bfdd3a6507ade3e7e857",
+      "bytes": 5390,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/run-auth-diagnostic.py"
+    },
+    "docs/next/evidence/c04-source/run-auth-pg.py": {
+      "sha256": "87b3640cd754bb4e3b2aadc2d59cb983d4b9b9b765e922210479cb7e5d8ada31",
+      "bytes": 9552,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/run-auth-pg.py"
+    },
+    "docs/next/evidence/c04-source/run-auth-receipts.py": {
+      "sha256": "42fd6a65dc68e4d3775a77467195b4997537ad816f2a8af5b8a5ab5a46b1cd3b",
+      "bytes": 9807,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/run-auth-receipts.py"
+    },
+    "docs/next/evidence/c04-source/run-c04.py": {
+      "sha256": "eae2e2c3894c1bdb3966060aeae50fb03d33dbecf908397dca7b04a9e1adc18a",
+      "bytes": 4864,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/run-c04.py"
+    },
+    "docs/next/evidence/c04-source/run-controller-receipt-guards.py": {
+      "sha256": "ace2e2c9f584f58e6d2fe4f978ac60864e0926ba1b4d6e3c56550b8032e03814",
+      "bytes": 3620,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/run-controller-receipt-guards.py"
+    },
+    "docs/next/evidence/c04-source/test_controller_receipt_guards.py": {
+      "sha256": "ca43358d01b717bfbd1c39ee39f452dc6475d1baf689f13c9de06534774e8c99",
+      "bytes": 2345,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/test_controller_receipt_guards.py"
+    },
+    "docs/next/evidence/c04-source/wheel-download-index.json": {
+      "sha256": "6811ff69cf0448b47f92982cb1efb0d35f9234df9e8a825d5a5aa4bdc5ce4187",
+      "bytes": 3117,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c04-source/wheel-download-index.json"
+    },
+    "docs/next/c04-implementation-plan.md": {
+      "sha256": "5ff75098b6ab130904cc15d9463f6831fdde5c4f3e191ac611484853843bfba7",
+      "bytes": 19876,
+      "canonical_root": "docs/plans/cortex-v2-v0.1.020/lane-A/C04_IMPLEMENTATION_PLAN.md"
+    },
+    "next/contracts/auth-conformance.json": {
+      "sha256": "4d384739cd8c557ae668afe07d41e065bafec6a0c9d36f750003a0d8859fcdb5",
+      "bytes": 1410,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/schema/auth/002-isolation.sql": {
+      "sha256": "dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681",
+      "bytes": 13728,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/schema/manifest.json": {
+      "sha256": "673a686b3bcf5efd1aa6cebae5d1f98a5fcecf48e4844f13d1bd8c8eefefdbb1",
+      "bytes": 952,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/scripts/mutate_auth.py": {
+      "sha256": "a628c74c6302b0af9fa3707dd467280442e26f5fb79cf4fd94287d0834cad68a",
+      "bytes": 10835,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/src/cortex_core/auth.py": {
+      "sha256": "a395599c168300e0b0a9d38c94c72a16720637047bca8845fdaf900ba128c3e8",
+      "bytes": 5116,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/tests/auth/test_auth_mutation_receipts.py": {
+      "sha256": "1312bf5fd90c097f40711a7b490253ba1982372e7c65bf06294e1eb5c86e96ab",
+      "bytes": 1613,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/tests/auth/test_authorization.py": {
+      "sha256": "6b1877189d40afca234d9f8bfd665da8cd08f2af761603468421d38be9325b18",
+      "bytes": 19154,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/tests/auth/test_context_guards.py": {
+      "sha256": "f685a24133eb0bc94670ac98bac146ee44bb6f70dad1787e06ca7c54524794c5",
+      "bytes": 2338,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/tests/auth/test_private_binding.py": {
+      "sha256": "5e1ed622a987a3217d3b0e53afe3ea395599786dd25296976b70245cceeb8c4c",
+      "bytes": 3538,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    },
+    "next/tests/auth/test_transaction_binding.py": {
+      "sha256": "1aa9c7c3d2d8d4d30c4864dc0384e1e7bea25692f342ab9855ed1895a6d2e382",
+      "bytes": 4411,
+      "canonical_source": "product Git at tested b7238063e443dc7088f853a04a25d6fd79d78232"
+    }
+  },
+  "excludes_self": true
+}
