@@ -206,8 +206,18 @@ class Fixture:
             user="65535:65535", memory="32m", cpus="0.05")
         coordinator = self.owned("container", self.coordinator)
         assert coordinator["HostConfig"]["NetworkMode"] == "none"
+        coordinator_check = """import os,json
+from pathlib import Path
+status=dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+assert os.getuid()==os.getgid()==65535
+assert int(status['CapEff'].strip(),16)==0 and status['NoNewPrivs'].strip()=='1'
+assert 'ro' in next(line.split()[3].split(',') for line in Path('/proc/mounts').read_text().splitlines() if line.split()[1]=='/')
+print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),'cap_eff':status['CapEff'].strip(),'no_new_privs':1,'root_read_only':True}))
+"""
+        runtime = self.command(["exec", self.coordinator, "python", "-c", coordinator_check])
         self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "coordinator_id": coordinator["Id"],
             "coordinator_user": coordinator["Config"]["User"], "network_mode": "none", "ports": {}, "labels": pod["Labels"]})
+        self.receipt["pod_contracts"][-1]["coordinator_runtime"] = json.loads(runtime.stdout)
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
         self.deps = self.volume(pass_name + "-deps", 10001)
         results = self.output / pass_name
