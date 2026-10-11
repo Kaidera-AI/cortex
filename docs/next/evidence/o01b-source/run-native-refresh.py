@@ -80,8 +80,13 @@ def refused(action):
     raise AssertionError('corrupt or mixed backup was reported recoverable')
 
 
-life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'),
-                 lambda args: subprocess.run(args, text=True, capture_output=True))
+def lifecycle_run(args):
+    completed = subprocess.run(args, text=True, capture_output=True, timeout=180)
+    results.append({'command': args, 'exit_code': completed.returncode,
+                    'stdout': completed.stdout, 'stderr': completed.stderr})
+    return completed
+
+life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'), lifecycle_run)
 try:
     for directory, count in [('backup_producer', 7), ('backup_validation', 16)]:
         env = os.environ.copy()
