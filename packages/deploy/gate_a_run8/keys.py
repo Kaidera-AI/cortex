@@ -22,7 +22,12 @@ def shared_classifier():
 
 
 def decode_console(text, representation="donor-auto"):
-    require(isinstance(text, str) and len(text.encode()) <= 1024 * 1024, "console_output_shape")
+    require(isinstance(text, str), "console_output_shape")
+    try:
+        encoded_size = len(text.encode())
+    except UnicodeError as error:
+        raise Refusal("STOP_CONSOLE_DECODE_FAILURE") from error
+    require(encoded_size <= 1024 * 1024, "console_output_shape")
     require(representation in {"decoded", "base64", "donor-auto"}, "console_representation")
     if representation == "base64" or (representation == "donor-auto" and "ssh-ed25519 " not in text):
         try:
