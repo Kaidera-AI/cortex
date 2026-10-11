@@ -120,6 +120,19 @@ def native_faults(destination):
     with tempfile.TemporaryDirectory(prefix="b01-native-literal-source-") as directory:
         stage = Path(directory) / "src"
         shutil.copytree(NEXT / "src", stage)
+        staged_inputs = {}
+        for folder in ("schema", "contracts"):
+            target = Path(directory) / folder
+            shutil.copytree(NEXT / folder, target)
+            for path in (NEXT / folder).rglob("*"):
+                if path.is_file():
+                    relative = path.relative_to(NEXT)
+                    digest = sha(path.read_bytes())
+                    if sha((Path(directory) / relative).read_bytes()) != digest:
+                        raise RuntimeError("Native source input closure mismatch")
+                    staged_inputs[str(relative)] = digest
+        if "schema/manifest.json" not in staged_inputs:
+            raise RuntimeError("Native schema manifest input is absent")
         candidate = stage / "vector_baseline/product_path.py"
         temporary = Path(directory) / "child-temporary"
         temporary.mkdir()
@@ -168,6 +181,7 @@ def native_faults(destination):
     receipt = {"scope": "REAL_PG_COMPONENTS_WITH_MOCKED_HOSTED_TRANSPORT", "source_sha256": sha(original),
         "frozen_test_sha256": sha(frozen), "baseline": baseline_receipt, "mutations": rows,
         "restored": restored_receipt, "all_killed": all(row["verdict"] == "killed" for row in rows),
+        "staged_input_sha256": staged_inputs,
         "published_source_test_unchanged": True, "native_qualified": False, "gtm_qualified": False}
     (destination / "native-fault-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt
