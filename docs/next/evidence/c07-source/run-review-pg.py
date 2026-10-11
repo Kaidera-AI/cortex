@@ -22,9 +22,8 @@ TOOLS={Path(__file__).name:hashlib.sha256(Path(__file__).read_bytes()).hexdigest
 for old_guard_input in ('run-old-table-guards.py','frozen/auth-test_authorization.py',
                         'frozen/auth_identity-test_identity.py','frozen/outbox-test_outbox.py',
                         'native-memory-admission.py','frozen/mike-repair-manifest.py',
-                        'pagination-controls/test_held_continuation.py',
-                        'pagination-controls/page-boundary-red-original.py',
-                        'pagination-controls/page-boundary.py'):
+                        'reviewer-reusable-control/test_held_continuation.py',
+                        'reviewer-reusable-control/page-boundary.py'):
     local=(OUT/old_guard_input).read_bytes()
     committed=subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/'+old_guard_input])
     assert local==committed,('old_guard_input_not_git_bound',old_guard_input)
