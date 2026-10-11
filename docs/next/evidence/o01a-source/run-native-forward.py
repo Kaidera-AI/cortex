@@ -54,8 +54,14 @@ def psql(sql):
                 '-v', 'ON_ERROR_STOP=1', '-c', sql]).stdout.strip()
 
 
-life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'),
-                 lambda args: subprocess.run(args, text=True, capture_output=True))
+def lifecycle_run(args):
+    result = subprocess.run(args, text=True, capture_output=True, timeout=120)
+    results.append({'command': args, 'exit_code': result.returncode,
+                    'stdout': result.stdout, 'stderr': result.stderr})
+    return result
+
+
+life = Lifecycle(Path('/Users/amadmalik/DevVault/helix'), lifecycle_run)
 native = {}
 try:
     local_env = os.environ.copy()
