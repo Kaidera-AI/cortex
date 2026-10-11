@@ -256,6 +256,16 @@ class ValidationTests(unittest.TestCase):
             self.assertIn('blobs/synthetic/blob', archive.getnames())
         self.assertTrue(self.verify(self.target, digest)['recoverable'])
 
+    def test_handbuilt_snapshot_cannot_issue_recovery_verdict(self):
+        _, digest = self.seal()
+        with self.assertRaises(BackupError):
+            verify_complete_bundle(
+                self.target, self.identity, digest, self.after,
+                age_binary=self.age_binary,
+                pg_verifybackup_binary=self.pg_verifybackup_binary,
+                pg_waldump_binary=self.pg_waldump_binary,
+            )
+
     def test_mixed_record_vector_blob_checkpoint_snapshot_is_refused(self):
         _, digest = self.seal()
         mixed = json.loads(json.dumps(self.after))
