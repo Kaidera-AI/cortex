@@ -119,6 +119,17 @@ RECIPES.extend([
      '                cursor = page_cursor',
      "                if not self._call('c07_quarantined(%s,%s,%s)', (self.module_id, state['generation'], event_id)):\n                    raise ConsumerError('repair_event_not_poison')\n                cursor = page_cursor",
      'test_review_pagination.Pagination.test_1001_observed_events_replay_held_successor'),
+    ('durable observed replay omitted',CONSUMER,
+     'while replay_cursor < observed_fence:', 'while False:',
+     'test_durable_continuation.DurableContinuation.test_fresh_client_resumes_after_root_checkpoint_interruption'),
+    ('durable poisoned aggregate replayed',CONSUMER,
+     "if self._call('c07_poisoned(%s,%s,%s)',\n                            (self.module_id, state['generation'], aggregate)):",
+     "if False and self._call('c07_poisoned(%s,%s,%s)',\n                            (self.module_id, state['generation'], aggregate)):",
+     'test_durable_continuation.DurableContinuation.test_independent_poison_and_full_capacity_survive_multi_page_resume'),
+    ('durable replay incorrectly capacity limited',CONSUMER,
+     '                    replay_cursor = event.cursor',
+     "                    if self.status()['pending_outcomes'] >= self.max_pending_outcomes:\n                        raise ConsumerError('capacity')\n                    replay_cursor = event.cursor",
+     'test_durable_continuation.DurableContinuation.test_independent_poison_and_full_capacity_survive_multi_page_resume'),
 ])
 
 

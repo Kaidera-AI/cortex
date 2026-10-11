@@ -195,6 +195,39 @@ class ModuleConsumer:
             raise ConsumerError('invalid_input')
         with self.hold_lock():
             state = self._state()
+            # Sparse outcomes and the applied/scan gap are durable work. Replay
+            # that observed range before taking another page of new history;
+            # no repair-local continuation or cursor reset is needed.
+            replay_cursor = state['applied_cursor']
+            observed_fence = state['scan_cursor']
+            while replay_cursor < observed_fence:
+                try:
+                    observed = self.feed.page(after=replay_cursor, limit=limit)
+                except OutboxError as error:
+                    if error.code == 'expired':
+                        self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
+                    raise ConsumerError(error.code) from error
+                if observed.floor > state['applied_cursor']:
+                    self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
+                    raise ConsumerError('expired')
+                previous = replay_cursor
+                for event in observed.events:
+                    if event.cursor > observed_fence:
+                        break
+                    if event.cursor <= replay_cursor:
+                        raise ConsumerError('invalid_replay_page')
+                    replay_cursor = event.cursor
+                    self._validate(event)
+                    aggregate = UUID(event.envelope['aggregate_id'])
+                    # Preserve unresolved poison and its held successors. A
+                    # resolved root leaves its durable held work eligible.
+                    if self._call('c07_poisoned(%s,%s,%s)',
+                            (self.module_id, state['generation'], aggregate)):
+                        continue
+                    self._apply_event(state, event)
+                if replay_cursor == previous:
+                    raise ConsumerError('observed_replay_missing')
+            state = self._state()
             try:
                 page = self.feed.page(after=state['scan_cursor'], limit=limit)
             except OutboxError as error:
