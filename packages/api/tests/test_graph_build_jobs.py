@@ -283,7 +283,7 @@ async def test_graph_build_full_request_returns_pollable_job(monkeypatch):
     module = load_module(API_MAIN_PATH, "cortex_api_graph_build_job_test")
     allow_registered_project(module, monkeypatch)
 
-    async def fake_create_job(project, body):
+    async def fake_create_job(project, body, *, schema_conn=None):
         assert project == "kaidera-os"
         assert body.repo == "/projects/kaidera-os"
         assert body.full is True
