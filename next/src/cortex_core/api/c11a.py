@@ -7,6 +7,7 @@ this source is not an installed API server or a compatibility qualification.
 import asyncio
 from dataclasses import dataclass
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import re
@@ -17,19 +18,74 @@ class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
 
 
-def postgres_core_probe(connection_factory, *, timeout_seconds=2):
-    """Return an uncached availability probe over the configured Core connection."""
-    if (not callable(connection_factory) or type(timeout_seconds) not in (int, float)
-            or not 0 < timeout_seconds <= 10):
-        raise GatewayError('Core probe configuration is invalid')
+class PostgresProbeFactory:
+    """Open a probe-only async connection with libpq and server-side deadlines."""
 
-    def check():
-        with connection_factory() as db:
-            return db.execute('SELECT 1').fetchone() == (1,)
+    def __init__(self, dsn):
+        if not isinstance(dsn, str) or not dsn:
+            raise GatewayError('Core probe DSN is invalid')
+        self.dsn = dsn
+
+    async def connect(self, *, connect_timeout_seconds, statement_timeout_ms):
+        if (type(connect_timeout_seconds) not in (int, float)
+                or not 1 <= connect_timeout_seconds <= 10
+                or type(statement_timeout_ms) is not int
+                or not 1 <= statement_timeout_ms <= 10000):
+            raise GatewayError('Core probe deadlines are invalid')
+        import psycopg
+        return await psycopg.AsyncConnection.connect(
+            self.dsn, autocommit=True, connect_timeout=int(connect_timeout_seconds),
+            options=f'-c statement_timeout={statement_timeout_ms}')
+
+
+def postgres_core_probe(connection_factory, *, timeout_seconds=2):
+    """Coalesce concurrent Core checks; reconnect afresh after each result."""
+    connect = getattr(connection_factory, 'connect', None)
+    if (not inspect.iscoroutinefunction(connect)
+            or type(timeout_seconds) not in (int, float)
+            or not 0.001 <= timeout_seconds <= 10):
+        raise GatewayError('Core probe configuration is invalid')
+    flight = None
+
+    async def check():
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        connection = None
+        try:
+            connection = await asyncio.wait_for(connect(
+                connect_timeout_seconds=timeout_seconds,
+                statement_timeout_ms=max(1, int(timeout_seconds * 1000))),
+                timeout_seconds)
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            cursor = await asyncio.wait_for(connection.execute('SELECT 1'), remaining)
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            return await asyncio.wait_for(cursor.fetchone(), remaining) == (1,)
+        except Exception:
+            return False
+        finally:
+            if connection is not None:
+                try:
+                    await connection.close()
+                except Exception:
+                    pass
 
     async def probe():
+        nonlocal flight
+        if flight is None or flight.done():
+            flight = asyncio.create_task(check())
+
+            def discard(done):
+                nonlocal flight
+                if flight is done:
+                    flight = None
+
+            flight.add_done_callback(discard)
+        current = flight
         try:
-            return await asyncio.wait_for(asyncio.to_thread(check), timeout_seconds)
+            return await asyncio.wait_for(asyncio.shield(current), timeout_seconds)
         except Exception:
             return False
 

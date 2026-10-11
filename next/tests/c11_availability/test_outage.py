@@ -130,7 +130,7 @@ class AvailabilityAPI(Fixture):
             return await asyncio.to_thread(self.database_up)
 
         probe_factory = getattr(c11a, 'postgres_core_probe', None)
-        probe = (probe_factory(self.connection, timeout_seconds=2)
+        probe = (probe_factory(c11a.PostgresProbeFactory(self.dsn), timeout_seconds=2)
                  if callable(probe_factory) else local_db_probe)
         gateway = self.gateway(probe)
         status, first = self.call(gateway, 'POST', '/memory', key=WRITE_A,
