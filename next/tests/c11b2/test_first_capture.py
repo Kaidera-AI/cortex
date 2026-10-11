@@ -7,7 +7,7 @@ from uuid import UUID
 
 import psycopg
 
-from core_db_fixture import API, Fixture, OWNER_A, REQUEST, uid
+from core_db_fixture import API, Fixture, OWNER_A, REQUEST, WRITE_A, uid
 from cortex_core.outbox import Outbox
 
 
@@ -107,6 +107,25 @@ REVOKE ALL ON FUNCTION auth.cxgap2ai_test_malformed(jsonb,text,uuid) FROM PUBLIC
 GRANT EXECUTE ON FUNCTION auth.cxgap2ai_test_malformed(jsonb,text,uuid)
     TO "kaidera-runtime-core-installer";
 """
+ORDINARY_NULL_PROBE_SQL = """
+CREATE FUNCTION auth.cxgap2ai_test_ordinary_null(p_payload uuid,p_target uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE state text; column_name text;
+BEGIN
+    PERFORM coordination.c06_fact(NULL,p_target,p_payload);
+    RETURN jsonb_build_object('state','accepted');
+EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS state=RETURNED_SQLSTATE,column_name=COLUMN_NAME;
+    RETURN jsonb_build_object('state',state,'column',column_name);
+END;
+$$;
+ALTER FUNCTION auth.cxgap2ai_test_ordinary_null(uuid,uuid)
+    OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION auth.cxgap2ai_test_ordinary_null(uuid,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth.cxgap2ai_test_ordinary_null(uuid,uuid)
+    TO "kaidera-runtime-core-request";
+"""
 
 
 class _Rollback(Exception):
@@ -179,12 +198,18 @@ class FirstCapture(Fixture):
         self.assertFalse(self.admin.execute("SELECT EXISTS(SELECT 1 FROM aclexplode(proacl) a "
             "WHERE a.grantee=0 AND a.privilege_type='EXECUTE') FROM pg_proc "
             'WHERE oid=%s::regprocedure', (HELPER,)).fetchone()[0])
-        self.assertIsNone(self.admin.execute('SELECT to_regprocedure(%s)',
-                                             (PROBE,)).fetchone()[0])
+        probes = (PROBE, 'auth.cxgap2ai_test_malformed(jsonb,text,uuid)',
+                  'auth.cxgap2ai_test_ordinary_null(uuid,uuid)')
+        for probe in probes:
+            self.assertIsNone(self.admin.execute('SELECT to_regprocedure(%s)',
+                                                 (probe,)).fetchone()[0])
         from pathlib import Path
         root = Path(__file__).resolve().parents[2] / 'schema'
         manifest = json.loads((root / 'manifest.json').read_text())
-        self.assertFalse(any('cxgap2ai_test_probe' in (root / entry['file']).read_text()
+        self.assertFalse(any(any(name in (root / entry['file']).read_text()
+                                 for name in ('cxgap2ai_test_probe',
+                                              'cxgap2ai_test_malformed',
+                                              'cxgap2ai_test_ordinary_null'))
                              for entry in manifest['migrations']))
 
     def test_fact_before_current_transaction_receipt_has_no_scope(self):
@@ -307,6 +332,17 @@ class FirstCapture(Fixture):
         self.admin.execute(MALFORMED_PROBE_SQL, prepare=False)
         audit = {'actor_kind': 'installer', 'actor': INSTALLER,
                  'operation': 'first_identity', 'principal_id': uid(70)}
-        self.assertEqual(self.malformed(audit, kind=None), ('error', 'outbox_forbidden'))
-        self.assertEqual(self.malformed(audit, target=None), ('error', 'outbox_forbidden'))
+        for name, kwargs in (('kind', {'kind': None}), ('target', {'target': None})):
+            with self.subTest(null_argument=name):
+                self.assertEqual(self.malformed(audit, **kwargs),
+                                 ('error', 'outbox_forbidden'))
+
+    def test_inherited_ordinary_null_kind_reaches_not_null_constraint(self):
+        self.gate()
+        self.admin.execute(ORDINARY_NULL_PROBE_SQL, prepare=False)
+        with self.auth(WRITE_A, action='write'):
+            result = self.request.execute('SELECT auth.cxgap2ai_test_ordinary_null(%s,%s)',
+                                          (uid(5), uid(70))).fetchone()[0]
+        self.assertEqual(result, {'state': '23502', 'column': 'kind'})
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM coordination.outbox').fetchone()[0], 0)
 
