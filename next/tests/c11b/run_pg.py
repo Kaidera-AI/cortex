@@ -96,7 +96,7 @@ def main():
         raise RuntimeError('unknown C11b mutation')
     output['mutation'] = mutation
     suite = os.environ.get('C11B_SUITE', 'c11b')
-    if suite not in {'c11b', 'records', 'auth', 'auth_identity', 'outbox',
+    if suite not in {'c11b', 'c11_ingest', 'records', 'auth', 'auth_identity', 'outbox',
                      'module_consumer', 'schema'} or mutation and suite != 'c11b':
         raise RuntimeError('unknown C11b suite selection')
     output['suite'] = suite
