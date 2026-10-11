@@ -24,8 +24,9 @@ def reader(monkeypatch):
         "OPENKAI_PROVIDER_REGISTRY_FILE",
         str(
             Path(__file__).resolve().parents[3]
-            / "redistributable"
-            / "config"
+            / "packages"
+            / "deploy"
+            / "provider_registry"
             / "openkai-providers.json"
         ),
     )
