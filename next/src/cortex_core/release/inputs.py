@@ -44,6 +44,8 @@ def input_records(value):
 
 
 def admit_build_input(input, input_reader, accepted_policy):
+    if not isinstance(accepted_policy, dict):
+        raise BuildRefusal('invalid_policy_shape')
     if not isinstance(input, ParsedBuildInput):
         raise BuildRefusal('unparsed_input')
     # Reparse rather than accepting a hand-constructed ParsedDocument capability.

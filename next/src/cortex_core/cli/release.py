@@ -32,6 +32,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         policy = decode_json(_document(args.policy, args.policy_record_sha256, 1024*1024), 1024*1024)
+        if not isinstance(policy, dict):
+            raise ValueError('invalid_policy_shape')
         parsed = parse_build_input(_document(args.input, args.input_sha256, 1024*1024))
         limit = parsed['resources']['disk_bytes']
         with ExitStack() as resources:
@@ -42,8 +44,9 @@ def main(argv=None):
                       'native_qualified': admitted.native_qualified}
             if args.command == 'verify-build-receipt':
                 receipt = parse_build_receipt(_document(args.receipt, args.receipt_sha256, 8*1024*1024))
-                outputs, evidence = RootReader(args.output_root, limit), RootReader(args.evidence_root, min(limit,8*1024*1024))
+                outputs = RootReader(args.output_root, limit)
                 resources.callback(outputs.close)
+                evidence = RootReader(args.evidence_root, min(limit,8*1024*1024))
                 resources.callback(evidence.close)
                 verified = verify_build_receipt(receipt, admitted, outputs.bytes, evidence.bytes, policy)
                 result = {'decision': 'verified', 'receipt_sha256': verified.receipt_sha256,
