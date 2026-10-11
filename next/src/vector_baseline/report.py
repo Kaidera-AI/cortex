@@ -10,6 +10,34 @@ def nearest_rank(values, percentile):
     return sorted(values)[math.ceil(len(values) * percentile) - 1]
 
 
+def _valid_offer_status(row):
+    return (isinstance(row, dict) and type(row.get("status")) is str
+            and row["status"] in {"OK", "ERROR", "TIMEOUT", "MISSED"})
+
+
+def _report(run, bindings, diagnostic):
+    return {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,
+            "qualification": "SYNTHETIC_SQL_DIAGNOSTIC", "bindings": bindings,
+            "not_run": ["real-Marlow-geometry", "both-native-editions", "verified-OS-cold", "full-GTM-matrix",
+                        "API/auth/provider/cache/hybrid", "whole-first-release-stack", "Vera/Kai-acceptance"],
+            "diagnostic": diagnostic, "run": run}
+
+
+def _invalid_inventory(run, bindings, expected, latency_budget_ms):
+    counts = {phase: {"count": len(rows), "status": "NOT_RUN"}
+              for phase, rows in (("measured", run["records"]), ("warmup", run["warmup_records"]))}
+    return _report(run, bindings, {
+        "accounting_valid": False, "offered": len(run["records"]), "expected_offered": expected,
+        "harness_valid": False, "dispatcher_lag": {"interval_seconds": 1 / 40, **counts},
+        "successful_responses": None, "successful_rps": None, "errors_or_missed": None,
+        "throughput_status": "NOT_RUN", "p95_ms": None, "latency_budget_ms": latency_budget_ms,
+        "latency_status": "NOT_RUN", "mean_tie_recall": None, "mean_strict_recall": None,
+        "distinct_nonempty_queries": None, "recall_status": "NOT_RUN",
+        "heldout_coverage_complete": False, "missing_heldout_queries": [], "unexpected_query_ids": [],
+        "failed_queries": [], "resource_collection_complete": None, "minute_windows": [],
+        "warmup_offers": len(run["warmup_records"]), "warmup_errors": None, "verdict": "INVALID_HARNESS"})
+
+
 def dispatcher_lags(run):
     """An invalid offer generator cannot measure an engine; legacy times can derive lag."""
     interval = 1 / 40
@@ -19,6 +47,9 @@ def dispatcher_lags(run):
     for phase, rows in [('measured', run['records']), ('warmup', run['warmup_records'])]:
         values, late, dropped, invalid = [], [], [], []
         for row in rows:
+            if not _valid_offer_status(row):
+                invalid.append(row.get('offer_id') if isinstance(row, dict) else None)
+                continue
             scheduled, dispatched = row.get('scheduled_at'), row.get('dispatched_at')
             derived = dispatched - scheduled if finite(scheduled) and finite(dispatched) else None
             lag = row.get('dispatcher_lag_seconds', derived)
@@ -49,6 +80,8 @@ def _offers_accounted(rows, phase, duration):
             or not math.isclose(duration * 40, round(duration * 40), abs_tol=1e-9, rel_tol=0)):
         return False
     expected = round(duration * 40)
+    if not all(_valid_offer_status(row) for row in rows):
+        return False
     return (len(rows) == expected
             and all(type(r.get("offer_id")) is int for r in rows)
             and {r["offer_id"] for r in rows} == set(range(expected))
@@ -61,7 +94,7 @@ def _offers_accounted(rows, phase, duration):
                     and type(r.get("scheduled_at")) in (int, float) and math.isfinite(r["scheduled_at"])
                     and math.isclose(r["scheduled_at"] - rows[0]["scheduled_at"],
                                      (r["offer_id"] - rows[0]["offer_id"]) / 40, abs_tol=1e-8, rel_tol=0)
-                    and r.get("status") in {"OK", "ERROR", "TIMEOUT", "MISSED"} for r in rows))
+                    for r in rows))
 
 
 def summarize(run, *, latency_budget_ms, bindings):
@@ -77,7 +110,9 @@ def summarize(run, *, latency_budget_ms, bindings):
              and _offers_accounted(run["warmup_records"], "warmup", config["warmup_seconds"])
              and config["rps"] == 40 and config["clients"] == 8
              and run["clients_opened"] == run["clients_closed"] == 8 and not run["close_errors"])
-    latencies = [r["latency_seconds"] * 1000 for r in rows]
+    latencies = [r["latency_seconds"] * 1000 for r in rows] if valid else []
+    if not valid:
+        return _invalid_inventory(run, bindings, expected, latency_budget_ms)
     if any(not math.isfinite(x) or x < 0 for x in latencies):
         raise ValueError("invalid latency observation")
     p95 = nearest_rank(latencies, .95) if latencies else None
@@ -127,11 +162,7 @@ def summarize(run, *, latency_budget_ms, bindings):
         windows.append({"minute": minute, "seconds": seconds, "offered": len(group),
                         "successful_rps": sum(r["status"] == "OK" for r in group) / seconds,
                         "p95_ms": nearest_rank([r["latency_seconds"] * 1000 for r in group], .95) if group else None})
-    return {"schema": "cortex-b02-run-v1", "engine_decision": "UNDECIDED", "gtm_qualified": False,
-            "qualification": "SYNTHETIC_SQL_DIAGNOSTIC", "bindings": bindings,
-            "not_run": ["real-Marlow-geometry", "both-native-editions", "verified-OS-cold", "full-GTM-matrix",
-                        "API/auth/provider/cache/hybrid", "whole-first-release-stack", "Vera/Kai-acceptance"],
-            "diagnostic": {"accounting_valid": valid, "offered": len(rows), "expected_offered": expected,
+    return _report(run, bindings, {"accounting_valid": valid, "offered": len(rows), "expected_offered": expected,
                            "harness_valid": harness_valid, "dispatcher_lag": lag_distribution,
                            "successful_responses": len(successes), "successful_rps": successful_rps,
                            "errors_or_missed": errors, "throughput_status": throughput, "p95_ms": p95,
@@ -145,5 +176,4 @@ def summarize(run, *, latency_budget_ms, bindings):
                            "warmup_offers": len(run["warmup_records"]),
                            "warmup_errors": sum(r["status"] != "OK" for r in run["warmup_records"]),
                            "verdict": "INVALID_HARNESS" if not harness_valid else
-                                      "FAIL" if failed else "NOT_RUN" if recall == "NOT_RUN" else "PASS"},
-            "run": run}
+                                      "FAIL" if failed else "NOT_RUN" if recall == "NOT_RUN" else "PASS"})
