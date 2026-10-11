@@ -281,6 +281,7 @@ class ValidationTests(unittest.TestCase):
             ('model_unscoped', 'model_identities'),
             ('model_scoped', 'model_identities'),
             ('blob_inventory', 'blob_inventory'),
+            ('blob_cross_scope_member', 'blob_inventory'),
             ('record_heads', 'record_heads'),
             ('vectors', 'vectors'),
         ):
@@ -296,6 +297,10 @@ class ValidationTests(unittest.TestCase):
                 repeated['cursor'] += 1
             elif name == 'record_heads':
                 repeated['revision'] += 1
+            elif name == 'blob_cross_scope_member':
+                repeated.update(
+                    tenant_id='00000000-0000-4000-8000-000000000002',
+                    project_id='00000000-0000-4000-8000-000000000003')
             value[field].append(repeated)
             cases[name] = value
         for name, metadata in cases.items():
