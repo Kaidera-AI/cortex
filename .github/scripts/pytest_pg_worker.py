@@ -90,10 +90,10 @@ def runtime_contract(output):
     assert "ro" in root_options
     cg = Path("/sys/fs/cgroup")
     limits = {name: (cg / name).read_text().strip() for name in ["memory.max", "memory.swap.max", "cpu.max"]}
-    assert limits["memory.max"] == str(768 * 1024 ** 2)
+    assert limits["memory.max"] == str(736 * 1024 ** 2)
     assert limits["memory.swap.max"] == "0"
     quota, period = map(int, limits["cpu.max"].split())
-    assert quota / period == 1.5
+    assert quota / period == 1.45
     (output / "runtime-contract.json").write_text(json.dumps({"uid": os.getuid(), "gid": os.getgid(),
         "cap_eff": status["CapEff"].strip(), "no_new_privs": 1, "root_options": root_options,
         "limits": limits, "python": sys.version}, indent=2) + "\n")

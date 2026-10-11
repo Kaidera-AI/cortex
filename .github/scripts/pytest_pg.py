@@ -24,7 +24,6 @@ import podman_stage0
 
 PYTHON = "docker.io/library/python:3.14.7-trixie@sha256:608322fe51a9b889eee5ed6015c854e77dc44d00c116435f56b69bf6f14c88f4"
 POSTGRES = "docker.io/pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a"
-PAUSE = "registry.k8s.io/pause:3.10@sha256:7c38f24774e3cbd906d2d33c38354ccf787635581c122965132c9bd309754d4a"
 LABEL = "cortex.pytest-pg"
 
 
@@ -36,7 +35,7 @@ class Fixture:
         self.containers, self.volumes, self.secret_names = [], [], []
         self.pod = None
         self.secret_values = [secrets.token_hex(32), secrets.token_hex(32)]
-        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "infra": PAUSE},
+        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "coordinator": podman_stage0.IMAGE},
                         "admissions": [], "commands": [], "cgroups": [], "passes": []}
 
     def command(self, args, *, timeout=120, check=True, input=None):
@@ -87,7 +86,7 @@ class Fixture:
     def mount(self, source, target, readonly=True):
         return ["-v", str(source) + ":" + target + (":ro" if readonly else ":rw")]
 
-    def run(self, suffix, image, command, *, user="10001:10001", memory="768m", cpus="1.5",
+    def run(self, suffix, image, command, *, user="10001:10001", memory="736m", cpus="1.45",
             mounts=(), env=None, extra=(), finite=False):
         self.admission()
         name = self.prefix + "-" + suffix
@@ -100,6 +99,7 @@ class Fixture:
         args += self.mount(self.output / "fixture-hosts.conf", "/etc/hosts", True)
         if not finite:
             args.append("-d")
+        args += ["--network", "container:" + self.coordinator if getattr(self, "coordinator", None) else "none"]
         for origin, target, readonly in mounts:
             args += self.mount(origin, target, readonly)
         for key, value in (env or {}).items():
@@ -188,7 +188,7 @@ class Fixture:
 
     def prepare(self):
         start = time.monotonic()
-        for image in [PYTHON, POSTGRES, PAUSE]:
+        for image in [PYTHON, POSTGRES]:
             self.admission()
             self.command(["pull", image], timeout=240)
         self.receipt["pull_seconds"] = time.monotonic() - start
@@ -196,11 +196,18 @@ class Fixture:
     def create(self, pass_name):
         self.admission()
         self.pod = self.prefix + "-pod"
-        self.command(["pod", "create", "--name", self.pod, "--network=none", "--hostname=cortex-pg",
-                      "--add-host=cortex-pg:127.0.0.1", "--memory=1g", "--memory-swap=1g", "--cpus=2",
-                      "--infra-image", PAUSE, "--infra-command=/pause", *self.labels()])
+        self.command(["pod", "create", "--name", self.pod, "--infra=false", "--share=",
+                      "--memory=1g", "--memory-swap=1g", "--cpus=2", *self.labels()])
         pod = self.owned("pod", self.pod)
-        assert not pod["InfraConfig"]["HostNetwork"] and not pod["InfraConfig"]["PortBindings"]
+        assert not pod["CreateInfra"] and not pod["SharedNamespaces"]
+        self.coordinator = None
+        self.coordinator = self.run("coordinator", podman_stage0.IMAGE,
+            ["python", "-c", "import signal,time;signal.signal(signal.SIGTERM,lambda *args:exit(0));time.sleep(1800)"],
+            user="65535:65535", memory="32m", cpus="0.05")
+        coordinator = self.owned("container", self.coordinator)
+        assert coordinator["HostConfig"]["NetworkMode"] == "none"
+        self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "coordinator_id": coordinator["Id"],
+            "coordinator_user": coordinator["Config"]["User"], "network_mode": "none", "ports": {}, "labels": pod["Labels"]})
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
         self.deps = self.volume(pass_name + "-deps", 10001)
         results = self.output / pass_name
@@ -210,39 +217,16 @@ class Fixture:
         self.results = results
         tls_mounts = [(name, "/tls/" + role, False) for role, name in self.tls.items()]
         finite_limits = podman_stage0.LIMITS.replace("os.getuid()==10001 and os.getgid()==10001", "os.getuid()==0 and os.getgid()==0")
+        finite_limits = finite_limits.replace("1073741824", str(992 * 1024 ** 2)).replace("quota/period==2", "quota/period==1.95")
         finite_limits += "\nimport socket;assert socket.gethostbyname('cortex-pg')=='127.0.0.1'\n"
         import shlex
         helper = self.run("prepare", PYTHON, ["sh", "-c", "python -c " + shlex.quote(finite_limits) +
                           " && cp -a /wheels/. /deps/ && sh /source/packages/deploy/tls/init.sh"],
-                          user="0:0", memory="1024m", cpus="2", finite=True,
+                          user="0:0", memory="992m", cpus="1.95", finite=True,
                           mounts=[(self.source, "/source", True), (self.site, "/wheels", True),
                                   (self.deps, "/deps", False), *tls_mounts],
                           extra=["--cap-add=CHOWN", "--cap-add=DAC_OVERRIDE", "--cap-add=FOWNER"])
         self.remove_container(helper)
-        infra = self.owned("container", pod["InfraContainerID"])
-        config = json.loads(Path(infra["OCIConfigPath"]).read_text())
-        infra_user = config["process"]["user"]
-        proc = Path("/proc") / str(infra["State"]["Pid"])
-        status = dict(line.split(":", 1) for line in (proc / "status").read_text().splitlines() if ":" in line)
-        def container_id(value, filename):
-            for line in (proc / filename).read_text().splitlines():
-                inside, outside, count = map(int, line.split())
-                if outside <= value < outside + count:
-                    return inside + value - outside
-            raise RuntimeError("infra runtime identity is outside the rootless map")
-        uid = container_id(int(status["Uid"].split()[1]), "uid_map")
-        gid = container_id(int(status["Gid"].split()[1]), "gid_map")
-        self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "infra_id": infra["Id"],
-            "infra_config_user": infra["Config"]["User"], "infra_oci_user": infra_user,
-            "infra_runtime_uid": uid, "infra_runtime_gid": gid, "infra_cap_eff": status["CapEff"].strip(),
-            "infra_no_new_privs": status["NoNewPrivs"].strip(),
-            "infra_exception": "Podman4.9 forces namespace-holder UID0 in the rootless user namespace; no capabilities, no application/code/TLS/secret mounts. Application runtimes are non-root.",
-            "host_network": False, "ports": {}, "labels": pod["Labels"]})
-        # Podman's namespace coordinator is an explicit runtime exception, as
-        # distinct from the UID999 database and UID10001 application/test driver.
-        assert uid == gid == 0 and int(status["CapEff"].strip(), 16) == 0
-        forbidden = ("/source", "/app", "/tls", "/run/secrets", "/usr/local/lib/python3.14/site-packages")
-        assert not any(mount["Destination"].startswith(forbidden) for mount in infra["Mounts"])
         self.secrets = {}
         for suffix, value in zip(["admin", "password"], self.secret_values):
             name = self.prefix + "-" + suffix
