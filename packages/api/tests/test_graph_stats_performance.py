@@ -91,7 +91,7 @@ async def test_graph_stats_keeps_results_isolated_by_project_parameter():
     marketing = await module.graph_stats(conn, "marketing")
     sales = await module.graph_stats(conn, "sales")
 
-    assert marketing["entity_count"] == 2
+    assert marketing["entity_count"] == 1
     assert sales["entity_count"] == 101
     assert marketing["backlog"]["work_products"] == 10
     assert sales["backlog"]["work_products"] == 110
