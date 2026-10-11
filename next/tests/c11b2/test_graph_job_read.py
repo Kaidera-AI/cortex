@@ -36,7 +36,9 @@ class GraphJobRead(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         Fixture.setUp(self)
-        for scope in ((uid(2), uid(3)), (uid(21), uid(3))):
+        self.admin.execute('INSERT INTO auth.project_grants VALUES (%s,%s,%s,%s)',
+                           (uid(2), uid(4), uid(8), ['read']))
+        for scope in ((uid(2), uid(3)), (uid(2), uid(4)), (uid(21), uid(3))):
             generation = uuid4()
             self.admin.execute('INSERT INTO retrieval.graph_generations VALUES (%s,%s,%s,%s,now())',
                                (*scope, generation, 'fixture-extractor'))
@@ -56,9 +58,10 @@ class GraphJobRead(unittest.IsolatedAsyncioTestCase):
         self.ports = {}
         for installation in (1, 20):
             record = C11bRecordPort(connection, UUID(uid(installation)),
-                                     {'3': UUID(uid(3))})
+                                     {'3': UUID(uid(3)), '4': UUID(uid(4))})
             port = C11b2ReadPort(record, self.pool, IDENTITY, Provider(),
-                                  'fixture-extractor', {'3': REPO})
+                                  'fixture-extractor', {'3': REPO,
+                                                        '4': '/approved/project-4'})
             async def ready(): return True
             async def health(): return {'component': 'cortex', 'status': 'ok'}
             gateway = ConsumerGateway(core_probe=ready,
@@ -79,11 +82,11 @@ class GraphJobRead(unittest.IsolatedAsyncioTestCase):
         self.jobs().create(job_id, kind, b'{"source":"synthetic"}', f'create-{number}')
         return job_id
 
-    async def call(self, job_id, *, key=READ_A, installation=1):
+    async def call(self, job_id, *, key=READ_A, installation=1, project='3'):
         path = f'/graph/build/jobs/{job_id}'
         scope = {'type': 'http', 'method': 'GET', 'path': path,
                  'headers': [(b'authorization', b'Bearer ' + key),
-                             (b'x-project', b'3')], 'query_string': b''}
+                             (b'x-project', project.encode())], 'query_string': b''}
         messages = []
         async def receive():
             return {'type': 'http.request', 'body': b'', 'more_body': False}
@@ -117,21 +120,38 @@ class GraphJobRead(unittest.IsolatedAsyncioTestCase):
                                 b'failure', 'fail-61')
         status, body = await self.call(failed_id)
         self.assertEqual((status, body['status'], body['repo']), (200, 'failed', REPO))
+        canceled_id = self.create(65)
+        self.jobs().cancel(canceled_id, 'cancel-65')
+        status, body = await self.call(canceled_id)
+        self.assertEqual((status, body['status'], body['repo']), (200, 'failed', REPO))
+        unresolved_id = self.create(66)
+        unresolved_claim = self.jobs(WRITE_A).claim(unresolved_id, 'claim-66')
+        self.jobs(WRITE_A).release(unresolved_id, unresolved_claim.attempt_id,
+                                   unresolved_claim.fence, 'release-66')
+        status, body = await self.call(unresolved_id)
+        self.assertEqual((status, body['status'], body['repo']), (200, 'failed', REPO))
 
-    async def test_other_tenant_same_id_and_missing_id_are_same_not_found(self):
+    async def test_other_project_and_tenant_same_id_match_missing_not_found(self):
         job_id = self.create(62)
-        other = await self.call(job_id, key=READ_B, installation=20)
-        missing = await self.call(UUID(uid(98)), key=READ_B, installation=20)
-        self.assertEqual(other, missing)
-        self.assertEqual(other, (404, {'error': {'code': 'not_found',
-                                                'retryable': False}}))
+        missing_id = UUID(uid(98))
+        same_tenant_other_project = await self.call(job_id, project='4')
+        project_missing = await self.call(missing_id, project='4')
+        other_tenant = await self.call(job_id, key=READ_B, installation=20)
+        tenant_missing = await self.call(missing_id, key=READ_B, installation=20)
+        expected = (404, {'error': {'code': 'not_found', 'retryable': False}})
+        self.assertEqual(same_tenant_other_project, project_missing)
+        self.assertEqual(other_tenant, tenant_missing)
+        self.assertEqual(same_tenant_other_project, expected)
+        self.assertEqual(other_tenant, expected)
 
     async def test_unrelated_job_kind_and_malformed_id_refuse(self):
         unrelated = self.create(63, kind='extract')
         status, body = await self.call(unrelated)
-        self.assertEqual((status, body['error']['code']), (404, 'not_found'))
+        self.assertEqual(status, 404, body)
+        self.assertEqual(body['error']['code'], 'not_found')
         status, body = await self.call('not-a-uuid')
-        self.assertEqual((status, body['error']['code']), (400, 'invalid_input'))
+        self.assertEqual(status, 400, body)
+        self.assertEqual(body['error']['code'], 'invalid_input')
 
     async def test_revocation_after_c05_read_refuses_before_success(self):
         job_id = self.create(64)
@@ -146,7 +166,30 @@ class GraphJobRead(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(Jobs, 'get', revoke_after_read):
             status, body = await self.call(job_id)
-        self.assertEqual((status, body['error']['code']), (403, 'forbidden'))
+        self.assertEqual(status, 403, body)
+        self.assertEqual(body['error']['code'], 'forbidden')
+
+    async def test_permission_change_after_c05_read_refuses_before_success(self):
+        job_id = self.create(67)
+        original = Jobs.get
+
+        def change_after_read(jobs, value):
+            result = original(jobs, value)
+            self.admin.execute("UPDATE auth.project_grants SET permissions=ARRAY['read','write'] "
+                               'WHERE tenant_id=%s AND project_id=%s AND principal_id=%s',
+                               (uid(2), uid(3), uid(8)))
+            return result
+
+        with patch.object(Jobs, 'get', change_after_read):
+            status, body = await self.call(job_id)
+        self.assertEqual(status, 403, body)
+        self.assertEqual(body['error']['code'], 'forbidden')
+
+    def test_graph_mutation_handlers_remain_unbound(self):
+        handlers = self.ports[1].handlers
+        for route in ('C01-R026', 'C01-R035', 'C01-R036'):
+            with self.subTest(route=route):
+                self.assertNotIn(route, handlers)
 
 
 if __name__ == '__main__':

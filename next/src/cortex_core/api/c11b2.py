@@ -6,6 +6,7 @@ from urllib.parse import parse_qs
 from uuid import UUID
 
 from cortex_core.auth import AuthError
+from cortex_core.coordination import JobError, Jobs
 from .c11b import _credential
 from cortex_core.embeddings.pg_search import (
     CapabilityUnavailable, CoreUnavailable, EmbeddingIdentity, PostgresSearch,
@@ -417,9 +418,38 @@ class C11b2ReadPort:
         await self._current(principal)
         return result
 
+    def _graph_job(self, principal, scope, job_id):
+        project = self.record_port._project(scope)
+        with self.record_port.connection_factory() as connection:
+            return Jobs(connection, _credential(scope),
+                        self.record_port.installation_id, project).get(job_id)
+
+    async def graph_job(self, principal, scope, _request_key):
+        try:
+            job_id = UUID(scope['path'].rsplit('/', 1)[1])
+        except (KeyError, ValueError, TypeError):
+            raise InvalidRequest('invalid graph job id') from None
+        await self._current(principal)
+        view = await asyncio.to_thread(self._graph_job, principal, scope, job_id)
+        if view is None or view.kind != 'graph.build':
+            raise JobError('not_found')
+        project_key = next((key for key, value in self.record_port.projects.items()
+                            if value == UUID(principal['project_id'])), None)
+        repo = self.project_repos.get(project_key)
+        if repo is None:
+            raise AuthError('forbidden')
+        status = {'pending': 'queued', 'running': 'running',
+                  'succeeded': 'completed', 'failed': 'failed',
+                  'canceled': 'failed', 'unresolved': 'failed'}.get(view.state)
+        if status is None:
+            raise D2Unavailable('unavailable')
+        await self._current(principal)
+        return {'job_id': str(view.job_id), 'status': status, 'repo': repo}
+
     @property
     def handlers(self):
         return {'C01-R006': self.status_degradation,
                 'C01-R021': self.search, 'C01-R022': self.search,
                 'C01-R023': self.graph_search, 'C01-R024': self.graph_stats,
-                'C01-R025': self.graph_memory, 'C01-R034': self.graph_repository_stats}
+                'C01-R025': self.graph_memory, 'C01-R034': self.graph_repository_stats,
+                'C01-R037': self.graph_job}
