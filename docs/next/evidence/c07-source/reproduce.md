@@ -95,7 +95,7 @@ PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-f
 
 Run these sequentially. Both controllers record actual Mac `memory_pressure -Q` and active Podman VM MemAvailable before creating any resource and refuse if either is below 35%. Admission script bytes are Git-bound in the final receipts. Synthetic admission controls prove low Mac and low VM refusal and admission at both floors, with zero resource operations. No historical ≥35%-free admission is claimed for the original forward runs: their controllers did not record or enforce it. The final fresh O01a receipt is `../o01a-source/native-pg-c07-repair-002.json` at `2063fbf4b65594335e164d4343e1599950e12eac`, a proof-controller-only successor with the exact same 480 NEXT input bytes; seven tests, 973 base files, four WAL segments, pg_verifybackup and synthetic age roundtrip, refusals and complete owned cleanup. Backup attempt 001 passed its native checks but omitted lifecycle commands from its raw results; independent verification rejected that omission. Attempt 002 records admission before the actual create command and is the qualified receipt. Backup product/test/mutator bytes stay identical to be52491; accepted seven-fault backup proof remains bound to these unchanged bytes.
 
-## PR71 pagination continuation repair (current after 7d0c458 re-review)
+## PR71 pagination continuation repair (first qualification at eb9bd04)
 
 Kai's18:36 DO NOW retains C07-PR69-002 until long observed histories recover. Product change is only `consumer.py:repair`: capture quarantine-root eligibility once under the lock; search and continue monotonic pages of at most1000 events through the original scan fence; stop on conflict; apply only the requested aggregate through the ordinary fence. No completed/unseen event becomes a repair root. Schema/protocol/backup product bytes stay unchanged.
 
@@ -118,3 +118,16 @@ PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/run-native-f
 ```
 
 The native backup receipt is `../o01a-source/native-pg-pagination-001.json`; its source hashes bind unchanged backup product/test/controller inputs to this publication. All receipts retain distinct tested-source commits and publication head. No main merge or live adoption.
+
+## Official reviewer control (Kai19:03 amendment, current)
+
+Mike's corrected reusable wrapper is preserved byte-exact in `reviewer-reusable-control/test_held_continuation.py`. It pins the original probe SHA `9465118df9004ac0c8ee5f4bc5f931df34daf29d0071b8a9abd9f2a9706116d2` and loads that unchanged model while omitting only old-observation diagnostics. Both recovery assertions remain Mike's. The official wrapper is RED1/1 failure at7d0c458 and GREEN1/1 at repaired source; current binding is `pagination-official-control-binding.json`. The earlier private adapter and its logs/binding remain historical, not the current002 control.
+
+The wrapper's pinned probe path is the canonical sealed reviewer artifact `/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-c07-repair-mike-review-20261011/page-boundary.py`; its byte-exact Git copy is `reviewer-reusable-control/page-boundary.py`. It must exist at that path for the unchanged wrapper to run; missing or changed probe bytes refuse. This artifact dependency is explicit, not silently redirected by an adapter.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py .
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/c07-source/verify-pr71-pagination.py .
+```
+
+The native controller now binds the official wrapper/probe in its input inventory. `mutation-c07-pagination-002.json` repeats the full381/27 matrix at committed7edf883 with unchanged481 NEXT bytes; the private wrapper is not the current control. All original native1001/multi-page assertions and product/test/mutator bytes remain unchanged from the preceding qualification. The fresh backup receipt for this controller-bound source is `../o01a-source/native-pg-pagination-002.json`. Publication changes only proof documents; every receipt retains its source commit and is re-bound to current Git inputs.

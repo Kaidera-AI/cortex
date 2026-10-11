@@ -3,6 +3,7 @@ import ast
 import hashlib
 import io
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -54,14 +55,17 @@ source_green=json.loads((OUT/'pagination-original-controls-green.log').read_text
 assert (source_green['tests_run'],source_green['failures'],source_green['errors'])==(3,0,0)
 assert source_green['control_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/frozen/mike-repair-manifest.py'))
 for path,digest in source_green['source_sha256'].items():assert sha(blob(source_green['head'],path))==sha(blob('HEAD',path))==digest
-controls=json.loads((OUT/'pagination-source-control-binding.json').read_text())
-assert controls['control_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/pagination-controls/test_held_continuation.py'))
-assert controls['model_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/pagination-controls/page-boundary-red-original.py'))
-assert controls['adapter_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/pagination-controls/page-boundary.py'))
+controls=json.loads((OUT/'pagination-official-control-binding.json').read_text())
+assert controls['control_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py'))
+assert controls['model_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/reviewer-reusable-control/page-boundary.py'))
 for stage,code in [('red',1),('green',0)]:
     row=controls[stage]
     assert row['exit_code']==code and row['tests']==1 and row['errors']==0 and row['failures']==(1 if stage=='red' else 0)
     assert sha(blob(row['head'],'next/src/cortex_core/modules/consumer.py'))==row['consumer_sha256']
+    log=(OUT/('pagination-official-reviewer-'+stage+'.log')).read_bytes()
+    assert sha(log)==row['log_sha256'] and re.search(r'Ran 1 tests?',log.decode())
+    assert ('FAILED (failures=1)' in log.decode() if stage=='red' else log.decode().rstrip().endswith('OK'))
+    assert 'ERROR:' not in log.decode()
 assert controls['green']['consumer_sha256']==sha(blob('HEAD','next/src/cortex_core/modules/consumer.py'))
 full=json.loads((OUT/binding['full']).read_text())
 assert full['passed'] and full['stack_removed'] and not full['mutation_errors'] and full['final_inventory_error'] is None

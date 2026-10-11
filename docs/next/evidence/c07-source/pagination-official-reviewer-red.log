@@ -1,0 +1,15 @@
+test_observed_held_successor_reaches_target_after_repair (__main__.HeldContinuation.test_observed_held_successor_reaches_target_after_repair) ... FAIL
+
+======================================================================
+FAIL: test_observed_held_successor_reaches_target_after_repair (__main__.HeldContinuation.test_observed_held_successor_reaches_target_after_repair)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-c07-repair-control-addendum-20261011/test_held_continuation.py", line 19, in test_observed_held_successor_reaches_target_after_repair
+    self.assertEqual(actual['target'][str(ns['UUID'](int=50))],2,actual)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : {'generation': 1, 'applied_cursor': 1000, 'scan_cursor': 1001, 'state': 'active', 'floor': 0, 'pending_outcomes': 1, 'outcomes': {1001: 'held'}, 'target': {'00000000-0000-0000-0000-000000000032': 1}, 'sink_calls': [1]}
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)
