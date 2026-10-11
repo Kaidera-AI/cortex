@@ -1,0 +1,52 @@
+{
+  "command": [
+    "python3.12",
+    "next/tests/test_receipts.py",
+    "next/tests/backup_producer"
+  ],
+  "exit_code": 1,
+  "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 4, \"failures\": [{\"id\": \"test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\\\", line 54, in test_base_backup_without_archived_wal_is_refused\\n    with self.assertRaises(BackupError):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: BackupError not raised\\n\"}, {\"id\": \"test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\\\", line 71, in test_complete_set_binds_metadata_and_exact_wal_digests\\n    self.assertTrue(result.get('usable'))\\nAssertionError: None is not true\\n\"}, {\"id\": \"test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\\\", line 60, in test_gap_inside_archive_interval_is_refused\\n    with self.assertRaises(BackupError):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: BackupError not raised\\n\"}, {\"id\": \"test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\\\", line 65, in test_interval_not_beyond_backup_end_is_refused\\n    with self.assertRaises(BackupError):\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: BackupError not raised\\n\"}], \"errors\": []}\n",
+  "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... FAIL\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... FAIL\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... FAIL\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... FAIL\n\n======================================================================\nFAIL: test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 54, in test_base_backup_without_archived_wal_is_refused\n    with self.assertRaises(BackupError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: BackupError not raised\n\n======================================================================\nFAIL: test_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 71, in test_complete_set_binds_metadata_and_exact_wal_digests\n    self.assertTrue(result.get('usable'))\nAssertionError: None is not true\n\n======================================================================\nFAIL: test_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 60, in test_gap_inside_archive_interval_is_refused\n    with self.assertRaises(BackupError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: BackupError not raised\n\n======================================================================\nFAIL: test_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 65, in test_interval_not_beyond_backup_end_is_refused\n    with self.assertRaises(BackupError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: BackupError not raised\n\n----------------------------------------------------------------------\nRan 4 tests in 0.018s\n\nFAILED (failures=4)\n",
+  "receipt": {
+    "tests_run": 4,
+    "failures": [
+      {
+        "id": "test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 54, in test_base_backup_without_archived_wal_is_refused\n    with self.assertRaises(BackupError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: BackupError not raised\n"
+      },
+      {
+        "id": "test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 71, in test_complete_set_binds_metadata_and_exact_wal_digests\n    self.assertTrue(result.get('usable'))\nAssertionError: None is not true\n"
+      },
+      {
+        "id": "test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 60, in test_gap_inside_archive_interval_is_refused\n    with self.assertRaises(BackupError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: BackupError not raised\n"
+      },
+      {
+        "id": "test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-backup-producer-20261010/next/tests/backup_producer/test_manifest.py\", line 65, in test_interval_not_beyond_backup_end_is_refused\n    with self.assertRaises(BackupError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: BackupError not raised\n"
+      }
+    ],
+    "errors": []
+  },
+  "source_sha256": {
+    "next/src/cortex_core/backup.py": "bfd8960779e179c2b4fe790a9829692656002f01fdb2fee1154608870cc38db0",
+    "next/tests/backup_producer/test_manifest.py": "4ec712ad2bb6d5230f132b6c033adb83c1f7f58c107160ee66c2f3065c1fbc55"
+  }
+}

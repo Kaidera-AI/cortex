@@ -1,0 +1,83 @@
+{
+  "head": "bb06616c5d870d008108fe08c7143f524e9a8d29",
+  "consumer_sha256": "d8843c3170c30945d2aec20ffa220c3df6248cd7bde9f3d77ee0997c1fe93d45",
+  "model_sha256": "9465118df9004ac0c8ee5f4bc5f931df34daf29d0071b8a9abd9f2a9706116d2",
+  "scope": "exact AST source flow, native NOT_RUN",
+  "cases": [
+    {
+      "case": "uninterrupted_original_1001",
+      "applied_cursor": 1001,
+      "status": {
+        "generation": 1,
+        "applied_cursor": 1001,
+        "scan_cursor": 1001,
+        "state": "active",
+        "floor": 0,
+        "pending_outcomes": 0,
+        "outcomes": {},
+        "target": {
+          "00000000-0000-0000-0000-000000000032": 2
+        },
+        "sink_calls": [
+          1,
+          1001
+        ]
+      }
+    },
+    {
+      "case": "after_root_checkpoint_interruption",
+      "persisted_after_interruption": {
+        "generation": 1,
+        "applied_cursor": 1000,
+        "scan_cursor": 1001,
+        "state": "active",
+        "floor": 0,
+        "pending_outcomes": 1,
+        "outcomes": {
+          "1001": "held"
+        },
+        "target": {
+          "00000000-0000-0000-0000-000000000032": 1
+        },
+        "sink_calls": [
+          1
+        ]
+      },
+      "after_resumed_cycle": {
+        "generation": 1,
+        "applied_cursor": 1001,
+        "scan_cursor": 1001,
+        "state": "active",
+        "floor": 0,
+        "pending_outcomes": 0,
+        "outcomes": {},
+        "target": {
+          "00000000-0000-0000-0000-000000000032": 2
+        },
+        "sink_calls": [
+          1,
+          1001
+        ]
+      }
+    },
+    {
+      "case": "transient_successor_failure_then_restoration",
+      "status": {
+        "generation": 1,
+        "applied_cursor": 1001,
+        "scan_cursor": 1001,
+        "state": "active",
+        "floor": 0,
+        "pending_outcomes": 0,
+        "outcomes": {},
+        "target": {
+          "00000000-0000-0000-0000-000000000032": 2
+        },
+        "sink_calls": [
+          1,
+          1001
+        ]
+      }
+    }
+  ]
+}

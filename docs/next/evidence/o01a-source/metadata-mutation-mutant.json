@@ -1,0 +1,28 @@
+{
+  "phase": "MUTANT",
+  "mutation": "restore caller-owned metadata assignment",
+  "source_sha256": "834bf1ba819ff99350af0ba821c6b12590bdd044d26a1527d8831f44688237ec",
+  "mutant_sha256": "69379f5366d690fa9515a3107982357d9db8924e6402b08fb01afa8ed1347674",
+  "command": [
+    "python3.12",
+    "next/tests/test_receipts.py",
+    "next/tests/backup_producer"
+  ],
+  "exit_code": 1,
+  "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 7, \"failures\": [{\"id\": \"test_manifest.BackupManifestTests.test_caller_metadata_mutation_cannot_change_encrypted_manifest\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-rework-20261011/next/tests/backup_producer/test_manifest.py\\\", line 146, in test_caller_metadata_mutation_cannot_change_encrypted_manifest\\n    self.assertEqual(hashlib.sha256(canonical).hexdigest(),\\nAssertionError: '5b27b965501962c6ed1466560bb41233cda1412fb753032ea7129ad445ef29d1' != 'f2c7a3ada398b66891069919fca89e2fff6cd6e61ec71d6a129fcda29f3c7511'\\n- 5b27b965501962c6ed1466560bb41233cda1412fb753032ea7129ad445ef29d1\\n+ f2c7a3ada398b66891069919fca89e2fff6cd6e61ec71d6a129fcda29f3c7511\\n\\n\"}], \"errors\": []}\n",
+  "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... ok\ntest_caller_metadata_mutation_cannot_change_encrypted_manifest (test_manifest.BackupManifestTests.test_caller_metadata_mutation_cannot_change_encrypted_manifest)\nMike O01A-PR71-1: caller mutates metadata after the digest is bound. ... FAIL\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... ok\ntest_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key) ... ok\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... ok\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... ok\ntest_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret (test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret) ... ok\n\n======================================================================\nFAIL: test_caller_metadata_mutation_cannot_change_encrypted_manifest (test_manifest.BackupManifestTests.test_caller_metadata_mutation_cannot_change_encrypted_manifest)\nMike O01A-PR71-1: caller mutates metadata after the digest is bound.\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-rework-20261011/next/tests/backup_producer/test_manifest.py\", line 146, in test_caller_metadata_mutation_cannot_change_encrypted_manifest\n    self.assertEqual(hashlib.sha256(canonical).hexdigest(),\nAssertionError: '5b27b965501962c6ed1466560bb41233cda1412fb753032ea7129ad445ef29d1' != 'f2c7a3ada398b66891069919fca89e2fff6cd6e61ec71d6a129fcda29f3c7511'\n- 5b27b965501962c6ed1466560bb41233cda1412fb753032ea7129ad445ef29d1\n+ f2c7a3ada398b66891069919fca89e2fff6cd6e61ec71d6a129fcda29f3c7511\n\n\n----------------------------------------------------------------------\nRan 7 tests in 0.113s\n\nFAILED (failures=1)\n",
+  "receipt": {
+    "tests_run": 7,
+    "failures": [
+      {
+        "id": "test_manifest.BackupManifestTests.test_caller_metadata_mutation_cannot_change_encrypted_manifest",
+        "phase": "test",
+        "phase_attribution": "traceback+active-unittest-v2",
+        "is_assertion": true,
+        "exception_type": "builtins.AssertionError",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-o01a-rework-20261011/next/tests/backup_producer/test_manifest.py\", line 146, in test_caller_metadata_mutation_cannot_change_encrypted_manifest\n    self.assertEqual(hashlib.sha256(canonical).hexdigest(),\nAssertionError: '5b27b965501962c6ed1466560bb41233cda1412fb753032ea7129ad445ef29d1' != 'f2c7a3ada398b66891069919fca89e2fff6cd6e61ec71d6a129fcda29f3c7511'\n- 5b27b965501962c6ed1466560bb41233cda1412fb753032ea7129ad445ef29d1\n+ f2c7a3ada398b66891069919fca89e2fff6cd6e61ec71d6a129fcda29f3c7511\n\n"
+      }
+    ],
+    "errors": []
+  }
+}
