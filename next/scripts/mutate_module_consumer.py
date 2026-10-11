@@ -174,7 +174,7 @@ def run():
         assert expected.startswith('test_')
     baseline = suite(DIRECTORY)
     baseline_receipt = check_receipt(baseline)
-    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 40
+    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 44
     assert not baseline_receipt['failures'] and not baseline_receipt['errors']
     print(json.dumps({'baseline':baseline_receipt,'source_sha256':original_sha}),flush=True)
     rows = []
@@ -222,7 +222,7 @@ def run():
                'restored_source_sha256':final_sha,'restored_receipt':restored}
     print(json.dumps(summary),flush=True)
     assert len(rows)==len(RECIPES) and summary['killed']==len(RECIPES)
-    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==40
+    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==44
     assert not restored['failures'] and not restored['errors']
 
 

@@ -26,7 +26,10 @@ for old_guard_input in ('run-old-table-guards.py','frozen/auth-test_authorizatio
                         'reviewer-reusable-control/page-boundary.py',
                         'durable-reviewer-control/test_resumable_repair.py',
                         'durable-reviewer-control/page-boundary-model.py',
-                        'durable-reviewer-control/run-probe.py'):
+                        'durable-reviewer-control/run-probe.py',
+                        'scoped-reviewer-control/test_scoped_head.py',
+                        'scoped-reviewer-control/scoped-head-probe.py',
+                        'scoped-reviewer-control/run-probe.py'):
     local=(OUT/old_guard_input).read_bytes()
     committed=subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/'+old_guard_input])
     assert local==committed,('old_guard_input_not_git_bound',old_guard_input)
@@ -224,13 +227,24 @@ print('after second',f.checkpoint(),f.outcomes(),f.target())
 f.doCleanups()
 '''
         checked(env+['python','-c',probe],120)
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],900)
+    if PHASE=='c07-review-red-scoped-001':
+        selected = '''import sys,json,unittest
+sys.path[:0]=['/tmp/next/tests','/tmp/next/tests/module_consumer']
+from test_receipts import AssertionResult,MARKER
+suite=unittest.defaultTestLoader.loadTestsFromName('test_scoped_exhaustion.ScopedExhaustion')
+result=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(suite)
+print(MARKER+json.dumps(dict(tests_run=result.testsRun,failures=result.assertions,errors=[dict(id=t.id(),traceback=trace) for t,trace in result.errors])))
+raise SystemExit(0 if result.wasSuccessful() else 1)
+'''
+        value=run(env+['python','-c',selected],300)
+    else:
+        value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],900)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==40 and not report['errors']
+    assert report['tests_run']==(4 if PHASE=='c07-review-red-scoped-001' else 44) and not report['errors']
     if PHASE.startswith('c07-review-red'):
         assert value.returncode==1 and report['failures']
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
-        assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.','test_review_pagination.Pagination.','test_durable_continuation.DurableContinuation.')) for r in report['failures'])
+        assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.','test_review_pagination.Pagination.','test_durable_continuation.DurableContinuation.','test_scoped_exhaustion.ScopedExhaustion.')) for r in report['failures'])
     elif 'downgrade-red' in PHASE:
         assert value.returncode==1 and len(report['failures'])==1
         assert report['failures'][0]['id'].split(' (')[0]=='test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'
