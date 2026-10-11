@@ -1,0 +1,11 @@
+{
+  "mac_free_percent": 44,
+  "vm_free_percent": 67,
+  "postgres_image_id": "db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d",
+  "owned_name_absent": true,
+  "cpus": 2,
+  "memory_bytes": 1073741824,
+  "network": "none",
+  "ports": [],
+  "bind_mounts": []
+}
