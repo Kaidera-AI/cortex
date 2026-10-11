@@ -70,7 +70,12 @@ def main(argv=None):
             return 0
         if args.command == "classify-console":
             text = Path(args.input).read_text()
-            outcome = decoded_outcome(text, args.representation)
+            try:
+                outcome = decoded_outcome(text, args.representation)
+            except Refusal as error:
+                if error.code != "STOP_CONSOLE_DECODE_FAILURE":
+                    raise
+                outcome = {"state": "DECODE_STOP", "exit": 76, "retryable": False}
             # A public host key itself is not needed in this typed caller receipt.
             outcome.pop("key", None)
             print(json.dumps(outcome))
@@ -122,12 +127,22 @@ def main(argv=None):
             print(json.dumps({"checked_role_completed": args.role, **A.context}))
         return 0
     except Refusal as error:
-        print(json.dumps({"refused": error.code, "allocation_performed": False}), file=sys.stderr)
+        print(json.dumps(refusal_report(args.command, error.code)), file=sys.stderr)
         return 2
     except (OSError, ValueError, KeyError, TypeError) as error:
         # Do not leak raw data or private output from failed input/target parsing.
-        print(json.dumps({"refused": "input_or_adapter_error", "allocation_performed": False}), file=sys.stderr)
+        print(json.dumps(refusal_report(args.command, "input_or_adapter_error")), file=sys.stderr)
         return 2
+
+
+def refusal_report(command, code):
+    report = {"refused": code}
+    if command in {"execute-role", "observe"}:
+        # A failure does not establish that a preceding effect did not happen.
+        report["effects"] = "SEE_APPEND_ONLY_RECEIPTS"
+    else:
+        report["allocation_performed"] = False
+    return report
 
 
 if __name__ == "__main__":
