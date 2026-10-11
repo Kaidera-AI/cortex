@@ -1,0 +1,5 @@
+# X01a accepted refresh — Kai00:45b
+
+Depth tree: preserved causal controls → exact0372a25 integration → current15 source controls/15 BODY faults/restoration → one owned stack7/16backup+44C07 → exactsource/receipt/path/push/CI → Vera review.
+
+G1 Preserve pre-change accepted product/test/mutator/doc and original causalRED lineage beforeintegration. G2 Re-pin source on exact0372a252fbda1bd6181091aa2963286cf34c80ee; everyowned conflict explicit,allotherpaths takebase,no newhostorAPI/schema changes. G3 actual15 X01a controls/15 exactexpected BODY fault kills,baseline/restored hashes,zeroerrors/inconclusive,zerohost commands by inert recovery module. G4 one sequential owned disposable PGstack/networknone≤2CPU1GiB/noports/binds,actual35%Mac+VM admission,current7/16backup+44C07manifest/scope controls,exactsourcecopy/restoration/cleanup. G5 independentGitboundverifier/tamper/fullmodekindblobtable,source/pubtyped,originpush/fourCI,owncleancleanup,formalVera return. X01b host/trust andO02/H02 NOTauthorized;no merge/Gavel/Jev. Freeze HEAD/controllers during native run.

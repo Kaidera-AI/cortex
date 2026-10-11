@@ -1,0 +1,34 @@
+test_faults_only_name_owned_synthetic_primary (test_fixture.FaultFixtureTests.test_faults_only_name_owned_synthetic_primary) ... FAIL
+test_synthetic_fixture_is_deterministic_and_cross_domain (test_fixture.FaultFixtureTests.test_synthetic_fixture_is_deterministic_and_cross_domain) ... FAIL
+test_ambiguous_is_separate_and_can_later_resolve (test_fixture.LedgerTests.test_ambiguous_is_separate_and_can_later_resolve) ... ok
+test_digest_detects_complete_tail_truncation_against_prefault_copy (test_fixture.LedgerTests.test_digest_detects_complete_tail_truncation_against_prefault_copy) ... ok
+test_external_ledger_rejects_faulted_root_and_symlink (test_fixture.LedgerTests.test_external_ledger_rejects_faulted_root_and_symlink) ... ok
+test_only_matching_server_confirmed_commit_enters_ack_chain (test_fixture.LedgerTests.test_only_matching_server_confirmed_commit_enters_ack_chain) ... ok
+test_tampered_or_truncated_chain_refuses_before_next_append (test_fixture.LedgerTests.test_tampered_or_truncated_chain_refuses_before_next_append) ... ok
+test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) ... ok
+test_wrong_platform_or_shared_volume_refused_before_plan (test_fixture.NativeAdapterTests.test_wrong_platform_or_shared_volume_refused_before_plan) ... ok
+test_contiguous_prefix_reports_lost_ack_and_measured_windows (test_fixture.ReconciliationTests.test_contiguous_prefix_reports_lost_ack_and_measured_windows) ... ok
+test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) ... ok
+test_rpo_or_rto_miss_is_red_not_averaged (test_fixture.ReconciliationTests.test_rpo_or_rto_miss_is_red_not_averaged) ... ok
+
+======================================================================
+FAIL: test_faults_only_name_owned_synthetic_primary (test_fixture.FaultFixtureTests.test_faults_only_name_owned_synthetic_primary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 191, in test_faults_only_name_owned_synthetic_primary
+    with self.assertRaises(RecoveryError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_synthetic_fixture_is_deterministic_and_cross_domain (test_fixture.FaultFixtureTests.test_synthetic_fixture_is_deterministic_and_cross_domain)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 173, in test_synthetic_fixture_is_deterministic_and_cross_domain
+    self.assertEqual(len(first["tenants"]), 2)
+AssertionError: 0 != 2
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.006s
+
+FAILED (failures=2)
