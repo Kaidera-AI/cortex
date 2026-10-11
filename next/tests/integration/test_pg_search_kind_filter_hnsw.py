@@ -17,7 +17,7 @@ class TestHnswCompanion(unittest.IsolatedAsyncioTestCase):
         # Nontrivial synthetic corpus and explicit index-path fixture: this is
         # one query witness, never real-data ANN recall/benchmark qualification.
         for i in range(256):
-            await self.seed_kind('alice','wrong-'+str(i),'memory')
+            await self.seed_kind('alice','wrong-'+str(i),'memory',[1.0,(i+1)/1000.0]+[0.0]*766)
         await self.seed_kind('alice','wanted-index','decision',[0.8,0.6]+[0.0]*766)
         await self.admin.execute('ANALYZE retrieval.search_vectors; ANALYZE retrieval.search_sources')
         plans=[]; original=self.store.pool
