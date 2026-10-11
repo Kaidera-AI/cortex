@@ -309,27 +309,27 @@ class Fixture:
         start = time.monotonic()
         self.create(pass_name)
         pg = self.database("general-pg", 55431)
-        rc = self.driver("general-driver", "general")
+        general_exit = self.driver("general-driver", "general")
         self.remove_container(pg)
-        if rc:
-            raise RuntimeError("general worker failed: " + str(rc))
         cert = self.database("cert-pg", 5432, cert=True, memory="128m", cpus="0.25")
         password = self.database("password-pg", 5433, password=True, memory="128m", cpus="0.25")
-        rc = self.driver("cert-driver", "certificate")
+        certificate_exit = self.driver("cert-driver", "certificate")
         self.remove_container(password)
         self.remove_container(cert)
-        if rc:
-            raise RuntimeError("certificate worker failed: " + str(rc))
         general = json.loads((self.results / "general/batches.json").read_text())
         positive = [batch for batch in general if not batch["control"]]
         reports = [json.loads((self.results / "general" / batch["report"]).read_text()) for batch in positive]
         reports.append(json.loads((self.results / "certificate/certificates.json").read_text()))
         nodes = [node for report in reports for node in report["selected"]]
         assert len(nodes) == len(set(nodes)) == 51, nodes
+        self.receipt["passes"].append({"name": pass_name, "selected": nodes,
+                                       "passed": sum(len(report["passed"]) for report in reports),
+                                       "failed": [node for report in reports for node in report["failed"]],
+                                       "worker_exits": {"general": general_exit, "certificate": certificate_exit},
+                                       "fixture_seconds": time.monotonic() - start})
+        assert general_exit == certificate_exit == 0, "native worker failed"
         assert all(len(report["passed"]) == len(report["selected"]) and not report["failed"]
                    and not report["skipped"] and not report["deselected"] for report in reports)
-        self.receipt["passes"].append({"name": pass_name, "selected": nodes, "passed": 51,
-                                       "fixture_seconds": time.monotonic() - start})
         if not self.cleanup():
             raise RuntimeError("owned cleanup failed")
 
