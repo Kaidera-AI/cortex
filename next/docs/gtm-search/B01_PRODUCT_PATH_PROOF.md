@@ -69,10 +69,26 @@ PYTHONPATH=next/src python next/tests/benchmarks/mutate_b01_product_path.py <fre
 It first requires the tracked, integrated
 `next/tests/module_consumer/test_manifest.py`. On the initial authorized main
 base903fd729 that file is absent, so the result is BLOCKED, zero tests and zero
-engine/resource access. The real-PG controller and five component cases are
+engine/resource access. The real-PG controller and nine component cases are
 prepared, with the existing owned lifecycle, cached-image-only policy and fresh
 host/engine35% admission. Those are the documented host memory fields in
 [Podman info](https://docs.podman.io/en/latest/markdown/podman-info.1.html).
+The additional negative witnesses compare actual Core scope with an independently
+frozen mapping, bind the real mocked provider/cache vector, reject an actual
+projected kind/revision inconsistent with the frozen corpus, and charge warm Core-down
+requests as offered-load errors. They do not replace Core grants or search results.
+The bounded three-record fixture uses corpus integer kind0 mapped only to the
+admitted `memory` string; it makes no mapping claim for the16-kind generator or
+an unknown protected corpus. The C11 wire rule separately admits exact
+`memory`/`session`, with omitted/all unrestricted; this fixture adds no wire parser.
+
+After the full component baseline, eight native literal faults reuse the unit
+source needles in temporary source copies. Each fresh child consumes one named
+unchanged assertion in the same admitted owned PG fixture, with effective import
+path/SHA and canonical BODY attribution. Operational errors/timeouts/skips and
+survivors cannot earn kills. Original source/test bytes, the temporary source
+restoration and a full component restoration are checked before cleanup. These
+recipes and cases remain unexecuted while the integrated manifest is absent.
 Actual component execution, native causal faults and inherited exact-head
 manifest/cleanup receipts remain unfinished until accepted integration is
 available. No file copy, skip, old-head result

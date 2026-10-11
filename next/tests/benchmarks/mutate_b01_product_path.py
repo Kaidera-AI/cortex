@@ -61,6 +61,35 @@ print(MARKER + json.dumps({"tests_run":result.testsRun,"failures":result.asserti
 sys.exit(0 if result.wasSuccessful() else 1)
 '''
 
+NATIVE_TARGETS = {
+    "omit-cache-provider": "test_native_actual_cache_provider_search_and_core_scope",
+    "input-binding-ignored": "test_native_unsupported_inputs_and_frozen_binding_no_effect",
+    "current-core-scope-ignored": "test_native_current_core_scope_must_match_frozen_mapping",
+    "provider-vector-binding-inverted": "test_native_provider_vector_must_match_frozen_query",
+    "hit-kind-revision-ignored": "test_native_projected_source_must_match_frozen_corpus",
+    "unavailable-counted-success": "test_native_core_down_load_is_charged_as_error",
+    "offer-dropped-from-receipt": "test_native_fixed_offered_load_receipt_and_cleaned_connections",
+    "synthetic-gtm-credit": "test_native_fixed_offered_load_receipt_and_cleaned_connections",
+}
+
+NATIVE_CHILD = r'''
+import hashlib, importlib, json, pathlib, sys, unittest
+from test_receipts import AssertionResult, MARKER
+import test_b01_product_path
+cases = [case for case in test_b01_product_path.native_suite()
+         if case._testMethodName == sys.argv[1]]
+if len(cases) != 1: raise RuntimeError("Native assertion selection is not unique")
+expected = cases[0].id()
+result = unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(unittest.TestSuite(cases))
+module = importlib.import_module("vector_baseline.product_path")
+path = pathlib.Path(module.__file__).resolve()
+print(MARKER + json.dumps({"tests_run":result.testsRun,"failures":result.assertions,
+ "errors":[{"id":test.id(),"traceback":trace} for test,trace in result.errors],
+ "skipped":len(result.skipped),"expected_test":expected,"executed_source":{"path":str(path),
+ "sha256":hashlib.sha256(path.read_bytes()).hexdigest()}}),flush=True)
+sys.exit(0 if result.wasSuccessful() else 1)
+'''
+
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
@@ -74,6 +103,74 @@ def dependency_roots():
         path = str(Path(importlib.import_module(name).__file__).resolve().parent.parent)
         if path not in roots: roots.append(path)
     return roots
+
+
+def native_faults(destination):
+    """The caller owns/admitted PG; these children never allocate a resource.
+
+    Fresh processes consume one temporary source fault and the frozen native
+    assertion, avoiding cached modules and edits to the published source tree.
+    """
+    source = NEXT / "src/vector_baseline/product_path.py"
+    original = source.read_bytes()
+    frozen = (NEXT / "tests/benchmarks/test_b01_product_path.py").read_bytes()
+    recipes = [row for row in MUTATIONS if row[0] in NATIVE_TARGETS]
+    if len(recipes) != len(NATIVE_TARGETS): raise RuntimeError("Native recipes are not complete")
+    rows = []
+    with tempfile.TemporaryDirectory(prefix="b01-native-literal-source-") as directory:
+        stage = Path(directory) / "src"
+        shutil.copytree(NEXT / "src", stage)
+        candidate = stage / "vector_baseline/product_path.py"
+        temporary = Path(directory) / "child-temporary"
+        temporary.mkdir()
+        env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TZ", "TMPDIR") if key in os.environ}
+        env.update({key: os.environ[key] for key in ("TEST_DATABASE_URL", "B01_OWNED_SEARCH_DSN")})
+        psycopg_root = str(Path(importlib.import_module("psycopg").__file__).resolve().parent.parent)
+        env.update(PYTHONPATH=os.pathsep.join([str(stage), str(NEXT / "tests"),
+            str(NEXT / "tests/benchmarks"), *dependency_roots(), psycopg_root]),
+            TMPDIR=str(temporary), PYTHONDONTWRITEBYTECODE="1")
+
+        def execute(label, data, method):
+            candidate.write_bytes(data)
+            flags = ["-S"] if sys.flags.no_site else []
+            command = [sys.executable, *flags, "-c", NATIVE_CHILD, method]
+            try:
+                process = subprocess.run(command, env=env, capture_output=True, text=True, timeout=120)
+            except subprocess.TimeoutExpired as error:
+                def decoded(value): return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
+                process = subprocess.CompletedProcess(command, 124, decoded(error.stdout), decoded(error.stderr))
+            (destination / (label + ".stdout")).write_text(process.stdout)
+            (destination / (label + ".stderr")).write_text(process.stderr)
+            value = report(process)
+            bound = bool(value and value.get("skipped") == 0 and value["tests_run"] == 1
+                and value["executed_source"]["sha256"] == sha(data)
+                and Path(value["executed_source"]["path"]).resolve() == candidate.resolve())
+            return process, value, bound
+
+        method = NATIVE_TARGETS["omit-cache-provider"]
+        baseline, baseline_receipt, bound = execute("baseline", original, method)
+        if not bound or baseline.returncode != 0: raise RuntimeError("Native fault baseline refused")
+        for name, before, after, _ in recipes:
+            text = original.decode()
+            if text.count(before) != 1: raise RuntimeError("Native literal source point is not unique")
+            effective = text.replace(before, after).encode()
+            process, value, bound = execute(name, effective, NATIVE_TARGETS[name])
+            expected = value.get("expected_test") if value else None
+            verdict = classify(process, [expected]) if bound and expected else "inconclusive"
+            rows.append({"name": name, "method": NATIVE_TARGETS[name], "expected_test": expected,
+                "source_sha256": sha(effective), "source_bound": bound, "exit": process.returncode,
+                "verdict": verdict, "receipt": value})
+            (destination / "native-fault-progress.json").write_text(json.dumps(rows, indent=2) + "\n")
+        restored, restored_receipt, bound = execute("restored", original, method)
+        if not bound or restored.returncode != 0: raise RuntimeError("Native fault restoration refused")
+    if source.read_bytes() != original or (NEXT / "tests/benchmarks/test_b01_product_path.py").read_bytes() != frozen:
+        raise RuntimeError("Native source/test custody changed")
+    receipt = {"scope": "REAL_PG_COMPONENTS_WITH_MOCKED_HOSTED_TRANSPORT", "source_sha256": sha(original),
+        "frozen_test_sha256": sha(frozen), "baseline": baseline_receipt, "mutations": rows,
+        "restored": restored_receipt, "all_killed": all(row["verdict"] == "killed" for row in rows),
+        "published_source_test_unchanged": True, "native_qualified": False, "gtm_qualified": False}
+    (destination / "native-fault-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    return receipt
 
 
 def main():
@@ -149,6 +246,9 @@ def native(destination):
         (destination / "native-receipt.json").write_text(json.dumps(row, indent=2) + "\n")
         print(json.dumps(row, indent=2))
         return 2
+    if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"], cwd=NEXT):
+        raise RuntimeError("Native receipt requires the clean exact committed candidate")
+    tested_head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=NEXT, text=True).strip()
     # All imports/engine reads follow the integrated-head gate. No external DSN
     # is accepted; this is the already reviewed owned lifecycle and image pin.
     from vector_baseline import postgres, qdrant
@@ -185,7 +285,9 @@ def native(destination):
     previous = {name: os.environ.get(name) for name in names}
     receipt = {"status": "RUNNING", "scope": "SOURCE_REAL_PG_COMPONENTS", "profile": profile,
                "host_admission": admission, "engine_free_percent": free * 100 // total,
-               "native_qualified": False, "gtm_qualified": False}
+               "tested_head": tested_head, "native_qualified": False, "gtm_qualified": False,
+               "fixture_sha256": sha((NEXT / "tests/benchmarks/test_b01_product_path.py").read_bytes()),
+               "controller_sha256": sha(Path(__file__).read_bytes())}
     result = None
     try:
         with stack:
@@ -214,7 +316,18 @@ def native(destination):
             receipt["components"] = {"tests": result.testsRun, "body_failures": result.assertions,
                 "errors": len(result.errors), "skips": len(result.skipped)}
             receipt["binding"] = stack.binding
-            receipt["status"] = "SOURCE_FIXTURE_GREEN" if result.wasSuccessful() and not result.skipped else "RED"
+            if result.wasSuccessful() and not result.skipped:
+                faults = destination / "native-faults"
+                faults.mkdir()
+                receipt["native_faults"] = native_faults(faults)
+                restored = unittest.TextTestRunner(verbosity=2, resultclass=AssertionResult).run(test_b01_product_path.native_suite())
+                receipt["restored_components"] = {"tests": restored.testsRun, "body_failures": restored.assertions,
+                    "errors": len(restored.errors), "skips": len(restored.skipped)}
+            receipt["unit_complete"] = False  # Vera/Kai and final custody/CI still own credit.
+            qualified = (result.wasSuccessful() and not result.skipped
+                and receipt.get("native_faults", {}).get("all_killed")
+                and restored.wasSuccessful() and not restored.skipped)
+            receipt["status"] = "SOURCE_FIXTURE_GREEN" if qualified else "RED"
     except BaseException as error:
         receipt.update(status="BLOCKED" if result is None else "RED", failure_class=type(error).__name__)
         raise
@@ -226,7 +339,7 @@ def native(destination):
             "credential_discarded": stack.password is None, "lock_released": stack.lock is None,
             "remaining_pending": sorted(stack.pending), "remaining_owned": sorted(stack.owned)}
         (destination / "native-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-    return 0 if result and result.wasSuccessful() and not result.skipped and stack.cleanup_verified else 1
+    return 0 if receipt["status"] == "SOURCE_FIXTURE_GREEN" and stack.cleanup_verified else 1
 
 
 if __name__ == "__main__":

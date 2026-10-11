@@ -383,6 +383,42 @@ def native_suite():
             self.assertNotIn("measurement", row)
             self.assertEqual((self.cache.calls, self.provider_calls, len(self.search.calls)), before)
 
+        async def test_native_current_core_scope_must_match_frozen_mapping(self):
+            changed = copy.deepcopy(self.spec)
+            changed["scope_map"][0]["project_id"] = str(UUID(int=99))
+            row = await self.evaluate(spec=changed, expected=hashlib.sha256(canonical(changed)).hexdigest())
+            self.assertEqual(row["reason"], "current_scope_mismatch")
+            self.assertGreater(self.core_calls, 0)
+            self.assertEqual((self.cache.calls, self.provider_calls, len(self.search.calls)), (0, 0, 0))
+
+        async def test_native_provider_vector_must_match_frozen_query(self):
+            await self.test_unbound_provider_vector_has_no_recall_credit()
+            self.assertEqual((self.cache.calls, self.provider_calls), (1, 1))
+
+        async def test_native_projected_source_must_match_frozen_corpus(self):
+            record = self.spec["record_map"]["r1"]
+            await self.search.note_revision("reader", record, "session", 2)
+            await self.search.store_embedding("reader", record, 2, IDENTITY, self.corpus.vectors[0].tolist())
+            row = await self.evaluate()
+            self.assertEqual(row["status"], "RESULT_REFUSED")
+            self.assertEqual(row["reason"], "hit_source_mismatch")
+            self.assertNotIn("measurement", row)
+            self.assertEqual((self.cache.calls, self.provider_calls, len(self.search.calls)), (1, 1, 1))
+
+        async def test_native_core_down_load_is_charged_as_error(self):
+            first = await self.evaluate()
+            self.assertEqual(first["status"], "MEASURED")
+            before = (self.cache.calls, self.provider_calls, len(self.search.calls))
+            self.core.request.close()
+            module = surface()
+            run = await load.run([self.spec["queries"][0]], lambda n: module.client(
+                self.root, self.spec, self.expected, self.cache, self.search, self.authorize,
+                source_root=NEXT), load.RunConfig(duration_seconds=.2, warmup_seconds=0, deadline_seconds=.1))
+            self.assertEqual(len(run["records"]), 8)
+            self.assertTrue(all(row["status"] == "ERROR" for row in run["records"]))
+            self.assertTrue(all(row["latency_seconds"] >= .1 for row in run["records"]))
+            self.assertEqual((self.cache.calls, self.provider_calls, len(self.search.calls)), before)
+
     methods = [name for name in dir(NativeProductPathTests) if name.startswith("test_native_")]
     return unittest.TestSuite(NativeProductPathTests(name) for name in methods)
 
