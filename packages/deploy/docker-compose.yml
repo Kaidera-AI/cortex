@@ -133,6 +133,8 @@ services:
 
   cortex-embed-worker:
     <<: *runtime
+    mem_limit: 2885681152
+    cpus: 2.0
     build: {context: ../containers/embed-worker, args: *build-args}
     image: localhost/cortex/embed-worker:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
     depends_on: {cortex-api: {condition: service_healthy}}
