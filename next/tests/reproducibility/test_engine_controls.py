@@ -315,3 +315,22 @@ class BuilderResourceWiring(unittest.TestCase):
         ]:
             self.assertEqual(argv[argv.index(option) + 1], expected)
         self.assertEqual(operation.call_args.args[3], 300)
+
+class EarlyOperationEvidence(unittest.TestCase):
+    def test_argv_journal_exists_before_child_and_survives_start_failure(self):
+        import json
+        seen = []
+        with tempfile.TemporaryDirectory() as t:
+            p = Path(t)
+            def fail(argv, **kwargs):
+                self.assertTrue((p/"out.operation.jsonl").is_file(), "argv custody must exist before child start")
+                seen.append(json.loads((p/'out.operation.jsonl').read_text().splitlines()[0]))
+                raise OSError('fixture start failure')
+            with self.assertRaises(OSError):
+                engine.run_operation(['/pinned/engine', 'prepare', '196-inputs'], p, {'PYTHONHASHSEED': '0'}, 240, p/'out', p/'err', popen=fail)
+            journal = [json.loads(line) for line in (p/'out.operation.jsonl').read_text().splitlines()]
+            self.assertEqual(seen[0]['argv'], ['/pinned/engine', 'prepare', '196-inputs'])
+            self.assertEqual(seen[0]['environment_names'], ['PYTHONHASHSEED'])
+            self.assertEqual(journal[-1]['status'], 'failed')
+            self.assertEqual(journal[-1]['error'], 'OSError')
+            self.assertIsNone(journal[-1]['exit'])
