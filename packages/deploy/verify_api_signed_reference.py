@@ -16,7 +16,7 @@ def verify(old,new,old_revision,new_revision,envelope):
  finally:guard.filesystem=reader;guard.OLD,guard.NEW=previous_old,previous_new
  before,bt,_,_=measured[old];after,at,_,_=measured[new]
  unexpected=set(base['unexpected_paths']);existing=set(base['changed_paths'])-unexpected
- wanted=set(api.APPROVED)|{p for p in unexpected if api.cache_source(p)}
+ wanted=set(api.APPROVED)|{p for p in set(before)|set(after) if api.cache_source(p)}
  old_files=guard.selected_files(old,wanted);new_files=guard.selected_files(new,wanted)
  reduced_before={k:v for k,v in before.items() if k not in existing};reduced_after={k:v for k,v in after.items() if k not in existing}
  receipts=api.validate(reduced_before,reduced_after,old_files,new_files,bt,at,old_revision=old_revision,new_revision=new_revision,envelope=envelope,role='api')

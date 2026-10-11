@@ -28,7 +28,8 @@ def content(path,state,files):
  return raw
 
 def cache_source(path):
- match=re.fullmatch(r'app/__pycache__/(db_tls|main)\.cpython-314\.pyc',path)
+ if path in ('app/db_tls.pyc','app/main.pyc'):return path[:-1]
+ match=re.fullmatch(r'app/__pycache__/(db_tls|main)\.cpython-[^/]+\.pyc',path)
  return 'app/'+match[1]+'.py' if match else None
 
 def check_cache(raw,source,source_raw,mtime):
@@ -53,14 +54,19 @@ def validate(before,after,old_files,new_files,before_times,after_times,*,old_rev
   require(attrs(a)==attrs(b),'approved source attributes differ: '+source)
   require((hashlib.sha256(left).hexdigest(),len(left))==pair[0] and (hashlib.sha256(right).hexdigest(),len(right))==pair[1],'source differs from exact approved pair: '+source)
   if source in changed:receipts[source]={'class':'exact_approved_API_source_delta','old_sha256':pair[0][0],'new_sha256':pair[1][0],'attributes_equal':True}
- for path in sorted(changed-set(APPROVED)):
-  source=cache_source(path);require(source in APPROVED,'unclassified API source change: '+path)
+ associated={path for path in set(before)|set(after) if cache_source(path) in APPROVED}
+ require(changed <= set(APPROVED)|associated,'unclassified API source change')
+ for path in sorted(associated):
+  source=cache_source(path)
+  require(path in ('app/db_tls.pyc','app/main.pyc','app/__pycache__/db_tls.cpython-314.pyc','app/__pycache__/main.cpython-314.pyc'),'unsupported associated cache tag/optimization: '+path)
   a,b=before.get(path),after.get(path)
   left=content(path,before,old_files);right=content(path,after,new_files)
   require(attrs(a)==attrs(b),'API cache attributes differ: '+path)
   require(left[:8]==right[:8],'API cache magic/flags differ')
   require(source in before_times and source in after_times,'API cache source times missing')
   check_cache(left,source,old_files[source],before_times[source]);check_cache(right,source,new_files[source],after_times[source])
-  receipts[path]={'class':'timestamp_cache_exact_approved_source_code','source':source,'old_source_sha256':APPROVED[source][0][0],'new_source_sha256':APPROVED[source][1][0],'header_stat_and_recursive_code_match':True}
+  receipt={'class':'timestamp_cache_exact_approved_source_code','source':source,'old_source_sha256':APPROVED[source][0][0],'new_source_sha256':APPROVED[source][1][0],'header_stat_and_recursive_code_match':True}
+  receipts[source].setdefault('associated_caches_checked',[]).append(dict(receipt,path=path))
+  if path in changed:receipts[path]=receipt
  require(set(receipts)==changed,'API source predicate coverage incomplete')
  return receipts
