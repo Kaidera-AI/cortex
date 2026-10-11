@@ -1,0 +1,894 @@
+{
+  "$defs": {
+    "artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "media_type": {
+          "enum": [
+            "application/x-tar",
+            "application/vnd.oci.image.index.v1+json",
+            "application/vnd.oci.image.manifest.v1+json",
+            "application/vnd.oci.image.config.v1+json",
+            "application/octet-stream",
+            "application/json"
+          ],
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "role": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "path",
+        "media_type",
+        "bytes",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "build": {
+      "additionalProperties": false,
+      "properties": {
+        "build_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "cleanup": {
+          "$ref": "#/$defs/artifact"
+        },
+        "custody": {
+          "$ref": "#/$defs/artifact"
+        },
+        "dependency_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "finished_at_unix_ns": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observed_builder": {
+          "$ref": "#/$defs/observed_builder"
+        },
+        "oci": {
+          "additionalProperties": false,
+          "properties": {
+            "blobs": {
+              "items": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "maxItems": 50000,
+              "minItems": 1,
+              "type": "array"
+            },
+            "config": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "index": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "manifest": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "platform": {
+              "enum": [
+                "linux/amd64",
+                "linux/arm64"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "index",
+            "manifest",
+            "config",
+            "blobs",
+            "platform"
+          ],
+          "type": "object"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/operation"
+          },
+          "maxItems": 10000,
+          "minItems": 1,
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "maxItems": 50000,
+          "minItems": 1,
+          "type": "array"
+        },
+        "provenance": {
+          "$ref": "#/$defs/artifact"
+        },
+        "recipe_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "started_at_unix_ns": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "build_id",
+        "observed_builder",
+        "source_sha256",
+        "recipe_sha256",
+        "dependency_sha256",
+        "started_at_unix_ns",
+        "finished_at_unix_ns",
+        "operations",
+        "outputs",
+        "oci",
+        "provenance",
+        "custody",
+        "cleanup"
+      ],
+      "type": "object"
+    },
+    "engine": {
+      "additionalProperties": false,
+      "properties": {
+        "engine_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine_id",
+        "version",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "input_file": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "not": {
+              "required": [
+                "link_target"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "symlink"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "link_target"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "regular",
+            "symlink"
+          ],
+          "type": "string"
+        },
+        "link_target": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            384,
+            420,
+            448,
+            493,
+            511
+          ],
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "bytes",
+        "sha256",
+        "mode"
+      ],
+      "type": "object"
+    },
+    "observed_builder": {
+      "additionalProperties": false,
+      "properties": {
+        "architecture": {
+          "enum": [
+            "amd64",
+            "arm64"
+          ],
+          "type": "string"
+        },
+        "build_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "container_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "engine": {
+          "$ref": "#/$defs/engine"
+        },
+        "execution_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "fresh_store": {
+          "type": "boolean"
+        },
+        "kernel": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "mutable_shared": {
+          "type": "boolean"
+        },
+        "os": {
+          "const": "linux",
+          "type": "string"
+        },
+        "qualification_scope": {
+          "enum": [
+            "fixture",
+            "native"
+          ],
+          "type": "string"
+        },
+        "rootless": {
+          "const": true,
+          "type": "boolean"
+        },
+        "runroot_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "store_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "toolchain": {
+          "$ref": "#/$defs/toolchain"
+        },
+        "uid": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "qualification_scope",
+        "os",
+        "architecture",
+        "kernel",
+        "uid",
+        "rootless",
+        "toolchain",
+        "engine",
+        "build_id",
+        "execution_id",
+        "store_id",
+        "runroot_id",
+        "container_id",
+        "source_id",
+        "fresh_store",
+        "mutable_shared"
+      ],
+      "type": "object"
+    },
+    "operation": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array"
+        },
+        "environment_names": {
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 0,
+          "type": "array"
+        },
+        "environment_policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/artifact"
+        },
+        "exit_code": {
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "finished_at_unix_ns": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "phase": {
+          "enum": [
+            "input",
+            "parser",
+            "build",
+            "export",
+            "audit",
+            "cleanup"
+          ],
+          "type": "string"
+        },
+        "started_at_unix_ns": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "exited",
+            "timeout",
+            "error"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "phase",
+        "argv",
+        "environment_names",
+        "environment_policy_sha256",
+        "status",
+        "exit_code",
+        "started_at_unix_ns",
+        "finished_at_unix_ns",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    "target": {
+      "additionalProperties": false,
+      "properties": {
+        "module_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "module_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "oci_platform": {
+          "enum": [
+            "linux/amd64",
+            "linux/arm64"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "module_id",
+        "module_version",
+        "oci_platform"
+      ],
+      "type": "object"
+    },
+    "toolchain": {
+      "additionalProperties": false,
+      "properties": {
+        "compiler_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "compiler_id",
+        "version",
+        "sha256"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "cortex.build-receipt.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audit": {
+      "additionalProperties": false,
+      "properties": {
+        "findings": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "build_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "class": {
+                "enum": [
+                  "accounts",
+                  "cache",
+                  "clock",
+                  "files",
+                  "input",
+                  "labels",
+                  "logs",
+                  "python",
+                  "runtime",
+                  "serialization",
+                  "xattrs-acls"
+                ],
+                "type": "string"
+              },
+              "code": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "path": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warning"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "build_id",
+              "class",
+              "path",
+              "code",
+              "severity"
+            ],
+            "type": "object"
+          },
+          "maxItems": 10000,
+          "minItems": 0,
+          "type": "array"
+        },
+        "policy_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "reports": {
+          "additionalProperties": false,
+          "properties": {
+            "A": {
+              "additionalProperties": false,
+              "properties": {
+                "accounts": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "cache": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "clock": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "files": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "input": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "labels": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "logs": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "python": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "runtime": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "serialization": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "xattrs-acls": {
+                  "$ref": "#/$defs/artifact"
+                }
+              },
+              "required": [
+                "accounts",
+                "cache",
+                "clock",
+                "files",
+                "input",
+                "labels",
+                "logs",
+                "python",
+                "runtime",
+                "serialization",
+                "xattrs-acls"
+              ],
+              "type": "object"
+            },
+            "B": {
+              "additionalProperties": false,
+              "properties": {
+                "accounts": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "cache": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "clock": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "files": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "input": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "labels": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "logs": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "python": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "runtime": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "serialization": {
+                  "$ref": "#/$defs/artifact"
+                },
+                "xattrs-acls": {
+                  "$ref": "#/$defs/artifact"
+                }
+              },
+              "required": [
+                "accounts",
+                "cache",
+                "clock",
+                "files",
+                "input",
+                "labels",
+                "logs",
+                "python",
+                "runtime",
+                "serialization",
+                "xattrs-acls"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "A",
+            "B"
+          ],
+          "type": "object"
+        },
+        "required_classes": {
+          "items": {
+            "enum": [
+              "accounts",
+              "cache",
+              "clock",
+              "files",
+              "input",
+              "labels",
+              "logs",
+              "python",
+              "runtime",
+              "serialization",
+              "xattrs-acls"
+            ],
+            "type": "string"
+          },
+          "maxItems": 11,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "policy_id",
+        "policy_sha256",
+        "required_classes",
+        "reports",
+        "findings"
+      ],
+      "type": "object"
+    },
+    "builds": {
+      "additionalProperties": false,
+      "properties": {
+        "A": {
+          "$ref": "#/$defs/build"
+        },
+        "B": {
+          "$ref": "#/$defs/build"
+        }
+      },
+      "required": [
+        "A",
+        "B"
+      ],
+      "type": "object"
+    },
+    "cleanup": {
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "receipt": {
+          "$ref": "#/$defs/artifact"
+        },
+        "remaining_owned_resources": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10000,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      "required": [
+        "complete",
+        "receipt",
+        "remaining_owned_resources"
+      ],
+      "type": "object"
+    },
+    "comparison": {
+      "additionalProperties": false,
+      "properties": {
+        "oci_closure_equal": {
+          "type": "boolean"
+        },
+        "raw_archive_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "raw_archive_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "raw_archives_equal": {
+          "type": "boolean"
+        },
+        "semantic_audit_equal": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "raw_archives_equal",
+        "raw_archive_sha256",
+        "raw_archive_bytes",
+        "oci_closure_equal",
+        "semantic_audit_equal"
+      ],
+      "type": "object"
+    },
+    "custody": {
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "missing_roles": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10000,
+          "minItems": 0,
+          "type": "array"
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "receipt": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "required": [
+        "complete",
+        "partial",
+        "missing_roles",
+        "receipt"
+      ],
+      "type": "object"
+    },
+    "evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "$ref": "#/$defs/artifact"
+        },
+        "inventory": {
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "maxItems": 10000,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      "required": [
+        "inventory",
+        "index"
+      ],
+      "type": "object"
+    },
+    "format_version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "input_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "qualification_scope": {
+      "enum": [
+        "fixture",
+        "native"
+      ],
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "complete",
+        "input_refused",
+        "environment_unqualified",
+        "build_failed",
+        "timeout",
+        "output_mismatch",
+        "audit_failed",
+        "custody_incomplete",
+        "cleanup_incomplete"
+      ],
+      "type": "string"
+    },
+    "result": {
+      "enum": [
+        "PASS",
+        "RED",
+        "BLOCKED",
+        "ENVIRONMENT_UNQUALIFIED"
+      ],
+      "type": "string"
+    },
+    "schema": {
+      "const": "cortex.build-receipt.v1",
+      "type": "string"
+    },
+    "target": {
+      "$ref": "#/$defs/target"
+    }
+  },
+  "required": [
+    "schema",
+    "format_version",
+    "input_sha256",
+    "target",
+    "qualification_scope",
+    "result",
+    "reason",
+    "builds",
+    "comparison",
+    "audit",
+    "evidence",
+    "custody",
+    "cleanup"
+  ],
+  "type": "object"
+}
