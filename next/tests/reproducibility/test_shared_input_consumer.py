@@ -65,35 +65,48 @@ class SharedInput(unittest.TestCase):
                 inputs.materialize({"input_sha256": "a" * 64}, None, p / "clone")
             self.assertFalse((p / "clone").exists())
 
+
 class StagingMutations(unittest.TestCase):
     def fixture(self, root):
         value, data = fixture.build_input()
         for name, body in data.items():
-            path = root/name
+            path = root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
             path.chmod(0o644)
-        reader = inputs.FilesystemReader(root, max_bytes=1024*1024)
+        reader = inputs.FilesystemReader(root, max_bytes=1024 * 1024)
         raw = canonical_bytes(value)
-        verified = inputs.admit(raw, reader, {'input_sha256':sha256(raw), 'policy_sha256':'e'*64, 'qualification_scope':'fixture'})
+        verified = inputs.admit(
+            raw,
+            reader,
+            {
+                "input_sha256": sha256(raw),
+                "policy_sha256": "e" * 64,
+                "qualification_scope": "fixture",
+            },
+        )
         return reader, verified
 
     def test_changed_captured_metadata_refuses_before_clone(self):
         from cortex_core.release.inputs import FileObservation
+
         with tempfile.TemporaryDirectory() as t:
             p = Path(t)
-            reader, verified = self.fixture(p/'original')
-            observed, identity = reader.captured['source/module.py']
-            reader.captured['source/module.py'] = (FileObservation(observed.data, 'regular', 0o777), identity)
+            reader, verified = self.fixture(p / "original")
+            observed, identity = reader.captured["source/module.py"]
+            reader.captured["source/module.py"] = (
+                FileObservation(observed.data, "regular", 0o777),
+                identity,
+            )
             with self.assertRaises(ValueError):
-                inputs.materialize(verified, reader, p/'clone')
-            self.assertFalse((p/'clone').exists())
+                inputs.materialize(verified, reader, p / "clone")
+            self.assertFalse((p / "clone").exists())
 
     def test_extra_source_after_admission_refuses_before_clone(self):
         with tempfile.TemporaryDirectory() as t:
             p = Path(t)
-            reader, verified = self.fixture(p/'original')
-            (p/'original/source/extra.py').write_bytes(b'extra')
+            reader, verified = self.fixture(p / "original")
+            (p / "original/source/extra.py").write_bytes(b"extra")
             with self.assertRaises(ValueError):
-                inputs.materialize(verified, reader, p/'clone')
-            self.assertFalse((p/'clone').exists())
+                inputs.materialize(verified, reader, p / "clone")
+            self.assertFalse((p / "clone").exists())

@@ -125,18 +125,34 @@ def materialize(verified, reader, destination):
     if names != set(reader.captured):
         raise ValueError("captured input inventory incomplete or extra")
     reader.assert_unchanged()
-    destination = Path(destination)
-    if destination.exists() or destination.is_symlink():
-        raise ValueError("fresh input clone required")
-    destination.mkdir(mode=0o700)
-    epoch = verified.document["determinism"]["epoch"]
+    context = verified.document["source"]["context_root"]
+    source_names = [row["path"] for row in verified.document["source"]["inventory"]]
+    if reader.inventory(context) != source_names:
+        raise ValueError("complete source inventory changed after admission")
+    validated = []
     for row in verified.inventory:
         observation, _ = reader.captured[row["path"]]
         if (
-            len(observation.data) != row["bytes"]
+            type(observation.data) is not bytes
+            or len(observation.data) != row["bytes"]
             or sha256(observation.data) != row["sha256"]
+            or observation.kind != row["kind"]
+            or type(observation.mode) is not int
+            or observation.mode != row["mode"]
+            or observation.link_target != row.get("link_target")
         ):
             raise ValueError("captured input differs from actual admission")
+        validated.append((row, observation))
+    destination = Path(destination)
+    if (
+        destination.exists()
+        or destination.is_symlink()
+        or destination.resolve().is_relative_to(reader.root)
+    ):
+        raise ValueError("fresh independent input clone required")
+    destination.mkdir(mode=0o700)
+    epoch = verified.document["determinism"]["epoch"]
+    for row, observation in validated:
         path = destination / row["path"]
         path.parent.mkdir(parents=True, exist_ok=True)
         if observation.kind == "symlink":
@@ -147,4 +163,6 @@ def materialize(verified, reader, destination):
             path.chmod(observation.mode)
             os.utime(path, (epoch, epoch), follow_symlinks=False)
     reader.assert_unchanged()
+    if reader.inventory(context) != source_names:
+        raise ValueError("complete source inventory changed during materialization")
     return destination
