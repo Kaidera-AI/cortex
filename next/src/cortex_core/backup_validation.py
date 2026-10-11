@@ -13,7 +13,8 @@ import subprocess
 import tarfile
 import tempfile
 
-from cortex_core.backup import (BackupError, _backup_binary, _lsn, _validated_metadata,
+from cortex_core.backup import (BackupError, _backup_binary, _lsn, _metadata_scope,
+                                _validated_metadata,
                                 _wal_filename, build_manifest,
                                 seal_encrypted_bundle)
 
@@ -171,10 +172,12 @@ def _expected_members(manifest):
         raise BackupError("full recovered-snapshot inventory is absent")
     if hashlib.sha256(canonical).hexdigest() != manifest.get("metadata_sha256"):
         raise BackupError("backup metadata digest differs")
-    heads = {(row["id"], row["revision"]) for row in metadata["record_heads"]}
+    heads = {(*_metadata_scope(row), row["id"], row["revision"])
+             for row in metadata["record_heads"]}
     if len(heads) != len(metadata["record_heads"]):
         raise BackupError("duplicate record head")
-    if any((row["record_id"], row["revision"]) not in heads for row in metadata["vectors"]):
+    if any((*_metadata_scope(row), row["record_id"], row["revision"]) not in heads
+           for row in metadata["vectors"]):
         raise BackupError("vector revision lacks a matching record head")
     if len({row["object_key"] for row in metadata["blob_inventory"]}) != len(metadata["blob_inventory"]):
         raise BackupError("duplicate blob key")

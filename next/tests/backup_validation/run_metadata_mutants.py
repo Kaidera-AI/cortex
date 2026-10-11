@@ -12,12 +12,15 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 MUTATIONS = {
-    'schema-ledger-bypass': ('if key in seen:',
+    'schema-ledger-bypass': ('backup.py', 'if key in seen:',
                              'if key in seen and label != "schema ledger":'),
-    'model-bypass': ('if key in seen:',
+    'model-bypass': ('backup.py', 'if key in seen:',
                      'if key in seen and label != "model":'),
-    'physical-blob-bypass': ('if key in seen:',
+    'physical-blob-bypass': ('backup.py', 'if key in seen:',
                              'if key in seen and label != "physical blob member":'),
+    'scope-vector-bypass': ('backup_validation.py',
+                            'if any((*_metadata_scope(row), row["record_id"],',
+                            'if False and any((*_metadata_scope(row), row["record_id"],'),
 }
 
 
@@ -28,8 +31,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cox-o01-metadata-mutant-') as dirname:
         source = Path(dirname)/'src'
         shutil.copytree(ROOT/'src', source)
-        path = source/'cortex_core/backup.py'
-        before, after = MUTATIONS[name]
+        filename, before, after = MUTATIONS[name]
+        path = source/'cortex_core'/filename
         body = path.read_text()
         if body.count(before) != 1:
             raise RuntimeError('mutation anchor differs')
