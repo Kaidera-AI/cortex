@@ -5,6 +5,16 @@ import unicodedata
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
+from jsonschema.validators import extend
+
+
+def _byte_length(validator, maximum, value, schema):
+    if isinstance(value, str) and len(value.encode('utf-8')) > maximum:
+        yield ValidationError('UTF-8 byte bound exceeded')
+
+
+WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length})
 
 
 def sha256(raw):
@@ -64,7 +74,7 @@ def decode_json(raw, limit, *, canonical=True):
 def schema_validate(value, name):
     path = Path(__file__).resolve().parents[3] / 'contracts' / 'release' / name
     schema = json.loads(path.read_bytes())
-    errors = Draft202012Validator(schema).iter_errors(value)
+    errors = WireValidator(schema).iter_errors(value)
     error = next(errors, None)
     if error:
         raise ValueError('schema_violation:' + '/'.join(map(str, error.absolute_path)))

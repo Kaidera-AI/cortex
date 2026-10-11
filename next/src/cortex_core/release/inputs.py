@@ -32,6 +32,7 @@ def input_records(value):
     compatibility = value['compatibility_inputs']
     rows = list(value['source']['inventory']) + [value['descriptor']] + list(value['recipe']['inventory'])
     rows += list(value['dependencies']['locks']) + list(value['dependencies']['assets'])
+    rows += [image['provenance'] for image in value['dependencies']['base_images']]
     rows += [compatibility[key] for key in ('compatibility_contract', 'schema_manifest', 'api_descriptor', 'event_index')]
     rows += list(compatibility['event_schemas']) + list(compatibility['dependency_interfaces'])
     seen = {}
@@ -75,8 +76,12 @@ def admit_build_input(input, input_reader, accepted_policy):
         raise BuildRefusal('source_outside_context')
     if value['recipe']['entrypoint'] not in [r['path'] for r in value['recipe']['inventory']]:
         raise BuildRefusal('recipe_entrypoint_missing')
+    argv = value['recipe']['argv_template']
+    if value['recipe']['entrypoint'] not in argv or (argv[0].split('/')[-1] in ('sh','bash','dash','zsh','ksh') and
+            any(arg.startswith('-') and 'c' in arg[1:] for arg in argv[1:])):
+        raise BuildRefusal('recipe_not_literal_entrypoint')
     for image in value['dependencies']['base_images']:
-        if image['platform'] != value['target']['oci_platform'] or '@sha256:' + image['manifest_digest'] not in image['reference']:
+        if image['platform'] != value['target']['oci_platform'] or not image['reference'].endswith('@sha256:' + image['manifest_digest']):
             raise BuildRefusal('unpinned_base_image')
     if native:
         inventory = getattr(input_reader, 'inventory', None)

@@ -76,6 +76,8 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
                     'operation_exit_or_budget')
             require(op['environment_names'] == input_value['determinism']['environment']['names'] and
                     op['environment_policy_sha256'] == audit['policy_sha256'], 'operation_environment_policy')
+            if op['phase'] == 'build':
+                require(op['argv'] == input_value['recipe']['argv_template'], 'operation_recipe_argv')
             record = op['evidence']
             expected = {k: v for k, v in op.items() if k != 'evidence'}
             expected.update(build_id=build['build_id'], qualification_scope=scope)
