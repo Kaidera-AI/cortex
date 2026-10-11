@@ -1,0 +1,28 @@
+{
+  "schema": "cortex.x01a.refresh.v1",
+  "base": "87fd43d6cb6d5d91361f88d71698f2b3e3721b65",
+  "accepted": "bcbd7ddc940d84f79ae3c16dd87fc2d1d5d25b70",
+  "native": "c07-review-x01a-refresh-001.json",
+  "published_inputs": {
+    "docs/next/evidence/x01a-source/GATES.md": "3f908e45aeedd35c52783c3ab7f39cbce4e2dfbca20d9dadf0f4e9d9a1f89d4f",
+    "docs/next/evidence/x01a-source/age-linux-input.json": "3f1a5553da58aaf58cc012a25c0b12814380b6f2458ecd00ee2efc9e7818853e",
+    "docs/next/evidence/x01a-source/c07-review-x01a-refresh-001.json": "7881f984d30a7f6b45cd8cccabe8e89f90f664adde3caa3f7cb424c92fd09d38",
+    "docs/next/evidence/x01a-source/current-faults.jsonl": "07c8d790c59f0860dea40fdf6d5787cbffcd63585fdb06c42569706074132e0f",
+    "docs/next/evidence/x01a-source/lineage/controller-red-001.txt": "4bce6eeb5dd4fc8f603a5df1b5a67979c5acebd2ddbdf90ee4cf0663aa905d4f",
+    "docs/next/evidence/x01a-source/lineage/detach-red-001.txt": "cfa2d0f9c504431760bc1086124a1c6ce35666af415476ad6efa1dab5ec21ea2",
+    "docs/next/evidence/x01a-source/lineage/dry-run.json": "f1a76a26a6bfcaa51ab7650aa123608853ba082fc63268a156ff42e4739ad9e0",
+    "docs/next/evidence/x01a-source/lineage/fault-red-001.txt": "93672f885da6b227ebf05b215c3166918e1b23fa6b19a6c473d5f86ba887ade4",
+    "docs/next/evidence/x01a-source/lineage/fixture-membership-red-001.txt": "d1e3ef777a4e0bef6e9d007a4c670d88a6f4594216f81e323d21f64d922fe034",
+    "docs/next/evidence/x01a-source/lineage/mutation-final-004.jsonl": "420ffed14ceeb5d036ce7472cc30b2404eb5957338d85d6d6cf3fa73b77c591f",
+    "docs/next/evidence/x01a-source/lineage/red-001.txt": "df22da27ca98ed8126ac59e48d99cafbac0719d2a5a4dcf9fdc03cc0c77ab9ee",
+    "docs/next/evidence/x01a-source/lineage/red-002.txt": "34df052f604725c5bf6368f138c041a6a8792575a7a873d57bb9399d2852f379",
+    "docs/next/evidence/x01a-source/lineage/red-003.txt": "3b76373415fed48a9c48f0f3b9d3cab28b849e4739648d218ac5407edac295b9",
+    "docs/next/evidence/x01a-source/lineage/reproduce.md": "5d18056b06a34eac7e89d7dfba0bb2a1abe7b39c6b80c934bc3f74ba906ade46",
+    "docs/next/evidence/x01a-source/lineage/verify-x01a.py": "139677f9e8b40f15c46f7424dbd47d75998ca5b05c26f20ca52452981e08b00b",
+    "docs/next/evidence/x01a-source/pre-change-custody.json": "50163c9ec3ed3644c70c8793f62592ce1cf67d390faaca585963547d1bf1e929",
+    "docs/next/evidence/x01a-source/pre-integration-faults.jsonl": "171fd7ccd08d5fc8d375f2bfb0002466cb758b139980f695e10e0241602914b1",
+    "docs/next/evidence/x01a-source/run-inherited-pg.py": "e2d13e20fd5d8440699066455fbcda750bb2cca3cda77a6e147d246391efe00d",
+    "docs/next/evidence/x01a-source/verify-refresh.py": "f0293e4a4fed2bb9bde4307785f175b20e252fae95c72db638b98443304446bc"
+  },
+  "note": "Actualone-stack82/490 at310c4c3;main87fd tree==0372a25;publicationdocsoutsidenext,fullinput/controllerdigestsverified.Source/pubdistinct,noX01b."
+}
