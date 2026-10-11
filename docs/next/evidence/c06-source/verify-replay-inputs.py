@@ -20,7 +20,12 @@ for name in required_inputs:
 for script,fixture in [('verify-fixture-contract.py','next/tests/outbox/test_outbox.py'),('verify-expiry-fixture.py','next/tests/outbox_retention/test_outbox_retention.py')]:
  result=subprocess.run([sys.executable,str(Path(__file__).with_name(script)),str(wt/fixture)],capture_output=True,text=True)
  assert result.returncode==0,script+': '+result.stdout
-checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':23,'outbox_retention':5,'outbox_inventory':17,'outbox_late_publication':1,'c05_review':8,'c05_private':5,'outbox_write_only':2,'outbox_private_namespace':2}
+controller_ast=ast.parse(Path(__file__).with_name('run-core-pg.py').read_text())
+suite_values=next(node.value for node in controller_ast.body if isinstance(node,ast.Assign)
+                  and any(isinstance(target,ast.Name) and target.id=='SUITES' for target in node.targets))
+declared_suites=dict(ast.literal_eval(suite_values))
+checks={}; expected={'outbox':32,'outbox_caller':2,'outbox_guards':23,'outbox_retention':5,'outbox_inventory':17,'outbox_late_publication':1,'c05_review':8,'c05_private':5,'outbox_write_only':2,'outbox_private_namespace':2,
+                     'receipt':declared_suites['receipt']}
 for directory,count in expected.items():
  files=list((wt/'next/tests'/directory).glob('test_*.py'))
  actual=sum(sum(isinstance(n,ast.FunctionDef) and n.name.startswith('test_') for n in ast.walk(ast.parse(p.read_text()))) for p in files)
