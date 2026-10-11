@@ -60,3 +60,56 @@ class SharedReceipt(unittest.TestCase):
         changed["evidence/A/build.json"] += b"changed"
         with self.assertRaises(ValueError):
             self.emit(receipt, verified, outputs, changed, policy)
+
+
+class DecidingSharedGuards(unittest.TestCase):
+    def test_changed_input_cannot_adopt_previous_receipt(self):
+        from cortex_core.release.codec import sha256
+
+        value, data, receipt, outputs, evidence, policy = receipt_fixture()
+        value["source"]["revision"] = "c" * 40
+        raw = canonical_bytes(value)
+        changed_policy = dict(policy, input_sha256=sha256(raw))
+        other = inputs.admit(raw, data.__getitem__, changed_policy)
+        with self.assertRaisesRegex(ValueError, "receipt_input_binding"):
+            receipts.verify_shared_receipt(
+                canonical_bytes(receipt),
+                other,
+                outputs.__getitem__,
+                evidence.__getitem__,
+                changed_policy,
+            )
+
+    def test_changed_actual_argv_is_rejected_at_raw_operation_evidence(self):
+        value, data, receipt, outputs, evidence, policy = receipt_fixture()
+        verified = inputs.admit(canonical_bytes(value), data.__getitem__, policy)
+        receipt["builds"]["A"]["operations"][2]["argv"].append("foreign-argument")
+        with self.assertRaisesRegex(ValueError, "operation_raw_evidence"):
+            receipts.verify_shared_receipt(
+                canonical_bytes(receipt),
+                verified,
+                outputs.__getitem__,
+                evidence.__getitem__,
+                policy,
+            )
+
+    def test_rehashed_external_layer_is_rejected_at_oci_inventory_body(self):
+        from cortex_core.release.codec import sha256
+
+        value, data, receipt, outputs, evidence, policy = receipt_fixture()
+        verified = inputs.admit(canonical_bytes(value), data.__getitem__, policy)
+        outputs["A/layer.tar"] += b"foreign-layer-data"
+        row = next(
+            row
+            for row in receipt["builds"]["A"]["outputs"]
+            if row["path"] == "A/layer.tar"
+        )
+        row.update(bytes=len(outputs[row["path"]]), sha256=sha256(outputs[row["path"]]))
+        with self.assertRaisesRegex(ValueError, "oci_inventory_body"):
+            receipts.verify_shared_receipt(
+                canonical_bytes(receipt),
+                verified,
+                outputs.__getitem__,
+                evidence.__getitem__,
+                policy,
+            )
