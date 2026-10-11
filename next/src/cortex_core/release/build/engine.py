@@ -117,13 +117,13 @@ def run_operation(
                 except ProcessLookupError:
                     pass
                 try:
-                    process.wait(timeout=10)
+                    code = process.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     try:
                         os.killpg(process.pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
-                    process.wait(timeout=10)
+                    code = process.wait(timeout=10)
             raise
         finally:
             observe(

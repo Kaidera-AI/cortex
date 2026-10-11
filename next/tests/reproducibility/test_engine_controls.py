@@ -357,16 +357,32 @@ class EarlyOperationEvidence(unittest.TestCase):
             self.assertEqual(journal[-1]["error"], "OSError")
             self.assertIsNone(journal[-1]["exit"])
 
+
 class RealCancellationEvidence(unittest.TestCase):
     def test_real_timeout_keeps_partial_stdout_journal_and_observed_exit(self):
         import json
         import sys
+
         with tempfile.TemporaryDirectory() as t:
             p = Path(t)
             with self.assertRaises(subprocess.TimeoutExpired):
-                engine.run_operation([sys.executable, '-c', 'import time; print("partial", flush=True); time.sleep(30)'], p, {}, 2, p/'out', p/'err')
-            self.assertEqual((p/'out').read_bytes(), b'partial\n')
-            rows = [json.loads(line) for line in (p/'out.operation.jsonl').read_text().splitlines()]
-            self.assertEqual([row['status'] for row in rows], ['started', 'failed'])
-            self.assertEqual(rows[-1]['error'], 'TimeoutExpired')
-            self.assertEqual(rows[-1]['exit'], -15)
+                engine.run_operation(
+                    [
+                        sys.executable,
+                        "-c",
+                        'import time; print("partial", flush=True); time.sleep(30)',
+                    ],
+                    p,
+                    {},
+                    2,
+                    p / "out",
+                    p / "err",
+                )
+            self.assertEqual((p / "out").read_bytes(), b"partial\n")
+            rows = [
+                json.loads(line)
+                for line in (p / "out.operation.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual([row["status"] for row in rows], ["started", "failed"])
+            self.assertEqual(rows[-1]["error"], "TimeoutExpired")
+            self.assertEqual(rows[-1]["exit"], -15)
