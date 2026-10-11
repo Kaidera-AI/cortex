@@ -156,7 +156,7 @@ def _verified_bytes(manifest, signature, key, pinned_digest, minisign_binary):
         with tempfile.TemporaryDirectory(prefix='cortex-upgrade-verify-') as temporary:
             stable = Path(temporary) / 'manifest.json'
             stable.write_bytes(raw)
-            result = subprocess.run([minisign_binary, '-V', '-q', '-W', '-p', str(key),
+            result = subprocess.run([minisign_binary, '-V', '-q', '-p', str(key),
                                      '-m', str(stable), '-x', str(signature)],
                                     capture_output=True, timeout=10, check=False)
     except (OSError, subprocess.TimeoutExpired):
