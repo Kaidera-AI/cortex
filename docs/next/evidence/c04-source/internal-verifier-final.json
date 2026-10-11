@@ -1,0 +1,681 @@
+{
+  "kind": "bounded fresh-context author-internal SDLC section-4 verification",
+  "created_utc": "2026-10-10T00:23:06.859113+00:00",
+  "verifier": "/root/c01_verify (Cox internal verifier, no new Cortex persona)",
+  "worktree": "/Users/amadmalik/DevVault/helix/.worktrees/cox-c04-auth-isolation-20261009",
+  "tested_product_source": "b7238063e443dc7088f853a04a25d6fd79d78232",
+  "inspected_publication_snapshot": "c41d5a469ffe6a1f5076d89546bd5362333ece39",
+  "incorporated_main": "67265f371a8829d12511c082b7792a1441ddcd77",
+  "required_findings": [],
+  "result": "No remaining REQUIRED source or evidence defect found within the declared C04 private synchronous port and disposable-proof scope.",
+  "method": "Read-only source/plan/test/controller inspection; trusted stdlib AST/JSON/SHA256 and read-only Git only. No author programs, host product imports/tests/builds, containers/services, credentials, external coordination, source edits or Git writes. Only this append-only artifact is written.",
+  "source_coverage": {
+    "auth.py": "credential/UUID/action validation; request role/privilege guard; server-owned top-level idle-autocommit transaction; initial authority lookup; private binding; exit tuple and fresh authority recheck; fixed error codes; all seven session settings cleared on commit/rollback/error",
+    "auth002": "fixed SECURITY DEFINER paths/private ACLs; current authority row locks; permission generations; verifier-owned ephemeral relation with owner/type/persistence/namespace validation; database-qualified once-only xact advisory marker; tuple equality; explicit NULL target/action/need checks; forced canonical business RLS; scoped principal-sensitive idempotency; unscoped/private metadata and delivery writes refused",
+    "schema_scope": "auth001 and first four manifest entries unchanged; auth0002 additive; no fifth persistent canonical schema/table",
+    "auth002_sha256": "dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681",
+    "auth_source_and_40_tests_equal_prior": "a4b8246b998719cb38b02011eb766663c8c4e47c",
+    "frozen_tests_independently_Git_and_AST_verified": {
+      "next/tests/auth/test_authorization.py": {
+        "frozen_at": "37871bde4830f7487dfc394bbdfc5e264e18363a",
+        "sha256": "6b1877189d40afca234d9f8bfd665da8cd08f2af761603468421d38be9325b18",
+        "tests": 25,
+        "unchanged": true
+      },
+      "next/tests/auth/test_auth_mutation_receipts.py": {
+        "frozen_at": "d54ebc075074180e48018180e04f9dc3edea0d92",
+        "sha256": "1312bf5fd90c097f40711a7b490253ba1982372e7c65bf06294e1eb5c86e96ab",
+        "tests": 2,
+        "unchanged": true
+      },
+      "next/tests/auth/test_transaction_binding.py": {
+        "frozen_at": "e341698f9e9f31fc48fd19baf5da43126ebd29fd",
+        "sha256": "1aa9c7c3d2d8d4d30c4864dc0384e1e7bea25692f342ab9855ed1895a6d2e382",
+        "tests": 5,
+        "unchanged": true
+      },
+      "next/tests/auth/test_private_binding.py": {
+        "frozen_at": "b1dcc3d8fd68d09327e6ee20ebbcf1ea50a2a768",
+        "sha256": "5e1ed622a987a3217d3b0e53afe3ea395599786dd25296976b70245cceeb8c4c",
+        "tests": 5,
+        "unchanged": true
+      },
+      "next/tests/auth/test_context_guards.py": {
+        "frozen_at": "ac5bf325bc1218f0a94ace69c6ba94d00d94b96b",
+        "sha256": "f685a24133eb0bc94670ac98bac146ee44bb6f70dad1787e06ca7c54524794c5",
+        "tests": 3,
+        "unchanged": true
+      },
+      "docs/next/evidence/c04-source/test_controller_receipt_guards.py": {
+        "frozen_at": "c359d3187450a3756047bdff9ec6e5f66ce26d07",
+        "sha256": "ca43358d01b717bfbd1c39ee39f452dc6475d1baf689f13c9de06534774e8c99",
+        "tests": 3,
+        "unchanged": true
+      }
+    },
+    "inherited_contract_shared_paths_equal_main": 25,
+    "controllers": "mkdir before effects; prelaunch tool binding; pending before create; exact name/owner/fresh nonce and immutable-ID reconciliation; retry pending cleanup; foreign/pending children block pod deletion; bounded probes; failed cleanup receipts saved before rejection; passed field gated on verified removal",
+    "publication_diff_only_evidence": [
+      "docs/next/evidence/c04-source/auth-attempt-001.json",
+      "docs/next/evidence/c04-source/auth-green-attempt-001.json",
+      "docs/next/evidence/c04-source/auth-red.json",
+      "docs/next/evidence/c04-source/binding-green-attempt-001.json",
+      "docs/next/evidence/c04-source/binding-green-attempt-002.json",
+      "docs/next/evidence/c04-source/binding-green-attempt-003.json",
+      "docs/next/evidence/c04-source/binding-green-attempt-004.json",
+      "docs/next/evidence/c04-source/binding-red.json",
+      "docs/next/evidence/c04-source/consumer-green-attempt-002.json",
+      "docs/next/evidence/c04-source/consumer-green.json",
+      "docs/next/evidence/c04-source/consumer-missing-red.json",
+      "docs/next/evidence/c04-source/context-auth-red.json",
+      "docs/next/evidence/c04-source/contract-shared-attempt-001-disposition.json",
+      "docs/next/evidence/c04-source/contract-shared-green-attempt-002.json",
+      "docs/next/evidence/c04-source/contract-shared-green.json",
+      "docs/next/evidence/c04-source/controller-guards-green-attempt-002.json",
+      "docs/next/evidence/c04-source/controller-guards-green.json",
+      "docs/next/evidence/c04-source/controller-red-disposition.json",
+      "docs/next/evidence/c04-source/fixture-confirmed-auth-red.json",
+      "docs/next/evidence/c04-source/fixture-diagnostic-red.json",
+      "docs/next/evidence/c04-source/folder-fitness.json",
+      "docs/next/evidence/c04-source/frozen-inputs.json",
+      "docs/next/evidence/c04-source/initial-auth-red.json",
+      "docs/next/evidence/c04-source/integrity-final.json",
+      "docs/next/evidence/c04-source/pre-edit.json",
+      "docs/next/evidence/c04-source/pre-fixture-auth-red.json",
+      "docs/next/evidence/c04-source/private-red.json",
+      "docs/next/evidence/c04-source/reproduce.md",
+      "docs/next/evidence/c04-source/run-auth-diagnostic.py",
+      "docs/next/evidence/c04-source/run-c04.py"
+    ]
+  },
+  "current_proofs": {
+    "PG": {
+      "receipt": "binding-green-attempt-004.json",
+      "schema_tests": 30,
+      "auth_tests": 40,
+      "actual_mutants": [
+        {
+          "mutation": "privileged runtime accepted",
+          "expected_test": "test_authorization.AuthorizationTests.test_privileged_or_owning_runtime_connection_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "da3e79348b5f877d1d6dec9db3e6b10c4d2099a5a84c654e76a2df692327421b",
+          "stderr_sha256": "2336bad554ccc34c5af35ee6d13ed96b14fa28e74cdf392b52ce625caf2f086b"
+        },
+        {
+          "mutation": "changed accepted context ignored",
+          "expected_test": "test_context_guards.ContextGuardTests.test_persistent_action_change_without_write_refuses_acceptance",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "59e01980d0b4cfe61b7a3617a6f41246f4d747f2159bc51686b9d7db4484b7b5",
+          "stderr_sha256": "0bf7b1ab116ae5565fe9f94d77f03781dee5818c029e672c89f6dda1f3352d89"
+        },
+        {
+          "mutation": "expiry before acceptance ignored",
+          "expected_test": "test_authorization.AuthorizationTests.test_expiry_before_response_refuses_and_rolls_back",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "1576b2ff6e5a59cf290545b1ec86c5774725d316bd7d9aedcee42b7b9d4f8b55",
+          "stderr_sha256": "074a8a41a9580d3f9f385ac9c875609941ba7d67a60acca4553809659e5f39ec"
+        },
+        {
+          "mutation": "session scope after request retained",
+          "expected_test": "test_context_guards.ContextGuardTests.test_all_session_scope_fields_clear_on_commit_and_rollback",
+          "body_assertions": 2,
+          "errors": 0,
+          "stdout_sha256": "bf6291ec27a7ecf84e0a614ed44194d3fc04e1b294d1cfaeceb2e9b570683586",
+          "stderr_sha256": "32f61593514a5e3f681414eac420f2260cbbca3f6d70330d04f6c8d5f5b2d666"
+        },
+        {
+          "mutation": "generation omitted from cache partition",
+          "expected_test": "test_authorization.AuthorizationTests.test_permission_generation_and_cache_partition_track_authority",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "a2af92615e9047575827d97bbe6cb056371a7fb49b12de5cb44958058a3f9b5b",
+          "stderr_sha256": "5b2c451993332d16c0ddee774fef93865bc02ad14437179b9591484ac9aa96b1"
+        },
+        {
+          "mutation": "owner bypass enabled",
+          "expected_test": "test_authorization.AuthorizationTests.test_owner_force_rls_does_not_depend_on_api_role_guard",
+          "body_assertions": 29,
+          "errors": 0,
+          "stdout_sha256": "d042ee70c6264cc7f40bacd77c814e1b803bd362b53f70f49cbf9ed926043462",
+          "stderr_sha256": "8829687aed891db9cf920154d48b5895da7b3a18c9f88e793cf8f47fa8660ca3"
+        },
+        {
+          "mutation": "tenant comparison omitted",
+          "expected_test": "test_authorization.AuthorizationTests.test_cross_tenant_reads_and_insert_update_are_denied",
+          "body_assertions": 8,
+          "errors": 0,
+          "stdout_sha256": "1e840acc8460750b955cac257c147ffffb0500c32884d7acda14b252b4be672d",
+          "stderr_sha256": "234556a79ba5a53e39939b8c565025d5e86c2a10a670c6b2f63abe10037fbaa3"
+        },
+        {
+          "mutation": "project comparison omitted",
+          "expected_test": "test_authorization.AuthorizationTests.test_other_project_in_same_tenant_is_not_visible_or_writable",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "4bb21410d42e95161b478b89f00bf2920b913f8d31879f59cec523fdec55840d",
+          "stderr_sha256": "c5c173925cfe8294802c92dc9d1c3ffa8241bab3535f6bc4ecdfb6ae19b09d94"
+        },
+        {
+          "mutation": "idempotency principal comparison omitted",
+          "expected_test": "test_authorization.AuthorizationTests.test_idempotency_receipts_are_principal_scoped",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "86d3726dbb35dab55b07d9a8ecbcfe2447599d53f04454b4c9dcf455cae2733c",
+          "stderr_sha256": "dfa8dfd7aa6ed01563b85696c80d40235c90a6eb4e1883596bf66631943755fa"
+        },
+        {
+          "mutation": "control-only grant elevated to owner",
+          "expected_test": "test_authorization.AuthorizationTests.test_control_requires_scoped_owner_or_admin_without_fallback",
+          "body_assertions": 2,
+          "errors": 0,
+          "stdout_sha256": "a1870ab7092f09b53def76901f1cec29ee26592473136a958d82ab370062b073",
+          "stderr_sha256": "4d4d0071ce9715dbb0604dde906cd8949ad4be08867e5372b8e3ceed295bccc1"
+        },
+        {
+          "mutation": "revocation authority locks omitted",
+          "expected_test": "test_authorization.AuthorizationTests.test_revocation_linearizes_with_accepted_request",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "e77c28b98a7fab0e6f997006c43e23279fc3c5ed15e8e6db790a65f48bbf9a1e",
+          "stderr_sha256": "b6ed9f94beaee3e684186041e4fb51e446b3cb839b9f71507ca8ed911532f018"
+        },
+        {
+          "mutation": "permission generation never advances",
+          "expected_test": "test_authorization.AuthorizationTests.test_principal_disable_invalidates_permission_generation",
+          "body_assertions": 2,
+          "errors": 0,
+          "stdout_sha256": "5456674aba4b8feeeccfd332e2a2a65970560f2de5757ad7aa3df3f4c345fa6f",
+          "stderr_sha256": "9daa31c5dbbbb27be71c3f7808924fe3c828454c06e91334e952d9d94caf653c"
+        },
+        {
+          "mutation": "private verifier function exposed to public",
+          "expected_test": "test_authorization.AuthorizationTests.test_all_business_tables_force_rls_private_functions_stay_private",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "4d72db1038162bd667772ea48c6ddae307045720660017f1842b4b86c878b6d6",
+          "stderr_sha256": "75df91baaaabcb51bed1455258127c210af2085e1257c6a568ef62c21277b106"
+        },
+        {
+          "mutation": "manifest dispatches exposed auth migration",
+          "expected_test": "test_authorization.AuthorizationTests.test_all_business_tables_force_rls_private_functions_stay_private",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "4d72db1038162bd667772ea48c6ddae307045720660017f1842b4b86c878b6d6",
+          "stderr_sha256": "42b355c62488a277678074d4f3f3e077cc12adea1a266531598ca6a7d153f145"
+        },
+        {
+          "mutation": "wrong-installation negative fixture accepts authorized scope",
+          "expected_test": "test_authorization.AuthorizationTests.test_shared_negative_conformance_cases_are_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "835fa0afc7a5b72b2974b35c9f171efacada1c1640e15b6577108a98acfafae0",
+          "stderr_sha256": "cc4b2b5777e33062144b38a2342c5f25651ec097c33a9a703e67ca0894fe5637"
+        },
+        {
+          "mutation": "exit-code-only consumer accepts inconclusive receipts",
+          "expected_test": "test_auth_mutation_receipts.AuthMutationReceipts.test_operational_and_fixture_failures_are_inconclusive",
+          "body_assertions": 5,
+          "errors": 0,
+          "stdout_sha256": "bad9129c16c477723f1022ba0be8ba58ff8a14e1b3d0b591e76f881c668f34f0",
+          "stderr_sha256": "bd96e4f11f76b3dc7e1a4da8896cd5a0fd5c65ffa21cf0397c4d80b9bdb396ac"
+        },
+        {
+          "mutation": "accepted tuple guard omitted",
+          "expected_test": "test_transaction_binding.TransactionBindingTests.test_temporary_action_elevation_restored_before_exit_cannot_commit",
+          "body_assertions": 4,
+          "errors": 0,
+          "stdout_sha256": "8c34fdedf32e77e3c7d9b05c178a5084816522b3ba2e4335dd915ed9e3c3ec04",
+          "stderr_sha256": "60134ad1c163f712b42c0c47aa0d4e02db71a81dc30bb88c9211fa68b9ba94b1"
+        },
+        {
+          "mutation": "transaction once-only marker guard omitted",
+          "expected_test": "test_private_binding.PrivateBindingTests.test_discard_temp_and_session_unlock_cannot_rebind",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "8dcccdc78e51ef73485aa11d9978020e76b2c0caf36e23c80380989f2753a2d7",
+          "stderr_sha256": "f863e8f50eb34d4d7f41f896817e8214617951fbcb9a1123a7e8bc841d30d29c"
+        },
+        {
+          "mutation": "caller-owned context accepted",
+          "expected_test": "test_private_binding.PrivateBindingTests.test_caller_owned_context_even_with_verifier_grants_is_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "2bc4d609a3d7ed16ae88ac597fc7260d1886808d7bfbd8b57e620b610385ba98",
+          "stderr_sha256": "2cbae0c9476a5a9dc8d6be3441ed5d928b183923f590892aa5272783a33fc4b3"
+        },
+        {
+          "mutation": "NULL resolver action accepted",
+          "expected_test": "test_transaction_binding.TransactionBindingTests.test_null_action_resolver_refuses_owner_scope",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "93ac91416f1601e38be826d92a6cf2b4e20b637d6486e15b721e3f1596af42ff",
+          "stderr_sha256": "3c193357e220b8089f5c1e6b3e9499ed6c5d8718ef3636d9077f0406eb5d7fde"
+        },
+        {
+          "mutation": "NULL policy targets accepted",
+          "expected_test": "test_private_binding.PrivateBindingTests.test_null_policy_targets_and_need_are_refused",
+          "body_assertions": 2,
+          "errors": 0,
+          "stdout_sha256": "c23ea2b256d1a6f4a24088d1897ae69dc437e8823a85ec1686c16fe1c1e404eb",
+          "stderr_sha256": "616a674d16755c956f668d6b60bb14bf6b91e76de9c9bbf62f10cc63dcb82167"
+        },
+        {
+          "mutation": "NULL policy need accepted",
+          "expected_test": "test_private_binding.PrivateBindingTests.test_null_policy_targets_and_need_are_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "4af05c9ce0502239a9bedb848a544c28dc01a2c3511e8dea495e45df096d2656",
+          "stderr_sha256": "12bffefeb31a7eb5a9f15b0053873f4fe46e9b6af7a3f909d15ceb5858c718c2"
+        }
+      ],
+      "restored_auth_tests": 40,
+      "Git_bound_and_restored_copied_files": 369,
+      "source_recipe_binding": "All 22 source/SQL/fixture/classifier recipe inputs, original/mutated/effective hashes and auxiliary cases inspected and independently reconstructed; SQL-manifest digest adjusted to preserve semantic probes.",
+      "cleanup": [
+        {
+          "kind": "container",
+          "name": "kaidera-test-core-driver-1",
+          "immutable_id": "8c1f9d0632918cf24ce53191b0f43293cc6df49c9a781e0c0aad080691533d87",
+          "owner_nonce_name_verified": true,
+          "removed_by_id": true,
+          "final_absence_verified": true
+        },
+        {
+          "kind": "container",
+          "name": "kaidera-test-core-db-1",
+          "immutable_id": "44ee513411bcfb5393094393e69530f4f1d6003fb027c40f1959f3755a1fc3a6",
+          "owner_nonce_name_verified": true,
+          "removed_by_id": true,
+          "final_absence_verified": true
+        },
+        {
+          "kind": "pod",
+          "name": "kaidera-test-core-schema-1",
+          "immutable_id": "2b76b7781bafd96c0a8a0595b762c9c6aca848608c94a00093d63a3d64923c74",
+          "owner_nonce_name_verified": true,
+          "removed_by_id": true,
+          "final_absence_verified": true
+        }
+      ]
+    },
+    "contract_shared": {
+      "receipt": "contract-shared-green-attempt-002.json",
+      "contract_tests": 33,
+      "shared_tests": 20,
+      "contract_mutants": [
+        {
+          "mutation": "validation bypass",
+          "expected_test": "test_contracts.EventContract.test_all_required_fields_refuse_omission",
+          "body_assertions": 71,
+          "errors": 0,
+          "stdout_sha256": "16d790f69fba341cfb17ed4c36064315e7ac30efa7b7a8f1d19c4a35d579677c",
+          "stderr_sha256": "484f1783bc2db8d7755d84c35a9cdaf8df45581e90f69577835383cd25a6a607"
+        },
+        {
+          "mutation": "format checks removed",
+          "expected_test": "test_contracts.EventContract.test_payload_identity_kind_digest_and_timestamp_checked",
+          "body_assertions": 7,
+          "errors": 0,
+          "stdout_sha256": "2879024998816c7f88dc5716b481ee9215fadcfc13beac3ec1304c7f9b5e4ceb",
+          "stderr_sha256": "0d2ce6b03b256973da94204eeaf9f7379875d538f0bc3017fe49b2fda3ab21d9"
+        },
+        {
+          "mutation": "duplicate IDs accepted",
+          "expected_test": "test_contracts.OpenAPIContract.test_duplicate_operation_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "56dbfafd99ed3f6df9970015b4bca23956a499bfb90161f03e05d90d1ca9468e",
+          "stderr_sha256": "ce3be009a0a1357b0ca0553b2edc942b30dee4fd08e9a16f663298c5441874c2"
+        },
+        {
+          "mutation": "references unchecked",
+          "expected_test": "test_contracts.OpenAPIContract.test_broken_reference_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "5ab146a557011df6e2b5f0ef1be9a0d01a2104a173235904017e9c89ed983553",
+          "stderr_sha256": "fcb46c76f819bd18f16ad683a307f324e3dfd53fe4cb9053c9a73c3eb1d52ee6"
+        },
+        {
+          "mutation": "C02 gaps ignored",
+          "expected_test": "test_contracts.OpenAPIContract.test_c02_gaps_cannot_be_removed",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "12de20dfbd846944d3148b8eb6fe263c7010963715ecafdff3fc7c62bc7de529",
+          "stderr_sha256": "7bf74e04ce06c5e42709f715206e946872af5c09cdb19c6f60ed5131c770e619"
+        },
+        {
+          "mutation": "unknown wire names admitted",
+          "expected_test": "test_contracts.WireContract.test_unknown_schema_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "bd8051db8efcc82c4565c1a1b14e543ab480e0efda0714dd4201ee6d4df658c5",
+          "stderr_sha256": "e9be8d0edbfbc69fe4e16fd4071856f6510f232ce58f0a2660dbe37008a15093"
+        },
+        {
+          "mutation": "invalid timestamp offsets accepted",
+          "expected_test": "test_rfc3339.TimestampContract.test_invalid_offsets_are_refused",
+          "body_assertions": 3,
+          "errors": 0,
+          "stdout_sha256": "d6912d2444bb725774de5658cbd5b20992aff826a0dfb773f1c442699c69142f",
+          "stderr_sha256": "57f33acd293c8029187b1d4f259e3d8338052ecf558d2330a39078c2cb00e300"
+        },
+        {
+          "mutation": "schema index version ignored",
+          "expected_test": "test_schema_index.SchemaIndexContract.test_unknown_index_version_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "23fba885fa1154cbab83737063d858969d1afed033619217155d24bee5301356",
+          "stderr_sha256": "fdefaa863d66a96eb3a59e1a7f6109589800123fa82c5e2e46c02f3e05197ce9"
+        },
+        {
+          "mutation": "event schema identity unchecked",
+          "expected_test": "test_schema_index.SchemaIndexContract.test_event_schema_identity_mismatch_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "88a2ceafd0dc53cc6b31ecc49cb8edeaad8c6fad1242ddbf1cf02a3b209a338a",
+          "stderr_sha256": "43d6dcd080c299114c7b15046e6b84e5accc48bd4af83deb072d8c6ef6bc19ee"
+        },
+        {
+          "mutation": "event identity optional",
+          "expected_test": "test_contracts.EventContract.test_all_required_fields_refuse_omission",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "572fd8659b12d3eedc0ec524bd5af72d1d27d7e1d676f140d60f48db5e16d3cf",
+          "stderr_sha256": "eec5daad80ea6604266383385f4479dc9466f15b94e7baf3b89b87faa3de6390"
+        },
+        {
+          "mutation": "scope optional",
+          "expected_test": "test_contracts.EventContract.test_all_required_fields_refuse_omission",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "8cad5e8d126cde40fd5b70683452949a57152e397953802d2709247eca2db8df",
+          "stderr_sha256": "183bfc84c7149570ee5356eaafc46f7f0a29d6477ab41efe306429794707460d"
+        },
+        {
+          "mutation": "zero revision accepted",
+          "expected_test": "test_contracts.EventContract.test_revision_positive_and_schema_supported",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "79720117ab7c356d31f3496bf8c6054919e70620382f6eda36ae9343b21f772c",
+          "stderr_sha256": "fcaa04ae4df6cdc25de03be4df4b7802bcfc59ef2fa9638c8eca52ad4af073a3"
+        },
+        {
+          "mutation": "unknown event schema version admitted",
+          "expected_test": "test_review_regressions.ReviewRegressions.test_schema_version_cannot_be_relabelled_by_index",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "189e2be0a190dbdf0e938e5213b60de3fa959ef7a8f3dc3f79fd91dfaee9859a",
+          "stderr_sha256": "9dcde42368f055d59fb929e28bfb64ccc757e45d942fb3e1ff42f3e75027801a"
+        },
+        {
+          "mutation": "unknown fields accepted",
+          "expected_test": "test_contracts.EventContract.test_unknown_fields_refused",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "3dda27d31eee0f45c2c8298c3efc7ece3c5b064f6c0460b4044765b16af63b1c",
+          "stderr_sha256": "3ed93890a4274063f4cfd8fcb0df08f2e9f836da6ba7f02b2223248402509551"
+        },
+        {
+          "mutation": "delete rule removed",
+          "expected_test": "test_contracts.EventContract.test_delete_and_tombstone_agree_in_both_directions",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "4ac0522185aca926b55d93c925c21743c9aaaa702f34eaa45ba28d4038677dde",
+          "stderr_sha256": "97598ce860805ea1cc336f19107e32e44c5d9c04e4a266101f36403914eb2c57"
+        },
+        {
+          "mutation": "payload digest unchecked",
+          "expected_test": "test_contracts.EventContract.test_payload_identity_kind_digest_and_timestamp_checked",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "12b722663e6759215fbb3846b4b12b2f29cbf0ddf5aee9e4cd40cc34f874857d",
+          "stderr_sha256": "18283d4c65cf925dc1a14e811aea3adbc1e20fb1bef68ba67115a18354c45eba"
+        },
+        {
+          "mutation": "project identity unchecked",
+          "expected_test": "test_contracts.EventContract.test_scope_and_object_identifiers_are_canonical_uuids",
+          "body_assertions": 4,
+          "errors": 0,
+          "stdout_sha256": "d2d2f0dac1cb8bc73ab81acdab1f83cdb46ac3e0294d006a617da0d330fb5453",
+          "stderr_sha256": "a1e7e525dbadcad5763456a3ad9827ffdf41084d4cd5e72e03873724f19f6d6a"
+        },
+        {
+          "mutation": "occurrence time unchecked",
+          "expected_test": "test_contracts.EventContract.test_payload_identity_kind_digest_and_timestamp_checked",
+          "body_assertions": 6,
+          "errors": 0,
+          "stdout_sha256": "554fe35f0429edb2655292fa0410a96ea02fe880e6011b76376cb9781ec8282c",
+          "stderr_sha256": "cbb13c29391d04b9ad06565b49047eb7bf8580c0425e47124cce54875d982248"
+        },
+        {
+          "mutation": "kind newline admitted",
+          "expected_test": "test_review_regressions.ReviewRegressions.test_digest_and_kind_reject_final_newline",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "9697b315068ee8d6c3eea83a7ff85bde915d878027b932f62a50fa37a1fec586",
+          "stderr_sha256": "4348262f790000f51883553e6a60d34992ab29bd0d9f014a784069473d1874ab"
+        },
+        {
+          "mutation": "digest newline admitted",
+          "expected_test": "test_review_regressions.ReviewRegressions.test_digest_and_kind_reject_final_newline",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "b5b32944c6d3360a781887b40d4b5f436b867881f148cf3af395b29fef7d4c4c",
+          "stderr_sha256": "3236c7f342d8b01bd8582a403d2ca3a60e3fd4f56073f91dcee286bbfb0ef394"
+        },
+        {
+          "mutation": "queued ACK admitted",
+          "expected_test": "test_contracts.WireContract.test_queued_delivery_is_not_a_commit_receipt",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "0486a16428c86139a63cdb44f5c0ca3318dadf3d447d16d6d2638725aa251770",
+          "stderr_sha256": "3b664cfd4f1ab3cad06d20ed4f69d0166f2a08b7ab8e48145fb5ee7c165dbeb0"
+        },
+        {
+          "mutation": "untyped error admitted",
+          "expected_test": "test_contracts.WireContract.test_capability_state_and_error_codes_are_typed",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "bc6350468c0c1a45d0a4bd6e2cf36d06242073a1700b43f3e9381751074274d4",
+          "stderr_sha256": "b72c79ca09e9e8bafd1014705fddd3dfd3cfd06c86860d53595352d566c0c2e4"
+        },
+        {
+          "mutation": "untyped readiness admitted",
+          "expected_test": "test_contracts.WireContract.test_capability_state_and_error_codes_are_typed",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "bc6350468c0c1a45d0a4bd6e2cf36d06242073a1700b43f3e9381751074274d4",
+          "stderr_sha256": "1eeaad9d9d29f70d64b3ae454f5b64af59d26f5c7a1bf6d0866921f8d7c87e17"
+        },
+        {
+          "mutation": "event index selects relaxed schema",
+          "expected_test": "test_contracts.EventContract.test_payload_identity_kind_digest_and_timestamp_checked",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "12b722663e6759215fbb3846b4b12b2f29cbf0ddf5aee9e4cd40cc34f874857d",
+          "stderr_sha256": "9bfc608f953ba4b41c2ccff0a9c010c5e8cdb702d7d3d6b20c6f3ad5552425b6"
+        },
+        {
+          "mutation": "wire index selects relaxed schema",
+          "expected_test": "test_contracts.WireContract.test_queued_delivery_is_not_a_commit_receipt",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "0486a16428c86139a63cdb44f5c0ca3318dadf3d447d16d6d2638725aa251770",
+          "stderr_sha256": "b8801c96a495e127abb2afb22a3079fd65cdd7a23f2fb3bb393040180a529922"
+        },
+        {
+          "mutation": "unrelated errors counted as kills",
+          "expected_test": "test_review_regressions.ReviewRegressions.test_setup_import_runner_and_wrong_test_are_inconclusive",
+          "body_assertions": 11,
+          "errors": 0,
+          "stdout_sha256": "228050c4efb3a25b4b496a8e9d2c2afe38c9f0c66c1f8288fc1c5d7dd818aae5",
+          "stderr_sha256": "2796f33222aa718bbe38ed8d78a27bf7bd5be51e867986276f6a31765499878d"
+        }
+      ],
+      "shared_mutants": [
+        {
+          "mutation": "fixture assertions admitted",
+          "expected_test": "test_classifier.Classifier.test_nemo_async_fixture_assertions_are_inconclusive",
+          "body_assertions": 8,
+          "errors": 0,
+          "stdout_sha256": "dbd8aeed6fc1dcf65d43afd8f3d55f92c9230eb9ff7c276fb01c225190f95753",
+          "stderr_sha256": "d7535df7da6fdc04608d8610a71147e82b0972c75c1f5db53309ee73965c7f24"
+        },
+        {
+          "mutation": "unrelated assertion admitted",
+          "expected_test": "test_classifier.Classifier.test_unrelated_assertion_is_inconclusive",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "684991e61df231e7266ed13934e543adf7fca31f37a9ef87146f8b59b4ac4ba8",
+          "stderr_sha256": "2af7541679e789c38ee47f1569cd5eb34308a88fb904bbcb416450c8ae19dbde"
+        },
+        {
+          "mutation": "nonassertion failure admitted",
+          "expected_test": "test_classifier.Classifier.test_nonassertion_failure_exception_is_inconclusive",
+          "body_assertions": 2,
+          "errors": 0,
+          "stdout_sha256": "92dd4114d31e4cad490edc870bbebc16c5ad945dcc9bccf2a227f199677802ba",
+          "stderr_sha256": "60afc4ec8fcc5d28e22f5bbb2e8ccb0640bb5362ae759097361fb052c55a3b21"
+        },
+        {
+          "mutation": "test errors ignored",
+          "expected_test": "test_classifier.Classifier.test_error_alongside_expected_assertion_is_inconclusive",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "f8fc7760a5884a6bbaa28d244897a3c0a7d0405f76b78f14ba2093317eee737f",
+          "stderr_sha256": "dc5882083becc7b6c4f9d819ce3951b976b198e6157fae0c27df02a2d6d967d5"
+        },
+        {
+          "mutation": "operational exits admitted",
+          "expected_test": "test_classifier.Classifier.test_operational_exits_signals_and_exit_mismatch_are_inconclusive",
+          "body_assertions": 4,
+          "errors": 0,
+          "stdout_sha256": "900387ce7272d4319f7b1b9b9268db262e6a4aa9b0af76828172e3b1a682d3ea",
+          "stderr_sha256": "3d7fd4c4b18933a359687b2a1c0a866c1830f1c832fb31a2a4951929c96e4f33"
+        },
+        {
+          "mutation": "subtest assertion receipt omitted",
+          "expected_test": "test_classifier.Classifier.test_expected_subtest_assertion_is_killed",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "2a0d75de320f47bbc09b17070de02950940b33920e28b3208838749ea8152a51",
+          "stderr_sha256": "7c6e6b7b33ac109aa2274a7fcadca5b522c2b206f5a7e2fe1e5b52492a013b0e"
+        },
+        {
+          "mutation": "zero test report admitted",
+          "expected_test": "test_classifier.Classifier.test_invalid_report_count_rows_or_assertion_evidence_are_inconclusive",
+          "body_assertions": 1,
+          "errors": 0,
+          "stdout_sha256": "5b6c71962f6782b3f2b65ac44ce515135832d6bf7f14ddaaf1790cd68fdbe86d",
+          "stderr_sha256": "50a236bac4456091ad4366b9f855f8dae2cbb1456b6808c9bd0082168f486b98"
+        },
+        {
+          "mutation": "async fixture wrappers omitted",
+          "expected_test": "test_async_fixture_reuse.AsyncFixtureReuse.test_mike_unchanged_reuse_probes",
+          "body_assertions": 3,
+          "errors": 0,
+          "stdout_sha256": "534410d9066cc20a77e727f0505977c47188724cb96ebc7d4d503b7a2544124f",
+          "stderr_sha256": "58387afad8b4bb8666fa45cc1338fb9576704547439adbb836aee2076d0ba50f"
+        }
+      ],
+      "restored_contract_tests": 33,
+      "restored_shared_tests": 20,
+      "Git_bound_and_restored_copied_files": 369,
+      "generated_extras_raw_sha256": {
+        "next/scripts/__pycache__/mutate_contracts.cpython-312.pyc": "7ba66ba3d32ce06de02b93a732285e20f4f799e3dd8f74334d60645449ffc7fe",
+        "next/tests/__pycache__/test_receipts.cpython-312.pyc": "849e977ed00761ceaa808e5d3038ff48b7ee29cff45101461af333717fd6d386"
+      },
+      "restoration": "All original inputs verified before removal; only two known generated cache extras removed; exact complete manifest then restored.",
+      "cleanup": [
+        {
+          "kind": "container",
+          "name": "kaidera-test-auth-receipts-1",
+          "immutable_id": "fb2c79438901452c31860826d5c8db7870c97eb29e2ccbdfa473fe97e75206e9",
+          "owner_nonce_name_verified": true,
+          "removed_by_id": true,
+          "final_absence_verified": true
+        }
+      ]
+    },
+    "controller_guards": {
+      "RED_receipt": "controller-guards-red.json",
+      "expected_body_assertions": [
+        "test_controller_receipt_guards.ControllerReceiptGuards.test_consumer_foreign_name_cannot_return_green",
+        "test_controller_receipt_guards.ControllerReceiptGuards.test_consumer_inventory_timeout_retains_failed_receipt",
+        "test_controller_receipt_guards.ControllerReceiptGuards.test_pg_pending_cleanup_cannot_return_green"
+      ],
+      "RED_errors": 0,
+      "RED_outer_success": false,
+      "RED_disposition": {
+        "receipt": "controller-guards-red.json",
+        "raw_body_red_valid": true,
+        "body_failures": 3,
+        "errors": 0,
+        "outer_exit": 1,
+        "outer_qualification": false,
+        "reason": "Phase suffix -red was initially treated as GREEN by the runner; actual unchanged guard suite still emitted all three declared expected-body assertion failures. Phase dispatch corrected separately; original receipt remains failed and immutable.",
+        "original_controller_commit": "c359d31"
+      },
+      "GREEN_receipt": "controller-guards-green-attempt-002.json",
+      "GREEN_frozen_tests": 3,
+      "GREEN_errors": 0,
+      "tool_input_sha256": {
+        "run-controller-receipt-guards.py": "ace2e2c9f584f58e6d2fe4f978ac60864e0926ba1b4d6e3c56550b8032e03814",
+        "run-c04.py": "eae2e2c3894c1bdb3966060aeae50fb03d33dbecf908397dca7b04a9e1adc18a",
+        "run-auth-diagnostic.py": "ed1b45d5c6df7273fb6eabbd79604c5bde427ba98da7bfdd3a6507ade3e7e857",
+        "run-auth-pg.py": "87b3640cd754bb4e3b2aadc2d59cb983d4b9b9b765e922210479cb7e5d8ada31",
+        "test_controller_receipt_guards.py": "ca43358d01b717bfbd1c39ee39f452dc6475d1baf689f13c9de06534774e8c99",
+        "run-auth-receipts.py": "42fd6a65dc68e4d3775a77467195b4997537ad816f2a8af5b8a5ab5a46b1cd3b",
+        "shared/replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2"
+      },
+      "classifier_current_bytes_equal_tested_shared_helper": true,
+      "cleanup": [
+        {
+          "kind": "container",
+          "name": "kaidera-test-replay-lifecycle-1",
+          "immutable_id": "e873f5586398d8ebb4275baaa4129606e5789c6127f88e2124bc06e6d07c0c0c",
+          "owner_nonce_name_verified": true,
+          "removed_by_id": true,
+          "final_absence_verified": true
+        }
+      ],
+      "scope": "actual controller finally blocks with explicitly declared control-only pre-passed flag; no application success synthesized"
+    }
+  },
+  "assertion_attribution": "All 56 actual mutants include their declared expected ID among test-body AssertionError rows, with phase=test, is_assertion exactly true, nonempty causal traceback, exit 1, matching parsed raw report and no errors. Additional valid assertions remain in the raw evidence. Signals/setup/import/runner/custom nonassertion failures are inconclusive, never kills. Baseline/restored suites are clean.",
+  "preserved_history": {
+    "missing_adapter_RED": "operational missing implementation errors, not kills",
+    "consumer_initial_GREEN": "ambiguous recipe preflight failed and retained",
+    "consumer_GREEN_002": "historical real adapter fault: five expected body assertions/no errors and restored two tests",
+    "initial_auth_proof": "historical narrower 30/27/16 proof excludes later binding/NULL negatives",
+    "binding_RED": "five real intended body assertions/no errors before operation-time binding fix",
+    "binding_GREEN_001": "two survivors remain failed; new guard-only effects strengthened two expected targets; fourteen original recipes and all original tests preserved",
+    "private_RED": "two NULL-target subtest assertions/no errors before explicit target fix; private controls frozen",
+    "contract_shared_attempt_001": "failed only because two generated caches were extra; never relabeled successful",
+    "controller_RED": "three genuine body failures plus independently disclosed failed outer phase dispatch; retained unchanged",
+    "folder_fitness": "exit 1 for preexisting tracked root dist/packaging; separate estate gate"
+  },
+  "evidence_sha256": {
+    "binding-green-attempt-004.json": "d9d8f29bcb2334f4b070dcc5e56047c1464fe2aa360560156ea5f2414bfb7110",
+    "contract-shared-green-attempt-002.json": "49671fe21c337770e3c9350aced4f0ff1807c03292c6bfddb9da83dea52cd12c",
+    "controller-guards-green-attempt-002.json": "92f434bcabad8e6bcad2b8b1f060ee0c8e190875548ebe2ca1bbfb318d1bf3d5",
+    "controller-guards-red.json": "b3e6f838d00baacff445535db00efb011b80c689ef1e000fcc98cd6f72a7a72c",
+    "controller-red-disposition.json": "a4f7134a2ea9875677d5b2ea717845c3932d8c23c05585c632cd7a90f5495df1",
+    "integrity-final.json": "d00ee31c2205956fb8ef84790731b928c9f72ab566d5de43bb11d8c5502ed6a7",
+    "folder-fitness.json": "6148402bb1f980662177f0fcaebeb72752ba7f8013ca2504aa7478c90ffee258"
+  },
+  "publication_custody": "Canonical root proof bytes equal committed docs/next/evidence/c04-source copies at c41d5a4. All 369 product inputs equal tested b723806 and publication c41d5a4. A later certificate/index/doc-only publication SHA must bind this snapshot separately.",
+  "limits": [
+    "Server owns the private connection and top-level transaction; clients receive no SQL/database credentials. Arbitrary SQL transaction termination or an arbitrary SQL-client sandbox is outside the declared contract.",
+    "Controller guards are actual-finally control-only probes; real current PG/contract/shared removal independently corroborates fixture custody. Their copied classifier current bytes were separately checked against the tested shared helper.",
+    "Native arm64 disposable PG/Python proof inspected; verifier ran no new product execution. No native amd64/platform parity, HTTP compatibility, issuer/wire-key decision, engine filters/networking, installer, live migration, model/release or broad pentest acceptance.",
+    "C03 exact merged proof and replay-tooling official disposition remain separate in PR40; this C04 report grants none.",
+    "Official Mike/Vera review, Kai/CTO acceptance and merge/deploy/release authorization remain independent; unrelated folder-fitness RED is unresolved here."
+  ],
+  "official_acceptance": false,
+  "merge_deploy_release_authorization": false,
+  "writes": "Only this new append-only root internal-verifier-final.json; all historical and prior artifacts unchanged."
+}

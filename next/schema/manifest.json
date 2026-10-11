@@ -21,6 +21,11 @@
       "id": "retrieval-0000",
       "file": "retrieval/000-canonical.sql",
       "sha256": "5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2"
+    },
+    {
+      "id": "auth-0002",
+      "file": "auth/002-isolation.sql",
+      "sha256": "dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681"
     }
   ]
 }

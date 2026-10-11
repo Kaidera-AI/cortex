@@ -29,7 +29,7 @@ def _api_alive() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(
+requires_live_runtime = pytest.mark.skipif(
     not TEST_PROJECT or not PG_DSN_APP or not _api_alive(),
     reason="CORTEX_TEST_PROJECT, CORTEX_TEST_PG_DSN_APP, and a reachable cortex-api are required",
 )
@@ -87,6 +87,7 @@ def _json_cell(value):
 
 
 @pytest.mark.asyncio
+@requires_live_runtime
 async def test_app_user_cannot_run_roles_ddl_but_api_registers_agent(http_client):
     """Runtime app user has no DDL, while API registration remains data-only."""
     try:
@@ -135,6 +136,7 @@ async def test_app_user_cannot_run_roles_ddl_but_api_registers_agent(http_client
         _cleanup_agent(http_client, TEST_PROJECT, agent, role)
 
 
+@requires_live_runtime
 def test_project_api_registers_arbitrary_project_agent_role(http_client):
     """Project onboarding can create arbitrary project/agent/role records."""
     suffix = uuid.uuid4().hex[:8]
@@ -185,6 +187,7 @@ def test_project_api_registers_arbitrary_project_agent_role(http_client):
         _cleanup_project(http_client, project)
 
 
+@requires_live_runtime
 def test_register_agent_persists_runtime_state_outside_capabilities(http_client):
     """Agent registration writes operational state to agents runtime columns."""
     suffix = uuid.uuid4().hex[:8]
@@ -271,6 +274,7 @@ def test_register_agent_persists_runtime_state_outside_capabilities(http_client)
         _cleanup_agent(http_client, TEST_PROJECT, agent, role)
 
 
+@requires_live_runtime
 def test_runtime_state_is_project_scoped_for_same_agent_name(http_client):
     """The same agent name can register independently in two projects."""
     suffix = uuid.uuid4().hex[:8]

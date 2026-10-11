@@ -1,0 +1,44 @@
+{
+  "tested_sha": "b7238063e443dc7088f853a04a25d6fd79d78232",
+  "frozen": {
+    "next/tests/auth/test_authorization.py": {
+      "frozen_at": "37871bde4830f7487dfc394bbdfc5e264e18363a",
+      "sha256": "6b1877189d40afca234d9f8bfd665da8cd08f2af761603468421d38be9325b18",
+      "tests": 25,
+      "unchanged": true
+    },
+    "next/tests/auth/test_auth_mutation_receipts.py": {
+      "frozen_at": "d54ebc075074180e48018180e04f9dc3edea0d92",
+      "sha256": "1312bf5fd90c097f40711a7b490253ba1982372e7c65bf06294e1eb5c86e96ab",
+      "tests": 2,
+      "unchanged": true
+    },
+    "next/tests/auth/test_transaction_binding.py": {
+      "frozen_at": "e341698f9e9f31fc48fd19baf5da43126ebd29fd",
+      "sha256": "1aa9c7c3d2d8d4d30c4864dc0384e1e7bea25692f342ab9855ed1895a6d2e382",
+      "tests": 5,
+      "unchanged": true
+    },
+    "next/tests/auth/test_private_binding.py": {
+      "frozen_at": "b1dcc3d8fd68d09327e6ee20ebbcf1ea50a2a768",
+      "sha256": "5e1ed622a987a3217d3b0e53afe3ea395599786dd25296976b70245cceeb8c4c",
+      "tests": 5,
+      "unchanged": true
+    },
+    "next/tests/auth/test_context_guards.py": {
+      "frozen_at": "ac5bf325bc1218f0a94ace69c6ba94d00d94b96b",
+      "sha256": "f685a24133eb0bc94670ac98bac146ee44bb6f70dad1787e06ca7c54524794c5",
+      "tests": 3,
+      "unchanged": true
+    },
+    "docs/next/evidence/c04-source/test_controller_receipt_guards.py": {
+      "frozen_at": "c359d3187450a3756047bdff9ec6e5f66ce26d07",
+      "sha256": "ca43358d01b717bfbd1c39ee39f452dc6475d1baf689f13c9de06534774e8c99",
+      "tests": 3,
+      "unchanged": true
+    }
+  },
+  "core_auth_tests": 40,
+  "control_only_tests": 3,
+  "shared_helper_sha256": "d4e0fc8813bbf84c9e53405aa11d8d711d5552c6ac8297724998141fa95486fa"
+}
