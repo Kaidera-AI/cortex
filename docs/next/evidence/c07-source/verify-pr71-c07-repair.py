@@ -47,6 +47,13 @@ assert (OUT/'pr71-repair-binding.json').read_bytes()==blob('HEAD','docs/next/evi
 binding=json.loads((OUT/'pr71-repair-binding.json').read_text())
 for path,digest in binding['published_inputs'].items():
     assert sha((WT/path).read_bytes())==sha(blob('HEAD',path))==digest,path
+red=[json.loads(x) for x in (OUT/'reviewer-source-red.log').read_text().splitlines() if x.startswith('{')]
+assert red[-1]==dict(tests_run=3,failures=5,errors=0)
+for path,digest in red[0]['source_sha256'].items():assert sha(blob(red[0]['head'],path))==digest
+source_green=json.loads((OUT/'reviewer-source-green.log').read_text().splitlines()[-1])
+assert (source_green['tests_run'],source_green['failures'],source_green['errors'])==(3,0,0)
+assert source_green['control_sha256']==sha(blob('HEAD','docs/next/evidence/c07-source/frozen/mike-repair-manifest.py'))
+for path,digest in source_green['source_sha256'].items():assert sha(blob(source_green['head'],path))==sha(blob('HEAD',path))==digest
 full=json.loads((OUT/binding['full']).read_text())
 assert full['passed'] and full['stack_removed'] and not full['mutation_errors'] and full['final_inventory_error'] is None
 assert full['source_sha256']==sources(full['tree'])==sources('HEAD')

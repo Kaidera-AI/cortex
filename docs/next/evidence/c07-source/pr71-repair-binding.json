@@ -3,7 +3,7 @@
   "before": "be52491297337cb67035fdaa6daa0dfdc5f503fa",
   "main": "903fd729c56cf719bbb15e9f986a70b9160497c1",
   "full": "mutation-c07-review-003.json",
-  "backup_native": "docs/next/evidence/o01a-source/native-pg-c07-repair-001.json",
+  "backup_native": "docs/next/evidence/o01a-source/native-pg-c07-repair-002.json",
   "published_inputs": {
     "docs/next/evidence/c07-source/mutation-c07-review-003.json": "5a8dd50becc36426538745fb5076db713dc35d5c93e97e4b8d8713e5522c97c5",
     "docs/next/evidence/c07-source/c07-review-red-002.json": "5d6fe758d92d5b8320d7170c219a1434be67a5ce1e66d2668476c6d3322b1aea",
@@ -18,12 +18,13 @@
     "docs/next/evidence/c07-source/test-native-memory-admission.py": "e8a5982d6313fa171bc4d58b7c2ff4182a1dfd9765a324e8bfba3547ad04e3cb",
     "docs/next/evidence/c07-source/native-memory-admission.py": "cf04317a24e2b91198fe3fb362decec5ab0054c1300dbd5e25c3bb34b3541e17",
     "docs/next/evidence/c07-source/run-review-pg.py": "ae087e4c2c8996c199cb516d8fe4afb851f6b5b307d45ac2951bd56003f10381",
-    "docs/next/evidence/c07-source/verify-pr71-c07-repair.py": "f3e5819742e45edaa9bc915f3b0d023fc0aeab883b7c1b74b1e80d5743403728",
-    "docs/next/evidence/c07-source/reproduce.md": "dc72e46aecf2977989ab31c41b48762cc046bb3059221dca0a7e7b640c4c435f",
+    "docs/next/evidence/c07-source/verify-pr71-c07-repair.py": "6304038ceec3cf9c4462e5f9741983ea81a3b376f21a84c83a73014fd5484e04",
+    "docs/next/evidence/c07-source/reproduce.md": "65b494e5f227e10af13d00da620d005149b0b425a2bd897c75653a7457862e2b",
     "docs/next/evidence/o01a-source/native-pg-c07-repair-001.json": "774a5ce8df38fc5ea5ba39d037128088088027f7d8fa956bfe447e635670a11d",
     "docs/next/evidence/o01a-source/backup-forward-mutants-002.jsonl": "8b6522a2bf63b0e071c5c71443fcf0f3eb044e6ca3652b227b1a68d6c23633a5",
-    "docs/next/evidence/o01a-source/run-native-forward.py": "f2bc4b33f5a7eadf0e278b2d64e77df75341f659bd1147c291a03cfed4a5d0e4",
-    "docs/next/evidence/o01a-source/reproduce-forward.md": "df4343000496b3311f3bd71b7eeec921a0a66dc117cf59d4ab5b068ec44ddd26"
+    "docs/next/evidence/o01a-source/run-native-forward.py": "29dbc49ad158c77d5caa7e21a61fb7c9307a135f5563cc37eff84c4a4802009b",
+    "docs/next/evidence/o01a-source/reproduce-forward.md": "df4343000496b3311f3bd71b7eeec921a0a66dc117cf59d4ab5b068ec44ddd26",
+    "docs/next/evidence/o01a-source/native-pg-c07-repair-002.json": "eb2a127612ba16d02c8a3480902210e06b330ee3840505ae1ef6dc8f1f634ba0"
   },
   "note": "Publication changes only proof docs outside next/. Historical failed/inconclusive attempts are retained, not counted. No acceptance or main merge GO."
 }
