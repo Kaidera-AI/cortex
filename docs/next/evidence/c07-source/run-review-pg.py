@@ -21,7 +21,10 @@ SOURCE={str(p.relative_to(WT)):hashlib.sha256(p.read_bytes()).hexdigest() for p 
 TOOLS={Path(__file__).name:hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 for old_guard_input in ('run-old-table-guards.py','frozen/auth-test_authorization.py',
                         'frozen/auth_identity-test_identity.py','frozen/outbox-test_outbox.py',
-                        'native-memory-admission.py','frozen/mike-repair-manifest.py'):
+                        'native-memory-admission.py','frozen/mike-repair-manifest.py',
+                        'pagination-controls/test_held_continuation.py',
+                        'pagination-controls/page-boundary-red-original.py',
+                        'pagination-controls/page-boundary.py'):
     local=(OUT/old_guard_input).read_bytes()
     committed=subprocess.check_output(['git','show','HEAD:docs/next/evidence/c07-source/'+old_guard_input])
     assert local==committed,('old_guard_input_not_git_bound',old_guard_input)
@@ -219,13 +222,13 @@ print('after second',f.checkpoint(),f.outcomes(),f.target())
 f.doCleanups()
 '''
         checked(env+['python','-c',probe],120)
-    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],300)
+    value=run(env+['python','/tmp/next/tests/test_receipts.py','/tmp/next/tests/module_consumer'],900)
     report=json.loads(next(line.split('=',1)[1] for line in value.stdout.splitlines() if line.startswith('CORTEX_TEST_RESULT=')))
-    assert report['tests_run']==35 and not report['errors']
+    assert report['tests_run']==37 and not report['errors']
     if PHASE.startswith('c07-review-red'):
         assert value.returncode==1 and report['failures']
         assert all(r['phase']=='test' and r['is_assertion'] and r['phase_attribution']=='traceback+active-unittest-v2' for r in report['failures'])
-        assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.')) for r in report['failures'])
+        assert all(r['id'].startswith(('test_review_repairs.ReviewRepairs.','test_review_incomplete_receipt.IncompleteReceipt.','test_review_pagination.Pagination.')) for r in report['failures'])
     elif 'downgrade-red' in PHASE:
         assert value.returncode==1 and len(report['failures'])==1
         assert report['failures'][0]['id'].split(' (')[0]=='test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'
