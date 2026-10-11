@@ -22,7 +22,7 @@ ROOT_ROLES = frozenset({
     "homebrew_installer", "runtime", "image_contract", "provider_prepare",
     "provider_labels", "prerequisite_writer", "denials", "ordinary_restart",
     "kos_installer", "kos_appdb_doctor", "openkai_installer", "omp_binary",
-    "restoration_template", "restoration_observer", "python", "podman",
+    "restoration_template", "restoration_observer", "install_observer", "python", "podman",
     "podman_compose", "systemctl", "loginctl", "dnf", "nft", "restorecon",
     "sha256sum", "ssh", "scp", "reboot", "archive_tools",
 })

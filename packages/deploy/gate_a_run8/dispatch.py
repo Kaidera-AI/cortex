@@ -8,7 +8,7 @@ import time
 import uuid
 from types import SimpleNamespace
 
-from custody import Refusal, actual_source_file, bound_json, exclusive_json, parse_json, private_directory, public_data, require
+from custody import Refusal, actual_source_file, bound_file, bound_json, exclusive_json, parse_json, private_directory, public_data, require
 from payload import pre_load, validate_literals, validate_projects
 from observations import allowed_next, validate_payload
 from protocols import console_effect, literal_effect, validate_protocol
@@ -45,6 +45,30 @@ def checked_command(authority, store, role, actual_literals=None):
     require(isinstance(argv, list) and argv and argv[0] == str(executable)
             and all(isinstance(arg, str) and not any(ord(c) < 32 for c in arg) for arg in argv),
             "command_argv_binding")
+    if spec.get("ssh_transport") is True or executable.name == "ssh":
+        require(executable == actual_source_file(authority.B["sealed_files"][
+            authority.B["command_inventory"]["root_roles"]["ssh"]]), "ssh_transport_not_sealed")
+        binding = store.phase("HOST_BOUND")["host_key_binding"]
+        require(binding.get("state") == "BOUND" and binding.get("strict_host_key_checking_required") is True,
+                "ssh_observed_console_binding")
+        known_hosts = bound_file(binding["known_hosts_file"])
+        info = known_hosts.stat()
+        require(info.st_uid == os.getuid() and info.st_mode & 0o777 == 0o600, "ssh_known_hosts_custody")
+        host = binding.get("scan_host")
+        require(isinstance(host, str) and re.fullmatch(r"[A-Za-z0-9.-]+", host), "ssh_host_binding")
+        argv = [arg.replace("@RUN8_KNOWN_HOSTS@", str(known_hosts)).replace("@RUN8_SSH_HOST@", host) for arg in argv]
+        options = []
+        for index, arg in enumerate(argv):
+            if arg == "-o" and index + 1 < len(argv):
+                options.append(argv[index + 1])
+            elif arg.startswith("-o") and len(arg) > 2:
+                options.append(arg[2:])
+        required_options = {"StrictHostKeyChecking=yes", "BatchMode=yes", "ControlMaster=no", "ControlPath=none",
+                            "UserKnownHostsFile=" + str(known_hosts)}
+        names = [option.partition("=")[0] for option in options]
+        require(required_options <= set(options) and len(names) == len(set(names))
+                and argv.count("-F") == 1 and argv[argv.index("-F") + 1] == "/dev/null"
+                and host in argv and not any("@RUN8_" in arg for arg in argv), "ssh_strict_options")
     require(spec.get("shell") is False and type(spec.get("timeout_sec")) is int
             and 0 < spec["timeout_sec"] <= 900, "command_deadline_shell")
     require(not any(arg in {"-S", "--sign", "--publish", "--all", "--latest", "--ignore"} for arg in argv),
@@ -112,7 +136,7 @@ def _execute(authority, store, role, actual_literals, *, runner, invocation_dire
         if protocol == "bounded-console-v2":
             result = console_effect(authority, store, argv, spec, clean, runner, directory, clock, sleep)
         elif protocol == "persistent-literals-v2":
-            result = literal_effect(authority, argv, spec, clean, directory)
+            result = literal_effect(authority, argv, spec, clean, directory, runner)
         else:
             result = runner(argv, env=clean, capture_output=True, timeout=deadline)
     except subprocess.TimeoutExpired:

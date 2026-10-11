@@ -41,6 +41,7 @@ def allowed_next(rows):
 def validate_payload(phase, payload, rows):
     require(isinstance(payload, dict) and REQUIRED[phase] <= set(payload), "observation_required_facts")
     public_data(payload)
+    validate_native_tree(payload)
     optional = {"admitted_command_inputs"}
     if phase == "FAILURE":
         optional |= {"instance_id", "volume_id", "checked_invocation"}
@@ -69,6 +70,41 @@ def validate_payload(phase, payload, rows):
         require(armed and payload["boot_id_after"] != armed["boot_id_before"], "same_boot_recovery_refused")
     if phase == "RETIRED":
         require(type(payload["custody_complete"]) is bool, "retirement_custody_state")
+
+
+# Native receipts have explicit nested public fields. File/credential records
+# contain metadata only; arbitrary diagnostic/capture fields have no schema.
+NESTED_FIELDS = frozenset({
+    "path", "bytes", "sha256", "schema", "state", "fixture", "role", "version", "platform",
+    "source_revision", "owner_uid", "boot_id", "instance_id", "volume_id", "run_id", "owner_tag",
+    "client_token", "operation", "static_binding_sha256", "go_sha256", "sequence", "phase",
+    "previous_receipt_sha256", "observed_at_unix", "from_phase", "observation_predecessor",
+    "execution_scope", "source_sha256", "executable_path", "started_at_unix", "finished_at_unix",
+    "exit", "timeout_sec", "captured_streams_exported", "failure_kind", "public_output",
+    "executable", "rootless", "store", "driver", "healthy", "running", "container_id", "image",
+    "image_sha256", "image_manifest_digest", "schema_revision", "uid", "gid", "mode", "nlink",
+    "size", "type", "port", "database", "user", "volume", "network", "instance", "status",
+    "runtime_identity_sha256", "distinct_console_keys", "scan_matches_console", "known_hosts_file",
+    "strict_host_key_checking_required", "scan_host", "unit", "enabled", "active", "deadline_unix", "started_unix",
+    "timer", "service", "properties", "deadline_minutes", "token_sweep", "shell_path", "template",
+    "guard", "fresh_price", "fresh_ami", "operator_ip",
+    "cortex-pg", "cortex-provider", "cortex-api", "cortex-embed-worker", "cortex-graph-worker",
+    "cortex-pdf-worker", "kos-appdb",
+})
+
+
+def validate_native_tree(value, top=True):
+    if isinstance(value, dict):
+        if not top:
+            require(set(value) <= NESTED_FIELDS, "native_nested_public_fields")
+        for key, item in value.items():
+            if key == "admitted_command_inputs" or key == "input_digests":
+                # These are independently bound to the sealed command contract.
+                continue
+            validate_native_tree(item, False)
+    elif isinstance(value, list):
+        for item in value:
+            validate_native_tree(item, False)
 
 
 class ObservationStore:

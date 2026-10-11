@@ -34,15 +34,29 @@ def validate_protocol(authority, store, role, spec):
             require(isinstance(row.get("public_contract"), dict) and isinstance(row.get("expected_facts"), dict),
                     "literal_observer_contract_unbound")
         private_directory(Path(spec["cwd"]))
+        if spec.get("output_contract") == "native-facts-json-v2":
+            observer = spec.get("native_observer")
+            require(isinstance(observer, dict) and observer.get("role") == "install_observer",
+                    "install_observer_slot_unbound")
+            source = authority.B["sealed_files"][authority.B["command_inventory"]["root_roles"]["install_observer"]]
+            argv = observer.get("argv")
+            require(isinstance(argv, list) and argv and argv[0] == str(actual_source_file(source))
+                    and all(isinstance(a, str) and not any(ord(c) < 32 for c in a) for a in argv),
+                    "install_observer_argv")
+            require(type(observer.get("timeout_sec")) is int and 0 < observer["timeout_sec"] <= 60,
+                    "install_observer_deadline")
     return protocol
 
 
 def console_effect(authority, store, argv, spec, env, runner, directory, clock, sleep):
     latest = {}
     allocation = store.phase("ALLOCATED")
+    started = clock()
     def invoke():
         authority.validate_files()
-        result = runner(argv, env=env, capture_output=True, timeout=spec["timeout_sec"])
+        remaining = 600 - (clock() - started)
+        require(remaining > 0, "console_wait_budget_exhausted")
+        result = runner(argv, env=env, capture_output=True, timeout=min(spec["timeout_sec"], remaining))
         require(result.returncode == 0, "console_producer_failed")
         require(len(result.stdout) <= 4 * 1024 * 1024, "console_producer_output_bound")
         reply = parse_json(result.stdout)
@@ -71,14 +85,16 @@ def console_effect(authority, store, argv, spec, env, runner, directory, clock, 
     native = latest["native_output"]
     require(isinstance(native, dict) and isinstance(native.get("facts"), dict), "console_native_output_missing")
     native["facts"]["host_key_binding"] = {**binding, "known_hosts_file": measured_file(path),
-                                          "strict_host_key_checking": True}
+                                          "scan_host": latest["scan_host"],
+                                          "strict_host_key_checking_required": True}
     return SimpleNamespace(returncode=0, stdout=json_bytes(native), stderr=b"")
 
 
-def literal_effect(authority, argv, spec, env, directory):
+def literal_effect(authority, argv, spec, env, directory, runner):
     folder = directory / "literal-observations"
     private_directory(folder, create=not folder.exists())
     nonce = uuid.uuid4().hex
+    records = []
     with_recorder = PersistentRecorder(argv, spec["cwd"], env)
     try:
         for index, row in enumerate(spec["literals"], 1):
@@ -88,9 +104,16 @@ def literal_effect(authority, argv, spec, env, directory):
                 return facts
             receipt = with_recorder.run(row["name"], row["file"], timeout=spec["timeout_sec"],
                                         observer=observer, public_contract=row["public_contract"])
-            exclusive_json(folder / (nonce + f"-{index:04d}.json"), {**authority.context, **receipt})
+            records.append(exclusive_json(folder / (nonce + f"-{index:04d}.json"), {**authority.context, **receipt}))
     finally:
         with_recorder.close()
-    # A separately sealed final native observer may produce the install receipt;
-    # scalar literal records alone never synthesize an INSTALLED observation.
+    # The final probe consumes a durable record map; its entire response remains
+    # subject to the dispatcher's native context/predecessor/payload validation.
+    if spec.get("output_contract") == "native-facts-json-v2":
+        input_row = exclusive_json(folder / (nonce + "-observer-input.json"), {
+            "schema": "cortex.gate-a.run8.literal-prefix.v2", **authority.context, "records": records})
+        observer = spec["native_observer"]
+        probe_env = {**env, "RUN8_LITERAL_PREFIX": input_row["path"],
+                     "RUN8_LITERAL_PREFIX_SHA256": input_row["sha256"]}
+        return runner(observer["argv"], env=probe_env, capture_output=True, timeout=observer["timeout_sec"])
     return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")

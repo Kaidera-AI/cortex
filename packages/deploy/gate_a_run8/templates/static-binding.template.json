@@ -16,6 +16,7 @@
       "homebrew_installer": null,
       "identity_sweeper": null,
       "image_contract": null,
+      "install_observer": null,
       "kos_appdb_doctor": null,
       "kos_installer": null,
       "launcher": null,

@@ -84,7 +84,7 @@ class ProtocolCase(unittest.TestCase):
             'admitted_command_inputs':self.f.B['phase_command_inputs']['HOST_BOUND']})
         result=self.attempt(lambda:self.execute('literal_recorder',lambda *a,**k:SimpleNamespace(returncode=0,stdout=b'',stderr=b''),lambda:0,lambda n:None))
         self.assertFalse(isinstance(result,str),result)
-        receipts=list((self.invocations/'literal-observations').glob('*.json')) if (self.invocations/'literal-observations').exists() else []
+        receipts=sorted((self.invocations/'literal-observations').glob('*.json')) if (self.invocations/'literal-observations').exists() else []
         self.assertEqual(len(receipts),2)
         self.assertEqual(bound_json(measured_file(receipts[-1]))['post_effect'],{'initialized':True})
 
