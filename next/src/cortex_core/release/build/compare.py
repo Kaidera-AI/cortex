@@ -45,6 +45,15 @@ def require_independent(a, b):
     for field in ["build_id", "source", "store", "runroot", "output"]:
         if not a.get(field) or not b.get(field) or a[field] == b[field]:
             raise ValueError("independent build identity missing/shared: " + field)
+    roots = [
+        Path(row[field]).resolve()
+        for row in (a, b)
+        for field in ("source", "store", "runroot", "output")
+    ]
+    if len(set(roots)) != len(roots) or any(
+        left.is_relative_to(right) for left in roots for right in roots if left != right
+    ):
+        raise ValueError("build roots alias, nest or share across roles")
     return True
 
 
