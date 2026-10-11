@@ -1,0 +1,1630 @@
+{
+  "meaning": "qualification_passed includes a phase qualifying its expected RED; it is not a blanket GREEN claim",
+  "attempts": [
+    {
+      "receipt": "identity-binding-red-attempt-001.json",
+      "sha256": "0941f51c0a7d27cb8c135e1bba9c6fe10a79feca18847a286e332918e1264c6c",
+      "tree": "277cfbde87a084989dc77d50868d584b3b5ea3ff",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 397,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 5,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_transition",
+          "tests": 1,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_binding",
+          "tests": 2,
+          "body_assertions": 2,
+          "failures": 2,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-caller-red-attempt-001.json",
+      "sha256": "f1173ff1bef7bf30fda7b0d029a78bcf81eddf773f509d90da4121066ed65222",
+      "tree": "22978f66c86121af5f2aff98eb2c658e3d4b3011",
+      "qualification_passed": false,
+      "cleanup_verified": true,
+      "copied_inputs": 393,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 4,
+          "body_assertions": 2,
+          "failures": 2,
+          "errors": 1,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-caller-red-attempt-002.json",
+      "sha256": "91fefdc776b4d73deaefde7df562543ea4797fbf77b5646035a887aeec860236",
+      "tree": "e224b6c08225639119d2941ca577753ad67d7776",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 393,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 5,
+          "body_assertions": 3,
+          "failures": 3,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-diagnostic-attempt-001.json",
+      "sha256": "7a1dbd5752c06e9ba07b6dfd5ebbe5e353961c4b905b0e4ae09f6d9d92938981",
+      "tree": "974e06de26aaa4f605dfba401c23ce09f340658c",
+      "qualification_passed": false,
+      "cleanup_verified": true,
+      "copied_inputs": 389,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 2,
+          "failures": 2,
+          "errors": 16,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-green-attempt-001.json",
+      "sha256": "5fa9193ba7e309c8f7d23238dba30b76bbca5c0a5b78158a6c3312ca00cc7a30",
+      "tree": "ae61cbf0dfe2e10400360453464a279fd227f917",
+      "qualification_passed": false,
+      "cleanup_verified": true,
+      "copied_inputs": 388,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 2,
+          "failures": 2,
+          "errors": 16,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-green-attempt-002.json",
+      "sha256": "edd69be0e5045484f1ebd1c496bdc8738d4959c2815ce952dea27a4888ac91f5",
+      "tree": "b188c249a4e5bafd64bc47bf9cbe0fb5ef9ac8bf",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 390,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-policy-green-attempt-001.json",
+      "sha256": "6c8ef4ba2146717baff3fc48dff9f0fc381bdd771259f7650422c9768b6c2bfb",
+      "tree": "3c1adfc47f77d5f995def3704ca785bb1db8b27e",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 392,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-policy-red-attempt-001.json",
+      "sha256": "2fd48752a7431695604609ba470345909855418f49d365b39ecb55dd78fb1f80",
+      "tree": "55a37cd9bca37473520d397a9d24b4741d73afae",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 391,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 8,
+          "failures": 8,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-policy-red-attempt-002.json",
+      "sha256": "afd3636ae330e0a7e21a357efde171208395323db5a53667fd3e9b00a0cf91ae",
+      "tree": "87434e495d7cbf6f5118e25cefbf1c9cfe0ff08e",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 392,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 8,
+          "failures": 8,
+          "errors": 0,
+          "exit": 1
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 1,
+          "failures": 1,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-red-attempt-002.json",
+      "sha256": "2b89e5b35a90168ceb6796bcffeda273fdb90e4ac454474658118e0718ba5a56",
+      "tree": "fe58099665c4fb62bd5006e38abc1c7bdf9e34b9",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 386,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 26,
+          "failures": 26,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-red.json",
+      "sha256": "1bf9a490263a598ba0dc595c72e245f2bace1608eb8d597f118e35b619547511",
+      "tree": "4980d24b11d0da7e50ceca0cbbe0fcbdd4633d53",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 386,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 26,
+          "failures": 26,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-repair-red-attempt-001.json",
+      "sha256": "076bb8e10734688d3a761514f3f0c417ab02c41e1438422e3b5e4fdc8187dbaf",
+      "tree": "bf228949da8560bbd881f3ae34de134c25c50645",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 390,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 6,
+          "failures": 6,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "identity-transition-red-attempt-001.json",
+      "sha256": "d1beb9a26c293b8f2f659d9a93555a8880849c6906da29d6d7a840c8300ce6ed",
+      "tree": "18861810e257956664fcc43aebb59fd47b48912b",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 394,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_transition",
+          "tests": 1,
+          "body_assertions": 1,
+          "failures": 1,
+          "errors": 0,
+          "exit": 1
+        }
+      ],
+      "fault_groups": []
+    },
+    {
+      "receipt": "mutation-identity-attempt-001.json",
+      "sha256": "0b1ed0c1918d6c504f0dcec3293e9b8ea18d07b0e052c8ae78a2d3a0fc3837fb",
+      "tree": "a37e8ebba1d8e15d56f31767b97891d3c011e760",
+      "qualification_passed": false,
+      "cleanup_verified": true,
+      "copied_inputs": 395,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 5,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_transition",
+          "tests": 1,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/contract",
+          "tests": 33,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/receipt",
+          "tests": 20,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        }
+      ],
+      "fault_groups": [
+        {
+          "caller": "mutate_identity.py",
+          "count": 30,
+          "statuses": {
+            "killed": 28,
+            "survived": 0,
+            "inconclusive": 2
+          }
+        }
+      ]
+    },
+    {
+      "receipt": "mutation-identity-attempt-002.json",
+      "sha256": "4a51b62a799733ad8778925c846539c6a908e2ec15aaf057c1f42aef3056a236",
+      "tree": "c3ee014f03371c97ae2c07698df24c9d580d9317",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 396,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 5,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_transition",
+          "tests": 1,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_policy_faults",
+          "tests": 2,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/contract",
+          "tests": 33,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/receipt",
+          "tests": 20,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        }
+      ],
+      "fault_groups": [
+        {
+          "caller": "mutate_identity.py",
+          "count": 30,
+          "statuses": {
+            "killed": 30,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        },
+        {
+          "caller": "mutate_core_adapters.py",
+          "count": 30,
+          "statuses": {
+            "killed": 30,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        },
+        {
+          "caller": "mutate_contracts.py",
+          "count": 26,
+          "statuses": {
+            "killed": 26,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        },
+        {
+          "caller": "mutate_test_receipts.py",
+          "count": 8,
+          "statuses": {
+            "killed": 8,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        }
+      ]
+    },
+    {
+      "receipt": "mutation-identity-attempt-003.json",
+      "sha256": "ae39520cf909579030582bef2c0f62374fafb556ef51b8c83dafeaa29b50a0e2",
+      "tree": "c61f3a3e3fa3ad914a9cf7b9288c964651784d75",
+      "qualification_passed": false,
+      "cleanup_verified": true,
+      "copied_inputs": 397,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 5,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_transition",
+          "tests": 1,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_policy_faults",
+          "tests": 2,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_binding",
+          "tests": 2,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/contract",
+          "tests": 33,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/receipt",
+          "tests": 20,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        }
+      ],
+      "fault_groups": [
+        {
+          "caller": "mutate_identity.py",
+          "count": 32,
+          "statuses": {
+            "killed": 31,
+            "survived": 1,
+            "inconclusive": 0
+          }
+        }
+      ]
+    },
+    {
+      "receipt": "mutation-identity-attempt-004.json",
+      "sha256": "2b98a625132b0fa1ebb2330fe8df3ea40f41b7b9aa9ec6114cde7ef8995f0a5d",
+      "tree": "6bff4da348b600186fc4c05399c216d0c51f8c8d",
+      "qualification_passed": true,
+      "cleanup_verified": true,
+      "copied_inputs": 397,
+      "suites": [
+        {
+          "directory": "/tmp/next/tests/schema",
+          "tests": 30,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth",
+          "tests": 40,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/records",
+          "tests": 14,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/coordination",
+          "tests": 23,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/core_adapters",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/acceptance_guards",
+          "tests": 7,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity",
+          "tests": 26,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/auth_identity_guards",
+          "tests": 6,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_coordination",
+          "tests": 8,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_portability",
+          "tests": 3,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_receipts",
+          "tests": 5,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_transition",
+          "tests": 1,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_policy_faults",
+          "tests": 2,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/identity_binding",
+          "tests": 2,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/contract",
+          "tests": 33,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        },
+        {
+          "directory": "/tmp/next/tests/receipt",
+          "tests": 20,
+          "body_assertions": 0,
+          "failures": 0,
+          "errors": 0,
+          "exit": 0
+        }
+      ],
+      "fault_groups": [
+        {
+          "caller": "mutate_identity.py",
+          "count": 32,
+          "statuses": {
+            "killed": 32,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        },
+        {
+          "caller": "mutate_core_adapters.py",
+          "count": 30,
+          "statuses": {
+            "killed": 30,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        },
+        {
+          "caller": "mutate_contracts.py",
+          "count": 26,
+          "statuses": {
+            "killed": 26,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        },
+        {
+          "caller": "mutate_test_receipts.py",
+          "count": 8,
+          "statuses": {
+            "killed": 8,
+            "survived": 0,
+            "inconclusive": 0
+          }
+        }
+      ]
+    }
+  ]
+}

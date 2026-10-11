@@ -1,0 +1,7 @@
+{
+  "disposition": "FAILED retained; fixture used incorrect manifest field path instead of existing file",
+  "actual": "2 BODY caller failures plus1 artifact KeyError; cleanup verified; no product fix inferred",
+  "repair": "use actual file field, .get assertion to classify artifact absence as BODY; add pre-retention synthetic bearer-redaction guard before caller implementation",
+  "old_fixture_commit": "22978f6",
+  "predecessor_tests_unchanged": true
+}

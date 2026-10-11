@@ -1,0 +1,7 @@
+{
+  "guard_sha256": "89305705f3152fecfb3d5d50360c1d47c0b1dbccbfeb26e0d6667bd649fc3a38",
+  "exit_code": 0,
+  "stdout": "{\"controller_sha256\": \"7b773c7e14a32225c9360f5915c5a48814768fc0bd7c8d12760d7e649b22a941\", \"phase\": \"identity-red\", \"selected\": [\"acceptance_guards\", \"auth\", \"auth_identity\", \"coordination\", \"core_adapters\", \"records\", \"schema\"], \"missing\": []}\n",
+  "stderr": "",
+  "scope": "AST inspection only"
+}

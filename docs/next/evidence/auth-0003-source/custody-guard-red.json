@@ -1,0 +1,9 @@
+{
+  "input_receipt": "mutation-identity-attempt-003.json",
+  "input_sha256": "ae39520cf909579030582bef2c0f62374fafb556ef51b8c83dafeaa29b50a0e2",
+  "validator_sha256": "18862333dc10c20a2bc1e7487b49e204df6718a55d11b3cbe8e73f2f64500707",
+  "expected": "reject incomplete mutation qualification",
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"/Volumes/WD-B-4TB/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/verify-custody.py\", line 14, in <module>\n    assert receipt['passed'] and receipt['stack_removed']\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+}

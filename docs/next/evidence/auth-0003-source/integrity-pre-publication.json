@@ -1,0 +1,12 @@
+{
+  "head": "c3ee014f03371c97ae2c07698df24c9d580d9317",
+  "protected_predecessor_file_count": 24,
+  "all_protected_predecessor_bytes_match_base": true,
+  "prior_manifest_entries_preserved": 5,
+  "frozen_suite_count": 7,
+  "all_frozen_bytes_match_commits": true,
+  "accepted_plan_hash_unchanged": true,
+  "released_adoption": "NOT_RUN",
+  "live_admission": "HELD",
+  "scope": "historical pre-binding-repair source snapshot; superseded by integrity-final.json"
+}

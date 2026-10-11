@@ -1,0 +1,12 @@
+{
+  "receipt": "mutation-identity-attempt-001.json",
+  "result": "FAILED;28/30 expected BODY kills;2 inconclusive, no survivors; cleanup verified",
+  "inconclusive": [
+    "worker membership requirement omitted",
+    "persisted role and human policy silently discarded"
+  ],
+  "cause": "frozen integration subtest continues after detecting an erroneous successful claim; later second claim errors with JobError conflict",
+  "repair": "new frozen2 single-effect real-policy suite selected for these2 fault recipes; original integration8 unchanged and required clean in all baselines/restoration",
+  "test_fix_before_execution": "import reusable class through module alias to avoid unittest discovery of its8 tests; original238bae1 retained in Git",
+  "product_source_changed": false
+}

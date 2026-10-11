@@ -1,0 +1,57 @@
+{
+  "fixtures": [
+    {
+      "path": "next/tests/auth_identity/test_identity.py",
+      "commit": "d48e3293507d6fdd89bb24857267ba7521776fe5",
+      "sha256": "06734e40665bb747c95f9a634d7d2c3a55f24c47f95bd8ee9802d33a9a0ac549",
+      "count": 26
+    },
+    {
+      "path": "next/tests/auth_identity_guards/test_identity_guards.py",
+      "commit": "78f64d059bed867796147f03ab4a5db0f0db0a4f",
+      "sha256": "61c47d8db23925b9cd7da5be7e65e8230aa9daedd5c740a6498457ad2b86cfba",
+      "count": 6
+    },
+    {
+      "path": "next/tests/identity_coordination/test_identity_coordination.py",
+      "commit": "60a9db19cd74a417a89d3adbbc8b6d329e858852",
+      "sha256": "b4d6bf60d9424faa50077fb38d0cf8ab056a6e39809420d754ee677ffa800d23",
+      "count": 8,
+      "original_commit": "009ec42f20a94097e1ea83f24b1d356c2d0acb7a",
+      "original_sha256": "4c0b25368e5d366a041df468ed24a0cbbec4091400b0baa870b0d9cb1ec309d5"
+    },
+    {
+      "path": "next/tests/identity_portability/test_identity_portability.py",
+      "commit": "87434e495d7cbf6f5118e25cefbf1c9cfe0ff08e",
+      "sha256": "9c47b46bbc4fdd83e0de1b30f01b7757bcb2ee6e0f98971b6b14b0d2b906645e",
+      "count": 3
+    },
+    {
+      "path": "next/tests/identity_receipts/test_identity_receipts.py",
+      "commit": "e224b6c08225639119d2941ca577753ad67d7776",
+      "sha256": "db8ca993dbe1dbbfcabe12f878c240c71aba183a59b95036b8c43b844b963e3c",
+      "count": 5
+    },
+    {
+      "path": "next/tests/identity_transition/test_identity_transition.py",
+      "commit": "18861810e257956664fcc43aebb59fd47b48912b",
+      "sha256": "0b6795b53a35fa8dcbda0145d4d9f4e57179c2686a15204b9b9054acf6c8f9e3",
+      "count": 1
+    },
+    {
+      "path": "next/tests/identity_policy_faults/test_identity_policy_faults.py",
+      "commit": "96f2029223d54cdb4648f4d51c9880ae81772a3c",
+      "sha256": "6a8da51947533cfba1eb56912503169f6cd5c5fa4d834ce84e4229af950e57b0",
+      "count": 2
+    },
+    {
+      "path": "next/tests/identity_binding/test_identity_binding.py",
+      "commit": "277cfbde87a084989dc77d50868d584b3b5ea3ff",
+      "sha256": "3946c78ece32cb2a03518397a3c17838da5a3fb8a3f800dd761d9de313f6e406",
+      "count": 2
+    }
+  ],
+  "c04_auth_tests_and_source_frozen": true,
+  "c05_14_23_and_guards_frozen": true,
+  "synthetic_donor_pin": "fixture only; released real donor adoption NOT_RUN"
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "scope": "private-core-identity-source",
+  "principal_kind_authority": "owner_or_admin_fixed_registration_path",
+  "role_authority": "core_project_membership",
+  "roles_imply_permissions": false,
+  "issuer": "opaque_ascii_32_random_bytes_sha256_exact_wire",
+  "plaintext_delivery": "once_after_commit_private_owner_channel",
+  "plaintext_replay": false,
+  "adoption": "explicit_owner_manifest_hash_bound_apply",
+  "legacy_registration_authority": {
+    "cortex-add-agent": "owner_or_admin",
+    "lead_registration_requires": "owner_or_admin"
+  },
+  "migration_or_boot_auto_adoption": false,
+  "human_from_owner_permission": false,
+  "released_donor_adoption": "NOT_RUN_until_released_pin",
+  "live_issuer_adoption_installer_release": "HELD"
+}

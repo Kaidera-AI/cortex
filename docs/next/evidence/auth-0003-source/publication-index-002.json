@@ -1,0 +1,363 @@
+{
+  "tested_sha": "6bff4da348b600186fc4c05399c216d0c51f8c8d",
+  "runtime_receipt_sha256": "2b98a625132b0fa1ebb2330fe8df3ea40f41b7b9aa9ec6114cde7ef8995f0a5d",
+  "incorporated_main": "3401d1a1b4be7a3a115a440d5415ea937ff8e003",
+  "stack_base": "5f43f43e9033a34ad34f55be642d51338c05acc6",
+  "members": {
+    "docs/next/evidence/auth-0003-source/accepted-plan-gate.json": {
+      "sha256": "27ef736dd21da346720b579c17ed6c54d8594a257cf5ff62c23c0839b688ec1f",
+      "bytes": 1149,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/Program/Cortex/v2-v0.1.020/gates/auth-0003-plan-accepted-20261010.json"
+    },
+    "docs/next/evidence/auth-0003-source/caller-red-attempt-001-disposition.json": {
+      "sha256": "c584b7eaa3f11866b11974ee1b6906ea1048ee2991a1bcb860147024505fe5df",
+      "bytes": 458,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/caller-red-attempt-001-disposition.json"
+    },
+    "docs/next/evidence/auth-0003-source/custody-guard-green.json": {
+      "sha256": "6fed95f22a551865b0e932954607b57c754f6eff5219eaa0bb955e5b707bc7bc",
+      "bytes": 628,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/custody-guard-green.json"
+    },
+    "docs/next/evidence/auth-0003-source/custody-guard-red.json": {
+      "sha256": "c98c59b83d34f21ae0788a087118ab0aabb626bb3c1e95d57c62bc383a7f37b3",
+      "bytes": 662,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/custody-guard-red.json"
+    },
+    "docs/next/evidence/auth-0003-source/folder-fitness.json": {
+      "sha256": "ec293cfba9c0ea549c5d198210da8edebd531439090502a0344a0e1cdefde8b6",
+      "bytes": 446,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/folder-fitness.json"
+    },
+    "docs/next/evidence/auth-0003-source/frozen-inputs.json": {
+      "sha256": "b84d2d1543959823f79bdf775afe30ff138ba55698779c559dc156d490542142",
+      "bytes": 2330,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/frozen-inputs.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-binding-red-attempt-001.controller.log": {
+      "sha256": "3ea0afe45bad238521b86de70681d8a1db09bd4ad64b95bf893830654aad4b76",
+      "bytes": 42951,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-binding-red-attempt-001.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/identity-binding-red-attempt-001.json": {
+      "sha256": "0941f51c0a7d27cb8c135e1bba9c6fe10a79feca18847a286e332918e1264c6c",
+      "bytes": 254560,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-binding-red-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-caller-red-attempt-001.controller.log": {
+      "sha256": "c437186fb688ebf9ca6fce210988e4fb1b8eaedf785664bf4ed4a344c9f6a99c",
+      "bytes": 35562,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-caller-red-attempt-001.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/identity-caller-red-attempt-001.json": {
+      "sha256": "f1173ff1bef7bf30fda7b0d029a78bcf81eddf773f509d90da4121066ed65222",
+      "bytes": 193625,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-caller-red-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-caller-red-attempt-002.controller.log": {
+      "sha256": "83613ce8da60cabc295803eef57e870d329835e1770fdcba2af76f68f77362e1",
+      "bytes": 37244,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-caller-red-attempt-002.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/identity-caller-red-attempt-002.json": {
+      "sha256": "91fefdc776b4d73deaefde7df562543ea4797fbf77b5646035a887aeec860236",
+      "bytes": 247222,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-caller-red-attempt-002.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-diagnostic-attempt-001.json": {
+      "sha256": "7a1dbd5752c06e9ba07b6dfd5ebbe5e353961c4b905b0e4ae09f6d9d92938981",
+      "bytes": 237592,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-diagnostic-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-green-attempt-001.json": {
+      "sha256": "5fa9193ba7e309c8f7d23238dba30b76bbca5c0a5b78158a6c3312ca00cc7a30",
+      "bytes": 236825,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-green-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-green-attempt-002.json": {
+      "sha256": "edd69be0e5045484f1ebd1c496bdc8738d4959c2815ce952dea27a4888ac91f5",
+      "bytes": 243022,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-green-attempt-002.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-policy-green-attempt-001.json": {
+      "sha256": "6c8ef4ba2146717baff3fc48dff9f0fc381bdd771259f7650422c9768b6c2bfb",
+      "bytes": 246950,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-policy-green-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-policy-red-attempt-001.json": {
+      "sha256": "2fd48752a7431695604609ba470345909855418f49d365b39ecb55dd78fb1f80",
+      "bytes": 264560,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-policy-red-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-policy-red-attempt-002.json": {
+      "sha256": "afd3636ae330e0a7e21a357efde171208395323db5a53667fd3e9b00a0cf91ae",
+      "bytes": 267428,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-policy-red-attempt-002.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-red-attempt-002.json": {
+      "sha256": "2b89e5b35a90168ceb6796bcffeda273fdb90e4ac454474658118e0718ba5a56",
+      "bytes": 282861,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-red-attempt-002.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-red-disposition.json": {
+      "sha256": "ed426b4937e2d2abe86a4011b1e572ad7acfe2094e178f84da6d2b1dc5533b5d",
+      "bytes": 471,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-red-disposition.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-red.json": {
+      "sha256": "1bf9a490263a598ba0dc595c72e245f2bace1608eb8d597f118e35b619547511",
+      "bytes": 277306,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-red.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-repair-red-attempt-001.json": {
+      "sha256": "076bb8e10734688d3a761514f3f0c417ab02c41e1438422e3b5e4fdc8187dbaf",
+      "bytes": 245343,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-repair-red-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/identity-transition-red-attempt-001.controller.log": {
+      "sha256": "96e1228da686fb02756d7f56dc42eb7eafc4211da797ab5eb1dab214b9bf3915",
+      "bytes": 37240,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-transition-red-attempt-001.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/identity-transition-red-attempt-001.json": {
+      "sha256": "d1beb9a26c293b8f2f659d9a93555a8880849c6906da29d6d7a840c8300ce6ed",
+      "bytes": 245140,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/identity-transition-red-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/implementation-notes.md": {
+      "sha256": "2ce464605c2118d44e228a5e58dabb87a437394f91eba209d3d387e96b454a34",
+      "bytes": 4838,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/implementation-notes.md"
+    },
+    "docs/next/evidence/auth-0003-source/integrity-final.json": {
+      "sha256": "fe5e00ef80bb53d21bd22ecd63b97ef48026f1546e9340eff9397a617e303314",
+      "bytes": 2336,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/integrity-final.json"
+    },
+    "docs/next/evidence/auth-0003-source/integrity-pre-publication.json": {
+      "sha256": "1519b37e7feb3937d51596d520006aaa4a089875758d36dd153806ee2eb4acda",
+      "bytes": 461,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/integrity-pre-publication.json"
+    },
+    "docs/next/evidence/auth-0003-source/internal-finding-dispositions.json": {
+      "sha256": "a9a5c0de04ea02856bb32b411a18687367df8847faad9732ac71862584ab6420",
+      "bytes": 3384,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/internal-finding-dispositions.json"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-attempt-001-disposition.json": {
+      "sha256": "1557f9d3be67cb6906de63e40515f5441181243a1e1901313f46a7aef786ed67",
+      "bytes": 784,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-attempt-001-disposition.json"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-attempt-003-disposition.json": {
+      "sha256": "bc54ddc28c4a1a5933024bb45c010e13655b149061c83a305bdf5c1345f241e3",
+      "bytes": 1035,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-attempt-003-disposition.json"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-001.controller.log": {
+      "sha256": "349c27c470e21fa67a0dad48e19e8bf6b696338ce53cb82676ea46875e099441",
+      "bytes": 46887,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-001.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-001.json": {
+      "sha256": "0b1ed0c1918d6c504f0dcec3293e9b8ea18d07b0e052c8ae78a2d3a0fc3837fb",
+      "bytes": 553729,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-002.controller.log": {
+      "sha256": "83369c9fb43e4c42aa730841aac0d456c2eb86428209eb424fb0c9748b0b2afa",
+      "bytes": 57360,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-002.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-002.json": {
+      "sha256": "4a51b62a799733ad8778925c846539c6a908e2ec15aaf057c1f42aef3056a236",
+      "bytes": 2012975,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-002.json"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-003.controller.log": {
+      "sha256": "7d8f2d7f930d51ee660654b3be4f86efe4f1740ab7354d96db34741265b38fdc",
+      "bytes": 48285,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-003.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-003.json": {
+      "sha256": "ae39520cf909579030582bef2c0f62374fafb556ef51b8c83dafeaa29b50a0e2",
+      "bytes": 548464,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-003.json"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-004.controller.log": {
+      "sha256": "6e9a7789256a05c0ecaeb4144c932464ef6c650d90a18d53cb57f782b1054579",
+      "bytes": 58062,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-004.controller.log"
+    },
+    "docs/next/evidence/auth-0003-source/mutation-identity-attempt-004.json": {
+      "sha256": "2b98a625132b0fa1ebb2330fe8df3ea40f41b7b9aa9ec6114cde7ef8995f0a5d",
+      "bytes": 2031858,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/mutation-identity-attempt-004.json"
+    },
+    "docs/next/evidence/auth-0003-source/phase-selection-green.json": {
+      "sha256": "6865b805cf335503a77906f65e28cbb9aeee7f2f7e744ff809f031fe0b8892cd",
+      "bytes": 444,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/phase-selection-green.json"
+    },
+    "docs/next/evidence/auth-0003-source/phase-selection-red.json": {
+      "sha256": "4d7889f796d3cb0e6ecba99bae32e8dbb2f49b9971453051ab66d2c32d006771",
+      "bytes": 811,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/phase-selection-red.json"
+    },
+    "docs/next/evidence/auth-0003-source/policy-fixture-type-correction.json": {
+      "sha256": "50039fde306283d68fb7b82e97ebb38b3a57bb93e82a40251fdfba6058be5774",
+      "bytes": 629,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/policy-fixture-type-correction.json"
+    },
+    "docs/next/evidence/auth-0003-source/pre-edit.json": {
+      "sha256": "6391dd0ef7a52e6510335c9348b7c0a13c8cfbc3568ce91dafca10a686e86c87",
+      "bytes": 3793,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/pre-edit.json"
+    },
+    "docs/next/evidence/auth-0003-source/receipt-history.json": {
+      "sha256": "179789e3c35cfc6155f4de246231366277f81aa726029474062fb8757af7ffcf",
+      "bytes": 41747,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/receipt-history.json"
+    },
+    "docs/next/evidence/auth-0003-source/reproduce.md": {
+      "sha256": "06118d6f7db1a3fb0ea194866ae0ce956f0e02879a285e0162c136c4eb1188ff",
+      "bytes": 4908,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/reproduce.md"
+    },
+    "docs/next/evidence/auth-0003-source/run-core-pg.py": {
+      "sha256": "ce5f182ea8edb7d20cad6ea23480d55f87adfd8cea763fcb64b09db5320b64cf",
+      "bytes": 21876,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/run-core-pg.py"
+    },
+    "docs/next/evidence/auth-0003-source/verify-custody.py": {
+      "sha256": "18862333dc10c20a2bc1e7487b49e204df6718a55d11b3cbe8e73f2f64500707",
+      "bytes": 2763,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/verify-custody.py"
+    },
+    "docs/next/evidence/auth-0003-source/verify-phase-selection.py": {
+      "sha256": "89305705f3152fecfb3d5d50360c1d47c0b1dbccbfeb26e0d6667bd649fc3a38",
+      "bytes": 1722,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/verify-phase-selection.py"
+    },
+    "docs/next/evidence/auth-0003-source/verify-publication.py": {
+      "sha256": "bcce1b8d5c3c86b019d319d7fb5800b61b7da9fea316cdfc076e7e8c72cbd6e8",
+      "bytes": 1213,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/verify-publication.py"
+    },
+    "docs/next/auth-0003-implementation-plan.md": {
+      "sha256": "b09ba80b4db0415b10b9e237a3a8d8fe7907dcdddc303964adf0e44666913343",
+      "bytes": 5894,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/AUTH_0003_IMPLEMENTATION_PLAN.md"
+    },
+    "docs/next/evidence/replay-lifecycle/replay_lifecycle.py": {
+      "sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+      "bytes": 6490,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/replay-lifecycle/replay_lifecycle.py"
+    },
+    "next/contracts/identity-conformance.json": {
+      "sha256": "68305d7b40a97344db2eae4b1d3a27dcf99350a519f8aa578685520749504f26",
+      "bytes": 763,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/schema/auth/003-identity.sql": {
+      "sha256": "678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8",
+      "bytes": 18023,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/schema/manifest.json": {
+      "sha256": "2ddf2e61085aa217de588ed94c2cbe358149687922613ccafccb964efbb78cd3",
+      "bytes": 1112,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/scripts/mutate_identity.py": {
+      "sha256": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+      "bytes": 13106,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/src/cortex_core/coordination.py": {
+      "sha256": "2859324bc8587525e93e75a006a8efab24c8b8ea784dd12b50c7832516f3bdf5",
+      "bytes": 20016,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/src/cortex_core/identity.py": {
+      "sha256": "2dfbeab876ba8ea8e1ce5dbcf1c8d4c80aed2db3d85ade9fb7fc5d186ae4f8c1",
+      "bytes": 16826,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/auth_identity/diagnose_registration.py": {
+      "sha256": "08732239d54fa1ae76ce2307022ef65609b388008a94dd03e624da428a1a733b",
+      "bytes": 908,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/auth_identity/test_identity.py": {
+      "sha256": "06734e40665bb747c95f9a634d7d2c3a55f24c47f95bd8ee9802d33a9a0ac549",
+      "bytes": 23219,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/auth_identity_guards/test_identity_guards.py": {
+      "sha256": "61c47d8db23925b9cd7da5be7e65e8230aa9daedd5c740a6498457ad2b86cfba",
+      "bytes": 5193,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/identity_binding/test_identity_binding.py": {
+      "sha256": "3946c78ece32cb2a03518397a3c17838da5a3fb8a3f800dd761d9de313f6e406",
+      "bytes": 2292,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/identity_coordination/test_identity_coordination.py": {
+      "sha256": "b4d6bf60d9424faa50077fb38d0cf8ab056a6e39809420d754ee677ffa800d23",
+      "bytes": 8721,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/identity_policy_faults/test_identity_policy_faults.py": {
+      "sha256": "6a8da51947533cfba1eb56912503169f6cd5c5fa4d834ce84e4229af950e57b0",
+      "bytes": 1705,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/identity_portability/test_identity_portability.py": {
+      "sha256": "9c47b46bbc4fdd83e0de1b30f01b7757bcb2ee6e0f98971b6b14b0d2b906645e",
+      "bytes": 2773,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/identity_receipts/test_identity_receipts.py": {
+      "sha256": "db8ca993dbe1dbbfcabe12f878c240c71aba183a59b95036b8c43b844b963e3c",
+      "bytes": 3961,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "next/tests/identity_transition/test_identity_transition.py": {
+      "sha256": "0b6795b53a35fa8dcbda0145d4d9f4e57179c2686a15204b9b9054acf6c8f9e3",
+      "bytes": 1534,
+      "canonical_source": "product Git at tested 6bff4da348b600186fc4c05399c216d0c51f8c8d"
+    },
+    "docs/next/evidence/auth-0003-source/internal-verifier-final.json": {
+      "sha256": "967330e925de5c1b439618e39ec8c90216dac1c22fbd539049a68662c4a0483f",
+      "bytes": 14359,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/internal-verifier-final.json"
+    },
+    "docs/next/evidence/auth-0003-source/offline-wheel-custody.json": {
+      "sha256": "9e8aead3ac16fd75d7a3e0a25a49612f7837db4c9f534c6974a5066d976d3baa",
+      "bytes": 1336,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/offline-wheel-custody.json"
+    },
+    "docs/next/evidence/auth-0003-source/publication-validation-001.json": {
+      "sha256": "b2c0b4310d49fbbcd0d5414571b4225a5692e485b1874969bcda125a859b7d08",
+      "bytes": 437,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/publication-validation-001.json"
+    },
+    "docs/next/evidence/auth-0003-source/publication-index-001.json": {
+      "sha256": "5dbfd8fb93ae0f1a96256be37884c91f5d50eca31b4d06b06e92f3e80d7cdf70",
+      "bytes": 21729,
+      "canonical_source": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/auth-0003-source/publication-index-001.json"
+    }
+  },
+  "all_NEXT_inventory_receipt": "docs/next/evidence/auth-0003-source/mutation-identity-attempt-004.json",
+  "all_NEXT_files": 397,
+  "excludes_self": true,
+  "internal_certificate_pending": false,
+  "held": [
+    "Vera/Kai official acceptance and merge",
+    "released donor adoption NOT_RUN",
+    "live issuer/adoption/install/native x86/signing/release"
+  ],
+  "evidence_snapshot_sha": "b37df6705c1f87054279de60daa636e4043a3ca4"
+}

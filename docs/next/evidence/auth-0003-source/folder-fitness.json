@@ -1,0 +1,7 @@
+{
+  "command": "scripts/fitness/check-folder-structure.sh",
+  "cwd": "/Users/amadmalik/DevVault/helix",
+  "exit_code": 1,
+  "output": "tracked top-level file not in the allowlist: dist\ntracked top-level file not in the allowlist: packaging\nfolder-structure \u2014 top level outside the allowlist; see docs/FOLDER_STRUCTURE_SOP.md \u00a71 and \u00a73",
+  "disposition": "preexisting root estate RED retained; no waiver or outside-lane repair"
+}
