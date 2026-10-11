@@ -470,7 +470,8 @@ class PreparedMemoryAdmissionTests(unittest.TestCase):
     def test_available_memory_admits_reclaimable_cache_without_lowering_floor(self):
         self.memory["memFree"] = 100
         self.available = 350
-        self.runner(["create", "--name", "fixture"])
+        try: self.runner(["create", "--name", "fixture"])
+        except RuntimeError as error: self.fail("accepted35percent available-memory fixture must admit: " + str(error))
         self.assertEqual(self.commands, [["create", "--pull=never", "--name", "fixture"]])
 
 
