@@ -1,0 +1,17 @@
+{
+  "kind": "publication_validation_red_green",
+  "target": "docs/next/evidence/c06-source/reproduce.md",
+  "index_sha256": "f684692173a01499192f2d05d7d74ad7863c444621088e88c4528d2c738e2181",
+  "red": {
+    "exit": 1,
+    "marker": "published_digest",
+    "stdout": "",
+    "stderr_tail": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/verify-publication.py\", line 13, in <module>\n    assert hashlib.sha256(published).hexdigest() == member['sha256'], ('published_digest', relative)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: ('published_digest', 'docs/next/evidence/c06-source/reproduce.md')\n"
+  },
+  "green": {
+    "exit": 0,
+    "stdout": "{\"index_sha256\": \"f684692173a01499192f2d05d7d74ad7863c444621088e88c4528d2c738e2181\", \"members\": 501, \"all_digests_sizes_canonical_pointers_match\": true}\n"
+  },
+  "restored_sha256": "b7a4c30f663d360158936f6b84622bfbb5859dea5a00d9f5bf4ce606b4c320b2",
+  "canonical_sha256": "b7a4c30f663d360158936f6b84622bfbb5859dea5a00d9f5bf4ce606b4c320b2"
+}

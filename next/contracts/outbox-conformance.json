@@ -1,0 +1,14 @@
+{
+  "slice": "C06",
+  "publication": "locked_committed_journal_dense_cursor",
+  "canonical_ack": "committed_mutation_and_event",
+  "engine_visibility_ack": false,
+  "delivery": "at_least_once",
+  "retention_seconds": 604800,
+  "reserved_fact_namespace": "cortex.core",
+  "roles_grant_permissions": false,
+  "external_http_admission": false,
+  "live_writer_admission": false,
+  "released_donor_adoption": "NOT_RUN",
+  "module_apply_checkpoint": "C07_HELD"
+}

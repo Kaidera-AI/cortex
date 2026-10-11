@@ -1,0 +1,17 @@
+{
+  "phase": "C06-PR51-002-r2 GREEN",
+  "tree_before_source_commit": "4ec4fb6e8e89eabb0b001b11c34ed6908ee8b398",
+  "suite_exit_code": 0,
+  "receipt": {
+    "tests_run": 12,
+    "failures": [],
+    "errors": []
+  },
+  "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 12, \"failures\": [], \"errors\": []}\n",
+  "stderr": "test_all_executable_writer_sites_match_classified_source (test_outbox_inventory.WriterInventory.test_all_executable_writer_sites_match_classified_source) ... ok\ntest_assigned_variable_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_assigned_variable_dynamic_writer_fails_closed) ... ok\ntest_composed_sql_writer_is_rejected (test_outbox_inventory.WriterInventory.test_composed_sql_writer_is_rejected) ... ok\ntest_dynamic_composed_sql_writer_fails_closed (test_outbox_inventory.WriterInventory.test_dynamic_composed_sql_writer_fails_closed) ... ok\ntest_helper_return_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_helper_return_dynamic_writer_fails_closed) ... ok\ntest_missing_writer_binding_is_rejected (test_outbox_inventory.WriterInventory.test_missing_writer_binding_is_rejected) ... ok\ntest_new_unclassified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected) ... ok\ntest_private_query_augassign_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed) ... ok\ntest_private_query_walrus_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed) ... ok\ntest_quoted_qualified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected) ... ok\ntest_unqualified_writer_with_search_path_is_rejected (test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected) ... ok\ntest_manifest_binds_exact_additive_outbox_sql (test_outbox_manifest.OutboxManifest.test_manifest_binds_exact_additive_outbox_sql) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.427s\n\nOK\n",
+  "source_sha256": {
+    "next/scripts/verify_writer_inventory.py": "caf26634ce063288286b92d19cc86e7f33fee3c572ba619244dc2820653ebd36",
+    "next/tests/outbox_inventory/test_outbox_inventory.py": "0f139c3286fb589ba53ffc63d054955e9ed599951e025f5f1b97db206e208df7",
+    "next/src/cortex_core/records.py": "8f629467e635a19947444bc144bc639e2b330967a1f75354c6b13e702984e75f"
+  }
+}

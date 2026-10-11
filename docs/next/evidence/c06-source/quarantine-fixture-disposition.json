@@ -1,0 +1,11 @@
+{
+  "authority": "Kai2026-10-10 09:23 explicitly orders full matrix redundancy and downstream fixture-error repair RED-first",
+  "red_receipt": "mutation-outbox-attempt-002.json",
+  "original_sha256": "4acdfc0338686301f79f399e827ccaa5b0cd3c81f80d43fe85987d0d25238032",
+  "corrected_sha256": "352d30112cb10a6cb028dcdfb58c6685cf4ad308743d071faa1e15662d30e1bf",
+  "changed_setup": "quarantine protects the actual published canonical event rather than using a deliberately corrupted ACK UUID",
+  "assertions_byte_structure_unchanged": true,
+  "assertion_count": 92,
+  "no_tests_added_deleted_skipped": true,
+  "only_original_two_typed_assertion_amendments_still_retained": true
+}

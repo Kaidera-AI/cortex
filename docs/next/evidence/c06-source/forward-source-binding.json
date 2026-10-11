@@ -1,0 +1,22 @@
+{
+  "schema": "cortex.c06.forward-source-binding.v1",
+  "tested_commit": "e7cbf75461fb81e3ba113e61b7cc24df39dd5cf4",
+  "raw_receipt": "mutation-forward-fm-001-002.json",
+  "raw_sha256": "a1b68b9d8dd3df9702eb0ebdb1594b7d10ff7981c8a8c38d8faf61ad0d54791f",
+  "controllers": {
+    "run-core-pg.py": "28eda17ab718006788d05e37eb0499bbc14e7c9a32680a64e122770a8ac76cb4",
+    "replay_lifecycle.py": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+    "verify-replay-inputs.py": "8feeba5d0003b504cb55dc9427a3b8db16c710da0546b1d3e8c4a947058bfbd6",
+    "verify-fixture-contract.py": "7be6d1e64de0ff65f293d70db877cc26440de19fca7954e035a071ff7813bf82",
+    "verify-expiry-fixture.py": "c6ff846a566b391a9e796071d952254f56a75e2eef236023ff8cc65496c8640d",
+    "verify-fixture-shapes.py": "0da9fc725920f9d8926a265ed358ef33e16c358eae16574a088ec8ecbb15a163",
+    "verify-publication.py": "3d2c060c23b5f0c0471cf3b35a374cd4d22bbb1582138d3768969445803569ed",
+    "offline-wheel-inputs.json": "c3f69545c1c8bd6ddcd02062b9ea6cd6b3b9cefe187a0916f86e628d7b4b9c83",
+    "test_host_no_product_import.py": "a6107c7d802bcca49dae5938e8da985d6c7fbeed9c370301c2b249ffc2e71f2b",
+    "verify-forward-native.py": "f4c0622b70b17ed69563eb04624db9b09bcfc01ac2d5b2b3153d7afbd480d371"
+  },
+  "source_files": 462,
+  "clean_tests": 344,
+  "primary_faults": 154,
+  "body_assertions": 387
+}

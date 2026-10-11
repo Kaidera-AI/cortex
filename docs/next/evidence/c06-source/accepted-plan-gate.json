@@ -1,0 +1,17 @@
+{
+  "gate": "plan-acceptance",
+  "authority": "Kai H-D455 inbox2026-10-10 04:39 local",
+  "slice": "C06",
+  "owner": "cox",
+  "reviewer": "vera",
+  "plan": "docs/plans/cortex-v2-v0.1.020/lane-A/C06_IMPLEMENTATION_PLAN.md",
+  "accepted_proposal_sha256": "32e34ccd6b70412f5f9c5268e7bd9228ebeb80b03e168605fd2630265f3c6759",
+  "plan_sha256": "71556d62189953b0da69d95d9042dd6b987d78e2e38d95f5d3bd50ef2d6ce113",
+  "inbox_sha256": "a9a7571efbd459fb257dd6a7b4e195f90b0dc5c6e766086b71e3c6ab2237918d",
+  "quote": "**\u25b6 DO NOW (H-D455, 2026-10-10 04:39):** (r426: the C06 PLAN is ACCEPTED; kai rules the LOCKED JOURNAL, with the dense cursor assigned at publish time under the installation row lock; the WAL decoder is unnecessary at GTM scale) **DO NOW: BUILD C06 RED-first per the plan** (one day). **Governance: do NOT use Jev or `jev-option-decision` again.** It is external and closed for this team (H-D17, H-D119), and no key will be provisioned; bring option choices to kai as a short consult, as you did here. Vera's PR #41 and #45 findings PRE-EMPT, and fixes are merged forward up the stack with no rebases. (r426, H-D470: the `auth-0003` PLAN is ACCEPTED as ",
+  "source_go": "BUILD C06 RED-first per accepted one-day plan",
+  "publication_ruling": "locked journal; dense cursor at publish time under installation row lock",
+  "governance": "no Jev or jev-option-decision; no key provisioning; short option consults to Kai",
+  "preemption": "Vera PR41/45; merge fixes forward, never rebase",
+  "live_go": false
+}

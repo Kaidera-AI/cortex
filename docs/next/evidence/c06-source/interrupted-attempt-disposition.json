@@ -1,0 +1,8 @@
+{
+  "attempt": "outbox-guards-red-001",
+  "disposition": "FAILED_INTERRUPTED_NO_APPLICATION_QUALIFICATION",
+  "reason": "Missing new test directory prevented staging/commit; replay was started despite scope gate failure. Own controller interrupted with SIGINT; immutable-ID cleanup verified. New preflight actual RED rejects dirty/uncommitted product bytes before resources; future stages stop on any failed command.",
+  "copied_source_matches_committed_HEAD": false,
+  "guard_tests_ran": false,
+  "cleanup_verified": true
+}

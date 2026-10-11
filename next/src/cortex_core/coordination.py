@@ -2,6 +2,7 @@
 from contextvars import ContextVar
 from dataclasses import dataclass
 import hashlib
+from datetime import timedelta
 import json
 import re
 from uuid import UUID, uuid4
@@ -38,6 +39,7 @@ class JobReceipt:
     job_id: UUID
     state: str
     reason: str
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class Claim:
     attempt_number: int
     fence: int
     holder: UUID
+    event_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -63,8 +66,8 @@ def _append_result(connection, scope, attempt_id, outcome, payload_id):
 
 def _typed(data):
     if data['type'] == 'claim':
-        return Claim(UUID(data['job_id']),UUID(data['attempt_id']),data['attempt_number'],data['fence'],UUID(data['holder']))
-    return JobReceipt(UUID(data['job_id']),data['state'],data['reason'])
+        return Claim(UUID(data['job_id']),UUID(data['attempt_id']),data['attempt_number'],data['fence'],UUID(data['holder']),UUID(data['event_id']) if data.get('event_id') else None)
+    return JobReceipt(UUID(data['job_id']),data['state'],data['reason'],UUID(data['event_id']) if data.get('event_id') else None)
 
 
 def _result(job_id, state, reason):
@@ -103,6 +106,7 @@ class Jobs:
             try:
                 _validate(job_id,0,key)
                 digest = hashlib.sha256(json.dumps([operation,str(job_id),arguments],separators=(',',':')).encode()).hexdigest()
+                request_json = json.dumps([operation,str(job_id),arguments],separators=(',',':'))
                 with self._auth('write') as scope:
                     if control:
                         self._control(scope)
@@ -117,10 +121,15 @@ class Jobs:
                     if saved is None:
                         try:
                             saved = callback(scope)
+                            saved['event_id'] = str(self.connection.execute(
+                                'SELECT coordination.capture_job(%s)', (job_id,)).fetchone()[0])
+                            saved['request_json'] = request_json
                             _save_request(self.connection,scope,key,digest,saved)
                         except psycopg.errors.UniqueViolation:
                             raise JobError('conflict') from None
                     self._accept_deadline()
+                    if saved.get('request_json') != request_json:
+                        raise JobError('conflict')
                     result = _typed(saved)
                 return result
             except RecordError as error:
@@ -248,8 +257,8 @@ class Jobs:
                 (*_scope(scope),job_id)).fetchone()[0]
             _LEASE_DEADLINE.set(deadline)
             self.connection.execute('''INSERT INTO coordination.job_attempts
-                (tenant_id,project_id,id,job_id,attempt_number,fence,worker_id) VALUES (%s,%s,%s,%s,%s,%s,%s)''',
-                (*_scope(scope),attempt,job_id,number,fence,str(scope.principal_id)))
+                (tenant_id,project_id,id,job_id,attempt_number,fence,worker_id,started_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)''',
+                (*_scope(scope),attempt,job_id,number,fence,str(scope.principal_id),deadline-timedelta(seconds=ttl_seconds)))
             self._state(scope,job_id,'running')
             return dict(type='claim',job_id=str(job_id),attempt_id=str(attempt),attempt_number=number,fence=fence,holder=str(scope.principal_id))
         return self._execute('job.claim',job_id,request_key,[ttl_seconds],claim)

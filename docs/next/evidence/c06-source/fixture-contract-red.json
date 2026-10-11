@@ -1,0 +1,1 @@
+{"passed": false, "source_sha256": "c06fdb03622484fdab5ee01928a02a23ef066ba81567c93ce3f7ebf4393e9a52", "checks": {"test_raw_bound_job_write_without_parent_capture_refuses_commit": {"typed_sql_refusal": false, "fixed_code_asserted": false}, "test_reserved_alias_and_fact_names_cannot_be_forged_by_writer": {"typed_sql_refusal": false, "fixed_code_asserted": false}}}

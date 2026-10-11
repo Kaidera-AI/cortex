@@ -1,0 +1,42 @@
+{
+  "scope": "next/src/**/*.py",
+  "python": "3.12",
+  "files_scanned": 20,
+  "scanner_sha256": "0625dea6f4826bad6d216977f54fc9d4ba46886e56c18f471eff5b2cf8adc391",
+  "whole_file_pins": {
+    "src/cortex_core/coordination.py": "56c709da4e5caf8d5baceba92d08d60239d1aa07c85d61c1568bb74320d4a70b",
+    "src/cortex_core/auth.py": "cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0",
+    "src/cortex_core/identity.py": "aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d",
+    "src/cortex_core/records.py": "3f361acf476741724e4f8544e7235314c798104e64f54107020f83bb9325db9d",
+    "src/cortex_core/migrations.py": "b225584cbc1cd0e8c44af3e2861fd5f4c7f96f4107abade24f0dea38b80df1d7"
+  },
+  "cross_file_exempt_reference_hits": [],
+  "nonliteral_name_hits": [],
+  "primitive_dispositions": {
+    "getattr": {
+      "current_hits": [],
+      "disposition": "no current non-literal invocation; future use is unclassified"
+    },
+    "setattr": {
+      "current_hits": [],
+      "disposition": "no current non-literal invocation; future use is unclassified"
+    },
+    "exec": {
+      "current_hits": [],
+      "disposition": "no current non-literal invocation; future use is unclassified"
+    },
+    "eval": {
+      "current_hits": [],
+      "disposition": "no current non-literal invocation; future use is unclassified"
+    },
+    "importlib.import_module": {
+      "current_hits": [],
+      "disposition": "no current non-literal invocation; future use is unclassified"
+    },
+    "__import__": {
+      "current_hits": [],
+      "disposition": "no current non-literal invocation; future use is unclassified"
+    }
+  },
+  "current_unclassified_source_flags": 0
+}

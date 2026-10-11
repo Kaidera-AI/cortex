@@ -1,0 +1,12 @@
+{
+  "authority": "Kai H-D455 inbox 2026-10-10 05:16 local",
+  "original_sha256": "c06fdb03622484fdab5ee01928a02a23ef066ba81567c93ce3f7ebf4393e9a52",
+  "amended_sha256": "4acdfc0338686301f79f399e827ccaa5b0cd3c81f80d43fe85987d0d25238032",
+  "changed_tests": [
+    "test_raw_bound_job_write_without_parent_capture_refuses_commit",
+    "test_reserved_alias_and_fact_names_cannot_be_forged_by_writer"
+  ],
+  "old_tests_changed": false,
+  "original_archived": "original-frozen-outbox.py",
+  "required_mutants": "remove each corrected assertion guard; actual BODY RED, zero errors"
+}

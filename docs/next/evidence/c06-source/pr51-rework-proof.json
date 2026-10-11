@@ -1,0 +1,126 @@
+{
+  "kind": "C06 PR51 four-P2 rework proof",
+  "tested_source_commit": "a8d8876e769ec77c5164490a79055948db123aaa",
+  "proof_head": "b1d87696894fe7884d3ce1f7d9d1ae31934010fa",
+  "fixed_classifier": {
+    "pr": 55,
+    "exact_head": "2b9ed6e98c27b087e2778571f0ea66212fb27609",
+    "merged_commit": "fdd04d7b8b8f977e3c3b94f7badc9a17c87d787f",
+    "blob_sha256": "aee2b3a3efc0a33fb7efc60a38a65ca3c624f5bc208db29ceebe4eae62242b13"
+  },
+  "baseline": {
+    "suites": 26,
+    "tests": 314,
+    "failures": 0,
+    "errors": 0
+  },
+  "mutation": {
+    "primary_faults": 154,
+    "killed": 154,
+    "survivors": 0,
+    "inconclusive": 0,
+    "body_assertion_records": 367,
+    "errors": 0,
+    "phase_attribution": "traceback+active-unittest-v2"
+  },
+  "native": {
+    "architecture": "arm64",
+    "pg": "18.4",
+    "python": "3.12",
+    "cpus": 2,
+    "memory": "1g",
+    "network": "none/private loopback",
+    "published_ports": [],
+    "bind_mounts": [],
+    "stack_removed": true
+  },
+  "canonical_root": "/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/pr51-rework",
+  "receipts": {
+    "retention_red": {
+      "name": "pr51-retention-red-001.json",
+      "sha256": "cac015e1ec05a3bf9e6a177d3121552ae654ce6fed296677a4526fef4d4ff82f",
+      "bytes": 462133
+    },
+    "retention_green": {
+      "name": "pr51-retention-green-001.json",
+      "sha256": "b09b012d41e1a4f229ea59dc959547715bdc6bc0694969f78e3e106cc7667981",
+      "bytes": 461084
+    },
+    "inventory_red": {
+      "name": "inventory-composed-red-002.json",
+      "sha256": "5e35833b2d94f5552b686f127d828da2de1cbf32f2222ac7c8044969cd48f1ca",
+      "bytes": 3851
+    },
+    "inventory_green": {
+      "name": "inventory-composed-green-003.json",
+      "sha256": "d0b1d2f58f2d545d6351c71f632eae252392bd19e0ee3f6f6d93c3532639818f",
+      "bytes": 1333
+    },
+    "inventory_mutants": {
+      "name": "inventory-composed-mutants.json",
+      "sha256": "5f564d4293702ccebc06873cb214c1238daabc96f72992272e6f2e55b67229ea",
+      "bytes": 2450
+    },
+    "publication_red": {
+      "name": "publication-omission-red-002.json",
+      "sha256": "6bfc8b90a7e6a1eec17848a9728094495f3ffc72106372b4dc246314b7be772b",
+      "bytes": 1380
+    },
+    "publication_green": {
+      "name": "publication-omission-green-001.json",
+      "sha256": "687c8b7e7815bd9a583100ea471adaef07de7415fc863747b9ac9ffaf0a0330f",
+      "bytes": 472
+    },
+    "publication_mutant": {
+      "name": "publication-omission-mutant-final.json",
+      "sha256": "a3755b9aa8d644461cbaf93d895b3be6e67c37ffc8b6f2953614de0d8289e4ff",
+      "bytes": 2378
+    },
+    "replay_red": {
+      "name": "replay-inputs-red-001.json",
+      "sha256": "70c681a396de0823b4158042f7e5948983312dee107c06a3362be9b7fd4cf07c",
+      "bytes": 6529
+    },
+    "replay_green": {
+      "name": "replay-inputs-green-001.json",
+      "sha256": "cf36eaf5d1dbb4bcd782b3461934ed9efc9047943a43b3c46d3852e3f1487431",
+      "bytes": 758
+    },
+    "replay_mutant": {
+      "name": "replay-inputs-omission-mutants.json",
+      "sha256": "8f357c8998c935ed589fda66d411d87ee60fd8c2a192e3e0a17a18d2d0e28948",
+      "bytes": 183977
+    },
+    "first_matrix_inconclusive": {
+      "name": "mutation-pr51-full-001.json",
+      "sha256": "aa58aa05d7154a6727d00581feb51df667b0b97dc9bbfed4b09578432e9fe84c",
+      "bytes": 3077307
+    },
+    "dense_targeted_green": {
+      "name": "mutation-pr51-dense-check-001.json",
+      "sha256": "2e122279f19c73cdf0d53adecc0e65db0558ffc4f33c486bfd90cf1c0a31241e",
+      "bytes": 496287
+    },
+    "old_classifier_matrix_diagnostic": {
+      "name": "mutation-pr51-full-002.json",
+      "sha256": "e075dfbb3a7304b670c01cbb7ba07ff94c214431482b18687dec273c37cdac5e",
+      "bytes": 3059816
+    },
+    "fixed_classifier_matrix": {
+      "name": "mutation-pr51-pr55-full-001.json",
+      "sha256": "b0c0d9d07e3ad5fc6dc3b6fa8906b3cfd188cbdff90e7b97276be3c53b78c002",
+      "bytes": 3132340
+    },
+    "fixed_classifier_preflight": {
+      "name": "preflight-pr55-001.json",
+      "sha256": "631f1e3bdb2f01b1bc11a12b66a8535b8f5df8aa05d0875ff643d36e9cf7e023",
+      "bytes": 58582
+    },
+    "fixed_classifier_binding": {
+      "name": "pr55-classifier-binding.json",
+      "sha256": "0882421f69670497ce2e5293ef980dca294a2def90d1fb293729f2d733b1aae0",
+      "bytes": 551
+    }
+  },
+  "historical_note": "first full pass retained one inconclusive dense-cursor fault; targeted repair and complete old-classifier pass are diagnostic, fixed-classifier full pass is qualifying"
+}

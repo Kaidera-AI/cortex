@@ -1,0 +1,117 @@
+{
+  "kind": "independent_internal_final_verification",
+  "verdict": "PASS for bounded local C06 source and copied native fixture proof",
+  "tested_commit": "e8dc899c06b38739144d10227916aadf792922ef",
+  "required_findings": [],
+  "findings_count": 0,
+  "raw_proof": {
+    "path": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/mutation-outbox-forward-final-005.json",
+    "sha256": "06727591a6158c3561eeee489e316b293c8873776e98ee274c89fd763c0699ac",
+    "audited_directly": true,
+    "phase": "mutation-outbox-forward-final-005"
+  },
+  "checks": {
+    "baseline": {
+      "suite_runs": 26,
+      "tests": 311,
+      "all_exit_zero": true,
+      "failures": 0,
+      "errors": 0
+    },
+    "primary_faults": {
+      "matrix_counts": [42, 32, 30, 11, 3, 1, 26, 8],
+      "unique_faults": 153,
+      "killed": 153,
+      "all_expected_test_ids_present": true,
+      "all_failures_body_assertion_errors": true,
+      "errors": 0,
+      "survivors": 0,
+      "inconclusive": 0,
+      "all_matrix_commands_exit_zero": true,
+      "all_named_restored_baselines_clean": true
+    },
+    "auxiliary_controls": {
+      "controls": 20,
+      "all_qualified": true,
+      "all_expected_boundaries_unchanged": true,
+      "errors": 0,
+      "frozen_predecessor_full_named_controls": 19,
+      "all_predecessor_controls_clean": true,
+      "c06_control_observation": {
+        "mutation": "history and current head coupling omitted",
+        "tests": 23,
+        "exit_code": 1,
+        "unrelated_body_failures": ["test_outbox_guards.OutboxGuards.test_reverse_history_insertion_refuses_revision_reordering"],
+        "expected_boundary_passed": "test_outbox_guards.OutboxGuards.test_history_without_matching_head_cannot_commit_extra_event",
+        "interpretation": "Qualified target-boundary control; this auxiliary-only C06 suite is not entirely GREEN. Its unrelated BODY assertion remains explicit."
+      }
+    },
+    "reserved_kind_finding": {
+      "closed": true,
+      "source": "next/schema/coordination/002-outbox.sql",
+      "source_sha256": "b9ab1f5ad087edaa347b04b58c13114006e9cbf36f86c7e8aa11815b0d4bda39",
+      "helper": "coordination.c06_record_reserved(uuid)",
+      "fixed_search_path": true,
+      "fresh_c05_bound_write_scope": true,
+      "verifier_owned_security_definer": true,
+      "public_execute_revoked_request_execute_explicit": true,
+      "public_read_policy_unchanged": true,
+      "sequential_and_cas_guards_unchanged": true,
+      "native_two_case_red_retained": "private-namespace-red-001.json",
+      "native_repaired_two_case_baseline_clean": true,
+      "actual_helper_call_removal_kills_both_body_assertions": true,
+      "native_restored_two_case_baseline_clean": true
+    },
+    "custody": {
+      "whole_next_files": 425,
+      "all_current_worktree_hashes_match_raw_source": true,
+      "exact_current_file_inventory_matches_raw_source": true,
+      "final_copied_inventory_equals_all_425_source_hashes": true,
+      "matrix_restored_hashes_match_raw_source": true,
+      "protected_predecessor_files_checked": 393,
+      "protected_predecessor_hash_mismatches": 0,
+      "c05_immutable_commit": "2eeb2e68aa61598d4f35bb6147172cdf933f8239",
+      "c05_private_migration_tests_and_original_fault_publications_unchanged": true,
+      "c04_authorization_and_predecessor_fixture_custody_unchanged": true,
+      "prior_c06_test_custody_unchanged": true,
+      "reserved_two_case_fixture_sha256": "5134d805cac2bad4e2b57688b6fb86990d83040610e0ff8136ded9d2d7005e20",
+      "reserved_fixture_matches_red_and_frozen_copy": true,
+      "manifest_member_hashes_valid": true,
+      "product_worktree_clean": true
+    },
+    "tools_and_wheels": {
+      "controller_sha256": "1d628ffaf1ba73edb2278855afd757ae73c53a88ad5ce4b79c887307efd500c0",
+      "lifecycle_helper_sha256": "764cc48058316470086fa02df22c65c31080a14692d2cdb9ed97ead77792c0d2",
+      "canonical_and_worktree_tools_match_raw_receipt": true,
+      "wheel_files": 8,
+      "current_host_wheels_match_offline_inventory": true,
+      "raw_actual_and_copied_wheel_hashes_equal": true,
+      "preflight_before_resource_admission_exit_zero": true
+    },
+    "native_and_cleanup": {
+      "platform": "linux arm64 copied Podman fixture",
+      "postgres": "18.4 aarch64",
+      "images_inspected_arm64": true,
+      "published_ports": [],
+      "bind_mounts": [],
+      "limits": {"cpus": 2, "memory": "1g"},
+      "lifecycle": "c32d9fbc60d355af601ede6f6c8d38f0",
+      "owned_identity_inspections_match_creation_and_removal": true,
+      "three_resources_removed_by_bound_immutable_id": true,
+      "three_post_removal_name_absence_commands_exit_one": true,
+      "cleanup_verified": true,
+      "pending": [],
+      "owned": [],
+      "password_discarded": true,
+      "lock_released": true,
+      "limitation": "This successful sequential lifecycle does not qualify concurrent failed-cleanup behavior or the separately held PR40 lock repair."
+    }
+  },
+  "audit_method": "Fresh read-only git, source, SHA256, inventory and raw JSON inspection; no product imports, tests, builds, resources or runtime commands executed by this verifier. The sole write is this requested canonical evidence record.",
+  "official_review_still_owns": [
+    "Vera/Kai acceptance and disposition of the exact published candidate, plan amendments, historical failed qualifications and mutation compositions",
+    "H-D471 security review and main-merge hold",
+    "PR40 lock-failure repair acceptance and producer reuse authority",
+    "Live HTTP acknowledgement/writers, issuer/adoption/released-donor scope, native x86, install/signing/release and C07 acceptance"
+  ]
+}

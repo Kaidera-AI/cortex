@@ -1,0 +1,8 @@
+{
+  "fixture_sha256": "3060109658c1d5b5d76efbd8246ddf90b058a4df44ed821f1e00ebaf99266b63",
+  "validator_sha256": "0da9fc725920f9d8926a265ed358ef33e16c358eae16574a088ec8ecbb15a163",
+  "before_execution": true,
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c06-source/verify-fixture-shapes.py\", line 17, in <module>\n    assert len(n.args)<=len(fields), 'DonorPin fixture exceeds current constructor arity'\n           ^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: DonorPin fixture exceeds current constructor arity\n"
+}

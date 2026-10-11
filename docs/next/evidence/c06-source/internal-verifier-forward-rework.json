@@ -1,0 +1,19 @@
+{
+  "tested_commit": "f72a55f76f45aa10c2efc801fd3dcfd53f6e255b",
+  "verifier": "independent read-only graph_pyc_verify; required SDLC final check",
+  "required_findings": [
+    {
+      "id": "C06-PRIVATE-NAMESPACE-001",
+      "status": "source-derived; native reproduction pending",
+      "summary": "Invoker reserved-kind revision lookup depends on public read permission while the private header update executes as verifier. Deferred head/history/current-event guards do not recheck reserved Core kind.",
+      "repair": "C06-only scoped private boolean predicate; frozen job and identity rollback cases RED first; preserve immutable C05/C04 inputs and old C06 fixtures."
+    }
+  ],
+  "source_sha256": {
+    "next/schema/coordination/002-outbox.sql": "7cee24d7fba8b7a11263866920a81c8acfce7e08fb05dd6ae12760a2db48a9fc",
+    "next/schema/coordination/002-record-replay.sql": "683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87",
+    "next/schema/auth/002-isolation.sql": "dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681"
+  },
+  "runtime": "NOT_RUN by verifier",
+  "final_raw_proof_audit": "pending"
+}

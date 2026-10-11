@@ -1,0 +1,25 @@
+{
+  "passed": false,
+  "recipes_sha256": "e921d7eaccd30b483366aa8bbc0c8f5851a7557eab8705a566f9906935ab1cd7",
+  "bad": [
+    {
+      "mutation": "receipt current event validation omitted",
+      "path": "schema/coordination/002-outbox.sql",
+      "actual": 0,
+      "expected": 1
+    },
+    {
+      "mutation": "corrected raw job refusal loses its capture guard",
+      "path": "schema/coordination/002-outbox.sql",
+      "actual": 0,
+      "expected": 1
+    },
+    {
+      "mutation": "retention protection no longer takes shared lock",
+      "path": "schema/coordination/002-outbox.sql",
+      "actual": 0,
+      "expected": 1
+    }
+  ],
+  "application_qualification": false
+}

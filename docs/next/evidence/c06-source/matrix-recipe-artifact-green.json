@@ -1,0 +1,13 @@
+{
+  "anchor_and_mutated_python_ast": "PASS source-only",
+  "counts": {
+    "outbox": 42,
+    "identity": 32,
+    "adapters": 30
+  },
+  "composed_faults": 17,
+  "original_predecessor_scripts_sha256": {
+    "scripts/mutate_identity.py": "18961e39c9e0c17882d035fc95319c2e1f4fc31c5495cb76129d0ce3195332f5",
+    "scripts/mutate_core_adapters.py": "081f1ea4508467e33833952d49fcfcf996f11ea067b058cbe81e27578754a2dd"
+  }
+}

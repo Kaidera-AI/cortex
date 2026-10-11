@@ -1,0 +1,8 @@
+{
+  "source_receipt": "outbox-final-review-red-001.json",
+  "actual_body_red": 9,
+  "errors": 0,
+  "original_method_names_matched": true,
+  "normalized_method_names_matched": true,
+  "disposition": "Runtime9 actualBODYRED. Overallfailed: controller used unqualifiednames. Correct controller only; tests unchanged."
+}

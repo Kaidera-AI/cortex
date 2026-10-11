@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "source_before_sha256": "caf26634ce063288286b92d19cc86e7f33fee3c572ba619244dc2820653ebd36",
+  "mutant_sha256": "a2b6bec9feee27d863576ee7cd47722746fcae1ff087f07de819d605912c26fc",
+  "source_restored": true,
+  "anchor_before": "return parameters.count(name)==1 and not stores and not declarations and bool(calls) and all(len(n.args)>1 and",
+  "anchor_after": "return parameters.count(name)==1 and True and not declarations and bool(calls) and all(len(n.args)>1 and",
+  "baseline": {
+    "exit_code": 0,
+    "receipt": {
+      "tests_run": 12,
+      "failures": [],
+      "errors": []
+    },
+    "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 12, \"failures\": [], \"errors\": []}\n",
+    "stderr": "test_all_executable_writer_sites_match_classified_source (test_outbox_inventory.WriterInventory.test_all_executable_writer_sites_match_classified_source) ... ok\ntest_assigned_variable_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_assigned_variable_dynamic_writer_fails_closed) ... ok\ntest_composed_sql_writer_is_rejected (test_outbox_inventory.WriterInventory.test_composed_sql_writer_is_rejected) ... ok\ntest_dynamic_composed_sql_writer_fails_closed (test_outbox_inventory.WriterInventory.test_dynamic_composed_sql_writer_fails_closed) ... ok\ntest_helper_return_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_helper_return_dynamic_writer_fails_closed) ... ok\ntest_missing_writer_binding_is_rejected (test_outbox_inventory.WriterInventory.test_missing_writer_binding_is_rejected) ... ok\ntest_new_unclassified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected) ... ok\ntest_private_query_augassign_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed) ... ok\ntest_private_query_walrus_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed) ... ok\ntest_quoted_qualified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected) ... ok\ntest_unqualified_writer_with_search_path_is_rejected (test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected) ... ok\ntest_manifest_binds_exact_additive_outbox_sql (test_outbox_manifest.OutboxManifest.test_manifest_binds_exact_additive_outbox_sql) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.390s\n\nOK\n"
+  },
+  "mutant": {
+    "exit_code": 1,
+    "receipt": {
+      "tests_run": 12,
+      "failures": [
+        {
+          "id": "test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed",
+          "phase": "test",
+          "phase_attribution": "traceback+active-unittest-v2",
+          "is_assertion": true,
+          "exception_type": "builtins.AssertionError",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r2-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 101, in test_private_query_augassign_rebind_fails_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+        },
+        {
+          "id": "test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed",
+          "phase": "test",
+          "phase_attribution": "traceback+active-unittest-v2",
+          "is_assertion": true,
+          "exception_type": "builtins.AssertionError",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r2-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 90, in test_private_query_walrus_rebind_fails_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n"
+        }
+      ],
+      "errors": []
+    },
+    "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 12, \"failures\": [{\"id\": \"test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r2-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\\\", line 101, in test_private_query_augassign_rebind_fails_closed\\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\\n\"}, {\"id\": \"test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed\", \"phase\": \"test\", \"phase_attribution\": \"traceback+active-unittest-v2\", \"is_assertion\": true, \"exception_type\": \"builtins.AssertionError\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r2-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\\\", line 90, in test_private_query_walrus_rebind_fails_closed\\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\\n\"}], \"errors\": []}\n",
+    "stderr": "test_all_executable_writer_sites_match_classified_source (test_outbox_inventory.WriterInventory.test_all_executable_writer_sites_match_classified_source) ... ok\ntest_assigned_variable_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_assigned_variable_dynamic_writer_fails_closed) ... ok\ntest_composed_sql_writer_is_rejected (test_outbox_inventory.WriterInventory.test_composed_sql_writer_is_rejected) ... ok\ntest_dynamic_composed_sql_writer_fails_closed (test_outbox_inventory.WriterInventory.test_dynamic_composed_sql_writer_fails_closed) ... ok\ntest_helper_return_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_helper_return_dynamic_writer_fails_closed) ... ok\ntest_missing_writer_binding_is_rejected (test_outbox_inventory.WriterInventory.test_missing_writer_binding_is_rejected) ... ok\ntest_new_unclassified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected) ... ok\ntest_private_query_augassign_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed) ... FAIL\ntest_private_query_walrus_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed) ... FAIL\ntest_quoted_qualified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected) ... ok\ntest_unqualified_writer_with_search_path_is_rejected (test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected) ... ok\ntest_manifest_binds_exact_additive_outbox_sql (test_outbox_manifest.OutboxManifest.test_manifest_binds_exact_additive_outbox_sql) ... ok\n\n======================================================================\nFAIL: test_private_query_augassign_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r2-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 101, in test_private_query_augassign_rebind_fails_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n\n======================================================================\nFAIL: test_private_query_walrus_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-c06-002-r2-20261010/next/tests/outbox_inventory/test_outbox_inventory.py\", line 90, in test_private_query_walrus_rebind_fails_closed\n    self.assertFalse(result['passed'],result);self.assertTrue(result['unclassified'])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false : {'passed': True, 'writer_count': 62, 'unclassified': [], 'missing': [], 'stale': []}\n\n----------------------------------------------------------------------\nRan 12 tests in 0.405s\n\nFAILED (failures=2)\n"
+  },
+  "restored": {
+    "exit_code": 0,
+    "receipt": {
+      "tests_run": 12,
+      "failures": [],
+      "errors": []
+    },
+    "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 12, \"failures\": [], \"errors\": []}\n",
+    "stderr": "test_all_executable_writer_sites_match_classified_source (test_outbox_inventory.WriterInventory.test_all_executable_writer_sites_match_classified_source) ... ok\ntest_assigned_variable_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_assigned_variable_dynamic_writer_fails_closed) ... ok\ntest_composed_sql_writer_is_rejected (test_outbox_inventory.WriterInventory.test_composed_sql_writer_is_rejected) ... ok\ntest_dynamic_composed_sql_writer_fails_closed (test_outbox_inventory.WriterInventory.test_dynamic_composed_sql_writer_fails_closed) ... ok\ntest_helper_return_dynamic_writer_fails_closed (test_outbox_inventory.WriterInventory.test_helper_return_dynamic_writer_fails_closed) ... ok\ntest_missing_writer_binding_is_rejected (test_outbox_inventory.WriterInventory.test_missing_writer_binding_is_rejected) ... ok\ntest_new_unclassified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_new_unclassified_writer_is_rejected) ... ok\ntest_private_query_augassign_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_augassign_rebind_fails_closed) ... ok\ntest_private_query_walrus_rebind_fails_closed (test_outbox_inventory.WriterInventory.test_private_query_walrus_rebind_fails_closed) ... ok\ntest_quoted_qualified_writer_is_rejected (test_outbox_inventory.WriterInventory.test_quoted_qualified_writer_is_rejected) ... ok\ntest_unqualified_writer_with_search_path_is_rejected (test_outbox_inventory.WriterInventory.test_unqualified_writer_with_search_path_is_rejected) ... ok\ntest_manifest_binds_exact_additive_outbox_sql (test_outbox_manifest.OutboxManifest.test_manifest_binds_exact_additive_outbox_sql) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.376s\n\nOK\n"
+  },
+  "resource_operations": 0
+}
