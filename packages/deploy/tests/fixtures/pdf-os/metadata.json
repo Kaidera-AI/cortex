@@ -1,0 +1,114 @@
+{
+  "before": {
+    "var/cache/ldconfig/aux-cache": {
+      "type": "0",
+      "mode": 384,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "33bfe29f0a2160c3bcb2ac1e0e6dfb6e269e71676714d235cb5e24121d3473a9",
+      "size": 9114
+    },
+    "var/log/alternatives.log": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "69507f2b67c2e0b41b7927fe475fa9d166df34dfe697bcdda94b27d0cc677eb3",
+      "size": 4286
+    },
+    "var/log/apt/history.log": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "7e8bd92dc947222b04b772a1bbc11c9de1b77bdb2b5d205acb9fb91d8d8bc501",
+      "size": 14615
+    },
+    "var/log/apt/term.log": {
+      "type": "0",
+      "mode": 416,
+      "uid": 0,
+      "gid": 4,
+      "xattrs": {},
+      "sha256": "5cd32d236fcd0f91523ec9ab710b68c6af1330e892247316a53668800ede977b",
+      "size": 65762
+    },
+    "var/log/dpkg.log": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "333be5096f0f762de886d12d1209ee229849539e0caeb0a679d8662d6d38ddc7",
+      "size": 164347
+    },
+    "etc/ld.so.cache": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "size": 8975,
+      "sha256": "f35f22d9b5c5cf19d0dea688c3ea436f6538b69488a629d69fbd4b3842123382"
+    }
+  },
+  "after": {
+    "var/cache/ldconfig/aux-cache": {
+      "type": "0",
+      "mode": 384,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "c67965af7926ff8a2af44621316bf768646a46cfa641c6d045d7a875d167f8e0",
+      "size": 9114
+    },
+    "var/log/alternatives.log": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "e3bd8358db21fae0aceb65abf7fb16b741c00b6f9d84263719fa530014158d70",
+      "size": 4286
+    },
+    "var/log/apt/history.log": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "15fa4b085f38de4ed5c8d90af2a31b7f38d052e50fe00af3faa2e0407794ab30",
+      "size": 14615
+    },
+    "var/log/apt/term.log": {
+      "type": "0",
+      "mode": 416,
+      "uid": 0,
+      "gid": 4,
+      "xattrs": {},
+      "sha256": "e0e76e3e0e2e69ad6fc29bda68861e42f0b622a6a85d78a10d4b4b908e4d414f",
+      "size": 65762
+    },
+    "var/log/dpkg.log": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "sha256": "0406cef7b07577a119217346616488b1939386551af7e60588d0873da60c39ae",
+      "size": 164347
+    },
+    "etc/ld.so.cache": {
+      "type": "0",
+      "mode": 420,
+      "uid": 0,
+      "gid": 0,
+      "xattrs": {},
+      "size": 8975,
+      "sha256": "f35f22d9b5c5cf19d0dea688c3ea436f6538b69488a629d69fbd4b3842123382"
+    }
+  }
+}
