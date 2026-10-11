@@ -182,22 +182,60 @@ class OwnedRoots(unittest.TestCase):
             self.assertFalse(result["complete"])
             self.assertEqual((p / "store" / "foreign").read_bytes(), b"keep")
 
+
 class RuntimeContract(unittest.TestCase):
     def test_exact_final_user_projects_home_and_actual_entrypoint_contract(self):
-        argv = policy.runtime_argv('/usr/bin/podman', 'sha256:'+'a'*64, 10001, '/home/cortex', '/source/project', '/projects', ['--version'])
-        self.assertIn('--read-only', argv)
-        self.assertIn('--network=none', argv)
-        self.assertIn('--pull=never', argv)
-        self.assertEqual(argv[argv.index('--user')+1], '10001')
-        self.assertEqual(argv[argv.index('--env')+1], 'HOME=/home/cortex')
-        self.assertIn('type=bind,source=/source/project,destination=/projects,ro', argv)
-        self.assertNotIn('--entrypoint', argv)
-        self.assertEqual(argv[-2:], ['sha256:'+'a'*64, '--version'])
+        argv = policy.runtime_argv(
+            "/usr/bin/podman",
+            "sha256:" + "a" * 64,
+            10001,
+            "/home/cortex",
+            "/source/project",
+            "/projects",
+            ["--version"],
+        )
+        self.assertIn("--read-only", argv)
+        self.assertIn("--network=none", argv)
+        self.assertIn("--pull=never", argv)
+        self.assertEqual(argv[argv.index("--user") + 1], "10001")
+        self.assertEqual(argv[argv.index("--env") + 1], "HOME=/home/cortex")
+        self.assertIn("type=bind,source=/source/project,destination=/projects,ro", argv)
+        self.assertNotIn("--entrypoint", argv)
+        self.assertEqual(argv[-2:], ["sha256:" + "a" * 64, "--version"])
 
     def test_root_mutable_image_or_ambiguous_mount_cannot_mask_probe(self):
-        base = ['/usr/bin/podman', 'sha256:'+'a'*64, 10001, '/home/cortex', '/source/project', '/projects', ['--version']]
-        for index, value in [(1, 'api:latest'), (2, 0), (2, True), (3, 'relative-home'), (4, '/source,bad'), (5, '/../escape')]:
+        base = [
+            "/usr/bin/podman",
+            "sha256:" + "a" * 64,
+            10001,
+            "/home/cortex",
+            "/source/project",
+            "/projects",
+            ["--version"],
+        ]
+        for index, value in [
+            (1, "api:latest"),
+            (2, 0),
+            (2, True),
+            (3, "relative-home"),
+            (4, "/source,bad"),
+            (5, "/../escape"),
+        ]:
             args = list(base)
             args[index] = value
             with self.assertRaises(ValueError):
                 policy.runtime_argv(*args)
+
+class StdioOwnership(unittest.TestCase):
+    def test_child_cannot_inherit_operator_stdin(self):
+        seen = {}
+        class Process:
+            def wait(self, timeout):
+                return 0
+        def popen(*args, **kwargs):
+            seen.update(kwargs)
+            return Process()
+        with tempfile.TemporaryDirectory() as t:
+            p = Path(t)
+            engine.run_operation(['engine'], p, {}, 1, p/'out', p/'err', popen=popen)
+        self.assertEqual(seen.get('stdin'), subprocess.DEVNULL)
