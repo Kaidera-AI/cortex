@@ -92,10 +92,12 @@ class Fixture:
         self.admission()
         name = self.prefix + "-" + suffix
         args = ["run", "--name", name, "--pod", self.pod, "--pull=never", "--user", user,
-                "--add-host=cortex-pg:127.0.0.1",
                 "--read-only", "--memory", memory, "--memory-swap", memory, "--cpus", cpus,
                 "--pids-limit=256", "--cap-drop=ALL", "--security-opt=no-new-privileges",
                 "--tmpfs=/tmp:rw,size=64m,mode=1777", *self.labels()]
+        # 4.9 forbids per-container --add-host in a pod and does not share the
+        # infra /etc/hosts here. Bind only this fixture's public loopback map.
+        args += self.mount(self.output / "fixture-hosts.conf", "/etc/hosts", True)
         if not finite:
             args.append("-d")
         for origin, target, readonly in mounts:
@@ -207,6 +209,7 @@ class Fixture:
         self.results = results
         tls_mounts = [(name, "/tls/" + role, False) for role, name in self.tls.items()]
         finite_limits = podman_stage0.LIMITS.replace("os.getuid()==10001 and os.getgid()==10001", "os.getuid()==0 and os.getgid()==0")
+        finite_limits += "\nimport socket;assert socket.gethostbyname('cortex-pg')=='127.0.0.1'\n"
         import shlex
         helper = self.run("prepare", PYTHON, ["sh", "-c", "python -c " + shlex.quote(finite_limits) +
                           " && cp -a /wheels/. /deps/ && sh /source/packages/deploy/tls/init.sh"],
@@ -344,6 +347,7 @@ def provision(output, site):
         fixture.receipt["source_files"] = {str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest()
                                             for path in source.rglob("*") if path.is_file()}
         (output / "fixture-hba.conf").write_text("local all all peer\nhost all all 127.0.0.1/32 trust\n")
+        (output / "fixture-hosts.conf").write_text("127.0.0.1 localhost cortex-pg\n::1 localhost\n")
         baseline = subprocess.run([sys.executable, str(source / "packages/deploy/baseline.py"), "--render-sql",
                                    "--schema", str(source / "packages/schema/cortex-schema-full.sql"),
                                    "--migrations", str(source / "packages/schema/migrations")], text=True, capture_output=True, check=True)
