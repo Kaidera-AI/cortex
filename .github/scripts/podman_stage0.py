@@ -33,24 +33,14 @@ assert throttled>0,(before,after)
 assert used/wall<=2.25,(used,wall)
 print(json.dumps({'cpu_seconds':used,'wall_seconds':wall,'cpu_ratio':used/wall,'throttled_periods':throttled,'before':before,'after':after}),flush=True)
 """
-OOM = LIMITS + """
-import subprocess,sys
-def events():return {a:int(b) for a,b in [x.split() for x in (c/'memory.events').read_text().splitlines()]}
-before=events();peak_before=int((c/'memory.peak').read_text());group=(c/'memory.oom.group').read_text().strip()
-assert group=='0', 'observer cannot survive group OOM policy'
-allocator="from pathlib import Path; import json\ntry: Path('/proc/self/oom_score_adj').write_text('1000')\nexcept PermissionError: pass\nchunks=[]\nfor i in range(64):\n chunk=bytearray(32*1024*1024)\n for offset in range(0,len(chunk),4096): chunk[offset]=1\n chunks.append(chunk)\n print(json.dumps({'allocated_bytes':sum(map(len,chunks))}),flush=True)"
-child=subprocess.run([sys.executable,'-c',allocator],text=True,capture_output=True,timeout=30)
-after=events();peak=int((c/'memory.peak').read_text());limit=int(limits['memory.max'])
-delta={key:after.get(key,0)-before.get(key,0) for key in after}
-proof={'observer_survived':True,'observer_pid':os.getpid(),'child_exit':child.returncode,'before':before,'after':after,'delta':delta,'memory_peak_before':peak_before,'memory_peak':peak,'memory_limit':limit,'child_stdout':child.stdout,'child_stderr':child.stderr,'oom_group':group}
-print(json.dumps(proof),flush=True)
-assert child.returncode==-9,proof
-assert delta.get('oom_kill',0)>0 and delta.get('oom',0)>0,proof
-assert peak<=limit,proof
-"""
+ALLOCATOR = "from pathlib import Path; import json\ntry: Path('/proc/self/oom_score_adj').write_text('1000')\nexcept PermissionError: pass\nchunks=[]\nfor i in range(64):\n chunk=bytearray(32*1024*1024)\n for offset in range(0,len(chunk),4096): chunk[offset]=1\n chunks.append(chunk)\n print(json.dumps({'allocated_bytes':sum(map(len,chunks))}),flush=True)"
+OOM = LIMITS + 'import subprocess,sys\ndef events():return {a:int(b) for a,b in [x.split() for x in (c/\'memory.events\').read_text().splitlines()]}\nbefore=events();peak_before=int((c/\'memory.peak\').read_text());group=(c/\'memory.oom.group\').read_text().strip()\nassert group==\'0\', \'observer cannot survive group OOM policy\'\nallocator="from pathlib import Path; import json\\ntry: Path(\'/proc/self/oom_score_adj\').write_text(\'1000\')\\nexcept PermissionError: pass\\nchunks=[]\\nfor i in range(64):\\n chunk=bytearray(32*1024*1024)\\n for offset in range(0,len(chunk),4096): chunk[offset]=1\\n chunks.append(chunk)\\n print(json.dumps({\'allocated_bytes\':sum(map(len,chunks))}),flush=True)"\nchild=subprocess.run([sys.executable,\'-c\',allocator],text=True,capture_output=True,timeout=30)\nafter=events();peak=int((c/\'memory.peak\').read_text());limit=int(limits[\'memory.max\'])\ndelta={key:after.get(key,0)-before.get(key,0) for key in after}\nproof={\'observer_survived\':True,\'observer_pid\':os.getpid(),\'child_exit\':child.returncode,\'before\':before,\'after\':after,\'delta\':delta,\'memory_peak_before\':peak_before,\'memory_peak\':peak,\'memory_limit\':limit,\'child_stdout\':child.stdout,\'child_stderr\':child.stderr,\'oom_group\':group}\nprint(json.dumps(proof),flush=True)\nassert child.returncode==-9,proof\nassert delta.get(\'oom_kill\',0)>0 and delta.get(\'oom\',0)>0,proof\nassert peak<=limit,proof\n'
 
 
 def probe(output):
+    compile(CPU, "<cpu-probe>", "exec")
+    compile(OOM, "<oom-observer>", "exec")
+    compile(ALLOCATOR, "<allocator-control>", "exec")
     output.mkdir(parents=True, exist_ok=True)
     run_id = os.environ.get("GITHUB_RUN_ID", "local") + "-" + uuid.uuid4().hex[:12]
     labels = {"cortex.worker": "ren-cx", "cortex.stage0": run_id}
