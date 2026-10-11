@@ -51,6 +51,23 @@ MUTANTS = {
                                  "if value.kind != 'memory':\n            return None\n"
                                  "        if value.kind == 'memory':\n            body = json.loads(value.body)"),
 }
+INGEST_MUTANTS = {
+    'ingest_replay_before_auth': ('src/cortex_core/api/c11a.py',
+        'principal = await self.principal_resolver(scope)',
+        "if (path == '/knowledge/ingest' and not dict(scope.get('headers') or []).get(b'authorization') "
+        "and dict(scope.get('headers') or []).get(b'idempotency-key') == b'known'):\n"
+        "                return await _respond(send, 200, {'status': 'created'})\n"
+        '            principal = await self.principal_resolver(scope)'),
+    'ingest_unbound_retryable': ('src/cortex_core/api/c11a.py',
+        "retryable=row['id'] not in INGEST_ROUTES))", 'retryable=True))'),
+    'ingest_success_shaped_error': ('src/cortex_core/api/c11a.py',
+        "    return 503, _packet('core_unavailable')\n\n\nasync def _memory_body",
+        "    return 200, {'status': 'created'}\n\n\nasync def _memory_body"),
+    'ingest_partial_on_409': ('src/cortex_core/records.py',
+        "if head is not None and on_conflict != 'update':\n"
+        "                        raise RecordError('conflict')",
+        "if False:\n                        raise RecordError('conflict')"),
+}
 
 
 def run(*args, check=True, timeout=180):
@@ -92,12 +109,13 @@ def main():
               'wheels_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                 for p in sorted(wheels.glob('*.whl'))}}
     mutation = os.environ.get('C11B_MUTATION')
-    if mutation and mutation not in MUTANTS:
+    if mutation and mutation not in MUTANTS and mutation not in INGEST_MUTANTS:
         raise RuntimeError('unknown C11b mutation')
     output['mutation'] = mutation
     suite = os.environ.get('C11B_SUITE', 'c11b')
     if suite not in {'c11b', 'c11_ingest', 'records', 'auth', 'auth_identity', 'outbox',
-                     'module_consumer', 'schema'} or mutation and suite != 'c11b':
+                     'module_consumer', 'schema'} or mutation and suite != (
+                         'c11_ingest' if mutation in INGEST_MUTANTS else 'c11b'):
         raise RuntimeError('unknown C11b suite selection')
     output['suite'] = suite
     try:
@@ -119,7 +137,8 @@ def main():
         run('podman', 'cp', str(ROOT), driver + ':/tmp/next')
         run('podman', 'cp', str(wheels), driver + ':/tmp/wheels')
         if mutation:
-            path, before, after = MUTANTS[mutation]
+            path, before, after = (INGEST_MUTANTS if mutation in INGEST_MUTANTS
+                                   else MUTANTS)[mutation]
             mutate = (
                 'import hashlib,json,sys;from pathlib import Path;'
                 'p=Path("/tmp/next")/sys.argv[1];b=p.read_text();'

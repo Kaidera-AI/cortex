@@ -1,6 +1,7 @@
 """R010/R011/R012 frozen ingest envelope through real C04/C05/C06 PostgreSQL."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -10,11 +11,13 @@ import unittest
 from uuid import UUID
 
 import psycopg
+from psycopg.types.json import Jsonb
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core_db_fixture import Fixture, WRITE_A, API, REQUEST, uid
 from cortex_core.api.c11a import C05Committed, ConsumerGateway
 from cortex_core.api.c11b import C11bRecordPort
+from cortex_core.auth import AuthError
 
 
 CASES = (
@@ -108,19 +111,73 @@ class IngestAPI(Fixture):
                 first_status, first = self.call(gateway, path, body, request_key=route_id + '-create')
                 self.assertEqual(first_status, 200)
                 self.assert_ack(first, 'created', 1)
+                self.assertEqual(self.call(gateway, path, body,
+                                           request_key=route_id + '-create', raw=True)[1],
+                                 json.dumps(first, sort_keys=True, separators=(',', ':')).encode())
                 self.assertEqual(self.counts(first['id']), (1, 1))
                 same_status, same = self.call(gateway, path, body, request_key=route_id + '-same')
                 self.assertEqual(same_status, 200)
                 self.assert_ack(same, 'unchanged', 1)
+                self.assertEqual(self.call(gateway, path, body,
+                                           request_key=route_id + '-same', raw=True)[1],
+                                 json.dumps(same, sort_keys=True, separators=(',', ':')).encode())
                 self.assertEqual(same['id'], first['id'])
                 self.assertEqual(self.counts(first['id']), (1, 1))
+                self.assertEqual(self.admin.execute(
+                    'SELECT outcome FROM coordination.idempotency WHERE request_key=%s',
+                    (route_id + '-same',)).fetchone()[0], 'observed')
                 changed = {**body, changed_field: 'changed', 'on_conflict': 'update'}
                 newer_status, newer = self.call(gateway, path, changed,
                                                  request_key=route_id + '-update')
                 self.assertEqual(newer_status, 200)
                 self.assert_ack(newer, 'updated', 2)
+                self.assertEqual(self.call(gateway, path, changed,
+                                           request_key=route_id + '-update', raw=True)[1],
+                                 json.dumps(newer, sort_keys=True, separators=(',', ':')).encode())
                 self.assertEqual(newer['id'], first['id'])
                 self.assertEqual(self.counts(first['id']), (2, 2))
+
+    def test_write_only_credential_can_create_observe_and_update(self):
+        self.admin.execute('UPDATE auth.project_grants SET permissions=%s WHERE tenant_id=%s '
+                           'AND project_id=%s AND principal_id=%s',
+                           (['write'], uid(2), uid(3), uid(10)))
+        gateway = self.gateway()
+        path, _, body, changed_field = CASES[0]
+        status, first = self.call(gateway, path, body, request_key='write-only-create')
+        self.assertEqual(status, 200)
+        self.assert_ack(first, 'created', 1)
+        status, same = self.call(gateway, path, body, request_key='write-only-noop')
+        self.assertEqual(status, 200)
+        self.assert_ack(same, 'unchanged', 1)
+        changed = {**body, changed_field: 'write-only changed', 'on_conflict': 'update'}
+        status, later = self.call(gateway, path, changed, request_key='write-only-update')
+        self.assertEqual(status, 200)
+        self.assert_ack(later, 'updated', 2)
+        self.assertEqual(self.counts(first['id']), (2, 2))
+
+    def test_private_noop_guard_rejects_forged_digest_without_receipt_or_event(self):
+        gateway = self.gateway()
+        path, _, body, _ = CASES[0]
+        _, first = self.call(gateway, path, body, request_key='guard-create')
+        request = json.dumps(['ingest.observe', first['id'], 'knowledge',
+                              '0' * 64, 1, 'conflict'], separators=(',', ':'))
+        receipt = {'record_id': first['id'], 'revision': 1, 'event_id': None,
+                   'status': 'unchanged', 'tombstone': False,
+                   'payload_sha256': '0' * 64, 'ingest_kind': 'knowledge',
+                   'ingest_mode': 'conflict', 'request_json': request}
+        with self.assertRaises(AuthError) as caught:
+            with self.auth(WRITE_A, action='write') as scope:
+                self.request.execute('''INSERT INTO coordination.idempotency
+                    (tenant_id,project_id,principal_id,request_key,request_sha256,outcome,receipt)
+                    VALUES (%s,%s,%s,%s,%s,'observed',%s)''',
+                    (scope.tenant_id, scope.project_id, scope.principal_id,
+                     'forged-noop', hashlib.sha256(request.encode()).hexdigest(),
+                     Jsonb(receipt)))
+        self.assertEqual(caught.exception.code, 'core_unavailable')
+        self.assertEqual(self.admin.execute(
+            'SELECT count(*) FROM coordination.idempotency WHERE request_key=%s',
+            ('forged-noop',)).fetchone()[0], 0)
+        self.assertEqual(self.counts(first['id']), (1, 1))
 
     def test_same_key_replay_is_byte_equivalent_after_fresh_auth(self):
         gateway = self.gateway()
@@ -134,9 +191,21 @@ class IngestAPI(Fixture):
         self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
                            (hashlib.sha256(WRITE_A).hexdigest(),))
         denied, response = self.call(gateway, path, body, request_key='lost-response')
-        self.assertEqual((denied, response['error']['code']), (403, 'forbidden'))
+        self.assertEqual(denied, 403)
+        self.assertEqual(response['error']['code'], 'forbidden')
         self.assertNotIn('status', response)
         self.assertEqual(self.counts(record_id), (1, 1))
+
+    def test_concurrent_same_key_is_one_revision_and_event(self):
+        gateway = self.gateway()
+        path, _, body, _ = CASES[1]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            replies = list(pool.map(lambda _: self.call(gateway, path, body,
+                                                        request_key='race-one', raw=True),
+                                    range(2)))
+        self.assertEqual(replies[0], replies[1])
+        self.assertEqual(replies[0][0], 200)
+        self.assertEqual(self.counts(json.loads(replies[0][1])['id']), (1, 1))
 
     def test_changed_request_same_key_conflicts_without_partial_write(self):
         gateway = self.gateway()
@@ -146,7 +215,8 @@ class IngestAPI(Fixture):
                 before = self.counts(first['id'])
                 changed = {**body, changed_field: 'different', 'on_conflict': 'update'}
                 status, error = self.call(gateway, path, changed, request_key=route_id + '-key')
-                self.assertEqual((status, error['error']['code']), (409, 'conflict'))
+                self.assertEqual(status, 409)
+                self.assertEqual(error['error']['code'], 'conflict')
                 self.assertNotIn('status', error)
                 self.assertEqual(self.counts(first['id']), before)
                 status, error = self.call(gateway, path, changed, request_key=route_id + '-new')
@@ -160,12 +230,14 @@ class IngestAPI(Fixture):
         _, first = self.call(gateway, path, body, request_key='initial')
         changed = {**body, field: 'different'}
         status, error = self.call(gateway, path, changed, request_key='conflict-mode')
-        self.assertEqual((status, error['error']['code']), (409, 'conflict'))
+        self.assertEqual(status, 409)
+        self.assertEqual(error['error']['code'], 'conflict')
         self.assertEqual(self.counts(first['id']), (1, 1))
         with patch('cortex_core.records._save_request', side_effect=RuntimeError('late rollback')):
             status, error = self.call(gateway, path, {**changed, 'on_conflict': 'update'},
                                       request_key='late-failure')
-        self.assertEqual((status, error['error']['code']), (503, 'core_unavailable'))
+        self.assertEqual(status, 503)
+        self.assertEqual(error['error']['code'], 'core_unavailable')
         self.assertNotIn('status', error)
         self.assertEqual(self.counts(first['id']), (1, 1))
 
@@ -178,6 +250,7 @@ class IngestAPI(Fixture):
             ({'request_key': None}, 400, 'idempotency_key_required', False),
             ({'body': b'{bad-json'}, 400, 'invalid_input', False),
             ({'body': {**body, 'on_conflict': 'ignore'}}, 400, 'invalid_input', False),
+            ({'body': {**body, 'on_conflict': []}}, 400, 'invalid_input', False),
             ({'body': {**body, 'agent_name': '8'}}, 403, 'forbidden', False),
         )
         for changes, expected, code, retryable in cases:
@@ -185,8 +258,9 @@ class IngestAPI(Fixture):
                 status, error = self.call(gateway, path, changes.get('body', body),
                                           **{key: value for key, value in changes.items()
                                              if key != 'body'})
-                self.assertEqual((status, error['error']['code'], error['error']['retryable']),
-                                 (expected, code, retryable))
+                self.assertEqual(status, expected)
+                self.assertEqual((error['error']['code'], error['error']['retryable']),
+                                 (code, retryable))
                 self.assertNotIn('status', error)
                 self.assertNotIn('receipt', error)
         status, error = self.call(self.gateway(bound=False), path, body)
@@ -204,7 +278,8 @@ class IngestAPI(Fixture):
             return C05Committed(key, {'record_id': uid(50)}, True,
                                 {'status': 'created', 'id': uid(50)})
         status, error = self.call(self.gateway(handlers={'C01-R012': bad_commit}), path, body)
-        self.assertEqual((status, error['error']['code']), (503, 'core_unavailable'))
+        self.assertEqual(status, 503)
+        self.assertEqual(error['error']['code'], 'core_unavailable')
         self.assertNotIn('status', error)
         self.assertEqual(self.admin.execute("SELECT count(*) FROM core.records WHERE kind='decision'").fetchone()[0], 0)
 
@@ -213,7 +288,8 @@ class IngestAPI(Fixture):
         path, _, body, _ = CASES[0]
         self.assertEqual(self.call(gateway, path, body, request_key='known')[0], 200)
         status, error = self.call(gateway, path, b'{bad-json', key=None, request_key='known')
-        self.assertEqual((status, error['error']['code']), (401, 'credential_required'))
+        self.assertEqual(status, 401)
+        self.assertEqual(error['error']['code'], 'credential_required')
         self.assertNotIn('status', error)
 
 

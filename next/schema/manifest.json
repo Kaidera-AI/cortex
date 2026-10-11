@@ -91,6 +91,11 @@
       "id": "auth-0006",
       "file": "auth/006-enrollment-readiness.sql",
       "sha256": "848840260b90e3cd88dc77d25acad908c63bcf711452eb1669e7ae4e833cee72"
+    },
+    {
+      "id": "ingest-head-0006",
+      "file": "coordination/006-ingest-head.sql",
+      "sha256": "d2710d31edfdf67fe0ab147117ad94a39b6de1168506eee5153f4b0ec24bfac9"
     }
   ]
 }
