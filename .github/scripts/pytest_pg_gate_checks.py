@@ -8,10 +8,28 @@ import sys
 import tempfile
 
 from pytest_pg_worker import OutcomeGate
+from pytest_pg import Fixture, LABEL
 
 
 def checks(output):
     output.mkdir(parents=True, exist_ok=True)
+    # Frozen Podman 4.9 response shapes, plus foreign-label refusals. No host operation.
+    from types import SimpleNamespace
+    owner = Fixture(output, output, output)
+    for kind, row in [("pod", {"Id": "pod-id", "Labels": {LABEL: owner.run_id}}),
+                      ("container", {"Id": "container-id", "Config": {"Labels": {LABEL: owner.run_id}}}),
+                      ("secret", {"ID": "secret-id", "Spec": {"Labels": {LABEL: owner.run_id}}})]:
+        wire = row if kind == "pod" else [row]
+        owner.command = lambda args: SimpleNamespace(stdout=json.dumps(wire))
+        assert owner.owned(kind, "own") == row
+        json_location = row["Labels"] if kind == "pod" else row["Config" if kind == "container" else "Spec"]["Labels"]
+        json_location[LABEL] = "foreign-run"
+        try:
+            owner.owned(kind, "foreign")
+        except RuntimeError as exc:
+            assert "ownership mismatch" in str(exc)
+        else:
+            raise AssertionError("foreign " + kind + " accepted")
     cases = {
         "pass": ("def test_ok(): assert True\n", [], 1, 0, 0),
         "body-red": ("def test_red(): assert False\n", [], 1, 0, 1),
@@ -42,7 +60,7 @@ def checks(output):
             receipts.append({"name": name, "expected": expected, "actual": result.returncode})
     (output / "gate-controls.json").write_text(json.dumps(receipts, indent=2) + "\n")
     assert all(row["expected"] == row["actual"] for row in receipts), receipts
-    print("nine real pytest gate controls passed")
+    print("nine real pytest gate controls and ownership/Podman 4.9 shapes passed")
 
 
 if __name__ == "__main__":

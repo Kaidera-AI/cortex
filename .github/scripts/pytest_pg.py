@@ -223,7 +223,7 @@ class Fixture:
         data = self.volume(suffix + "-data", 999)
         env = {"POSTGRES_DB": "platform_agent_memory", "PGDATA": "/var/lib/postgresql/data/pgdata"}
         mounts = [(data, "/var/lib/postgresql/data", False), (self.tls["server"], "/tls/server", True)]
-        extra = ["--tmpfs=/var/run/postgresql:rw,size=8m,uid=999,gid=999"]
+        extra = ["--tmpfs=/var/run/postgresql:rw,size=8m,mode=1777"]
         args = ["postgres", "-p", str(port), "-c", "shared_buffers=16MB", "-c", "max_connections=24",
                 "-c", "unix_socket_directories=/var/run/postgresql", "-c", "listen_addresses=127.0.0.1"]
         if password:
@@ -365,6 +365,13 @@ def provision(output, site):
                 for secret in fixture.secret_values:
                     value = value.replace(secret, "[REDACTED]")
                 path.write_text(value)
+        artifact_bytes = sum(path.stat().st_size for path in output.rglob("*")
+                             if path.is_file() and path.suffix in {".json", ".txt"})
+        fixture.receipt["artifact_bytes"] = artifact_bytes
+        if artifact_bytes > 10 * 1024 ** 2:
+            fixture.receipt["status"] = "FAIL"
+            fixture.receipt["reason"] = "JSON/text evidence exceeds10MiB"
+        (output / "provisioner.json").write_text(json.dumps(fixture.receipt, indent=2) + "\n")
         shutil.rmtree(source, ignore_errors=True)
     print(json.dumps({key: fixture.receipt.get(key) for key in ["status", "reason", "cold_seconds", "warm_seconds", "total_seconds", "cleanup"]}))
     return 0 if fixture.receipt["status"] == "PASS" else 1
