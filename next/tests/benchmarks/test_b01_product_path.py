@@ -1,5 +1,6 @@
 """Frozen B01 adapter controls; unit ports are not real-PG qualification."""
 import asyncio
+import ast
 import copy
 import hashlib
 import importlib
@@ -421,6 +422,43 @@ def native_suite():
 
     methods = [name for name in dir(NativeProductPathTests) if name.startswith("test_native_")]
     return unittest.TestSuite(NativeProductPathTests(name) for name in methods)
+
+
+class PreparedMemoryAdmissionTests(unittest.TestCase):
+    """Exact controller functions with synthetic observations; never engine proof."""
+    def setUp(self):
+        source = (NEXT / "tests/benchmarks/mutate_b01_product_path.py").read_text()
+        native = next(n for n in ast.parse(source).body if isinstance(n, ast.FunctionDef) and n.name == "native")
+        methods = [n for n in native.body if isinstance(n, ast.FunctionDef)
+                   and n.name in ("admit_resource_memory", "cached_runner")]
+        self.memory = {"memTotal": 1000, "memFree": 350}
+        self.commands = []
+        self.stack = SimpleNamespace(name="owned-fixture", owned=set())
+        def command(arguments, **kwargs):
+            if arguments[0] == "info": return json.dumps({"host": self.memory})
+            self.commands.append(arguments)
+            return "synthetic-owned-id"
+        namespace = {"json": json, "stack": self.stack, "memory_admissions": [],
+            "postgres": SimpleNamespace(podman=command),
+            "qdrant": SimpleNamespace(preflight=lambda **kwargs: {"free_percent": 44})}
+        exec(compile(ast.Module(body=methods, type_ignores=[]), "<exact-memory-admission>", "exec"), namespace)
+        self.runner = namespace["cached_runner"]
+
+    def test_below_floor_refuses_before_create(self):
+        self.memory["memFree"] = 349
+        with self.assertRaises(RuntimeError): self.runner(["create", "--name", "fixture"])
+        self.assertEqual(self.commands, [])
+
+    def test_exact_floor_accepts_cached_only_create(self):
+        self.runner(["create", "--name", "fixture"])
+        self.assertEqual(self.commands, [["create", "--pull=never", "--name", "fixture"]])
+
+    def test_memory_drop_after_create_refuses_start(self):
+        self.runner(["create", "--name", "fixture"])
+        self.stack.owned.add("container")
+        self.memory["memFree"] = 349
+        with self.assertRaises(RuntimeError): self.runner(["start", "synthetic-owned-id"])
+        self.assertEqual(len(self.commands), 1)
 
 
 if __name__ == "__main__":
