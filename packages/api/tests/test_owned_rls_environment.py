@@ -48,6 +48,13 @@ def test_owned_rls_refuses_route_overrides(monkeypatch):
         rls_setup._owned_rls_settings()
 
 
+@pytest.mark.parametrize("key", ["host", "hostaddr", "port", "dbname"])
+def test_owned_rls_refuses_blank_route_overrides(monkeypatch, key):
+    _opt_in(monkeypatch, f"postgresql://postgres@127.0.0.1:55431/rls_test?{key}=")
+    with pytest.raises(RuntimeError, match="override"):
+        rls_setup._owned_rls_settings()
+
+
 def test_owned_rls_requires_run_id(monkeypatch):
     _opt_in(monkeypatch)
     monkeypatch.delenv("CORTEX_OWNED_RLS_RUN_ID")
