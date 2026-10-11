@@ -164,6 +164,12 @@ raise SystemExit(0 if result.wasSuccessful() else 1)
                           capture_output=True,text=True)
 
 
+RECIPES.append(('scoped exhaustion refused',CONSUMER,
+    "if replay_cursor == previous:\n                    break",
+    "if replay_cursor == previous:\n                    raise ConsumerError('observed_replay_missing')",
+    'test_scoped_exhaustion.ScopedExhaustion.test_empty_project_repeated_cycle_preserves_local_completeness'))
+
+
 def run():
     paths = sorted({path for _,path,_,_,_ in RECIPES} | {MANIFEST})
     originals = {path:(NEXT/path).read_bytes() for path in paths}

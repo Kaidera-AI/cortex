@@ -225,8 +225,11 @@ class ModuleConsumer:
                             (self.module_id, state['generation'], aggregate)):
                         continue
                     self._apply_event(state, event)
+                # A scoped feed can exhaust before the global fence because
+                # intervening cursors belong to other projects. Stored local
+                # completeness stays unchanged; ordinary polling handles new work.
                 if replay_cursor == previous:
-                    raise ConsumerError('observed_replay_missing')
+                    break
             state = self._state()
             try:
                 page = self.feed.page(after=state['scan_cursor'], limit=limit)
