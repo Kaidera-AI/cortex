@@ -27,6 +27,21 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+class SyntheticSnapshotConnection:
+    """Unit-only byte-comparison input; real recovery is exercised separately."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def execute(self, sql):
+        if 'pg_is_in_recovery()' not in sql or 'pg_is_wal_replay_paused()' not in sql:
+            raise AssertionError('paused-recovery SQL guard is absent')
+        return self
+
+    def fetchone(self):
+        return (json.dumps(self.value),)
+
+
 class ValidationTests(unittest.TestCase):
     def test_backup_entrypoints_require_caller_supplied_executables(self):
         for function, names in (
@@ -175,8 +190,9 @@ class ValidationTests(unittest.TestCase):
                     with self.subTest(entrypoint='verify_complete_bundle', tool=name):
                         with patch('cortex_core.backup_validation.subprocess.Popen') as spawn:
                             with self.assertRaises(BackupError):
-                                verify_complete_bundle(self.target, self.identity, 'a'*64,
-                                                       self.after, **options)
+                                verify_complete_bundle(
+                                    self.target, self.identity, 'a'*64,
+                                    SyntheticSnapshotConnection(self.after), **options)
                             spawn.assert_not_called()
                 self.assertFalse(self.target.exists())
 
@@ -219,7 +235,8 @@ class ValidationTests(unittest.TestCase):
 
     def verify(self, path, digest, snapshot=None, identity=None):
         return verify_complete_bundle(path, identity or self.identity, digest,
-                                      snapshot or self.after, age_binary=self.age_binary,
+                                      SyntheticSnapshotConnection(snapshot or self.after),
+                                      age_binary=self.age_binary,
                                       pg_verifybackup_binary=self.pg_verifybackup_binary,
                                       pg_waldump_binary=self.pg_waldump_binary)
 
