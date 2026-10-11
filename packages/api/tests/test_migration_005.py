@@ -90,7 +90,7 @@ def test_migration_005_applies_cleanly():
     conn = pg.connect(TEST_DSN)
     try:
         _apply_migration(conn)
-        assert not _table_exists(conn, "agent_skills"), "agent_skills table not created"
+        assert _table_exists(conn, "agent_skills"), "agent_skills table not created"
         assert _table_exists(conn, "agent_skill_bindings"), "agent_skill_bindings table not created"
         assert _table_exists(conn, "rules"), "rules table not created"
     finally:
