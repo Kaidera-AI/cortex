@@ -36,6 +36,12 @@ def _code_equal(left, right):
         return len(left) == len(right) and all(
             _code_equal(a, b) for a, b in zip(left, right)
         )
+    if isinstance(left, float):
+        return struct.pack("!d", left) == struct.pack("!d", right)
+    if isinstance(left, complex):
+        return struct.pack("!dd", left.real, left.imag) == struct.pack(
+            "!dd", right.real, right.imag
+        )
     if isinstance(left, frozenset):
         if len(left) != len(right):
             return False
