@@ -201,10 +201,6 @@ class Fixture:
                       "--infra-image", PAUSE, "--infra-command=/pause", *self.labels()])
         pod = self.owned("pod", self.pod)
         assert not pod["InfraConfig"]["HostNetwork"] and not pod["InfraConfig"]["PortBindings"]
-        infra = self.owned("container", pod["InfraContainerID"])
-        assert infra["Config"]["User"] == "65535:65535"
-        self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "infra_id": infra["Id"],
-            "infra_user": infra["Config"]["User"], "host_network": False, "ports": {}, "labels": pod["Labels"]})
         self.tls = {role: self.volume(pass_name + "-tls-" + role) for role in ["ca", "server", "app", "admin"]}
         self.deps = self.volume(pass_name + "-deps", 10001)
         results = self.output / pass_name
@@ -223,6 +219,14 @@ class Fixture:
                                   (self.deps, "/deps", False), *tls_mounts],
                           extra=["--cap-add=CHOWN", "--cap-add=DAC_OVERRIDE", "--cap-add=FOWNER"])
         self.remove_container(helper)
+        infra = self.owned("container", pod["InfraContainerID"])
+        config = json.loads(Path(infra["OCIConfigPath"]).read_text())
+        infra_user = config["process"]["user"]
+        self.receipt.setdefault("pod_contracts", []).append({"pod_id": pod["Id"], "infra_id": infra["Id"],
+            "infra_config_user": infra["Config"]["User"], "infra_oci_user": infra_user,
+            "host_network": False, "ports": {}, "labels": pod["Labels"]})
+        # Podman 4.9 explicitly blanks the infra inspect Config.User; use OCI.
+        assert infra_user["uid"] == infra_user["gid"] == 65535, infra_user
         self.secrets = {}
         for suffix, value in zip(["admin", "password"], self.secret_values):
             name = self.prefix + "-" + suffix
