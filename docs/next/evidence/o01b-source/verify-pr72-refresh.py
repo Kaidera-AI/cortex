@@ -40,7 +40,7 @@ def admission(data):
 binding_path='docs/next/evidence/o01b-source/refresh-binding.json'
 assert (WT/binding_path).read_bytes()==blob('HEAD',binding_path)
 b=json.loads((WT/binding_path).read_text())
-assert b['base']=='435da3df7a253b3e0f5a41dd0d188320a40f882b'
+assert b['base']=='9309ea77a11f2ce656cfafbab9ed98c44fba68ee'
 assert subprocess.run(['git','-C',str(WT),'merge-base','--is-ancestor',b['base'],'HEAD']).returncode==0
 for path,digest in b['published_inputs'].items():
     assert sha((WT/path).read_bytes())==sha(blob('HEAD',path))==digest,path

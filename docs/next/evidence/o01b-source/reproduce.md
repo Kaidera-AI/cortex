@@ -67,3 +67,20 @@ Standalone RPO/RTO. No live backup, restore or adoption was performed.
 PostgreSQL's [backup manifest format](https://www.postgresql.org/docs/18/backup-manifest-format.html)
 and [pg_verifybackup behavior](https://www.postgresql.org/docs/18/app-pgverifybackup.html)
 define the native checksum and file-validation inputs used here.
+
+
+## Current re-pin onto PR71 scoped exhaustion (Kai00:13,12 Oct)
+
+Current predecessor is `435da3df7a253b3e0f5a41dd0d188320a40f882b`. Current native controller is `run-native-refresh.py`, with fresh `native-pg-refresh-002.json`; inherited module proof is `c07-review-pr72-refresh-003.json`. `verify-pr72-refresh.py` and `refresh-binding.json` bind the current publication. Original source-tested receipts/verifiers above remain historical; do not treat them as native execution at a later source.
+
+The accepted O01b product and frozen tests remain byte-exact at c3cad3ed. Current proof reruns16 O01b/seven inherited O01a tests,9+7 exact BODY-killed faults and both clean/restored baselines. Fresh inherited44 C07 controls include the manifest gate and005 scoped-exhaustion witnesses. All486 NEXT inputs and controllers are bound to the frozen native source; publication changes proof docs only. Actual35% Mac+activeVM admission precedes logged resource creation,networknone,2CPU1GiB,no ports/binds,exact identity cleanup. No commit may change HEAD while the inherited controller is running.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3.12 next/scripts/mutate_backup_validation.py
+PYTHONDONTWRITEBYTECODE=1 python3.12 docs/next/evidence/o01a-source/mutate-backup-forward.py
+PYTHONDONTWRITEBYTECODE=1 python3 docs/next/evidence/o01b-source/verify-pr72-refresh.py .
+```
+
+Native outputs must be fresh names; controllers refuse overwriting an existing receipt. All resource jobs run sequentially through the inherited lifecycle. Source-only re-pin does not grant reviewer acceptance,main merge,backup adoption,client-tool/key custody or X01 numeric recovery credit.
+
+Kai00:24b then required main re-pin after the namedPR71 merge. Current target9309ea77 has exactly435da3df tree0bf129ef; rebase will compare every486 tested NEXT input and each native controller/input digest at983b466. Native receipts identify983b466, not the later publication. Current independent verifier reruns the complete digest comparison at publication; no source-change or new native-execution claim is inferred from new commit ancestry.
