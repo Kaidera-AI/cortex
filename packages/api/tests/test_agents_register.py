@@ -362,7 +362,7 @@ def test_register_agent_handler_no_longer_writes_redis_roster_state():
 def test_agent_runtime_state_migration_shape():
     migration = (
         REPO_ROOT
-        / "data"
+        / "schema"
         / "migrations"
         / "2026-05-17-agent-runtime-state-jsonb.sql"
     ).read_text()
