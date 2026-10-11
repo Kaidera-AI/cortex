@@ -105,7 +105,7 @@ class Fixture:
         result = self.command(args, check=False, timeout=180)
         if self.command(["container", "exists", name], check=False).returncode == 0:
             row = self.owned("container", name)
-            if not finite:
+            if not finite and result.returncode == 0:
                 self.cgroup(row, memory, cpus)
         if result.returncode:
             raise RuntimeError(suffix + ": " + result.stderr + result.stdout)
@@ -240,7 +240,10 @@ class Fixture:
                        (self.source / "packages/deploy/initdb/40-cortex-local-defaults.sh", "/docker-entrypoint-initdb.d/40-cortex-local-defaults.sh", True),
                        (self.source / "packages/schema/cortex-schema-full.sql", "/cortex-bootstrap/cortex-schema-full.sql", True),
                        (self.output / "baseline.sql", "/schema-baseline/baseline.sql", True)]
-            extra += ["--entrypoint=/usr/local/bin/cortex-db-entrypoint"]
+            # The production image's COPY makes this source executable; a git
+            # archive preserves its 0644 mode, so interpret the identical bytes.
+            extra += ["--entrypoint=/bin/bash"]
+            args.insert(0, "/usr/local/bin/cortex-db-entrypoint")
         name = self.run(suffix, POSTGRES, args, user="999:999", memory=memory, cpus=cpus,
                         mounts=mounts, env=env, extra=extra)
         ready = False

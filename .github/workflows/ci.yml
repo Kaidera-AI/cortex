@@ -30,7 +30,8 @@ jobs:
             python .github/scripts/pytest_pg_gate_checks.py --output "${{ runner.temp }}/cortex-pytest-pg/gate"
       - name: rootless PG contract (51 tests; cold and warm; no skips or deselections)
         run: |
-          python .github/scripts/pytest_pg.py --output "${{ runner.temp }}/cortex-pytest-pg" \
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python .github/scripts/pytest_pg.py --output "${{ runner.temp }}/cortex-pytest-pg" \
             --site "${{ runner.temp }}/cortex-pg-site"
       - uses: actions/upload-artifact@v4
         if: always()
