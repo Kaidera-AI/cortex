@@ -14,7 +14,9 @@ class Manifest(ConsumerFixture):
         self.assertEqual(entry['id'],'module-consumers-0003')
         self.assertEqual(entry['sha256'],hashlib.sha256((root/'schema'/entry['file']).read_bytes()).hexdigest())
         names={f'{schema}.{table}' for schema,table in self.admin.execute("SELECT n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchall()}
-        self.assertEqual(len(names),41)
+        # Accepted PR #101 auth/004 adds the private first-identity receipt table.
+        self.assertEqual(len(names),42)
+        self.assertIn('auth.first_identity_receipts',names)
         self.assertTrue({'coordination.consumer_project_checkpoints','coordination.consumer_aggregate_heads','coordination.consumer_event_outcomes'}<=names)
 
     def test_new_tables_force_rls_and_request_has_no_direct_write(self):
