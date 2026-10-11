@@ -19,6 +19,8 @@ x-runtime: &runtime
   tmpfs: ['/tmp:rw,noexec,nosuid,size=128m,mode=1777']
   networks: [cortex-net]
 x-api-env: &api-env
+  HOST_PROJECTS_ROOT: ${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}
+  REGISTERED_PROJECTS_ROOT: ${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}
   CORTEX_DB_AUTH: certificate
   CORTEX_PG_DSN: postgresql://postgres@cortex-pg:5432/platform_agent_memory
   CORTEX_PG_DSN_ADMIN: postgresql://postgres@cortex-pg:5432/platform_agent_memory
@@ -125,6 +127,7 @@ services:
       cortex-provider: {condition: service_healthy}
     ports: ['127.0.0.1:${CORTEX_API_PORT:-8501}:8501']
     volumes:
+      - ${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}:${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}:ro
       - cortex-owner-control:/run/cortex-owner
       - cortex-tls-app:/tls/app:ro
       - cortex-tls-admin:/tls/admin:ro
@@ -140,6 +143,11 @@ services:
     <<: *runtime
     build: {context: ../containers/embed-worker, args: *build-args}
     image: localhost/cortex/embed-worker:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
+    # Writable bounded scratch; immutable model weights remain under /opt.
+    environment:
+      HOME: /tmp/kaidera
+      HF_HOME: /tmp/kaidera/hf
+      SENTENCE_TRANSFORMERS_HOME: /tmp/kaidera/sentence-transformers
     depends_on: {cortex-api: {condition: service_healthy}}
     volumes: [cortex-models:/home/kaidera/.cache]
     healthcheck:
@@ -152,8 +160,17 @@ services:
     <<: *runtime
     build: {context: ../containers/graph-worker, args: *build-args}
     image: localhost/cortex/graph-worker:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
+    # Writable bounded scratch; immutable model weights remain under /opt.
+    environment:
+      HOME: /tmp/kaidera
+      HOST_PROJECTS_ROOT: ${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}
+      REGISTERED_PROJECTS_ROOT: ${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}
+      PROJECTS_DIR: /projects
     depends_on: {cortex-api: {condition: service_healthy}}
-    volumes: [cortex-graphs:/var/lib/cortex/graphs, cortex-models:/home/kaidera/.cache]
+    volumes:
+      - cortex-graphs:/var/lib/cortex/graphs
+      - cortex-models:/home/kaidera/.cache
+      - ${CORTEX_PROJECTS_ROOT:?installer must set authoritative projects root}:/projects:ro
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:9001/health', timeout=3).read()"]
       interval: 10s
@@ -164,6 +181,9 @@ services:
     <<: *runtime
     build: {context: ../containers/pdf-worker, args: *build-args}
     image: localhost/cortex/pdf-worker:${CORTEX_VERSION}-${CORTEX_SOURCE_REVISION}
+    # Writable bounded scratch; immutable model weights remain under /opt.
+    environment:
+      HOME: /tmp/kaidera
     depends_on: {cortex-api: {condition: service_healthy}}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:9004/health', timeout=3).read()"]

@@ -126,6 +126,23 @@ class _NoReadinessRedirect(urllib.request.HTTPRedirectHandler):
         raise HTTPError(request.full_url, code, 'Readiness redirect refused', headers, response)
 
 
+def validated_projects_root():
+    """Installer-selected authority; never infer a broad root or create it."""
+    raw = os.environ.get('CORTEX_PROJECTS_ROOT', '')
+    path = Path(raw)
+    if (not raw or not path.is_absolute() or path == Path('/')
+            or any(ord(c) < 32 or ord(c) == 127 for c in raw)
+            or ':' in raw or os.path.normpath(raw) != raw):
+        raise ValueError('CORTEX_PROJECTS_ROOT must be a physical absolute projects directory')
+    try:
+        physical = path.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError('CORTEX_PROJECTS_ROOT must already exist') from exc
+    if physical != path or not path.is_dir() or not os.access(path, os.R_OK | os.X_OK):
+        raise ValueError('CORTEX_PROJECTS_ROOT must be physical and readable by the operator')
+    return raw
+
+
 class Runtime:
     def __init__(self, args):
         self.args = args
@@ -434,6 +451,7 @@ class Runtime:
 
     def environment(self):
         env = dict(os.environ)
+        env['CORTEX_PROJECTS_ROOT'] = validated_projects_root()
         env.update(CORTEX_VERSION=self.identity['version'],
                    CORTEX_SOURCE_REVISION=self.identity['source_revision'],
                    CORTEX_API_PORT=str(self.port), CORTEX_BACKUP_STAGE=str(self.stage))
