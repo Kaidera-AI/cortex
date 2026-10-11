@@ -3,6 +3,28 @@ on:
   push: { branches: [main] }
   pull_request:
 jobs:
+  pytest-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14.7'
+      - name: locked API and test dependencies
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r packages/api/requirements.lock
+          python -m pip install --only-binary=:all: pytest==8.4.2 pytest-asyncio==1.2.0
+      - name: offline Python contract (145 tests; no skips or deselections)
+        run: python .github/scripts/pytest_offline.py --output "${{ runner.temp }}/cortex-pytest-offline"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-offline-receipts
+          path: ${{ runner.temp }}/cortex-pytest-offline
+          if-no-files-found: warn
   launcher-contract:
     # One launcher behind every channel means one behavioural contract, proven under both
     # runtimes on every change. The runner is NOT a compliant Cortex host, so the gate
