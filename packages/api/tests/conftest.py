@@ -130,7 +130,9 @@ def _owned_rls_settings():
         local = False
     if not local:
         raise OwnedRlsRefusal("owned RLS target must use pod-local TCP loopback")
-    if {"host", "hostaddr", "port", "dbname"}.intersection(parse_qs(parsed.query)):
+    if {"host", "hostaddr", "port", "dbname"}.intersection(
+        parse_qs(parsed.query, keep_blank_values=True)
+    ):
         raise OwnedRlsRefusal("owned RLS DSN route overrides are forbidden")
     run_id = os.environ.get("CORTEX_OWNED_RLS_RUN_ID", "").strip()
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", run_id):
