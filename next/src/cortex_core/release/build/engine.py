@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 import hashlib
+import json
 import math
 import os
 import signal
@@ -65,17 +66,38 @@ def run_operation(
     popen=subprocess.Popen,
     clock=time.monotonic,
 ):
-    if (
-        not argv
-        or any(not isinstance(a, str) or "\x00" in a for a in argv)
-        or type(timeout) not in [int, float]
-        or timeout <= 0
-    ):
+    if not isinstance(argv, (list, tuple)):
+        raise ValueError("explicit argv sequence required")
+    argv = tuple(argv)
+    if not argv or any(not isinstance(a, str) or "\x00" in a for a in argv):
         raise ValueError("bounded explicit argv required")
     _positive_timeout(timeout)
+    environment = dict(environment)
     start = clock()
     process = None
-    with Path(stdout).open("xb") as out, Path(stderr).open("xb") as err:
+    code = None
+    failure = None
+    journal_path = Path(str(stdout) + ".operation.jsonl")
+    with (
+        Path(stdout).open("xb") as out,
+        Path(stderr).open("xb") as err,
+        journal_path.open("x", encoding="utf-8", newline="\n") as journal,
+    ):
+
+        def observe(row):
+            journal.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+            journal.flush()
+            os.fsync(journal.fileno())
+
+        observe(
+            {
+                "status": "started",
+                "argv": list(argv),
+                "environment_names": sorted(environment),
+                "started_at_unix_ns": time.time_ns(),
+                "timeout_ns": int(timeout * 1_000_000_000),
+            }
+        )
         try:
             process = popen(
                 argv,
@@ -87,7 +109,8 @@ def run_operation(
                 start_new_session=True,
             )
             code = process.wait(timeout=timeout)
-        except BaseException:
+        except BaseException as error:
+            failure = type(error).__name__
             if process is not None:
                 try:
                     os.killpg(process.pid, signal.SIGTERM)
@@ -102,12 +125,23 @@ def run_operation(
                         pass
                     process.wait(timeout=10)
             raise
+        finally:
+            observe(
+                {
+                    "status": "finished" if failure is None and code == 0 else "failed",
+                    "exit": code,
+                    "error": failure,
+                    "finished_at_unix_ns": time.time_ns(),
+                    "elapsed_ns": int((clock() - start) * 1_000_000_000),
+                }
+            )
     return {
         "argv": list(argv),
         "exit": code,
         "elapsed_seconds": clock() - start,
         "stdout": str(stdout),
         "stderr": str(stderr),
+        "journal": str(journal_path),
     }
 
 
