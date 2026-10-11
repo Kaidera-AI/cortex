@@ -6513,6 +6513,20 @@ async def execute_search(
                 return []
             raise
 
+    async def stage_fetchrow(label: str, sql: str, *args: Any) -> Any:
+        """Bound both exact-ID reads by the same whole-request DB deadline."""
+        remaining_ms = int((deadline - time.monotonic()) * 1000)
+        if remaining_ms <= 0:
+            degraded_stages.append(label)
+            return None
+        try:
+            if remaining_ms < SEARCH_STATEMENT_TIMEOUT_MS:
+                await conn.execute(f"SET statement_timeout = {remaining_ms}")
+            return await conn.fetchrow(sql, *args)
+        except asyncpg.exceptions.QueryCanceledError:
+            degraded_stages.append(label)
+            return None
+
     async def within_budget(label: str, operation: Any, fallback: Any) -> Any:
         """Run a NETWORK stage under the same request deadline as the DB stages.
 
@@ -6574,13 +6588,14 @@ async def execute_search(
             ts_column = exact_id_ts_column.get(table, "created_at")
             visibility = exact_id_visibility.get(table, "")
             try:
-                id_row = await conn.fetchrow(
+                id_row = await stage_fetchrow(
+                    f"exact-id:{table}",
                     f"SELECT id::text, project, {ts_column}::text AS created_at FROM {table} WHERE id::text ILIKE $1 {visibility} LIMIT 1",
                     f"{query}%"
                 )
                 if id_row:
                     content_col = "content" if table in ["knowledge", "messages"] else "summary"
-                    row = await conn.fetchrow(f"SELECT {content_col} FROM {table} WHERE id::text = $1 {visibility}", id_row["id"])
+                    row = await stage_fetchrow(f"exact-id:{table}", f"SELECT {content_col} FROM {table} WHERE id::text = $1 {visibility}", id_row["id"])
                     if row is None:
                         continue
                     results.append({
