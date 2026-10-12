@@ -88,7 +88,7 @@ def inspect_profile_files(layers,blobs,config,value,profile,accepted,reader,admi
     require(cmd==['--module',value['target']['module_id'],'--config','/app/config.json'] and set(runtime['cmd_inputs'])=={'/app/config.json'} and
             all(p.lstrip('/') in files and files[p.lstrip('/')]['kind']=='regular' and binding['input'] in accepted and
                 sha256(accepted[binding['input']])==binding['sha256'] and contents.get(p.lstrip('/'))==accepted[binding['input']] for p,binding in runtime['cmd_inputs'].items()), 'runtime_cmd_binding')
-    require(all(access(files[p.lstrip('/')],uid,gid,4) and
+    require(all(p.lstrip('/') in files and access(files[p.lstrip('/')],uid,gid,4) and
                 all(parent in files and files[parent]['kind']=='directory' and access(files[parent],uid,gid,1)
                     for parent in parents(p.lstrip('/'))) for p in runtime['cmd_inputs']), 'runtime_cmd_access')
     working=runtime['working_dir'].lstrip('/')
