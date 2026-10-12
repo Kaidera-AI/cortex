@@ -35,6 +35,11 @@ PG_SEARCH_ROUTES = frozenset({"C01-R021", "C01-R022"})
 PG_GRAPH_ROUTES = frozenset({"C01-R023", "C01-R024", "C01-R025", "C01-R026",
                              "C01-R034", "C01-R035", "C01-R036", "C01-R037"})
 RETIRED_SQL_ROUTES = frozenset({"C01-R125", "C01-R126"})
+D3_STATUS_ROUTES = frozenset({"C01-R006", "C01-R030", "C01-R072"})
+D3_CONTROL_ROUTES = frozenset({"C01-R073", "C01-R074"})
+D1_ROUTE = {"id": "C11-D1", "method": "GET", "path": "/records/{id}",
+            "disposition": "add", "observed": False, "openkai_production": False,
+            "effect": "read", "capability": None}
 
 
 def _matrix_routes(matrix):
@@ -60,13 +65,19 @@ def load_routes():
     if (manifest.get("format") != "c11a-consumer-routes-v1"
             or manifest.get("released_cortex_tag") != "v0.1.002"
             or hashlib.sha256(matrix).hexdigest() != manifest.get("c01_matrix_sha256")
-            or not isinstance(rows, list) or len(rows) != 87
+            or not isinstance(rows, list) or len(rows) != 88
             or sum(row.get("observed") is True for row in rows) != 82
             or sum(row.get("openkai_production") is True for row in rows) != 9):
         raise GatewayError("consumer route inventory differs")
     ids, pairs = set(), set()
     matrix_routes = _matrix_routes(matrix)
     for row in rows:
+        if row == D1_ROUTE:
+            if row["id"] in ids or (row["method"], row["path"]) in pairs:
+                raise GatewayError("consumer route entry is invalid")
+            ids.add(row["id"])
+            pairs.add((row["method"], row["path"]))
+            continue
         if (not isinstance(row, dict) or set(row) != {"id", "method", "path", "disposition",
                                                   "observed", "openkai_production", "effect", "capability"}
                 or not re.fullmatch(r"C01-R\d{3}", str(row["id"]))
@@ -90,7 +101,7 @@ def load_routes():
                 or row["openkai_production"] != (route_id in OPENKAI_PRODUCTION)
                 or row["effect"] != effect or row["capability"] != capability):
             raise GatewayError("consumer route differs from frozen source")
-    if ("C01-R001" not in ids or "C01-R002" not in ids
+    if ("C01-R001" not in ids or "C01-R002" not in ids or "C11-D1" not in ids
             or {row["id"] for row in rows if row["effect"] == "retired_sql"}
             != {"C01-R125", "C01-R126"}):
         raise GatewayError("required guarded route is absent")
@@ -142,7 +153,8 @@ def _compile_path(template):
     return re.compile("^/" + "/".join(parts) + "$" if template != "/" else "^/$")
 
 
-def _packet(code, *, capability=None, reason=None, retryable=True, message=None):
+def _packet(code, *, capability=None, reason=None, retryable=True, message=None,
+            state=None):
     error = {"code": code, "retryable": retryable}
     if capability is not None:
         error["capability"] = capability
@@ -150,6 +162,8 @@ def _packet(code, *, capability=None, reason=None, retryable=True, message=None)
         error["reason"] = reason
     if message is not None:
         error["message"] = message
+    if state is not None:
+        error["state"] = state
     return {"error": error}
 
 
@@ -164,6 +178,8 @@ def _error_status(error):
         return 409, _packet('conflict', retryable=False)
     if code == 'invalid_input':
         return 400, _packet('invalid_input', retryable=False)
+    if code == 'gone':
+        return 410, _packet('gone', retryable=False)
     if code == 'capability_unavailable':
         return 503, _packet('capability_unavailable',
                             capability=getattr(error, 'capability', None),
@@ -226,6 +242,12 @@ class ConsumerGateway:
         self.parse_search_body = parse_search_body
         self.app = self._app
 
+    def _d1_refusal(self, error):
+        code = getattr(error, 'code', None)
+        if code in {'forbidden', 'scope_mismatch'}:
+            return 404, _packet('not_found', retryable=False)
+        return _error_status(error)
+
     async def _app(self, scope, receive, send):
         if scope.get("type") != "http":
             return await _respond(send, 404, _packet("not_found", retryable=False))
@@ -247,45 +269,121 @@ class ConsumerGateway:
             return await _respond(send, 503, _packet("core_unavailable"))
         row = next((row for row, pattern in self.routes
                     if method == row["method"] and pattern.fullmatch(path or "")), None)
-        record_id = re.fullmatch(r'/records/([0-9a-fA-F-]{36})', path or '') if method == 'GET' else None
-        if row is None and (record_id is None or self.record_reader is None):
+        if row is None:
             return await _respond(send, 404, _packet("not_found", retryable=False))
         if row is not None and row["effect"] == "retired_sql":
             return await _respond(send, 410, _packet("retired_route", retryable=False))
+        principal_error = None
         try:
             principal = await self.principal_resolver(scope)
         except Exception as error:
+            if row['id'] == 'C11-D1':
+                status, packet = self._d1_refusal(error)
+                return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'unauthenticated':
                 status, packet = _error_status(error)
                 return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'core_unavailable':
                 return await _respond(send, 503, _packet('core_unavailable'))
+            principal_error = error
             principal = None
-        if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
-            return await _respond(send, 403, _packet("forbidden", retryable=False))
-        if record_id is not None and row is None:
+        principal_valid = (isinstance(principal, dict) and principal.get('principal_id')
+                           and principal.get('project_id'))
+        d2 = False
+        if row['id'] == 'C01-R022' and self.parse_search_body:
             try:
-                value = await self.record_reader(principal, scope, record_id.group(1))
+                scope['_c11b_body'] = await _memory_body(receive)
+            except GatewayError:
+                if not principal_valid:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+                return await _respond(send, 400, _packet('invalid_input', retryable=False))
+            body = scope['_c11b_body']
+            d2 = any(key in body for key in ('after', 'wait_ms', 'min_revision'))
+            if d2:
+                scope['_c11b_receive'] = receive
+        if principal_error is not None and d2:
+            status, packet = self._d1_refusal(principal_error)
+            return await _respond(send, status, packet)
+        if not principal_valid:
+            if row['id'] == 'C11-D1' or d2:
+                return await _respond(send, 404, _packet('not_found', retryable=False))
+            return await _respond(send, 403, _packet("forbidden", retryable=False))
+        if row['id'] in D3_CONTROL_ROUTES:
+            return await _respond(send, 503, _packet('capability_unavailable',
+                                                    state='unimplemented', retryable=False))
+        if row['id'] in D3_STATUS_ROUTES:
+            try:
+                if await self.permission_recheck(principal, 'status') is not True:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+            except Exception as error:
+                status, packet = _error_status(error)
+                return await _respond(send, status, packet)
+            if row['id'] == 'C01-R072':
+                return await _respond(send, 503, _packet('capability_unavailable',
+                    reason='backlog_source_unbound', retryable=False))
+            supervisor_reader = self.handlers.get('C01-R030')
+            if supervisor_reader is None:
+                return await _respond(send, 503, _packet('capability_unavailable',
+                    reason='supervisor_source_unbound'))
+            try:
+                raw = await supervisor_reader(principal, scope, None)
+                if not isinstance(raw, dict) or type(raw.get('core_available')) is not bool:
+                    raise GatewayError('supervisor receipt is invalid')
+                if not raw['core_available']:
+                    return await _respond(send, 503, _packet('core_unavailable'))
+                if raw.get('state') not in {'healthy', 'supervisor_down'}:
+                    raise GatewayError('supervisor state is invalid')
+                supervisor = {'state': raw['state']}
+                if row['id'] == 'C01-R030':
+                    value = {'supervisor': supervisor,
+                             'workers': {'state': 'unavailable',
+                                         'reason': 'worker_observation_unbound'}}
+                else:
+                    reader = self.handlers.get('C01-R006')
+                    if reader is None:
+                        return await _respond(send, 503, _packet('capability_unavailable',
+                            reason='status_source_unbound'))
+                    detail = await reader(principal, scope, None)
+                    if (not isinstance(detail, dict)
+                            or not isinstance(detail.get('search'), dict)
+                            or detail['search'].get('state') not in
+                               {'ready', 'lagging', 'disabled', 'rebuilding', 'unavailable'}
+                            or not isinstance(detail.get('canonical_write'), dict)
+                            or detail['canonical_write'].get('state') != 'unavailable'):
+                        raise GatewayError('status receipt is invalid')
+                    names = ('pg_search', 'pg_graph', *sorted(UNLANDED))
+                    values = [await capability_state(name, self.capability_source,
+                                  self.permission_recheck, principal) for name in names]
+                    value = {'capabilities': values, 'search': detail['search'],
+                             'canonical_write': detail['canonical_write'],
+                             'supervisor': supervisor}
+                if await self.permission_recheck(principal, 'status') is not True:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+                return await _respond(send, 200, value)
+            except Exception as error:
+                status, packet = _error_status(error)
+                return await _respond(send, status, packet)
+        if row['id'] == 'C11-D1':
+            if self.record_reader is None:
+                return await _respond(send, 503, _packet('capability_unavailable',
+                                                        reason='adapter_unbound'))
+            try:
+                value = await self.record_reader(principal, scope, path.rsplit('/', 1)[1])
                 if value is None:
                     return await _respond(send, 404, _packet('not_found', retryable=False))
                 if not isinstance(value, dict):
                     raise GatewayError('record read receipt is invalid')
                 return await _respond(send, 200, value)
             except Exception as error:
-                status, packet = _error_status(error)
+                status, packet = self._d1_refusal(error)
                 return await _respond(send, status, packet)
-        if row["capability"]:
+        if row["capability"] and not d2:
             state = await capability_state(row["capability"], self.capability_source,
                                            self.permission_recheck, principal)
             if state["state"] != "ready":
                 status = 403 if state["state"] == "forbidden" else 503
                 return await _respond(send, status, _packet(state["code"],
                     capability=row["capability"], reason=state["reason"], retryable=state["retryable"]))
-        if row["id"] == "C01-R006":
-            names = ("pg_search", "pg_graph", *sorted(UNLANDED))
-            values = [await capability_state(name, self.capability_source,
-                                              self.permission_recheck, principal) for name in names]
-            return await _respond(send, 200, {"capabilities": values})
         handler = self.handlers.get(row["id"])
         if handler is None:
             return await _respond(send, 503, _packet("capability_unavailable",
@@ -324,11 +422,6 @@ class ConsumerGateway:
                     or any(ord(char) < 32 for char in request_key)):
                 return await _respond(send, 400, _packet("idempotency_key_required", retryable=False))
         try:
-            if row['id'] == 'C01-R022' and self.parse_search_body:
-                try:
-                    scope['_c11b_body'] = await _memory_body(receive)
-                except GatewayError:
-                    return await _respond(send, 400, _packet('invalid_input', retryable=False))
             value = await handler(principal, scope, request_key)
             if row["effect"] == "write":
                 if (type(value) is not C05Committed or value.committed is not True
@@ -344,7 +437,13 @@ class ConsumerGateway:
                 raise GatewayError("read receipt is invalid")
             return await _respond(send, 200, value)
         except PermissionError:
-            return await _respond(send, 403, _packet("forbidden", retryable=False))
+            return await _respond(send, 404 if d2 else 403,
+                                  _packet('not_found' if d2 else 'forbidden', retryable=False))
         except Exception as error:
-            status, packet = _error_status(error)
+            state = getattr(error, 'd2_state', None) if d2 else None
+            if state in {'pending', 'unavailable'}:
+                return await _respond(send, 503,
+                    _packet('capability_unavailable', state=state,
+                            retryable=state == 'pending'))
+            status, packet = self._d1_refusal(error) if d2 else _error_status(error)
             return await _respond(send, status, packet)
