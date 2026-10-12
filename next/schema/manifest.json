@@ -76,6 +76,11 @@
       "id": "retrieval-0004",
       "file": "retrieval/004-request-authority.sql",
       "sha256": "3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e"
+    },
+    {
+      "id": "session-ids-read-0007",
+      "file": "coordination/007-session-ids-read.sql",
+      "sha256": "449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64"
     }
   ]
 }

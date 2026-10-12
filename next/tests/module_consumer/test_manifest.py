@@ -10,12 +10,12 @@ class Manifest(ConsumerFixture):
         root=Path(__file__).resolve().parents[2]
         manifest=json.loads((root/'schema/manifest.json').read_text())
         migrations=manifest['migrations']
-        self.assertEqual(len(migrations),15)
+        self.assertEqual(len(migrations),16)
         ids=[entry['id'] for entry in migrations]
         self.assertEqual(len(ids),len(set(ids)))
-        expected_order=['core-0001', 'auth-0001', 'coordination-0001', 'retrieval-0000', 'auth-0002', 'coordination-0002', 'auth-0003', 'outbox-0002', 'module-consumers-0003', 'api-replay-0004', 'retrieval-0001', 'retrieval-0002', 'retrieval-0003', 'session-source-0005', 'retrieval-0004']
+        expected_order=['core-0001', 'auth-0001', 'coordination-0001', 'retrieval-0000', 'auth-0002', 'coordination-0002', 'auth-0003', 'outbox-0002', 'module-consumers-0003', 'api-replay-0004', 'retrieval-0001', 'retrieval-0002', 'retrieval-0003', 'session-source-0005', 'retrieval-0004', 'session-ids-read-0007']
         self.assertEqual(ids,expected_order)
-        bound_files={'module-consumers-0003': 'coordination/003-module-consumers.sql', 'api-replay-0004': 'coordination/004-api-replay.sql', 'retrieval-0001': 'retrieval/001-pg-search.sql', 'retrieval-0002': 'retrieval/002-query-cache.sql', 'retrieval-0003': 'retrieval/003-pg-graph.sql', 'session-source-0005': 'coordination/005-session-source.sql', 'retrieval-0004': 'retrieval/004-request-authority.sql'}
+        bound_files={'module-consumers-0003': 'coordination/003-module-consumers.sql', 'api-replay-0004': 'coordination/004-api-replay.sql', 'retrieval-0001': 'retrieval/001-pg-search.sql', 'retrieval-0002': 'retrieval/002-query-cache.sql', 'retrieval-0003': 'retrieval/003-pg-graph.sql', 'session-source-0005': 'coordination/005-session-source.sql', 'retrieval-0004': 'retrieval/004-request-authority.sql', 'session-ids-read-0007': 'coordination/007-session-ids-read.sql'}
         for migration_id, filename in bound_files.items():
             self.assertIn(migration_id,ids)
             entry=migrations[ids.index(migration_id)]
