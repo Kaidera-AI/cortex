@@ -34,9 +34,11 @@ class MemoryAPI(Fixture):
             principal_resolver=self.port.principal, permission_recheck=grant,
             capability_source=state, health=health,
             handlers={'C01-R102': self.port.write_memory},
-            record_reader=self.port.read_record, allow_legacy_idempotency=True)
+            record_reader=self.port.read_record,
+            allow_legacy_idempotency=True)
 
-    def call(self, method, path, key, body=None, *, agent='10', project='3', request_key=None):
+    def call(self, method, path, key, body=None, *, agent='10', project='3',
+             request_key=None, raw=False):
         payload = json.dumps(body, separators=(',', ':')).encode() if body is not None else b''
         headers = [(b'authorization', b'Bearer ' + key),
                    (b'x-project', project.encode()), (b'x-agent-name', agent.encode())]
@@ -51,7 +53,77 @@ class MemoryAPI(Fixture):
         asyncio.run(self.gateway.app(scope, receive, send))
         start = next(x for x in messages if x['type'] == 'http.response.start')
         data = b''.join(x.get('body', b'') for x in messages if x['type'] == 'http.response.body')
+        if raw:
+            return start['status'], data, tuple(start['headers'])
         return start['status'], json.loads(data)
+
+    def test_d1_committed_read_exposes_exact_revision_and_digest(self):
+        body = {'section': 'decisions', 'content': 'committed D1 payload',
+                'category': 'operational', 'source': 'openkai/d1/one'}
+        status, ack = self.call('POST', '/memory', WRITE_A, body)
+        self.assertEqual(status, 200)
+        expected = Records(self.request, READ_A, UUID(uid(1)), UUID(uid(3))).get(UUID(ack['id']))
+        status, read = self.call('GET', '/records/' + ack['id'], READ_A)
+        self.assertEqual(status, 200)
+        self.assertEqual(read['revision'], expected.revision)
+        self.assertEqual(read.get('payload_sha256'), expected.payload_sha256)
+
+    def test_d1_authenticated_out_of_scope_matches_unknown_id(self):
+        body = {'section': 'decisions', 'content': 'private D1 payload',
+                'source': 'openkai/d1/private'}
+        status, ack = self.call('POST', '/memory', WRITE_A, body)
+        self.assertEqual(status, 200)
+        other_key = b'synthetic-only-read-other-project'
+        self.admin.execute("INSERT INTO auth.principals(tenant_id,id,name) VALUES (%s,%s,'d1-other')",
+                           (uid(2), uid(16)))
+        self.admin.execute('INSERT INTO auth.project_grants VALUES (%s,%s,%s,%s)',
+                           (uid(2), uid(4), uid(16), ['read']))
+        self.admin.execute('INSERT INTO auth.credentials(tenant_id,id,principal_id,key_digest) VALUES (%s,%s,%s,%s)',
+                           (uid(2), uid(116), uid(16), hashlib.sha256(other_key).hexdigest()))
+        hidden = self.call('GET', '/records/' + ack['id'], other_key, raw=True)
+        missing = self.call('GET', '/records/' + uid(1234), READ_A, raw=True)
+        self.assertEqual(hidden, missing, 'out-of-scope and unknown must have identical status, body and headers')
+        self.assertEqual(hidden[0], 404)
+
+    def test_d1_authorized_tombstone_is_gone(self):
+        body = {'section': 'decisions', 'content': 'D1 tombstone',
+                'source': 'openkai/d1/tombstone'}
+        status, ack = self.call('POST', '/memory', WRITE_A, body)
+        self.assertEqual(status, 200)
+        deleted = Records(self.request, WRITE_A, UUID(uid(1)), UUID(uid(3))).delete(
+            UUID(ack['id']), 1, 'd1-delete')
+        self.assertEqual(deleted.revision, 2)
+        status, result = self.call('GET', '/records/' + ack['id'], READ_A)
+        self.assertEqual(status, 410)
+        self.assertEqual(result['error']['code'], 'gone')
+
+    def test_d1_revoked_and_forged_credentials_are_hidden(self):
+        body = {'section': 'decisions', 'content': 'D1 credential',
+                'source': 'openkai/d1/credential'}
+        status, ack = self.call('POST', '/memory', WRITE_A, body)
+        self.assertEqual(status, 200)
+        self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
+                           (hashlib.sha256(READ_A).hexdigest(),))
+        for key in (READ_A, b'synthetic-forged-d1-credential'):
+            with self.subTest(key=key):
+                status, result = self.call('GET', '/records/' + ack['id'], key)
+                self.assertEqual((status, result['error']['code']), (404, 'not_found'))
+
+    def test_d1_revoked_and_forged_match_unknown_without_existence_leak(self):
+        body = {'section': 'decisions', 'content': 'D1 refusal',
+                'source': 'openkai/d1/refusal'}
+        status, ack = self.call('POST', '/memory', WRITE_A, body)
+        self.assertEqual(status, 200)
+        unknown = self.call('GET', '/records/' + uid(1234), READ_A, raw=True)
+        self.assertEqual(unknown[0], 404)
+        self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
+                           (hashlib.sha256(READ_A).hexdigest(),))
+        for key in (READ_A, b'synthetic-forged-d1-credential'):
+            with self.subTest(key=key):
+                self.assertEqual(self.call('GET', '/records/' + ack['id'], key, raw=True),
+                                 unknown, 'refusal and unknown must match status, body and headers')
+        status, result = self.call('GET', '/records/' + ack['id'], b'')
+        self.assertEqual((status, result['error']['code']), (401, 'credential_required'))
 
     def test_released_shape_commit_read_and_headerless_replay(self):
         body = {'section': 'decisions', 'content': 'one exact memory',
@@ -61,8 +133,10 @@ class MemoryAPI(Fixture):
         self.assertEqual(set(first), {'id', 'action', 'status', 'created', 'updated', 'embedded'})
         self.assertEqual((first['action'], first['status'], first['created'], first['updated'],
                           first['embedded']), ('created', 'created', True, False, False))
+        saved = Records(self.request, READ_A, UUID(uid(1)), UUID(uid(3))).get(UUID(first['id']))
         self.assertEqual(self.call('GET', '/records/' + first['id'], READ_A),
                          (200, {'id': first['id'], 'kind': 'memory', 'revision': 1,
+                                'payload_sha256': saved.payload_sha256,
                                 'section': 'decisions', 'content': 'one exact memory',
                                 'category': 'operational', 'source': 'openkai/decision/one'}))
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body), (200, first))
@@ -89,11 +163,11 @@ class MemoryAPI(Fixture):
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body, agent='8')[0], 403)
         status, created = self.call('POST', '/memory', WRITE_A, body)
         self.assertEqual(status, 200)
-        self.assertEqual(self.call('GET', '/records/' + created['id'], READ_B)[0], 403)
+        self.assertEqual(self.call('GET', '/records/' + created['id'], READ_B)[0], 404)
         self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
                            (hashlib.sha256(WRITE_A).hexdigest(),))
         self.assertEqual(self.call('POST', '/memory', WRITE_A, body)[0], 403)
-        self.assertEqual(self.call('GET', '/records/' + created['id'], WRITE_A)[0], 403)
+        self.assertEqual(self.call('GET', '/records/' + created['id'], WRITE_A)[0], 404)
 
     def test_released_tokenless_cli_shape_is_refused_by_c04(self):
         body = {'section': 'decisions', 'content': 'CLI memory', 'category': 'operational'}
