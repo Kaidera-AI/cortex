@@ -1,0 +1,773 @@
+{
+  "scope": "exact source branch proof; full admission API/native NOT_RUN",
+  "source_sha256": {
+    "next/src/cortex_core/release/metadata.py": "03b965654384f281f1f6278e749e6db14204011fa29d216265daa6a27345e239",
+    "next/src/cortex_core/release/codec.py": "3f931ef8a339ba2578c449e6817a399f609eb544ae14c55a9d37ed92597ab278",
+    "next/src/cortex_core/release/inputs.py": "9bf4098875dff9f8f1301af7a88b49d8c603df1bb87772ce108636549aaf7c3b",
+    "next/tests/release/fixture.py": "3ac197191e4aaad8c47cc79a27529dea8a6fcfafce7edb7aa419622cad32788f"
+  },
+  "metadata_method_sha256": {
+    "require": "cc4251185dca12a58ca1407024a108f9baf938e7d546b4717964fdd76f2ed702",
+    "_object": "43b8bf8e78ac5361494ffb86c90bfae39e5e07d348187d868a744e60e7f21707",
+    "_version": "75e7c6eff1e1e8167566a44b54e0b3a85bd87a5d338551fc68aba9c033b14a9d",
+    "_id": "213e3e498e16fe7c10158aeb512423c9c8610de9587bf7b3c597c9e083169cb4",
+    "parse_metadata": "1b8cbb1c53b3ac425bc3d287279501df099874964ab1a452ec68c774eabb88f6"
+  },
+  "metadata_cases": [
+    {
+      "case": "supported_target_and_dependency",
+      "error": null,
+      "target": {
+        "module_id": "api",
+        "module_version": "0.1.020",
+        "oci_platform": "linux/amd64"
+      },
+      "descriptor": {
+        "interface_version": 1,
+        "module_id": "api",
+        "module_version": "0.1.020"
+      },
+      "compatibility": {
+        "modules": [
+          {
+            "event_version": 1,
+            "interface_version": 1,
+            "module_id": "api",
+            "module_version": "0.1.020",
+            "schema_version": 1
+          },
+          {
+            "event_version": 1,
+            "interface_version": 1,
+            "module_id": "worker",
+            "module_version": "1",
+            "schema_version": 1
+          }
+        ],
+        "version": 1
+      },
+      "dependency_interfaces": [
+        {
+          "interface_version": 1,
+          "module_id": "worker",
+          "module_version": "1",
+          "version": 1
+        }
+      ],
+      "input": {
+        "schema": "cortex.build-input.v1",
+        "format_version": 1,
+        "target": {
+          "module_id": "api",
+          "module_version": "0.1.020",
+          "oci_platform": "linux/amd64"
+        },
+        "source": {
+          "repository": "Kaidera-AI/cortex",
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "context_root": "source",
+          "inventory": [
+            {
+              "path": "source/module.py",
+              "kind": "regular",
+              "bytes": 5,
+              "sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+              "mode": 420
+            }
+          ]
+        },
+        "descriptor": {
+          "path": "contracts/descriptor.json",
+          "kind": "regular",
+          "bytes": 69,
+          "sha256": "dafdf99c93fc009ae71baf95531d966e30801263b50e8e7dc9e978a24315242f",
+          "mode": 420
+        },
+        "recipe": {
+          "recipe_id": "api-oci",
+          "version": 1,
+          "entrypoint": "recipe/build.py",
+          "inventory": [
+            {
+              "path": "recipe/build.py",
+              "kind": "regular",
+              "bytes": 5,
+              "sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+              "mode": 420
+            }
+          ],
+          "argv_template": [
+            "python3",
+            "recipe/build.py"
+          ]
+        },
+        "dependencies": {
+          "locks": [
+            {
+              "path": "deps/lock.json",
+              "kind": "regular",
+              "bytes": 3,
+              "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+              "mode": 420
+            }
+          ],
+          "assets": [],
+          "base_images": []
+        },
+        "builder_requirements": {
+          "execution_kind": "native",
+          "os": "linux",
+          "architecture": "amd64",
+          "rootless": true,
+          "uid_min": 1,
+          "toolchain": {
+            "compiler_id": "fixture-python",
+            "version": "3.12.0",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "engine": {
+            "engine_id": "fixture-engine",
+            "version": "1.0",
+            "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "storage_policy": {
+            "fresh_private": true,
+            "mutable_shared": false
+          }
+        },
+        "determinism": {
+          "policy_id": "fixture-policy",
+          "version": 1,
+          "epoch": 0,
+          "clock_channel": "engine_timestamp",
+          "python": {
+            "applicable": true,
+            "cache_mode": "CHECKED_HASH",
+            "final_root": "/app",
+            "optimization": 0,
+            "hash_seed": 0,
+            "compiler_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "file_metadata": {
+            "uid": 1001,
+            "gid": 1001,
+            "mtime_epoch": 0,
+            "xattrs": "deny",
+            "acls": "deny"
+          },
+          "account_log_cache": {
+            "policy": "deny-generated"
+          },
+          "serialization": {
+            "json": "canonical-v1",
+            "tar": "uncompressed",
+            "compression": "none"
+          },
+          "environment": {
+            "names": [
+              "PYTHONHASHSEED"
+            ]
+          }
+        },
+        "resources": {
+          "cpu_millicores": 2000,
+          "memory_bytes": 1073741824,
+          "disk_bytes": 1073741824,
+          "phase_timeouts_sec": {
+            "input": 30,
+            "parser": 30,
+            "build": 120,
+            "export": 30,
+            "audit": 30,
+            "cleanup": 30
+          },
+          "absolute_timeout_sec": 300
+        },
+        "compatibility_inputs": {
+          "compatibility_contract": {
+            "path": "contracts/compatibility.json",
+            "kind": "regular",
+            "bytes": 235,
+            "sha256": "1a0b0c515337a29eb5a0ecf2aee6a1f7e403b4ef705130899c4f618d54831b84",
+            "mode": 420
+          },
+          "schema_manifest": {
+            "path": "contracts/schema.json",
+            "kind": "regular",
+            "bytes": 30,
+            "sha256": "653373979205c64c8b3000ab8dfcad0241d2e419a837749ddd3404ba9f33766e",
+            "mode": 420
+          },
+          "api_descriptor": {
+            "path": "contracts/api.json",
+            "kind": "regular",
+            "bytes": 81,
+            "sha256": "14b6341d552940619ae8aa3a19a4305d9ad65317c15d7b795f39f4fcc7c756aa",
+            "mode": 420
+          },
+          "event_index": {
+            "path": "contracts/events.json",
+            "kind": "regular",
+            "bytes": 95,
+            "sha256": "c198401fbb07eae25c327a13b2bab65d89ec688597e9914f01aaa187585c9376",
+            "mode": 420
+          },
+          "event_schemas": [
+            {
+              "path": "contracts/event-v1.json",
+              "kind": "regular",
+              "bytes": 95,
+              "sha256": "c198401fbb07eae25c327a13b2bab65d89ec688597e9914f01aaa187585c9376",
+              "mode": 420
+            }
+          ],
+          "dependency_interfaces": [
+            {
+              "path": "contracts/dependency-0.json",
+              "kind": "regular",
+              "bytes": 78,
+              "sha256": "72a1d39837fd5ba8f064ae6750414a403f07461ac0073a7dcec14a1e5aabcfdd",
+              "mode": 420
+            }
+          ]
+        },
+        "admission_policy": {
+          "policy_id": "fixture-policy",
+          "version": 1,
+          "policy_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "qualification_scope": "fixture"
+        }
+      },
+      "files": {
+        "source/module.py": "pass\n",
+        "recipe/build.py": "pass\n",
+        "deps/lock.json": "{}\n",
+        "contracts/descriptor.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\"}\n",
+        "contracts/compatibility.json": "{\"modules\":[{\"event_version\":1,\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\",\"schema_version\":1},{\"event_version\":1,\"interface_version\":1,\"module_id\":\"worker\",\"module_version\":\"1\",\"schema_version\":1}],\"version\":1}\n",
+        "contracts/schema.json": "{\"migrations\":[],\"version\":1}\n",
+        "contracts/api.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/events.json": "{\"event_version\":1,\"producer_module_id\":\"api\",\"producer_module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/event-v1.json": "{\"event_version\":1,\"producer_module_id\":\"api\",\"producer_module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/dependency-0.json": "{\"interface_version\":1,\"module_id\":\"worker\",\"module_version\":\"1\",\"version\":1}\n"
+      }
+    },
+    {
+      "case": "dependency_overwrites_target",
+      "error": null,
+      "target": {
+        "module_id": "api",
+        "module_version": "0.1.020",
+        "oci_platform": "linux/amd64"
+      },
+      "descriptor": {
+        "interface_version": 1,
+        "module_id": "api",
+        "module_version": "0.1.020"
+      },
+      "compatibility": {
+        "modules": [
+          {
+            "event_version": 1,
+            "interface_version": 1,
+            "module_id": "api",
+            "module_version": "999",
+            "schema_version": 1
+          }
+        ],
+        "version": 1
+      },
+      "dependency_interfaces": [
+        {
+          "interface_version": 1,
+          "module_id": "api",
+          "module_version": "999",
+          "version": 1
+        }
+      ],
+      "input": {
+        "schema": "cortex.build-input.v1",
+        "format_version": 1,
+        "target": {
+          "module_id": "api",
+          "module_version": "0.1.020",
+          "oci_platform": "linux/amd64"
+        },
+        "source": {
+          "repository": "Kaidera-AI/cortex",
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "context_root": "source",
+          "inventory": [
+            {
+              "path": "source/module.py",
+              "kind": "regular",
+              "bytes": 5,
+              "sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+              "mode": 420
+            }
+          ]
+        },
+        "descriptor": {
+          "path": "contracts/descriptor.json",
+          "kind": "regular",
+          "bytes": 69,
+          "sha256": "dafdf99c93fc009ae71baf95531d966e30801263b50e8e7dc9e978a24315242f",
+          "mode": 420
+        },
+        "recipe": {
+          "recipe_id": "api-oci",
+          "version": 1,
+          "entrypoint": "recipe/build.py",
+          "inventory": [
+            {
+              "path": "recipe/build.py",
+              "kind": "regular",
+              "bytes": 5,
+              "sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+              "mode": 420
+            }
+          ],
+          "argv_template": [
+            "python3",
+            "recipe/build.py"
+          ]
+        },
+        "dependencies": {
+          "locks": [
+            {
+              "path": "deps/lock.json",
+              "kind": "regular",
+              "bytes": 3,
+              "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+              "mode": 420
+            }
+          ],
+          "assets": [],
+          "base_images": []
+        },
+        "builder_requirements": {
+          "execution_kind": "native",
+          "os": "linux",
+          "architecture": "amd64",
+          "rootless": true,
+          "uid_min": 1,
+          "toolchain": {
+            "compiler_id": "fixture-python",
+            "version": "3.12.0",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "engine": {
+            "engine_id": "fixture-engine",
+            "version": "1.0",
+            "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "storage_policy": {
+            "fresh_private": true,
+            "mutable_shared": false
+          }
+        },
+        "determinism": {
+          "policy_id": "fixture-policy",
+          "version": 1,
+          "epoch": 0,
+          "clock_channel": "engine_timestamp",
+          "python": {
+            "applicable": true,
+            "cache_mode": "CHECKED_HASH",
+            "final_root": "/app",
+            "optimization": 0,
+            "hash_seed": 0,
+            "compiler_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "file_metadata": {
+            "uid": 1001,
+            "gid": 1001,
+            "mtime_epoch": 0,
+            "xattrs": "deny",
+            "acls": "deny"
+          },
+          "account_log_cache": {
+            "policy": "deny-generated"
+          },
+          "serialization": {
+            "json": "canonical-v1",
+            "tar": "uncompressed",
+            "compression": "none"
+          },
+          "environment": {
+            "names": [
+              "PYTHONHASHSEED"
+            ]
+          }
+        },
+        "resources": {
+          "cpu_millicores": 2000,
+          "memory_bytes": 1073741824,
+          "disk_bytes": 1073741824,
+          "phase_timeouts_sec": {
+            "input": 30,
+            "parser": 30,
+            "build": 120,
+            "export": 30,
+            "audit": 30,
+            "cleanup": 30
+          },
+          "absolute_timeout_sec": 300
+        },
+        "compatibility_inputs": {
+          "compatibility_contract": {
+            "path": "contracts/compatibility.json",
+            "kind": "regular",
+            "bytes": 128,
+            "sha256": "91be8124480716e80c5a96e93f8ed595d4bdb4fa220591f5090e99dced20abef",
+            "mode": 420
+          },
+          "schema_manifest": {
+            "path": "contracts/schema.json",
+            "kind": "regular",
+            "bytes": 30,
+            "sha256": "653373979205c64c8b3000ab8dfcad0241d2e419a837749ddd3404ba9f33766e",
+            "mode": 420
+          },
+          "api_descriptor": {
+            "path": "contracts/api.json",
+            "kind": "regular",
+            "bytes": 81,
+            "sha256": "14b6341d552940619ae8aa3a19a4305d9ad65317c15d7b795f39f4fcc7c756aa",
+            "mode": 420
+          },
+          "event_index": {
+            "path": "contracts/events.json",
+            "kind": "regular",
+            "bytes": 95,
+            "sha256": "c198401fbb07eae25c327a13b2bab65d89ec688597e9914f01aaa187585c9376",
+            "mode": 420
+          },
+          "event_schemas": [
+            {
+              "path": "contracts/event-v1.json",
+              "kind": "regular",
+              "bytes": 95,
+              "sha256": "c198401fbb07eae25c327a13b2bab65d89ec688597e9914f01aaa187585c9376",
+              "mode": 420
+            }
+          ],
+          "dependency_interfaces": [
+            {
+              "path": "contracts/dependency-0.json",
+              "kind": "regular",
+              "bytes": 77,
+              "sha256": "3534a7d64f27f8358df3dcead15fa922739cafac15fc568e5790f32e035deacb",
+              "mode": 420
+            }
+          ]
+        },
+        "admission_policy": {
+          "policy_id": "fixture-policy",
+          "version": 1,
+          "policy_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "qualification_scope": "fixture"
+        }
+      },
+      "files": {
+        "source/module.py": "pass\n",
+        "recipe/build.py": "pass\n",
+        "deps/lock.json": "{}\n",
+        "contracts/descriptor.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\"}\n",
+        "contracts/compatibility.json": "{\"modules\":[{\"event_version\":1,\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"999\",\"schema_version\":1}],\"version\":1}\n",
+        "contracts/schema.json": "{\"migrations\":[],\"version\":1}\n",
+        "contracts/api.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/events.json": "{\"event_version\":1,\"producer_module_id\":\"api\",\"producer_module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/event-v1.json": "{\"event_version\":1,\"producer_module_id\":\"api\",\"producer_module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/dependency-0.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"999\",\"version\":1}\n"
+      }
+    },
+    {
+      "case": "duplicate_dependency_last_wins",
+      "error": null,
+      "target": {
+        "module_id": "api",
+        "module_version": "0.1.020",
+        "oci_platform": "linux/amd64"
+      },
+      "descriptor": {
+        "interface_version": 1,
+        "module_id": "api",
+        "module_version": "0.1.020"
+      },
+      "compatibility": {
+        "modules": [
+          {
+            "event_version": 1,
+            "interface_version": 1,
+            "module_id": "api",
+            "module_version": "0.1.020",
+            "schema_version": 1
+          },
+          {
+            "event_version": 1,
+            "interface_version": 1,
+            "module_id": "worker",
+            "module_version": "2",
+            "schema_version": 1
+          }
+        ],
+        "version": 1
+      },
+      "dependency_interfaces": [
+        {
+          "interface_version": 1,
+          "module_id": "worker",
+          "module_version": "1",
+          "version": 1
+        },
+        {
+          "interface_version": 1,
+          "module_id": "worker",
+          "module_version": "2",
+          "version": 1
+        }
+      ],
+      "input": {
+        "schema": "cortex.build-input.v1",
+        "format_version": 1,
+        "target": {
+          "module_id": "api",
+          "module_version": "0.1.020",
+          "oci_platform": "linux/amd64"
+        },
+        "source": {
+          "repository": "Kaidera-AI/cortex",
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "context_root": "source",
+          "inventory": [
+            {
+              "path": "source/module.py",
+              "kind": "regular",
+              "bytes": 5,
+              "sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+              "mode": 420
+            }
+          ]
+        },
+        "descriptor": {
+          "path": "contracts/descriptor.json",
+          "kind": "regular",
+          "bytes": 69,
+          "sha256": "dafdf99c93fc009ae71baf95531d966e30801263b50e8e7dc9e978a24315242f",
+          "mode": 420
+        },
+        "recipe": {
+          "recipe_id": "api-oci",
+          "version": 1,
+          "entrypoint": "recipe/build.py",
+          "inventory": [
+            {
+              "path": "recipe/build.py",
+              "kind": "regular",
+              "bytes": 5,
+              "sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+              "mode": 420
+            }
+          ],
+          "argv_template": [
+            "python3",
+            "recipe/build.py"
+          ]
+        },
+        "dependencies": {
+          "locks": [
+            {
+              "path": "deps/lock.json",
+              "kind": "regular",
+              "bytes": 3,
+              "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+              "mode": 420
+            }
+          ],
+          "assets": [],
+          "base_images": []
+        },
+        "builder_requirements": {
+          "execution_kind": "native",
+          "os": "linux",
+          "architecture": "amd64",
+          "rootless": true,
+          "uid_min": 1,
+          "toolchain": {
+            "compiler_id": "fixture-python",
+            "version": "3.12.0",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "engine": {
+            "engine_id": "fixture-engine",
+            "version": "1.0",
+            "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "storage_policy": {
+            "fresh_private": true,
+            "mutable_shared": false
+          }
+        },
+        "determinism": {
+          "policy_id": "fixture-policy",
+          "version": 1,
+          "epoch": 0,
+          "clock_channel": "engine_timestamp",
+          "python": {
+            "applicable": true,
+            "cache_mode": "CHECKED_HASH",
+            "final_root": "/app",
+            "optimization": 0,
+            "hash_seed": 0,
+            "compiler_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "file_metadata": {
+            "uid": 1001,
+            "gid": 1001,
+            "mtime_epoch": 0,
+            "xattrs": "deny",
+            "acls": "deny"
+          },
+          "account_log_cache": {
+            "policy": "deny-generated"
+          },
+          "serialization": {
+            "json": "canonical-v1",
+            "tar": "uncompressed",
+            "compression": "none"
+          },
+          "environment": {
+            "names": [
+              "PYTHONHASHSEED"
+            ]
+          }
+        },
+        "resources": {
+          "cpu_millicores": 2000,
+          "memory_bytes": 1073741824,
+          "disk_bytes": 1073741824,
+          "phase_timeouts_sec": {
+            "input": 30,
+            "parser": 30,
+            "build": 120,
+            "export": 30,
+            "audit": 30,
+            "cleanup": 30
+          },
+          "absolute_timeout_sec": 300
+        },
+        "compatibility_inputs": {
+          "compatibility_contract": {
+            "path": "contracts/compatibility.json",
+            "kind": "regular",
+            "bytes": 235,
+            "sha256": "d7f8f6479543bfe4a9da5097996237b6598469ec0a86714088a1afbe902f7e57",
+            "mode": 420
+          },
+          "schema_manifest": {
+            "path": "contracts/schema.json",
+            "kind": "regular",
+            "bytes": 30,
+            "sha256": "653373979205c64c8b3000ab8dfcad0241d2e419a837749ddd3404ba9f33766e",
+            "mode": 420
+          },
+          "api_descriptor": {
+            "path": "contracts/api.json",
+            "kind": "regular",
+            "bytes": 81,
+            "sha256": "14b6341d552940619ae8aa3a19a4305d9ad65317c15d7b795f39f4fcc7c756aa",
+            "mode": 420
+          },
+          "event_index": {
+            "path": "contracts/events.json",
+            "kind": "regular",
+            "bytes": 95,
+            "sha256": "c198401fbb07eae25c327a13b2bab65d89ec688597e9914f01aaa187585c9376",
+            "mode": 420
+          },
+          "event_schemas": [
+            {
+              "path": "contracts/event-v1.json",
+              "kind": "regular",
+              "bytes": 95,
+              "sha256": "c198401fbb07eae25c327a13b2bab65d89ec688597e9914f01aaa187585c9376",
+              "mode": 420
+            }
+          ],
+          "dependency_interfaces": [
+            {
+              "path": "contracts/dependency-0.json",
+              "kind": "regular",
+              "bytes": 78,
+              "sha256": "72a1d39837fd5ba8f064ae6750414a403f07461ac0073a7dcec14a1e5aabcfdd",
+              "mode": 420
+            },
+            {
+              "path": "contracts/dependency-1.json",
+              "kind": "regular",
+              "bytes": 78,
+              "sha256": "b6c34788d805b8eb0d7f17700e36f34a04f283ea788b846a9f851bc3581ace30",
+              "mode": 420
+            }
+          ]
+        },
+        "admission_policy": {
+          "policy_id": "fixture-policy",
+          "version": 1,
+          "policy_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "qualification_scope": "fixture"
+        }
+      },
+      "files": {
+        "source/module.py": "pass\n",
+        "recipe/build.py": "pass\n",
+        "deps/lock.json": "{}\n",
+        "contracts/descriptor.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\"}\n",
+        "contracts/compatibility.json": "{\"modules\":[{\"event_version\":1,\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\",\"schema_version\":1},{\"event_version\":1,\"interface_version\":1,\"module_id\":\"worker\",\"module_version\":\"2\",\"schema_version\":1}],\"version\":1}\n",
+        "contracts/schema.json": "{\"migrations\":[],\"version\":1}\n",
+        "contracts/api.json": "{\"interface_version\":1,\"module_id\":\"api\",\"module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/events.json": "{\"event_version\":1,\"producer_module_id\":\"api\",\"producer_module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/event-v1.json": "{\"event_version\":1,\"producer_module_id\":\"api\",\"producer_module_version\":\"0.1.020\",\"version\":1}\n",
+        "contracts/dependency-0.json": "{\"interface_version\":1,\"module_id\":\"worker\",\"module_version\":\"1\",\"version\":1}\n",
+        "contracts/dependency-1.json": "{\"interface_version\":1,\"module_id\":\"worker\",\"module_version\":\"2\",\"version\":1}\n"
+      }
+    }
+  ],
+  "argv_cases": [
+    {
+      "case": "literal_positive",
+      "argv": [
+        "python3",
+        "recipe/build.py"
+      ],
+      "entrypoint": "recipe/build.py",
+      "guard_rejects": false
+    },
+    {
+      "case": "direct_shell_negative",
+      "argv": [
+        "sh",
+        "-c",
+        "echo public",
+        "recipe/build.py"
+      ],
+      "entrypoint": "recipe/build.py",
+      "guard_rejects": true
+    },
+    {
+      "case": "env_wrapped_shell",
+      "argv": [
+        "/usr/bin/env",
+        "sh",
+        "-c",
+        "echo public",
+        "recipe/build.py"
+      ],
+      "entrypoint": "recipe/build.py",
+      "guard_rejects": false
+    }
+  ]
+}
