@@ -15,6 +15,12 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    'graph_job_kind_bypass': ('src/cortex_core/api/c11b2.py',
+        "if view is None or view.kind != 'graph.build':",
+        'if view is None:'),
+    'graph_job_skip_final_authority': ('src/cortex_core/api/c11b2.py',
+        "await self._current(principal)\n        return {'job_id': str(view.job_id)",
+        "pass\n        return {'job_id': str(view.job_id)"),
     'd4_omit_completeness': ('src/cortex_core/api/c11b2.py',
         "response['complete'] = True", "response['complete'] = False"),
     'd4_lag_as_empty': ('src/cortex_core/api/c11b2.py',
