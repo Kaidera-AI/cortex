@@ -1,0 +1,777 @@
+{
+  "$id": "cortex.release-policy.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": 1
+    },
+    "history": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "comment": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "created": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "created_by": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "empty_layer": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "created",
+          "created_by"
+        ],
+        "type": "object"
+      },
+      "maxItems": 50000,
+      "type": "array"
+    },
+    "history_to_layers": {
+      "items": {
+        "anyOf": [
+          {
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "maxItems": 50000,
+      "type": "array"
+    },
+    "inspector": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "python_caches": {
+                "const": "none"
+              },
+              "scope": {
+                "const": "fixture"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "execution": {
+                "const": "contained"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "python_caches": {
+                "const": "CHECKED_HASH"
+              },
+              "scope": {
+                "const": "native"
+              }
+            },
+            "required": [
+              "closure_id",
+              "closure_sha256",
+              "argv",
+              "environment",
+              "optimization",
+              "limits"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "argv": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "closure_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "closure_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0
+        },
+        "execution": {
+          "enum": [
+            "none",
+            "contained"
+          ]
+        },
+        "limits": {
+          "additionalProperties": false,
+          "properties": {
+            "cpu_millicores": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "depth": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "input_bytes": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "memory_bytes": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "object_count": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "output_bytes": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "pids": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "seconds": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "input_bytes",
+            "output_bytes",
+            "object_count",
+            "depth",
+            "seconds",
+            "memory_bytes",
+            "pids",
+            "cpu_millicores"
+          ],
+          "type": "object"
+        },
+        "optimization": {
+          "type": "integer",
+          "const": 0
+        },
+        "python_caches": {
+          "enum": [
+            "none",
+            "CHECKED_HASH"
+          ]
+        },
+        "scope": {
+          "enum": [
+            "fixture",
+            "native"
+          ]
+        }
+      },
+      "required": [
+        "scope",
+        "execution",
+        "python_caches"
+      ],
+      "type": "object"
+    },
+    "layer_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "acls": {
+          "const": "deny"
+        },
+        "base": {
+          "additionalProperties": false,
+          "properties": {
+            "config_digest": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "inventory": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "bytes": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "gid": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": [
+                      "regular",
+                      "directory",
+                      "symlink"
+                    ]
+                  },
+                  "link_target": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "mode": {
+                    "maximum": 511,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "mtime": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "path": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "uid": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "path",
+                  "kind",
+                  "uid",
+                  "gid",
+                  "mode",
+                  "mtime",
+                  "bytes",
+                  "sha256"
+                ],
+                "type": "object"
+              },
+              "maxItems": 50000,
+              "type": "array"
+            },
+            "layer_digest": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "manifest_digest": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "manifest_digest",
+            "config_digest",
+            "layer_digest",
+            "inventory"
+          ],
+          "type": "object"
+        },
+        "generated": {
+          "additionalProperties": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "maximum": 9223372036854775807,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "gid": {
+                  "maximum": 9223372036854775807,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "regular",
+                    "directory",
+                    "symlink"
+                  ]
+                },
+                "link_target": {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "mode": {
+                  "maximum": 511,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "mtime": {
+                  "maximum": 9223372036854775807,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "path": {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "uid": {
+                  "maximum": 9223372036854775807,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path",
+                "kind",
+                "uid",
+                "gid",
+                "mode",
+                "mtime",
+                "bytes",
+                "sha256"
+              ],
+              "type": "object"
+            },
+            "maxItems": 50000,
+            "type": "array"
+          },
+          "maxProperties": 50000,
+          "type": "object"
+        },
+        "hardlinks": {
+          "const": "deny"
+        },
+        "layer_order": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "member_order": {
+          "additionalProperties": {
+            "items": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50000,
+            "type": "array"
+          },
+          "maxProperties": 50000,
+          "type": "object"
+        },
+        "symlinks": {
+          "additionalProperties": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxProperties": 50000,
+          "type": "object"
+        },
+        "transitions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "after": {
+                "additionalProperties": false,
+                "properties": {
+                  "bytes": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "gid": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": [
+                      "regular",
+                      "directory",
+                      "symlink"
+                    ]
+                  },
+                  "link_target": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "mode": {
+                    "maximum": 511,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "mtime": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "path": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "uid": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "path",
+                  "kind",
+                  "uid",
+                  "gid",
+                  "mode",
+                  "mtime",
+                  "bytes",
+                  "sha256"
+                ],
+                "type": "object"
+              },
+              "before": {
+                "additionalProperties": false,
+                "properties": {
+                  "bytes": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "gid": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": [
+                      "regular",
+                      "directory",
+                      "symlink"
+                    ]
+                  },
+                  "link_target": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "mode": {
+                    "maximum": 511,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "mtime": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "path": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "uid": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "path",
+                  "kind",
+                  "uid",
+                  "gid",
+                  "mode",
+                  "mtime",
+                  "bytes",
+                  "sha256"
+                ],
+                "type": "object"
+              },
+              "layer": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "path": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "layer",
+              "path",
+              "before",
+              "after"
+            ],
+            "type": "object"
+          },
+          "maxItems": 50000,
+          "type": "array"
+        },
+        "whiteouts": {
+          "const": "deny"
+        },
+        "xattrs": {
+          "const": "deny"
+        }
+      },
+      "required": [
+        "base",
+        "generated",
+        "layer_order",
+        "member_order",
+        "transitions",
+        "symlinks",
+        "hardlinks",
+        "whiteouts",
+        "xattrs",
+        "acls"
+      ],
+      "type": "object"
+    },
+    "oci_config": {
+      "additionalProperties": false,
+      "properties": {
+        "Cmd": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "Entrypoint": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "Env": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "Labels": {
+          "additionalProperties": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxProperties": 50000,
+          "type": "object"
+        },
+        "User": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "WorkingDir": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "User",
+        "Entrypoint",
+        "Cmd",
+        "WorkingDir",
+        "Labels"
+      ],
+      "type": "object"
+    },
+    "runtime": {
+      "additionalProperties": false,
+      "properties": {
+        "cmd_inputs": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "input": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "input",
+              "sha256"
+            ],
+            "type": "object"
+          },
+          "maxProperties": 50000,
+          "type": "object"
+        },
+        "gid": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "program": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "program_input": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "program_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "resolution": {
+          "const": "absolute"
+        },
+        "resolved_program": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "uid": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "working_dir": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "program",
+        "resolved_program",
+        "program_input",
+        "program_sha256",
+        "resolution",
+        "cmd_inputs",
+        "working_dir",
+        "uid",
+        "gid"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "cortex.release-policy.v1"
+    },
+    "source_bindings": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "transform": {
+            "const": "identity"
+          }
+        },
+        "required": [
+          "input",
+          "sha256",
+          "transform"
+        ],
+        "type": "object"
+      },
+      "maxProperties": 50000,
+      "type": "object"
+    },
+    "target": {
+      "additionalProperties": false,
+      "properties": {
+        "module_id": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "module_version": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "oci_platform": {
+          "enum": [
+            "linux/amd64",
+            "linux/arm64"
+          ]
+        }
+      },
+      "required": [
+        "module_id",
+        "module_version",
+        "oci_platform"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "format_version",
+    "target",
+    "oci_config",
+    "history",
+    "history_to_layers",
+    "layer_policy",
+    "runtime",
+    "source_bindings",
+    "inspector"
+  ],
+  "type": "object"
+}
