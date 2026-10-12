@@ -1,0 +1,24 @@
+{
+  "module_id": "core",
+  "recipe_version": 1,
+  "role": "Pinned upstream PostgreSQL plus accepted Cox schema payload",
+  "build_input_schema": "cortex.build-input.v1",
+  "epoch_channel": "source-date-epoch",
+  "rewrite_timestamp": true,
+  "independent_mutable_stores": true,
+  "runtime_downloads": false,
+  "upstream_rebuild_claim": false,
+  "required_audits": [
+    "input_inventory",
+    "oci_closure",
+    "labels",
+    "accounts",
+    "logs",
+    "xattrs_acl",
+    "runtime_contract"
+  ],
+  "python_cache_policy": "explicit_non_python_inapplicability_or_R01_pinned_checked_hash",
+  "release_policy_carrier": "descriptor.release_policy",
+  "release_policy_schema": "cortex.release-policy.v1",
+  "preparation_command": "prepare --profile-v1"
+}
