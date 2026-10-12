@@ -7,7 +7,7 @@ import run_pg as runner
 
 runner.MUTANTS = {
     'provider_bypass': ('src/cortex_core/api/c11b2.py',
-        "embedded = await self._cache(search).get(principal['principal_id'],\n                                                     self.identity, query)",
+        "embedded = await self._cache(search).get(principal['principal_id'],\n                                                         self.identity, query)",
         "embedded = type('Embedded', (), {'vector': PROBE_VECTOR})()"),
     'session_claim_hook': ('src/cortex_core/records.py',
         'if self.before_commit is not None:', 'if False:'),

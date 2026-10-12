@@ -44,6 +44,10 @@ class InspectorPlan:
     process_limit:int
     native_qualified:bool=False
 
+    def __post_init__(self):
+        # Exported typed constructors are not independently verified-image ports.
+        raise ReceiptRefusal('inspector_image_member_unbound')
+
 
 def _private_root(root,candidate_roots):
     root=Path(root)
@@ -92,49 +96,27 @@ def admit_closure(raw,independently_accepted_sha256,profile,root,*,candidate_roo
     """
     require(type(raw) is bytes and len(raw)<=MAX_MANIFEST and sha256(raw)==independently_accepted_sha256 and
             profile['inspector'].get('closure_sha256')==independently_accepted_sha256,'inspector_closure_not_accepted')
-    value=decode_json(raw,MAX_MANIFEST)
-    require(set(value)=={'schema','id','image_digest','members'} and value['schema']=='cortex.inspector-closure.v1' and
-            value['id']==profile['inspector'].get('closure_id') and isinstance(value['members'],list) and
-            1<=len(value['members'])<=MAX_MEMBERS,'inspector_closure_shape')
-    require(isinstance(value['image_digest'],str) and len(value['image_digest'])==71 and value['image_digest'].startswith('sha256:') and
-            all(c in '0123456789abcdef' for c in value['image_digest'][7:]),'inspector_image_identity')
-    require(bool(candidate_roots),'inspector_candidate_roots_required')
-    root=_private_root(root,candidate_roots);members=[];seen=set()
-    for record in value['members']:
-        require(isinstance(record,dict) and set(record)=={'role','path','bytes','sha256','mode'} and type(record['bytes']) is int and
-                type(record['mode']) is int and isinstance(record['sha256'],str) and len(record['sha256'])==64 and
-                all(c in '0123456789abcdef' for c in record['sha256']) and record['path'] not in seen and record['role'] in ROLES,'inspector_member_shape')
-        seen.add(record['path']);members.append(_read_member(root,record))
-    require({r[0] for r in members}==ROLES and sum(r[2] for r in members)<=512*1024*1024,'inspector_execution_closure')
-    engines=[r for r in members if r[0]=='engine'];require(len(engines)==1 and engines[0][4]&0o111,'inspector_engine_identity')
-    return InspectorClosure(sha256(canonical_bytes(profile)),independently_accepted_sha256,root,tuple(members),value['image_digest'],root/engines[0][1],engines[0][3],_SEAL)
+    # A measured local manifest and its claimed digest do not establish image
+    # contents, invoked member paths, or ABI. No independent verified-image port
+    # exists in this increment. Refuse before decode, member reads, or plan minting.
+    raise ReceiptRefusal('inspector_image_member_unbound')
+
+
+def startup_argv(profile):
+    """Narrow isolated startup policy; no ineffective PYTHON* setting promises."""
+    spec=profile['inspector']
+    require(spec.get('argv')==['/opt/cortex-inspector/bin/python','-I','-S','-B','/opt/cortex-inspector/inspect.py'] and
+            spec.get('environment')=={} and 'hash_seed' not in spec and
+            type(spec.get('optimization')) is int and spec['optimization']==0,'inspector_literal_startup')
+    return tuple(spec['argv'])
 
 
 def prepare_plan(capability,profile,request_bytes):
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and
             capability.policy_sha256==sha256(canonical_bytes(profile)) and capability.closure_sha256==profile['inspector'].get('closure_sha256'),'inspector_capability_untrusted')
-    spec=profile['inspector'];limits=spec.get('limits',{})
-    required={'input_bytes','output_bytes','object_count','depth','seconds','memory_bytes','pids','cpu_millicores'}
-    require(set(limits)==required and all(type(v) is int and v>0 for v in limits.values()) and
-            limits['input_bytes']<=16*1024*1024 and limits['output_bytes']<=8*1024*1024 and limits['object_count']<=50000 and
-            limits['depth']<=128 and limits['seconds']<=120 and limits['memory_bytes']<=512*1024*1024 and limits['pids']<=16 and limits['cpu_millicores']<=2000,'inspector_hard_limits')
-    require(type(request_bytes) is bytes and len(request_bytes)<=limits['input_bytes'],'inspector_input_bound')
-    require(spec.get('argv')==['/opt/cortex-inspector/bin/python','-I','-S','-B','/opt/cortex-inspector/inspect.py'] and
-            spec.get('environment')=={'PYTHONHASHSEED':str(spec.get('hash_seed'))} and type(spec.get('hash_seed')) is int and
-            spec.get('optimization') in (0,1,2),'inspector_literal_startup')
-    # Recheck immutable closure immediately before preparation/use. No ambient
-    # PATH/PYTHONHOME/site hooks, candidate bind mount or host networking.
-    for observation in capability.members:
-        role,path,size,digest,mode,*_=observation
-        current=_read_member(capability.root,dict(role=role,path=path,bytes=size,sha256=digest,mode=mode))
-        require(current==observation,'inspector_closure_custody_drift')
-    argv=(str(capability.engine),'run','--rm','--pull=never','--network=none','--read-only','--user=65532:65532',
-          '--cap-drop=all','--security-opt=no-new-privileges','--pids-limit='+str(limits['pids']),
-          '--memory='+str(limits['memory_bytes']),'--memory-swap='+str(limits['memory_bytes']),
-          '--cpu-period=100000','--cpu-quota='+str(limits['cpu_millicores']*100),
-          '--timeout='+str(limits['seconds']),'--log-driver=none','--interactive',
-          '--env','PYTHONHASHSEED='+str(spec['hash_seed']),capability.image_digest,*spec['argv'])
-    return InspectorPlan(argv,(),limits['input_bytes'],limits['output_bytes'],limits['seconds'],limits['memory_bytes'],limits['pids'])
+    # Even an in-process constructed/sealed closure carries no image proof.
+    # No plan object may be minted until the independent port is implemented.
+    raise ReceiptRefusal('inspector_image_member_unbound')
 
 
 def admit_inspection(verified_input,acceptance):
@@ -142,7 +124,12 @@ def admit_inspection(verified_input,acceptance):
     require(profile.get('schema')=='cortex.release-policy.v1','inspector_profile_unqualified')
     capability=acceptance.get('inspector_capability')
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL,'trusted_inspector_capability_unavailable')
-    prepare_plan(capability,profile,b'')
+    _require_verified_image(capability, 'trusted_inspector_capability_unavailable')
     # Execution/containment needs the independently reviewed platform owner and
     # named native GO. No source/fixture result can grant it in this increment.
     raise ReceiptRefusal('native_inspector_execution_unqualified')
+
+
+def _require_verified_image(capability, reason):
+    """No independent image/member/path/ABI verifier exists in this increment."""
+    raise ReceiptRefusal(reason)

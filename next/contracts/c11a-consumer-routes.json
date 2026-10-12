@@ -877,6 +877,16 @@
       "observed": true,
       "openkai_production": false,
       "path": "/admin/sql/exec"
+    },
+    {
+      "capability": null,
+      "disposition": "add",
+      "effect": "read",
+      "id": "C11-D1",
+      "method": "GET",
+      "observed": false,
+      "openkai_production": false,
+      "path": "/records/{id}"
     }
   ]
 }
