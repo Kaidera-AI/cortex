@@ -28,7 +28,7 @@ class InspectorPlanGate(unittest.TestCase):
         cap, profile = constructed(module)
         verified = SimpleNamespace(metadata={'release_policy': profile})
         with patch.object(module, 'prepare_plan', wraps=module.prepare_plan) as prepare:
-            with self.assertRaisesRegex(ValueError, '^inspector_image_member_unbound$'):
+            with self.assertRaisesRegex(ValueError, '^trusted_inspector_capability_unavailable$'):
                 module.admit_inspection(verified, {'inspector_capability': cap})
         self.assertEqual(prepare.call_count, 0)
 

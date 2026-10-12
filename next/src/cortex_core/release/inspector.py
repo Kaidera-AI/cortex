@@ -124,12 +124,12 @@ def admit_inspection(verified_input,acceptance):
     require(profile.get('schema')=='cortex.release-policy.v1','inspector_profile_unqualified')
     capability=acceptance.get('inspector_capability')
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL,'trusted_inspector_capability_unavailable')
-    _require_verified_image(capability)
+    _require_verified_image(capability, 'trusted_inspector_capability_unavailable')
     # Execution/containment needs the independently reviewed platform owner and
     # named native GO. No source/fixture result can grant it in this increment.
     raise ReceiptRefusal('native_inspector_execution_unqualified')
 
 
-def _require_verified_image(capability):
+def _require_verified_image(capability, reason):
     """No independent image/member/path/ABI verifier exists in this increment."""
-    raise ReceiptRefusal('inspector_image_member_unbound')
+    raise ReceiptRefusal(reason)
