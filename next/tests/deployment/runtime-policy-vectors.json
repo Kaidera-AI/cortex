@@ -1,0 +1,260 @@
+{
+  "schema": "cortex.runtime-policy-vectors.v1",
+  "policy_schema_sha256": "efa7e63ff20dfbab85153bac102e96fc8fe7bf04153148fd1d8ca302f5088b36",
+  "scope": "U1 frozen expected contract; NO actual runtime-policy reader/admission implementation",
+  "semantic_raw_required_refusals": 6,
+  "cases": [
+    {
+      "id": "RF-P-LINUX",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "5f379cda53ef58bbf12f05f9edeb71a58c2ebdd67def60247add2b3d3b7b54a4",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "TRUSTED_ADMISSION_REQUIRED",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-P-MAC",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-macos-machine-rootless.v1\":{\"backend\":\"podman-machine-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"macos\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/arm64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "f616a2e7c805c53fe07f506a9840699b5f002e032fb58575c7e7e0acc46927e9",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "TRUSTED_ADMISSION_REQUIRED",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-P-BOTH",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]},\"podman-macos-machine-rootless.v1\":{\"backend\":\"podman-machine-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"macos\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/arm64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "45d71edadff0443c8514a014e3ed6da7321a1d4ea27d980c5e8349797649987d",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "TRUSTED_ADMISSION_REQUIRED",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-UNKNOWN-ROOT",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"qualified\":true,\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "d44da1f07690396901a8c6c177f9c4389293dcd135fd2b81ffb336724a1c4834",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-BOOLEAN-VERSION",
+      "raw_utf8": "{\"format_version\":true,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "4b0b4fddab1b0c3969b37bdd9e07a540666903a99047b4d6b9d4a4a638f7b82c",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-WRONG-VERSION",
+      "raw_utf8": "{\"format_version\":2,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "f0a4a9599e59c54e171d969dfaa89ea2aa162df23d582bfc57ca0cd29993bbb3",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-NO-PROFILES",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "907bf115c79a6b04c6ad3151f56650ff3ab59f2546fba35fdc554431bf8c32e2",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-FUTURE-PROFILE",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"docker-macos-colima-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "7232125fe7acc1c6632aa31fd77897fac80bd0c0beeb36ed1733661003b4d9d1",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-ENGINE",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"docker\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "9f61a5954d03eb108bfbacf26619398c85aeefd6fb8eb82e06986a871dd1de84",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-BACKEND",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"podman-machine-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "8382c800f312fbab1889e3083ee361f27bc353493354605332fbdda599f79e17",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-HOST",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"macos\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "2f63bd4d16448f1e27c5c7a2b6636aee1938eebb192f0fe4a8f930b68209ffab",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-MAC-PLATFORM",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-macos-machine-rootless.v1\":{\"backend\":\"podman-machine-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"macos\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "77f2b4a68c00c8b41ce64739f8e42b72d1c3a1bf850a6ad1d80b034f4dfd6567",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-CAP-UNKNOWN",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"caller_seal\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "4053833a1fa91c22792843b11db14cbcb66266dde4361a722eab02273e1e53c8",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-CAP-DUPLICATE",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"oci_digest_identity\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "71502f4119a75bf763c555253dca510c0315eabd13ad1edd90b1cbc997a8f18f",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-CAP-MISSING",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "7c947d4beaf4dd7f457514c42d87ff2e6f2fc0c8edf1868748dd1dfecb55f44a",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-CAP-EMPTY",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "74e64adcf422300c5dae02396fd90e5f29082adbbf3092eb96ac9f0fa53d2000",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-UNSTABLE-VERSION",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2-rc1\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "b4d95c6b152bc1ceec2af431bb52993b1ef24ca175e0dcf2ee2bd00bc3d72fe5",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-LEADING-ZERO-VERSION",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"06.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "6c9f8a5db5edca9b21f8ca412064e09eafc72dc7d873034d28cbaf53d4b82413",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-BAD-VERSION",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "9d5b24520f2c18a49c722551e4652aab0612ccedcab1c586e0af6ed690fcdd00",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-BAD-DATE",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-02-30\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "f99f8bc73f2155b152bfc06b7bb2576205a795e22970af67c8577760b628aac4",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-EXTRA-DENY-FIELD",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"approved\":true,\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "46063cc19ebc406f31d7bfd545e36b1b9f564f36c663663fc6d1f557402e9201",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-N-EXTRA-PROFILE-FIELD",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"],\"token\":\"forbidden-field-only\"}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "fc5baf9c12ae1d86ae326dd4b79fba85e3132ea1df905c5082cf5f368dc3e89d",
+      "expected_schema_valid": false,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "shape",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-S-BASELINE",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"5.0.0\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "6e98c680e25e35e0f9b9f46db74995215f7a9e4657c3b57f2247342103926ad8",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "semantic",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-S-ASOF",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-05\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "c2320dca8aeace9acad12e390b01b374f0b4b9f5a7d1585f6a9daa8e12c123a2",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "semantic",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-S-DENIAL-DATE",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[{\"date\":\"2026-10-07\",\"reason\":\"future denial\",\"version\":\"6.0.8\"}]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "30388ad21eb6c9ce9815e07afa6a518e4a57dcef1d6737978db3b8da8b1bce91",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "semantic",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-S-DUPLICATE-VERSION",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[{\"date\":\"2026-10-06\",\"reason\":\"duplicate\",\"version\":\"6.0.8\"},{\"date\":\"2026-10-06\",\"reason\":\"same version, different explanation\",\"version\":\"6.0.8\"}]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "10d07ca885d44fd68f82408be4d9c6aea36009ebde6323a87398de2b735dcd3d",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "semantic",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-S-UTF8-BYTES",
+      "raw_utf8": "{\"format_version\":1,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[{\"date\":\"2026-10-06\",\"reason\":\"ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\",\"version\":\"6.0.8\"}]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "c32dc38f7285c9131dd352b84e4792bb5b064f04a7c7d87c99c841424f8ef382",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "semantic",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    },
+    {
+      "id": "RF-R-FLOAT-1.0",
+      "raw_utf8": "{\"format_version\":1.0,\"profiles\":{\"podman-linux-rootless.v1\":{\"backend\":\"native-rootless\",\"denylist\":{\"as_of\":\"2026-10-06\",\"entries\":[]},\"engine\":\"podman\",\"host_os\":\"linux\",\"minimum_version\":\"6.0.2\",\"platforms\":[\"linux/amd64\"],\"provider\":\"cortex-native-lifecycle\",\"required_capabilities\":[\"oci_digest_identity\",\"nonroot_engine_owner\",\"local_engine_endpoint\",\"owned_store_binding\",\"loopback_publication\",\"scoped_resource_ownership\",\"health_effect_readback\",\"retained_data_lifecycle\"]}},\"schema\":\"cortex.runtime-policy.v1\"}",
+      "raw_sha256": "3199dc3e9b5a6e0570e4b7513e791d192cd43c48ea7fabd425f8bf01377b1cdb",
+      "expected_schema_valid": true,
+      "required_receiver_verdict": "REFUSE",
+      "required_phase": "raw_parser",
+      "scope": "frozen contract vector; schema shape never grants signed/native admission"
+    }
+  ]
+}
