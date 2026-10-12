@@ -40,6 +40,11 @@ def receipt_fixture(*, reuse_identity=None, component_mutation=None, unequal_arc
         descriptor_value['release_policy']={'oci_config':approved_runtime_config or {},'history':[],
             'layer_policy':{'allow_replacements':replace_layer,'allow_directories':False,'symlinks':{}}}
         inputs[path]=canonical(descriptor_value);value['descriptor']=file(path,inputs[path])
+    if replace_layer:
+        # Kai05:01b: retain reviewed replacement intent with independently
+        # accepted final source bytes; unbound replacements remain refused.
+        inputs['source/module.py']=b'print("fixture")\n'
+        value['source']['inventory']=[file('source/module.py',inputs['source/module.py'])]
     outputs, evidence = {}, {}
     def artifact(storage, role, path, raw, media='application/json'):
         storage[path] = raw

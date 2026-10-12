@@ -34,7 +34,7 @@ def measure(record, reader, limit):
     return raw
 
 
-def tar_members(raw, limit, *, metadata=None, layer_policy=None):
+def tar_members(raw, limit, *, metadata=None, layer_policy=None, preserve_order=False):
     result, inventory, seen, total, end = {}, [], set(), 0, 0
     try:
         with tarfile.open(fileobj=io.BytesIO(raw), mode='r:') as archive:
@@ -61,13 +61,12 @@ def tar_members(raw, limit, *, metadata=None, layer_policy=None):
                     require(member.size == 0 and (not metadata or layer_policy['allow_directories']), 'layer_directory_policy')
                     body = b''
                 else:
-                    require(metadata is not None and layer_policy['symlinks'].get(path) == member.linkname and member.size == 0,
-                            'layer_symlink_policy')
+                    _admit_symlink(metadata is not None and layer_policy['symlinks'].get(path) == member.linkname and member.size == 0)
                     destination = posixpath.normpath(posixpath.join(posixpath.dirname(path),member.linkname))
                     relative_path(destination)
                     body = member.linkname.encode('utf-8')
                     result[path] = body
-                if metadata:
+                if metadata and not metadata.get('native_v1'):
                     require(member.uid == metadata['uid'] and member.gid == metadata['gid'] and
                             member.mtime == metadata['mtime_epoch'] and member.mode in ((511,) if member.issym() else (493,) if member.isdir() else (420,493)),
                             'layer_metadata_policy')
@@ -78,7 +77,7 @@ def tar_members(raw, limit, *, metadata=None, layer_policy=None):
                 inventory.append(record)
         require(len(raw) % 512 == 0 and len(raw) - end >= 1024 and not any(raw[end:]), 'tar_unlisted_trailing_bytes')
         require(bool(result), 'empty_tar')
-        return result, sorted(inventory, key=lambda r: r['path'])
+        return result, inventory if preserve_order else sorted(inventory, key=lambda r: r['path'])
     except (tarfile.TarError, EOFError, OSError) as error:
         raise ReceiptRefusal('invalid_uncompressed_tar') from error
 
@@ -93,9 +92,10 @@ def _descriptor(desc, media, blobs):
     return key
 
 
-def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module_policy=None):
+def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module_policy=None, accepted_inputs=None):
     limit = value['resources']['disk_bytes']
     module_policy = module_policy or {'oci_config':{},'history':[], 'layer_policy':{'allow_replacements':False,'allow_directories':False,'symlinks':{}}}
+    v1 = module_policy.get('schema') == 'cortex.release-policy.v1'
     members, outer_inventory = tar_members(raw_archive, limit)
     require(all(row.get('kind') != 'directory' or row['path'] in ('blobs','blobs/sha256') for row in outer_inventory), 'oci_unknown_directory')
     require('oci-layout' in members and 'index.json' in members, 'oci_layout_missing')
@@ -125,8 +125,8 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
     epoch = datetime.fromtimestamp(value['determinism']['epoch'],timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
     history = config.get('history',[])
     require(('created' not in config or config['created'] == epoch) and isinstance(history,list) and
-            all(isinstance(row,dict) and row.get('created') == epoch for row in history), 'oci_clock_policy')
-    require([{k:v for k,v in row.items() if k != 'created'} for row in history] == module_policy['history'], 'oci_history_policy')
+            all(isinstance(row,dict) and (v1 or row.get('created') == epoch) for row in history), 'oci_clock_policy')
+    require((history if v1 else [{k:v for k,v in row.items() if k != 'created'} for row in history]) == module_policy['history'], 'oci_history_policy')
     layers = [_descriptor(desc, LAYER, blobs) for desc in manifest['layers']]
     require(len(layers) == len(set(layers)), 'oci_duplicate_layer')
     require(config.get('rootfs') == {'type': 'layers', 'diff_ids': ['sha256:' + key for key in layers]},
@@ -141,21 +141,34 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
     for role, (media, body) in expected.items():
         record = roles[role]
         require(record['media_type'] == media and output_bytes[record['path']] == body, 'oci_inventory_body')
+    if v1:
+        from .vfs import inspect_profile_files
+        inventory = inspect_profile_files(layers, blobs, config, value, module_policy, accepted_inputs or {}, tar_members, _admit_symlink, _admit_generated)
+        require(config.get('config') == module_policy['oci_config'], 'unreviewed_runtime_config_or_labels')
+        return tuple(sorted(closure)), inventory
     files, contents = {}, {}
     for key in layers:
         bodies, inventory = tar_members(blobs[key], limit, metadata=value['determinism']['file_metadata'],layer_policy=module_policy['layer_policy'])
         for record in inventory:
             path = record['path']
             # This closed policy denies generated accounts/logs/caches and aliases.
-            require(not path.startswith(('var/log/', 'var/cache/', 'tmp/', 'root/', 'home/')) and
+            _admit_generated(not path.startswith(('var/log/', 'var/cache/', 'tmp/', 'root/', 'home/')) and
                     path not in ('etc/passwd', 'etc/group', 'etc/shadow', 'etc/gshadow') and
                     not path.endswith('.pyo') and ('/__pycache__/' not in '/' + path or path.endswith('.pyc')),
-                    'generated_account_log_cache')
+                    )
             require(path not in files or (module_policy['layer_policy']['allow_replacements'] and
                     record.get('kind','regular') == files[path].get('kind','regular')), 'layer_overwrite_or_whiteout')
             require(not any(p.startswith('.wh.') for p in path.split('/')), 'layer_whiteout')
             files[path] = record
         contents.update(bodies)
+    declared_dirs = module_policy['layer_policy'].get('directories')
+    if declared_dirs is not None:
+        require(all(r.get('kind') != 'directory' or p in declared_dirs for p,r in files.items()), 'layer_directory_policy')
+    for p in files:
+        for parent in _parents(p):
+            require(parent not in files or files[parent].get('kind') == 'directory', 'layer_parent_alias')
+    if accepted_inputs is not None:
+        _accepted_sources(contents, value, accepted_inputs)
     for path, record in files.items():
         if record.get('kind') == 'symlink':
             destination=posixpath.normpath(posixpath.join(posixpath.dirname(path),record['link_target']))
@@ -166,6 +179,28 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
     inventory = [files[path] for path in sorted(files)]
     return tuple(sorted(closure)), inventory
 
+
+
+def _admit_symlink(condition):
+    require(condition, 'layer_symlink_policy')
+
+
+def _admit_generated(condition):
+    require(condition, 'generated_account_log_cache')
+
+
+def _parents(path):
+    parts=path.split('/')
+    return ['/'.join(parts[:n]) for n in range(1,len(parts))]
+
+
+def _accepted_sources(contents,value,accepted_inputs):
+    root=value['determinism']['python'].get('final_root','').strip('/')
+    for path,body in contents.items():
+        if path.endswith('.py'):
+            relative=path[len(root)+1:] if path.startswith(root+'/') else None
+            origin=value['source']['context_root']+'/'+relative if relative else None
+            require(origin in accepted_inputs and accepted_inputs[origin] == body, 'accepted_source_origin')
 
 
 def _compiled_fields_equal(actual, expected):

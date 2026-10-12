@@ -43,7 +43,16 @@ def main(argv=None):
             result = {'decision': 'admitted', 'input_sha256': admitted.input_sha256,
                       'native_qualified': admitted.native_qualified}
             if args.command == 'verify-build-receipt':
-                receipt = parse_build_receipt(_document(args.receipt, args.receipt_sha256, 8*1024*1024))
+                raw_receipt = _document(args.receipt, args.receipt_sha256, 8*1024*1024)
+                if parsed['admission_policy']['qualification_scope'] == 'native':
+                    from cortex_core.release.codec import sha256
+                    if policy.get('receipt_sha256') != sha256(raw_receipt):
+                        raise ValueError('native_receipt_not_independently_accepted')
+                    if policy.get('policy_sha256') != parsed['admission_policy']['policy_sha256']:
+                        raise ValueError('receipt_audit_policy')
+                    from cortex_core.release.inspector import admit_inspection
+                    admit_inspection(admitted, policy)
+                receipt = parse_build_receipt(raw_receipt)
                 outputs = RootReader(args.output_root, limit)
                 resources.callback(outputs.close)
                 evidence = RootReader(args.evidence_root, min(limit,8*1024*1024))

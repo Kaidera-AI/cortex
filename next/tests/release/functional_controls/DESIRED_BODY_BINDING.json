@@ -1,0 +1,6 @@
+{
+  "reviewer_source_sha256": "4d576a716b174e7075e519c7dfcc748a560ec871d6335aa22144c030714870c5",
+  "unchanged_body_sha256": "1d39d39a18d920e39ae6237b20e84b136a7d571dba7809aa057dbdd1ac150578",
+  "wrapping": "Only imports/fixture-root relocation; original class and dynamic method bodies byte-identical",
+  "cases": 8
+}

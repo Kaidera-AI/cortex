@@ -1,0 +1,94 @@
+{
+  "head": "6981e905aed0cf5b71a82870970e3b789737f7fc",
+  "source_root": "/Volumes/WD-B-4TB/DevVault/helix/worktrees/mike-r01-unit2-implementation-review-20261012",
+  "files": [
+    {
+      "path": "next/src/cortex_core/release/profile.py",
+      "bytes": 3344,
+      "sha256": "348c2296cdacddd5e4d507bfb2b1f23886c46477d25a2e8bf019eccc5fa40879",
+      "tree_entry": "100644 blob 94dacc299597cd3dc74653300a3fb322cb32076b\tnext/src/cortex_core/release/profile.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/vfs.py",
+      "bytes": 7163,
+      "sha256": "deef9107971d18df7b8054dea6ec17670c58ae1837dddf3558b0b4b833004f9a",
+      "tree_entry": "100644 blob ebb6ccb7add696c772c887e31470c4b7077a56c4\tnext/src/cortex_core/release/vfs.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/artifacts.py",
+      "bytes": 15921,
+      "sha256": "a1051d31f802e5b0567f91aa473ba6f7943744d5d177a955069fe8391b0ecc21",
+      "tree_entry": "100644 blob 0757e21aa1d7d0d61943cae92c28aa68ce37003e\tnext/src/cortex_core/release/artifacts.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/metadata.py",
+      "bytes": 4987,
+      "sha256": "46c11301d6d9da9e692e4ed33f3f746209c0c06168fe058b1308d13a5fd8e86a",
+      "tree_entry": "100644 blob 8fe7097d6df74549085abf65cfbfbba87c0c7373\tnext/src/cortex_core/release/metadata.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/inputs.py",
+      "bytes": 6856,
+      "sha256": "5e7717285bda24d6f38df9e4ee10e37b49eb59d8e15b77a6ed9c89895616467f",
+      "tree_entry": "100644 blob 5803a6ba35f2e825ff09c924dc98968f05f7842f\tnext/src/cortex_core/release/inputs.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/codec.py",
+      "bytes": 3168,
+      "sha256": "3f931ef8a339ba2578c449e6817a399f609eb544ae14c55a9d37ed92597ab278",
+      "tree_entry": "100644 blob 86c39f86da057303050f4f7a1eb9b30478a20e66\tnext/src/cortex_core/release/codec.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/contracts.py",
+      "bytes": 1754,
+      "sha256": "f1c4332598c6a38f928b8702175d62476ddac21c23f9dceedc11675b3be9f87b",
+      "tree_entry": "100644 blob ca7605f24a222d4f8f6b918181c31c7f3ee75aad\tnext/src/cortex_core/release/contracts.py"
+    },
+    {
+      "path": "next/src/cortex_core/release/receipts.py",
+      "bytes": 12781,
+      "sha256": "9b2adb6ad0a4c40a81078cdd4f8c4762910444d775079efef4b16d9fc92a0ad5",
+      "tree_entry": "100644 blob 54b0483586c4a08a40e9e22b65cb8e9b061df755\tnext/src/cortex_core/release/receipts.py"
+    },
+    {
+      "path": "next/contracts/release/release-policy.schema.json",
+      "bytes": 19987,
+      "sha256": "47ff3c428ac745fe31eae94c625be2d7d3bb238a61bb87b1449c38f82cd39d9d",
+      "tree_entry": "100644 blob b557d96999351d9747bed64672e030cee4e86801\tnext/contracts/release/release-policy.schema.json"
+    },
+    {
+      "path": "next/tests/release/fixture.py",
+      "bytes": 3359,
+      "sha256": "3ac197191e4aaad8c47cc79a27529dea8a6fcfafce7edb7aa419622cad32788f",
+      "tree_entry": "100644 blob f09d60600875d9f6cd440b1dacd8baafa52696c9\tnext/tests/release/fixture.py"
+    },
+    {
+      "path": "next/tests/release/receipt_fixture.py",
+      "bytes": 11514,
+      "sha256": "35e3ab3c71b36e76c4b20bdc076a471971b460d27ecf1472ce34e836972cd41e",
+      "tree_entry": "100644 blob 02e6febd564d86f94994edec4c6a0238bf9b337e\tnext/tests/release/receipt_fixture.py"
+    },
+    {
+      "path": "next/tests/release/native_matrix_fixture.py",
+      "bytes": 20878,
+      "sha256": "176453a0447e5a3c5a4c4d4343b3032bfd77630fc3da557f96ac919d9673bcec",
+      "tree_entry": "100644 blob efbf0dd2322225f02a6faa5823367a4469be3eb2\tnext/tests/release/native_matrix_fixture.py"
+    },
+    {
+      "path": "next/tests/release/test_native_runtime_matrix.py",
+      "bytes": 2583,
+      "sha256": "3a01346d79c36bf1241aaacde28eb19b714b3cd9767dc39dc8e50c666f6f0a61",
+      "tree_entry": "100644 blob 3ce2324df315d048f0809e3b4c8b5539fb3e2e6c\tnext/tests/release/test_native_runtime_matrix.py"
+    },
+    {
+      "path": "next/tests/release/test_native_layer_matrix.py",
+      "bytes": 2251,
+      "sha256": "8c5a44adbeeaf74e7268ba934e90dcd707c078b656838e29428f50192e05d56d",
+      "tree_entry": "100644 blob 748286fd90aaa0b4632351e1cfe5f65d5e54c4fe\tnext/tests/release/test_native_layer_matrix.py"
+    }
+  ],
+  "plan": {
+    "path": "/Volumes/WD-B-4TB/DevVault/helix/docs/plans/cortex-v2-v0.1.020/release/R01-unit2-native-policy-20261012/revision3-native-matrix/PLAN.md",
+    "sha256": "c0eb36731f57a2a7b2d3c4d7d9e5f3e683b788f46396b9a286485fc892096f2e"
+  }
+}
