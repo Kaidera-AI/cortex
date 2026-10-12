@@ -1,0 +1,1 @@
+{"format_version":1,"schema":"cortex.build-input.v1","source":{"repository":"Kaidera-AI/cortex","revision":"8a7f0ab6a85311b58faa73e05fc4d88f95342c32","tree":"1a29203fb621bfabe56d15260c894897a133f80c"},"target":{"module_id":"core","oci_platform":"linux/arm64"}}

@@ -1,0 +1,104 @@
+[
+  {
+    "id": "recipe-core",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Cox/Nemo module/context/edit facts, exact delivery owner to be named",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "recipe-api",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Cox/Nemo module/context/edit facts, exact delivery owner to be named",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "input-core-arm64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "input-core-amd64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "input-api-arm64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "input-api-amd64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "source-context-core",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Cox/Nemo module/context/edit facts, exact delivery owner to be named",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "source-context-api",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Cox/Nemo module/context/edit facts, exact delivery owner to be named",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "base-core-arm64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "base-core-amd64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "base-api-arm64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "base-api-amd64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "toolchain-arm64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Vera trust review; actual asset producer GAP",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "toolchain-amd64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Vera trust review; actual asset producer GAP",
+    "core_arm64_first_slice": false
+  },
+  {
+    "id": "native-producer",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Mike mechanical review; actual native executor not delivered",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "closure-arm64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Vera trust review; actual asset producer GAP",
+    "core_arm64_first_slice": true
+  },
+  {
+    "id": "closure-amd64",
+    "status": "GAP",
+    "owner": "Ren-KOS binding;Vera trust review; actual asset producer GAP",
+    "core_arm64_first_slice": false
+  }
+]

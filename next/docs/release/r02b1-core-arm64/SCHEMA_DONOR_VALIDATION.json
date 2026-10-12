@@ -1,0 +1,22 @@
+{
+  "manifest_source": "next/schema/manifest.json",
+  "selected_sql_files": [
+    "core/001-core.sql",
+    "auth/001-auth.sql",
+    "coordination/001-coordination.sql",
+    "retrieval/000-canonical.sql",
+    "auth/002-isolation.sql",
+    "coordination/002-record-replay.sql",
+    "auth/003-identity.sql",
+    "coordination/002-outbox.sql",
+    "coordination/003-module-consumers.sql",
+    "coordination/004-api-replay.sql",
+    "retrieval/001-pg-search.sql",
+    "retrieval/002-query-cache.sql",
+    "retrieval/003-pg-graph.sql",
+    "coordination/005-session-source.sql",
+    "retrieval/004-request-authority.sql"
+  ],
+  "all_declared_hashes_match": true,
+  "native_context_admitted": false
+}

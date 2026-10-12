@@ -1,0 +1,31 @@
+{
+  "disposition": "SCHEMA_INVALID_UNADMITTED_MATERIAL_BLOCKER",
+  "missing_required_paths": [
+    "target.module_version",
+    "source.context_root",
+    "source.inventory",
+    "descriptor",
+    "recipe",
+    "dependencies",
+    "builder_requirements",
+    "determinism",
+    "resources",
+    "compatibility_inputs",
+    "admission_policy"
+  ],
+  "affected_rows": [
+    "recipe-core",
+    "input-core-arm64",
+    "source-context-core",
+    "base-core-arm64",
+    "toolchain-arm64",
+    "native-producer",
+    "closure-arm64"
+  ],
+  "owners": {
+    "module_context_recipe": "Cox/Nemo facts;Ren-KOS binding;exact delivery owner to be named",
+    "input_base_toolchain": "Ren-KOS binding;actual producer/material GAP",
+    "verified_image": "R01/Ren-KOS;Vera review;actual asset producer GAP"
+  },
+  "remaining_matrix_rows": "10 other GAP rows preserved"
+}
