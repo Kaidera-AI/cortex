@@ -31,25 +31,8 @@ def parse_metadata(value, actual, native):
     _version(descriptor, 'interface_version')
     profile = descriptor.get('release_policy', {'oci_config': {}, 'history': [],
                 'layer_policy': {'allow_replacements': False, 'allow_directories': False, 'symlinks': {}}})
-    require(isinstance(profile, dict) and set(profile) == {'oci_config','history','layer_policy'} and
-            isinstance(profile['oci_config'], dict) and isinstance(profile['history'], list), 'invalid_release_policy')
-    layer = profile['layer_policy']
-    require(isinstance(layer, dict) and set(layer) == {'allow_replacements','allow_directories','symlinks'} and
-            type(layer['allow_replacements']) is bool and type(layer['allow_directories']) is bool and
-            isinstance(layer['symlinks'], dict), 'invalid_layer_policy')
-    for path, destination in layer['symlinks'].items():
-        relative_path(path)
-        require(isinstance(destination, str) and not destination.startswith('/') and '\\' not in destination,
-                'invalid_layer_symlink')
-        relative_path(posixpath.normpath(posixpath.join(posixpath.dirname(path), destination)))
-    require(set(profile['oci_config']) <= {'User','Env','Entrypoint','Cmd','WorkingDir','Labels','ExposedPorts','Volumes','StopSignal'}, 'unreviewed_oci_config_field')
-    for field in ('Entrypoint','Cmd','Env'):
-        if field in profile['oci_config']:
-            require(isinstance(profile['oci_config'][field], list) and len(profile['oci_config'][field]) <= 256 and
-                    all(isinstance(s,str) and len(s.encode('utf-8')) <= 4096 for s in profile['oci_config'][field]), 'oci_config_argument_bound')
-    for entry in profile['history']:
-        require(isinstance(entry, dict) and set(entry) <= {'created_by','comment','empty_layer'} and
-                all(isinstance(v, str) if k != 'empty_layer' else type(v) is bool for k,v in entry.items()), 'invalid_history_policy')
+    from .profile import admit_profile
+    profile = admit_profile(profile, value, actual)
     records = value['compatibility_inputs']
     parsed = {name: _object(actual[records[name]['path']]) for name in
               ('compatibility_contract','schema_manifest','api_descriptor','event_index')}

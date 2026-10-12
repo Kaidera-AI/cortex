@@ -26,6 +26,18 @@ def _json_record(record, measured):
 def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader, qualification_policy):
     require(isinstance(verified_input, VerifiedBuildInput) and verified_input._seal is _SEAL, 'unverified_input')
     require(isinstance(receipt, ParsedBuildReceipt), 'unparsed_receipt')
+    policy = qualification_policy
+    require(isinstance(policy, dict), 'invalid_policy_shape')
+    scope = thaw(verified_input.document)['admission_policy']['qualification_scope']
+    if scope == 'native':
+        # Acceptance of exact original native bytes/policy precedes reparse,
+        # readers, OCI/marshal inspection and any compiler authority.
+        require(type(receipt.raw) is bytes and len(receipt.raw) <= 8*1024*1024 and
+                policy.get('receipt_sha256') == sha256(receipt.raw), 'native_receipt_not_independently_accepted')
+        require(policy.get('policy_sha256') == thaw(verified_input.document)['admission_policy']['policy_sha256'],
+                'receipt_audit_policy')
+        from .inspector import admit_inspection
+        admit_inspection(verified_input, policy)
     parsed = parse_build_receipt(receipt.raw)
     require(parsed.sha256 == receipt.sha256 and parsed.document == receipt.document, 'changed_parsed_receipt')
     value, input_value = thaw(parsed.document), thaw(verified_input.document)
@@ -93,7 +105,8 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
         require('archive' in roles and roles['archive']['media_type'] == 'application/x-tar', 'raw_archive_media')
         archive = actual[roles['archive']['path']]
         closure, layer_inventory = inspect_oci(archive, outputs, actual, build['oci'], input_value,
-                                              module_policy=thaw(verified_input.metadata)['release_policy'])
+                                              module_policy=thaw(verified_input.metadata)['release_policy'],
+                                              accepted_inputs=thaw(verified_input.metadata)['accepted_inputs'])
         require(build['provenance'] == roles['provenance'] and roles['provenance']['media_type'] == 'application/json', 'provenance_record_binding')
         provenance = decode_json(actual[roles['provenance']['path']], 8 * 1024 * 1024)
         expected = {key: build[key] for key in ('build_id','source_sha256','recipe_sha256','dependency_sha256','observed_builder')}
@@ -144,3 +157,14 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
     return VerifiedBuildReceipt(parsed.sha256, verified_input.input_sha256, freeze(value['target']),
                                 sha256(archives[0]), freeze({p:sha256(b) for p,b in measured.items()}),
                                 scope == 'native', freeze(value), _SEAL)
+
+
+def verify_native_receipt_bytes(raw, verified_input, output_reader, evidence_reader, qualification_policy):
+    """Bound exact original native receipt before even JSON/schema decoding."""
+    require(isinstance(verified_input, VerifiedBuildInput) and verified_input._seal is _SEAL, 'unverified_input')
+    require(isinstance(qualification_policy, dict) and type(raw) is bytes and len(raw)<=8*1024*1024 and
+            qualification_policy.get('receipt_sha256')==sha256(raw), 'native_receipt_not_independently_accepted')
+    require(qualification_policy.get('policy_sha256')==thaw(verified_input.document)['admission_policy']['policy_sha256'], 'receipt_audit_policy')
+    from .inspector import admit_inspection
+    admit_inspection(verified_input, qualification_policy)
+    return verify_build_receipt(parse_build_receipt(raw), verified_input, output_reader, evidence_reader, qualification_policy)

@@ -118,5 +118,6 @@ def admit_build_input(input, input_reader, accepted_policy):
         actual[row['path']] = raw
         measured.append(row)
     metadata = parse_metadata(value, actual, native)
+    metadata['accepted_inputs'] = dict(actual)
     return VerifiedBuildInput(parsed.sha256, freeze(value['target']), tuple(freeze(r) for r in measured),
-                              freeze(requirements), freeze(value), native, freeze(metadata), _SEAL)
+                              freeze(requirements), freeze(value), False, freeze(metadata), _SEAL)
