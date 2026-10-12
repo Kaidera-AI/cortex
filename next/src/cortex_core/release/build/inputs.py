@@ -14,7 +14,10 @@ def admit(raw, input_reader, accepted_policy):
     )
     # Legacy fixture-only preparation remains available; native and explicitly
     # profile-bound consumers use the one already-admitted owner carrier.
-    if strict and metadata["release_policy"].get("schema") != "cortex.release-policy.v1":
+    if (
+        strict
+        and metadata["release_policy"].get("schema") != "cortex.release-policy.v1"
+    ):
         raise ValueError("r02_profile_v1_required")
     return verified
 

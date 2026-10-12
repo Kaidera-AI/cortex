@@ -1,5 +1,5 @@
 """Frozen R02 consumer boundaries through the single R01 policy carrier."""
-import copy
+# ruff: noqa: E702 -- frozen desired bodies; formatting preserved after RED binding.
 import json
 import sys
 import unittest

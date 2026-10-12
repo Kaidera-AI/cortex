@@ -25,7 +25,9 @@ def verify_shared_receipt(
     raw, verified_input, output_reader, evidence_reader, qualification_policy
 ):
     from cortex_core.release.receipts import (
-        parse_build_receipt, verify_build_receipt, verify_native_receipt_bytes,
+        parse_build_receipt,
+        verify_build_receipt,
+        verify_native_receipt_bytes,
     )
     from .inputs import require_verified
 
