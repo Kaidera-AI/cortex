@@ -6,6 +6,7 @@ import marshal
 import posixpath
 import re
 import tarfile
+import struct
 from datetime import datetime, timezone
 from types import CodeType
 from .codec import canonical_bytes, decode_json, relative_path, sha256
@@ -159,11 +160,44 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
         if record.get('kind') == 'symlink':
             destination=posixpath.normpath(posixpath.join(posixpath.dirname(path),record['link_target']))
             require(destination in files and files[destination].get('kind','regular') == 'regular', 'layer_symlink_target')
-        elif path.endswith('.pyc'):
+        elif record.get('kind', 'regular') == 'regular' and path.endswith('.pyc'):
             _check_pyc(path,contents[path],contents,value)
     require(config.get('config') == module_policy['oci_config'], 'unreviewed_runtime_config_or_labels')
     inventory = [files[path] for path in sorted(files)]
     return tuple(sorted(closure)), inventory
+
+
+
+def _compiled_fields_equal(actual, expected):
+    """Compare compiler output including fields omitted by CodeType equality."""
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, CodeType):
+        fields = ('co_argcount', 'co_posonlyargcount', 'co_kwonlyargcount',
+                  'co_nlocals', 'co_stacksize', 'co_flags', 'co_code',
+                  'co_consts', 'co_names', 'co_varnames', 'co_filename',
+                  'co_name', 'co_qualname', 'co_firstlineno', 'co_linetable',
+                  'co_exceptiontable', 'co_freevars', 'co_cellvars')
+        return all(_compiled_fields_equal(getattr(actual, field), getattr(expected, field)) for field in fields)
+    if isinstance(expected, tuple):
+        return len(actual) == len(expected) and all(_compiled_fields_equal(a, b) for a, b in zip(actual, expected))
+    if isinstance(expected, float):
+        return struct.pack('!d', actual) == struct.pack('!d', expected)
+    if isinstance(expected, complex):
+        return struct.pack('!dd', actual.real, actual.imag) == struct.pack('!dd', expected.real, expected.imag)
+    if isinstance(expected, frozenset):
+        if len(actual) != len(expected):
+            return False
+        remaining = list(expected)
+        for item in actual:
+            for index, candidate in enumerate(remaining):
+                if _compiled_fields_equal(item, candidate):
+                    remaining.pop(index)
+                    break
+            else:
+                return False
+        return not remaining
+    return actual == expected
 
 
 def _check_pyc(path, raw, contents, value):
@@ -192,7 +226,7 @@ def _check_pyc(path, raw, contents, value):
                 if isinstance(constant,CodeType):filenames(constant)
         filenames(code)
         expected=compile(contents[source],filename,'exec',dont_inherit=True,optimize=policy['optimization'])
-        require(code == expected, 'python_compilation_policy')
+        require(_compiled_fields_equal(code, expected), 'python_compilation_policy')
     except (EOFError, ValueError, TypeError, SyntaxError, RecursionError) as error:
         if isinstance(error,ReceiptRefusal):raise
         raise ReceiptRefusal('python_bytecode_shape') from error

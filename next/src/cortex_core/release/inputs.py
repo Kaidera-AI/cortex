@@ -78,8 +78,14 @@ def admit_build_input(input, input_reader, accepted_policy):
     if value['recipe']['entrypoint'] not in [r['path'] for r in value['recipe']['inventory']]:
         raise BuildRefusal('recipe_entrypoint_missing')
     argv = value['recipe']['argv_template']
-    if value['recipe']['entrypoint'] not in argv or (argv[0].split('/')[-1] in ('sh','bash','dash','zsh','ksh') and
-            any(arg.startswith('-') and 'c' in arg[1:] for arg in argv[1:])):
+    entrypoint = value['recipe']['entrypoint']
+    recipe_file = next(row for row in value['recipe']['inventory'] if row['path'] == entrypoint)
+    # Closed unit-1 launcher grammar: direct executable recipe, or the admitted
+    # Python recipe in Python's script position. A wrapper or -c/-m position is
+    # never execution of the recipe just because its name occurs later in argv.
+    direct = argv[0] == entrypoint and recipe_file['kind'] == 'regular' and bool(recipe_file['mode'] & 0o111)
+    python_script = len(argv) >= 2 and argv[0] == 'python3' and argv[1] == entrypoint and entrypoint.endswith('.py')
+    if not (direct or python_script):
         raise BuildRefusal('recipe_not_literal_entrypoint')
     for image in value['dependencies']['base_images']:
         if image['platform'] != value['target']['oci_platform'] or not image['reference'].endswith('@sha256:' + image['manifest_digest']):

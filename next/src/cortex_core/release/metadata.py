@@ -67,10 +67,13 @@ def parse_metadata(value, actual, native):
         require(event.get('producer_module_id') == target['module_id'] and event.get('producer_module_version') == target['module_version'] and
                 type(event.get('event_version')) is int and event['event_version'] == event_index['event_version'], 'event_producer_identity')
     interfaces = [_object(actual[row['path']]) for row in records['dependency_interfaces']]
+    dependency_ids = {target['module_id']}
     for interface in interfaces:
         _version(interface)
         _version(interface, 'interface_version')
         require(_id(interface.get('module_id')) and _id(interface.get('module_version')), 'dependency_interface_identity')
+        require(interface['module_id'] not in dependency_ids, 'dependency_interface_duplicate_or_self')
+        dependency_ids.add(interface['module_id'])
     manifest = parsed['schema_manifest']
     require(isinstance(manifest.get('migrations'), list) and len(manifest['migrations']) <= 20000, 'invalid_schema_manifest')
     seen = set()
@@ -84,7 +87,8 @@ def parse_metadata(value, actual, native):
     if native or modules is not None:
         require(isinstance(modules, list) and 1 <= len(modules) <= 20000, 'compatibility_modules_required')
         required = {target['module_id']: (target['module_version'], descriptor['interface_version'])}
-        required.update({doc['module_id']: (doc['module_version'], doc['interface_version']) for doc in interfaces})
+        for doc in interfaces:
+            required[doc['module_id']] = (doc['module_version'], doc['interface_version'])
         admitted = {}
         for module in modules:
             require(isinstance(module, dict) and set(module) == {'module_id','module_version','interface_version','schema_version','event_version'} and
