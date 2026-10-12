@@ -9,10 +9,19 @@ class Manifest(ConsumerFixture):
     def test_ninth_migration_and_exact_three_tables_are_additive(self):
         root=Path(__file__).resolve().parents[2]
         manifest=json.loads((root/'schema/manifest.json').read_text())
-        self.assertEqual(len(manifest['migrations']),9)
-        entry=manifest['migrations'][-1]
-        self.assertEqual(entry['id'],'module-consumers-0003')
+        migrations=manifest['migrations']
+        self.assertEqual(len(migrations),10)
+        ids=[entry['id'] for entry in migrations]
+        self.assertEqual(len(ids),len(set(ids)))
+        self.assertIn('module-consumers-0003',ids)
+        self.assertIn('api-replay-0004',ids)
+        self.assertLess(ids.index('module-consumers-0003'),ids.index('api-replay-0004'))
+        entry=migrations[ids.index('module-consumers-0003')]
+        self.assertEqual(entry['file'],'coordination/003-module-consumers.sql')
         self.assertEqual(entry['sha256'],hashlib.sha256((root/'schema'/entry['file']).read_bytes()).hexdigest())
+        api=migrations[ids.index('api-replay-0004')]
+        self.assertEqual(api['file'],'coordination/004-api-replay.sql')
+        self.assertEqual(api['sha256'],hashlib.sha256((root/'schema'/api['file']).read_bytes()).hexdigest())
         names={f'{schema}.{table}' for schema,table in self.admin.execute("SELECT n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchall()}
         self.assertEqual(len(names),31)
         self.assertTrue({'coordination.consumer_project_checkpoints','coordination.consumer_aggregate_heads','coordination.consumer_event_outcomes'}<=names)

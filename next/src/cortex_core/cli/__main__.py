@@ -1,3 +1,3 @@
-from cortex_core.cli.status import main
+from cortex_core.cli.dispatch import main
 
 raise SystemExit(main())

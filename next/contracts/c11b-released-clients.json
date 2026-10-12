@@ -1,0 +1,52 @@
+{
+  "format": "c11b-released-clients-v1",
+  "cortex": {
+    "tag": "v0.1.002",
+    "commit": "c427d5ae73c65807631d9f00fa05e47f0480cf75",
+    "sources": {
+      "packages/api/main.py": "baa7fad91a0796d1e7bb19067c199feeee7f7cfff7d70a222ec8fc8fc5243f1a"
+    },
+    "memory_response_keys": ["id", "action", "status", "created", "updated", "embedded"],
+    "search_response_keys_observed_by_clients": ["results", "degraded"]
+  },
+  "kos": {
+    "tag": "v0.2.007",
+    "commit": "c7bee9bb1f1f1ce8f8289dd9667396919d28f534",
+    "sources": {
+      ".agents/scripts/_cortex_api.sh": "53aeaa7a7dd991f8273ce8074087a3c9a9ee83e09d93ef8350ff15ab84598a0d",
+      ".agents/scripts/cortex-memory": "399ca6cd1be4f9d99c9d8d4b7efbee76e20dd6f441187cc6d824fdb8fd25d419",
+      "local-cortex/console/app/cortex_client.py": "11febfefb1f214a4fe4efe9115d02eab7af3fe6c905b162ad39e16eed1205b47"
+    },
+    "memory_request": {
+      "method": "POST",
+      "path": "/memory",
+      "headers": ["Content-Type", "X-Project", "X-Agent-Name"],
+      "body_fields": ["section", "content", "category", "source_optional"],
+      "bearer_header": false
+    },
+    "search_request": {"method": "GET", "path": "/search", "query": ["q", "limit", "rerank_optional"]},
+    "search_result_field": "results"
+  },
+  "openkai": {
+    "tag": "openkai/v0.1.15",
+    "commit": "83b9409989ca9ca7f6a08473523d6a171c63d44b",
+    "sources": {
+      "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+      "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab"
+    },
+    "memory_request": {
+      "method": "POST",
+      "path": "/memory",
+      "headers": ["Content-Type", "X-Project", "X-Agent-Name_optional", "Authorization_Bearer_if_token_configured"],
+      "body_fields": ["section", "content", "category", "source"],
+      "idempotency_header": false
+    },
+    "search_request": {"method": "POST", "path": "/search", "body_fields": ["query", "top_k"]},
+    "search_result_fields": ["results", "degraded"]
+  },
+  "qualification_limits": [
+    "KOS v0.2.007 ordinary cortex-* calls carry no scoped bearer credential; C04 correctly refuses them until a trusted credential transport is approved.",
+    "OpenKai v0.1.15 bearer is optional; the tokenless local-appliance mode likewise has no C04 credential.",
+    "Source tags are pinned; signed artifact-to-source attestation is not established by this fixture."
+  ]
+}
