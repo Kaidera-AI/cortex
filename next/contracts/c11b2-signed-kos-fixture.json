@@ -1,0 +1,18 @@
+{
+  "release": "kos/v0.2.009",
+  "source_revision": "bf5fc45e90f2a79c4fb459e7a2ffe1cd1590cace",
+  "release_sha256": "22d83163777eadb74c790fb5a1dc13544476230a499ba35686fc26cada2d4822",
+  "signature_sha256": "d60f2e9ada7b6cc13799ec9964ce36cc80812b03261d16b7ec3e6dba8af37191",
+  "public_key": "RWQuhegMfku7e4RltjV64sZmxXHEETzAntDePCQsJPYvXXujVMqKIvHL",
+  "artifacts": {
+    "appdb-linux-amd64.oci.tar": [120062464, "193c10d1121bcdfe9cd77b5f1bd088170322420b283f2217965b596fe8171684"],
+    "appdb-linux-arm64.oci.tar": [117893632, "b779ea6aac18018dc93aac878657319f7b4ac534a5da87d14fb232e82e77dc91"],
+    "kaidera-os-0.2.009-linux-arm64.tar.zst": [195664605, "8c6991aa2d5d0b69714c87c1cce8f8bec09b670fb78de48c791fb96aa29dfa28"],
+    "kaidera-os-0.2.009-linux-x86_64.tar.zst": [208074279, "fadade12fcda56aa844a067fe521752b7d88cbcba84bdb7a30435b7c0b5e8a48"]
+  },
+  "archive_members": {
+    ".agents/scripts/_cortex_api.sh": "36fee631c0c938b72ad8fee3055fdc0329db54c3b554639e799c4a92ebe73aa2",
+    ".agents/scripts/cortex-memory": "399ca6cd1be4f9d99c9d8d4b7efbee76e20dd6f441187cc6d824fdb8fd25d419",
+    "local-cortex/console/app/cortex_client.py": "54034015a256b31fd842ea7c4bc67f970ee27cfb93fb04f153c2357c20bfaf29"
+  }
+}

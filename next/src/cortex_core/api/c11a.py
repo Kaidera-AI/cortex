@@ -142,23 +142,32 @@ def _compile_path(template):
     return re.compile("^/" + "/".join(parts) + "$" if template != "/" else "^/$")
 
 
-def _packet(code, *, capability=None, reason=None, retryable=True):
+def _packet(code, *, capability=None, reason=None, retryable=True, message=None):
     error = {"code": code, "retryable": retryable}
     if capability is not None:
         error["capability"] = capability
     if reason is not None:
         error["reason"] = reason
+    if message is not None:
+        error["message"] = message
     return {"error": error}
 
 
 def _error_status(error):
     code = getattr(error, 'code', None)
-    if code in {'forbidden', 'scope_mismatch', 'unauthenticated'}:
+    if code == 'unauthenticated':
+        return 401, _packet('credential_required', retryable=False,
+                            message='Configure a scoped Cortex credential or upgrade this client.')
+    if code in {'forbidden', 'scope_mismatch'}:
         return 403, _packet('forbidden', retryable=False)
     if code == 'conflict':
         return 409, _packet('conflict', retryable=False)
     if code == 'invalid_input':
         return 400, _packet('invalid_input', retryable=False)
+    if code == 'capability_unavailable':
+        return 503, _packet('capability_unavailable',
+                            capability=getattr(error, 'capability', None),
+                            reason=getattr(error, 'reason', None))
     return 503, _packet('core_unavailable')
 
 
@@ -202,7 +211,7 @@ class ConsumerGateway:
 
     def __init__(self, *, core_probe, principal_resolver, permission_recheck,
                  capability_source, health, handlers, record_reader=None,
-                 allow_legacy_idempotency=False):
+                 allow_legacy_idempotency=False, parse_search_body=False):
         if (any(not callable(value) for value in (core_probe, principal_resolver,
                                                    permission_recheck, capability_source, health))
                 or not isinstance(handlers, dict)
@@ -214,6 +223,7 @@ class ConsumerGateway:
         self.health, self.handlers = health, handlers
         self.record_reader = record_reader
         self.allow_legacy_idempotency = allow_legacy_idempotency
+        self.parse_search_body = parse_search_body
         self.app = self._app
 
     async def _app(self, scope, receive, send):
@@ -244,7 +254,12 @@ class ConsumerGateway:
             return await _respond(send, 410, _packet("retired_route", retryable=False))
         try:
             principal = await self.principal_resolver(scope)
-        except Exception:
+        except Exception as error:
+            if getattr(error, 'code', None) == 'unauthenticated':
+                status, packet = _error_status(error)
+                return await _respond(send, status, packet)
+            if getattr(error, 'code', None) == 'core_unavailable':
+                return await _respond(send, 503, _packet('core_unavailable'))
             principal = None
         if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
             return await _respond(send, 403, _packet("forbidden", retryable=False))
@@ -296,10 +311,24 @@ class ConsumerGateway:
                     canonical = json.dumps([scope['_c11b_body'], writer],
                         sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
                     request_key = 'legacy-memory:' + hashlib.sha256(canonical).hexdigest()
+            elif row['id'] == 'C01-R013' and self.allow_legacy_idempotency:
+                try:
+                    scope['_c11b_body'] = await _memory_body(receive)
+                except GatewayError:
+                    return await _respond(send, 400, _packet('invalid_input', retryable=False))
+                if request_key is None and self.allow_legacy_idempotency:
+                    canonical = json.dumps(scope['_c11b_body'], sort_keys=True,
+                        separators=(',', ':'), ensure_ascii=False).encode()
+                    request_key = 'legacy-session:' + hashlib.sha256(canonical).hexdigest()
             if (not request_key or not 1 <= len(request_key) <= 256
                     or any(ord(char) < 32 for char in request_key)):
                 return await _respond(send, 400, _packet("idempotency_key_required", retryable=False))
         try:
+            if row['id'] == 'C01-R022' and self.parse_search_body:
+                try:
+                    scope['_c11b_body'] = await _memory_body(receive)
+                except GatewayError:
+                    return await _respond(send, 400, _packet('invalid_input', retryable=False))
             value = await handler(principal, scope, request_key)
             if row["effect"] == "write":
                 if (type(value) is not C05Committed or value.committed is not True
