@@ -92,22 +92,19 @@ def admit_closure(raw,independently_accepted_sha256,profile,root,*,candidate_roo
     """
     require(type(raw) is bytes and len(raw)<=MAX_MANIFEST and sha256(raw)==independently_accepted_sha256 and
             profile['inspector'].get('closure_sha256')==independently_accepted_sha256,'inspector_closure_not_accepted')
-    value=decode_json(raw,MAX_MANIFEST)
-    require(set(value)=={'schema','id','image_digest','members'} and value['schema']=='cortex.inspector-closure.v1' and
-            value['id']==profile['inspector'].get('closure_id') and isinstance(value['members'],list) and
-            1<=len(value['members'])<=MAX_MEMBERS,'inspector_closure_shape')
-    require(isinstance(value['image_digest'],str) and len(value['image_digest'])==71 and value['image_digest'].startswith('sha256:') and
-            all(c in '0123456789abcdef' for c in value['image_digest'][7:]),'inspector_image_identity')
-    require(bool(candidate_roots),'inspector_candidate_roots_required')
-    root=_private_root(root,candidate_roots);members=[];seen=set()
-    for record in value['members']:
-        require(isinstance(record,dict) and set(record)=={'role','path','bytes','sha256','mode'} and type(record['bytes']) is int and
-                type(record['mode']) is int and isinstance(record['sha256'],str) and len(record['sha256'])==64 and
-                all(c in '0123456789abcdef' for c in record['sha256']) and record['path'] not in seen and record['role'] in ROLES,'inspector_member_shape')
-        seen.add(record['path']);members.append(_read_member(root,record))
-    require({r[0] for r in members}==ROLES and sum(r[2] for r in members)<=512*1024*1024,'inspector_execution_closure')
-    engines=[r for r in members if r[0]=='engine'];require(len(engines)==1 and engines[0][4]&0o111,'inspector_engine_identity')
-    return InspectorClosure(sha256(canonical_bytes(profile)),independently_accepted_sha256,root,tuple(members),value['image_digest'],root/engines[0][1],engines[0][3],_SEAL)
+    # A measured local manifest and its claimed digest do not establish image
+    # contents, invoked member paths, or ABI. No independent verified-image port
+    # exists in this increment. Refuse before decode, member reads, or plan minting.
+    raise ReceiptRefusal('inspector_image_member_unbound')
+
+
+def startup_argv(profile):
+    """Narrow isolated startup policy; no ineffective PYTHON* setting promises."""
+    spec=profile['inspector']
+    require(spec.get('argv')==['/opt/cortex-inspector/bin/python','-I','-S','-B','/opt/cortex-inspector/inspect.py'] and
+            spec.get('environment')=={} and 'hash_seed' not in spec and
+            type(spec.get('optimization')) is int and spec['optimization']==0,'inspector_literal_startup')
+    return tuple(spec['argv'])
 
 
 def prepare_plan(capability,profile,request_bytes):
@@ -119,9 +116,7 @@ def prepare_plan(capability,profile,request_bytes):
             limits['input_bytes']<=16*1024*1024 and limits['output_bytes']<=8*1024*1024 and limits['object_count']<=50000 and
             limits['depth']<=128 and limits['seconds']<=120 and limits['memory_bytes']<=512*1024*1024 and limits['pids']<=16 and limits['cpu_millicores']<=2000,'inspector_hard_limits')
     require(type(request_bytes) is bytes and len(request_bytes)<=limits['input_bytes'],'inspector_input_bound')
-    require(spec.get('argv')==['/opt/cortex-inspector/bin/python','-I','-S','-B','/opt/cortex-inspector/inspect.py'] and
-            spec.get('environment')=={'PYTHONHASHSEED':str(spec.get('hash_seed'))} and type(spec.get('hash_seed')) is int and
-            spec.get('optimization') in (0,1,2),'inspector_literal_startup')
+    startup=startup_argv(profile)
     # Recheck immutable closure immediately before preparation/use. No ambient
     # PATH/PYTHONHOME/site hooks, candidate bind mount or host networking.
     for observation in capability.members:
@@ -133,7 +128,7 @@ def prepare_plan(capability,profile,request_bytes):
           '--memory='+str(limits['memory_bytes']),'--memory-swap='+str(limits['memory_bytes']),
           '--cpu-period=100000','--cpu-quota='+str(limits['cpu_millicores']*100),
           '--timeout='+str(limits['seconds']),'--log-driver=none','--interactive',
-          '--env','PYTHONHASHSEED='+str(spec['hash_seed']),capability.image_digest,*spec['argv'])
+          capability.image_digest,*startup)
     return InspectorPlan(argv,(),limits['input_bytes'],limits['output_bytes'],limits['seconds'],limits['memory_bytes'],limits['pids'])
 
 

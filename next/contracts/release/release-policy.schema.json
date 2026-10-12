@@ -90,7 +90,6 @@
               "argv",
               "environment",
               "optimization",
-              "hash_seed",
               "limits"
             ]
           }
@@ -115,23 +114,15 @@
           "type": "string"
         },
         "environment": {
-          "additionalProperties": {
-            "maxLength": 4096,
-            "type": "string"
-          },
-          "maxProperties": 16,
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0
         },
         "execution": {
           "enum": [
             "none",
             "contained"
           ]
-        },
-        "hash_seed": {
-          "maximum": 4294967295,
-          "minimum": 0,
-          "type": "integer"
         },
         "limits": {
           "additionalProperties": false,
@@ -182,12 +173,8 @@
           "type": "object"
         },
         "optimization": {
-          "enum": [
-            0,
-            1,
-            2
-          ],
-          "type": "integer"
+          "type": "integer",
+          "const": 0
         },
         "python_caches": {
           "enum": [
