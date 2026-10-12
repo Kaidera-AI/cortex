@@ -88,9 +88,10 @@ class QueryEmbeddingCache:
                 *key,
             )
             if row is not None and row["fresh"] and row["vector"] is not None:
-                vector = json.loads(row["vector"])
-                vector_literal(vector, 768)
-                return key, CachedEmbedding(tuple(vector), True), None
+                vector = tuple(
+                    json.loads(vector_literal(json.loads(row["vector"]), 768))
+                )
+                return key, CachedEmbedding(vector, True), None
             await conn.execute(
                 """DELETE FROM retrieval.query_embeddings WHERE tenant_id=$1 AND project_id=$2
                 AND expires_at <= clock_timestamp() AND lease_until <= clock_timestamp()
@@ -196,14 +197,18 @@ class QueryEmbeddingCache:
             if fence is not None:
                 try:
                     # No PG connection/transaction is retained across this await.
-                    vector = await asyncio.wait_for(
+                    provider_vector = await asyncio.wait_for(
                         self.embed(query, identity),
                         timeout=max(0.001, deadline - time.monotonic()),
                     )
-                    vector_literal(vector, identity.dimensions)
+                    # Freeze the admitted storage/search components before any
+                    # publication await; cold and warm return the same numbers.
+                    vector = tuple(
+                        json.loads(vector_literal(provider_vector, identity.dimensions))
+                    )
                     if await self._publish(subject, key, owner, fence, vector):
                         self._check_deadline(deadline)
-                        return CachedEmbedding(tuple(float(v) for v in vector), False)
+                        return CachedEmbedding(vector, False)
                 except asyncpg.SerializationError:
                     await self._release(subject, key, owner, fence, deadline)
                     # A concurrent winner may already have published a cached result.
