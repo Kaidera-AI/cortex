@@ -1,0 +1,31 @@
+CORTEX_TEST_RESULT={"tests_run": 1, "failures": [], "errors": [{"id": "unittest.loader._FailedTest.test_held_continuation", "traceback": "ImportError: Failed to import test module: test_held_continuation\nTraceback (most recent call last):\n  File \"/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 426, in _find_test_path\n    module = self._get_module_from_name(name)\n  File \"/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 367, in _get_module_from_name\n    __import__(name)\n    ~~~~~~~~~~^^^^^^\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-scoped-exhaustion-20261011/docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py\", line 14, in <module>\n    with contextlib.redirect_stdout(io.StringIO()):exec(compile(tree,str(PROBE),'exec'),ns)\n                                                   ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-c07-repair-mike-review-20261011/page-boundary.py\", line 19, in <module>\n    source = path.read_text()\n  File \"/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 792, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:\n         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 776, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: '/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-scoped-exhaustion-20261011/docs/next/evidence/c07-source/reviewer-reusable-control/next/src/cortex_core/modules/consumer.py'\n\n"}]}
+test_held_continuation (unittest.loader._FailedTest.test_held_continuation) ... ERROR
+
+======================================================================
+ERROR: test_held_continuation (unittest.loader._FailedTest.test_held_continuation)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_held_continuation
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 426, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 367, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-scoped-exhaustion-20261011/docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py", line 14, in <module>
+    with contextlib.redirect_stdout(io.StringIO()):exec(compile(tree,str(PROBE),'exec'),ns)
+                                                   ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-c07-repair-mike-review-20261011/page-boundary.py", line 19, in <module>
+    source = path.read_text()
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 792, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 776, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-scoped-exhaustion-20261011/docs/next/evidence/c07-source/reviewer-reusable-control/next/src/cortex_core/modules/consumer.py'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

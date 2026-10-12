@@ -1,0 +1,21 @@
+{
+  "schema": "cortex.o01a.forward-qualification.v1",
+  "native_file": "native-pg-forward-001.json",
+  "inherited_file": "inherited-pg-forward-001.json",
+  "module_fault_file": "inherited-c07-faults-forward-001.json",
+  "backup_fault_file": "backup-forward-mutants-002.jsonl",
+  "published_inputs": {
+    "docs/next/evidence/o01a-source/native-pg-forward-001.json": "65f77df890a0a337e317c11df853c5a9f942ce00494ce3bddd952e9af7b24aa4",
+    "docs/next/evidence/o01a-source/inherited-pg-forward-001.json": "5a53df9a148e670c5a8d7e43c52a58ff12b1c96105d2340febf5d14a5d7eed92",
+    "docs/next/evidence/o01a-source/inherited-c07-faults-forward-001.json": "975b62422610e72813a8117966a671310342eb085614626e79c4c7ee536577e2",
+    "docs/next/evidence/o01a-source/backup-forward-mutants-002.jsonl": "8b6522a2bf63b0e071c5c71443fcf0f3eb044e6ca3652b227b1a68d6c23633a5",
+    "docs/next/evidence/o01a-source/backup-forward-mutants-attempt-001.jsonl": "9b2a4258bfdf83358b8985e605a2d433bb4e017567b8276b45ca7152f79a0e1e",
+    "docs/next/evidence/o01a-source/run-native-forward.py": "81160d6f251a7f7454c214cca5ff090e3c3f2de2fbb8870b466bc45415f8c538",
+    "docs/next/evidence/o01a-source/mutate-backup-forward.py": "4d4a2b88202251db26f6c7d819b2babee6c39c238d279de5d7119289ee36abd0",
+    "docs/next/evidence/o01a-source/verify-forward-qualification.py": "ac0b6b758461f5285410368917aa955eeae673aa5899e7da72642fdf16788d84",
+    "next/src/cortex_core/backup.py": "834bf1ba819ff99350af0ba821c6b12590bdd044d26a1527d8831f44688237ec",
+    "next/tests/backup_producer/test_manifest.py": "f43f12c56833b0c0fcbad8e30731170c856f58e983976946782d05c295f254f0",
+    "docs/next/evidence/c07-source/run-core-pg.py": "a61c7dfd853afc23ebf2e97239686211c4d5f1b6b19531b2a06434e4120f784e"
+  },
+  "note": "Native/source tests and copied inherited tests have their recorded commits; publication changes proof documents only. Initial operational-error fault attempt is retained, not counted."
+}

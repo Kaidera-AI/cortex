@@ -1,0 +1,236 @@
+"""C07 copied-source semantic faults with the fixed active test-body classifier."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+import psycopg
+
+NEXT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(NEXT/'tests'))
+from test_receipts import classify, report, suite
+
+CONSUMER = 'src/cortex_core/modules/consumer.py'
+SQL = 'schema/coordination/003-module-consumers.sql'
+TARGET = 'tests/module_consumer/common.py'
+GRAPH = 'src/cortex_core/modules/graph/consumer_adapter.py'
+MANIFEST = 'schema/manifest.json'
+DIRECTORY = NEXT/'tests/module_consumer'
+
+RECIPES = [
+    ('after-core crash hook removed',CONSUMER,
+     'if self.after_checkpoint is not None:', 'if False:',
+     'test_apply_checkpoint.ApplyCheckpoint.test_crash_after_core_outcome_is_duplicate_safe'),
+    ('foreign scope accepted',CONSUMER,
+     "or UUID(env['project_id']) != self.project_id", 'or False',
+     'test_poison.Poison.test_untrusted_aggregate_or_scope_refuses_cycle'),
+    ('payload digest ignored',CONSUMER,
+     "or hashlib.sha256(event.payload).hexdigest() != env['payload_sha256']", 'or False',
+     'test_poison.Poison.test_poison_blocks_only_its_aggregate'),
+    ('full page jumps global head',CONSUMER,
+     'cursor = page.events[-1].cursor if len(page.events) == limit else page.head',
+     'cursor = page.head',
+     'test_apply_checkpoint.ApplyCheckpoint.test_full_project_page_does_not_jump_global_head'),
+    ('sparse capacity guard removed',CONSUMER,
+     "if self.status()['pending_outcomes'] >= self.max_pending_outcomes:",
+     'if False:',
+     'test_poison.Poison.test_sparse_outcome_capacity_refuses_without_dropping_peer'),
+    ('complete outcome downgrade guard removed',SQL,
+     "IF p_cursor<=c.applied_cursor AND p_outcome IN ('poison','held')",
+     'IF false',
+     'test_apply_checkpoint.ApplyCheckpoint.test_complete_outcome_cannot_be_downgraded_to_poison'),
+    ('poisoned aggregate not held',CONSUMER,
+     "if not repairing and self._call('c07_poisoned(%s,%s,%s)',",
+     "if False and self._call('c07_poisoned(%s,%s,%s)',",
+     'test_poison.Poison.test_held_successors_replay_in_order_after_repair'),
+    ('sparse gap promoted',SQL,
+     "IF candidate.outcome NOT IN ('applied','stale') THEN EXIT; END IF;",
+     'IF false THEN EXIT; END IF;',
+     'test_poison.Poison.test_peer_aggregate_progress_does_not_claim_complete_cursor'),
+    ('quarantine omitted',SQL,
+     "ELSIF p_outcome='poison' THEN", 'ELSIF false THEN',
+     'test_poison.Poison.test_poison_blocks_only_its_aggregate'),
+    ('repair resolution omitted',SQL,
+     'UPDATE coordination.quarantine SET resolved_at=clock_timestamp()',
+     'UPDATE coordination.quarantine SET resolved_at=NULL',
+     'test_poison.Poison.test_held_successors_replay_in_order_after_repair'),
+    ('stale target revision overwritten',TARGET,
+     "if existing[0] > env['aggregate_revision']:", 'if False:',
+     'test_apply_checkpoint.ApplyCheckpoint.test_stale_upsert_cannot_resurrect_tombstone'),
+    ('equal revision conflict ignored',TARGET,
+     "if existing[1] != UUID(env['event_id']) or existing[2] != env['payload_sha256']:",
+     'if False:',
+     'test_apply_checkpoint.ApplyCheckpoint.test_equal_revision_different_digest_is_quarantined'),
+    ('target tombstone removed',TARGET,
+     "env['payload_sha256'],env['tombstone'],event.payload",
+     "env['payload_sha256'],False,event.payload",
+     'test_apply_checkpoint.ApplyCheckpoint.test_stale_upsert_cannot_resurrect_tombstone'),
+    ('graph bytes re-encoded',GRAPH,
+     'return GraphFactBinding(payload, source_kind, revision, extractor)',
+     "return GraphFactBinding(json.dumps(fact).encode(), source_kind, revision, extractor)",
+     'test_graph_codec.GraphCodec.test_graph_fact_bytes_are_verbatim'),
+    ('new table forced RLS removed',SQL,
+     "ALTER TABLE coordination.%I FORCE ROW LEVEL SECURITY",
+     "ALTER TABLE coordination.%I NO FORCE ROW LEVEL SECURITY",
+     'test_manifest.Manifest.test_new_tables_force_rls_and_request_has_no_direct_write'),
+]
+
+RECIPES.extend([
+    ('review Python receipt admission bypassed',CONSUMER,
+     "        required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}",
+     "        self._record(state,event,'applied',receipt=receipt)\n        return True\n        required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}",
+     'test_review_repairs.ReviewRepairs.test_python_complete_typed_receipt_refuses_before_record'),
+    ('review SQL receipt admission bypassed',SQL,
+     "  IF p_outcome IN ('applied','stale') THEN", "  IF p_outcome IN ('applied','stale') AND false THEN",
+     'test_review_repairs.ReviewRepairs.test_sql_complete_typed_receipt_is_null_safe_and_atomic'),
+    ('review repair scope and ordinary fence bypassed',CONSUMER,
+     "elif UUID(event.envelope['aggregate_id']) == aggregate:\n                        if not self._apply_event(state, event):",
+     "elif True:\n                        if not self._apply_event(state, event, repairing=True):",
+     'test_review_repairs.ReviewRepairs.test_unrelated_poison_does_not_block_or_change_requested_repair'),
+    ('review quarantine root admission bypassed',CONSUMER,
+     "if not self._call('c07_quarantined(%s,%s,%s)',", "if False and self._call('c07_quarantined(%s,%s,%s)',",
+     'test_review_repairs.ReviewRepairs.test_held_event_cannot_be_used_as_quarantine_root'),
+    ('review observed repair range bypassed',CONSUMER,
+     'if event.cursor > scan_fence:', 'if False:',
+     'test_review_repairs.ReviewRepairs.test_repair_leaves_unobserved_successor_for_normal_cycle'),
+    ('review completed prefix retirement omitted',SQL,
+     "AND cursor<=new_applied AND outcome IN ('applied','stale');",
+     "AND false AND cursor<=new_applied AND outcome IN ('applied','stale');",
+     'test_review_repairs.ReviewRepairs.test_healthy_completed_prefix_is_compacted_with_durable_head'),
+    ('review numeric version type omitted','src/cortex_core/modules/protocol.py',
+     "or type(value['protocol_version']) not in (int, float)", "or False",
+     'test_review_repairs.ReviewRepairs.test_manifest_matches_numeric_unique_bounded_kind_schema'),
+    ('review kind uniqueness omitted','src/cortex_core/modules/protocol.py',
+     'or len(set(kinds)) != len(kinds)', 'or False',
+     'test_review_repairs.ReviewRepairs.test_manifest_matches_numeric_unique_bounded_kind_schema'),
+    ('review kind length bound omitted','src/cortex_core/modules/protocol.py',
+     'not 1 <= len(kind) <= 64', 'not kind',
+     'test_review_repairs.ReviewRepairs.test_manifest_matches_numeric_unique_bounded_kind_schema'),
+    ('pagination stops after first page',CONSUMER,
+     '                cursor = page_cursor', '                break',
+     'test_review_pagination.Pagination.test_1001_observed_events_replay_held_successor'),
+    ('pagination gives up before later root',CONSUMER,
+     '                cursor = page_cursor',
+     '                if requested is None: break\n                cursor = page_cursor',
+     'test_review_pagination.Pagination.test_late_root_three_pages_conflict_isolation_and_observed_fence'),
+    ('pagination re-admits resolved root',CONSUMER,
+     '                cursor = page_cursor',
+     "                if not self._call('c07_quarantined(%s,%s,%s)', (self.module_id, state['generation'], event_id)):\n                    raise ConsumerError('repair_event_not_poison')\n                cursor = page_cursor",
+     'test_review_pagination.Pagination.test_1001_observed_events_replay_held_successor'),
+    ('durable observed replay omitted',CONSUMER,
+     'while replay_cursor < observed_fence:', 'while False:',
+     'test_durable_continuation.DurableContinuation.test_fresh_client_resumes_after_root_checkpoint_interruption'),
+    ('durable poisoned aggregate replayed',CONSUMER,
+     "if self._call('c07_poisoned(%s,%s,%s)',\n                            (self.module_id, state['generation'], aggregate)):",
+     "if False and self._call('c07_poisoned(%s,%s,%s)',\n                            (self.module_id, state['generation'], aggregate)):",
+     'test_durable_continuation.DurableContinuation.test_independent_poison_and_full_capacity_survive_multi_page_resume'),
+    ('durable replay incorrectly capacity limited',CONSUMER,
+     '                    replay_cursor = event.cursor',
+     "                    if self.status()['pending_outcomes'] >= self.max_pending_outcomes:\n                        raise ConsumerError('capacity')\n                    replay_cursor = event.cursor",
+     'test_durable_continuation.DurableContinuation.test_independent_poison_and_full_capacity_survive_multi_page_resume'),
+])
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def check_receipt(result):
+    value = report(result)
+    return value if value is not None else {'tests_run': 0, 'failures': [], 'errors': [{'id':'missing_receipt'}]}
+
+
+def checkpoint():
+    with psycopg.connect(os.environ['TEST_DATABASE_URL'], autocommit=True) as connection:
+        connection.execute('CHECKPOINT')
+
+
+def exact_suite(name):
+    """Isolate a declared fault boundary when unrelated repair cannot run."""
+    script = '''import json,sys,unittest
+sys.path.insert(0,sys.argv[1]);sys.path.insert(0,sys.argv[2])
+from test_receipts import AssertionResult,MARKER
+name=sys.argv[3]
+tests=unittest.defaultTestLoader.loadTestsFromName(name)
+assert tests.countTestCases()==1,'selected test ID must resolve exactly once'
+result=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(tests)
+print(MARKER+json.dumps({'tests_run':result.testsRun,'failures':result.assertions,
+ 'errors':[{'id':test.id(),'traceback':traceback} for test,traceback in result.errors]}),flush=True)
+raise SystemExit(0 if result.wasSuccessful() else 1)
+'''
+    return subprocess.run([sys.executable,'-c',script,str(NEXT/'tests'),str(DIRECTORY),name],
+                          capture_output=True,text=True)
+
+
+RECIPES.append(('scoped exhaustion refused',CONSUMER,
+    "if replay_cursor == previous:\n                    break",
+    "if replay_cursor == previous:\n                    raise ConsumerError('observed_replay_missing')",
+    'test_scoped_exhaustion.ScopedExhaustion.test_empty_project_repeated_cycle_preserves_local_completeness'))
+
+
+def run():
+    paths = sorted({path for _,path,_,_,_ in RECIPES} | {MANIFEST})
+    originals = {path:(NEXT/path).read_bytes() for path in paths}
+    original_sha = {path:digest(data) for path,data in originals.items()}
+    assert len({label for label,*_ in RECIPES}) == len(RECIPES)
+    for label,path,before,after,expected in RECIPES:
+        assert before != after and originals[path].decode().count(before) == 1, label
+        assert expected.startswith('test_')
+    baseline = suite(DIRECTORY)
+    baseline_receipt = check_receipt(baseline)
+    assert baseline.returncode == 0 and baseline_receipt['tests_run'] == 44
+    assert not baseline_receipt['failures'] and not baseline_receipt['errors']
+    print(json.dumps({'baseline':baseline_receipt,'source_sha256':original_sha}),flush=True)
+    rows = []
+    try:
+        for label,path,before,after,expected in RECIPES:
+            checkpoint()
+            source = originals[path].decode().replace(before,after)
+            try:
+                (NEXT/path).write_text(source)
+                if path == SQL:
+                    manifest = json.loads(originals[MANIFEST])
+                    manifest['migrations'][-1]['sha256'] = digest((NEXT/SQL).read_bytes())
+                    (NEXT/MANIFEST).write_text(json.dumps(manifest,indent=2)+'\n')
+                effective = {name:digest((NEXT/name).read_bytes()) for name in paths}
+                # A fault can make unrelated repair cases fail operationally;
+                # isolate its declared boundary, retaining full baselines.
+                result = exact_suite(expected)
+                receipt = check_receipt(result)
+                status = classify(result,{expected})
+                failed = {row['id'].split(' (')[0] for row in receipt['failures']}
+                if (expected not in failed or receipt['errors'] or
+                    any(row['phase'] != 'test' or not row['is_assertion'] or
+                        row['phase_attribution'] != 'traceback+active-unittest-v2'
+                        for row in receipt['failures'])):
+                    status = 'inconclusive'
+                row = {'mutation':label,'source':path,'expected_test':expected,
+                       'status':status,'original_source_sha256':original_sha,
+                       'effective_source_sha256':effective,'exit_code':result.returncode,
+                       'receipt':receipt,'stdout':result.stdout,'stderr':result.stderr}
+                rows.append(row)
+                print(json.dumps(row),flush=True)
+            finally:
+                for name,data in originals.items():
+                    (NEXT/name).write_bytes(data)
+    finally:
+        for name,data in originals.items():
+            (NEXT/name).write_bytes(data)
+    checkpoint()
+    final = suite(DIRECTORY)
+    restored = check_receipt(final)
+    final_sha = {name:digest((NEXT/name).read_bytes()) for name in paths}
+    summary = {'mutants':len(RECIPES),'killed':sum(row['status']=='killed' for row in rows),
+               'survivors':[row['mutation'] for row in rows if row['status']=='survived'],
+               'inconclusive':[row['mutation'] for row in rows if row['status']=='inconclusive'],
+               'restored_source_sha256':final_sha,'restored_receipt':restored}
+    print(json.dumps(summary),flush=True)
+    assert len(rows)==len(RECIPES) and summary['killed']==len(RECIPES)
+    assert final_sha==original_sha and final.returncode==0 and restored['tests_run']==44
+    assert not restored['failures'] and not restored['errors']
+
+
+if __name__ == '__main__':
+    run()
