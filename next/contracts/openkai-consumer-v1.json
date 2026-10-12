@@ -1,0 +1,498 @@
+{
+  "format": "openkai-consumer-v1",
+  "observed": [
+    {
+      "behavior_ids": [
+        "B16",
+        "B18"
+      ],
+      "call_sites": [
+        {
+          "end_line": 60,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-extension.ts",
+          "sha256": "61a4c829805eb361000c911c95ae832c686b0d2bd3146863e7b3267c24a3603d",
+          "start_line": 10
+        },
+        {
+          "end_line": 177,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 141
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R072_get_beat_embedding_backlog",
+      "path": "/beat/embeddings/backlog",
+      "scope": "operator_read"
+    },
+    {
+      "behavior_ids": [
+        "B16",
+        "B18"
+      ],
+      "call_sites": [
+        {
+          "end_line": 60,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-extension.ts",
+          "sha256": "61a4c829805eb361000c911c95ae832c686b0d2bd3146863e7b3267c24a3603d",
+          "start_line": 10
+        },
+        {
+          "end_line": 177,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 141
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R006_get_get_degradation",
+      "path": "/degradation",
+      "scope": "project_read"
+    },
+    {
+      "behavior_ids": [
+        "B16",
+        "B18"
+      ],
+      "call_sites": [
+        {
+          "end_line": 60,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-extension.ts",
+          "sha256": "61a4c829805eb361000c911c95ae832c686b0d2bd3146863e7b3267c24a3603d",
+          "start_line": 10
+        },
+        {
+          "end_line": 177,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 141
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R002_get_health",
+      "path": "/health",
+      "scope": "public_health"
+    },
+    {
+      "behavior_ids": [
+        "B06",
+        "B07",
+        "B08",
+        "B09",
+        "B11",
+        "B16",
+        "B17",
+        "B18",
+        "B20"
+      ],
+      "call_sites": [
+        {
+          "end_line": 185,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-memory.ts",
+          "sha256": "1ba3ede9cb94a656bd3c83b0b62693739620d42eafcdea38fdab1ace3b561722",
+          "start_line": 150
+        },
+        {
+          "end_line": 41,
+          "file": "products/openkai/packages/coding-agent/src/tools/learn.ts",
+          "sha256": "b2d24dc395d4ec1cfe69ba2865c6287069eee960f92a3b7c7c886005419a6008",
+          "start_line": 31
+        },
+        {
+          "end_line": 61,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/types.ts",
+          "sha256": "e2144d3d845401fe06722658d3ce2cfe478d36242029a84f3ebd9715ea467837",
+          "start_line": 48
+        },
+        {
+          "end_line": 69,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 62
+        },
+        {
+          "end_line": 3023,
+          "file": "products/openkai/packages/coding-agent/src/config/settings-schema.ts",
+          "sha256": "e48a55faed707848d6346ab9abde851bcda0bbf1414db8c1d9a50f13d9fa0231",
+          "start_line": 3013
+        },
+        {
+          "end_line": 60,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-extension.ts",
+          "sha256": "61a4c829805eb361000c911c95ae832c686b0d2bd3146863e7b3267c24a3603d",
+          "start_line": 10
+        },
+        {
+          "end_line": 104,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/settings.ts",
+          "sha256": "06ad243c0927d0b59be4941605d73f907b6c6a93e7b153ff9229a6c32442a678",
+          "start_line": 74
+        },
+        {
+          "end_line": 177,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 141
+        },
+        {
+          "end_line": 268,
+          "file": "products/openkai/packages/coding-agent/src/openkai/fusion-tool.ts",
+          "sha256": "f95161d0d4e80169fa6d05672ba5b4fac6eb20d3426a413f94b97388ea359238",
+          "start_line": 255
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R082_get_get_project",
+      "path": "/projects/{project_key}",
+      "scope": "project_read"
+    },
+    {
+      "behavior_ids": [
+        "B16",
+        "B18"
+      ],
+      "call_sites": [
+        {
+          "end_line": 60,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-extension.ts",
+          "sha256": "61a4c829805eb361000c911c95ae832c686b0d2bd3146863e7b3267c24a3603d",
+          "start_line": 10
+        },
+        {
+          "end_line": 177,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 141
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R030_get_workers_health",
+      "path": "/workers/health",
+      "scope": "project_read"
+    },
+    {
+      "behavior_ids": [
+        "B20"
+      ],
+      "call_sites": [
+        {
+          "end_line": 268,
+          "file": "products/openkai/packages/coding-agent/src/openkai/fusion-tool.ts",
+          "sha256": "f95161d0d4e80169fa6d05672ba5b4fac6eb20d3426a413f94b97388ea359238",
+          "start_line": 255
+        }
+      ],
+      "method": "POST",
+      "operation_id": "C01-R015_post_ingest_artifact",
+      "path": "/artifacts",
+      "scope": "project_write"
+    },
+    {
+      "behavior_ids": [
+        "B06",
+        "B07",
+        "B08",
+        "B09",
+        "B10"
+      ],
+      "call_sites": [
+        {
+          "end_line": 185,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-memory.ts",
+          "sha256": "1ba3ede9cb94a656bd3c83b0b62693739620d42eafcdea38fdab1ace3b561722",
+          "start_line": 150
+        },
+        {
+          "end_line": 41,
+          "file": "products/openkai/packages/coding-agent/src/tools/learn.ts",
+          "sha256": "b2d24dc395d4ec1cfe69ba2865c6287069eee960f92a3b7c7c886005419a6008",
+          "start_line": 31
+        },
+        {
+          "end_line": 61,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/types.ts",
+          "sha256": "e2144d3d845401fe06722658d3ce2cfe478d36242029a84f3ebd9715ea467837",
+          "start_line": 48
+        },
+        {
+          "end_line": 69,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 62
+        },
+        {
+          "end_line": 214,
+          "file": "products/openkai/packages/coding-agent/src/cortex-ingest/controller.ts",
+          "sha256": "f8928ed6e1780707d3d3ebbccb4e58a37cd9bbb231e02586d4bf1bd3516c3c0e",
+          "start_line": 181
+        }
+      ],
+      "method": "POST",
+      "operation_id": "C01-R102_post_write_memory",
+      "path": "/memory",
+      "scope": "project_write"
+    },
+    {
+      "behavior_ids": [
+        "B03",
+        "B04",
+        "B05"
+      ],
+      "call_sites": [
+        {
+          "end_line": 121,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts",
+          "sha256": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+          "start_line": 81
+        },
+        {
+          "end_line": 129,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex-memory.ts",
+          "sha256": "1ba3ede9cb94a656bd3c83b0b62693739620d42eafcdea38fdab1ace3b561722",
+          "start_line": 70
+        },
+        {
+          "end_line": 39,
+          "file": "products/openkai/packages/coding-agent/src/memory-backend/runtime.ts",
+          "sha256": "5ac296887478fca4aeb63819d667d517ddbdfb2e7c344166e1d24023ea58fefe",
+          "start_line": 34
+        }
+      ],
+      "method": "POST",
+      "operation_id": "C01-R022_post_search_post",
+      "path": "/search",
+      "scope": "project_read"
+    },
+    {
+      "behavior_ids": [
+        "B11"
+      ],
+      "call_sites": [
+        {
+          "end_line": 3023,
+          "file": "products/openkai/packages/coding-agent/src/config/settings-schema.ts",
+          "sha256": "e48a55faed707848d6346ab9abde851bcda0bbf1414db8c1d9a50f13d9fa0231",
+          "start_line": 3013
+        }
+      ],
+      "method": "POST",
+      "operation_id": "C01-R013_post_ingest_session",
+      "path": "/sessions/ingest",
+      "scope": "project_write"
+    }
+  ],
+  "ruled_contract_deltas": {
+    "D1": {
+      "body_fields": [
+        "revision",
+        "payload_sha256"
+      ],
+      "implementation_state": "ruled_unimplemented",
+      "method": "GET",
+      "not_found": 404,
+      "path": "/records/{id}",
+      "tombstone": 410,
+      "unauthorized": 404
+    },
+    "D2": {
+      "deadline": {
+        "code": "capability_unavailable",
+        "state": "pending",
+        "status": 503
+      },
+      "implementation_state": "ruled_unimplemented",
+      "method": "POST",
+      "min_revision": "non_negative_integer",
+      "path": "/search",
+      "placement": "parameters",
+      "wait_ms": {
+        "default": 0,
+        "maximum": 10000
+      }
+    },
+    "D3": {
+      "control_jobs_state": "ruled_unimplemented",
+      "future_control_scope": "owner_admin",
+      "gtm_response": {
+        "code": "capability_unavailable",
+        "state": "unimplemented",
+        "status": 503
+      },
+      "status_binding": "bound_now",
+      "status_paths": [
+        "/beat/embeddings/backlog",
+        "/degradation",
+        "/workers/health"
+      ],
+      "status_scope": "read"
+    },
+    "D4": {
+      "implementation_state": "ruled_unimplemented",
+      "lag_partial": {
+        "code": "capability_unavailable",
+        "results": "omitted",
+        "status": 503
+      },
+      "ready_empty": {
+        "results": [],
+        "state": "ready_empty",
+        "status": 200
+      }
+    }
+  },
+  "sdk_only": [
+    {
+      "behavior_ids": [
+        "B22"
+      ],
+      "call_sites": [
+        {
+          "end_line": 310,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts",
+          "sha256": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+          "start_line": 308
+        }
+      ],
+      "method": "DELETE",
+      "operation_id": "C01-R049_delete_deprecate_skill",
+      "path": "/skills/{slug}",
+      "scope": "sdk_surface_unfrozen"
+    },
+    {
+      "behavior_ids": [
+        "B22"
+      ],
+      "call_sites": [
+        {
+          "end_line": 310,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts",
+          "sha256": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+          "start_line": 308
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R076_get_stream_team_events",
+      "path": "/events",
+      "scope": "sdk_surface_unfrozen"
+    },
+    {
+      "behavior_ids": [
+        "B22"
+      ],
+      "call_sites": [
+        {
+          "end_line": 310,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts",
+          "sha256": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+          "start_line": 308
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R121_get_sessions_ingested_ids",
+      "path": "/sessions/ingested-ids",
+      "scope": "sdk_surface_unfrozen"
+    },
+    {
+      "behavior_ids": [
+        "B22"
+      ],
+      "call_sites": [
+        {
+          "end_line": 310,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts",
+          "sha256": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+          "start_line": 308
+        }
+      ],
+      "method": "GET",
+      "operation_id": "C01-R047_get_list_skills",
+      "path": "/skills",
+      "scope": "sdk_surface_unfrozen"
+    },
+    {
+      "behavior_ids": [
+        "B22"
+      ],
+      "call_sites": [
+        {
+          "end_line": 310,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts",
+          "sha256": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+          "start_line": 308
+        }
+      ],
+      "method": "POST",
+      "operation_id": "C01-R046_post_register_skill",
+      "path": "/skills",
+      "scope": "sdk_surface_unfrozen"
+    },
+    {
+      "behavior_ids": [
+        "B22"
+      ],
+      "call_sites": [
+        {
+          "end_line": 310,
+          "file": "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts",
+          "sha256": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+          "start_line": 308
+        }
+      ],
+      "method": "POST",
+      "operation_id": "C01-R048_post_bind_skill",
+      "path": "/skills/{slug}/bind",
+      "scope": "sdk_surface_unfrozen"
+    }
+  ],
+  "source": {
+    "c01_openapi_sha256": "4b9e58be0219926c760c62b799974c63991c5fbbe751b6833c8889eb5cfe8de4",
+    "commit": "83b9409989ca9ca7f6a08473523d6a171c63d44b",
+    "evidence_sha256": "aa6e5a2a5e27aeddf4e0aef98b530055bde3d71cf54ecd23d026b1f291c6abe9",
+    "files": {
+      "products/openkai/package.json": "bfb84ce47ee346c50920d5cf0ef47e28e9259b21a13565d7d3f8c666cb981fee",
+      "products/openkai/packages/coding-agent/package.json": "218b23a206911bea666657370eff7e08160d9b005c62f1d56a946932d03b035e",
+      "products/openkai/packages/coding-agent/src/config/settings-schema.ts": "e48a55faed707848d6346ab9abde851bcda0bbf1414db8c1d9a50f13d9fa0231",
+      "products/openkai/packages/coding-agent/src/config/settings.ts": "c147b18c75ce8344edc8003873e16964249e2553cdfe294f5356063e927bf827",
+      "products/openkai/packages/coding-agent/src/cortex-ingest/controller.ts": "f8928ed6e1780707d3d3ebbccb4e58a37cd9bbb231e02586d4bf1bd3516c3c0e",
+      "products/openkai/packages/coding-agent/src/cortex-ingest/types.ts": "e112012b8cbad7e437ce2c955b45d1e61bb9f7fba24ef47cef5f1d1ada16c01b",
+      "products/openkai/packages/coding-agent/src/extensibility/extensions/runner.ts": "6b641c8377bf36d278f0909f1e82299a85d469ddbbda768fbbdde7af7d541f91",
+      "products/openkai/packages/coding-agent/src/internal-urls/memory-protocol.ts": "8cfe1141a04728ec12dcec4cef2a6fbed80686c8b5e02d976757c81a93f000e9",
+      "products/openkai/packages/coding-agent/src/internal-urls/router.ts": "09a44709977b4da1c3cbab282784a66fb712e79fe507f2467f2fcf1ff24d59b7",
+      "products/openkai/packages/coding-agent/src/memory-backend/cortex-backend.ts": "89af78d12b7cc0d5d01c4023427366417ff6401c6175ebf249c5aaa9c49102ab",
+      "products/openkai/packages/coding-agent/src/memory-backend/messages.ts": "5d19f19403f6dcbd3e6d391f5e190facf65518efd5dbf2c77d3aac0db561534a",
+      "products/openkai/packages/coding-agent/src/memory-backend/off-backend.ts": "8c26c8ade6ca26cb4c0aba6a92197f40206b0a581722b0edf6c8f83d3cee2eb0",
+      "products/openkai/packages/coding-agent/src/memory-backend/resolve.ts": "1f96f7afcc34beeb9ace975d323327660aa4b247bad851888f62bfd977abdaee",
+      "products/openkai/packages/coding-agent/src/memory-backend/runtime.ts": "5ac296887478fca4aeb63819d667d517ddbdfb2e7c344166e1d24023ea58fefe",
+      "products/openkai/packages/coding-agent/src/memory-backend/types.ts": "e2144d3d845401fe06722658d3ce2cfe478d36242029a84f3ebd9715ea467837",
+      "products/openkai/packages/coding-agent/src/modes/controllers/command-controller.ts": "8cda19cdb02cc05f68c36d31bac60c518b56b28f43b595d28384f3b0e3cbbc99",
+      "products/openkai/packages/coding-agent/src/openkai/cortex-extension.ts": "61a4c829805eb361000c911c95ae832c686b0d2bd3146863e7b3267c24a3603d",
+      "products/openkai/packages/coding-agent/src/openkai/cortex-memory.ts": "1ba3ede9cb94a656bd3c83b0b62693739620d42eafcdea38fdab1ace3b561722",
+      "products/openkai/packages/coding-agent/src/openkai/cortex/client.ts": "d6434dca4770ac45a87c3cf6daa761bb62ca882d31c8adad41fa6b473ddb2a50",
+      "products/openkai/packages/coding-agent/src/openkai/cortex/settings.ts": "06ad243c0927d0b59be4941605d73f907b6c6a93e7b153ff9229a6c32442a678",
+      "products/openkai/packages/coding-agent/src/openkai/cortex/types.ts": "d75a770d7a079bcdb6a7f2d298cbbd8810fa08701cbc00b2d6d2eaa3914cf0ab",
+      "products/openkai/packages/coding-agent/src/openkai/fusion-tool.ts": "f95161d0d4e80169fa6d05672ba5b4fac6eb20d3426a413f94b97388ea359238",
+      "products/openkai/packages/coding-agent/src/openkai/fusion/telemetry.ts": "cf95b3b879f32fa6b6731174f84f92c0ec28d286974484441c95b6970911f763",
+      "products/openkai/packages/coding-agent/src/openkai/index.ts": "c26f994fd7e2ee6b61ba3c254e8ce7a72f6042d4d625a39e54003187f668c27d",
+      "products/openkai/packages/coding-agent/src/sdk.ts": "93598b1ec857883fe0a71dd19805e8678fd100bfc0722333549e2ff74690e50e",
+      "products/openkai/packages/coding-agent/src/session/agent-session.ts": "fac10f9eff7d31e7b71201d29d0d2a3e607d6e243227693f7a8e47b10818fa12",
+      "products/openkai/packages/coding-agent/src/session/session-maintenance.ts": "948370998f2fbd986ec69fdf9f7e2f2e45941c0ef0ce89d5ad0e6864dd343ca7",
+      "products/openkai/packages/coding-agent/src/session/session-memory.ts": "af857ec034211f70f49abc858f61a6de8c6f71f7e03201e366eb0f8286130edb",
+      "products/openkai/packages/coding-agent/src/session/session-tools.ts": "b1b9153250566c6fbb3f80b46e8d180ed25ce4e74b2c0fdc55fb3b0e1b767465",
+      "products/openkai/packages/coding-agent/src/slash-commands/builtin-lifecycle.ts": "f85b698144bf697f3caed46438d15d2c4a9d5efc1cce4aa3381a8e061f0f04f9",
+      "products/openkai/packages/coding-agent/src/tools/glob.ts": "1816623863f681721d579e35e828cbe8ecd6de1fa7973d256d08c0b8b2d8ba38",
+      "products/openkai/packages/coding-agent/src/tools/index.ts": "ede1764f1e8bace9121658a4cffdea1ef82dbd9f898e089127eee5126259947d",
+      "products/openkai/packages/coding-agent/src/tools/learn.ts": "b2d24dc395d4ec1cfe69ba2865c6287069eee960f92a3b7c7c886005419a6008"
+    },
+    "package_version": "0.1.15",
+    "repository": "Kaidera-AI/kaideraos",
+    "route_inventory_sha256": "c66eff6fb7af46e4c7baaed7ad2a3944d912ede0c6f3aa6423d5c576e0d9ce29",
+    "source_files_sha256": "f9a4979dc569211e0605d6b30abe1001a316f3c8c126ceea8bdb0699511ee645",
+    "tag": "openkai/v0.1.15"
+  },
+  "upgrade_origin": {
+    "first_signed_candidate": "v0.1.003",
+    "pre_signed_path": "backup_fresh_install_restore",
+    "status": "pending_cto_signature",
+    "v0.1.002": "not_signed_origin"
+  }
+}
