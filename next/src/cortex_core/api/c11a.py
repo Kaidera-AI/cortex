@@ -151,7 +151,8 @@ def _compile_path(template):
     return re.compile("^/" + "/".join(parts) + "$" if template != "/" else "^/$")
 
 
-def _packet(code, *, capability=None, reason=None, retryable=True, message=None):
+def _packet(code, *, capability=None, reason=None, retryable=True, message=None,
+            state=None):
     error = {"code": code, "retryable": retryable}
     if capability is not None:
         error["capability"] = capability
@@ -159,6 +160,8 @@ def _packet(code, *, capability=None, reason=None, retryable=True, message=None)
         error["reason"] = reason
     if message is not None:
         error["message"] = message
+    if state is not None:
+        error["state"] = state
     return {"error": error}
 
 
@@ -268,6 +271,7 @@ class ConsumerGateway:
             return await _respond(send, 404, _packet("not_found", retryable=False))
         if row is not None and row["effect"] == "retired_sql":
             return await _respond(send, 410, _packet("retired_route", retryable=False))
+        principal_error = None
         try:
             principal = await self.principal_resolver(scope)
         except Exception as error:
@@ -279,9 +283,27 @@ class ConsumerGateway:
                 return await _respond(send, status, packet)
             if getattr(error, 'code', None) == 'core_unavailable':
                 return await _respond(send, 503, _packet('core_unavailable'))
+            principal_error = error
             principal = None
-        if not isinstance(principal, dict) or not principal.get("principal_id") or not principal.get("project_id"):
-            if row['id'] == 'C11-D1':
+        principal_valid = (isinstance(principal, dict) and principal.get('principal_id')
+                           and principal.get('project_id'))
+        d2 = False
+        if row['id'] == 'C01-R022' and self.parse_search_body:
+            try:
+                scope['_c11b_body'] = await _memory_body(receive)
+            except GatewayError:
+                if not principal_valid:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+                return await _respond(send, 400, _packet('invalid_input', retryable=False))
+            body = scope['_c11b_body']
+            d2 = any(key in body for key in ('after', 'wait_ms', 'min_revision'))
+            if d2:
+                scope['_c11b_receive'] = receive
+        if principal_error is not None and d2:
+            status, packet = self._d1_refusal(principal_error)
+            return await _respond(send, status, packet)
+        if not principal_valid:
+            if row['id'] == 'C11-D1' or d2:
                 return await _respond(send, 404, _packet('not_found', retryable=False))
             return await _respond(send, 403, _packet("forbidden", retryable=False))
         if row['id'] == 'C11-D1':
@@ -298,7 +320,7 @@ class ConsumerGateway:
             except Exception as error:
                 status, packet = self._d1_refusal(error)
                 return await _respond(send, status, packet)
-        if row["capability"]:
+        if row["capability"] and not d2:
             state = await capability_state(row["capability"], self.capability_source,
                                            self.permission_recheck, principal)
             if state["state"] != "ready":
@@ -348,11 +370,6 @@ class ConsumerGateway:
                     or any(ord(char) < 32 for char in request_key)):
                 return await _respond(send, 400, _packet("idempotency_key_required", retryable=False))
         try:
-            if row['id'] == 'C01-R022' and self.parse_search_body:
-                try:
-                    scope['_c11b_body'] = await _memory_body(receive)
-                except GatewayError:
-                    return await _respond(send, 400, _packet('invalid_input', retryable=False))
             value = await handler(principal, scope, request_key)
             if row["effect"] == "write":
                 if (type(value) is not C05Committed or value.committed is not True
@@ -368,7 +385,13 @@ class ConsumerGateway:
                 raise GatewayError("read receipt is invalid")
             return await _respond(send, 200, value)
         except PermissionError:
-            return await _respond(send, 403, _packet("forbidden", retryable=False))
+            return await _respond(send, 404 if d2 else 403,
+                                  _packet('not_found' if d2 else 'forbidden', retryable=False))
         except Exception as error:
-            status, packet = _error_status(error)
+            state = getattr(error, 'd2_state', None) if d2 else None
+            if state in {'pending', 'unavailable'}:
+                return await _respond(send, 503,
+                    _packet('capability_unavailable', state=state,
+                            retryable=state == 'pending'))
+            status, packet = self._d1_refusal(error) if d2 else _error_status(error)
             return await _respond(send, status, packet)

@@ -300,15 +300,24 @@
         "state": "pending",
         "status": 503
       },
-      "implementation_state": "ruled_unimplemented",
+      "implementation_state": "implemented_source",
       "method": "POST",
-      "min_revision": "non_negative_integer",
       "path": "/search",
-      "placement": "parameters",
+      "placement": "body",
       "wait_ms": {
         "default": 0,
         "maximum": 10000
-      }
+      },
+      "after": {
+        "record_id": "uuid",
+        "revision": "positive_int64"
+      },
+      "tombstone": {
+        "status": 503,
+        "code": "capability_unavailable",
+        "state": "unavailable"
+      },
+      "unknown_target": 404
     },
     "D3": {
       "control_jobs_state": "ruled_unimplemented",
