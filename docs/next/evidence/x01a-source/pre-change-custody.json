@@ -1,0 +1,23 @@
+{
+  "head": "bcbd7ddc940d84f79ae3c16dd87fc2d1d5d25b70",
+  "source_sha256": {
+    "next/src/cortex_core/recovery_fixture.py": "a372d2345a2b74637a622dbc7be967e8c07a93835cd9bc0239e51c7fa21bf209",
+    "next/tests/recovery_fixture/test_fixture.py": "c4371e8dc6f81a8cb5b3dcf2c1f98eb86654a30eeeec58b403d480abda010ad3",
+    "next/scripts/mutate_recovery_fixture.py": "2586b7cafd04b4bd401ba5e10cf5cb803ca782ba4699f3d25c44ecf441691322",
+    "next/docs/gtm-recovery/X01A.md": "5bb39b52a9029b12da6fe46c35c0de3560509d2868c6b8e2e93574e55cd4fdd1"
+  },
+  "lineage_sha256": {
+    "controller-red-001.txt": "4bce6eeb5dd4fc8f603a5df1b5a67979c5acebd2ddbdf90ee4cf0663aa905d4f",
+    "red-001.txt": "df22da27ca98ed8126ac59e48d99cafbac0719d2a5a4dcf9fdc03cc0c77ab9ee",
+    "fixture-membership-red-001.txt": "d1e3ef777a4e0bef6e9d007a4c670d88a6f4594216f81e323d21f64d922fe034",
+    "dry-run.json": "f1a76a26a6bfcaa51ab7650aa123608853ba082fc63268a156ff42e4739ad9e0",
+    "detach-red-001.txt": "cfa2d0f9c504431760bc1086124a1c6ce35666af415476ad6efa1dab5ec21ea2",
+    "red-002.txt": "34df052f604725c5bf6368f138c041a6a8792575a7a873d57bb9399d2852f379",
+    "red-003.txt": "3b76373415fed48a9c48f0f3b9d3cab28b849e4739648d218ac5407edac295b9",
+    "verify-x01a.py": "139677f9e8b40f15c46f7424dbd47d75998ca5b05c26f20ca52452981e08b00b",
+    "mutation-final-004.jsonl": "420ffed14ceeb5d036ce7472cc30b2404eb5957338d85d6d6cf3fa73b77c591f",
+    "reproduce.md": "5d18056b06a34eac7e89d7dfba0bb2a1abe7b39c6b80c934bc3f74ba906ade46",
+    "fault-red-001.txt": "93672f885da6b227ebf05b215c3166918e1b23fa6b19a6c473d5f86ba887ade4"
+  },
+  "authority": "Kai00:45b accepted,exactPR72 0372a25"
+}

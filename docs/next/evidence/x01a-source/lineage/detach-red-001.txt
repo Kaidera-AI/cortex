@@ -1,0 +1,39 @@
+test_faults_only_name_owned_synthetic_primary (test_fixture.FaultFixtureTests.test_faults_only_name_owned_synthetic_primary) ... ok
+test_synthetic_fixture_is_deterministic_and_cross_domain (test_fixture.FaultFixtureTests.test_synthetic_fixture_is_deterministic_and_cross_domain) ... ok
+test_ambiguous_is_separate_and_can_later_resolve (test_fixture.LedgerTests.test_ambiguous_is_separate_and_can_later_resolve) ... ok
+test_controller_records_ack_only_after_confirmed_server_callback (test_fixture.LedgerTests.test_controller_records_ack_only_after_confirmed_server_callback) ... ok
+test_controller_timeout_is_ambiguous_not_ack (test_fixture.LedgerTests.test_controller_timeout_is_ambiguous_not_ack) ... ok
+test_digest_detects_complete_tail_truncation_against_prefault_copy (test_fixture.LedgerTests.test_digest_detects_complete_tail_truncation_against_prefault_copy) ... ok
+test_external_ledger_rejects_faulted_root_and_symlink (test_fixture.LedgerTests.test_external_ledger_rejects_faulted_root_and_symlink) ... ok
+test_only_matching_server_confirmed_commit_enters_ack_chain (test_fixture.LedgerTests.test_only_matching_server_confirmed_commit_enters_ack_chain) ... ok
+test_single_entry_content_hash_is_checked (test_fixture.LedgerTests.test_single_entry_content_hash_is_checked) ... ok
+test_tampered_or_truncated_chain_refuses_before_next_append (test_fixture.LedgerTests.test_tampered_or_truncated_chain_refuses_before_next_append) ... ok
+test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) ... 
+  test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='production-linux') ... FAIL
+  test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='standalone-macos') ... FAIL
+test_wrong_platform_or_shared_volume_refused_before_plan (test_fixture.NativeAdapterTests.test_wrong_platform_or_shared_volume_refused_before_plan) ... ok
+test_contiguous_prefix_reports_lost_ack_and_measured_windows (test_fixture.ReconciliationTests.test_contiguous_prefix_reports_lost_ack_and_measured_windows) ... ok
+test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) ... ok
+test_rpo_or_rto_miss_is_red_not_averaged (test_fixture.ReconciliationTests.test_rpo_or_rto_miss_is_red_not_averaged) ... ok
+
+======================================================================
+FAIL: test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='production-linux')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 189, in test_both_editions_render_native_dry_run_without_host_execution
+    self.assertIn("--detach", argv[2])
+AssertionError: '--detach' not found in ['podman', 'run', '--name', 'kaidera-test-cortex-recovery', '--network', 'none', '--cpus', '2', '--memory', '4g', '--mount', 'type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata', '--mount', 'type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly', '--entrypoint', 'postgres', 'cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '-D', '/pgdata']
+
+======================================================================
+FAIL: test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='standalone-macos')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 189, in test_both_editions_render_native_dry_run_without_host_execution
+    self.assertIn("--detach", argv[2])
+AssertionError: '--detach' not found in ['podman', 'run', '--name', 'kaidera-test-cortex-recovery', '--network', 'none', '--cpus', '2', '--memory', '2g', '--mount', 'type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata', '--mount', 'type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly', '--entrypoint', 'postgres', 'cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '-D', '/pgdata']
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.026s
+
+FAILED (failures=2)
+CORTEX_TEST_RESULT={"tests_run": 15, "failures": [{"id": "test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution (edition='production-linux')", "phase": "test", "phase_attribution": "traceback+active-unittest-v2", "is_assertion": true, "exception_type": "builtins.AssertionError", "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py\", line 189, in test_both_editions_render_native_dry_run_without_host_execution\n    self.assertIn(\"--detach\", argv[2])\nAssertionError: '--detach' not found in ['podman', 'run', '--name', 'kaidera-test-cortex-recovery', '--network', 'none', '--cpus', '2', '--memory', '4g', '--mount', 'type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata', '--mount', 'type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly', '--entrypoint', 'postgres', 'cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '-D', '/pgdata']\n"}, {"id": "test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution (edition='standalone-macos')", "phase": "test", "phase_attribution": "traceback+active-unittest-v2", "is_assertion": true, "exception_type": "builtins.AssertionError", "traceback": "Traceback (most recent call last):\n  File \"/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py\", line 189, in test_both_editions_render_native_dry_run_without_host_execution\n    self.assertIn(\"--detach\", argv[2])\nAssertionError: '--detach' not found in ['podman', 'run', '--name', 'kaidera-test-cortex-recovery', '--network', 'none', '--cpus', '2', '--memory', '2g', '--mount', 'type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata', '--mount', 'type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly', '--entrypoint', 'postgres', 'cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '-D', '/pgdata']\n"}], "errors": []}

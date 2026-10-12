@@ -1,0 +1,194 @@
+test_ambiguous_is_separate_and_can_later_resolve (test_fixture.LedgerTests.test_ambiguous_is_separate_and_can_later_resolve) ... ERROR
+test_digest_detects_complete_tail_truncation_against_prefault_copy (test_fixture.LedgerTests.test_digest_detects_complete_tail_truncation_against_prefault_copy) ... ERROR
+test_external_ledger_rejects_faulted_root_and_symlink (test_fixture.LedgerTests.test_external_ledger_rejects_faulted_root_and_symlink) ... ERROR
+test_only_matching_server_confirmed_commit_enters_ack_chain (test_fixture.LedgerTests.test_only_matching_server_confirmed_commit_enters_ack_chain) ... ERROR
+test_tampered_or_truncated_chain_refuses_before_next_append (test_fixture.LedgerTests.test_tampered_or_truncated_chain_refuses_before_next_append) ... ERROR
+test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) ... 
+  test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='production-linux') ... ERROR
+  test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='standalone-macos') ... ERROR
+test_wrong_platform_or_shared_volume_refused_before_plan (test_fixture.NativeAdapterTests.test_wrong_platform_or_shared_volume_refused_before_plan) ... ERROR
+test_contiguous_prefix_reports_lost_ack_and_measured_windows (test_fixture.ReconciliationTests.test_contiguous_prefix_reports_lost_ack_and_measured_windows) ... ERROR
+test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) ... 
+  test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}]) ... ERROR
+  test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'tombstone': False, 'state': 'committed'}]) ... ERROR
+  test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-4', 'record_id': 'record-4', 'revision': 4, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}]) ... ERROR
+test_rpo_or_rto_miss_is_red_not_averaged (test_fixture.ReconciliationTests.test_rpo_or_rto_miss_is_red_not_averaged) ... ERROR
+
+======================================================================
+ERROR: test_ambiguous_is_separate_and_can_later_resolve (test_fixture.LedgerTests.test_ambiguous_is_separate_and_can_later_resolve)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 66, in test_ambiguous_is_separate_and_can_later_resolve
+    ledger = self.ledger()
+             ^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 40, in ledger
+    return AckLedger(self.ledger_dir, [self.fault])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 10, in __init__
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_digest_detects_complete_tail_truncation_against_prefault_copy (test_fixture.LedgerTests.test_digest_detects_complete_tail_truncation_against_prefault_copy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 89, in test_digest_detects_complete_tail_truncation_against_prefault_copy
+    ledger = self.ledger()
+             ^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 40, in ledger
+    return AckLedger(self.ledger_dir, [self.fault])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 10, in __init__
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_external_ledger_rejects_faulted_root_and_symlink (test_fixture.LedgerTests.test_external_ledger_rejects_faulted_root_and_symlink)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 44, in test_external_ledger_rejects_faulted_root_and_symlink
+    AckLedger(self.fault, [self.fault])
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 10, in __init__
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_only_matching_server_confirmed_commit_enters_ack_chain (test_fixture.LedgerTests.test_only_matching_server_confirmed_commit_enters_ack_chain)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 51, in test_only_matching_server_confirmed_commit_enters_ack_chain
+    ledger = self.ledger()
+             ^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 40, in ledger
+    return AckLedger(self.ledger_dir, [self.fault])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 10, in __init__
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_tampered_or_truncated_chain_refuses_before_next_append (test_fixture.LedgerTests.test_tampered_or_truncated_chain_refuses_before_next_append)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 74, in test_tampered_or_truncated_chain_refuses_before_next_append
+    ledger = self.ledger()
+             ^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 40, in ledger
+    return AckLedger(self.ledger_dir, [self.fault])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 10, in __init__
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='production-linux')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 143, in test_both_editions_render_native_dry_run_without_host_execution
+    plan = self.plan(edition)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 138, in plan
+    return native_restore_plan(edition, **base)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 32, in native_restore_plan
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='standalone-macos')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 143, in test_both_editions_render_native_dry_run_without_host_execution
+    plan = self.plan(edition)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 138, in plan
+    return native_restore_plan(edition, **base)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 32, in native_restore_plan
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_wrong_platform_or_shared_volume_refused_before_plan (test_fixture.NativeAdapterTests.test_wrong_platform_or_shared_volume_refused_before_plan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 157, in test_wrong_platform_or_shared_volume_refused_before_plan
+    self.plan(os_name="Darwin")
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 138, in plan
+    return native_restore_plan(edition, **base)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 32, in native_restore_plan
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_contiguous_prefix_reports_lost_ack_and_measured_windows (test_fixture.ReconciliationTests.test_contiguous_prefix_reports_lost_ack_and_measured_windows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 107, in test_contiguous_prefix_reports_lost_ack_and_measured_windows
+    verdict = self.check([result(1), result(2)])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 104, in check
+    return reconcile([request(1), request(2), request(3)], recovered, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 27, in reconcile
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 118, in test_noncontiguous_or_altered_recovery_is_refused
+    self.check(rows)
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 104, in check
+    return reconcile([request(1), request(2), request(3)], recovered, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 27, in reconcile
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'tombstone': False, 'state': 'committed'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 118, in test_noncontiguous_or_altered_recovery_is_refused
+    self.check(rows)
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 104, in check
+    return reconcile([request(1), request(2), request(3)], recovered, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 27, in reconcile
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-4', 'record_id': 'record-4', 'revision': 4, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 118, in test_noncontiguous_or_altered_recovery_is_refused
+    self.check(rows)
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 104, in check
+    return reconcile([request(1), request(2), request(3)], recovered, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 27, in reconcile
+    raise NotImplementedError
+NotImplementedError
+
+======================================================================
+ERROR: test_rpo_or_rto_miss_is_red_not_averaged (test_fixture.ReconciliationTests.test_rpo_or_rto_miss_is_red_not_averaged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 121, in test_rpo_or_rto_miss_is_red_not_averaged
+    self.assertFalse(self.check([result(1)], rpo_limit_ns=1_000_000_000)["passed"])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 104, in check
+    return reconcile([request(1), request(2), request(3)], recovered, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/src/cortex_core/recovery_fixture.py", line 27, in reconcile
+    raise NotImplementedError
+NotImplementedError
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.004s
+
+FAILED (errors=13)

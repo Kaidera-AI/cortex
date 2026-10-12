@@ -1,0 +1,172 @@
+{
+  "ack_count": 2,
+  "fixture_sha256": "646cfa42ceee30299ba0454c35033c2e7fcfb97e7fb73e50f89dd21978327f9a",
+  "host_commands_executed": 0,
+  "ledger_sha256": "ab2c6b046f7e9f90cba055098be969394cdba8f1ec424f259378bf3bc4ddf28a",
+  "linux_plan": {
+    "architecture": "x86_64",
+    "archive_volume": "kaidera-test-cortex-archive",
+    "commands": [
+      [
+        "podman",
+        "volume",
+        "create",
+        "kaidera-test-cortex-recovered"
+      ],
+      [
+        "podman",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "4g",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly",
+        "--entrypoint",
+        "pg_verifybackup",
+        "cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "-q",
+        "-w",
+        "/wal",
+        "/pgdata"
+      ],
+      [
+        "podman",
+        "run",
+        "--detach",
+        "--name",
+        "kaidera-test-cortex-recovery",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "4g",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly",
+        "--entrypoint",
+        "postgres",
+        "cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "-D",
+        "/pgdata"
+      ],
+      [
+        "podman",
+        "exec",
+        "kaidera-test-cortex-recovery",
+        "pg_ctl",
+        "-D",
+        "/pgdata",
+        "status"
+      ]
+    ],
+    "dry_run": true,
+    "edition": "production-linux",
+    "image_ref": "cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "os": "Linux",
+    "precondition": "X01b authenticated base/WAL/blob staging and edition GO",
+    "restore_volume": "kaidera-test-cortex-recovered",
+    "source_volume": "kaidera-test-cortex-primary",
+    "target_container": "kaidera-test-cortex-recovery"
+  },
+  "mac_plan": {
+    "architecture": "arm64",
+    "archive_volume": "kaidera-test-cortex-archive",
+    "commands": [
+      [
+        "podman",
+        "volume",
+        "create",
+        "kaidera-test-cortex-recovered"
+      ],
+      [
+        "podman",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "2g",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly",
+        "--entrypoint",
+        "pg_verifybackup",
+        "cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "-q",
+        "-w",
+        "/wal",
+        "/pgdata"
+      ],
+      [
+        "podman",
+        "run",
+        "--detach",
+        "--name",
+        "kaidera-test-cortex-recovery",
+        "--network",
+        "none",
+        "--cpus",
+        "2",
+        "--memory",
+        "2g",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-recovered,destination=/pgdata",
+        "--mount",
+        "type=volume,source=kaidera-test-cortex-archive,destination=/wal,readonly",
+        "--entrypoint",
+        "postgres",
+        "cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "-D",
+        "/pgdata"
+      ],
+      [
+        "podman",
+        "exec",
+        "kaidera-test-cortex-recovery",
+        "pg_ctl",
+        "-D",
+        "/pgdata",
+        "status"
+      ]
+    ],
+    "dry_run": true,
+    "edition": "standalone-macos",
+    "image_ref": "cortex@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "os": "Darwin",
+    "precondition": "X01b authenticated base/WAL/blob staging and edition GO",
+    "restore_volume": "kaidera-test-cortex-recovered",
+    "source_volume": "kaidera-test-cortex-primary",
+    "target_container": "kaidera-test-cortex-recovery"
+  },
+  "qualification": "synthetic arithmetic and command rendering only",
+  "storage_fault": {
+    "archive_volume": "kaidera-test-cortex-archive",
+    "dry_run": true,
+    "edition": "production-linux",
+    "fault": "storage",
+    "operation": "remove_owned_primary_data",
+    "requires_go": true,
+    "synthetic_record_id": null,
+    "target": "kaidera-test-cortex-primary-data"
+  },
+  "verdict": {
+    "lost_ack_ids": [
+      "ack-2"
+    ],
+    "passed": true,
+    "recovered_ack_count": 1,
+    "rpo_ns": 2000000000,
+    "rto_ns": 2000000000
+  }
+}

@@ -1,0 +1,152 @@
+test_ambiguous_is_separate_and_can_later_resolve (test_fixture.LedgerTests.test_ambiguous_is_separate_and_can_later_resolve) ... ERROR
+test_digest_detects_complete_tail_truncation_against_prefault_copy (test_fixture.LedgerTests.test_digest_detects_complete_tail_truncation_against_prefault_copy) ... ERROR
+test_external_ledger_rejects_faulted_root_and_symlink (test_fixture.LedgerTests.test_external_ledger_rejects_faulted_root_and_symlink) ... FAIL
+test_only_matching_server_confirmed_commit_enters_ack_chain (test_fixture.LedgerTests.test_only_matching_server_confirmed_commit_enters_ack_chain) ... FAIL
+test_tampered_or_truncated_chain_refuses_before_next_append (test_fixture.LedgerTests.test_tampered_or_truncated_chain_refuses_before_next_append) ... ERROR
+test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) ... 
+  test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='production-linux') ... FAIL
+  test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='standalone-macos') ... FAIL
+test_wrong_platform_or_shared_volume_refused_before_plan (test_fixture.NativeAdapterTests.test_wrong_platform_or_shared_volume_refused_before_plan) ... FAIL
+test_contiguous_prefix_reports_lost_ack_and_measured_windows (test_fixture.ReconciliationTests.test_contiguous_prefix_reports_lost_ack_and_measured_windows) ... FAIL
+test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) ... 
+  test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}]) ... FAIL
+  test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'tombstone': False, 'state': 'committed'}]) ... FAIL
+  test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-4', 'record_id': 'record-4', 'revision': 4, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}]) ... FAIL
+test_rpo_or_rto_miss_is_red_not_averaged (test_fixture.ReconciliationTests.test_rpo_or_rto_miss_is_red_not_averaged) ... FAIL
+
+======================================================================
+ERROR: test_ambiguous_is_separate_and_can_later_resolve (test_fixture.LedgerTests.test_ambiguous_is_separate_and_can_later_resolve)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 69, in test_ambiguous_is_separate_and_can_later_resolve
+    self.assertEqual(ledger.read("ambiguous")[0]["request_id"], "req-1")
+                     ~~~~~~~~~~~~~~~~~~~~~~~~^^^
+IndexError: list index out of range
+
+======================================================================
+ERROR: test_digest_detects_complete_tail_truncation_against_prefault_copy (test_fixture.LedgerTests.test_digest_detects_complete_tail_truncation_against_prefault_copy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 94, in test_digest_detects_complete_tail_truncation_against_prefault_copy
+    path.write_bytes(path.read_bytes().splitlines(keepends=True)[0])
+                     ^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/w7/tjk3sl6x0ln1ydnsp3yxpvvw0000gn/T/cox-x01a-egt1qvl0/controller/acks.jsonl'
+
+======================================================================
+ERROR: test_tampered_or_truncated_chain_refuses_before_next_append (test_fixture.LedgerTests.test_tampered_or_truncated_chain_refuses_before_next_append)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 78, in test_tampered_or_truncated_chain_refuses_before_next_append
+    original = path.read_bytes()
+               ^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/w7/tjk3sl6x0ln1ydnsp3yxpvvw0000gn/T/cox-x01a-4b2quqvz/controller/acks.jsonl'
+
+======================================================================
+FAIL: test_external_ledger_rejects_faulted_root_and_symlink (test_fixture.LedgerTests.test_external_ledger_rejects_faulted_root_and_symlink)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 43, in test_external_ledger_rejects_faulted_root_and_symlink
+    with self.assertRaises(RecoveryError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_only_matching_server_confirmed_commit_enters_ack_chain (test_fixture.LedgerTests.test_only_matching_server_confirmed_commit_enters_ack_chain)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 52, in test_only_matching_server_confirmed_commit_enters_ack_chain
+    with self.assertRaises(RecoveryError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='production-linux')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 148, in test_both_editions_render_native_dry_run_without_host_execution
+    self.assertTrue(any("pg_verifybackup" in part for cmd in argv for part in cmd))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_both_editions_render_native_dry_run_without_host_execution (test_fixture.NativeAdapterTests.test_both_editions_render_native_dry_run_without_host_execution) (edition='standalone-macos')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 148, in test_both_editions_render_native_dry_run_without_host_execution
+    self.assertTrue(any("pg_verifybackup" in part for cmd in argv for part in cmd))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_wrong_platform_or_shared_volume_refused_before_plan (test_fixture.NativeAdapterTests.test_wrong_platform_or_shared_volume_refused_before_plan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 156, in test_wrong_platform_or_shared_volume_refused_before_plan
+    with self.assertRaises(RecoveryError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_contiguous_prefix_reports_lost_ack_and_measured_windows (test_fixture.ReconciliationTests.test_contiguous_prefix_reports_lost_ack_and_measured_windows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 109, in test_contiguous_prefix_reports_lost_ack_and_measured_windows
+    self.assertEqual(verdict["lost_ack_ids"], ["req-3"])
+AssertionError: Lists differ: [] != ['req-3']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'req-3'
+
+- []
++ ['req-3']
+
+======================================================================
+FAIL: test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 117, in test_noncontiguous_or_altered_recovery_is_refused
+    with self.subTest(rows=rows), self.assertRaises(RecoveryError):
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'tombstone': False, 'state': 'committed'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 117, in test_noncontiguous_or_altered_recovery_is_refused
+    with self.subTest(rows=rows), self.assertRaises(RecoveryError):
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_noncontiguous_or_altered_recovery_is_refused (test_fixture.ReconciliationTests.test_noncontiguous_or_altered_recovery_is_refused) (rows=[{'request_id': 'req-1', 'record_id': 'record-1', 'revision': 1, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-2', 'record_id': 'record-2', 'revision': 2, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-3', 'record_id': 'record-3', 'revision': 3, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}, {'request_id': 'req-4', 'record_id': 'record-4', 'revision': 4, 'payload_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tombstone': False, 'state': 'committed'}])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 117, in test_noncontiguous_or_altered_recovery_is_refused
+    with self.subTest(rows=rows), self.assertRaises(RecoveryError):
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RecoveryError not raised
+
+======================================================================
+FAIL: test_rpo_or_rto_miss_is_red_not_averaged (test_fixture.ReconciliationTests.test_rpo_or_rto_miss_is_red_not_averaged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-x01a-recovery-fixture-20261010/next/tests/recovery_fixture/test_fixture.py", line 121, in test_rpo_or_rto_miss_is_red_not_averaged
+    self.assertFalse(self.check([result(1)], rpo_limit_ns=1_000_000_000)["passed"])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.011s
+
+FAILED (failures=10, errors=3)
