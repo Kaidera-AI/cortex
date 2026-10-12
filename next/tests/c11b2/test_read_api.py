@@ -23,16 +23,20 @@ ROOT = Path(__file__).resolve().parents[2]
 IDENTITY = EmbeddingIdentity('fixture', 'frozen-query-vector', 'v1', 768, 'v1')
 
 
+class FunctionProvider:
+    def __init__(self, function):
+        self.function = function
+
+    async def embed(self, query, identity):
+        return await self.function(query, identity)
+
+
 class ReadAPI(unittest.IsolatedAsyncioTestCase):
     reset = Fixture.reset
     auth = Fixture.auth
 
     async def asyncSetUp(self):
         Fixture.setUp(self)
-        self.admin.execute((ROOT / 'schema/retrieval/001-pg-search.sql').read_text())
-        self.admin.execute((ROOT / 'schema/retrieval/003-pg-graph.sql').read_text())
-        self.admin.execute(f'GRANT USAGE ON SCHEMA retrieval TO "{REQUEST}"')
-        self.admin.execute(f'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA retrieval TO "{REQUEST}"')
         self.admin.execute('INSERT INTO retrieval.search_state VALUES (%s,%s,%s,%s)',
                            (*self.scope, IDENTITY.key, 'ready'))
         self.admin.execute('INSERT INTO retrieval.search_sources VALUES (%s,%s,%s,%s,%s)',
@@ -56,8 +60,18 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         async def init(conn):
             await conn.execute(f'SET ROLE "{REQUEST}"')
         self.pool = await asyncpg.create_pool(dsn, min_size=1, max_size=3, init=init)
+        async with self.pool.acquire() as conn:
+            runtime = await conn.fetchrow("""SELECT current_user AS role,
+                r.rolsuper AS superuser,r.rolbypassrls AS bypass,
+                pg_get_userbyid(c.relowner) AS table_owner
+                FROM pg_roles r,pg_class c
+                WHERE r.rolname=current_user AND c.oid='retrieval.search_state'::regclass""")
+        self.assertEqual(runtime['role'], REQUEST)
+        self.assertFalse(runtime['superuser'] or runtime['bypass'])
+        self.assertNotEqual(runtime['table_owner'], REQUEST)
         async def vector(_query, _identity): return PROBE_VECTOR
-        self.read_port = C11b2ReadPort(self.record_port, self.pool, IDENTITY, vector,
+        self.read_port = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
+                                       FunctionProvider(vector),
                                        'fixture-extractor', {'3': '/approved/project-3'})
         self.gateway = self.make_gateway(self.read_port)
 
@@ -204,6 +218,112 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((status, error['error']['code']), (503, 'capability_unavailable'))
         self.assertNotIn('results', error)
 
+    async def test_p01_provider_identity_cache_and_unavailable_refusal(self):
+        calls = []
+        class FakeProvider:
+            async def embed(self, query, identity):
+                calls.append((query, identity.provider, identity.model, identity.version,
+                              identity.dimensions, identity.preprocessing, identity.key))
+                return PROBE_VECTOR
+        try:
+            port = C11b2ReadPort(self.record_port, self.pool, IDENTITY, FakeProvider(),
+                                 'fixture-extractor', {'3': '/approved/project-3'})
+        except ValueError:
+            self.fail('C11 must bind the P01 provider embed port')
+        gateway = self.make_gateway(port)
+        first = await self.call('GET', '/search', query=b'q=provider-probe', gateway=gateway)
+        second = await self.call('GET', '/search', query=b'q=provider-probe', gateway=gateway)
+        self.assertEqual((first[0], second[0]), (200, 200))
+        self.assertEqual(calls, [('provider-probe', 'fixture', 'frozen-query-vector',
+                                  'v1', 768, 'v1', IDENTITY.key)])
+        self.assertEqual(first[1]['freshness']['identity'], IDENTITY.key)
+
+        class Unavailable:
+            async def embed(self, _query, _identity):
+                raise CapabilityUnavailable('provider_unavailable')
+        port = C11b2ReadPort(self.record_port, self.pool, IDENTITY, Unavailable(),
+                             'fixture-extractor', {'3': '/approved/project-3'})
+        status, error = await self.call('GET', '/search', query=b'q=unavailable',
+                                        gateway=self.make_gateway(port))
+        self.assertEqual((status, error['error']['code']), (503, 'capability_unavailable'))
+        self.assertNotIn('results', error)
+
+    async def test_installer_ledger_contains_nemo_retrieval_schemas(self):
+        applied = {row[0] for row in self.admin.execute(
+            'SELECT migration_id FROM core.schema_migrations').fetchall()}
+        self.assertTrue({'retrieval-0001', 'retrieval-0002', 'retrieval-0003',
+                         'retrieval-0004'} <= applied)
+        self.assertEqual({value for value in applied if value.startswith('retrieval-')},
+                         {'retrieval-0000', 'retrieval-0001', 'retrieval-0002',
+                          'retrieval-0003', 'retrieval-0004'})
+        for table in ('search_state', 'search_sources', 'search_vectors',
+                      'query_embeddings', 'graph_state', 'graph_applied'):
+            self.assertIsNotNone(self.admin.execute(
+                'SELECT to_regclass(%s)', ('retrieval.' + table,)).fetchone()[0])
+        flags = self.admin.execute("""SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='retrieval' AND c.relname IN
+            ('search_state','search_sources','search_vectors','query_embeddings',
+             'graph_generations','graph_state','graph_applied','graph_nodes','graph_edges')""").fetchall()
+        self.assertEqual(len(flags), 9)
+        self.assertTrue(all(enabled and forced for _, enabled, forced in flags))
+        owners = self.admin.execute("""SELECT DISTINCT pg_get_userbyid(c.relowner)
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='retrieval' AND c.relkind='r'""").fetchall()
+        self.assertEqual(owners, [(self.admin.execute('SELECT current_user').fetchone()[0],)])
+        tables = ('search_state', 'search_sources', 'search_vectors',
+                  'query_embeddings', 'graph_generations', 'graph_state',
+                  'graph_applied', 'graph_nodes', 'graph_edges')
+        for table in tables:
+            relation = 'retrieval.' + table
+            with self.subTest(table=table):
+                self.assertTrue(self.admin.execute(
+                    'SELECT has_table_privilege(%s,%s,%s)',
+                    (REQUEST, relation, 'SELECT')).fetchone()[0])
+                for privilege in ('INSERT', 'UPDATE', 'DELETE'):
+                    self.assertEqual(self.admin.execute(
+                        'SELECT has_table_privilege(%s,%s,%s)',
+                        (REQUEST, relation, privilege)).fetchone()[0],
+                        table == 'query_embeddings' or
+                        (table == 'search_state' and privilege == 'UPDATE'))
+        self.assertTrue(self.admin.execute('SELECT has_sequence_privilege(%s,%s,%s)',
+            (REQUEST, 'retrieval.query_embedding_fences', 'USAGE')).fetchone()[0])
+        policies = self.admin.execute("""SELECT tablename FROM pg_policies
+            WHERE schemaname='retrieval' AND policyname='c11b3_request_bound'
+              AND permissive='RESTRICTIVE'""").fetchall()
+        self.assertEqual({row[0] for row in policies}, set(tables))
+
+    async def test_retrieval_plain_guc_without_c04_binding_cannot_read(self):
+        with self.request.transaction():
+            self.request.execute("SELECT set_config('cortex.tenant_id',%s,true)",
+                                 (self.scope[0],))
+            self.request.execute("SELECT set_config('cortex.project_id',%s,true)",
+                                 (self.scope[1],))
+            count = self.request.execute('SELECT count(*) FROM retrieval.search_state').fetchone()[0]
+        self.assertEqual(count, 0)
+
+    async def test_bound_reader_cannot_update_projection_state(self):
+        request = {'method': 'GET', 'path': '/search',
+                   'headers': [(b'authorization', b'Bearer ' + READ_A),
+                               (b'x-project', b'3')], 'query_string': b'q=fixture'}
+        principal = await self.read_port.principal(request)
+        search, _ = self.read_port._ports(principal)
+        with self.assertRaises(asyncpg.InsufficientPrivilegeError):
+            async with search._request(principal['principal_id']) as (conn, scope):
+                await conn.execute("UPDATE retrieval.search_state SET state='disabled' "
+                    'WHERE tenant_id=$1 AND project_id=$2', scope.tenant_id,
+                    scope.project_id)
+        self.assertEqual(self.admin.execute('SELECT state FROM retrieval.search_state '
+            'WHERE tenant_id=%s AND project_id=%s', self.scope).fetchone()[0], 'ready')
+
+    async def test_fresh_installer_bound_ports_as_nonowner_request_role(self):
+        status, search = await self.call('GET', '/search', query=b'q=fixture')
+        self.assertEqual((status, search.get('freshness', {}).get('state')),
+                         (200, 'current'), search)
+        status, stats = await self.call('GET', '/cortex-graph/stats')
+        self.assertEqual((status, stats.get('freshness', {}).get('state')),
+                         (200, 'current'), stats)
+
     async def test_graph_real_port_and_backlog_refusal(self):
         body = b'{"label":"fixture-concept","description":"current","content":"current"}'
         payload, rid, fact = uuid4(), uuid4(), uuid4()
@@ -255,7 +375,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
             self.admin.execute('UPDATE auth.credentials SET revoked_at=clock_timestamp() WHERE key_digest=%s',
                                (hashlib.sha256(READ_A).hexdigest(),))
             return PROBE_VECTOR
-        revoked = C11b2ReadPort(self.record_port, self.pool, IDENTITY, revoke,
+        revoked = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
+                                FunctionProvider(revoke),
                                 'fixture-extractor', {'3': '/approved/project-3'})
         self.assertEqual((await self.call('GET', '/search', query=b'q=fixture',
                                           gateway=self.make_gateway(revoked)))[0], 403)
@@ -265,7 +386,8 @@ class ReadAPI(unittest.IsolatedAsyncioTestCase):
         async def stalled(_query, _identity):
             started.set()
             await asyncio.Event().wait()
-        cancelled = C11b2ReadPort(self.record_port, self.pool, IDENTITY, stalled,
+        cancelled = C11b2ReadPort(self.record_port, self.pool, IDENTITY,
+                                  FunctionProvider(stalled),
                                   'fixture-extractor', {'3': '/approved/project-3'})
         app = self.make_gateway(cancelled)
         scope = {'type': 'http', 'method': 'GET', 'path': '/search',
