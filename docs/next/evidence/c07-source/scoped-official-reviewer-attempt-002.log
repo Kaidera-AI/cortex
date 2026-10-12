@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-scoped-exhaustion-20261011/docs/next/evidence/c07-source/reviewer-reusable-control/test_held_continuation.py", line 14, in <module>
+    with contextlib.redirect_stdout(io.StringIO()):exec(compile(tree,str(PROBE),'exec'),ns)
+                                                   ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/pr71-c07-repair-mike-review-20261011/page-boundary.py", line 17, in <module>
+    root = Path(sys.argv[1])
+                ~~~~~~~~^^^
+IndexError: list index out of range

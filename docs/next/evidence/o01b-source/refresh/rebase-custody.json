@@ -1,0 +1,49 @@
+{
+  "passed": true,
+  "head": "235bd18bac36578d2d53d1b866e0931dcac4f1e4",
+  "base": "9f5cbd3b3ede6e074f9619da44c95d88747e61a7",
+  "conflicts": [],
+  "delta": [
+    "docs/next/evidence/o01b-source/inherited-o01a-mutation.jsonl",
+    "docs/next/evidence/o01b-source/mutation-001.jsonl",
+    "docs/next/evidence/o01b-source/native-pg-attempt-001.json",
+    "docs/next/evidence/o01b-source/native-pg-before-mutants-003.json",
+    "docs/next/evidence/o01b-source/native-pg-boundary-red-002.json",
+    "docs/next/evidence/o01b-source/native-pg-final-004.json",
+    "docs/next/evidence/o01b-source/native-pg-pr72-1-001.json",
+    "docs/next/evidence/o01b-source/o01b-red-001.json",
+    "docs/next/evidence/o01b-source/postcheck-drift-green-backup_producer.json",
+    "docs/next/evidence/o01b-source/postcheck-drift-green-backup_validation.json",
+    "docs/next/evidence/o01b-source/postcheck-drift-mutant.json",
+    "docs/next/evidence/o01b-source/postcheck-drift-red.json",
+    "docs/next/evidence/o01b-source/postcheck-native-preflight.json",
+    "docs/next/evidence/o01b-source/reproduce.md",
+    "docs/next/evidence/o01b-source/run-native-pg.py",
+    "docs/next/evidence/o01b-source/synthetic-before.sql",
+    "docs/next/evidence/o01b-source/synthetic-mutate.sql",
+    "docs/next/evidence/o01b-source/verify-o01b.py",
+    "docs/next/evidence/o01b-source/verify-pr72-1.py",
+    "next/scripts/mutate_backup_validation.py",
+    "next/src/cortex_core/backup.py",
+    "next/src/cortex_core/backup_validation.py",
+    "next/tests/backup_validation/test_validation.py"
+  ],
+  "protected": {
+    "next/src/cortex_core/backup.py": {
+      "accepted": "100644 blob eb024466adb08593ab41b7cfc7b08a6ac8e051e5\tnext/src/cortex_core/backup.py",
+      "rebased": "100644 blob eb024466adb08593ab41b7cfc7b08a6ac8e051e5\tnext/src/cortex_core/backup.py"
+    },
+    "next/src/cortex_core/backup_validation.py": {
+      "accepted": "100644 blob 177b36d14af954d9114c3f61a1c949c13fbf4391\tnext/src/cortex_core/backup_validation.py",
+      "rebased": "100644 blob 177b36d14af954d9114c3f61a1c949c13fbf4391\tnext/src/cortex_core/backup_validation.py"
+    },
+    "next/tests/backup_validation/test_validation.py": {
+      "accepted": "100644 blob c34c378b173a56c1d83e0d5797c207723eb2ed42\tnext/tests/backup_validation/test_validation.py",
+      "rebased": "100644 blob c34c378b173a56c1d83e0d5797c207723eb2ed42\tnext/tests/backup_validation/test_validation.py"
+    },
+    "next/tests/backup_producer/test_manifest.py": {
+      "accepted": "100644 blob 81606e9f6bda4b6149f60e8dd68f7d6122a93145\tnext/tests/backup_producer/test_manifest.py",
+      "rebased": "100644 blob 81606e9f6bda4b6149f60e8dd68f7d6122a93145\tnext/tests/backup_producer/test_manifest.py"
+    }
+  }
+}

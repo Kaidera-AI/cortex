@@ -1,0 +1,426 @@
+{
+  "tree": "4cf4c8080c66d4a3186733e83d39591074029c92",
+  "source_sha256": {
+    "next/src/cortex_core/backup.py": "834bf1ba819ff99350af0ba821c6b12590bdd044d26a1527d8831f44688237ec",
+    "next/tests/backup_producer/test_manifest.py": "f43f12c56833b0c0fcbad8e30731170c856f58e983976946782d05c295f254f0",
+    "docs/next/evidence/o01a-source/run-native-forward.py": "f2bc4b33f5a7eadf0e278b2d64e77df75341f659bd1147c291a03cfed4a5d0e4",
+    "docs/next/evidence/c07-source/native-memory-admission.py": "cf04317a24e2b91198fe3fb362decec5ab0054c1300dbd5e25c3bb34b3541e17"
+  },
+  "passed": true,
+  "native": {
+    "base_only_refused": true,
+    "gap_refused": true,
+    "unbound_interval_refused": true,
+    "pg_version": "18.4",
+    "segment_bytes": 16777216,
+    "postgres_system_identifier": 7695444942048161809,
+    "backup_start_lsn": "0/3000028",
+    "backup_end_lsn": "0/3000120",
+    "archive_end_lsn": "0/60000E8",
+    "wal_segments": [
+      "000000010000000000000003",
+      "000000010000000000000004",
+      "000000010000000000000005",
+      "000000010000000000000006"
+    ],
+    "base_files": 973,
+    "encrypted_bundle_sha256": "aebc9aea6ea1d1ec4f35ba2a85f2eed370c9f41ebb9a76bec01dd1c969b25cf4",
+    "synthetic_age_roundtrip": true,
+    "pg_verifybackup_passed": true
+  },
+  "local_tests": 7,
+  "results": [
+    {
+      "command": [
+        "python3.12",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-repair-20261011/next/tests/test_receipts.py",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-repair-20261011/next/tests/backup_producer"
+      ],
+      "exit_code": 0,
+      "stdout": "CORTEX_TEST_RESULT={\"tests_run\": 7, \"failures\": [], \"errors\": []}\n",
+      "stderr": "test_base_backup_without_archived_wal_is_refused (test_manifest.BackupManifestTests.test_base_backup_without_archived_wal_is_refused) ... ok\ntest_caller_metadata_mutation_cannot_change_encrypted_manifest (test_manifest.BackupManifestTests.test_caller_metadata_mutation_cannot_change_encrypted_manifest)\nMike O01A-PR71-1: caller mutates metadata after the digest is bound. ... ok\ntest_complete_set_binds_metadata_and_exact_wal_digests (test_manifest.BackupManifestTests.test_complete_set_binds_metadata_and_exact_wal_digests) ... ok\ntest_complete_set_is_sealed_with_synthetic_age_key (test_manifest.BackupManifestTests.test_complete_set_is_sealed_with_synthetic_age_key) ... ok\ntest_gap_inside_archive_interval_is_refused (test_manifest.BackupManifestTests.test_gap_inside_archive_interval_is_refused) ... ok\ntest_interval_not_beyond_backup_end_is_refused (test_manifest.BackupManifestTests.test_interval_not_beyond_backup_end_is_refused) ... ok\ntest_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret (test_manifest.BackupManifestTests.test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.178s\n\nOK\n"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.12/bin/python3.12",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-repair-20261011/docs/next/evidence/c07-source/native-memory-admission.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"passed\": true, \"floor_percent\": 35, \"mac_free_percent\": 39, \"vm\": \"kos-e020-uat\", \"vm_free_percent\": 69.78740938663547, \"vm_meminfo_kB\": {\"MemTotal\": 8095936, \"MemAvailable\": 5649944}, \"mac_measurement\": \"The system has 25769803776 (1572864 pages with a page size of 16384).\\nSystem-wide memory free percentage: 39%\\n\", \"resource_operations\": 0}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SHOW server_version;"
+      ],
+      "exit_code": 0,
+      "stdout": "18.4\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SHOW archive_mode;"
+      ],
+      "exit_code": 0,
+      "stdout": "on\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "CREATE TABLE synthetic_backup (id integer PRIMARY KEY, body text NOT NULL);"
+      ],
+      "exit_code": 0,
+      "stdout": "CREATE TABLE\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_backup VALUES (1,'synthetic before backup');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/2027CF8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "pg_basebackup",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "postgres",
+        "-p",
+        "5432",
+        "-D",
+        "/tmp/base",
+        "-Fp",
+        "-X",
+        "none",
+        "--manifest-checksums=SHA256",
+        "--checkpoint=fast"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "NOTICE:  all required WAL segments have been archived\n"
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "pg_verifybackup",
+        "-n",
+        "/tmp/base"
+      ],
+      "exit_code": 0,
+      "stdout": "backup successfully verified\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_backup VALUES (2,'synthetic after backup 2');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_current_wal_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/40001A0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/40001B8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_backup VALUES (3,'synthetic after backup 3');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_current_wal_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/50002C8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/50002E0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "INSERT INTO synthetic_backup VALUES (4,'synthetic after backup 4');"
+      ],
+      "exit_code": 0,
+      "stdout": "INSERT 0 1\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_current_wal_lsn();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/60000E8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-At",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT pg_switch_wal();"
+      ],
+      "exit_code": 0,
+      "stdout": "0/6000100\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "exec",
+        "kaidera-test-o01a-pg-1",
+        "pg_controldata",
+        "/var/lib/postgresql/18/data"
+      ],
+      "exit_code": 0,
+      "stdout": "pg_control version number:            1800\nCatalog version number:               202506291\nDatabase system identifier:           7695444942048161809\nDatabase cluster state:               in production\npg_control last modified:             Sun Oct 11 16:16:43 2026\nLatest checkpoint location:           0/5000250\nLatest checkpoint's REDO location:    0/5000028\nLatest checkpoint's REDO WAL file:    000000010000000000000005\nLatest checkpoint's TimeLineID:       1\nLatest checkpoint's PrevTimeLineID:   1\nLatest checkpoint's full_page_writes: on\nLatest checkpoint's NextXID:          0:756\nLatest checkpoint's NextOID:          24576\nLatest checkpoint's NextMultiXactId:  1\nLatest checkpoint's NextMultiOffset:  0\nLatest checkpoint's oldestXID:        745\nLatest checkpoint's oldestXID's DB:   1\nLatest checkpoint's oldestActiveXID:  756\nLatest checkpoint's oldestMultiXid:   1\nLatest checkpoint's oldestMulti's DB: 1\nLatest checkpoint's oldestCommitTsXid:0\nLatest checkpoint's newestCommitTsXid:0\nTime of latest checkpoint:            Sun Oct 11 16:16:42 2026\nFake LSN counter for unlogged rels:   0/3E8\nMinimum recovery ending location:     0/0\nMin recovery ending loc's timeline:   0\nBackup start location:                0/0\nBackup end location:                  0/0\nEnd-of-backup record required:        no\nwal_level setting:                    replica\nwal_log_hints setting:                off\nmax_connections setting:              100\nmax_worker_processes setting:         8\nmax_wal_senders setting:              10\nmax_prepared_xacts setting:           0\nmax_locks_per_xact setting:           64\ntrack_commit_timestamp setting:       off\nMaximum data alignment:               8\nDatabase block size:                  8192\nBlocks per segment of large relation: 131072\nWAL block size:                       8192\nBytes per WAL segment:                16777216\nMaximum length of identifiers:        64\nMaximum columns in an index:          32\nMaximum size of a TOAST chunk:        1996\nSize of a large-object chunk:         2048\nDate/time type storage:               64-bit integers\nFloat8 argument passing:              by value\nData page checksum version:           1\nDefault char data signedness:         signed\nMock authentication nonce:            9f3e18e9df26715157b8b530fbecb2755b61ff7a5a9c5d242a3547be0b9bcbda\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "kaidera-test-o01a-pg-1:/tmp/base",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-repair-20261011/cox-o01a-native-ed2vi3ow/base"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "podman",
+        "cp",
+        "kaidera-test-o01a-pg-1:/archive",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-repair-20261011/cox-o01a-native-ed2vi3ow/archive"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "age-keygen",
+        "-o",
+        "/Users/amadmalik/DevVault/helix/.worktrees/cox-pr71-c07-repair-20261011/cox-o01a-native-ed2vi3ow/synthetic-age-key"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "Public key: age1nv6aqug3a8y8jm7dgefnepwu044s2jvarl9jrvp5dq980yk585lsu3y9sg\n"
+    }
+  ],
+  "cleanup": {
+    "lifecycle": "950741a7c51ce6dc4684276f1db99d36",
+    "cleanup_verified": true,
+    "pending": [],
+    "owned": [],
+    "events": [
+      {
+        "event": "created",
+        "kind": "container",
+        "name": "kaidera-test-o01a-pg-1",
+        "id": "2cf9fda019376ca1023e843acd34e77b34a64f2d469d2d8a2b0b96feba974ec4"
+      },
+      {
+        "event": "removed",
+        "kind": "container",
+        "name": "kaidera-test-o01a-pg-1",
+        "id": "2cf9fda019376ca1023e843acd34e77b34a64f2d469d2d8a2b0b96feba974ec4"
+      }
+    ],
+    "attempts": [
+      {
+        "errors": [],
+        "verified": true,
+        "pending": [],
+        "owned": [],
+        "password_discarded": true,
+        "lock_released": true
+      }
+    ],
+    "password_discarded": true,
+    "lock_released": true
+  },
+  "errors": [],
+  "published_ports": [],
+  "bind_mounts": [],
+  "synthetic_only": true,
+  "limits": {
+    "cpus": 2,
+    "memory": "1g"
+  }
+}

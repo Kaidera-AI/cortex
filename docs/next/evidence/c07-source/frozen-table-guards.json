@@ -1,0 +1,72 @@
+{
+  "base_commit": "8f6e5f3d60358f42f0d8ac7b05e89171c7014621",
+  "old_expected_count": 28,
+  "new_expected_count": 31,
+  "new_tables": [
+    "coordination.consumer_project_checkpoints",
+    "coordination.consumer_aggregate_heads",
+    "coordination.consumer_event_outcomes"
+  ],
+  "old_migrations": [
+    {
+      "id": "core-0001",
+      "file": "core/001-core.sql",
+      "sha256": "e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147"
+    },
+    {
+      "id": "auth-0001",
+      "file": "auth/001-auth.sql",
+      "sha256": "97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e"
+    },
+    {
+      "id": "coordination-0001",
+      "file": "coordination/001-coordination.sql",
+      "sha256": "c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1"
+    },
+    {
+      "id": "retrieval-0000",
+      "file": "retrieval/000-canonical.sql",
+      "sha256": "5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2"
+    },
+    {
+      "id": "auth-0002",
+      "file": "auth/002-isolation.sql",
+      "sha256": "dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681"
+    },
+    {
+      "id": "coordination-0002",
+      "file": "coordination/002-record-replay.sql",
+      "sha256": "683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87"
+    },
+    {
+      "id": "auth-0003",
+      "file": "auth/003-identity.sql",
+      "sha256": "678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8"
+    },
+    {
+      "id": "outbox-0002",
+      "file": "coordination/002-outbox.sql",
+      "sha256": "125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e"
+    }
+  ],
+  "guards": [
+    {
+      "path": "next/tests/auth/test_authorization.py",
+      "sha256": "6b1877189d40afca234d9f8bfd665da8cd08f2af761603468421d38be9325b18",
+      "bytes": 19154,
+      "archived": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c07-source/frozen-table-guards/auth-test_authorization.py"
+    },
+    {
+      "path": "next/tests/auth_identity/test_identity.py",
+      "sha256": "06734e40665bb747c95f9a634d7d2c3a55f24c47f95bd8ee9802d33a9a0ac549",
+      "bytes": 23219,
+      "archived": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c07-source/frozen-table-guards/auth_identity-test_identity.py"
+    },
+    {
+      "path": "next/tests/outbox/test_outbox.py",
+      "sha256": "352d30112cb10a6cb028dcdfb58c6685cf4ad308743d071faa1e15662d30e1bf",
+      "bytes": 22157,
+      "archived": "docs/plans/cortex-v2-v0.1.020/lane-A/evidence/c07-source/frozen-table-guards/outbox-test_outbox.py"
+    }
+  ]
+}
