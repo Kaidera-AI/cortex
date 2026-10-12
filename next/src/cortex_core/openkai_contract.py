@@ -38,9 +38,12 @@ RULINGS = {
            'tombstone':{'status':503,'code':'capability_unavailable',
                         'state':'unavailable'},
            'unknown_target':404},
-    'D3': {'status_scope':'read', 'status_binding':'bound_now',
+    'D3': {'status_scope':'read', 'status_binding':'partial_source',
            'status_paths':['/beat/embeddings/backlog','/degradation',
                            '/workers/health'],
+           'bound_status_paths':['/degradation','/workers/health'],
+           'backlog_refusal':{'status':503,'code':'capability_unavailable',
+                              'reason':'backlog_source_unbound'},
            'control_jobs_state':'ruled_unimplemented',
            'future_control_scope':'owner_admin',
            'gtm_response':{'status':503,'code':'capability_unavailable',
@@ -362,6 +365,10 @@ def _route_exchange(case):
           and error['body']['error']['code']
           and type(error['body']['error'].get('retryable')) is bool,
           'typed_error_missing')
+    if case['path'] == '/beat/embeddings/backlog':
+        _need(case.get('gtm_refusal') == {'status':503,'body':{'error':{
+            'code':'capability_unavailable','retryable':False,
+            'reason':'backlog_source_unbound'}}}, 'backlog_refusal_missing')
     if case['path'] in ('/memory', '/artifacts', '/sessions/ingest'):
         _need(isinstance(request.get('idempotency_key'), str)
               and request['idempotency_key'], 'write_identity_missing')
