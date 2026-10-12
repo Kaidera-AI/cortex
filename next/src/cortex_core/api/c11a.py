@@ -35,6 +35,8 @@ PG_SEARCH_ROUTES = frozenset({"C01-R021", "C01-R022"})
 PG_GRAPH_ROUTES = frozenset({"C01-R023", "C01-R024", "C01-R025", "C01-R026",
                              "C01-R034", "C01-R035", "C01-R036", "C01-R037"})
 RETIRED_SQL_ROUTES = frozenset({"C01-R125", "C01-R126"})
+D3_STATUS_ROUTES = frozenset({"C01-R006", "C01-R030", "C01-R072"})
+D3_CONTROL_ROUTES = frozenset({"C01-R073", "C01-R074"})
 D1_ROUTE = {"id": "C11-D1", "method": "GET", "path": "/records/{id}",
             "disposition": "add", "observed": False, "openkai_production": False,
             "effect": "read", "capability": None}
@@ -306,6 +308,61 @@ class ConsumerGateway:
             if row['id'] == 'C11-D1' or d2:
                 return await _respond(send, 404, _packet('not_found', retryable=False))
             return await _respond(send, 403, _packet("forbidden", retryable=False))
+        if row['id'] in D3_CONTROL_ROUTES:
+            return await _respond(send, 503, _packet('capability_unavailable',
+                                                    state='unimplemented', retryable=False))
+        if row['id'] in D3_STATUS_ROUTES:
+            try:
+                if await self.permission_recheck(principal, 'status') is not True:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+            except Exception as error:
+                status, packet = _error_status(error)
+                return await _respond(send, status, packet)
+            if row['id'] == 'C01-R072':
+                return await _respond(send, 503, _packet('capability_unavailable',
+                    reason='backlog_source_unbound', retryable=False))
+            supervisor_reader = self.handlers.get('C01-R030')
+            if supervisor_reader is None:
+                return await _respond(send, 503, _packet('capability_unavailable',
+                    reason='supervisor_source_unbound'))
+            try:
+                raw = await supervisor_reader(principal, scope, None)
+                if not isinstance(raw, dict) or type(raw.get('core_available')) is not bool:
+                    raise GatewayError('supervisor receipt is invalid')
+                if not raw['core_available']:
+                    return await _respond(send, 503, _packet('core_unavailable'))
+                if raw.get('state') not in {'healthy', 'supervisor_down'}:
+                    raise GatewayError('supervisor state is invalid')
+                supervisor = {'state': raw['state']}
+                if row['id'] == 'C01-R030':
+                    value = {'supervisor': supervisor,
+                             'workers': {'state': 'unavailable',
+                                         'reason': 'worker_observation_unbound'}}
+                else:
+                    reader = self.handlers.get('C01-R006')
+                    if reader is None:
+                        return await _respond(send, 503, _packet('capability_unavailable',
+                            reason='status_source_unbound'))
+                    detail = await reader(principal, scope, None)
+                    if (not isinstance(detail, dict)
+                            or not isinstance(detail.get('search'), dict)
+                            or detail['search'].get('state') not in
+                               {'ready', 'lagging', 'disabled', 'rebuilding', 'unavailable'}
+                            or not isinstance(detail.get('canonical_write'), dict)
+                            or detail['canonical_write'].get('state') != 'unavailable'):
+                        raise GatewayError('status receipt is invalid')
+                    names = ('pg_search', 'pg_graph', *sorted(UNLANDED))
+                    values = [await capability_state(name, self.capability_source,
+                                  self.permission_recheck, principal) for name in names]
+                    value = {'capabilities': values, 'search': detail['search'],
+                             'canonical_write': detail['canonical_write'],
+                             'supervisor': supervisor}
+                if await self.permission_recheck(principal, 'status') is not True:
+                    return await _respond(send, 403, _packet('forbidden', retryable=False))
+                return await _respond(send, 200, value)
+            except Exception as error:
+                status, packet = _error_status(error)
+                return await _respond(send, status, packet)
         if row['id'] == 'C11-D1':
             if self.record_reader is None:
                 return await _respond(send, 503, _packet('capability_unavailable',
@@ -327,11 +384,6 @@ class ConsumerGateway:
                 status = 403 if state["state"] == "forbidden" else 503
                 return await _respond(send, status, _packet(state["code"],
                     capability=row["capability"], reason=state["reason"], retryable=state["retryable"]))
-        if row["id"] == "C01-R006":
-            names = ("pg_search", "pg_graph", *sorted(UNLANDED))
-            values = [await capability_state(name, self.capability_source,
-                                              self.permission_recheck, principal) for name in names]
-            return await _respond(send, 200, {"capabilities": values})
         handler = self.handlers.get(row["id"])
         if handler is None:
             return await _respond(send, 503, _packet("capability_unavailable",

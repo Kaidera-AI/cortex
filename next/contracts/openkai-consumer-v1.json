@@ -327,13 +327,22 @@
         "state": "unimplemented",
         "status": 503
       },
-      "status_binding": "bound_now",
+      "status_binding": "partial_source",
       "status_paths": [
         "/beat/embeddings/backlog",
         "/degradation",
         "/workers/health"
       ],
-      "status_scope": "read"
+      "status_scope": "read",
+      "bound_status_paths": [
+        "/degradation",
+        "/workers/health"
+      ],
+      "backlog_refusal": {
+        "status": 503,
+        "code": "capability_unavailable",
+        "reason": "backlog_source_unbound"
+      }
     },
     "D4": {
       "implementation_state": "ruled_unimplemented",
