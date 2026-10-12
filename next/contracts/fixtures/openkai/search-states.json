@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "complete": true,
+      "freshness": "current",
+      "id": "ready-empty",
+      "kind": "search_state",
+      "results": [],
+      "state": "ready_empty",
+      "status": 200
+    },
+    {
+      "complete": false,
+      "error": {
+        "code": "capability_unavailable",
+        "retryable": true,
+        "state": "pending"
+      },
+      "freshness": "lagging",
+      "id": "pending",
+      "kind": "search_state",
+      "state": "pending",
+      "status": 503
+    },
+    {
+      "complete": false,
+      "error": {
+        "code": "capability_unavailable",
+        "retryable": true,
+        "state": "partial"
+      },
+      "freshness": "lagging",
+      "id": "partial",
+      "kind": "search_state",
+      "state": "partial",
+      "status": 503,
+      "wire_state": "ruled_unimplemented"
+    },
+    {
+      "complete": false,
+      "error": {
+        "code": "capability_unavailable",
+        "retryable": false,
+        "state": "unavailable"
+      },
+      "freshness": "disabled",
+      "id": "unavailable",
+      "kind": "search_state",
+      "state": "unavailable",
+      "status": 503
+    }
+  ],
+  "format": "openkai-c02-fixtures-v1"
+}
