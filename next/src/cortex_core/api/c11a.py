@@ -4,15 +4,58 @@ The accepted handlers are injected ports. An unbound route refuses explicitly;
 this source is not an installed API server or a compatibility qualification.
 """
 
+import asyncio
 from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
 import re
+from uuid import UUID
 
 
 class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
+
+
+class EnrollmentHealth:
+    """Compose reviewed Core health with a private enum-only enrollment read."""
+
+    def __init__(self, core_health, enrollment_state, installation_id, *, timeout_seconds=1.0):
+        if (not callable(core_health) or not callable(enrollment_state)
+                or not isinstance(installation_id, UUID)
+                or type(timeout_seconds) not in (int, float)
+                or not 0 < timeout_seconds <= 10):
+            raise GatewayError('health ports are incomplete')
+        self.core_health = core_health
+        self.enrollment_state = enrollment_state
+        self.installation_id = installation_id
+        self.timeout_seconds = timeout_seconds
+
+    async def __call__(self):
+        unavailable = {'component': 'cortex', 'status': 'unavailable',
+                       'readiness': 'unavailable'}
+        try:
+            core = await asyncio.wait_for(self.core_health(), self.timeout_seconds)
+        except Exception:
+            return unavailable
+        if (type(core) is not dict or type(core.get('core_available')) is not bool
+                or core.get('state') not in {'healthy', 'supervisor_down', 'core_unavailable'}
+                or core['core_available'] != (core['state'] != 'core_unavailable')):
+            return unavailable
+        if not core['core_available']:
+            return unavailable
+        try:
+            readiness = await asyncio.wait_for(
+                self.enrollment_state(self.installation_id), self.timeout_seconds)
+        except Exception:
+            readiness = 'unavailable'
+        if type(readiness) is not str or readiness not in {
+                'enrollment_required', 'ready', 'unavailable'}:
+            readiness = 'unavailable'
+        return {'component': 'cortex',
+                'status': 'ok' if core['state'] == 'healthy' and readiness != 'unavailable'
+                          else 'degraded',
+                'readiness': readiness}
 
 
 @dataclass(frozen=True)
