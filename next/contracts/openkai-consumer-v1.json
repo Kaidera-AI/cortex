@@ -345,7 +345,8 @@
       }
     },
     "D4": {
-      "implementation_state": "ruled_unimplemented",
+      "implementation_state": "implemented_source",
+      "partial_mode": "ruled_unimplemented",
       "lag_partial": {
         "code": "capability_unavailable",
         "results": "omitted",
