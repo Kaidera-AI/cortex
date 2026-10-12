@@ -1,0 +1,12 @@
+{
+  "module_id": "api",
+  "recipe_version": 1,
+  "role": "Owned API with hosted provider, Postgres search/cache/graph capabilities",
+  "build_input_schema": "cortex.build-input.v1",
+  "epoch_channel": "source-date-epoch",
+  "rewrite_timestamp": true,
+  "independent_mutable_stores": true,
+  "runtime_downloads": false,
+  "required_audits": ["input_inventory", "oci_closure", "labels", "accounts", "logs", "xattrs_acl", "all_bytecode", "offline_assets", "runtime_contract"],
+  "python_cache_policy": "R01_pinned_checked_hash_final_paths"
+}
