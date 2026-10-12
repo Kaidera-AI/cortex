@@ -26,7 +26,7 @@ SDK_ONLY = {
 }
 RULINGS = {
     'D1': {'method':'GET', 'path':'/records/{id}',
-           'implementation_state':'ruled_unimplemented',
+           'implementation_state':'implemented_source',
            'not_found':404, 'unauthorized':404, 'tombstone':410,
            'body_fields':['revision','payload_sha256']},
     'D2': {'method':'POST', 'path':'/search', 'placement':'parameters',
@@ -94,8 +94,14 @@ def validate_packet(packet, openapi):
               and source['route_inventory_sha256'] == ROUTES_SHA256
               and source['source_files_sha256'] == SOURCE_FILES_SHA256,
               'source_pin_mismatch')
-        _need(hashlib.sha256((CONTRACTS/'openapi.json').read_bytes()).hexdigest()
-              == OPENAPI_SHA256, 'openapi_bytes_changed')
+        c01_snapshot = json.loads((CONTRACTS/'openapi.json').read_text())
+        _need(c01_snapshot['paths'].pop('/records/{id}', None) is not None,
+              'd1_operation_missing')
+        c01_bytes = (json.dumps(c01_snapshot, indent=2, ensure_ascii=False)+'\n').encode()
+        _need(hashlib.sha256(c01_bytes).hexdigest() == OPENAPI_SHA256,
+              'c01_openapi_bytes_changed')
+        _need(_operation(openapi, {'method':'GET','path':'/records/{id}'})
+              == 'C11-D1_get_record', 'd1_operation_missing')
         files = source['files']
         _need(isinstance(files, dict) and len(files) == 33
               and all(isinstance(path, str) and path.startswith('products/openkai/')
@@ -169,7 +175,7 @@ def _write_ack_read(case):
     receipt = ack['receipt']
     _receipt(receipt, request['request_key'])
     _need(read['status'] == 200 and read['authorized'] is True
-          and read['binding'] == 'ruled_unimplemented'
+          and read['binding'] == 'implemented_source'
           and (read['method'], read['path']) == ('GET', '/records/{id}')
           and read['project_id'] == request['project_id']
           and read['record_id'] == receipt['record_id']

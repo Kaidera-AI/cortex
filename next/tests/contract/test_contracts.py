@@ -113,7 +113,7 @@ class OpenAPIContract(unittest.TestCase):
         return json.loads((NEXT / "contracts" / "openapi.json").read_text())
 
     def test_inventory_and_references(self):
-        self.assertEqual(validate_openapi(self.document()), 128)
+        self.assertEqual(validate_openapi(self.document()), 129)
 
     def test_missing_operation_refused(self):
         value = self.document()
