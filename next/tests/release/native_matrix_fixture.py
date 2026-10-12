@@ -221,7 +221,17 @@ def cli(case):
               '--output-root',str(root/'outputs'),'--evidence-root',str(root/'evidence'),'--decision',str(root/'decision.json')]
         capture=io.StringIO()
         with contextlib.redirect_stdout(capture):code=release.main(argv)
-        result=json.loads(capture.getvalue())
-        if code==2:raise ValueError(result['reason'])
-        if code!=0:raise AssertionError('unexpected CLI exit '+str(code))
+        from cortex_core.release.codec import decode_json
+        from cortex_core.release.custody import RootReader
+        reader=RootReader(root,1024*1024)
+        try:
+            result=decode_json(reader.bytes('decision.json'),1024*1024)
+        finally:
+            reader.close()
+        if code==2:
+            if result.get('decision')!='refused' or not isinstance(result.get('reason'),str):
+                raise AssertionError('CLI refusal decision/code mismatch')
+            raise ValueError(result['reason'])
+        if code!=0 or result.get('decision')!='verified':
+            raise AssertionError('unexpected CLI decision/code '+str(code))
         return result
