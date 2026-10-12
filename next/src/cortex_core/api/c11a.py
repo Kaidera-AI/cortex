@@ -440,6 +440,8 @@ class ConsumerGateway:
             return await _respond(send, 404 if d2 else 403,
                                   _packet('not_found' if d2 else 'forbidden', retryable=False))
         except Exception as error:
+            if row['id'] == 'C01-R037' and getattr(error, 'code', None) == 'not_found':
+                return await _respond(send, 404, _packet('not_found', retryable=False))
             state = getattr(error, 'd2_state', None) if d2 else None
             if state in {'pending', 'unavailable'}:
                 return await _respond(send, 503,
