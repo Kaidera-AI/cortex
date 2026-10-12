@@ -29,12 +29,15 @@ RULINGS = {
            'implementation_state':'implemented_source',
            'not_found':404, 'unauthorized':404, 'tombstone':410,
            'body_fields':['revision','payload_sha256']},
-    'D2': {'method':'POST', 'path':'/search', 'placement':'parameters',
-           'implementation_state':'ruled_unimplemented',
-           'min_revision':'non_negative_integer',
+    'D2': {'method':'POST', 'path':'/search', 'placement':'body',
+           'implementation_state':'implemented_source',
+           'after':{'record_id':'uuid', 'revision':'positive_int64'},
            'wait_ms':{'default':0,'maximum':10000},
            'deadline':{'status':503,'code':'capability_unavailable',
-                       'state':'pending'}},
+                       'state':'pending'},
+           'tombstone':{'status':503,'code':'capability_unavailable',
+                        'state':'unavailable'},
+           'unknown_target':404},
     'D3': {'status_scope':'read', 'status_binding':'bound_now',
            'status_paths':['/beat/embeddings/backlog','/degradation',
                            '/workers/health'],
@@ -97,6 +100,15 @@ def validate_packet(packet, openapi):
         c01_snapshot = json.loads((CONTRACTS/'openapi.json').read_text())
         _need(c01_snapshot['paths'].pop('/records/{id}', None) is not None,
               'd1_operation_missing')
+        d2_extension = c01_snapshot['paths']['/search']['post'].pop('x-c11-d2', None)
+        _need(d2_extension == {
+              'request_body': {'after': RULINGS['D2']['after'],
+                               'wait_ms': RULINGS['D2']['wait_ms']},
+              'deadline': RULINGS['D2']['deadline'],
+              'tombstone': RULINGS['D2']['tombstone'],
+              'unknown_target': 404,
+              'implementation_state': 'implemented_source'},
+              'd2_operation_mismatch')
         c01_bytes = (json.dumps(c01_snapshot, indent=2, ensure_ascii=False)+'\n').encode()
         _need(hashlib.sha256(c01_bytes).hexdigest() == OPENAPI_SHA256,
               'c01_openapi_bytes_changed')
@@ -357,8 +369,12 @@ def _route_exchange(case):
     if case['path'] == '/search':
         body = success['body']
         parameters = request['body']
-        _need(type(parameters.get('min_revision')) is int
-              and parameters['min_revision'] >= 0
+        target = parameters.get('after')
+        _need(type(target) is dict and set(target) == {'record_id', 'revision'}
+              and _uuid(target['record_id'])
+              and type(target['revision']) is int
+              and 0 < target['revision'] < 2**63
+              and 'min_revision' not in parameters
               and type(parameters.get('wait_ms')) is int
               and 0 <= parameters['wait_ms'] <= 10000
               and body.get('results') == [] and body.get('complete') is True
@@ -367,7 +383,13 @@ def _route_exchange(case):
               and error['body']['error']['code'] == 'capability_unavailable'
               and error['body']['error'].get('state') == 'pending'
               and error['status'] == 503
-              and 'results' not in error['body'], 'search_exchange_false_empty')
+              and 'results' not in error['body']
+              and case.get('tombstone') == {'status':503,'body':{'error':{
+                  'code':'capability_unavailable','retryable':False,
+                  'state':'unavailable'}}}
+              and case.get('unknown_target') == {'status':404,'body':{'error':{
+                  'code':'not_found','retryable':False}}},
+              'search_exchange_false_empty')
 
 
 def validate_case(case):

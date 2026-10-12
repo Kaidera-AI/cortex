@@ -2388,7 +2388,31 @@
         },
         "x-h-d448-core-outage": "typed core_unavailable, fail closed; no authentication fallback",
         "x-h-d448-idempotency": "required; principal/project/operation/request binding; exact header and status mapping C02 transition",
-        "x-h-d448-projection-contract": "eventual freshness; optional bounded revision wait; disabled/rebuilding -> typed capability_unavailable; authoritative permissions rechecked"
+        "x-h-d448-projection-contract": "eventual freshness; optional bounded revision wait; disabled/rebuilding -> typed capability_unavailable; authoritative permissions rechecked",
+        "x-c11-d2": {
+          "request_body": {
+            "after": {
+              "record_id": "uuid",
+              "revision": "positive_int64"
+            },
+            "wait_ms": {
+              "default": 0,
+              "maximum": 10000
+            }
+          },
+          "deadline": {
+            "status": 503,
+            "code": "capability_unavailable",
+            "state": "pending"
+          },
+          "tombstone": {
+            "status": 503,
+            "code": "capability_unavailable",
+            "state": "unavailable"
+          },
+          "unknown_target": 404,
+          "implementation_state": "implemented_source"
+        }
       }
     },
     "/cortex-graph-search": {

@@ -59,12 +59,15 @@ class OpenKaiConsumer(unittest.TestCase):
                    'implementation_state':'implemented_source',
                    'not_found':404, 'unauthorized':404, 'tombstone':410,
                    'body_fields':['revision','payload_sha256']},
-            'D2': {'method':'POST', 'path':'/search', 'placement':'parameters',
-                   'implementation_state':'ruled_unimplemented',
-                   'min_revision':'non_negative_integer',
+            'D2': {'method':'POST', 'path':'/search', 'placement':'body',
+                   'implementation_state':'implemented_source',
+                   'after':{'record_id':'uuid', 'revision':'positive_int64'},
                    'wait_ms':{'default':0,'maximum':10000},
                    'deadline':{'status':503,'code':'capability_unavailable',
-                               'state':'pending'}},
+                               'state':'pending'},
+                   'tombstone':{'status':503,'code':'capability_unavailable',
+                                'state':'unavailable'},
+                   'unknown_target':404},
             'D3': {'status_scope':'read', 'status_binding':'bound_now',
                    'status_paths':['/beat/embeddings/backlog','/degradation',
                                    '/workers/health'],
@@ -124,9 +127,14 @@ class OpenKaiConsumer(unittest.TestCase):
                 self.assertEqual((case.get('binding'), case.get('authorization')),
                                  ('ruled_status_read', 'read'))
         search = next(case for case in cases if case['path'] == '/search')
-        self.assertEqual(search['request']['body'].get('min_revision'), 2)
+        self.assertEqual(search['request']['body'].get('after'),
+                         {'record_id':'00000000-0000-4000-8000-000000000011',
+                          'revision':2})
+        self.assertNotIn('min_revision', search['request']['body'])
         self.assertEqual(search['request']['body'].get('wait_ms'), 10000)
         self.assertEqual(search['error']['body']['error'].get('state'), 'pending')
+        self.assertEqual(search['tombstone']['body']['error'].get('state'), 'unavailable')
+        self.assertEqual(search['unknown_target']['status'], 404)
         self.assertEqual(search['success']['body'].get('state'), 'ready_empty')
         unbounded_wait = copy.deepcopy(search)
         unbounded_wait['request']['body']['wait_ms'] = 10001

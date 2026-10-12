@@ -1,5 +1,7 @@
 """Credentialed C11 read bindings for Nemo's PostgreSQL search and graph ports."""
+import asyncio
 import hashlib
+from contextlib import suppress
 from urllib.parse import parse_qs
 from uuid import UUID
 
@@ -16,6 +18,14 @@ PROBE_VECTOR = [1.0] + [0.0] * 767
 
 class InvalidRequest(ValueError):
     code = 'invalid_input'
+
+
+class D2Unavailable(Exception):
+    code = 'capability_unavailable'
+
+    def __init__(self, state):
+        self.d2_state = state
+        super().__init__(state)
 
 
 def _one(parameters, key, default=None):
@@ -181,11 +191,84 @@ class C11b2ReadPort:
             return {'state': 'unavailable'}
         return {'state': 'unavailable'}
 
+    @staticmethod
+    def _target(body):
+        if 'after' not in body:
+            if 'wait_ms' in body:
+                raise InvalidRequest('wait requires a record target')
+            return None, 0
+        value = body['after']
+        if type(value) is not dict or set(value) != {'record_id', 'revision'}:
+            raise InvalidRequest('invalid record target')
+        try:
+            record_id = UUID(value['record_id'])
+        except (ValueError, TypeError, AttributeError):
+            raise InvalidRequest('invalid target record id') from None
+        revision = value['revision']
+        if type(revision) is not int or not 0 < revision < 2**63:
+            raise InvalidRequest('invalid target revision')
+        wait_ms = body.get('wait_ms', 0)
+        if type(wait_ms) is not int or not 0 <= wait_ms <= 10000:
+            raise InvalidRequest('invalid wait bound')
+        return {'record_id': record_id, 'revision': revision}, wait_ms
+
+    async def _observe_target(self, search, principal, target):
+        async def current(subject, bound):
+            if (subject != principal['principal_id']
+                    or str(bound.tenant_id) != principal['tenant_id']
+                    or str(bound.project_id) != principal['project_id']):
+                raise AuthError('scope_mismatch')
+            await self._current(principal)
+            return True
+        result = await search.projection_revision(
+            principal['principal_id'], target, self.identity, recheck=current)
+        if result.state == 'unavailable':
+            if result.reason == 'target_unavailable':
+                raise AuthError('scope_mismatch')
+            raise D2Unavailable('unavailable')
+        return result
+
+    async def _wait_target(self, search, principal, target, wait_ms, disconnected):
+        deadline = asyncio.get_running_loop().time() + wait_ms / 1000
+        backoff = 0.05
+        while True:
+            if disconnected.is_set():
+                raise asyncio.CancelledError
+            observation = await self._observe_target(search, principal, target)
+            if observation.state == 'visible':
+                return
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise D2Unavailable('pending')
+            try:
+                await asyncio.wait_for(disconnected.wait(), min(backoff, remaining))
+            except TimeoutError:
+                pass
+            else:
+                raise asyncio.CancelledError
+            backoff = min(0.25, backoff * 2)
+
+    @staticmethod
+    async def _watch_disconnect(receive, disconnected):
+        try:
+            while True:
+                if (await receive()).get('type') == 'http.disconnect':
+                    disconnected.set()
+                    return
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            disconnected.set()
+
     async def search(self, principal, scope, _request_key):
+        target, wait_ms = None, 0
         if scope['method'] == 'POST':
             body = scope.get('_c11b_body')
-            if not isinstance(body, dict) or set(body) - {'query', 'top_k', 'rerank', 'room', 'hall', 'enable_graph'}:
+            if not isinstance(body, dict) or set(body) - {
+                    'query', 'top_k', 'rerank', 'room', 'hall', 'enable_graph',
+                    'after', 'wait_ms'}:
                 raise InvalidRequest('invalid search body')
+            target, wait_ms = self._target(body)
             query = body.get('query')
             limit = _integer(body.get('top_k', 25), 100)
             rerank = _boolean(body.get('rerank', True))
@@ -207,34 +290,60 @@ class C11b2ReadPort:
         if not isinstance(query, str) or not 1 <= len(query.strip()) <= 512 or hall != 'project' or room is not None:
             raise InvalidRequest('unsupported search scope')
         search, _graph = self._ports(principal)
+        disconnected = asyncio.Event()
+        watcher = None
+        if target is not None:
+            receive = scope.get('_c11b_receive')
+            if not callable(receive):
+                raise InvalidRequest('target wait requires a disconnect channel')
+            watcher = asyncio.create_task(self._watch_disconnect(receive, disconnected))
         try:
-            embedded = await self._cache(search).get(principal['principal_id'],
-                                                     self.identity, query)
-        except (CapabilityUnavailable, AuthError, PermissionError):
-            raise
-        except Exception:
-            raise CapabilityUnavailable('provider_unavailable') from None
-        result = await search.search(principal['principal_id'], self.identity,
-                                     embedded.vector, limit=limit)
-        await self._post_read_freshness(result, principal, search=search)
-        degraded = ['rerank'] if rerank else []
-        if graph_requested:
-            # There is no released C11 graph-fusion port. Do not claim fused hits.
-            raise CapabilityUnavailable('graph_fusion_unbound')
-        await self._current(principal)
-        return {'query': query, 'results': [{'id': hit.record_id, 'kind': hit.kind,
-                 'revision': hit.source_revision, 'distance': hit.distance}
-                 for hit in result.hits], 'degraded': degraded, 'reranked': False,
-                'hall': hall, 'room': room, 'graph': graph_requested,
-                'freshness': {'state': result.freshness.status,
-                              'pending_records': result.freshness.pending_records,
-                              'indexed_records': result.freshness.indexed_records,
-                              'identity': result.freshness.identity,
-                              'model_identity': {'provider': self.identity.provider,
-                                  'model': self.identity.model,
-                                  'version': self.identity.version,
-                                  'dimensions': self.identity.dimensions,
-                                  'preprocessing': self.identity.preprocessing}}}
+            if target is not None:
+                await self._wait_target(search, principal, target, wait_ms, disconnected)
+            try:
+                embedded = await self._cache(search).get(principal['principal_id'],
+                                                         self.identity, query)
+            except (CapabilityUnavailable, AuthError, PermissionError):
+                raise
+            except Exception:
+                raise CapabilityUnavailable('provider_unavailable') from None
+            result = await search.search(principal['principal_id'], self.identity,
+                                         embedded.vector, limit=limit)
+            await self._post_read_freshness(result, principal, search=search)
+            degraded = ['rerank'] if rerank else []
+            if graph_requested:
+                # There is no released C11 graph-fusion port. Do not claim fused hits.
+                raise CapabilityUnavailable('graph_fusion_unbound')
+            if target is not None:
+                observation = await self._observe_target(search, principal, target)
+                if observation.state != 'visible':
+                    raise D2Unavailable('pending')
+                if disconnected.is_set():
+                    raise asyncio.CancelledError
+            await self._current(principal)
+            response = {'query': query, 'results': [{'id': hit.record_id, 'kind': hit.kind,
+                     'revision': hit.source_revision, 'distance': hit.distance}
+                     for hit in result.hits], 'degraded': degraded, 'reranked': False,
+                    'hall': hall, 'room': room, 'graph': graph_requested,
+                    'freshness': {'state': result.freshness.status,
+                                  'pending_records': result.freshness.pending_records,
+                                  'indexed_records': result.freshness.indexed_records,
+                                  'identity': result.freshness.identity,
+                                  'model_identity': {'provider': self.identity.provider,
+                                      'model': self.identity.model,
+                                      'version': self.identity.version,
+                                      'dimensions': self.identity.dimensions,
+                                      'preprocessing': self.identity.preprocessing}}}
+            if target is not None:
+                response['complete'] = True
+                response['state'] = 'ready_empty' if not response['results'] else 'ready'
+                response['freshness']['complete'] = True
+            return response
+        finally:
+            if watcher is not None:
+                watcher.cancel()
+                with suppress(asyncio.CancelledError):
+                    await watcher
 
     async def graph_search(self, principal, scope, _request_key):
         try:

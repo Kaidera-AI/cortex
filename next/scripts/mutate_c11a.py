@@ -94,7 +94,7 @@ def run():
             receipt = lines[0] if len(lines) == 1 else None
             failures = [] if receipt is None else receipt["failures"]
             killed = (result.returncode == 1 and receipt is not None
-                      and receipt["tests_run"] == 12 and not receipt["errors"]
+                      and receipt["tests_run"] == 14 and not receipt["errors"]
                       and expected in {row["id"].split(" (")[0] for row in failures}
                       and all(row["phase"] == "test" and row["is_assertion"] is True
                               and row["phase_attribution"] == "traceback+active-unittest-v2"
