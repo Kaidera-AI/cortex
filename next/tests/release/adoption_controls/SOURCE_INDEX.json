@@ -1,0 +1,17 @@
+[
+  {
+    "path": "test_root_admission_identity.py",
+    "bytes": 3616,
+    "sha256": "c877aca8609e4c488d6c62630f131626179108560fbe2fc13094338a05dc787c"
+  },
+  {
+    "path": "test_root_artifact_semantics.py",
+    "bytes": 7184,
+    "sha256": "a7d52edd94c8e40372e3ab0a7ee6fbc8d580fd444611e1abca4242a0554355ac"
+  },
+  {
+    "path": "consumer/adoption-identity-result.json",
+    "bytes": 26197,
+    "sha256": "619da7d93810ccfa0f889959381d78b13da69af03d0a431ea22c433598114ef5"
+  }
+]
