@@ -38,6 +38,9 @@ def inspect_profile_files(layers,blobs,config,value,profile,accepted,reader,admi
         bodies,rows=reader(blobs[key],limits,metadata={'native_v1':True},layer_policy={'allow_directories':True,'symlinks':policy['symlinks']},preserve_order=True)
         member_count+=len(rows);layer_bytes+=len(blobs[key])
         require(member_count<=50000 and layer_bytes<=limits, 'virtual_inventory_bound')
+        # Immutable deny is checked on every scanned member before folding;
+        # a caller's inventory cannot turn OCI deletion markers into files.
+        require(all(not component.startswith('.wh.') for r in rows for component in r['path'].split('/')), 'profile_whiteout_denied')
         all_rows.append([_record(r) for r in rows]);all_bodies.append(bodies)
     actual_base=all_rows[0]
     require(actual_base==base['inventory'] and decode_json(accepted['deps/base-inventory.json'],8*1024*1024)==base['inventory'], 'base_inventory_metadata')
@@ -85,6 +88,9 @@ def inspect_profile_files(layers,blobs,config,value,profile,accepted,reader,admi
     require(cmd==['--module',value['target']['module_id'],'--config','/app/config.json'] and set(runtime['cmd_inputs'])=={'/app/config.json'} and
             all(p.lstrip('/') in files and files[p.lstrip('/')]['kind']=='regular' and binding['input'] in accepted and
                 sha256(accepted[binding['input']])==binding['sha256'] and contents.get(p.lstrip('/'))==accepted[binding['input']] for p,binding in runtime['cmd_inputs'].items()), 'runtime_cmd_binding')
+    require(all(access(files[p.lstrip('/')],uid,gid,4) and
+                all(parent in files and files[parent]['kind']=='directory' and access(files[parent],uid,gid,1)
+                    for parent in parents(p.lstrip('/'))) for p in runtime['cmd_inputs']), 'runtime_cmd_access')
     working=runtime['working_dir'].lstrip('/')
     require(config['config']['WorkingDir']==runtime['working_dir'] and working in files and files[working]['kind']=='directory', 'runtime_working_directory')
     require(working in files and access(files[working],uid,gid,1) and all(p in files and files[p]['kind']=='directory' and access(files[p],uid,gid,1) for p in parents(working)), 'runtime_working_directory_access')
