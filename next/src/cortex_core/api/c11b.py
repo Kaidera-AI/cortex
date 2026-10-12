@@ -59,6 +59,48 @@ def _legacy_response(receipt):
             'created': created, 'updated': not created, 'embedded': False}
 
 
+def _session_body(scope):
+    raw = scope.get('_c11b_body')
+    allowed = {'session_uuid', 'agent', 'task', 'source_path', 'provider', 'cwd',
+               'git_branch', 'source_kind', 'metadata', 'messages'}
+    if not isinstance(raw, dict) or set(raw) - allowed:
+        raise RecordError('invalid_input')
+    try:
+        session_id = UUID(str(raw.get('session_uuid')))
+    except (ValueError, TypeError, AttributeError):
+        raise RecordError('invalid_input') from None
+    for key in ('agent', 'source_path', 'provider'):
+        value = raw.get(key)
+        if not isinstance(value, str) or not 1 <= len(value.strip()) <= 512:
+            raise RecordError('invalid_input')
+    for key in ('task', 'cwd', 'git_branch', 'source_kind'):
+        value = raw.get(key)
+        if value is not None and (not isinstance(value, str) or len(value) > 2048):
+            raise RecordError('invalid_input')
+    if raw.get('metadata') is not None and not isinstance(raw['metadata'], dict):
+        raise RecordError('invalid_input')
+    messages = raw.get('messages', [])
+    if not isinstance(messages, list) or len(messages) > 10000:
+        raise RecordError('invalid_input')
+    translated = []
+    roles = {'user': 'human', 'assistant': 'agent', 'human': 'human',
+             'agent': 'agent', 'system': 'system'}
+    for message in messages:
+        if not isinstance(message, dict) or set(message) - {'role', 'content', 'ts', 'metadata'}:
+            raise RecordError('invalid_input')
+        role, content = message.get('role'), message.get('content')
+        if (not isinstance(role, str) or role.lower() not in roles
+                or not isinstance(content, str) or len(content) > 65536
+                or message.get('ts') is not None and not isinstance(message['ts'], str)
+                or message.get('metadata') is not None and not isinstance(message['metadata'], dict)):
+            raise RecordError('invalid_input')
+        translated.append({**message, 'role': roles[role.lower()]})
+    canonical = {**raw, 'session_uuid': str(session_id), 'messages': translated}
+    payload = json.dumps(canonical, sort_keys=True, separators=(',', ':'),
+                         ensure_ascii=False).encode('utf-8')
+    return session_id, canonical, payload
+
+
 class C11bRecordPort:
     """Server-configured project routing; every use reauthorizes the credential."""
 
@@ -84,11 +126,13 @@ class C11bRecordPort:
 
     def _principal(self, scope):
         project = self._project(scope)
-        action = 'read' if scope.get('method') == 'GET' else 'write'
+        action = 'read' if scope.get('method') == 'GET' or scope.get('path') == '/search' else 'write'
         with self.connection_factory() as db:
             with authorized(db, _credential(scope), self.installation_id, project, action) as identity:
                 result = {'principal_id': str(identity.principal_id),
-                          'project_id': str(identity.project_id)}
+                          'project_id': str(identity.project_id),
+                          'tenant_id': str(identity.tenant_id),
+                          'permission_generation': identity.permission_generation}
         return result
 
     async def principal(self, scope):
@@ -132,6 +176,46 @@ class C11bRecordPort:
 
     async def write_memory(self, principal, scope, request_key):
         return await asyncio.to_thread(self._write_memory, principal, scope, request_key)
+
+    def _ingest_session(self, principal, scope, request_key):
+        project = self._project(scope)
+        credential = _credential(scope)
+        session_id, body, payload = _session_body(scope)
+        with self.connection_factory() as db:
+            with authorized(db, credential, self.installation_id, project, 'write') as identity:
+                if (str(identity.principal_id) != principal['principal_id']
+                        or str(identity.project_id) != principal['project_id']):
+                    raise AuthError('forbidden')
+                row = db.execute('SELECT coordination.c11b_writer_matches(%s)',
+                                 (body['agent'],)).fetchone()
+                if row is None or row[0] is not True:
+                    raise AuthError('forbidden')
+                record_id = uuid5(NAMESPACE_URL, f'cortex.session:{identity.tenant_id}:'
+                                  f'{identity.project_id}:{session_id}')
+            records = Records(db, credential, self.installation_id, project)
+            saved = records.lookup_request(request_key)
+            digest = hashlib.sha256(payload).hexdigest()
+            if saved is not None:
+                try:
+                    operation, old_id, kind, old_digest, expected = json.loads(saved[0])
+                except (TypeError, ValueError):
+                    raise RecordError('conflict') from None
+                if (operation, old_id, kind, old_digest) != ('put', str(record_id), 'session', digest):
+                    raise RecordError('conflict')
+            else:
+                current = records.get(record_id, include_tombstone=True)
+                if current is not None and current.tombstone:
+                    raise RecordError('conflict')
+                expected = 0 if current is None else current.revision
+            receipt = records.put(record_id, 'session', payload, expected, request_key)
+        response = {'session_id': str(session_id), 'agent_id': str(identity.principal_id),
+                    'messages_inserted': len(body['messages'])}
+        core_receipt = {'record_id': str(receipt.record_id), 'revision': receipt.revision,
+                        'event_id': str(receipt.event_id), 'payload_sha256': receipt.payload_sha256}
+        return C05Committed(request_key, core_receipt, True, response)
+
+    async def ingest_session(self, principal, scope, request_key):
+        return await asyncio.to_thread(self._ingest_session, principal, scope, request_key)
 
     def _read_record(self, principal, scope, raw_id):
         try:
