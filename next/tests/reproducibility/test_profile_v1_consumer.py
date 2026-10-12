@@ -38,7 +38,7 @@ class ProfileConsumer(unittest.TestCase):
         descriptor = json.loads(data[path]); descriptor.pop('release_policy')
         data[path] = canonical_bytes(descriptor)
         value['descriptor'].update(bytes=len(data[path]), sha256=sha256(data[path]))
-        acceptance = dict(acceptance, input_sha256=sha256(canonical_bytes(value)))
+        acceptance = dict(acceptance, input_sha256=sha256(canonical_bytes(value)), require_profile_v1=True)
         with self.assertRaises(ValueError):
             inputs.admit(canonical_bytes(value), data.__getitem__, acceptance)
 
@@ -48,7 +48,7 @@ class ProfileConsumer(unittest.TestCase):
         descriptor['release_policy']['target']['module_id'] = 'foreign'
         data[path] = canonical_bytes(descriptor)
         value['descriptor'].update(bytes=len(data[path]), sha256=sha256(data[path]))
-        acceptance = dict(acceptance, input_sha256=sha256(canonical_bytes(value)))
+        acceptance = dict(acceptance, input_sha256=sha256(canonical_bytes(value)), require_profile_v1=True)
         with self.assertRaisesRegex(ValueError, '^profile_target_identity$'):
             inputs.admit(canonical_bytes(value), data.__getitem__, acceptance)
 
@@ -68,9 +68,18 @@ class ProfileConsumer(unittest.TestCase):
         self.assertEqual(parser.call_count, 0); self.assertEqual(calls, [])
 
     def test_digest_accepted_but_closure_unadmitted_never_parses(self):
-        _, _, acceptance, admitted = self.native(); raw = b'not-json'
+        value, data, *_, acceptance = matrix.family()
+        value['admission_policy']['qualification_scope'] = 'native'
+        record = value['compatibility_inputs']['compatibility_contract']
+        contract = json.loads(data[record['path']])
+        contract['modules'] = [dict(module_id='api', module_version='0.1.020', interface_version=1, schema_version=1, event_version=1)]
+        data[record['path']] = canonical_bytes(contract)
+        record.update(bytes=len(data[record['path']]), sha256=sha256(data[record['path']]))
+        acceptance = dict(acceptance, input_sha256=sha256(canonical_bytes(value)), qualification_scope='native')
+        admitted = owner_inputs.admit_build_input(owner_inputs.parse_build_input(canonical_bytes(value)), trust.ObservedInputs(value, data), acceptance)
+        raw = b'not-json'
         acceptance = dict(acceptance, receipt_sha256=sha256(raw))
         with patch.object(owner_receipts, 'parse_build_receipt', wraps=owner_receipts.parse_build_receipt) as parser:
-            with self.assertRaisesRegex(ValueError, '^inspector_profile_unqualified$'):
+            with self.assertRaisesRegex(ValueError, '^trusted_inspector_capability_unavailable$'):
                 receipts.verify_shared_receipt(raw, admitted, lambda _: b'', lambda _: b'', acceptance)
         self.assertEqual(parser.call_count, 0)
