@@ -65,6 +65,10 @@ def emit(
     from .inputs import require_verified
 
     require_verified(verified_input)
+    # R02a has no qualified native execution producer. Do not inspect candidate
+    # outputs to manufacture a native receipt before this held boundary.
+    if verified_input.document["admission_policy"]["qualification_scope"] == "native":
+        raise ValueError("r02_native_emission_unqualified")
     if set(builds) != {"A", "B"}:
         raise ValueError("exact independent A/B records required")
     archives = []
