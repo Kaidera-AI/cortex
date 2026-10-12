@@ -29,6 +29,7 @@ def main(argv=None):
         "output",
     ):
         prepare.add_argument("--" + flag, required=True)
+    prepare.add_argument("--profile-v1", action="store_true", help="require the owner-admitted descriptor profile-v1 before cloning")
     commands.add_parser("contract")
     args = parser.parse_args(argv)
     try:
@@ -60,6 +61,8 @@ def main(argv=None):
             )
             if not isinstance(policy, dict):
                 raise ValueError("independently supplied policy object required")
+            if args.profile_v1:
+                policy = dict(policy, require_profile_v1=True)
             parsed = parse_build_input(raw_input)
             reader = FilesystemReader(
                 args.input_root, max_bytes=parsed["resources"]["memory_bytes"]
@@ -72,6 +75,7 @@ def main(argv=None):
                     "qualification_scope"
                 ],
                 "clone": str(clone),
+                "profile_v1_required": args.profile_v1 or admitted.document["admission_policy"]["qualification_scope"] == "native",
                 "native_build_qualified": False,
             }
         else:

@@ -4,7 +4,19 @@
 def admit(raw, input_reader, accepted_policy):
     from cortex_core.release.inputs import parse_build_input, admit_build_input
 
-    return admit_build_input(parse_build_input(raw), input_reader, accepted_policy)
+    verified = admit_build_input(parse_build_input(raw), input_reader, accepted_policy)
+    from cortex_core.release.contracts import thaw
+
+    metadata = thaw(verified.metadata)
+    strict = (
+        verified.document["admission_policy"]["qualification_scope"] == "native"
+        or accepted_policy.get("require_profile_v1") is True
+    )
+    # Legacy fixture-only preparation remains available; native and explicitly
+    # profile-bound consumers use the one already-admitted owner carrier.
+    if strict and metadata["release_policy"].get("schema") != "cortex.release-policy.v1":
+        raise ValueError("r02_profile_v1_required")
+    return verified
 
 
 class FilesystemReader:

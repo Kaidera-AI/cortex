@@ -24,8 +24,17 @@ def verify_checked_bytes(raw, expected):
 def verify_shared_receipt(
     raw, verified_input, output_reader, evidence_reader, qualification_policy
 ):
-    from cortex_core.release.receipts import parse_build_receipt, verify_build_receipt
+    from cortex_core.release.receipts import (
+        parse_build_receipt, verify_build_receipt, verify_native_receipt_bytes,
+    )
+    from .inputs import require_verified
 
+    require_verified(verified_input)
+    if verified_input.document["admission_policy"]["qualification_scope"] == "native":
+        # The owner admits original bytes, policy and closure before parsing.
+        return verify_native_receipt_bytes(
+            raw, verified_input, output_reader, evidence_reader, qualification_policy
+        )
     receipt = parse_build_receipt(raw)
     return verify_build_receipt(
         receipt, verified_input, output_reader, evidence_reader, qualification_policy

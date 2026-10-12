@@ -8,6 +8,17 @@
   "independent_mutable_stores": true,
   "runtime_downloads": false,
   "upstream_rebuild_claim": false,
-  "required_audits": ["input_inventory", "oci_closure", "labels", "accounts", "logs", "xattrs_acl", "runtime_contract"],
-  "python_cache_policy": "explicit_non_python_inapplicability_or_R01_pinned_checked_hash"
+  "required_audits": [
+    "input_inventory",
+    "oci_closure",
+    "labels",
+    "accounts",
+    "logs",
+    "xattrs_acl",
+    "runtime_contract"
+  ],
+  "python_cache_policy": "explicit_non_python_inapplicability_or_R01_pinned_checked_hash",
+  "release_policy_carrier": "descriptor.release_policy",
+  "release_policy_schema": "cortex.release-policy.v1",
+  "preparation_command": "prepare --profile-v1"
 }
