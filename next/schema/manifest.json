@@ -51,6 +51,31 @@
       "id": "api-replay-0004",
       "file": "coordination/004-api-replay.sql",
       "sha256": "b8f7651132e71ac8080b8be2aa6a38c066a25a8afb794f4060c174bae3780771"
+    },
+    {
+      "id": "retrieval-0001",
+      "file": "retrieval/001-pg-search.sql",
+      "sha256": "bf1a5c1b14d57da70013e9ba4c90126797ab1e85533ad1d04db7f7780f113d84"
+    },
+    {
+      "id": "retrieval-0002",
+      "file": "retrieval/002-query-cache.sql",
+      "sha256": "02f5baf51828ae920988e37aac19169f78039e79481e413a6e1b0907fc62d868"
+    },
+    {
+      "id": "retrieval-0003",
+      "file": "retrieval/003-pg-graph.sql",
+      "sha256": "bc12fe454576f666879151425b8752ad0aaa9ffeb241b3fee252e1a9d58e48cb"
+    },
+    {
+      "id": "session-source-0005",
+      "file": "coordination/005-session-source.sql",
+      "sha256": "81e7955f1792852160e384408557c8476abde0830ca72d2863ef51b3f81e8af4"
+    },
+    {
+      "id": "retrieval-0004",
+      "file": "retrieval/004-request-authority.sql",
+      "sha256": "3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e"
     }
   ]
 }

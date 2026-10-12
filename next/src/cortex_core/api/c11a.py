@@ -171,14 +171,14 @@ def _error_status(error):
     return 503, _packet('core_unavailable')
 
 
-async def _memory_body(receive):
+async def _memory_body(receive, max_bytes=1024 * 1024):
     body = bytearray()
     while True:
         message = await receive()
         if message.get('type') != 'http.request':
             raise GatewayError('request body interrupted')
         body.extend(message.get('body', b''))
-        if len(body) > 1024 * 1024:
+        if len(body) > max_bytes:
             raise GatewayError('request body too large')
         if not message.get('more_body', False):
             break
@@ -313,7 +313,7 @@ class ConsumerGateway:
                     request_key = 'legacy-memory:' + hashlib.sha256(canonical).hexdigest()
             elif row['id'] == 'C01-R013' and self.allow_legacy_idempotency:
                 try:
-                    scope['_c11b_body'] = await _memory_body(receive)
+                    scope['_c11b_body'] = await _memory_body(receive, 8 * 1024 * 1024)
                 except GatewayError:
                     return await _respond(send, 400, _packet('invalid_input', retryable=False))
                 if request_key is None and self.allow_legacy_idempotency:
