@@ -31,3 +31,38 @@ class LayerTransportV2(unittest.TestCase):
                 evidence.__getitem__,
                 acceptance,
             )
+
+
+class OperationBoundaryV2(unittest.TestCase):
+    def test_wrong_argv_refuses_before_affected_operation_record_decode(self):
+        from unittest.mock import patch
+        from cortex_core.release import receipts as owner
+
+        value, data, receipt, outputs, evidence, acceptance = receipt_fixture()
+        admitted = inputs.admit(canonical_bytes(value), data.__getitem__, acceptance)
+        operation = receipt["builds"]["A"]["operations"][2]
+        operation["argv"].append("foreign-argument")
+        target = operation["evidence"]["path"]
+        reads, decodes = [], []
+        original = owner._json_record
+
+        def reader(path):
+            reads.append(path)
+            return evidence[path]
+
+        def decode(record, measured):
+            decodes.append(record["path"])
+            return original(record, measured)
+
+        with patch.object(owner, "_json_record", side_effect=decode):
+            with self.assertRaisesRegex(ValueError, "^operation_recipe_argv$"):
+                receipts.verify_shared_receipt(
+                    canonical_bytes(receipt),
+                    admitted,
+                    outputs.__getitem__,
+                    reader,
+                    acceptance,
+                )
+        self.assertNotIn(target, decodes)
+        self.assertIn(target, reads)
+        self.assertEqual(len(reads), 41)
