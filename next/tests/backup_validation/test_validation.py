@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from cortex_core.backup import BackupError
+from cortex_core.backup import BackupError, basebackup_command
 from cortex_core.backup_validation import seal_complete_bundle, verify_complete_bundle
 
 
@@ -232,6 +232,20 @@ class ValidationTests(unittest.TestCase):
                 self.seal()
         self.assertFalse(self.target.exists())
         self.assertEqual(list(self.root.glob('.o01a-*.age')), [])
+
+
+class AbsoluteExecutableAdmission(unittest.TestCase):
+    def test_bare_basebackup_refuses_before_process_or_output(self):
+        with tempfile.TemporaryDirectory(prefix='cox-o01-path-red-') as directory:
+            destination = Path(directory) / 'base'
+            with patch('subprocess.Popen', side_effect=AssertionError('unexpected process effect')) as popen, \
+                 patch('subprocess.run', side_effect=AssertionError('unexpected process effect')) as run:
+                with self.assertRaises(BackupError):
+                    basebackup_command(destination, host='127.0.0.1', user='postgres',
+                                       executable='pg_basebackup')
+                popen.assert_not_called()
+                run.assert_not_called()
+                self.assertFalse(destination.exists())
 
 
 if __name__ == '__main__':
