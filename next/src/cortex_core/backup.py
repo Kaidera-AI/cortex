@@ -17,18 +17,32 @@ class BackupError(ValueError):
     """A backup set is incomplete or cannot be sealed."""
 
 
-def basebackup_command(destination, *, host, user, port=5432, executable="pg_basebackup"):
+def _backup_binary(binary):
+    """Use only a caller-supplied absolute executable, never ambient PATH."""
+    if not isinstance(binary, (str, os.PathLike)):
+        raise BackupError("backup executable unavailable")
+    try:
+        path = Path(binary)
+        if not path.is_absolute() or not path.is_file() or not os.access(path, os.X_OK):
+            raise BackupError("backup executable unavailable")
+    except (OSError, TypeError, ValueError):
+        raise BackupError("backup executable unavailable") from None
+    return str(path)
+
+
+def basebackup_command(destination, *, host, user, executable, port=5432):
     """Build the native base-backup command; credentials stay outside argv.
 
     The caller supplies an owned staging directory and a PostgreSQL credential
     environment (for example PGPASSFILE) and runs this without a shell.
     Continuous archived WAL is validated separately before sealing.
     """
+    binary = _backup_binary(executable)
     if (not Path(destination).is_absolute() or not isinstance(host, str) or not host
             or not isinstance(user, str) or not user or type(port) is not int
             or not 1 <= port <= 65535):
         raise BackupError("invalid base-backup connection or destination")
-    return [executable, "-h", host, "-U", user, "-p", str(port), "-D",
+    return [binary, "-h", host, "-U", user, "-p", str(port), "-D",
             str(destination), "-Fp", "-X", "none",
             "--manifest-checksums=SHA256", "--checkpoint=fast"]
 
@@ -198,25 +212,27 @@ def build_manifest(base_dir, archive_dir, archive_end_lsn, metadata, *, segment_
 
 
 def seal_encrypted_bundle(base_dir, archive_dir, archive_end_lsn, metadata, *,
-                          segment_bytes, recipient, destination, age_binary="age",
+                          segment_bytes, recipient, destination, age_binary,
                           blob_root=None):
     """Stream a validated set into age and publish encrypted bytes atomically.
 
     The caller owns and removes the plaintext staging directories. This method
     creates no plaintext tar file and never publishes a partial ciphertext.
     """
+    binary = _backup_binary(age_binary)
     if not isinstance(recipient, str) or not recipient.startswith("age1"):
         raise BackupError("age recipient is required")
     manifest = build_manifest(base_dir, archive_dir, archive_end_lsn, metadata,
                               segment_bytes=segment_bytes)
     return _seal_validated_manifest(base_dir, archive_dir, manifest,
                                     recipient=recipient, destination=destination,
-                                    age_binary=age_binary, blob_root=blob_root)
+                                    age_binary=binary, blob_root=blob_root)
 
 
 def _seal_validated_manifest(base_dir, archive_dir, manifest, *, recipient,
-                             destination, age_binary="age", blob_root=None):
+                             destination, age_binary, blob_root=None):
     """Seal exactly the supplied manifest; any staged-member drift aborts."""
+    binary = _backup_binary(age_binary)
     if not isinstance(recipient, str) or not recipient.startswith("age1"):
         raise BackupError("age recipient is required")
     blobs = []
@@ -246,7 +262,7 @@ def _seal_validated_manifest(base_dir, archive_dir, manifest, *, recipient,
     temporary = Path(temporary_name)
     try:
         with os.fdopen(fd, "wb") as encrypted:
-            process = subprocess.Popen([age_binary, "-r", recipient], stdin=subprocess.PIPE,
+            process = subprocess.Popen([binary, "-r", recipient], stdin=subprocess.PIPE,
                                        stdout=encrypted, stderr=subprocess.PIPE)
             try:
                 with tarfile.open(fileobj=process.stdin, mode="w|") as tar:

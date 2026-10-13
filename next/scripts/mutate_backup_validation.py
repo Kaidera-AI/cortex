@@ -31,10 +31,14 @@ cases = [
      'hashlib.sha256(b"".join(lines[:-1])).hexdigest() != native.get("Manifest-Checksum")',
      'False', 'test_validation.ValidationTests.test_native_manifest_changed_before_seal_is_refused'),
     ('native_wal_at_seal', 'backup_validation.py',
-     '    _validate_native_pg(Path(base_dir), Path(archive_dir), preliminary)\n', '',
+     '    _validate_native_pg(Path(base_dir), Path(archive_dir), preliminary,\n'
+     '                        pg_verifybackup_binary=verifybackup,\n'
+     '                        pg_waldump_binary=waldump)\n', '',
      'test_validation.ValidationTests.test_native_wal_parser_failure_blocks_seal'),
     ('native_wal_at_verify', 'backup_validation.py',
-     '        _validate_native_pg(Path(scratch.name)/"base", Path(scratch.name)/"wal", manifest)\n', '',
+     '        _validate_native_pg(Path(scratch.name)/"base", Path(scratch.name)/"wal", manifest,\n'
+     '                            pg_verifybackup_binary=verifybackup,\n'
+     '                            pg_waldump_binary=waldump)\n', '',
      'test_validation.ValidationTests.test_native_wal_parser_failure_refuses_recoverable'),
     ('blob_bytes_in_bundle', 'backup.py',
      'for path, name, entry in blobs:', 'for path, name, entry in []:',
@@ -51,7 +55,7 @@ def clean_baseline():
                                  'PYTHONDONTWRITEBYTECODE': '1'})
     reports = [json.loads(line.split('=', 1)[1]) for line in result.stdout.splitlines()
                if line.startswith('CORTEX_TEST_RESULT=')]
-    assert result.returncode == 0 and reports == [{'tests_run': 16, 'failures': [], 'errors': []}]
+    assert result.returncode == 0 and reports == [{'tests_run': 23, 'failures': [], 'errors': []}]
     return {'exit_code': result.returncode, 'receipt': reports[0],
             'stdout': result.stdout, 'stderr': result.stderr}
 baseline = clean_baseline()
@@ -73,7 +77,7 @@ for name, filename, before, after, expected in cases:
         receipt = json.loads(lines[0]) if len(lines) == 1 else None
         failures = receipt['failures'] if receipt else []
         killed = (result.returncode == 1 and receipt is not None and
-                  receipt['tests_run'] == 16 and not receipt['errors'] and
+                  receipt['tests_run'] == 23 and not receipt['errors'] and
                   any(row['id'] == expected for row in failures) and
                   all(row['phase'] == 'test' and row['is_assertion'] and
                       row['phase_attribution'] == 'traceback+active-unittest-v2'

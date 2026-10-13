@@ -345,4 +345,3 @@ class FirstCapture(Fixture):
                                           (uid(5), uid(70))).fetchone()[0]
         self.assertEqual(result, {'state': '23502', 'column': 'kind'})
         self.assertEqual(self.admin.execute('SELECT count(*) FROM coordination.outbox').fetchone()[0], 0)
-
