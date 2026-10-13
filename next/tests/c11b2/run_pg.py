@@ -15,6 +15,13 @@ ROOT = Path(__file__).resolve().parents[2]
 PG = 'docker.io/pgvector/pgvector@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d'
 PY = 'sha256:ce9a404c2c0138e747a43e6ea022d2f7e670ed868df35d627a663ba7fb940ea9'
 MUTANTS = {
+    'session_ids_drop_scope_filter': ('schema/coordination/007-session-ids-read.sql',
+        'WHERE s.installation_id=scoped.installation_id\n'
+        '        AND s.tenant_id=scoped.tenant_id AND s.project_id=scoped.project_id',
+        'WHERE true'),
+    'session_ids_skip_final_authority': ('src/cortex_core/api/c11b.py',
+        "await self._current_read(principal, scope)\n        return {'project':",
+        "pass\n        return {'project':"),
     '2aii_drop_installation_lock': ('schema/auth/005-first-identity.sql',
         'PERFORM 1 FROM core.installations WHERE id=p_installation FOR UPDATE;',
         'PERFORM 1 FROM core.installations WHERE id=p_installation;'),
@@ -222,7 +229,7 @@ def main():
         raise RuntimeError('unknown C11b2 mutation')
     output['mutation'] = mutation
     suite = os.environ.get('C11B2_SUITE', 'c11b2')
-    if suite not in {'c11b2', 'auth', 'auth_identity', 'outbox'}:
+    if suite not in {'c11b2', 'auth', 'auth_identity', 'outbox', 'c11_ids_scale'}:
         raise RuntimeError('unknown C11b2 suite')
     output['suite'] = suite
     try:
@@ -283,7 +290,7 @@ if file and file!='manifest.json':
                    '--env', 'PYTHONDONTWRITEBYTECODE=1',
                    '--env', 'TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres',
                    driver, 'python', '/tmp/next/tests/test_receipts.py', '/tmp/next/tests/' + suite]
-        result = run(*command, check=False, timeout=300)
+        result = run(*command, check=False, timeout=900 if suite == 'c11_ids_scale' else 300)
         output.update(exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
         print(json.dumps(output, sort_keys=True), flush=True)
         return result.returncode

@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from urllib.parse import parse_qs
 from uuid import UUID
 
 
@@ -230,6 +231,29 @@ def _error_status(error):
     return 503, _packet('core_unavailable')
 
 
+def _r121_project_selector(scope):
+    """Normalize only the released session-ID route's two project selectors."""
+    try:
+        headers = [value.decode('utf-8', 'strict')
+                   for name, value in scope.get('headers', ())
+                   if name.lower() == b'x-project']
+        parameters = parse_qs(scope.get('query_string', b'').decode('utf-8', 'strict'),
+                              keep_blank_values=True, strict_parsing=True)
+    except (UnicodeError, ValueError, AttributeError):
+        raise GatewayError('invalid session project selector') from None
+    queries = parameters.get('project', ())
+    if len(headers) > 1 or len(queries) > 1:
+        raise GatewayError('duplicate session project selector')
+    header = headers[0] if headers else None
+    query = queries[0] if queries else None
+    if ((header is not None and not header)
+            or (query is not None and not query)
+            or (header is None and query is None)
+            or (header is not None and query is not None and header != query)):
+        raise GatewayError('invalid session project selector')
+    return header if header is not None else query
+
+
 async def _memory_body(receive, max_bytes=1024 * 1024):
     body = bytearray()
     while True:
@@ -316,6 +340,11 @@ class ConsumerGateway:
             return await _respond(send, 404, _packet("not_found", retryable=False))
         if row is not None and row["effect"] == "retired_sql":
             return await _respond(send, 410, _packet("retired_route", retryable=False))
+        if row['id'] == 'C01-R121':
+            try:
+                scope['_c11b_project_key'] = _r121_project_selector(scope)
+            except GatewayError:
+                return await _respond(send, 400, _packet('invalid_input', retryable=False))
         principal_error = None
         try:
             principal = await self.principal_resolver(scope)

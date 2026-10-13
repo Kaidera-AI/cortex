@@ -91,6 +91,11 @@
       "id": "auth-0006",
       "file": "auth/006-enrollment-readiness.sql",
       "sha256": "848840260b90e3cd88dc77d25acad908c63bcf711452eb1669e7ae4e833cee72"
+    },
+    {
+      "id": "session-ids-read-0007",
+      "file": "coordination/007-session-ids-read.sql",
+      "sha256": "449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64"
     }
   ]
 }

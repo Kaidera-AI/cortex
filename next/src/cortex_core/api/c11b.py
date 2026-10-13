@@ -134,7 +134,10 @@ class C11bRecordPort:
 
     def _project(self, scope):
         try:
-            key = _headers(scope).get(b'x-project', b'').decode('utf-8')
+            key = (scope['_c11b_project_key']
+                   if scope.get('path') == '/sessions/ingested-ids'
+                   and '_c11b_project_key' in scope else
+                   _headers(scope).get(b'x-project', b'').decode('utf-8'))
         except UnicodeError:
             raise AuthError('scope_mismatch') from None
         project = self.projects.get(key)
@@ -240,6 +243,33 @@ class C11bRecordPort:
 
     async def ingest_session(self, principal, scope, request_key):
         return await asyncio.to_thread(self._ingest_session, principal, scope, request_key)
+
+    async def _current_read(self, principal, scope):
+        current = await self.principal({**scope, 'method': 'GET'})
+        if any(current[key] != principal[key] for key in
+               ('principal_id', 'tenant_id', 'project_id', 'permission_generation')):
+            raise AuthError('forbidden')
+
+    def _session_ids(self, principal, scope):
+        project = self._project(scope)
+        with self.connection_factory() as db:
+            with authorized(db, _credential(scope), self.installation_id, project,
+                            'read') as identity:
+                if (str(identity.principal_id) != principal['principal_id']
+                        or str(identity.tenant_id) != principal['tenant_id']
+                        or str(identity.project_id) != principal['project_id']
+                        or identity.permission_generation !=
+                           principal['permission_generation']):
+                    raise AuthError('forbidden')
+                rows = db.execute('SELECT session_uuid FROM '
+                                  'coordination.c11b4_session_ids()').fetchall()
+        return [str(row[0]) for row in rows]
+
+    async def session_ids(self, principal, scope, _request_key):
+        await self._current_read(principal, scope)
+        ids = await asyncio.to_thread(self._session_ids, principal, scope)
+        await self._current_read(principal, scope)
+        return {'project': scope['_c11b_project_key'], 'ids': ids}
 
     def _read_record(self, principal, scope, raw_id):
         try:
