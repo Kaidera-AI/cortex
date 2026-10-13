@@ -12,13 +12,13 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2048,
-      "pattern": "^https?://[^/?#@\\s]+$"
+      "pattern": "^https?://[^/?#@\\s]+$(?![\\s\\S])"
     },
     "installation_id": {
       "type": "string",
       "minLength": 1,
       "maxLength": 36,
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
     },
     "owner_uid": {
       "type": "integer",
@@ -28,13 +28,13 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "pattern": "^v[0-9][A-Za-z0-9.+-]{0,127}$"
+      "pattern": "^v[0-9][A-Za-z0-9.+-]{0,127}$(?![\\s\\S])"
     },
     "release_lineage": {
       "type": "string",
       "minLength": 1,
       "maxLength": 64,
-      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
     },
     "release_sequence": {
       "type": "integer",
@@ -44,13 +44,13 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
     },
     "source_revision": {
       "type": "string",
       "minLength": 1,
       "maxLength": 40,
-      "pattern": "^[0-9a-f]{40}$"
+      "pattern": "^[0-9a-f]{40}$(?![\\s\\S])"
     },
     "platform": {
       "enum": [
@@ -68,13 +68,13 @@
       "type": "string",
       "minLength": 2,
       "maxLength": 4096,
-      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
     },
     "release_signature": {
       "type": "string",
       "minLength": 2,
       "maxLength": 4096,
-      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
     },
     "images": {
       "$ref": "#/$defs/images"
@@ -86,19 +86,19 @@
       "type": "string",
       "minLength": 2,
       "maxLength": 4096,
-      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
     },
     "credential_file": {
       "type": "string",
       "minLength": 2,
       "maxLength": 4096,
-      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$(?![\\s\\S])"
     },
     "credential_project": {
       "type": "string",
       "minLength": 2,
       "maxLength": 64,
-      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$(?![\\s\\S])"
     },
     "credential_agent": {
       "const": "console"
@@ -110,7 +110,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 4096,
-      "pattern": "^https://github\\.com/Kaidera-AI/cortex/releases/tag/v[0-9][A-Za-z0-9.+-]{0,127}$"
+      "pattern": "^https://github\\.com/Kaidera-AI/cortex/releases/tag/v[0-9][A-Za-z0-9.+-]{0,127}$(?![\\s\\S])"
     }
   },
   "required": [
@@ -201,7 +201,7 @@
           ],
           "minLength": 1,
           "maxLength": 128,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$(?![\\s\\S])"
         },
         "connection_name": {
           "type": [
@@ -210,7 +210,7 @@
           ],
           "minLength": 1,
           "maxLength": 128,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$(?![\\s\\S])"
         }
       },
       "required": [
@@ -232,7 +232,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 64,
-          "pattern": "^[0-9a-f]{64}$"
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
         },
         "binding": {
           "$ref": "#/$defs/binding"
@@ -248,7 +248,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 4096,
-      "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+      "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$(?![\\s\\S])"
     },
     "images": {
       "type": "object",

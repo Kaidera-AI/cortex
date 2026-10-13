@@ -10,8 +10,8 @@ from jsonschema import Draft202012Validator
 NEXT = Path(__file__).resolve().parents[2]
 SCHEMA = NEXT / 'contracts/deployment/cortex-prerequisite-v3.schema.json'
 VECTORS = Path(__file__).with_name('cortex-prerequisite-v3-vectors.json')
-SCHEMA_SHA = '513db458da1bca2c4ff7dadbe7ef5a3c26a8fe2f00fbb15c0a132d2742869d0b'
-VECTORS_SHA = '1978609284e7db5138420fc77d3509ac4b61795ff8e7a4aad35a6123d62e5ebd'
+SCHEMA_SHA = 'b880e1fa7920f0f38db5e365b6081c3f56358f68662147e62ed11b79946a4520'
+VECTORS_SHA = 'b0adb4e417c42d50311962ed44db2c1b13671b0f5e6e4a5bdc03409bf587970e'
 REQUIRED = ['schema', 'api_url', 'installation_id', 'owner_uid', 'release_id', 'release_lineage', 'release_sequence', 'api_contract', 'source_revision', 'platform', 'host_os', 'release_manifest', 'release_signature', 'images', 'health_path', 'credential_dir', 'credential_file', 'credential_project', 'credential_agent', 'runtime', 'install_guide']
 ROLES = ['db', 'migrate', 'api', 'graph', 'embed', 'pdf', 'audio', 'vision']
 CASE_COUNT = 108

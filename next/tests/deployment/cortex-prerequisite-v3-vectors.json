@@ -1,7 +1,7 @@
 {
   "schema": "cortex.prerequisite-v3.contract-vectors.v1",
   "scope": "Synthetic raw/shape contract vectors; no signature/custody/backend/consumer implementation or resource creation.",
-  "schema_sha256": "513db458da1bca2c4ff7dadbe7ef5a3c26a8fe2f00fbb15c0a132d2742869d0b",
+  "schema_sha256": "b880e1fa7920f0f38db5e365b6081c3f56358f68662147e62ed11b79946a4520",
   "descriptor_byte_limit": 65536,
   "shape_positive_count": 5,
   "receiver_only_required_refusals": 17,
