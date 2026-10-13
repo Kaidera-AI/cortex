@@ -158,6 +158,18 @@ class RuntimePolicyReader(unittest.TestCase):
                         platform="linux/arm64", image_platforms=("linux/arm64",), host_platforms=("linux/arm64",))
         self.assertEqual(mac.platforms, ("linux/arm64",))
 
+    def test_extreme_integer_has_typed_value_free_refusal(self):
+        module = production_module()
+        self.assertIsNotNone(module, "deployment runtime-policy reader missing")
+        raw = wire(policy()).replace(b'"format_version":1', b'"format_version":' + b"7" * 5000)
+        try:
+            module.parse_runtime_policy(raw)
+        except ValueError as error:
+            self.assertIsInstance(error, module.RuntimePolicyRefusal,
+                                  "raw integer codec errors must use the typed refusal boundary")
+        else:
+            self.fail("extreme raw integer must refuse")
+
 
 if __name__ == "__main__":
     unittest.main()
