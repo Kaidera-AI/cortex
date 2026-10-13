@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -31,8 +32,11 @@ def metadata():
 
 class BackupManifestTests(unittest.TestCase):
     def test_pg_basebackup_uses_plain_files_without_embedded_wal_or_secret(self):
-        command = basebackup_command('/tmp/base', host='127.0.0.1', user='postgres')
-        self.assertEqual(command, ['pg_basebackup', '-h', '127.0.0.1', '-U', 'postgres',
+        binary = shutil.which('pg_basebackup')
+        self.assertIsNotNone(binary)
+        command = basebackup_command('/tmp/base', host='127.0.0.1', user='postgres',
+                                     executable=binary)
+        self.assertEqual(command, [binary, '-h', '127.0.0.1', '-U', 'postgres',
                                    '-p', '5432', '-D', '/tmp/base', '-Fp', '-X', 'none',
                                    '--manifest-checksums=SHA256', '--checkpoint=fast'])
 
@@ -100,7 +104,7 @@ class BackupManifestTests(unittest.TestCase):
         target = self.root / 'backup.tar.age'
         manifest = seal_encrypted_bundle(self.base, self.archive, ARCHIVE_END, metadata(),
                                          segment_bytes=SEGMENT_BYTES, recipient=recipient,
-                                         destination=target)
+                                         destination=target, age_binary=shutil.which('age'))
         self.assertTrue(target.is_file())
         self.assertEqual(manifest['metadata'], metadata())
         plaintext = subprocess.run(['age', '-d', '-i', str(identity)],
@@ -135,6 +139,7 @@ class BackupManifestTests(unittest.TestCase):
             returned = seal_encrypted_bundle(
                 self.base, self.archive, ARCHIVE_END, supplied,
                 segment_bytes=SEGMENT_BYTES, recipient=recipient, destination=target,
+                age_binary=shutil.which('age'),
             )
         plaintext = subprocess.run(['age', '-d', '-i', str(identity)],
                                    input=target.read_bytes(), capture_output=True,
