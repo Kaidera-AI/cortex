@@ -108,6 +108,7 @@
       "success": {
         "body": {
           "component": "cortex",
+          "readiness": "enrollment_required",
           "status": "ok"
         },
         "status": 200

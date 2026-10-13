@@ -22,6 +22,81 @@ MUTANTS = {
     'session_ids_skip_final_authority': ('src/cortex_core/api/c11b.py',
         "await self._current_read(principal, scope)\n        return {'project':",
         "pass\n        return {'project':"),
+    '2aii_drop_installation_lock': ('schema/auth/005-first-identity.sql',
+        'PERFORM 1 FROM core.installations WHERE id=p_installation FOR UPDATE;',
+        'PERFORM 1 FROM core.installations WHERE id=p_installation;'),
+    '2aii_004_installer_inherit': ('schema/auth/004-first-identity-capture.sql',
+        'CREATE ROLE "kaidera-runtime-core-installer" LOGIN NOINHERIT NOSUPERUSER',
+        'CREATE ROLE "kaidera-runtime-core-installer" LOGIN INHERIT NOSUPERUSER',
+        'installer.rolinherit IS DISTINCT FROM false',
+        'installer.rolinherit IS DISTINCT FROM true'),
+    '2b_non200_when_unenrolled': ('src/cortex_core/api/c11a.py',
+        '503 if value.get("status") == "unavailable" else 200',
+        '503 if value.get("status") == "unavailable" or value.get("readiness") == "enrollment_required" else 200'),
+    '2b_false_ready_without_receipt': ('schema/auth/006-enrollment-readiness.sql',
+        "RETURN 'enrollment_required'::auth.enrollment_readiness_state;",
+        "RETURN 'ready'::auth.enrollment_readiness_state;"),
+    '2b_stuck_enrollment_required': ('schema/auth/006-enrollment-readiness.sql',
+        "RETURN 'ready'::auth.enrollment_readiness_state;",
+        "RETURN 'enrollment_required'::auth.enrollment_readiness_state;"),
+    '2b_core_down_as_200': ('src/cortex_core/api/c11a.py',
+        "if not core['core_available']:\n            return unavailable",
+        "if not core['core_available']:\n            return {'component': 'cortex', 'status': 'degraded', 'readiness': 'unavailable'}"),
+    '2b_cross_install_receipt': ('schema/auth/006-enrollment-readiness.sql',
+        'FROM auth.first_identity_receipts r WHERE r.installation_id=p_installation;',
+        'FROM auth.first_identity_receipts r LIMIT 1;'),
+    '2b_reader_error_as_ready': ('src/cortex_core/api/c11a.py',
+        "except Exception:\n            readiness = 'unavailable'",
+        "except Exception:\n            readiness = 'ready'"),
+    '2b_skip_receipt_linkage': ('schema/auth/006-enrollment-readiness.sql',
+        'receipt.project_id IS DISTINCT FROM default_project', 'false'),
+    '2b_public_execute': ('schema/auth/006-enrollment-readiness.sql',
+        'FROM PUBLIC,"kaidera-runtime-core-installer";',
+        'FROM "kaidera-runtime-core-installer";'),
+    '2aii_exec_leak': ('schema/auth/005-first-identity.sql',
+        'FROM PUBLIC,"kaidera-runtime-core-request";',
+        'FROM "kaidera-runtime-core-request";'),
+    '2aii_lost_login': ('schema/auth/005-first-identity.sql',
+        "IF session_user IS DISTINCT FROM 'kaidera-runtime-core-installer'", 'IF false'),
+    '2aii_skip_replay': ('schema/auth/005-first-identity.sql',
+        'SELECT * INTO prior FROM auth.first_identity_receipts\n'
+        '      WHERE installation_id=p_installation;\n    IF FOUND THEN',
+        'SELECT * INTO prior FROM auth.first_identity_receipts\n'
+        '      WHERE installation_id=p_installation;\n    IF false THEN'),
+    '2aii_widen_permissions': ('schema/auth/005-first-identity.sql',
+        "ARRAY['read','write']::text[]", "ARRAY['read','write','control']::text[]"),
+    '2aii_scope_mismatch': ('schema/auth/005-first-identity.sql',
+        "AND p.id=p_project AND p.name='default';", 'AND p.id=p_project;'),
+    '2aii_omit_audit_actor': ('schema/auth/005-first-identity.sql',
+        "'actor','kaidera-runtime-core-installer',", "'actor','omitted',"),
+    '2aii_omit_capture': ('schema/auth/005-first-identity.sql',
+        "PERFORM coordination.c06_fact('identity',p_principal,audit_payload);", 'PERFORM 1;'),
+    '2aii_owner_leak': ('schema/auth/005-first-identity.sql',
+        'OWNER TO "kaidera-runtime-core-verifier";', 'OWNER TO "postgres";'),
+    '2ai_bare_audit_comparison': ('schema/auth/004-first-identity-capture.sql',
+        "audit->>'actor_kind' IS DISTINCT FROM 'installer'",
+        "audit->>'actor_kind'<>'installer'"),
+    '2ai_bare_kind_comparison': ('schema/auth/004-first-identity-capture.sql',
+        "p_kind IS DISTINCT FROM 'identity'",
+        "p_kind<>'identity'"),
+    '2ai_lost_login': ('schema/auth/004-first-identity-capture.sql',
+        "IF session_user IS DISTINCT FROM 'kaidera-runtime-core-installer' THEN RETURN; END IF;",
+        'IF false THEN RETURN; END IF;'),
+    '2ai_lost_current_xact': ('schema/auth/004-first-identity-capture.sql',
+        'AND r.xmin::text IS NOT DISTINCT FROM pg_current_xact_id()::text',
+        'AND true'),
+    '2ai_broaden_fact_kind': ('schema/auth/004-first-identity-capture.sql',
+        "IF NOT FOUND OR p_kind IS DISTINCT FROM 'identity'",
+        'IF NOT FOUND OR false'),
+    '2ai_skip_capture': ('schema/auth/004-first-identity-capture.sql',
+        "IF bootstrap AND k IS DISTINCT FROM 'core.identity' THEN RAISE EXCEPTION 'outbox_forbidden'; END IF;",
+        'IF bootstrap THEN RETURN NEW; END IF;'),
+    '2ai_bypass_guard': ('schema/auth/004-first-identity-capture.sql',
+        'IF coordination.c06_bootstrap() THEN RETURN NULL; END IF;',
+        'IF true THEN RETURN NULL; END IF;'),
+    '2ai_allow_existing_alias': ('schema/auth/004-first-identity-capture.sql',
+        "AND a.source_namespace IS NOT DISTINCT FROM 'cortex.core.identity'",
+        "AND a.source_namespace IS NOT DISTINCT FROM '__none__'"),
     'graph_job_kind_bypass': ('src/cortex_core/api/c11b2.py',
         "if view is None or view.kind != 'graph.build':",
         'if view is None:'),
@@ -154,7 +229,7 @@ def main():
         raise RuntimeError('unknown C11b2 mutation')
     output['mutation'] = mutation
     suite = os.environ.get('C11B2_SUITE', 'c11b2')
-    if suite not in {'c11b2', 'c11_ids_scale'}:
+    if suite not in {'c11b2', 'auth', 'auth_identity', 'outbox', 'c11_ids_scale'}:
         raise RuntimeError('unknown C11b2 suite')
     output['suite'] = suite
     try:
@@ -176,21 +251,27 @@ def main():
         run('podman', 'cp', str(ROOT), driver + ':/tmp/next')
         run('podman', 'cp', str(wheels), driver + ':/tmp/wheels')
         if mutation:
-            path, before, after = MUTANTS[mutation]
-            mutate = (
-                'import hashlib,json,sys;from pathlib import Path;'
-                'p=Path("/tmp/next")/sys.argv[1];b=p.read_text();'
-                'assert b.count(sys.argv[2])==1;'
-                'p.write_text(b.replace(sys.argv[2],sys.argv[3]));'
-                'm=Path("/tmp/next/schema/manifest.json");'
-                'v=json.loads(m.read_text());'
-                'file=sys.argv[1][7:] if sys.argv[1].startswith("schema/") else None;'
-                '[(x.__setitem__("sha256",hashlib.sha256(p.read_bytes()).hexdigest())) '
-                'for x in v["migrations"] if x["file"]==file] if file and file!="manifest.json" else None;'
-                'm.write_text(json.dumps(v)) '
-                'if file and file!="manifest.json" else None'
-            )
-            run('podman', 'exec', driver, 'python', '-c', mutate, path, before, after)
+            path, *edits = MUTANTS[mutation]
+            if len(edits) not in {2, 4}:
+                raise RuntimeError('invalid mutation edit count')
+            mutate = '''import hashlib,json,sys
+from pathlib import Path
+p=Path('/tmp/next')/sys.argv[1]
+body=p.read_text()
+for old,new in zip(sys.argv[2::2],sys.argv[3::2]):
+    assert body.count(old)==1
+    body=body.replace(old,new)
+p.write_text(body)
+file=sys.argv[1][7:] if sys.argv[1].startswith('schema/') else None
+if file and file!='manifest.json':
+    m=Path('/tmp/next/schema/manifest.json')
+    value=json.loads(m.read_text())
+    for row in value['migrations']:
+        if row['file']==file:
+            row['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
+    m.write_text(json.dumps(value))
+'''
+            run('podman', 'exec', driver, 'python', '-c', mutate, path, *edits)
         run('podman', 'exec', driver, 'python', '-m', 'pip', 'install', '--no-index',
             '--find-links=/tmp/wheels', '--no-cache-dir', '--target=/tmp/deps',
             '-r', '/tmp/next/requirements-db-test.txt', timeout=300)
