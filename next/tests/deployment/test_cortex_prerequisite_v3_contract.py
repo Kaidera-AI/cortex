@@ -1,5 +1,6 @@
 """Canonical v3 descriptor shape; receiver-only obligations are not admission."""
 import base64
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -85,6 +86,31 @@ class PrerequisiteV3Contract(unittest.TestCase):
         self.assertTrue(any(case['id'] == 'RF3-R-FLOAT-OWNER' and case['expected_schema_valid'] for case in held))
         self.assertTrue(any(case['id'] == 'RF3-S-CREDENTIAL-RELATION' and case['expected_schema_valid'] for case in held))
         self.assertTrue(any(case['id'] == 'RF3-C-OLD-READER-NEW-CARRIER' for case in held))
+
+    def test_trailing_line_feed_is_refused_by_string_shapes(self):
+        validator = Draft202012Validator(self.schema())
+        cases = {case['id']: json.loads(base64.b64decode(case['raw_base64']))
+                 for case in self.vectors()['cases']
+                 if case['id'] in ('RF3-P-LINUX-AMD64', 'RF3-P-MACOS-ARM64')}
+        linux, mac = cases['RF3-P-LINUX-AMD64'], cases['RF3-P-MACOS-ARM64']
+        for field in ('api_url', 'installation_id', 'release_id', 'release_lineage',
+                      'api_contract', 'source_revision', 'release_manifest',
+                      'release_signature', 'credential_dir', 'credential_file',
+                      'credential_project', 'install_guide'):
+            with self.subTest(field=field):
+                value = copy.deepcopy(linux)
+                value[field] += '\n'
+                self.assertFalse(validator.is_valid(value))
+        for field in ('machine_name', 'connection_name'):
+            with self.subTest(binding=field):
+                value = copy.deepcopy(mac)
+                value['runtime']['binding'][field] += '\n'
+                self.assertFalse(validator.is_valid(value))
+        for role in ('db', 'migrate', 'api'):
+            with self.subTest(image=role):
+                value = copy.deepcopy(linux)
+                value['images'][role] += '\n'
+                self.assertFalse(validator.is_valid(value))
 
 if __name__ == '__main__':
     unittest.main()
