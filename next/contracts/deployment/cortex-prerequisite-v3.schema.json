@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kaidera:cortex:prerequisite:v3",
+  "$comment": "Canonical H-D538 descriptor shape only. No signature/custody/host/native/engine admission. The bounded raw receiver must separately reject duplicate JSON keys, floats (including whole values), nonfinite values, BOM/bad UTF-8, excessive nesting, surrogates and descriptor bytes over65536. It must independently check origin/port/loopback, credential-file relationship, private ownership, signed identity/images/policy digests, product union and observed backend. String limits are JSON character counts; raw byte limit is a receiver obligation. CM1 field identifier grammar is retained; this schema performs no registry/network operation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "cortex.prerequisite.v3"
+    },
+    "api_url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^https?://[^/?#@\\s]+$"
+    },
+    "installation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "owner_uid": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "release_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^v[0-9][A-Za-z0-9.+-]{0,127}$"
+    },
+    "release_lineage": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "release_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "api_contract": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "platform": {
+      "enum": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    "host_os": {
+      "enum": [
+        "linux",
+        "macos"
+      ]
+    },
+    "release_manifest": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4096,
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "release_signature": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4096,
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "images": {
+      "$ref": "#/$defs/images"
+    },
+    "health_path": {
+      "const": "/health"
+    },
+    "credential_dir": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4096,
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "credential_file": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4096,
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "credential_project": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+    },
+    "credential_agent": {
+      "const": "console"
+    },
+    "runtime": {
+      "$ref": "#/$defs/runtime"
+    },
+    "install_guide": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^https://github\\.com/Kaidera-AI/cortex/releases/tag/v[0-9][A-Za-z0-9.+-]{0,127}$"
+    }
+  },
+  "required": [
+    "schema",
+    "api_url",
+    "installation_id",
+    "owner_uid",
+    "release_id",
+    "release_lineage",
+    "release_sequence",
+    "api_contract",
+    "source_revision",
+    "platform",
+    "host_os",
+    "release_manifest",
+    "release_signature",
+    "images",
+    "health_path",
+    "credential_dir",
+    "credential_file",
+    "credential_project",
+    "credential_agent",
+    "runtime",
+    "install_guide"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "host_os": {
+          "const": "linux"
+        },
+        "runtime": {
+          "properties": {
+            "profile_id": {
+              "const": "podman-linux-rootless.v1"
+            },
+            "binding": {
+              "properties": {
+                "machine_name": {
+                  "type": "null"
+                },
+                "connection_name": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "host_os": {
+          "const": "macos"
+        },
+        "platform": {
+          "const": "linux/arm64"
+        },
+        "runtime": {
+          "properties": {
+            "profile_id": {
+              "const": "podman-macos-machine-rootless.v1"
+            },
+            "binding": {
+              "properties": {
+                "machine_name": {
+                  "type": "string"
+                },
+                "connection_name": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "machine_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        },
+        "connection_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        }
+      },
+      "required": [
+        "machine_name",
+        "connection_name"
+      ]
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "enum": [
+            "podman-linux-rootless.v1",
+            "podman-macos-machine-rootless.v1"
+          ]
+        },
+        "policy_sha256": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/binding"
+        }
+      },
+      "required": [
+        "profile_id",
+        "policy_sha256",
+        "binding"
+      ]
+    },
+    "image_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^ghcr\\.io/kaidera-ai/cortex-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+    },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "db": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "migrate": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "api": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "graph": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "embed": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "pdf": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "audio": {
+          "$ref": "#/$defs/image_ref"
+        },
+        "vision": {
+          "$ref": "#/$defs/image_ref"
+        }
+      },
+      "required": [
+        "db",
+        "migrate",
+        "api"
+      ]
+    }
+  }
+}
