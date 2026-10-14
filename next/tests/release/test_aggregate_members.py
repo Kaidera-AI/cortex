@@ -306,3 +306,24 @@ class CustodyControls(unittest.TestCase):
         try:r.aggregate_bytes('members/absent')
         except Exception as e:self.assertIsInstance(e,Refusal);self.assertEqual(e.reason,'member_not_in_aggregate')
         else:self.fail('unsigned request returned a value')
+
+    def test_empty_kernel_read_terminates_without_repeated_EOF(self):
+        _,c=self.source();r=self.reader();self.begin(r);p=self.path();empty=[];read=c.os.read;clock=c.time.monotonic
+        def observed(fd,count):
+            raw=read(fd,count)
+            if not raw:empty.append(True)
+            return raw
+        def now():return r._aggregate_deadline+1 if len(empty)>1 else clock()
+        with patch.object(c.os,'read',observed),patch.object(c.time,'monotonic',now):
+            try:raw=r.aggregate_bytes(p)
+            except Exception as e:self.fail('valid held read did not terminate: '+type(e).__name__)
+        self.assertEqual(raw,self.bodies[p]);self.assertEqual(empty,[True])
+
+    def test_actual_held_rereads_seek_to_original_start(self):
+        _,c=self.source();r=self.reader();self.begin(r);p=self.path();calls=[];real=c.os.lseek
+        def seek(fd,offset,whence):calls.append((fd,offset,whence));return real(fd,offset,whence)
+        with patch.object(c.os,'lseek',seek):
+            try:
+                self.assertEqual(r.aggregate_bytes(p),self.bodies[p]);self.assertEqual(r.aggregate_bytes(p),self.bodies[p])
+            except Exception as e:self.fail('valid held reread refused: '+type(e).__name__)
+        self.assertEqual(calls,[(r._aggregate_files[p][0],0,os.SEEK_SET)]*2)
