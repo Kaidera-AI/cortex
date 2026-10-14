@@ -107,3 +107,29 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
         _,_,gateway=self.make([self.row('synthetic-not-public-id')])
         status,value=await self.call(gateway)
         self.assertEqual(status,503);self.assertNotIn('results',value)
+
+    async def test_mode_change_between_response_start_and_body_drops_body(self):
+        _,port,gateway=self.make([self.row()]);messages=[]
+        scope=dict(type='http',method='POST',path='/search',query_string=b'',headers=[])
+        async def receive():return dict(type='http.request',body=b'{"query":"match"}',more_body=False)
+        async def send(message):
+            messages.append(message)
+            if message['type']=='http.response.start':
+                cls=frozen.surface('cortex_core.runtime.selection','AiSelection')
+                await port.selection.apply(cls('off','synthetic-next-config',None))
+        from cortex_core.embeddings.pg_search import CapabilityUnavailable
+        with self.assertRaises(CapabilityUnavailable):await gateway.app(scope,receive,send)
+        self.assertFalse(any(m['type']=='http.response.body' for m in messages))
+
+    async def test_expiry_during_core_or_principal_stops_later_dispatch(self):
+        for stage in ('core','principal'):
+            with self.subTest(stage=stage),virtual_clock() as clock:
+                state,port,gateway=self.make([self.row()]);deadline=clock[0]+.25
+                original=gateway.core_probe if stage=='core' else gateway.principal_resolver
+                async def expired(*args):
+                    value=await original(*args);clock[0]=deadline+1;return value
+                if stage=='core':gateway.core_probe=expired
+                else:gateway.principal_resolver=expired
+                status,value=await self.call(gateway,scope_extra={'_cortex_deadline':deadline})
+                self.assertEqual((status,value['error']['reason']),(503,'request_timeout'))
+                self.assertNotIn('read',state.events)

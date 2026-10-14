@@ -43,6 +43,11 @@ class CodecBoundary(unittest.TestCase):
         for messages in ([],[{'role':'user','content':'x'}],[{'role':'agent','content':3}]):
             self.unsupported(json.dumps({'messages':messages}).encode(),'invalid_payload',kind='session')
 
+    def test_declaration_strings_stay_strict_and_nonfinite_payload_metadata_refuses(self):
+        for raw in (b'{"x":"a\\nb"}','{"x":"Cafe\u0301"}'.encode()):
+            with self.subTest(raw=raw),self.assertRaises(ValueError):decode_json(raw,4096,canonical=False)
+        self.unsupported(b'{"section":"S","content":"text","metadata":1e999}','invalid_payload')
+
 
 class KeywordBoundary(unittest.IsolatedAsyncioTestCase):
     def searcher(self,rows,auth=None,read=None,**kwargs):
@@ -102,3 +107,33 @@ class KeywordBoundary(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.complete);self.assertEqual(result.reason,'unsupported_text')
         self.assertEqual(result.scanned_records,3)
         self.assertEqual([(u.record_id,u.reason) for u in result.unsupported],[('c','unknown_kind')])
+
+    async def test_explicit_false_auth_never_reads_or_returns_and_bad_rows_refuse(self):
+        for denied in (1,2):
+            calls=[]
+            async def auth(subject):
+                calls.append('auth');return calls.count('auth')!=denied
+            search=self.searcher([self.row()])
+            search.authorize=auth
+            with self.assertRaises(PermissionError):await search.search('s','match',limit=1,deadline=asyncio.get_running_loop().time()+1)
+        for row in (self.row(revision=True),self.row(revision=0),NS(record_id='x',kind='memory',source_revision=1,payload=None)):
+            with self.subTest(row=row),self.assertRaises(CapabilityUnavailable):
+                await self.searcher([row]).search('s','match',limit=1,deadline=asyncio.get_running_loop().time()+1)
+
+    async def test_overflow_witness_is_not_projected_or_disclosed_and_port_bound_is_enforced(self):
+        result=await self.searcher([self.row('a',content='miss'),self.row('b',kind='binary')],max_records=1).search(
+            's','match',limit=1,deadline=asyncio.get_running_loop().time()+1)
+        self.assertEqual((result.hits,result.unsupported,result.scanned_records),((),(),1))
+        async def unbounded(subject,**kwargs):return [self.row(str(i)) for i in range(102)]
+        with self.assertRaises(CapabilityUnavailable):
+            await self.searcher([],read=unbounded).search('s','match',limit=1,deadline=asyncio.get_running_loop().time()+1)
+
+    async def test_payload_or_membership_change_without_revision_change_refuses(self):
+        for changed in ('payload','membership'):
+            calls=[]
+            async def read(subject,**kwargs):
+                calls.append(True)
+                return [self.row('a' if changed=='payload' or len(calls)==1 else 'b',
+                    content='match' if len(calls)==1 else 'different')]
+            with self.subTest(change=changed),self.assertRaises(CapabilityUnavailable):
+                await self.searcher([],read=read).search('s','match',limit=1,deadline=asyncio.get_running_loop().time()+1)
