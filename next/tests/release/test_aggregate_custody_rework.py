@@ -87,7 +87,7 @@ class CustodyRework(unittest.TestCase):
     def test_case_only_absolute_ancestor_rename_after_pair_validation(self):
         path = self.root.parent; real = assembly._check_pairs; observed = []
         def after(*args):
-            real(*args); before=os.stat(path); path.rename(path.with_name('Members'))
+            real(*args); before=os.stat(path); path.rename(path.with_name(path.name[0].upper()+path.name[1:]))
             observed.append(os.stat(path).st_ino==before.st_ino)
         with patch.object(assembly,'_check_pairs',after): self.refusal('member_path_alias')
         self.assertEqual(observed,[True])
@@ -96,6 +96,21 @@ class CustodyRework(unittest.TestCase):
         real=assembly._check_pairs
         def after(*args): real(*args); self.root.rename(self.root.with_name('moved-originals'))
         with patch.object(assembly,'_check_pairs',after): self.refusal('member_custody_changed')
+
+    def test_namespace_entry_drift_during_final_stat_is_custody_changed(self):
+        real_bytes=self.reader.aggregate_bytes; real_fstat=custody.os.fstat
+        state=dict(reads=0,created=False); extra=self.root/'members/late-undeclared'
+        def read(path):
+            raw=real_bytes(path); state['reads']+=1; return raw
+        def fstat(fd):
+            result=real_fstat(fd)
+            if (state['reads']==2*len(self.bodies) and not state['created']
+                    and fd==list(self.reader._aggregate_files.values())[-1][0]):
+                extra.write_bytes(b'inert undeclared\n'); state['created']=True
+            return result
+        with patch.object(self.reader,'aggregate_bytes',read),patch.object(custody.os,'fstat',fstat):
+            self.refusal('member_custody_changed')
+        self.assertTrue(state['created']); self.assertEqual(state['reads'],2*len(self.bodies))
 
 
 if __name__=='__main__': unittest.main()
