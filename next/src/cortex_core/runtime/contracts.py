@@ -16,11 +16,11 @@ RC0_SHA256 = {
 }
 
 
-def decode(raw: bytes, *, limit: int):
+def decode(raw: bytes, *, limit: int, text_payload=False):
     if type(raw) is not bytes or len(raw) > limit:
         raise Refusal('raw_limit')
     try:
-        value = decode_json(raw, limit, canonical=False)
+        value = decode_json(raw, limit, canonical=False, text_payload=text_payload)
     except (ValueError, RecursionError, OverflowError):
         raise Refusal('raw_shape') from None
 
