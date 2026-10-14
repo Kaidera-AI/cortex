@@ -112,6 +112,7 @@ def source_reference_flags(file,source):
     """Unreviewed exempt-name references and dynamic reflection in NEXT source."""
     tree=ast.parse(source);flags=[];ordinals={}
     reviewed_calls=reviewed_reflection_calls(file,tree)
+    call_targets={node.func for node in ast.walk(tree) if isinstance(node,ast.Call)}
     def flag(kind,node):
         ordinal=ordinals.get(kind,0);ordinals[kind]=ordinal+1
         flags.append(dict(file=file,owner=kind,verb='DYNAMIC',table='<dynamic_or_unsupported>',
@@ -126,8 +127,19 @@ def source_reference_flags(file,source):
         for symbol in symbols:
             if symbol in EXEMPT_SYMBOL_FILES and file not in EXEMPT_SYMBOL_FILES[symbol]:
                 flag('cross_file:'+symbol,node)
+        if isinstance(node,ast.Name) and node.id=='getattr' and node not in call_targets:
+            flag('dynamic_name:getattr_alias',node)
         if isinstance(node,ast.Call):
             function=node.func;index=None;label=None
+            # OI-REFLECT-001: a literal method name does not close the callable
+            # it returns. Flag invocation (even with opaque SQL), or an escaping
+            # execute/executemany getter, without evaluating receiver/arguments.
+            if ((isinstance(function,ast.Call) and function not in reviewed_calls)
+                    or (isinstance(function,ast.Name) and function.id=='getattr'
+                        and node not in reviewed_calls and node not in call_targets
+                        and len(node.args)>1
+                        and static_text(node.args[1]) in ('execute','executemany'))):
+                flag('dynamic_name:call_target',node)
             if isinstance(function,ast.Name) and function.id in ('getattr','setattr','exec','eval','__import__'):
                 label=function.id;index=1 if label in ('getattr','setattr') else 0
             elif (isinstance(function,ast.Attribute) and function.attr=='import_module'
