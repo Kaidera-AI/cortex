@@ -30,6 +30,10 @@ def inventory(root, manifest):
     found = sorted(str(p.relative_to(root)) for p in (root / 'next').rglob('*.py')
                    if suite_name(p.name))
     invalid, entries, run, excluded = [], [], [], []
+    # rglob does not descend into directory symlinks: reject them rather than hide suites.
+    for path in (root / 'next').rglob('*'):
+        if path.is_symlink():
+            invalid.append('symlink under next inventory: ' + str(path.relative_to(root)))
     if not isinstance(manifest, dict) or set(manifest) != {'run', 'excluded'}:
         invalid.append('manifest must contain exactly run and excluded lists')
         manifest = manifest if isinstance(manifest, dict) else {}
@@ -140,6 +144,7 @@ def main():
             destination = args.output / (name + '.json')
             command = [sys.executable, '-B', str(worker), '--suite', suite,
                        '--output', str(destination), '--temporary', str(case / name)]
+            source_sha = hashlib.sha256((ROOT / suite).read_bytes()).hexdigest()
             if args.force_skip and index == 0:
                 command.append('--force-skip')
             started = time.monotonic()
@@ -154,8 +159,11 @@ def main():
                 outcome = json.loads(destination.read_text())
             except (OSError, ValueError):
                 outcome = None
-            ok = receipt_valid(outcome, code)
-            row = dict(suite=suite, source_sha256=hashlib.sha256((ROOT / suite).read_bytes()).hexdigest(),
+            source_unchanged = hashlib.sha256((ROOT / suite).read_bytes()).hexdigest() == source_sha
+            ok = (receipt_valid(outcome, code) and source_unchanged
+                  and outcome.get('suite') == suite and outcome.get('source_sha256') == source_sha
+                  and all(node.startswith(suite + '::') for node in outcome['selected']))
+            row = dict(suite=suite, source_sha256=source_sha, source_unchanged=source_unchanged,
                        process_exit=code, receipt=name + '.json', log=name + '.txt',
                        elapsed_seconds=round(time.monotonic() - started, 3), ok=ok,
                        selected=len(outcome.get('selected', [])) if outcome else 0,
