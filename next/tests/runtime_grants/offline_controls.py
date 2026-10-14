@@ -44,6 +44,7 @@ class StaticRows:
         self.queries=[];self.substitutions=[];self.creator=None
         self.fence=control.get('fence',7);self.released=False;self.revision=1
         self.closed=False;self.drift=False;self.bind_calls=0
+        self.unsafe_flag=None
         self.ledger=[('core-0001','1'*64)]
     @property
     def mode(self):return self.control['mode'] if self.bad else 'correct'
@@ -131,7 +132,15 @@ class StaticRows:
             self.revision+=1;return Rows(rowcount=1)
         if q.startswith('SELECT oid,rolname,rolcanlogin,'):
             return Rows([(101,ROLE_NAMES['request_group'],self.drift,False,False,False,False)])
-        if q.startswith('ALTER ROLE '):self.drift=True;return Rows()
+        if q.startswith('SELECT oid,rolcanlogin,'):
+            p=MATRIX['roles'][LOGICAL[args[0]]]
+            values=[p[k] for k in ('login','superuser','bypassrls','inherit','createdb','createrole','replication')]
+            if self.unsafe_flag=='SUPERUSER':values[1]=True;values[2]=False
+            return Rows([(101,*values)])
+        if q.startswith('ALTER ROLE '):
+            self.drift=True
+            if self.control['mode']=='prepare_adoption':self.unsafe_flag=q.split()[3]
+            return Rows()
         if q.startswith('SELECT rolname,rolcanlogin,'):
             return Rows([(name,False,False,False,False,False) for name in sorted((ROLE_NAMES['bootstrap'],ROLE_NAMES['migrator']))])
         if q.startswith('SELECT count(*) FROM pg_stat_activity'):
@@ -203,6 +212,10 @@ class Client:
         if str(kwargs.get('installation_id'))==uid(20):raise ValueError('foreign synthetic operation')
         return {}
     def close_finite_roles(self,*args,**kwargs):self.root.closed=True
+    def prepare_runtime_roles(self,*args,**kwargs):
+        if self.root.mode=='prepare_adoption':
+            self.root.changed('unsafe prepare admission','refused','adopted');return {}
+        raise ValueError('synthetic unsafe SUPERUSER preimage refused')
     def restore_runtime_roles(self,*args,**kwargs):
         if self.root.mode=='restore_shortcut':self.root.changed('cluster role restoration',False,True)
         else:self.root.drift=False
@@ -258,7 +271,7 @@ class FrozenCase(unittest.TestCase):
 def controls():
     health=next(x for x in MATRIX['functions'] if x['signature']=='coordination.runtime_lease_health(uuid)')
     values=[
-      ('M01','service_superuser','test_role__api_request',grants.role_case('api_request')),
+      ('M01','prepare_adoption','test_unsafe_prepare__probe__superuser',getattr(repair.Repair,'test_unsafe_prepare__probe__superuser')),
       ('M02','membership_admin','test_role__api_request',grants.role_case('api_request')),
       ('M03','foreign_session','test_cross_installation_valid_credential_is_not_session_authority',grants.Grants.test_cross_installation_valid_credential_is_not_session_authority),
       ('M04','definer_identity','test_supervisor_own_session_admits_positive_lease',repair.Repair.test_supervisor_own_session_admits_positive_lease),
@@ -338,7 +351,7 @@ def main():
             if denied:verdict='inconclusive'
             data=dict(record,control=control['id'],label=label,classification=verdict,queries=case.root.queries,
                 substitutions=case.root.substitutions,source_hashes=before,denied_effects=list(denied),skips=result.skipped,
-                final_state={key:getattr(case.root,key) for key in ('fence','released','revision','closed','drift','bind_calls','ledger','creator')})
+                final_state={key:getattr(case.root,key) for key in ('fence','released','revision','closed','drift','bind_calls','ledger','creator','unsafe_flag')})
             (output/(control['id']+'-'+label+'.json')).write_text(json.dumps(data,indent=2)+'\n');stages.append(data)
         exact_restore=(stages[0]['queries']==stages[2]['queries']
                        and stages[0]['final_state']==stages[2]['final_state']

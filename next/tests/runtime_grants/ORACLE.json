@@ -342,7 +342,7 @@
       ],
       "static_control": {
         "id": "M01",
-        "exact_node": "test_grants.Grants.test_role__api_request",
+        "exact_node": "test_repair.Repair.test_unsafe_prepare__probe__superuser",
         "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
         "scope": "static catalog/port substitution; not a PG/product mutation receipt"
       }
