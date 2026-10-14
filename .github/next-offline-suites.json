@@ -69,6 +69,7 @@
     "next/tests/release/test_native_matrix_guard_companions.py",
     "next/tests/release/test_native_matrix_guard_companions_v2.py",
     "next/tests/release/test_native_matrix_helper_protocol.py",
+    "next/tests/release/test_native_matrix_helper_protocol_v2.py",
     "next/tests/release/test_native_policy_unit2_red.py",
     "next/tests/release/test_native_policy_unit2_trust_cli_red.py",
     "next/tests/release/test_native_policy_unit2_trust_red.py",
