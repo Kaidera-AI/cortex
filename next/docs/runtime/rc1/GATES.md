@@ -10,3 +10,9 @@
 - [ ] G8 Custody: only admitted L1 disposable labeled PG resources used; source hashes measured on host; owned resources absent after cleanup; lab-host stop receipt shows deallocated.
 
 CHECK/EXPECT: The reviewed run_l1.py invokes test_receipts.py in an isolated runner and preserves its machine-readable BODY classifications. validate_scope.py (evidence-only) compares AST and Git/source hashes. The author never self-accepts these gates; unmet gates are explicit in the return.
+
+## Receipt status
+
+G1–G6 author measurements are met: 17-method/19-BODY absence RED; five exact-donor privacy/shutdown BODY failures; source/SQL/old-AST preservation; 17 focused L1 GREEN; 344 inherited GREEN across valid initial and corrected affected-suite receipts; nine faults killed by 11 BODY assertions, each restored and full17 GREEN. Mac has a separate six-method pure source witness. Exact receipts and early inconclusive attempts are in the external sealed return packet.
+
+G7 is recorded after this documentation commit by the destination-readback in the external return: normal push of cox/rc1-probe-20261014 only, no main merge and no PR needed for these admitted-host tests. G8’s owned container/pod/volume absence is measured; the external return carries the subsequent lab-host stop/deallocated receipt. Neither independent source/security acceptance nor G_OLD is checked by this author.
