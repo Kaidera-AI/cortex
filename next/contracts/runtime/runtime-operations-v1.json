@@ -311,8 +311,7 @@
     "api": [
       "api_request",
       "probe",
-      "observer",
-      "provider"
+      "observer"
     ],
     "supervisor": [
       "supervisor"
@@ -406,5 +405,27 @@
     "live-conductor-lease",
     "owned-resource-and-original-operation-receipt"
   ],
-  "anonymous_health_is_install_ready": false
+  "anonymous_health_is_install_ready": false,
+  "ai_policy": {
+    "revision": "RC0-E0-001",
+    "config_field": "ai_mode",
+    "default": "hosted",
+    "modes": [
+      "hosted",
+      "off"
+    ],
+    "rerank_default": false,
+    "rerank_binding": "unbound_in_stage_1",
+    "origin": "https://openrouter.ai:443",
+    "embedding_path": "/api/v1/embeddings",
+    "redirects": false,
+    "environment_proxy": false,
+    "hosted_api_handle": "provider",
+    "identity": "exact_existing_embedding_bound_tuple_no_fallback",
+    "selection_revision": "sha256_exact_admitted_config_identity_plus_nonreusable_acceptance_epoch_not_authority",
+    "off": "provider_identity_and_handle_optional_never_used_cancel_inflight_fence_late_results_skip_cache_vector_queue_resolver_http",
+    "request_deadline": "one_absolute_monotonic_deadline_clamped_to_existing_request_ms_budget",
+    "authority": "existing_original_owner_C04_R01_native_and_purpose_scope_gates_unchanged",
+    "off_reads": "bounded_current_authorized_keyword_and_existing_separate_graph_read"
+  }
 }
