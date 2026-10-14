@@ -87,6 +87,15 @@ def main():
         child.wait(timeout=max(1,deadline-time.monotonic()))
         for thread in threads:thread.join(3)
         result.update(exit_code=child.returncode,stdout=''.join(stdout),stderr=''.join(stderr))
+        # Supplemental upstream capability evidence, outside the105-node oracle.
+        # Transaction-local ACL changes roll back when the expected error exits
+        # psql; fixture operator never supplies a product function or grant.
+        probe='BEGIN; REVOKE CONNECT ON DATABASE "'+database+'" FROM PUBLIC,"kaidera-runtime-core-verifier"; SET LOCAL ROLE "kaidera-runtime-core-verifier"; SELECT session_user,current_user,has_database_privilege(current_user,current_database(),\'CONNECT\'); SELECT pg_database_size(current_database()); ROLLBACK;'
+        event=run(['podman','exec',db,'psql','-h','127.0.0.1','-U','postgres','-d',database,
+            '-v','ON_ERROR_STOP=1','-v','VERBOSITY=verbose','-Atc',probe],check=False)
+        result['supplemental_size_privilege_probe']={'exit_code':event.returncode,'stdout':event.stdout,'stderr':event.stderr,
+            'authority':'fixture controller SET LOCAL ROLE only; not a service-session or production grant receipt',
+            'oracle_nodes':0,'product_mutations':0}
     except BaseException as error:
         result['exception']=repr(error)
         if child and child.poll() is None:child.kill();child.wait(timeout=10)
