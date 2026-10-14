@@ -552,7 +552,8 @@ class ConsumerGateway:
         except (TimeoutError,CapabilityUnavailable) as error:
             if started:raise
             reason=getattr(error,'reason','request_timeout')
-            await _respond(send,503,_packet('capability_unavailable',capability='search',reason=reason))
+            async with asyncio.timeout_at(scope['_cortex_deadline']):
+                await _respond(send,503,_packet('capability_unavailable',capability='search',reason=reason))
 
     def _d1_refusal(self, error):
         code = getattr(error, 'code', None)
