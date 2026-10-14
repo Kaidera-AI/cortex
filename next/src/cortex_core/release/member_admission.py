@@ -98,6 +98,7 @@ def _startup_identity(startup):
         raise Refusal('required_binding_gap', unit=MISSING_UNIT) from None
     return (startup.bootstrap_id,startup.executable,startup.entrypoint,startup.python_version,
             startup.import_roots,startup.cache_prefix,startup.files,startup.intrinsics,startup.owner_binding,
+            tuple(id(hook) for hook in startup.path_hooks),
             tuple((name,id(value),path) for name,value,path in startup.module_aliases))
 
 
