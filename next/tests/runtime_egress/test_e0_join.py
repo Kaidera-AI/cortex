@@ -5,7 +5,21 @@ import unittest
 
 from cortex_core.api.c11b2 import C11b2ReadPort
 from cortex_core.embeddings.pg_search import CapabilityUnavailable
-from test_e0 import (admitted_ai, read_port, require_parameter, surface, SemanticRed)
+from test_e0 import (admitted_ai, read_port, require_parameter, surface, SemanticRed,
+                     materials, admit, field, signed_member)
+
+
+class OneSwitchOracle(unittest.TestCase):
+    def test_off_needs_only_one_switch_when_real_hosted_declarations_are_retained(self):
+        lock, cfg = materials()
+        cfg['ai_mode'] = 'off'
+        try:
+            plan = admit(lock, cfg)
+        except signed_member.Refusal as exc:
+            raise SemanticRed(f'single OFF switch refused existing valid declarations: {exc.reason}') from None
+        self.assertEqual(field(plan, 'ai').mode, 'off')
+        self.assertIsNone(plan.ai.identity)
+        self.assertNotIn('provider', plan.secret_handles)
 
 
 class OffJoinOracle(unittest.IsolatedAsyncioTestCase):
