@@ -45,7 +45,7 @@ jobs:
         run: |
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             python .github/scripts/pytest_u13_pg.py --output "${{ runner.temp }}/cortex-u13-pg" \
-            --site "${{ runner.temp }}/cortex-pg-site" --control missing
+            --site "${{ runner.temp }}/cortex-pg-site" --control skip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
