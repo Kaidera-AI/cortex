@@ -37,9 +37,13 @@ class InventoryOracle(Subject, unittest.TestCase):
             path.write_text('def test_body(): assert True\n')
         self.manifest = {'run': ['next/tests/test_a.py', 'next/docs/runtime/rc0/test_oracle.py'],
                          'excluded': [{'path': 'next/other/b_test.py', 'reason': 'Needs real PostgreSQL.'}]}
+        self.original_manifest=copy.deepcopy(self.manifest)
 
     def check(self):
-        return self.gate.inventory(self.root, self.manifest)
+        gate=self.gate
+        if 'base_manifest' in inspect.signature(gate.inventory).parameters:
+            return gate.inventory(self.root,self.manifest,base_manifest=self.original_manifest)
+        return gate.inventory(self.root, self.manifest)
 
     def test_complete_partition_including_rc0_oracle(self):
         result = self.check()
@@ -186,11 +190,18 @@ class RetirementOracle(Subject, unittest.TestCase):
         self.live = self.original + '::A::test_live'
         self.new = self.replacement + '::V2::test_new'
         self.put(self.original, 'class A:\n def test_old(self): assert False\n def test_live(self): pass\n')
-        self.put(self.replacement, 'class V2:\n def test_new(self): pass\n')
+        self.put(self.replacement, "from product import accept\nclass V2:\n def test_new(self): assert accept('live') == 'live'\n")
+        self.put('next/src/product.py', 'def accept(value):\n return value\n')
         self.put(self.record, 'RETIRED = ' + repr({'test_a.A.test_old': self.reason}) + '\n')
         self.manifest = dict(run=[self.original, self.replacement], excluded=[], retirements=[
             dict(record=self.record, sha256=self.digest(self.record),
                  files={p:self.digest(p) for p in (self.original, self.replacement)})])
+        self.manifest['retirement_checks']=[dict(
+            original={'nodeid':self.old,'assertion':'assert False'},
+            replacement={'nodeid':self.new,'assertion':"assert accept('live') == 'live'"},
+            mutation={'path':'next/src/product.py','sha256':self.digest('next/src/product.py'),
+                      'before':'return value','after':'return None'})]
+        self.original_manifest=copy.deepcopy(self.manifest)
 
     def put(self, path, text):
         target = self.root/path
@@ -201,7 +212,10 @@ class RetirementOracle(Subject, unittest.TestCase):
         return hashlib.sha256((self.root/path).read_bytes()).hexdigest()
 
     def check(self):
-        return self.gate.inventory(self.root, self.manifest)
+        gate=self.gate
+        if 'base_manifest' in inspect.signature(gate.inventory).parameters:
+            return gate.inventory(self.root,self.manifest,base_manifest=self.original_manifest)
+        return gate.inventory(self.root, self.manifest)
 
     def refused(self, code):
         checked = self.check()
@@ -229,7 +243,7 @@ class RetirementOracle(Subject, unittest.TestCase):
         with (self.root/self.record).open('a') as stream:
             stream.write("raise RuntimeError('must never execute the retirement runner')\n")
         self.repin(self.record)
-        self.assertTrue(self.check()['ok'])
+        self.assertFalse(self.check()['ok'],'changed accepted authority needs review; runner remains unexecuted')
 
     def test_manifest_alone_cannot_name_a_new_retirement(self):
         self.manifest['retirements'][0]['nodes'] = [self.live]
@@ -422,10 +436,10 @@ class InventoryRepairOracle(Subject, unittest.TestCase):
             return gate.inventory(root,manifest,base_manifest=self.base() if base is None else base)
         return gate.inventory(root,manifest)
 
-    def move(self, manifest, paths):
+    def move(self, manifest, paths, reason='Needs real PostgreSQL through the direct or inherited database fixture.'):
         for path in paths:
             manifest['run'].remove(path)
-            manifest['excluded'].append({'path':path,'reason':'Needs real PostgreSQL through the direct or inherited database fixture.'})
+            manifest['excluded'].append({'path':path,'reason':reason})
 
     def test_vera_manifest_only_cannot_hide_known_live_writer(self):
         manifest=self.current();self.move(manifest,[self.WRITER])
@@ -439,7 +453,7 @@ class InventoryRepairOracle(Subject, unittest.TestCase):
         keep={path for row in self.base()['retirements'] for path in row['files']}
         removed=[path for path in self.base()['run'] if path not in keep]
         self.assertEqual(len(removed),91)
-        self.move(manifest,removed)
+        self.move(manifest,removed,reason='Needs unavailable native fixture.')
         checked=self.checked(self.ROOT,manifest)
         self.assertFalse(checked['ok'],'91 accepted RUN suites removed by manifest-only edit')
         if 'transitions' in checked:self.assertEqual(len(checked['transitions']),91)
@@ -505,6 +519,65 @@ class InventoryRepairOracle(Subject, unittest.TestCase):
 
     def test_missing_trusted_base_is_fail_closed(self):
         self.assertFalse(self.checked(self.ROOT,self.current(),{})['ok'],'missing independent base treated as valid')
+
+
+class FixtureEvidenceOracle(Subject, unittest.TestCase):
+    """The static proof admits a real required fixture, not an import/reason."""
+    checked=InventoryRepairOracle.checked
+    def fixture(self, body, extra=''):
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        root=Path(temporary.name)
+        fixture=root/'next/tests/pg_fixture.py';fixture.parent.mkdir(parents=True)
+        fixture.write_text('import psycopg\nclass PgFixture:\n def setUp(self): self.db=psycopg.connect("required-test-db")\n')
+        suite=root/'next/tests/test_pg.py';suite.write_text(body+extra)
+        live=root/'next/tests/test_live.py';live.write_text('def test_live(): assert True\n')
+        base={'run':['next/tests/test_pg.py','next/tests/test_live.py'],'excluded':[]}
+        evidence={'kind':'postgres_fixture','source':'next/tests/pg_fixture.py',
+            'sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),'symbol':'PgFixture.setUp'}
+        current={'run':['next/tests/test_live.py'],'excluded':[{'path':'next/tests/test_pg.py','reason':'Needs PostgreSQL.','evidence':evidence}]}
+        return root,current,base
+
+    def test_required_inherited_postgres_fixture_is_checkable(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture as Required\nclass PgTests(Required):\n def test_body(self): assert self.db\n')
+        checked=self.checked(root,manifest,base)
+        self.assertTrue(checked['ok'],checked)
+        if 'transitions' in checked:self.assertTrue(checked['transitions'][0]['evidence_valid'])
+
+    def test_unused_postgres_import_and_plain_case_are_not_proof(self):
+        root,manifest,base=self.fixture('import psycopg\ndef test_body(): assert False\n')
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_fixture_proof_cannot_hide_mixed_plain_method(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def test_body(self): assert self.db\n','def test_plain(): assert False\n')
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_stale_fixture_hash_and_overridden_setup_refuse(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def setUp(self): pass\n def test_body(self): assert True\n')
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+        manifest['excluded'][0]['evidence']['sha256']='0'*64
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+
+class SemanticOutcomeOracle(Subject,unittest.TestCase):
+    def test_product_mutation_kill_requires_body_assertion_and_locus_observation(self):
+        subject=self.gate
+        self.assertTrue(callable(getattr(subject,'proof_killed',None)),'deciding mutation receipt validator absent')
+        node='next/tests/test_a.py::A::test_deciding';path='next/src/product.py';sha='a'*64
+        packet={'expected':[node],'selected':[node],'collected':[node],'deselected':[],
+            'pytest_exit':1,'gate_exit':1,'reports':[{'nodeid':node,'when':phase,
+                'outcome':'failed' if phase=='call' else 'passed','wasxfail':False,
+                'assertion':phase=='call'} for phase in ('setup','call','teardown')],
+            'observed_product':{'path':path,'sha256':sha,'source_unchanged':True,'loaded_source_matches':True,'calls':[{'qualname':'accept'}]}}
+        self.assertTrue(subject.proof_killed(packet,1,node,path,sha))
+        variants=[]
+        for field in ('calls','loaded_source_matches','source_unchanged'):
+            changed=copy.deepcopy(packet);changed['observed_product'][field]=[] if field=='calls' else False;variants.append(changed)
+        for when in ('setup','teardown'):
+            changed=copy.deepcopy(packet);changed['reports'][1]['when']=when;variants.append(changed)
+        for value in ('skipped','passed'):
+            changed=copy.deepcopy(packet);changed['reports'][1]['outcome']=value;variants.append(changed)
+        changed=copy.deepcopy(packet);changed['reports'][1]['assertion']=False;variants.append(changed)
+        for changed in variants:self.assertFalse(subject.proof_killed(changed,1,node,path,sha))
 
 
 if __name__ == '__main__':
