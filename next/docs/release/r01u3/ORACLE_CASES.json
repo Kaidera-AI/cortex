@@ -651,5 +651,219 @@
       "primitive_effect": 0,
       "actual_run": "NOT_RUN_UNBOUND"
     }
-  ]
+  ],
+  "cox_owner_amendments": {
+    "authority": "Kai43e68dc1-b33c-4496-8ab6-e742ea2e5bb1; Cox acceptance by reference",
+    "cox_ruling_ref": {
+      "source": "docs/handoffs/2026-10-14_cox_kai_u3a-acceptance.md",
+      "sha256": "b11d000b61ff584e3a28ca09ff608087beee498c39353a87ef4592eda9551497"
+    },
+    "empty_baseline_schema": "closed state=empty/receipt_sha256/fence/policy_generation; no release_id/default/zero receipt; original installed branch exact",
+    "state_provider": {
+      "owner": "Finn finite installer V with Cox U13 compatibility",
+      "source": "docs/handoffs/2026-10-14_cox_kai_gateb-c0.md",
+      "sections": [
+        1,
+        5,
+        6
+      ],
+      "original_sha256": "8bc4a6576dded3246f99151c3e00fd24a41cb3b7fd95328baffdae44888e0226",
+      "reference_only": true,
+      "new_reason_vocabulary": false,
+      "candidate_runtime_config_authority": false
+    },
+    "no_automatic_initial_counters": true,
+    "baseline_attestation_not_new_host_lease": true,
+    "B_current_comparison_needs_future_source_alignment": true,
+    "B_alignment_gap": "current trust._current equates observed/current policy_generation with installed baseline and observed fence with baseline; C0 requires each baseline match its actual attestation, not a newer host lease. Production Python unchanged by this contract-only row; default remains unbound; future named source alignment required before actual binding.",
+    "state_cases": [
+      {
+        "id": "EMPTY_ATTESTED",
+        "input": "current independent original empty-state receipt+fence+generation and matching owner install/operation; no fabricated old release pair",
+        "expected_ref": "C0 sections1/5/6 matched read-only positive; no effect grant from schema",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "INSTALLED_AS_EMPTY",
+        "input": "current original owner installed attestation contradicts a declared empty branch; no candidate selects state",
+        "expected_ref": "C0 section6 current policy_changed -> existing HOLD/state_drift",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "UNKNOWN_PROVIDER",
+        "input": "independent current provider absent or unknown even if declared empty fields are valid",
+        "expected_ref": "C0 section6 owner_unavailable -> existing BLOCKED/dependency_not_run",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "NONE_BASELINE",
+        "input": "installed_baseline missing or None; no default branch/counter",
+        "expected_ref": "existing required_binding_gap -> BLOCKED/dependency_not_run under C0 section6",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "STALE_EMPTY",
+        "input": "old empty receipt not current admitted owner attestation",
+        "expected_ref": "C0 section6 policy_changed -> existing HOLD/state_drift",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "CONCURRENT_STATE",
+        "input": "owner state changes after audit before attempted finite action",
+        "expected_ref": "C0 section6 current drift under the same owner CAS; no new consume/dispatch",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "RECHECK_BEFORE_EFFECT",
+        "input": "repeat current original attestation and scope at primitive; cached read-only value alone",
+        "expected_ref": "C0 sections1/5/6 and own original counters/lineage; no cached grant",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      },
+      {
+        "id": "OLDER_BASELINE_CURRENT_GENERATION",
+        "input": "older installed baseline generation/fence matches its current original attestation, while current policy/host lease is newer",
+        "expected_ref": "C0 attestation/host distinction (also section2); not an equality shortcut; future B source alignment required",
+        "state": "NOT_RUN_UNBOUND",
+        "new_grant_or_dispatch": 0,
+        "authority_record_declarations_not_proof": true
+      }
+    ],
+    "identity_replay": {
+      "phases": [
+        "binding",
+        "exact_bound_arguments",
+        "transport_bounds",
+        "requested_raw_id",
+        "signature",
+        "shape",
+        "scope_freshness_sequence",
+        "current_target_digest"
+      ],
+      "raw_id_distinct_from_target": true,
+      "stale_authenticated_sequence": "aggregate_replay",
+      "crafted_arguments_zero_transport": true,
+      "current_same_or_higher_sequence_wrong_target": "aggregate_identity_mismatch",
+      "actual_case_state": "NOT_RUN_UNBOUND"
+    },
+    "compatibility_target": {
+      "historical": {
+        "rc0_lock_schema": "f7b81910c0bb0de651417054bf46c591916175118ca9eb5fbb849310e5bcf008",
+        "rc0_config_schema": "c0f05c8f8ad442dfe781bee08a0eee8926b0d9331e33790c0f2f87c069b78efb",
+        "rc0_operations": "32eb25a99a6fdf94f770f5d6b1584ff4b58801686f96a57ad6259788ec8b94a0",
+        "migration19_manifest": "08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef",
+        "event_envelope_v1": "5fa8789b346764a2dc319b0770ca362eff6c76c36d65fb21cd8f2ee46865055a"
+      },
+      "target_label": "planned20/44",
+      "target_hashes": {
+        "final_sql": null,
+        "manifest": null,
+        "lock_schema": null,
+        "descriptor_compatibility": null
+      },
+      "acceptance_gate": [
+        "final_SQL",
+        "manifest",
+        "lock_schema",
+        "source_review"
+      ],
+      "status": "GAP_UNRATIFIED_TARGET",
+      "no_old_hash_as_new_target": true,
+      "counts_do_not_infer_schema_event_module_versions": true,
+      "event": "original event envelope version1; no bump inferred from private-grant changes"
+    },
+    "per_image_closure": {
+      "images": [
+        {
+          "role": "core-image",
+          "module": "core",
+          "target": "linux/arm64"
+        },
+        {
+          "role": "api-image",
+          "module": "api",
+          "target": "linux/arm64"
+        },
+        {
+          "role": "core-image",
+          "module": "core",
+          "target": "linux/amd64"
+        },
+        {
+          "role": "api-image",
+          "module": "api",
+          "target": "linux/amd64"
+        }
+      ],
+      "paired_receipts_per_image": 1,
+      "independent_slots_per_receipt": 2,
+      "external_paired_lock": 1,
+      "record_classes": [
+        "lock-schema",
+        "config-schema",
+        "operations",
+        "descriptor",
+        "compatibility",
+        "schema",
+        "events",
+        "migrations",
+        "build-input",
+        "build-receipt",
+        "evidence",
+        "sbom",
+        "provenance"
+      ],
+      "required_originals": [
+        "module_input",
+        "paired_AB_receipt",
+        "evidence_index_and_all_referenced_outputs_audits_custody_cleanup",
+        "descriptor_ABI",
+        "SBOM_provenance",
+        "full_native_package_licence_closure"
+      ],
+      "new_record_class": false,
+      "actual_physical_inventory": "GAP_NOT_DELIVERED",
+      "no_generic_record_for_four_builds": true,
+      "audit_classes": "existing11 classes preserved in original evidence, including explicit Core non-Python applicability; no audit-summary wrapper"
+    },
+    "capacity": {
+      "caps": {
+        "manifest": 1048576,
+        "signature": 4096,
+        "lock": 262144,
+        "record": 8388608,
+        "image": 4294967296,
+        "aggregate": 17179869184,
+        "count": 10000,
+        "path": 4096,
+        "read_seconds": 120
+      },
+      "all_referenced_AB_outputs_required": true,
+      "receipt_reencoding": false,
+      "silent_cap_raise": false,
+      "physical_sizes": "GAP_NOT_MEASURED",
+      "secondary_output_representation": "GAP_IF_NOT_EXISTING_CAP_MEDIA_PATH_FIT",
+      "shared_bytes_do_not_merge_distinct_provenance": true,
+      "map": "four runtime image rows: original OCI<=4GiB each; paired input/receipt/evidence/descriptor/SBOM/provenance/native-package-licence originals: existing roles/media, each record<=8MiB; one external lock<=262144. All referenced A/B originals separately resolved, signed and counted. Original-to-transport map preserves receipt bytes/paths; no unlisted secondary output.",
+      "total_rule": "measure total original transport bytes (unique signed physical members plus manifest/sidecar, lock counted once) within16GiB and each per-subject bound; do not count same physical bytes twice only when exact signed common-subject references truly share one canonical object, not distinct slot provenance",
+      "explicit_gaps": [
+        "four4GiB runtime archives exhaust16GiB before records/lock; actual sizes must leave headroom",
+        "secondary original A/B OCI/output not one of four runtime rows and larger than8MiB cannot be silently called a record or discarded; require reviewed representation/replan",
+        "declared two-hash SBOM receipt alone is not full licence/package closure; all original inventories required"
+      ]
+    }
+  }
 }
