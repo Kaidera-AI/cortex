@@ -103,7 +103,8 @@ def _port():
     def read_member(member: OriginalMember, *, aggregate_id: str, member_name: str) -> bytes:
         """Sealed reader: return the exact immutable bytes bound to this request."""
         record = checked(member)
-        if record[0] != aggregate_id or record[2] != member_name:
+        if (type(aggregate_id) is not str or type(member_name) is not str
+                or record[0] != aggregate_id or record[2] != member_name):
             raise Refusal('member_identity_mismatch')
         return record[4]
 
