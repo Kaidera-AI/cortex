@@ -324,7 +324,7 @@ def inventory(root, manifest, base_manifest=None):
                 previous=approved.get(row['record'])
                 retirement_require(previous is not None,'accepted_base_retirement')
                 retirement_require(row['sha256']==previous['sha256'],'accepted_base_record')
-                retirement_require(True,'accepted_base_files')
+                retirement_require(row['files']==previous['files'],'accepted_base_files')
             method_exclusions=manifest.get('method_exclusions',[])
             if not isinstance(method_exclusions,list):raise ValueError('coverage: method exclusion schema')
             nodes=[]
