@@ -438,9 +438,11 @@ def _error_status(error):
     if code == 'gone':
         return 410, _packet('gone', retryable=False)
     if code == 'capability_unavailable':
+        reason=getattr(error,'reason',None)
         return 503, _packet('capability_unavailable',
                             capability=getattr(error, 'capability', None),
-                            reason=getattr(error, 'reason', None))
+                            reason=reason,retryable=reason not in
+                                {'graph_fusion_unbound','canonical_read_unbound','hosted_disabled'})
     return 503, _packet('core_unavailable')
 
 
