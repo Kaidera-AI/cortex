@@ -74,6 +74,7 @@ def _original(record, *, aggregate_id, signing_root_id):
 
 
 def _roots(q, *, aggregate_id, signing_root_id, owner_uid):
+    declared_identities = []
     for root in q['roots']:
         _require(root['owner_uid'] == owner_uid, 'unsafe_custody')
         raw = _original(root['custody_ref'], aggregate_id=aggregate_id, signing_root_id=signing_root_id)
@@ -89,6 +90,11 @@ def _roots(q, *, aggregate_id, signing_root_id, owner_uid):
                  and witness['link_target'] is None and type(witness['filesystem_identity']) is dict
                  and set(witness['filesystem_identity']) == {'device', 'inode'}
                  and all(type(v) is int and v >= 0 for v in witness['filesystem_identity'].values()), 'unsafe_custody')
+        identity = witness['filesystem_identity']
+        if identity['device'] > 0 and identity['inode'] > 0:
+            key = (witness['backend_id'], identity['device'], identity['inode'])
+            _require(key not in declared_identities, 'unsafe_custody')
+            declared_identities.append(key)
 
 
 def plan(original_request, *, aggregate_id, observed_target, owner_uid, host_identity_ref,

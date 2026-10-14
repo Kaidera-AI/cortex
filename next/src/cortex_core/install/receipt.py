@@ -29,7 +29,9 @@ def verify_product_receipt(original_bytes, original_request, *, request_ref, ori
         for field in ('previous_receipt_ref', 'journal_ref'):
             if q[field] is not None and q[field] not in r['evidence_refs']:
                 raise InstallRefusal('wrong_release')
-        if r['disposition'] == 'created_by_this_transaction' or r['phase'] not in ('planned', 'verified', 'refusing'):
+        if (r['disposition'] == 'created_by_this_transaction'
+                or any(resource['ownership'] == 'created_by_this_transaction' for resource in r['resources'])
+                or r['phase'] not in ('planned', 'verified', 'refusing')):
             raise InstallRefusal('bad_shape')
     return receipt
 
