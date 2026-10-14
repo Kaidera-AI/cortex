@@ -82,7 +82,8 @@
         "test_c04.C04.test_shared_negative_conformance_cases_are_refused",
         "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
         "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
-        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user"
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user",
+        "test_grants.Grants.test_original_C04_fixture_has_real_API_session_and_valid_scope"
       ]
     },
     {
