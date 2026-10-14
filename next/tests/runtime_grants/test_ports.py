@@ -41,7 +41,7 @@ class Ports(Fixture):
             raise RuntimeError('fixture lease expired before dispatch; INCONCLUSIVE')
         _,pid,box,thread=self.background('supervisor','SELECT coordination.runtime_lease_renew(%s,%s,%s,1000)',(uid(1),uid(100),fence))
         try:
-            self.wait_blocked(pid,locker.info.backend_pid)
+            self.wait_blocked(pid,locker.info.backend_pid,box)
             self.root.execute('SELECT pg_sleep(1.1)')
         finally:locker.execute('COMMIT')
         self.joined(thread,box)
@@ -59,10 +59,10 @@ class Ports(Fixture):
         lease.execute('SELECT * FROM coordination.supervisor_leases WHERE installation_id=%s FOR UPDATE',(uid(1),))
         _,pid,box,thread=self.background('supervisor','SELECT coordination.runtime_lease_renew(%s,%s,%s,1000)',(uid(1),uid(100),fence))
         try:
-            self.wait_blocked(pid,mapping.info.backend_pid)
+            self.wait_blocked(pid,mapping.info.backend_pid,box)
             self.assertNotIn(lease.info.backend_pid,self.root.execute('SELECT pg_blocking_pids(%s)',(pid,)).fetchone()[0])
             mapping.execute('COMMIT')
-            self.wait_blocked(pid,lease.info.backend_pid)
+            self.wait_blocked(pid,lease.info.backend_pid,box)
         finally:
             mapping.execute('ROLLBACK');lease.execute('COMMIT')
         self.joined(thread,box)
@@ -138,7 +138,7 @@ class Ports(Fixture):
         locker=self.login('bootstrap');locker.execute('BEGIN');locker.execute('LOCK TABLE coordination.jobs IN ACCESS EXCLUSIVE MODE')
         observer,pid,box,thread=self.background('observer','SELECT coordination.runtime_observe(%s)',(uid(1),),readonly=True)
         try:
-            self.wait_blocked(pid,locker.info.backend_pid)
+            self.wait_blocked(pid,locker.info.backend_pid,box)
             revoke=self.login('bootstrap');revoke.execute("SET statement_timeout='250ms'")
             try:
                 changed=revoke.execute('UPDATE auth.runtime_login_bindings SET active=false,revision=revision+1 WHERE role_name=%s',(ROLE_NAMES['observer'],)).rowcount

@@ -203,9 +203,13 @@ class Fixture(core_db_fixture.Fixture):
         self.addCleanup(lambda:conn.close())
         return conn,pid,box,thread
 
-    def wait_blocked(self,pid,blocker):
+    def wait_blocked(self,pid,blocker,box):
         end=time.monotonic()+2
         while time.monotonic()<end:
+            if 'error' in box:
+                error=box['error']
+                if isinstance(error,psycopg.errors.InsufficientPrivilege):self.fail('SEMANTIC:valid barrier call denied:42501')
+                raise error  # SQL/import/network cannot masquerade as lock RED
             if blocker in self.root.execute('SELECT pg_blocking_pids(%s)',(pid,)).fetchone()[0]:return
             time.sleep(.01)
         self.fail('SEMANTIC:expected real PostgreSQL lock barrier not reached')

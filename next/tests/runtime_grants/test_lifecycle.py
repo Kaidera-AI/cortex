@@ -17,7 +17,10 @@ class Lifecycle(Fixture):
         return client,receipt
 
     def test_prepare_reentry_preserves_actual_role_oid_and_preimage(self):
+        self.client()  # absence is BODY surface RED before any fixture change
+        self.root.execute(sql.SQL('DROP ROLE {}').format(sql.Identifier(ROLE_NAMES['probe'])))
         client,first=self.prepare()
+        self.assertEqual(self.root.execute('SELECT rolcanlogin,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=%s',(ROLE_NAMES['probe'],)).fetchone(),(False,False,False))
         before=self.root.execute('SELECT oid,rolname FROM pg_roles WHERE rolname=ANY(%s) ORDER BY rolname',(list(ROLE_NAMES.values()),)).fetchall()
         with self.login('bootstrap') as owner:
             second=client.prepare_runtime_roles(owner,role_names=dict(ROLE_NAMES),operation_id=OPERATION)

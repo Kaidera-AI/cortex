@@ -71,13 +71,19 @@ class Grants(Fixture):
                 self.root.execute(sql.SQL('SET LOCAL ROLE {}').format(sql.Identifier(ROLE_NAMES[creator])))
                 self.root.execute('CREATE FUNCTION auth.pgo_default_canary() RETURNS integer LANGUAGE sql AS $$SELECT 1$$')
                 self.root.execute('CREATE TYPE auth.pgo_default_type AS ENUM (\'x\')')
+                self.root.execute('CREATE TABLE auth.pgo_default_table(id integer)')
                 self.root.execute('RESET ROLE')
                 self.assertFalse(self.root.execute("SELECT has_function_privilege(%s,'auth.pgo_default_canary()','EXECUTE')",(ROLE_NAMES['probe'],)).fetchone()[0],
                                  'SEMANTIC:future function PUBLIC EXECUTE')
                 self.assertFalse(self.root.execute("SELECT has_type_privilege(%s,'auth.pgo_default_type','USAGE')",(ROLE_NAMES['probe'],)).fetchone()[0],
                                  'SEMANTIC:future type PUBLIC USAGE')
+                for logical in ('request_group','api_request','probe','supervisor','observer','installer_enrollment'):
+                    for priv in TABLE_PRIVS:
+                        self.assertFalse(self.root.execute("SELECT has_table_privilege(%s,'auth.pgo_default_table',%s)",(ROLE_NAMES[logical],priv)).fetchone()[0],
+                                         'SEMANTIC:future table leaked to '+logical)
                 self.root.execute('DROP FUNCTION auth.pgo_default_canary()')
                 self.root.execute('DROP TYPE auth.pgo_default_type')
+                self.root.execute('DROP TABLE auth.pgo_default_table')
                 if creator=='verifier_owner':
                     self.root.execute(sql.SQL('REVOKE CREATE ON SCHEMA auth FROM {}').format(sql.Identifier(ROLE_NAMES[creator])))
 
@@ -225,18 +231,24 @@ def other_case(logical):
                 allowed=finite or any(x.split()[:2]==[priv,schema] for x in schema_rights)
                 actual=self.root.execute('SELECT has_schema_privilege(%s,%s,%s)',(name,schema,priv)).fetchone()[0]
                 self.note('schema',logical,schema,priv,actual);self.assertEqual(actual,allowed,f'SEMANTIC:{logical}:{schema}:{priv}')
+                option=self.root.execute('SELECT has_schema_privilege(%s,%s,%s)',(name,schema,priv+' WITH GRANT OPTION')).fetchone()[0]
+                self.assertEqual(option,finite)
         for priv in ('CONNECT','TEMP','CREATE'):
             actual=self.root.execute('SELECT has_database_privilege(%s,current_database(),%s)',(name,priv)).fetchone()[0]
             self.note('database',logical,'owned',priv,actual)
             self.assertEqual(actual,expected(MATRIX['database']['direct_privileges'][logical],priv),f'SEMANTIC:{logical}:database:{priv}')
+            self.assertEqual(self.root.execute('SELECT has_database_privilege(%s,current_database(),%s)',(name,priv+' WITH GRANT OPTION')).fetchone()[0],finite)
         for priv in ('SELECT','INSERT','UPDATE','DELETE'):
             actual=self.root.execute('SELECT has_table_privilege(%s,%s,%s)',(name,MATRIX['view']['name'],priv)).fetchone()[0]
             self.assertEqual(actual,expected(MATRIX['view']['direct_privileges'][logical],priv))
+            self.assertEqual(self.root.execute('SELECT has_table_privilege(%s,%s,%s)',(name,MATRIX['view']['name'],priv+' WITH GRANT OPTION')).fetchone()[0],finite or logical==MATRIX['view']['owner'])
         for priv in ('USAGE','SELECT','UPDATE'):
             actual=self.root.execute('SELECT has_sequence_privilege(%s,%s,%s)',(name,MATRIX['sequence']['name'],priv)).fetchone()[0]
             self.assertEqual(actual,expected(MATRIX['sequence']['direct_privileges'][logical],priv))
+            self.assertEqual(self.root.execute('SELECT has_sequence_privilege(%s,%s,%s)',(name,MATRIX['sequence']['name'],priv+' WITH GRANT OPTION')).fetchone()[0],finite or logical==MATRIX['sequence']['owner'])
         actual=self.root.execute('SELECT has_type_privilege(%s,%s,\'USAGE\')',(name,MATRIX['type']['name'])).fetchone()[0]
         self.assertEqual(actual,expected(MATRIX['type']['direct_privileges'][logical],'USAGE'))
+        self.assertEqual(self.root.execute('SELECT has_type_privilege(%s,%s,\'USAGE WITH GRANT OPTION\')',(name,MATRIX['type']['name'])).fetchone()[0],finite or logical==MATRIX['type']['owner'])
         for priv in TABLE_PRIVS:
             actual=self.root.execute("SELECT has_table_privilege(%s,'core.schema_migrations',%s)",(name,priv)).fetchone()[0]
             self.assertEqual(actual,finite)

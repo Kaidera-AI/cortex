@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+import threading
 import time
 
 import psycopg
@@ -103,11 +104,23 @@ class Upgrade(Fixture):
         with tempfile.TemporaryDirectory(dir=os.environ['PGO_CONTROL_DIR']) as tmp:
             target=Path(tmp)/'schema';shutil.copytree(SCHEMA,target)
             row=manifest['migrations'][-1];path=target/row['file']
-            path.write_bytes(path.read_bytes()+b'\nSELECT 1/0;\n')
+            path.write_bytes(path.read_bytes()+b'\nSELECT pg_advisory_xact_lock(6215001);\n')
             row['sha256']=hashlib.sha256(path.read_bytes()).hexdigest()
             (target/'manifest.json').write_text(json.dumps(manifest))
-            with self.login('migrator') as conn:
-                with self.assertRaises(psycopg.errors.DivisionByZero):apply_migrations(conn,target,through=STEP)
+            conn=self.login('migrator');box={}
+            def applying():
+                try:box['value']=apply_migrations(conn,target,through=STEP)
+                except BaseException as error:box['error']=error
+            thread=threading.Thread(target=applying,daemon=True)
+            self.root.execute('SELECT pg_advisory_lock(6215001)')
+            try:
+                thread.start()
+                self.wait_blocked(conn.info.backend_pid,self.root.info.backend_pid,box)
+                self.assertIs(self.root.execute('SELECT pg_terminate_backend(%s,1000)',(conn.info.backend_pid,)).fetchone()[0],True)
+            finally:
+                self.root.execute('SELECT pg_advisory_unlock(6215001)')
+                self.joined(thread,box)
+            self.assertIsInstance(box.get('error'),psycopg.OperationalError)
         self.assertEqual(self.ledger(),ledger);self.assertEqual(self.snapshot(),before)
         self.assertFalse(self.has('auth.runtime_login_bindings'))
         self.assertFalse(self.has('coordination.runtime_observe(uuid)','function'))

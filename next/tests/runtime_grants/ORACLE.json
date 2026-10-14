@@ -14,7 +14,8 @@
         "test_grants.Grants.test_role__probe",
         "test_grants.Grants.test_role__request_group",
         "test_grants.Grants.test_role__supervisor",
-        "test_grants.Grants.test_role__verifier_owner"
+        "test_grants.Grants.test_role__verifier_owner",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name"
       ]
     },
     {
@@ -211,7 +212,8 @@
         "test_grants.Grants.test_role__probe",
         "test_grants.Grants.test_role__request_group",
         "test_grants.Grants.test_role__supervisor",
-        "test_grants.Grants.test_role__verifier_owner"
+        "test_grants.Grants.test_role__verifier_owner",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name"
       ]
     },
     {
