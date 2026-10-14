@@ -33,7 +33,7 @@ class U13Fixture(Fixture):
             ['postgres','-p','55432','-c','shared_buffers=16MB','-c','max_connections=24',
              '-c','listen_addresses=127.0.0.1'],user='999:999',memory='256m',cpus='0.5',
             mounts=[(data,'/var/lib/postgresql/data',False)],
-            env={'POSTGRES_DB':'cortex_u13','POSTGRES_HOST_AUTH_METHOD':'trust',
+            env={'POSTGRES_DB':'kaidera-test-upgrade-ci','POSTGRES_HOST_AUTH_METHOD':'trust',
                  'PGDATA':'/var/lib/postgresql/data/pgdata'},
             extra=['--tmpfs=/var/run/postgresql:rw,size=8m,mode=1777'])
         deadline=time.monotonic()+30
@@ -51,7 +51,7 @@ class U13Fixture(Fixture):
         self.create_u13()
         env={'PYTHONDONTWRITEBYTECODE':'1','PYTEST_DISABLE_PLUGIN_AUTOLOAD':'1',
              'PYTHONPATH':'/deps:/source/next/src','PSYCOPG_IMPL':'python',
-             'TEST_DATABASE_URL':'postgresql://postgres@127.0.0.1:55432/cortex_u13'}
+             'TEST_DATABASE_URL':'postgresql://postgres@127.0.0.1:55432/kaidera-test-upgrade-ci'}
         driver=self.run('u13-driver',PYTHON,['sleep','900'],
             mounts=[(self.source,'/source',True),(self.site,'/deps',True),(self.results,'/results',False)],env=env)
         result=self.command(['exec',driver,'python','/source/.github/scripts/pytest_u13_worker.py',
@@ -60,7 +60,7 @@ class U13Fixture(Fixture):
         print(result.stdout,result.stderr,flush=True)
         self.receipt['worker_exit']=result.returncode
         self.receipt['control']=control
-        self.receipt['database']='isolated current-v2 cortex_u13, no legacy bootstrap, loopback-only/no host port'
+        self.receipt['database']='isolated current-v2 kaidera-test-upgrade-ci, no legacy bootstrap, loopback-only/no host port'
         return result.returncode
 
 def main():
