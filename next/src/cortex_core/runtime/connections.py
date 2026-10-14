@@ -6,6 +6,8 @@ must replace the missing owner boundary under a separately accepted grant matrix
 from dataclasses import dataclass
 
 from cortex_core.api.c11a import postgres_core_probe
+from .config import AdmissionPlan
+from .contracts import load_contracts
 from .signed_member import Refusal
 
 RC1_PROBE = postgres_core_probe
@@ -51,8 +53,59 @@ class ConnectionInterfaces:
 
 def describe_connections(admission, lock, config, *, snapshot=None):
     """Freeze already-admitted declarations; even matching observations stay UNBOUND."""
+    if (type(admission) is not AdmissionPlan or admission.authority_status!='UNBOUND'
+            or admission.effect_authority is not False or admission.native_qualified is not False
+            or admission.lock_sha256!=config['runtime_lock_sha256']):
+        raise Refusal('declaration_not_authority')
+    operations=load_contracts().operations
+    expected=operations['roles']
+    if set(config['roles'])!=set(expected):
+        raise Refusal('role_catalogue_mismatch')
+    if any(not _same(row['policy'],expected[name]) for name,row in config['roles'].items()):
+        raise Refusal('role_policy_mismatch')
+    if snapshot is not None:
+        _check_snapshot(snapshot,lock,config)
     roles=tuple(RoleData(name,row['binding']['value']['sql_name'],
                         row['binding']['value']['installation_id'],_freeze(row['policy']))
                 for name,row in config['roles'].items())
     view=tuple(name for name in admission.secret_handles if name in config['roles'])
     return ConnectionInterfaces(config['installation_id'],roles,view)
+
+
+def _same(left,right):
+    """Exact builtin data equality; caller equality hooks are never authority."""
+    if type(left) is not type(right):
+        return False
+    if type(right) is dict:
+        return (all(type(k) is str for k in left) and set(left)==set(right)
+                and all(_same(left[k],v) for k,v in right.items()))
+    if type(right) in (list,tuple):
+        return len(left)==len(right) and all(_same(a,b) for a,b in zip(left,right))
+    return type(right) in (str,bool,int,type(None)) and left==right
+
+
+def _check_snapshot(snapshot,lock,config):
+    # This catches contradictory declarations only. A matching caller snapshot
+    # still cannot bind a role, grant, credential, connection or service.
+    if (type(snapshot) is not dict or any(type(k) is not str for k in snapshot)
+            or set(snapshot)!={'installation_id','schema','embedding','roles','grant_receipt'}):
+        raise Refusal('observation_shape')
+    for field,expected,reason in (
+        ('installation_id',config['installation_id'],'installation_mismatch'),
+        ('schema',lock['current_schema'],'schema_mismatch'),
+        ('embedding',config['embedding']['value'],'model_mismatch'),
+        ('grant_receipt',lock['owner_ports']['role_grants']['original_receipt'],'grant_mismatch')):
+        if not _same(snapshot[field],expected):
+            raise Refusal(reason)
+    roles=snapshot['roles']
+    if type(roles) is not dict or set(roles)!=set(config['roles']):
+        raise Refusal('role_catalogue_mismatch')
+    for name,row in roles.items():
+        if type(row) is not dict or type(row.get('policy')) is not dict:
+            raise Refusal('observation_shape')
+        policy=row['policy']
+        if (not config['roles'][name]['policy']['lifetime'].startswith('finite-')
+                and (policy.get('superuser') is not False or policy.get('bypassrls') is not False)):
+            raise Refusal('bypass_role')
+        if not _same(row,config['roles'][name]):
+            raise Refusal('role_policy_mismatch')

@@ -65,7 +65,26 @@ def describe_factory(member, config_raw, *, aggregate_id, observed_target,
     lock=decode(read_member(member,aggregate_id=aggregate_id,
                            member_name=RUNTIME_LOCK_MEMBER),limit=MAX_LOCK_BYTES)
     config=decode(config_raw,limit=MAX_CONFIG_BYTES)
-    load_routes()
+    routes=load_routes()
+    _check_handlers(handlers,routes)
     connections=describe_connections(admission,lock,config,snapshot=snapshot)
     return FactoryInterfaces(config['installation_id'],connections,
                              tuple(binding.name for binding in handlers))
+
+
+def _check_handlers(handlers,routes):
+    expected={'write':'C01-R102','read':'C11-D1','search':'C01-R022',
+              'status':'C01-R030','enrollment':None}
+    if type(handlers) is not tuple or any(type(x) is not HandlerBinding for x in handlers):
+        raise Refusal('missing_handler')
+    names=[x.name for x in handlers]
+    route_ids=[x.route_id for x in handlers if x.route_id is not None]
+    if (any(type(n) is not str for n in names+route_ids)
+            or len(set(names))!=len(names) or len(set(route_ids))!=len(route_ids)):
+        raise Refusal('handler_collision')
+    if set(names)!=set(expected) or any(not callable(x.callback) for x in handlers):
+        raise Refusal('missing_handler')
+    current={row['id'] for row in routes}
+    if any(x.route_id!=expected[x.name] or x.route_id is not None and x.route_id not in current
+           for x in handlers):
+        raise Refusal('handler_route_mismatch')
