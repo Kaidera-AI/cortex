@@ -27,7 +27,10 @@ def run(args, check=True, timeout=300):
 def main():
     mode, interpreter, receipt_path = sys.argv[1:4]
     selectors = sys.argv[4:]
-    if mode not in ('red', 'focus', 'green', 'donor', 'mutant'): raise ValueError('unsupported mode')
+    regressions = selectors if mode == 'regression' else []
+    if regressions and any(name not in SUITES for name in regressions): raise ValueError('unknown regression suite')
+    if regressions: selectors = []
+    if mode not in ('red', 'focus', 'green', 'donor', 'mutant', 'regression'): raise ValueError('unsupported mode')
     if os.uname().machine != 'x86_64' or Path.home() != Path('/home/labadmin'):
         raise RuntimeError('refuse outside the explicitly admitted L1 host account')
     token = uuid4().hex[:10]
@@ -77,7 +80,9 @@ def main():
                 child.kill();child.wait(timeout=10);raise
             out=''.join(stdout); skip=[line.split('=',1)[1] for line in out.splitlines() if line.startswith('CORTEX_SKIPS=')]; marker=[line.split('=',1)[1] for line in out.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
             return {'exit_code':child.returncode,'stdout':out,'stderr':''.join(stderr),'body_receipt':json.loads(marker[0]) if len(marker)==1 else None, 'skips':json.loads(skip[0]) if len(skip)==1 else None}
-        result['suites']['c11_availability']=suite('c11_availability')
+        if mode == 'regression':
+            for name in regressions: result['suites'][name] = suite(name)
+        else: result['suites']['c11_availability']=suite('c11_availability')
         if mode=='green' and result['suites']['c11_availability']['exit_code']==0:
             for name in SUITES:result['suites'][name]=suite(name)
         exit_code=0 if all(row['exit_code']==0 for row in result['suites'].values()) else 1

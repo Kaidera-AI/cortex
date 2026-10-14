@@ -8,12 +8,15 @@ import runpy
 import sys
 import unittest
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'src'))
+sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests')]
 from cortex_core.api import c11a
 source = Path(c11a.__file__).resolve()
 executed = set()
+source_filename = str(source)
 def trace(frame, event, arg):
-    if event == 'call' and frame.f_code.co_filename == str(source):
+    if frame.f_code.co_filename != source_filename:
+        return None
+    if event == 'call':
         executed.add(frame.f_code.co_qualname)
     return trace
 print('CORTEX_LOADED=' + json.dumps({'file': str(source), 'sha256': hashlib.sha256(source.read_bytes()).hexdigest(), 'python': sys.version.split()[0], 'psycopg': importlib.metadata.version('psycopg'), 'suite': sys.argv[1]}), flush=True)
