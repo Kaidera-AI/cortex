@@ -263,6 +263,10 @@ class AssemblyControls(unittest.TestCase):
     def test_manifest_raw_type_is_bounded(self):
         _,a=self.source();self.refuse('raw_limit',lambda:a._validate_manifest(None,self.policy))
 
+    def test_parsed_manifest_count_is_bounded_before_transport(self):
+        _,a=self.source();self.policy['limits']['member_count']=1
+        self.refuse('raw_limit',lambda:a._validate_manifest(encode(self.value),self.policy))
+
     def test_build_group_count_required(self):
         self.builds.pop();self.refuse('required_binding_gap')
 
