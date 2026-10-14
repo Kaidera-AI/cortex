@@ -182,6 +182,21 @@ def category(file,owner,verb,table):
             return 'fixed_identity_authority; captured_by_additive_identity_finish'
         if owner=='auth.identity_finish' and table in ('core.payloads','coordination.idempotency'):
             return 'original_immutable_audit_and_receipt; additive_finish_captures_every_target'
+    if file=='schema/auth/004-first-identity-capture.sql':
+        # Additive replacements of the existing C06 capture/fact functions.
+        if (owner,verb,table)==('coordination.c06_capture_revision','INSERT','coordination.outbox'):
+            return 'private_C06_c06_capture_revision'
+        if owner=='coordination.c06_fact' and (verb,table) in {
+                ('INSERT','core.records'),('INSERT','core.record_aliases'),
+                ('UPDATE','core.records'),('INSERT','core.record_revisions')}:
+            return 'private_C06_c06_fact'
+    if (file=='schema/auth/005-first-identity.sql' and owner=='auth.first_identity'
+            and verb=='INSERT' and table in {'auth.principals','auth.project_grants',
+                                             'auth.credentials','auth.first_identity_receipts','core.payloads'}):
+        return 'explicit_installer_only; never runtime mutation'
+    if (file=='schema/coordination/005-session-source.sql' and owner=='coordination.c11b3_session_claim'
+            and verb=='INSERT' and table=='coordination.session_sources'):
+        return 'private_transaction_binding_housekeeping'
     if file=='schema/coordination/002-outbox.sql':
         rules={'coordination.c06_capture_revision':{'coordination.outbox'},
           'coordination.c06_fact':{'core.records','core.record_aliases','core.record_revisions'},
