@@ -8,8 +8,10 @@ import ipaddress
 import posixpath
 
 from cortex_core.release.codec import sha256
-from .contracts import MAX_CONFIG_BYTES, MAX_LOCK_BYTES, decode, load_contracts
+from .contracts import MAX_CONFIG_BYTES, MAX_LOCK_BYTES, RC0_SHA256, decode, load_contracts
 from .signed_member import OriginalMember, Refusal, read_member
+from .selection import AiSelection
+from cortex_core.embeddings.pg_search import EmbeddingIdentity
 
 RUNTIME_LOCK_MEMBER = 'runtime.lock.json'
 
@@ -24,6 +26,7 @@ class AdmissionPlan:
     authority_status: str = 'UNBOUND'
     effect_authority: bool = False
     native_qualified: bool = False
+    ai: AiSelection | None = None
 
 
 def _bindings(value):
@@ -117,6 +120,13 @@ def admit_config(member: OriginalMember, config_raw: bytes, *, aggregate_id: str
         raise Refusal('operations_mismatch')
     if config['runtime_lock_sha256'] != sha256(lock_raw):
         raise Refusal('lock_mismatch')
+    for key, filename in (('lock_schema','runtime-lock-v1.schema.json'),
+                          ('config_schema','runtime-config-v1.schema.json'),
+                          ('operations','runtime-operations-v1.json')):
+        descriptor=lock['contract_members'][key]['value']
+        if (descriptor['sha256']!=RC0_SHA256[filename]
+                or descriptor['bytes']!=contracts.member_sizes[filename]):
+            raise Refusal('contract_mismatch')
     if observed_target not in lock['targets'] or config['target'] != observed_target:
         raise Refusal('observed_target_mismatch')
     if config['declaration_scope'] != lock['declaration_scope']:
@@ -153,5 +163,15 @@ def admit_config(member: OriginalMember, config_raw: bytes, *, aggregate_id: str
         if type(current) is not str:
             raise Refusal('argv_mismatch')
         return current
-    return AdmissionPlan(observed_target, mode, tuple(map(atom, operation['argv'])), sha256(lock_raw),
-                         tuple(operations['secret_handles_by_mode'].get(mode, ())))
+    ai_mode=config.get('ai_mode','hosted')
+    identity=None
+    if ai_mode=='hosted':
+        value=config['embedding']['value']
+        identity=EmbeddingIdentity(value['provider'],value['model'],value['model_version'],
+                                   value['dimensions'],value['preprocessing'])
+    ai=AiSelection(ai_mode,sha256(config_raw),identity)
+    handles=tuple(operations['secret_handles_by_mode'].get(mode,()))
+    if mode=='api' and ai_mode=='hosted':
+        handles+=('provider',)
+    return AdmissionPlan(observed_target, mode, tuple(map(atom, operation['argv'])),
+                         sha256(lock_raw),handles,ai=ai)

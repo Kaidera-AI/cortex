@@ -1985,6 +1985,13 @@
         "component",
         "release"
       ]
+    },
+    "ai_mode": {
+      "enum": [
+        "hosted",
+        "off"
+      ],
+      "default": "hosted"
     }
   },
   "required": [
@@ -2004,7 +2011,6 @@
     "resolver",
     "database",
     "listeners",
-    "embedding",
     "extractor",
     "metrics_labels"
   ],
@@ -2056,13 +2062,40 @@
                 "required": [
                   "api_request",
                   "probe",
-                  "observer",
-                  "provider"
+                  "observer"
                 ]
               }
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "ai_mode": {
+                  "const": "off"
+                }
+              },
+              "required": [
+                "ai_mode"
+              ]
+            },
+            "then": {},
+            "else": {
+              "properties": {
+                "resolver": {
+                  "properties": {
+                    "handles": {
+                      "required": [
+                        "provider"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     {
@@ -2243,6 +2276,34 @@
             }
           }
         }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ai_mode": {
+            "const": "off"
+          }
+        },
+        "required": [
+          "ai_mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "embedding": {
+            "properties": {
+              "state": {
+                "const": "BOUND"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "embedding"
+        ]
       }
     }
   ],
