@@ -364,6 +364,28 @@ class RetirementOracle(Subject, unittest.TestCase):
         packet = self.old_packet()
         self.assertFalse(self.admitted(packet))
 
+    def test_host_refuses_retired_credit_with_forged_duplicate_collection(self):
+        packet = self.packet([self.old, self.live])
+        packet.update(retired=[self.row()], collected=[self.old, self.old, self.live])
+        self.assertFalse(self.admitted(packet, retired=[self.row()]))
+
+    def test_symlinked_retirement_record_is_rejected_before_read(self):
+        from unittest.mock import patch
+        outside = self.root/'outside.py'
+        outside.write_text('RETIRED = {}\n')
+        record = self.root/self.record
+        record.unlink()
+        record.symlink_to(outside)
+        observed = []
+        original = Path.read_text
+        def tracking(path, *args, **kwargs):
+            if path == record: observed.append(path)
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'read_text', tracking):
+            checked = self.check()
+        self.assertFalse(checked['ok'])
+        self.assertEqual(observed, [], 'rejected retirement symlink must never be read')
+
     def test_replacement_receipt_must_run_exact_named_cases(self):
         self.assertTrue(self.admitted(self.packet([self.new]), replacements=[self.new]))
         self.assertFalse(self.admitted(self.packet([self.replacement+'::V2::test_other']), replacements=[self.new]))
