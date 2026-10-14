@@ -785,38 +785,77 @@
       "type": "integer"
     },
     "installed_baseline": {
-      "additionalProperties": false,
-      "properties": {
-        "fence": {
-          "maximum": 9223372036854775807,
-          "minimum": 0,
-          "type": "integer"
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fence": {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "policy_generation": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "receipt_sha256": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "release_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^v[0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+              "type": "string"
+            }
+          },
+          "required": [
+            "release_id",
+            "receipt_sha256",
+            "fence",
+            "policy_generation"
+          ],
+          "type": "object"
         },
-        "policy_generation": {
-          "maximum": 9223372036854775807,
-          "minimum": 1,
-          "type": "integer"
-        },
-        "receipt_sha256": {
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
-          "type": "string"
-        },
-        "release_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^v[0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
-          "type": "string"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fence": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "policy_generation": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "receipt_sha256": {
+              "maxLength": 64,
+              "minLength": 1,
+              "not": {
+                "const": "0000000000000000000000000000000000000000000000000000000000000000"
+              },
+              "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+              "type": "string"
+            },
+            "state": {
+              "const": "empty",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "receipt_sha256",
+            "fence",
+            "policy_generation"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "release_id",
-        "receipt_sha256",
-        "fence",
-        "policy_generation"
-      ],
-      "type": "object"
+      ]
     },
     "limits": {
       "additionalProperties": false,
