@@ -37,8 +37,9 @@ class _AuthorityDelivery(Protocol):
 
 
 def _unbound(aggregate_id: str, member_name: str) -> NoReturn:
-    # Must precede even input inspection: production has no authority to read.
-    raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+    # Fixed lazy R01 composition; its default gap still precedes input handling.
+    from cortex_core.release.member_admission import request_original_member
+    return request_original_member(aggregate_id, member_name)
 
 
 _original_authority: Callable[[str, str], _AuthorityDelivery] = _unbound

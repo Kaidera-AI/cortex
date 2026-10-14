@@ -100,6 +100,14 @@ class Bridge(Fixture, unittest.TestCase):
                 self.assertEqual(error.unit, MISSING)
         self.assertIs(port._original_authority, port._unbound)
 
+    def test_sole_existing_port_delegates_to_fixed_R01_backend(self):
+        api = self.api(); calls = []
+        def missing(aggregate, name):
+            calls.append((aggregate,name)); raise port.Refusal('member_not_in_aggregate')
+        with patch.object(api,'request_original_member',missing):
+            self.refusal('member_not_in_aggregate',lambda: port.request_member(self.aggregate,MEMBER))
+        self.assertEqual(calls,[(self.aggregate,MEMBER)])
+
     def test_exact_original_lock_through_actual_port_and_verifier(self):
         import cortex_core.release.trust as trust
         import cortex_core.release.aggregate as aggregate
