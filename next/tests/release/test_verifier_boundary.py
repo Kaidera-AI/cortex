@@ -382,3 +382,20 @@ class AdditionalAdmissionControls(StartupFixture, unittest.TestCase):
         with patch.object(api.time,'monotonic',lambda:clock[0]),patch.object(inspector,'_read_member',side_effect=AssertionError('expired metadata admission read file')):
             self.refusal('raw_limit',self.check)
         self.assertEqual(self.transports,[])
+
+
+class RetainedPathHookIdentity(StartupFixture, unittest.TestCase):
+    """Hale's U3EA-HOOK-001 witness; existing SOURCE SIMULATION only."""
+    def test_retained_delivery_refuses_changed_bootstrap_path_hook_identity(self):
+        api = self.init_boundary()
+        with self.composition():
+            delivery = api.request_original_member(self.aggregate, MEMBER)
+            old = self.frame
+            new_hook = machinery.FileFinder.path_hook(
+                (machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES),
+                (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES),
+                (machinery.SourcelessFileLoader, machinery.BYTECODE_SUFFIXES))
+            new_hooks = (old.path_hooks[0], new_hook)
+            self.frame = replace(old, path_hooks=new_hooks)
+            self.replace_observation(path_hooks=new_hooks)
+            self.refusal('aggregate_replay', lambda: delivery.read_original(262144))
