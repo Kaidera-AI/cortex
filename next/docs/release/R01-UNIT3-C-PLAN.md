@@ -86,3 +86,25 @@ and use the same held/named custody check instead of a second identity checker.
 No original oracle assertion changes. Additional focused guard companions may
 be appended before further source guard changes; mutation RED is separately
 attributed, never called native or preimplementation evidence.
+
+Review amendment: frozen per-original descriptor/SBOM role controls exposed two
+BODY failures (3 cases, 2 failures, 0 errors/skips; 50c3167). Enforce one typed
+(kind, role) map for every original input/evidence/output subject, reusing the
+existing parsed records. Keep original role/media/path bytes in the R01 receipt;
+no new wrapper record type or parser. The third closed-layout control was already
+GREEN and is not credited as a pre-fix failure.
+
+Prefix review amendment: a derived 2*members directory count invented a bound
+that refused a legal declared deep path. Freeze 1 BODY failure/0 errors before
+removing it. Enumerate only exact signed file paths and their derived directory
+prefixes, under the existing time/path/member bounds. The single held/named
+identity check covers missing originals; avoid a second weaker missing-set check.
+No cap raise, parser or original test change.
+
+Final custody review: freeze a foreign relative-device stat simulation (1 BODY
+failure/0 errors before source) and bind all relative directories/files to the
+named root device before opening them. Absolute admitted-root ancestors may
+legitimately cross mount devices. Actual mounts/bind namespaces and native owner
+custody are NOT_RUN; source stat fault injection is not native mount proof.
+Existing test-only RAM signer joins actual B byte authentication to measured C
+originals; no real key, persisted key/sidecar or signature of record is created.

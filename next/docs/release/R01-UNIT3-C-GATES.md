@@ -18,3 +18,8 @@ Each check is decided by the literal runner/audit receipts in the external
 R01-unit3c-20261014 evidence directory. A missing or inconclusive check is
 partial, not a passed check. Real native and representation acceptance are
 explicitly outside source credit and must stay GAP.
+
+Current deciding evidence: corrected scaffold RED76/0errors; typed roles RED2/3,
+deep-prefix RED1, foreign-device RED1; focused final MUTANTS.json95/95 BODY,
+0 errors/skips, exact source restoration. Final complete dual-version run and
+remote push readback remain C4/C6, and same-row delivery remains C7.
