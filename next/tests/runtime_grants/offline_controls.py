@@ -24,6 +24,7 @@ import test_grants as grants
 import test_ports as ports
 import test_lifecycle as lifecycle
 import test_repair as repair
+import test_connect as connect
 import test_receipts as receipts
 
 LOGICAL={value:key for key,value in ROLE_NAMES.items()}
@@ -44,6 +45,7 @@ class StaticRows:
         self.queries=[];self.substitutions=[];self.creator=None
         self.fence=control.get('fence',7);self.released=False;self.revision=1
         self.closed=False;self.drift=False;self.bind_calls=0
+        self.connect_revoked=False
         self.unsafe_flag=None
         self.ledger=[('core-0001','1'*64)]
     @property
@@ -59,16 +61,31 @@ class StaticRows:
     def execute(self,query,args=(),logical=None):
         q=' '.join((query.as_string() if hasattr(query,'as_string') else str(query)).split())
         self.queries.append({'query':q,'args':list(map(str,args)),'session':logical})
+        if q=='SELECT current_database()':return Rows([('kaidera-test-grant-db-static',)])
+        if q.startswith('SELECT pg_database_size'):
+            denied=bool(args) or self.connect_revoked or 'CONNECT' not in MATRIX['database']['direct_privileges']['verifier_owner']
+            mode='connect_foreign_size' if args else 'connect_revoke'
+            if denied:
+                if self.mode==mode:return Rows([(self.changed('size refusal', '42501', 100),)])
+                raise psycopg.errors.InsufficientPrivilege('synthetic database size denied')
+            return Rows([(self.changed('owned size',100,0) if self.mode=='connect_size' else 100,)])
+        if q.startswith('REVOKE CONNECT ON DATABASE'):self.connect_revoked=True;return Rows()
+        if q.startswith('GRANT CONNECT ON DATABASE'):self.connect_revoked=False;return Rows()
+        if q.startswith('SELECT rolcanlogin FROM'):
+            return Rows([(False,)])
+        if q.startswith('SELECT count(*) FROM pg_database'):
+            return Rows([(self.changed('foreign explicit ACL',0,1) if self.mode=='connect_foreign_grant' else 0,)])
         if q.startswith('SELECT rolcanlogin,'):
             name=LOGICAL[args[0]];p=MATRIX['roles'][name]
             row=tuple(p[k] for k in ('login','superuser','bypassrls','inherit','createdb','createrole','replication'))
             if self.mode=='service_superuser' and name=='api_request':row=self.changed('role flags',row,row[:1]+(True,)+row[2:])
+            if self.mode=='connect_flags' and name=='verifier_owner':row=self.changed('verifier flags',row,(True,)+row[1:])
             return Rows([row])
         if q.startswith('SELECT granted.rolname,'):
             row=[(REQUEST,True,False,False)] if args[0]==ROLE_NAMES['api_request'] else []
             if self.mode=='membership_admin' and row:row=self.changed('membership admin option',row,[(REQUEST,True,False,True)])
             return Rows(row)
-        if q.startswith('SELECT count(*) FROM pg_auth_members'):return Rows([(0,)])
+        if q.startswith('SELECT count(*) FROM pg_auth_members'):return Rows([(self.changed('verifier membership',0,1) if self.mode=='connect_membership' else 0,)])
         if q.startswith('SELECT p.prosecdef,'):
             fn=FUNCTIONS[args[0]];vol='v';path='pg_catalog, auth, core, coordination, pg_temp'
             if self.mode=='stable_health' and args[0]=='coordination.runtime_lease_health(uuid)':vol=self.changed('health volatility','v','s')
@@ -100,8 +117,11 @@ class StaticRows:
             if self.mode=='service_create' and name=='observer' and schema=='core' and priv=='CREATE':value=self.changed('schema CREATE',value,True)
             return Rows([(value,)])
         if q.startswith('SELECT has_database_privilege'):
-            name=LOGICAL[args[0]];priv=args[1];finite=MATRIX['roles'][name]['superuser']
+            name=LOGICAL[args[0]];priv=args[1] if len(args)==2 else 'CONNECT';finite=MATRIX['roles'][name]['superuser']
+            if 'current_database()' not in q:return Rows([(self.changed('foreign CONNECT',False,True) if self.mode=='connect_foreign' else False,)])
             value=finite if 'GRANT OPTION' in priv else expected(MATRIX['database']['direct_privileges'][name],priv)
+            if self.mode=='connect_missing' and name=='verifier_owner' and priv=='CONNECT':value=self.changed('owned CONNECT',value,False)
+            if self.mode=='connect_grant' and name=='verifier_owner' and priv=='CONNECT WITH GRANT OPTION':value=self.changed('CONNECT grant option',value,True)
             if self.mode=='request_connect' and name=='request_group' and priv=='CONNECT':value=self.changed('request CONNECT',value,True)
             if self.mode=='service_temp' and name=='observer' and priv=='TEMP':value=self.changed('service TEMP',value,True)
             return Rows([(value,)])
@@ -242,6 +262,9 @@ class FrozenCase(unittest.TestCase):
     def client(self):return Client(self.root)
     def prepare(self):return self.client(),{'preimage':{}}
     def login(self,logical,**kwargs):
+        if logical=='verifier_owner':
+            if self.root.mode=='connect_login':self.root.changed('NOLOGIN connection', 'refused','opened')
+            else:raise psycopg.OperationalError('role is not permitted to log in')
         if self.root.closed:raise psycopg.OperationalError('synthetic NOLOGIN')
         return Connection(self.root,logical)
     def bind_current(self,**kwargs):
@@ -306,6 +329,18 @@ def controls():
       ('F10-fence-bool','fence_bool','test_release_retains_row_and_next_acquire_increases_fence',ports.Ports.test_release_retains_row_and_next_acquire_increases_fence),
       ('F10-fence-float','fence_float','test_release_retains_row_and_next_acquire_increases_fence',ports.Ports.test_release_retains_row_and_next_acquire_increases_fence),
     ]
+    for mode, name in (
+        ('connect_missing','test_verifier_current_database_capabilities'),
+        ('connect_grant','test_verifier_current_database_capabilities'),
+        ('connect_size','test_verifier_size_positive_and_revocation_refuses'),
+        ('connect_revoke','test_verifier_size_positive_and_revocation_refuses'),
+        ('connect_flags','test_verifier_flags_and_all_membership_edges_closed'),
+        ('connect_membership','test_verifier_flags_and_all_membership_edges_closed'),
+        ('connect_login','test_verifier_real_login_refused'),
+        ('connect_foreign_grant','test_verifier_no_explicit_other_database_grants'),
+        ('connect_foreign','test_verifier_closed_other_database_connect_and_size_refused'),
+        ('connect_foreign_size','test_verifier_closed_other_database_connect_and_size_refused')):
+        values.append(('CONNECT-'+mode, mode, name, getattr(connect.Connect,name)))
     result=[dict(id=i,mode=m,name=n,method=f) for i,m,n,f in values]
     for kind in ('function','type'):
         for creator in ('migrator','verifier_owner'):
@@ -319,7 +354,7 @@ def controls():
         if value['mode']=='fence_bool':value['fence']=1
         if value['id']=='M21':value['fence']=2
         method=value['method'];module=method.__module__
-        cls={'test_grants':'Grants','test_ports':'Ports','test_lifecycle':'Lifecycle','test_repair':'Repair'}[module]
+        cls={'test_grants':'Grants','test_ports':'Ports','test_lifecycle':'Lifecycle','test_repair':'Repair','test_connect':'Connect'}[module]
         value['node']=module+'.'+cls+'.'+value['name'];value['class_name']=cls;value['module']=module
     return result
 
@@ -351,7 +386,7 @@ def main():
             if denied:verdict='inconclusive'
             data=dict(record,control=control['id'],label=label,classification=verdict,queries=case.root.queries,
                 substitutions=case.root.substitutions,source_hashes=before,denied_effects=list(denied),skips=result.skipped,
-                final_state={key:getattr(case.root,key) for key in ('fence','released','revision','closed','drift','bind_calls','ledger','creator','unsafe_flag')})
+                final_state={key:getattr(case.root,key) for key in ('fence','released','revision','closed','drift','bind_calls','ledger','creator','unsafe_flag','connect_revoked')})
             (output/(control['id']+'-'+label+'.json')).write_text(json.dumps(data,indent=2)+'\n');stages.append(data)
         exact_restore=(stages[0]['queries']==stages[2]['queries']
                        and stages[0]['final_state']==stages[2]['final_state']
