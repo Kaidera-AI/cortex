@@ -1,6 +1,8 @@
 """Frozen desired inventory/outcome contract, written before the runner."""
 import copy
+import hashlib
 import importlib.util
+import inspect
 import json
 from pathlib import Path
 import tempfile
@@ -165,6 +167,212 @@ class OutcomeOracle(Subject, unittest.TestCase):
         unittest.TestSuite(cases).run(result)
         self.assertEqual(result.testsRun, 1)
         self.assertTrue(result.wasSuccessful())
+
+
+class RetirementOracle(Subject, unittest.TestCase):
+    """Named in-tree authority, retained bytes and mandatory live v2 witnesses."""
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.original = 'next/tests/retirement/test_a.py'
+        self.replacement = 'next/tests/retirement/test_a_v2.py'
+        self.record = 'next/tests/retirement/run_active.py'
+        self.reason = 'Kai: named historical checkpoint; replaced by v2.'
+        self.old = self.original + '::A::test_old'
+        self.live = self.original + '::A::test_live'
+        self.new = self.replacement + '::V2::test_new'
+        self.put(self.original, 'class A:\n def test_old(self): assert False\n def test_live(self): pass\n')
+        self.put(self.replacement, 'class V2:\n def test_new(self): pass\n')
+        self.put(self.record, 'RETIRED = ' + repr({'test_a.A.test_old': self.reason}) + '\n')
+        self.manifest = dict(run=[self.original, self.replacement], excluded=[], retirements=[
+            dict(record=self.record, sha256=self.digest(self.record),
+                 files={p:self.digest(p) for p in (self.original, self.replacement)})])
+
+    def put(self, path, text):
+        target = self.root/path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+
+    def digest(self, path):
+        return hashlib.sha256((self.root/path).read_bytes()).hexdigest()
+
+    def check(self):
+        return self.gate.inventory(self.root, self.manifest)
+
+    def refused(self, code):
+        checked = self.check()
+        self.assertFalse(checked['ok'], 'unproved retirement was credited')
+        self.assertIn('retirement: ' + code, checked['invalid'])
+
+    def repin(self, path):
+        if path == self.record:
+            self.manifest['retirements'][0]['sha256'] = self.digest(path)
+        else:
+            self.manifest['retirements'][0]['files'][path] = self.digest(path)
+
+    def test_exact_retirement_is_not_run_and_v2_is_mandatory(self):
+        checked = self.check()
+        self.assertTrue(checked['ok'], checked)
+        self.assertEqual([row['nodeid'] for row in checked.get('retired', [])], [self.old])
+        row = checked['retired'][0]
+        self.assertEqual(row['reason'], self.reason)
+        self.assertEqual(row['source_sha256'], self.digest(self.original))
+        self.assertEqual(row['record_sha256'], self.digest(self.record))
+        self.assertEqual(row['replacement_nodes'], [self.new])
+        self.assertEqual(checked.get('replacement_nodes'), {self.replacement:[self.new]})
+
+    def test_record_is_read_without_executing_its_runner(self):
+        with (self.root/self.record).open('a') as stream:
+            stream.write("raise RuntimeError('must never execute the retirement runner')\n")
+        self.repin(self.record)
+        self.assertTrue(self.check()['ok'])
+
+    def test_manifest_alone_cannot_name_a_new_retirement(self):
+        self.manifest['retirements'][0]['nodes'] = [self.live]
+        self.refused('binding_schema')
+
+    def test_missing_binding_is_refused(self):
+        self.manifest['retirements'].clear()
+        self.refused('record_inventory')
+
+    def test_duplicate_binding_is_refused(self):
+        self.manifest['retirements'] *= 2
+        self.refused('record_inventory')
+
+    def test_edited_retirement_reason_is_refused(self):
+        self.put(self.record, 'RETIRED = ' + repr({'test_a.A.test_old':'changed reason'}) + '\n')
+        self.refused('record_hash')
+
+    def test_nonliteral_record_is_refused_even_when_repinned(self):
+        self.put(self.record, 'RETIRED = dict(test_a="unproved")\n')
+        self.repin(self.record)
+        self.refused('record_literal')
+
+    def test_duplicate_literal_key_is_refused(self):
+        self.put(self.record, "RETIRED = {'test_a.A.test_old':'first', 'test_a.A.test_old':'second'}\n")
+        self.repin(self.record)
+        self.refused('record_literal')
+
+    def test_syntax_error_is_typed_not_executed(self):
+        self.put(self.record, 'RETIRED = {\n')
+        self.repin(self.record)
+        self.refused('record_parse')
+
+    def test_retired_node_must_exist_in_retained_original(self):
+        self.put(self.record, 'RETIRED = ' + repr({'test_a.A.test_absent':self.reason}) + '\n')
+        self.repin(self.record)
+        self.refused('original_node')
+
+    def test_original_bytes_cannot_change(self):
+        with (self.root/self.original).open('a') as stream: stream.write('# changed\n')
+        self.refused('file_hash')
+
+    def test_replacement_must_exist(self):
+        (self.root/self.replacement).unlink()
+        self.refused('file_hash')
+
+    def test_replacement_bytes_cannot_change(self):
+        with (self.root/self.replacement).open('a') as stream: stream.write('# weakened\n')
+        self.refused('file_hash')
+
+    def test_all_and_only_original_and_v2_files_must_be_bound(self):
+        self.manifest['retirements'][0]['files'].pop(self.original)
+        self.refused('file_bindings')
+
+    def test_original_file_with_live_cases_cannot_be_excluded(self):
+        self.manifest['run'].remove(self.original)
+        self.manifest['excluded'].append(dict(path=self.original, reason='hide live cases'))
+        self.refused('live_suite')
+
+    def test_replacement_cannot_be_excluded(self):
+        self.manifest['run'].remove(self.replacement)
+        self.manifest['excluded'].append(dict(path=self.replacement, reason='hide replacement'))
+        self.refused('live_suite')
+
+    def test_replacement_must_declare_named_live_cases(self):
+        self.put(self.replacement, 'class V2: pass\n')
+        self.repin(self.replacement)
+        self.refused('replacement_nodes')
+
+    def worker(self, rows):
+        path = SCRIPT.with_name('pytest_next_worker.py')
+        spec = importlib.util.spec_from_file_location('retirement_worker_subject', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertIn('retired', inspect.signature(module.Gate).parameters,
+                      'BODY RED: worker has no exact retirement collection contract')
+        return module.Gate(self.root/'out.json', False, retired=rows)
+
+    def row(self):
+        return dict(nodeid=self.old, reason=self.reason, record=self.record,
+                    record_sha256=self.digest(self.record), source_sha256=self.digest(self.original),
+                    replacement_nodes=[self.new])
+
+    def test_worker_removes_only_named_historical_case_and_keeps_new_live_case(self):
+        gate = self.worker([self.row()])
+        names = [self.old, self.live, self.original+'::A::test_new_unretired']
+        session = types.SimpleNamespace(items=[types.SimpleNamespace(nodeid=n) for n in names])
+        gate.pytest_collection_finish(session)
+        self.assertEqual([item.nodeid for item in session.items], names[1:])
+        self.assertEqual(gate.packet['collected'], names)
+        self.assertEqual(gate.packet['retired'], [self.row()])
+        self.assertEqual(gate.packet['deselected'], [])
+
+    def test_worker_refuses_missing_or_duplicate_retired_case(self):
+        for names in ([self.live], [self.old, self.old, self.live]):
+            gate = self.worker([self.row()])
+            session = types.SimpleNamespace(items=[types.SimpleNamespace(nodeid=n) for n in names])
+            with self.assertRaisesRegex(ValueError, '^retirement_collection$'):
+                gate.pytest_collection_finish(session)
+
+    def packet(self, nodes):
+        return dict(expected=nodes[:], selected=nodes[:], deselected=[], pytest_exit=0, gate_exit=0,
+            retired=[], collected=nodes[:], reports=[dict(nodeid=node, when=phase,
+                outcome='passed', wasxfail=False) for node in nodes for phase in ('setup','call','teardown')])
+
+    def admitted(self, packet, retired=(), replacements=()):
+        subject = self.gate
+        self.assertIn('retired', inspect.signature(subject.receipt_valid).parameters,
+                      'BODY RED: host does not reconcile retirement witnesses')
+        return subject.receipt_valid(packet, 0, retired=retired, replacements=replacements)
+
+    def old_packet(self):
+        packet = self.packet([self.live])
+        packet.update(retired=[self.row()], collected=[self.old, self.live])
+        return packet
+
+    def test_host_accepts_complete_retirement_receipt(self):
+        self.assertTrue(self.admitted(self.old_packet(), retired=[self.row()]))
+
+    def test_host_refuses_edited_retirement_metadata(self):
+        packet = self.old_packet()
+        packet['retired'][0]['reason'] = 'forged reason'
+        self.assertFalse(self.admitted(packet, retired=[self.row()]))
+
+    def test_host_refuses_unaccounted_collected_case(self):
+        packet = self.old_packet()
+        packet['collected'].append(self.original+'::A::test_hidden_live')
+        self.assertFalse(self.admitted(packet, retired=[self.row()]))
+
+    def test_host_cannot_credit_a_retired_node_as_passed(self):
+        packet = self.packet([self.old, self.live])
+        packet['retired'] = [self.row()]
+        self.assertFalse(self.admitted(packet, retired=[self.row()]))
+
+    def test_host_refuses_a_manifest_free_retirement(self):
+        packet = self.old_packet()
+        self.assertFalse(self.admitted(packet))
+
+    def test_replacement_receipt_must_run_exact_named_cases(self):
+        self.assertTrue(self.admitted(self.packet([self.new]), replacements=[self.new]))
+        self.assertFalse(self.admitted(self.packet([self.replacement+'::V2::test_other']), replacements=[self.new]))
+
+    def test_replacement_failure_or_skip_is_never_credit(self):
+        for outcome in ('failed', 'skipped'):
+            packet = self.packet([self.new])
+            packet['reports'][1]['outcome'] = outcome
+            self.assertFalse(self.admitted(packet, replacements=[self.new]))
 
 
 if __name__ == '__main__':
