@@ -80,7 +80,7 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((status,value['state'],value['complete']),(503,'partial',False))
                 self.assertEqual(value['error'],dict(code='capability_unavailable',capability='search',state='partial',reason=reason,retryable=False))
                 self.assertEqual(value['freshness']['scanned_records'],count)
-        self.assertEqual(value['unsupported'],[])
+                if reason=='scan_limit':self.assertEqual(value['unsupported'],[])
 
     async def test_source_change_during_final_auth_suppresses_hits(self):
         state,_,gateway=self.make([self.row()]);state.mutate_on_final=True
