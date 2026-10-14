@@ -58,12 +58,12 @@
     "C0-01-current-P-context-original.json": "{\"clock_ref\":{\"bytes\":268,\"path\":\"C0-01-current-P-clock-observation.json\",\"sha256\":\"0015cf38a39772dd8f9fc3193df11978cb12b46df31db67af78603dcb78fdda9\"},\"consent_ref\":{\"bytes\":631,\"path\":\"C0-01-current-P-consent-original.json\",\"sha256\":\"787af4ef9fcafb97cf287712f156d7e8d7a7bae82c18ece8c48a982c2306e148\"},\"current_state_ref\":{\"bytes\":82,\"path\":\"test-current-state.json\",\"sha256\":\"7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"freshness_generation\":12,\"host_lease\":{\"expires_at\":1700000080,\"fence\":27,\"holder\":\"test-host-holder\"},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"nonce\":\"test-nonce-1\",\"owner_epoch\":\"test-epoch-1\",\"peer_ref\":{\"bytes\":205,\"path\":\"C0-01-current-P-peer-original.json\",\"sha256\":\"5e7cc1b96f00e3df58a853a5853421a1c96ea79f8ccf698a1a5c3c9d889b6fe7\"},\"policy_generation\":11,\"policy_ref\":{\"bytes\":153,\"path\":\"C0-01-current-P-policy-original.json\",\"sha256\":\"1db92ab46f803af0f83dd61518137f3e050481890ad38fc44c7a742720033d75\"},\"private_binding\":{\"kind\":\"none\"},\"request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"session_id\":\"test-session-1\",\"state_revision\":7,\"target\":{\"backend_platform\":\"linux/amd64\",\"compatibility_ref\":{\"bytes\":45,\"path\":\"test-compatibility.json\",\"sha256\":\"d0305facc72629b5230c2047c9d30971de2b112b6f39c4461c73d79cae9721cc\"},\"host_arch\":\"x86_64\",\"host_os\":\"linux\"}}\n",
     "C0-01-current-P-reservation-original.json": "{\"context_ref\":{\"bytes\":2425,\"path\":\"C0-01-current-P-context-original.json\",\"sha256\":\"62c82cadbf4c8cb9a0c99c95da487a8c15cace7f6434419cadbc462c3f02465a\"},\"effect_id\":\"test-effect-1\",\"expected_state_revision\":8,\"expires_at\":1700000030,\"expires_monotonic_ns\":130000000000,\"reservation_id\":\"test-reservation-1\",\"reserved_at\":1700000000,\"state\":\"reserved\"}\n",
     "C0-01-current-P-original-attempt-facts.json": "{\"consume_clock_ref\":null,\"consumption_sequence\":null,\"context_ref\":{\"bytes\":2425,\"path\":\"C0-01-current-P-context-original.json\",\"sha256\":\"62c82cadbf4c8cb9a0c99c95da487a8c15cace7f6434419cadbc462c3f02465a\"},\"dispatch_state\":\"not_consumed\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"reservation_ref\":{\"bytes\":352,\"path\":\"C0-01-current-P-reservation-original.json\",\"sha256\":\"c108cf1489148f1a031d83a04646e11a1beabb8e4bb386babf58947a3dcb7c33\"},\"result_ref\":null}\n",
-    "C0-01-current-P-current-owner-state-observation.json": "{\"freshness\":12,\"generation\":11,\"host_fence\":27,\"revision\":8,\"scope\":\"TEST_ONLY\"}\n",
     "C0-06-concurrent-P-reservation-original.json": "{\"context_ref\":{\"bytes\":2425,\"path\":\"C0-01-current-P-context-original.json\",\"sha256\":\"62c82cadbf4c8cb9a0c99c95da487a8c15cace7f6434419cadbc462c3f02465a\"},\"effect_id\":\"test-effect-1\",\"expected_state_revision\":8,\"expires_at\":1700000030,\"expires_monotonic_ns\":130000000000,\"reservation_id\":\"test-reservation-1\",\"reserved_at\":1700000000,\"state\":\"consumed\"}\n",
     "C0-06-concurrent-P-actual-consume-clock.json": "{\"clock_receipt_ref\":{\"bytes\":200,\"path\":\"C0-01-current-P-clock-provider-original.json\",\"sha256\":\"305403ce6ba9fd7869f6327d311d069d9283991481e1196e2d7f46817bec0afd\"},\"monotonic_ns\":101000000000,\"now_utc\":1700000001,\"owner_epoch\":\"test-epoch-1\",\"uncertainty_seconds\":1}\n",
     "C0-06-concurrent-P-original-backend-result.json": "{\"backend_effect_id\":\"test-effect-1\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"outcome\":\"APPLIED\",\"scope\":\"TEST_ONLY_EXISTING_P2_RESULT_OBSERVATION_NOT_PRODUCTION\"}\n",
     "C0-06-concurrent-P-original-attempt-facts.json": "{\"consume_clock_ref\":{\"bytes\":268,\"path\":\"C0-06-concurrent-P-actual-consume-clock.json\",\"sha256\":\"1a13b1c9bbb6ea0bf379ff22bdb04ecf8df7d9ab545a1b7209d71b14e90e6f7d\"},\"consumption_sequence\":2,\"context_ref\":{\"bytes\":2425,\"path\":\"C0-01-current-P-context-original.json\",\"sha256\":\"62c82cadbf4c8cb9a0c99c95da487a8c15cace7f6434419cadbc462c3f02465a\"},\"dispatch_state\":\"applied_verified\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"reservation_ref\":{\"bytes\":352,\"path\":\"C0-06-concurrent-P-reservation-original.json\",\"sha256\":\"745861ec7f26bb93ccdca4671ff428716665fc97cbb2dcf81f0101c48b6e54d4\"},\"result_ref\":{\"bytes\":1183,\"path\":\"C0-06-concurrent-P-original-backend-result.json\",\"sha256\":\"f89150f0fea564a461f180ccc7859022768d63269d2ce988e990eece23292f72\"}}\n",
     "C0-06-concurrent-P-current-owner-state-observation.json": "{\"freshness\":12,\"generation\":11,\"host_fence\":27,\"revision\":9,\"scope\":\"TEST_ONLY\"}\n",
+    "C0-08-policy-P-current-owner-state-observation.json": "{\"freshness\":12,\"generation\":11,\"host_fence\":27,\"revision\":8,\"scope\":\"TEST_ONLY\"}\n",
     "C0-11-consume-uncertain-P-original-attempt-facts.json": "{\"consume_clock_ref\":{\"bytes\":268,\"path\":\"C0-06-concurrent-P-actual-consume-clock.json\",\"sha256\":\"1a13b1c9bbb6ea0bf379ff22bdb04ecf8df7d9ab545a1b7209d71b14e90e6f7d\"},\"consumption_sequence\":2,\"context_ref\":{\"bytes\":2425,\"path\":\"C0-01-current-P-context-original.json\",\"sha256\":\"62c82cadbf4c8cb9a0c99c95da487a8c15cace7f6434419cadbc462c3f02465a\"},\"dispatch_state\":\"consumed_result_unknown\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"reservation_ref\":{\"bytes\":352,\"path\":\"C0-06-concurrent-P-reservation-original.json\",\"sha256\":\"745861ec7f26bb93ccdca4671ff428716665fc97cbb2dcf81f0101c48b6e54d4\"},\"result_ref\":null}\n",
     "C0-13-fresh-child-P-parent-original-backend-result.json": "{\"backend_effect_id\":\"test-effect-1\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"outcome\":\"NOT_APPLIED\",\"scope\":\"TEST_ONLY_EXISTING_P2_RESULT_OBSERVATION_NOT_PRODUCTION\"}\n",
     "C0-13-fresh-child-P-parent-original-reconciliation.json": "{\"outcome\":\"NOT_APPLIED\",\"result_ref\":{\"bytes\":1187,\"path\":\"C0-13-fresh-child-P-parent-original-backend-result.json\",\"sha256\":\"29496761f4356a3999ecd196ff85867b17530b04cde327fb34c9af6bb8fe9a08\"},\"scope\":\"TEST_ONLY_EXISTING_P2_RECONCILIATION_OBSERVATION\"}\n",
@@ -73,13 +73,12 @@
     "C0-13-fresh-child-P-peer-original.json": "{\"expires_at\":1700000103,\"lifetime\":\"test-lifetime-1\",\"not_before\":1699999993,\"owner_epoch\":\"test-recovery-epoch-2\",\"peer\":\"test-C\",\"scope\":\"TEST_ONLY_CONDITIONAL_KERNEL_OBSERVATION\",\"session_id\":\"test-recovery-session-2\"}\n",
     "C0-13-fresh-child-P-clock-provider-original.json": "{\"monotonic_deadlines\":{\"consent\":193000000000,\"host\":183000000000,\"policy\":223000000000,\"session\":203000000000},\"owner_epoch\":\"test-recovery-epoch-2\",\"quality\":\"bounded\",\"scope\":\"TEST_ONLY_NOT_ACTUAL_CLOCK\"}\n",
     "C0-13-fresh-child-P-clock-observation.json": "{\"clock_receipt_ref\":{\"bytes\":209,\"path\":\"C0-13-fresh-child-P-clock-provider-original.json\",\"sha256\":\"b4f2947dcb6a0644c1cda3da4d316e40db8eeef91fdb52d835646d4f08fdd460\"},\"monotonic_ns\":103000000000,\"now_utc\":1700000003,\"owner_epoch\":\"test-recovery-epoch-2\",\"uncertainty_seconds\":1}\n",
-    "C0-13-fresh-child-P-current-state.json": "{\"freshness\":13,\"generation\":11,\"host_fence\":28,\"revision\":9,\"scope\":\"TEST_ONLY\"}\n",
+    "C0-13-fresh-child-P-current-state.json": "{\"freshness\":13,\"generation\":11,\"host_fence\":28,\"revision\":10,\"scope\":\"TEST_ONLY\"}\n",
     "C0-13-fresh-child-P-scope-original.json": "{\"backend_binding_ref\":{\"bytes\":65,\"path\":\"test-backend-binding.json\",\"sha256\":\"062a7d0d6e809a8557ccb1abca1efe26526742bc42525030497b8ecddc797f8c\"},\"cleanup_restrictions_ref\":{\"bytes\":101,\"path\":\"test-cleanup.json\",\"sha256\":\"402f1fecf02b103758910ba0b3c129626c662d51f8fb7f4185a84b84ad0c8d06\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"operation\":\"recover\",\"purpose\":\"test-install\",\"release_binding_ref\":{\"bytes\":78,\"path\":\"test-release-binding.json\",\"sha256\":\"e761a7711301452b98cc08dd3965c92bbd2c6236721641dd09f0e3b7fae09311\"},\"resource_ids\":[\"test-resource-1\"],\"target\":{\"backend_platform\":\"linux/amd64\",\"compatibility_ref\":{\"bytes\":45,\"path\":\"test-compatibility.json\",\"sha256\":\"d0305facc72629b5230c2047c9d30971de2b112b6f39c4461c73d79cae9721cc\"},\"host_arch\":\"x86_64\",\"host_os\":\"linux\"}}\n",
     "C0-13-fresh-child-P-consent-original.json": "{\"expires_at\":1700000093,\"gate_b_acceptance_ref\":{\"bytes\":69,\"path\":\"test-gate-b-scope.json\",\"sha256\":\"610a807f27a5eb05853464e64ccc20bd8e245f032fa6fb86159c262fab0682e4\"},\"generation\":11,\"issuer_ref\":{\"bytes\":47,\"path\":\"test-issuer.json\",\"sha256\":\"9b5bd4ea3f1cb50aaa11178665859e425cd748833d8b309b9d85f9dd641ffcb3\"},\"not_before\":1699999993,\"revoked\":false,\"scope_ref\":{\"bytes\":1825,\"path\":\"C0-13-fresh-child-P-scope-original.json\",\"sha256\":\"cee9d90c6ae7b517cd41d2dc7092743a90762b00ff563b5d0b7f81c60ceb29c7\"},\"subject_ref\":{\"bytes\":223,\"path\":\"C0-13-fresh-child-P-peer-original.json\",\"sha256\":\"8c2c1bac87fe319f123a6793968d67940ee8fddb7c839d31acdb765539efc5cf\"}}\n",
-    "C0-13-fresh-child-P-context-original.json": "{\"clock_ref\":{\"bytes\":281,\"path\":\"C0-13-fresh-child-P-clock-observation.json\",\"sha256\":\"56540e6abcef2fed5cf73c5797ef604ecde922754dabc184e73543edab390a61\"},\"consent_ref\":{\"bytes\":659,\"path\":\"C0-13-fresh-child-P-consent-original.json\",\"sha256\":\"3b997e569e19c809c25dd58dad5640b0dcf85b2ccca71da7851d307a9b4ff14d\"},\"current_state_ref\":{\"bytes\":82,\"path\":\"C0-13-fresh-child-P-current-state.json\",\"sha256\":\"269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"freshness_generation\":13,\"host_lease\":{\"expires_at\":1700000083,\"fence\":28,\"holder\":\"test-host-holder\"},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"nonce\":\"test-recovery-nonce-2\",\"owner_epoch\":\"test-recovery-epoch-2\",\"peer_ref\":{\"bytes\":223,\"path\":\"C0-13-fresh-child-P-peer-original.json\",\"sha256\":\"8c2c1bac87fe319f123a6793968d67940ee8fddb7c839d31acdb765539efc5cf\"},\"policy_generation\":11,\"policy_ref\":{\"bytes\":153,\"path\":\"C0-13-fresh-child-P-policy-original.json\",\"sha256\":\"0e8e78e6723e9e2d2170e37e49bc2f66e64cc6dbe48394741e8736a1c5956882\"},\"private_binding\":{\"kind\":\"none\"},\"request_ref\":{\"bytes\":582,\"path\":\"C0-13-fresh-child-P-request-selector.json\",\"sha256\":\"c8b4024a8f31d3cc193a366b4aa77c748ae019d816b92a6deafc0b499a8d9963\"},\"session_id\":\"test-recovery-session-2\",\"state_revision\":9,\"target\":{\"backend_platform\":\"linux/amd64\",\"compatibility_ref\":{\"bytes\":45,\"path\":\"test-compatibility.json\",\"sha256\":\"d0305facc72629b5230c2047c9d30971de2b112b6f39c4461c73d79cae9721cc\"},\"host_arch\":\"x86_64\",\"host_os\":\"linux\"}}\n",
-    "C0-13-fresh-child-P-reservation-original.json": "{\"context_ref\":{\"bytes\":2519,\"path\":\"C0-13-fresh-child-P-context-original.json\",\"sha256\":\"a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3\"},\"effect_id\":\"test-effect-1\",\"expected_state_revision\":10,\"expires_at\":1700000033,\"expires_monotonic_ns\":133000000000,\"reservation_id\":\"test-recovery-reservation-2\",\"reserved_at\":1700000003,\"state\":\"reserved\"}\n",
-    "C0-13-fresh-child-P-original-attempt-facts.json": "{\"consume_clock_ref\":null,\"consumption_sequence\":null,\"context_ref\":{\"bytes\":2519,\"path\":\"C0-13-fresh-child-P-context-original.json\",\"sha256\":\"a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3\"},\"dispatch_state\":\"not_consumed\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[{\"bytes\":1187,\"path\":\"C0-13-fresh-child-P-parent-original-backend-result.json\",\"sha256\":\"29496761f4356a3999ecd196ff85867b17530b04cde327fb34c9af6bb8fe9a08\"}],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":582,\"path\":\"C0-13-fresh-child-P-request-selector.json\",\"sha256\":\"c8b4024a8f31d3cc193a366b4aa77c748ae019d816b92a6deafc0b499a8d9963\"},\"reservation_ref\":{\"bytes\":366,\"path\":\"C0-13-fresh-child-P-reservation-original.json\",\"sha256\":\"efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18\"},\"result_ref\":null}\n",
-    "C0-13-fresh-child-P-current-owner-state-observation.json": "{\"freshness\":13,\"generation\":11,\"host_fence\":28,\"revision\":10,\"scope\":\"TEST_ONLY\"}\n",
+    "C0-13-fresh-child-P-context-original.json": "{\"clock_ref\":{\"bytes\":281,\"path\":\"C0-13-fresh-child-P-clock-observation.json\",\"sha256\":\"56540e6abcef2fed5cf73c5797ef604ecde922754dabc184e73543edab390a61\"},\"consent_ref\":{\"bytes\":659,\"path\":\"C0-13-fresh-child-P-consent-original.json\",\"sha256\":\"3b997e569e19c809c25dd58dad5640b0dcf85b2ccca71da7851d307a9b4ff14d\"},\"current_state_ref\":{\"bytes\":83,\"path\":\"C0-13-fresh-child-P-current-state.json\",\"sha256\":\"ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"freshness_generation\":13,\"host_lease\":{\"expires_at\":1700000083,\"fence\":28,\"holder\":\"test-host-holder\"},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"nonce\":\"test-recovery-nonce-2\",\"owner_epoch\":\"test-recovery-epoch-2\",\"peer_ref\":{\"bytes\":223,\"path\":\"C0-13-fresh-child-P-peer-original.json\",\"sha256\":\"8c2c1bac87fe319f123a6793968d67940ee8fddb7c839d31acdb765539efc5cf\"},\"policy_generation\":11,\"policy_ref\":{\"bytes\":153,\"path\":\"C0-13-fresh-child-P-policy-original.json\",\"sha256\":\"0e8e78e6723e9e2d2170e37e49bc2f66e64cc6dbe48394741e8736a1c5956882\"},\"private_binding\":{\"kind\":\"none\"},\"request_ref\":{\"bytes\":582,\"path\":\"C0-13-fresh-child-P-request-selector.json\",\"sha256\":\"c8b4024a8f31d3cc193a366b4aa77c748ae019d816b92a6deafc0b499a8d9963\"},\"session_id\":\"test-recovery-session-2\",\"state_revision\":10,\"target\":{\"backend_platform\":\"linux/amd64\",\"compatibility_ref\":{\"bytes\":45,\"path\":\"test-compatibility.json\",\"sha256\":\"d0305facc72629b5230c2047c9d30971de2b112b6f39c4461c73d79cae9721cc\"},\"host_arch\":\"x86_64\",\"host_os\":\"linux\"}}\n",
+    "C0-13-fresh-child-P-reservation-original.json": "{\"context_ref\":{\"bytes\":2520,\"path\":\"C0-13-fresh-child-P-context-original.json\",\"sha256\":\"7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e\"},\"effect_id\":\"test-effect-1\",\"expected_state_revision\":11,\"expires_at\":1700000033,\"expires_monotonic_ns\":133000000000,\"reservation_id\":\"test-recovery-reservation-2\",\"reserved_at\":1700000003,\"state\":\"reserved\"}\n",
+    "C0-13-fresh-child-P-original-attempt-facts.json": "{\"consume_clock_ref\":null,\"consumption_sequence\":null,\"context_ref\":{\"bytes\":2520,\"path\":\"C0-13-fresh-child-P-context-original.json\",\"sha256\":\"7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e\"},\"dispatch_state\":\"not_consumed\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[{\"bytes\":1187,\"path\":\"C0-13-fresh-child-P-parent-original-backend-result.json\",\"sha256\":\"29496761f4356a3999ecd196ff85867b17530b04cde327fb34c9af6bb8fe9a08\"}],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":582,\"path\":\"C0-13-fresh-child-P-request-selector.json\",\"sha256\":\"c8b4024a8f31d3cc193a366b4aa77c748ae019d816b92a6deafc0b499a8d9963\"},\"reservation_ref\":{\"bytes\":366,\"path\":\"C0-13-fresh-child-P-reservation-original.json\",\"sha256\":\"99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529\"},\"result_ref\":null}\n",
     "C0-15-session-P-clock-provider-original.json": "{\"monotonic_deadlines\":{\"consent\":190000000000,\"host\":180000000000,\"policy\":220000000000,\"private\":160000000000,\"session\":200000000000},\"owner_epoch\":\"test-epoch-1\",\"quality\":\"bounded\",\"scope\":\"TEST_ONLY_NOT_ACTUAL_CLOCK\"}\n",
     "C0-15-session-P-clock-observation.json": "{\"clock_receipt_ref\":{\"bytes\":223,\"path\":\"C0-15-session-P-clock-provider-original.json\",\"sha256\":\"67a081726b6fd7995e5bbe47934b07eced1d750497a524b2d25ec11f8e4c3266\"},\"monotonic_ns\":100000000000,\"now_utc\":1700000000,\"owner_epoch\":\"test-epoch-1\",\"uncertainty_seconds\":1}\n",
     "C0-15-session-P-context-original.json": "{\"clock_ref\":{\"bytes\":268,\"path\":\"C0-15-session-P-clock-observation.json\",\"sha256\":\"08502f9c068cff3c8b4f1d98594eaad59e0a3321418b61e2f3b04c975f815f9b\"},\"consent_ref\":{\"bytes\":631,\"path\":\"C0-01-current-P-consent-original.json\",\"sha256\":\"787af4ef9fcafb97cf287712f156d7e8d7a7bae82c18ece8c48a982c2306e148\"},\"current_state_ref\":{\"bytes\":82,\"path\":\"test-current-state.json\",\"sha256\":\"7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"freshness_generation\":12,\"host_lease\":{\"expires_at\":1700000080,\"fence\":27,\"holder\":\"test-host-holder\"},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"nonce\":\"test-nonce-1\",\"owner_epoch\":\"test-epoch-1\",\"peer_ref\":{\"bytes\":205,\"path\":\"C0-01-current-P-peer-original.json\",\"sha256\":\"5e7cc1b96f00e3df58a853a5853421a1c96ea79f8ccf698a1a5c3c9d889b6fe7\"},\"policy_generation\":11,\"policy_ref\":{\"bytes\":153,\"path\":\"C0-01-current-P-policy-original.json\",\"sha256\":\"1db92ab46f803af0f83dd61518137f3e050481890ad38fc44c7a742720033d75\"},\"private_binding\":{\"binding_ref\":{\"bytes\":350,\"path\":\"test-private-runtime-receipt.json\",\"sha256\":\"6f12c908766d952c5521742a606a511795458abdb40f4855cc9d9c9db509b431\"},\"kind\":\"private\"},\"request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"session_id\":\"test-session-1\",\"state_revision\":7,\"target\":{\"backend_platform\":\"linux/amd64\",\"compatibility_ref\":{\"bytes\":45,\"path\":\"test-compatibility.json\",\"sha256\":\"d0305facc72629b5230c2047c9d30971de2b112b6f39c4461c73d79cae9721cc\"},\"host_arch\":\"x86_64\",\"host_os\":\"linux\"}}\n",
@@ -93,7 +92,7 @@
     "C0-19-accepted-P-parent-original-backend-result.json": "{\"backend_effect_id\":\"test-accepted-prefix-effect\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-accepted-prefix-effect\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":64,\"path\":\"C0-19-accepted-P-accepted-prefix-idempotency.json\",\"sha256\":\"6329b74e957006ab0d7ed54315e592266d105bff0c0c891145ea2f43f3d9ee6a\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"outcome\":\"APPLIED\",\"scope\":\"TEST_ONLY_EXISTING_P2_RESULT_OBSERVATION_NOT_PRODUCTION\"}\n",
     "C0-19-accepted-P-parent-original-attempt-facts.json": "{\"consume_clock_ref\":{\"bytes\":268,\"path\":\"C0-06-concurrent-P-actual-consume-clock.json\",\"sha256\":\"1a13b1c9bbb6ea0bf379ff22bdb04ecf8df7d9ab545a1b7209d71b14e90e6f7d\"},\"consumption_sequence\":2,\"context_ref\":{\"bytes\":2475,\"path\":\"C0-19-accepted-P-parent-context-original.json\",\"sha256\":\"7e8c27fd5f17c4b55c8a927c56dd8028166fe24b03636fb15586faba07c410e3\"},\"dispatch_state\":\"applied_verified\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-accepted-prefix-effect\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":64,\"path\":\"C0-19-accepted-P-accepted-prefix-idempotency.json\",\"sha256\":\"6329b74e957006ab0d7ed54315e592266d105bff0c0c891145ea2f43f3d9ee6a\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"test-request-1\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"reservation_ref\":{\"bytes\":374,\"path\":\"C0-19-accepted-P-parent-reservation-original.json\",\"sha256\":\"ae92b1731804541b7bb6d4684b049febe652d74e4a06aca750866ab74f2a8069\"},\"result_ref\":{\"bytes\":1239,\"path\":\"C0-19-accepted-P-parent-original-backend-result.json\",\"sha256\":\"8a5a1388b72bcfabdcc6d544813bdbc570c9e44a98d17bd9351efe4339752f2d\"}}\n",
     "C0-19-accepted-P-accepted-prefix.json": "{\"accepted\":true,\"result_refs\":[{\"bytes\":1239,\"path\":\"C0-19-accepted-P-parent-original-backend-result.json\",\"sha256\":\"8a5a1388b72bcfabdcc6d544813bdbc570c9e44a98d17bd9351efe4339752f2d\"}],\"scope\":\"TEST_ONLY_EXISTING_HISTORY_OBSERVATION\",\"steps\":[\"test-accepted-prefix-effect\"]}\n",
-    "C0-19-accepted-P-original-attempt-facts.json": "{\"consume_clock_ref\":null,\"consumption_sequence\":null,\"context_ref\":{\"bytes\":2519,\"path\":\"C0-13-fresh-child-P-context-original.json\",\"sha256\":\"a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3\"},\"dispatch_state\":\"not_consumed\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[{\"bytes\":1239,\"path\":\"C0-19-accepted-P-parent-original-backend-result.json\",\"sha256\":\"8a5a1388b72bcfabdcc6d544813bdbc570c9e44a98d17bd9351efe4339752f2d\"}],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":582,\"path\":\"C0-13-fresh-child-P-request-selector.json\",\"sha256\":\"c8b4024a8f31d3cc193a366b4aa77c748ae019d816b92a6deafc0b499a8d9963\"},\"reservation_ref\":{\"bytes\":366,\"path\":\"C0-13-fresh-child-P-reservation-original.json\",\"sha256\":\"efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18\"},\"result_ref\":null}\n",
+    "C0-19-accepted-P-original-attempt-facts.json": "{\"consume_clock_ref\":null,\"consumption_sequence\":null,\"context_ref\":{\"bytes\":2520,\"path\":\"C0-13-fresh-child-P-context-original.json\",\"sha256\":\"7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e\"},\"dispatch_state\":\"not_consumed\",\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"test-attempt-2\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"00000000-0000-4000-8000-000000000011\",\"parent_attempt_id\":\"test-attempt-1\",\"product\":\"cortex\",\"request_id\":\"test-recovery-request-2\",\"transaction_id\":\"test-transaction-1\"},\"origin_request_ref\":{\"bytes\":561,\"path\":\"test-request-selector.json\",\"sha256\":\"ffd4235533558f18fd626f630e159245ad16d36f1111d06de49f6b749738f545\"},\"predecessor_result_refs\":[{\"bytes\":1239,\"path\":\"C0-19-accepted-P-parent-original-backend-result.json\",\"sha256\":\"8a5a1388b72bcfabdcc6d544813bdbc570c9e44a98d17bd9351efe4339752f2d\"}],\"reconciliation_ref\":null,\"request_ref\":{\"bytes\":582,\"path\":\"C0-13-fresh-child-P-request-selector.json\",\"sha256\":\"c8b4024a8f31d3cc193a366b4aa77c748ae019d816b92a6deafc0b499a8d9963\"},\"reservation_ref\":{\"bytes\":366,\"path\":\"C0-13-fresh-child-P-reservation-original.json\",\"sha256\":\"99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529\"},\"result_ref\":null}\n",
     "F2-consent-P-clock-provider-original.json": "{\"monotonic_deadlines\":{\"consent\":105000000000,\"host\":180000000000,\"policy\":220000000000,\"session\":200000000000},\"owner_epoch\":\"test-epoch-1\",\"quality\":\"bounded\",\"scope\":\"TEST_ONLY_NOT_ACTUAL_CLOCK\"}\n",
     "F2-consent-P-clock-observation.json": "{\"clock_receipt_ref\":{\"bytes\":200,\"path\":\"F2-consent-P-clock-provider-original.json\",\"sha256\":\"81cc1d83c8334fd4d86c8369561520f39687e9dd1d00068b6e99e4a7c3cfc5be\"},\"monotonic_ns\":100000000000,\"now_utc\":1700000000,\"owner_epoch\":\"test-epoch-1\",\"uncertainty_seconds\":0}\n",
     "F2-consent-P-consent-original.json": "{\"expires_at\":1700000005,\"gate_b_acceptance_ref\":{\"bytes\":69,\"path\":\"test-gate-b-scope.json\",\"sha256\":\"610a807f27a5eb05853464e64ccc20bd8e245f032fa6fb86159c262fab0682e4\"},\"generation\":11,\"issuer_ref\":{\"bytes\":47,\"path\":\"test-issuer.json\",\"sha256\":\"9b5bd4ea3f1cb50aaa11178665859e425cd748833d8b309b9d85f9dd641ffcb3\"},\"not_before\":1699999990,\"revoked\":false,\"scope_ref\":{\"bytes\":1804,\"path\":\"test-scope.json\",\"sha256\":\"d878dfeb90346c3852886d0e55739e6bc4e167a5572e0132bd9da3859284a9f8\"},\"subject_ref\":{\"bytes\":205,\"path\":\"C0-01-current-P-peer-original.json\",\"sha256\":\"5e7cc1b96f00e3df58a853a5853421a1c96ea79f8ccf698a1a5c3c9d889b6fe7\"}}\n",
@@ -444,7 +443,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -492,9 +491,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -863,7 +862,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -911,9 +910,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -1282,7 +1281,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -1330,9 +1329,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -1704,7 +1703,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -1752,9 +1751,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -2126,7 +2125,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -2174,9 +2173,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -2545,7 +2544,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -2593,9 +2592,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -2967,7 +2966,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -3015,9 +3014,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -3389,7 +3388,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -3437,9 +3436,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -3811,7 +3810,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -3859,9 +3858,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -4233,7 +4232,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -4281,9 +4280,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -4655,7 +4654,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -4703,9 +4702,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -5077,7 +5076,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -5125,9 +5124,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -5496,7 +5495,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -5544,9 +5543,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -5918,7 +5917,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -5966,9 +5965,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -6340,7 +6339,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -6388,9 +6387,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -6762,7 +6761,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -6810,9 +6809,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -7184,7 +7183,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -7232,9 +7231,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -7606,7 +7605,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -7654,9 +7653,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -8028,7 +8027,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -8076,9 +8075,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -8450,7 +8449,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -8498,9 +8497,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -8872,7 +8871,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -8920,9 +8919,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -9294,7 +9293,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -9342,9 +9341,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -9716,7 +9715,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -9764,9 +9763,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -10138,7 +10137,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -10186,9 +10185,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -10560,7 +10559,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -10608,9 +10607,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -10982,7 +10981,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -11030,9 +11029,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -11401,7 +11400,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -11449,9 +11448,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -11823,7 +11822,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -11871,9 +11870,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -12245,7 +12244,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -12289,9 +12288,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -13520,7 +13519,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -13568,9 +13567,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -13939,7 +13938,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -13987,9 +13986,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -14361,7 +14360,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -14409,9 +14408,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -14831,7 +14830,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -15250,7 +15249,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -15672,7 +15671,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -16094,7 +16093,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -16516,7 +16515,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -16938,7 +16937,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -17360,7 +17359,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -17782,7 +17781,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -18204,7 +18203,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -19054,7 +19053,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -19473,7 +19472,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -19895,7 +19894,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -20317,7 +20316,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -20739,7 +20738,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -21161,7 +21160,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -21580,7 +21579,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -22002,7 +22001,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -22424,7 +22423,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -22798,7 +22797,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -22846,9 +22845,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -23217,7 +23216,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -23265,9 +23264,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -23687,7 +23686,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -24106,7 +24105,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -25964,8 +25963,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -25974,7 +25973,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -26096,15 +26095,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -26128,13 +26127,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -26242,7 +26241,7 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -26266,7 +26265,7 @@
         "original_attempt_ref": {
           "path": "C0-13-fresh-child-P-original-attempt-facts.json",
           "bytes": 2016,
-          "sha256": "5d954154f1d9ba303fe85b412cc61c7604714bfc2c78c768e6e7f0200d8fe43e"
+          "sha256": "445242a76a2988ac5aa2a0b04823fe979165ca2732b7519180710035055abf25"
         }
       },
       "control_id": "C0-11-not-applied-P",
@@ -27681,8 +27680,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -27691,7 +27690,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -27813,15 +27812,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -27845,13 +27844,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -27964,7 +27963,7 @@
           },
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -27988,7 +27987,7 @@
         "original_attempt_ref": {
           "path": "C0-19-accepted-P-original-attempt-facts.json",
           "bytes": 2013,
-          "sha256": "ab6a32e4b239eb8d7e5eefb98e9650402670a6b9f347ac503a67296ed327d11d"
+          "sha256": "412faf154600bc0a062703298e074e217a3a1c9c83cd3d24f41f502e1adb7598"
         }
       },
       "control_id": "C0-11-accepted-activation-failed-P",
@@ -28979,8 +28978,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -28989,7 +28988,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -29111,15 +29110,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -29143,13 +29142,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -29257,7 +29256,7 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -29281,7 +29280,7 @@
         "original_attempt_ref": {
           "path": "C0-13-fresh-child-P-original-attempt-facts.json",
           "bytes": 2016,
-          "sha256": "5d954154f1d9ba303fe85b412cc61c7604714bfc2c78c768e6e7f0200d8fe43e"
+          "sha256": "445242a76a2988ac5aa2a0b04823fe979165ca2732b7519180710035055abf25"
         }
       },
       "control_id": null,
@@ -29410,8 +29409,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -29420,7 +29419,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -29542,15 +29541,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -29574,13 +29573,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -29688,7 +29687,7 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -29712,7 +29711,7 @@
         "original_attempt_ref": {
           "path": "C0-13-fresh-child-P-original-attempt-facts.json",
           "bytes": 2016,
-          "sha256": "5d954154f1d9ba303fe85b412cc61c7604714bfc2c78c768e6e7f0200d8fe43e"
+          "sha256": "445242a76a2988ac5aa2a0b04823fe979165ca2732b7519180710035055abf25"
         }
       },
       "control_id": "C0-13-fresh-child-P",
@@ -32252,7 +32251,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -32680,7 +32679,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -33111,7 +33110,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -33542,7 +33541,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -33973,7 +33972,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -34404,7 +34403,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -34835,7 +34834,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -35266,7 +35265,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -35697,7 +35696,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -36128,7 +36127,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -36559,7 +36558,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -36938,7 +36937,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -36990,9 +36989,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -37366,7 +37365,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -37414,9 +37413,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -37793,7 +37792,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -37845,9 +37844,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -38224,7 +38223,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -38276,9 +38275,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -38652,7 +38651,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -38700,9 +38699,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -39074,7 +39073,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -39122,9 +39121,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -39493,7 +39492,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -39537,9 +39536,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -39911,7 +39910,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -39959,9 +39958,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -40330,7 +40329,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -40378,9 +40377,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -40752,7 +40751,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -40800,9 +40799,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -41174,7 +41173,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -41222,9 +41221,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -41593,7 +41592,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -41641,9 +41640,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -41791,8 +41790,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -41801,7 +41800,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -41923,15 +41922,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -41955,13 +41954,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -42074,7 +42073,7 @@
           },
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -42098,7 +42097,7 @@
         "original_attempt_ref": {
           "path": "C0-19-accepted-P-original-attempt-facts.json",
           "bytes": 2013,
-          "sha256": "ab6a32e4b239eb8d7e5eefb98e9650402670a6b9f347ac503a67296ed327d11d"
+          "sha256": "412faf154600bc0a062703298e074e217a3a1c9c83cd3d24f41f502e1adb7598"
         }
       },
       "control_id": null,
@@ -42227,8 +42226,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -42237,7 +42236,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -42359,15 +42358,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -42391,13 +42390,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -42510,7 +42509,7 @@
           },
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -42534,7 +42533,7 @@
         "original_attempt_ref": {
           "path": "C0-19-accepted-P-original-attempt-facts.json",
           "bytes": 2013,
-          "sha256": "ab6a32e4b239eb8d7e5eefb98e9650402670a6b9f347ac503a67296ed327d11d"
+          "sha256": "412faf154600bc0a062703298e074e217a3a1c9c83cd3d24f41f502e1adb7598"
         }
       },
       "control_id": "C0-19-accepted-P",
@@ -43747,7 +43746,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -43795,9 +43794,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -44166,7 +44165,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -44214,9 +44213,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -44588,7 +44587,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -44636,9 +44635,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -45007,7 +45006,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -45055,9 +45054,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -45429,7 +45428,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -45477,9 +45476,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -45848,7 +45847,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -45896,9 +45895,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -46270,7 +46269,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -46318,9 +46317,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -46689,7 +46688,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -46737,9 +46736,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -47111,7 +47110,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -47159,9 +47158,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -47530,7 +47529,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -47578,9 +47577,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -47952,7 +47951,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -48000,9 +47999,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -48374,7 +48373,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "caller-writable-code-or-root",
@@ -48422,9 +48421,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -48796,7 +48795,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -48844,9 +48843,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -49218,7 +49217,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -49266,9 +49265,9 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -49640,7 +49639,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -49688,9 +49687,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -50068,7 +50067,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -50116,9 +50115,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -50496,7 +50495,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -50544,9 +50543,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -50924,7 +50923,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "same-protected-originals",
@@ -50972,9 +50971,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -51352,7 +51351,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "changed",
@@ -51400,9 +51399,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -51780,7 +51779,7 @@
           "policy": "same-current-policy",
           "generation": 11,
           "freshness_generation": 12,
-          "state_revision": 8,
+          "state_revision": 7,
           "host_holder": "test-host-holder",
           "host_fence": 27,
           "custody": "changed",
@@ -51828,9 +51827,9 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "test-current-state.json",
               "bytes": 82,
-              "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
+              "sha256": "7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b"
             }
           ]
         },
@@ -51984,8 +51983,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -51994,7 +51993,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -52116,15 +52115,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -52148,13 +52147,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -52262,7 +52261,7 @@
           "reservation_stage": "proposed",
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -52286,7 +52285,7 @@
         "original_attempt_ref": {
           "path": "C0-13-fresh-child-P-original-attempt-facts.json",
           "bytes": 2016,
-          "sha256": "5d954154f1d9ba303fe85b412cc61c7604714bfc2c78c768e6e7f0200d8fe43e"
+          "sha256": "445242a76a2988ac5aa2a0b04823fe979165ca2732b7519180710035055abf25"
         }
       },
       "control_id": null,
@@ -52838,8 +52837,8 @@
             },
             "current_state_ref": {
               "path": "C0-13-fresh-child-P-current-state.json",
-              "bytes": 82,
-              "sha256": "269a59f1d66349376c6c6a8d17334c642c2919b9ecce8369e48dc071cc586b07"
+              "bytes": 83,
+              "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             },
             "clock_ref": {
               "path": "C0-13-fresh-child-P-clock-observation.json",
@@ -52848,7 +52847,7 @@
             },
             "policy_generation": 11,
             "freshness_generation": 13,
-            "state_revision": 9,
+            "state_revision": 10,
             "host_lease": {
               "holder": "test-host-holder",
               "fence": 28,
@@ -52970,15 +52969,15 @@
             "reservation_id": "test-recovery-reservation-2",
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "effect_id": "test-effect-1",
             "state": "reserved",
             "reserved_at": 1700000003,
             "expires_at": 1700000033,
             "expires_monotonic_ns": 133000000000,
-            "expected_state_revision": 10
+            "expected_state_revision": 11
           },
           "attempt": {
             "identity": {
@@ -53002,13 +53001,13 @@
             },
             "context_ref": {
               "path": "C0-13-fresh-child-P-context-original.json",
-              "bytes": 2519,
-              "sha256": "a84df2652fa6bedd45207377ef88a477c2bbe01b507ded87c7db530f9681a6f3"
+              "bytes": 2520,
+              "sha256": "7b388a1c65b5e7633a72af198bcacf95a85201451ce79433268e78113eac7a9e"
             },
             "reservation_ref": {
               "path": "C0-13-fresh-child-P-reservation-original.json",
               "bytes": 366,
-              "sha256": "efb1f2914e1e1b123f0cd00e16609b655080dcc991ddc32b763cf6e7b788bb18"
+              "sha256": "99ff5649526a4ab4e9abfc9764c5cc222cace111eb5ef7ed708d796a80176529"
             },
             "effect": {
               "effect_id": "test-effect-1",
@@ -53121,7 +53120,7 @@
           },
           "current_state_refs": [
             {
-              "path": "C0-13-fresh-child-P-current-owner-state-observation.json",
+              "path": "C0-13-fresh-child-P-current-state.json",
               "bytes": 83,
               "sha256": "ac8f403ae8a4142136f1c7d694d06e002382f4dd1fcad3627e54cb7a95b21910"
             }
@@ -53145,7 +53144,7 @@
         "original_attempt_ref": {
           "path": "C0-19-accepted-P-original-attempt-facts.json",
           "bytes": 2013,
-          "sha256": "ab6a32e4b239eb8d7e5eefb98e9650402670a6b9f347ac503a67296ed327d11d"
+          "sha256": "412faf154600bc0a062703298e074e217a3a1c9c83cd3d24f41f502e1adb7598"
         }
       },
       "control_id": null,
@@ -53546,7 +53545,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -53966,7 +53965,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -54389,7 +54388,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -54812,7 +54811,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -55235,7 +55234,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -55658,7 +55657,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -56078,7 +56077,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -56501,7 +56500,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -56924,7 +56923,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -57347,7 +57346,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -57779,7 +57778,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -58208,7 +58207,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -58640,7 +58639,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -59072,7 +59071,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -59504,7 +59503,7 @@
           "reservation_stage": "durable_reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -59927,7 +59926,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -60347,7 +60346,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -60770,7 +60769,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -61193,7 +61192,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -61616,7 +61615,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -62039,7 +62038,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -62459,7 +62458,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -62882,7 +62881,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -63305,7 +63304,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -63728,7 +63727,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -64151,7 +64150,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -64571,7 +64570,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -64994,7 +64993,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -65417,7 +65416,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }
@@ -65836,7 +65835,7 @@
           "reservation_state": "reserved",
           "current_state_refs": [
             {
-              "path": "C0-01-current-P-current-owner-state-observation.json",
+              "path": "C0-08-policy-P-current-owner-state-observation.json",
               "bytes": 82,
               "sha256": "0c49e8e0913435871f0d62bdbe9c7be01eb37d705f65d7a6298d0beeda29b1b1"
             }

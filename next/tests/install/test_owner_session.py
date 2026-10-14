@@ -12,7 +12,8 @@ class FrozenSessionContract(unittest.TestCase):
                     facts = case['input']['facts']; boundary = case['input']['boundary']
                     r = facts['reservation']; ctx = facts['context']; clock = facts['clock']
                     self.assertEqual(r['expected_state_revision'], ctx['state_revision']+1)
-                    self.assertEqual(boundary['state_revision'], r['expected_state_revision']+(r['state']=='consumed'))
+                    expected_revision=ctx['state_revision'] if boundary['reservation_stage']=='proposed' else r['expected_state_revision']+(r['state']=='consumed')
+                    self.assertEqual(boundary['state_revision'],expected_revision)
                     self.assertLessEqual(r['expires_at']-r['reserved_at'], 30)
                     self.assertLessEqual(r['expires_monotonic_ns']-clock['monotonic_ns'], 30_000_000_000)
                     self.assertGreater(boundary['final_monotonic_ns'], clock['monotonic_ns'])
@@ -178,6 +179,9 @@ class RecoveryAndDeadlineRequirements(unittest.TestCase):
                            policy['validity']['expires_at'],peer['expires_at']]
                 if context['private_binding']['kind']=='private':
                     deadlines.append(self.original(context['private_binding']['binding_ref'])['expires_at'])
+                applicable={'consent','host','policy','session'}
+                if context['private_binding']['kind']=='private': applicable.add('private')
+                self.assertEqual(set(clock_receipt['monotonic_deadlines']),applicable)
                 self.assertEqual(reservation['expires_at'],min(deadlines))
                 self.assertEqual(reservation['expires_monotonic_ns'],min([clock['monotonic_ns']+30_000_000_000]+list(clock_receipt['monotonic_deadlines'].values())))
                 self.assertEqual(clock_receipt['owner_epoch'],context['owner_epoch'])
@@ -253,6 +257,16 @@ class RecoveryAndDeadlineRequirements(unittest.TestCase):
                 for attempt in attempts:
                     original=self.original(attempt['effect']['idempotency_ref'])
                     self.assertEqual(original['effect_id'],attempt['effect']['effect_id'])
+
+    def test_proposal_reserved_and_consumed_revisions_match_the_durable_phase(self):
+        for case in frozen.CASES.values():
+            if case['kind']!='conditional_positive':continue
+            with self.subTest(case=case['id']):
+                facts=case['input']['facts']; boundary=case['input']['boundary']
+                state=self.original(boundary['current_state_refs'][-1])
+                stage=boundary['reservation_stage']; r=facts['reservation']; context=facts['context']
+                want=context['state_revision'] if stage=='proposed' else r['expected_state_revision']+(stage=='durable_consumed')
+                self.assertEqual(state['revision'],want)
 
 
 for _case in frozen.CASES.values():

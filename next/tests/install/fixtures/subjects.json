@@ -17,8 +17,8 @@
   ],
   "GateB": {
     "path": "gate-b-subjects.json",
-    "bytes": 2678548,
-    "sha256": "449d9590fad3e1e940a000e5c523ea8f5905ec93cce312c10b18033590523b1e"
+    "bytes": 2676274,
+    "sha256": "5046c85bda82973bbf0e9b970ebdbff636e2dfdf07186acbea8eb0f88c655063"
   },
   "gate_b_case_groups": [
     "C0-01",

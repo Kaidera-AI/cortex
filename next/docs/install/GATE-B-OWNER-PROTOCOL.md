@@ -124,7 +124,7 @@ composed originals: `originals_required` is null, execution is
 are explicitly not InstallRequests. No U3-A shape fixture, old two-fault signature
 test, mocked provider or native_qualified flag supplies an accepted full positive.
 
-The committed tests currently yield **179 checks: 24 artifact checks PASS,
+The committed tests currently yield **180 checks: 25 artifact checks PASS,
 155 labelled GATE_B_SURFACE_ABSENT BODY failures, 0 errors/skips**. The owner.py
 assertion occurs in each body before any owner/provider import. This is surface
 absence, not source behavioral causality or native proof. Artifact checks cover
@@ -145,6 +145,9 @@ and accepted fix-forward retains its original prefix and fresh finite scope.
 Historical counters remain; the current original attempt, parent histories and
 current owner-revision observations are held by original byte refs. Current
 authority observations can drift from a stored reservation without rewriting it.
+The revision observation distinguishes a proposed reservation (r), a durable
+reserve (r+1), and consumed authority (r+2). A fresh recovery child observes the
+original parent's completed reserve/consume history before its fresh reserve.
 
 F2 adds 30 controls: seven positives and 23 one-boundary negatives. Earlier
 consent/host/private/policy/session deadlines are explicit winning controls;
