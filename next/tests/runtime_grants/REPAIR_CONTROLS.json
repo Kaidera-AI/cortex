@@ -1,0 +1,290 @@
+[
+  {
+    "id": "C01",
+    "finding": "F01",
+    "contract": "future function recipients and grant options",
+    "exact_nodes": [
+      "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C02",
+    "finding": "F01",
+    "contract": "future type recipients and grant options",
+    "exact_nodes": [
+      "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C03",
+    "finding": "F02",
+    "contract": "health VOLATILE",
+    "exact_nodes": [
+      "test_grants.Grants.test_signature__coordination__runtime_lease_health"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C04",
+    "finding": "F02",
+    "contract": "each middle search_path schema trusted and owned",
+    "exact_nodes": [
+      "test_grants.Grants.test_signature__auth__runtime_bound_installation",
+      "test_grants.Grants.test_signature__auth__runtime_request_installation",
+      "test_grants.Grants.test_signature__auth__runtime_tenant_installation",
+      "test_grants.Grants.test_signature__coordination__runtime_lease_acquire",
+      "test_grants.Grants.test_signature__coordination__runtime_lease_assert_live",
+      "test_grants.Grants.test_signature__coordination__runtime_lease_health",
+      "test_grants.Grants.test_signature__coordination__runtime_lease_release",
+      "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
+      "test_grants.Grants.test_signature__coordination__runtime_observe"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C05",
+    "finding": "F03",
+    "contract": "observer revision-only/ABA final check",
+    "exact_nodes": [
+      "test_repair.Repair.test_observer_final_revision_only_barrier"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C06",
+    "finding": "F03",
+    "contract": "health entry and final revision revocation",
+    "exact_nodes": [
+      "test_repair.Repair.test_health_revoked_map_refuses_at_entry",
+      "test_repair.Repair.test_health_final_revision_only_barrier"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C07",
+    "finding": "F03",
+    "contract": "health unsupported snapshots",
+    "exact_nodes": [
+      "test_repair.Repair.test_snapshot__runtime_lease_health__repeatable_read",
+      "test_repair.Repair.test_snapshot__runtime_lease_health__serializable"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C08",
+    "finding": "F03",
+    "contract": "observer unsupported snapshots",
+    "exact_nodes": [
+      "test_repair.Repair.test_snapshot__runtime_observe__repeatable_read",
+      "test_repair.Repair.test_snapshot__runtime_observe__serializable"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C09",
+    "finding": "F04",
+    "contract": "all writable ports map-before-lease",
+    "exact_nodes": [
+      "test_repair.Repair.test_map_before_lease__acquire",
+      "test_repair.Repair.test_map_before_lease__assert_live",
+      "test_repair.Repair.test_map_before_lease__release",
+      "test_repair.Repair.test_map_before_lease__renew"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C10",
+    "finding": "F04",
+    "contract": "queued release/assert expiry plus retained renew",
+    "exact_nodes": [
+      "test_repair.Repair.test_queued_expiry__assert_live",
+      "test_repair.Repair.test_queued_expiry__release",
+      "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C11",
+    "finding": "F04",
+    "contract": "expired matching release no effect",
+    "exact_nodes": [
+      "test_repair.Repair.test_expired_matching_holder_release_has_no_effect"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C12",
+    "finding": "F04",
+    "contract": "assert-live itself holds caller transaction row lock",
+    "exact_nodes": [
+      "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C13",
+    "finding": "F04",
+    "contract": "minimum valid1ms without live-after-sleep assumption",
+    "exact_nodes": [
+      "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C14",
+    "finding": "F05",
+    "contract": "valid-bound observer aggregate runtime error",
+    "exact_nodes": [
+      "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C15",
+    "finding": "F05",
+    "contract": "valid-bound observer timeout",
+    "exact_nodes": [
+      "test_repair.Repair.test_valid_bound_observer_timeout_never_success_zero"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C16",
+    "finding": "F06",
+    "contract": "existing single function PUBLIC EXECUTE",
+    "exact_nodes": [
+      "test_grants.Grants.test_functions__probe"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C17",
+    "finding": "F06",
+    "contract": "service schema CREATE and TEMP",
+    "exact_nodes": [
+      "test_grants.Grants.test_other_objects__observer"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C18",
+    "finding": "F06",
+    "contract": "request CONNECT",
+    "exact_nodes": [
+      "test_grants.Grants.test_other_objects__request_group"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C19",
+    "finding": "F06",
+    "contract": "private EXECUTE wrong recipient",
+    "exact_nodes": [
+      "test_grants.Grants.test_functions__probe"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C20",
+    "finding": "F07",
+    "contract": "unknown applied migration row",
+    "exact_nodes": [
+      "test_repair.Repair.test_unknown_applied_ledger_row_refuses_unchanged"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C21",
+    "finding": "F07",
+    "contract": "changed applied checksum",
+    "exact_nodes": [
+      "test_repair.Repair.test_changed_applied_checksum_refuses_unchanged"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C22",
+    "finding": "F08",
+    "contract": "per-role unsafe prepare and actual post-prepare flags",
+    "exact_nodes": [
+      "test_repair.Repair.test_unsafe_prepare__api_request__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__api_request__createdb",
+      "test_repair.Repair.test_unsafe_prepare__api_request__createrole",
+      "test_repair.Repair.test_unsafe_prepare__api_request__inherit",
+      "test_repair.Repair.test_unsafe_prepare__api_request__replication",
+      "test_repair.Repair.test_unsafe_prepare__api_request__superuser",
+      "test_repair.Repair.test_unsafe_prepare__installer_enrollment__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createdb",
+      "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createrole",
+      "test_repair.Repair.test_unsafe_prepare__installer_enrollment__inherit",
+      "test_repair.Repair.test_unsafe_prepare__installer_enrollment__replication",
+      "test_repair.Repair.test_unsafe_prepare__installer_enrollment__superuser",
+      "test_repair.Repair.test_unsafe_prepare__observer__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__observer__createdb",
+      "test_repair.Repair.test_unsafe_prepare__observer__createrole",
+      "test_repair.Repair.test_unsafe_prepare__observer__inherit",
+      "test_repair.Repair.test_unsafe_prepare__observer__replication",
+      "test_repair.Repair.test_unsafe_prepare__observer__superuser",
+      "test_repair.Repair.test_unsafe_prepare__probe__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__probe__createdb",
+      "test_repair.Repair.test_unsafe_prepare__probe__createrole",
+      "test_repair.Repair.test_unsafe_prepare__probe__inherit",
+      "test_repair.Repair.test_unsafe_prepare__probe__replication",
+      "test_repair.Repair.test_unsafe_prepare__probe__superuser",
+      "test_repair.Repair.test_unsafe_prepare__request_group__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__request_group__createdb",
+      "test_repair.Repair.test_unsafe_prepare__request_group__createrole",
+      "test_repair.Repair.test_unsafe_prepare__request_group__inherit",
+      "test_repair.Repair.test_unsafe_prepare__request_group__login",
+      "test_repair.Repair.test_unsafe_prepare__request_group__replication",
+      "test_repair.Repair.test_unsafe_prepare__request_group__superuser",
+      "test_repair.Repair.test_unsafe_prepare__supervisor__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__supervisor__createdb",
+      "test_repair.Repair.test_unsafe_prepare__supervisor__createrole",
+      "test_repair.Repair.test_unsafe_prepare__supervisor__inherit",
+      "test_repair.Repair.test_unsafe_prepare__supervisor__replication",
+      "test_repair.Repair.test_unsafe_prepare__supervisor__superuser",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__bypassrls",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__createdb",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__createrole",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__inherit",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__login",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__replication",
+      "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser",
+      "test_repair.Repair.test_prepare_all_nine_phase_flags_come_from_client_effects"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C23",
+    "finding": "F08",
+    "contract": "unrecorded sentinel, wrong/unknown closure HOLD",
+    "exact_nodes": [
+      "test_repair.Repair.test_close_unknown_finite_session_holds_and_preserves_sentinel",
+      "test_repair.Repair.test_close_wrong_operation_holds",
+      "test_repair.Repair.test_close_unknown_role_state_holds"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C24",
+    "finding": "F09",
+    "contract": "pending-only excludes running/all alternate terminal states",
+    "exact_nodes": [
+      "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  },
+  {
+    "id": "C25",
+    "finding": "F10",
+    "contract": "strict closed counts and health fence types",
+    "exact_nodes": [
+      "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+      "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence"
+    ],
+    "status": "FROZEN_ASSERTIONS_PG_RENEWAL_PENDING"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "base": "30338b51b2b344640ff19836c096af14a206bb99",
+  "nodes": 175,
+  "inherited_nodes": 105,
+  "new_nodes": 70,
+  "control_groups": 25,
+  "sha256_of_sorted_file_map": "39914f61419fd39f2fb64b73116770371b07b8a72345efc92998cd7425632444",
+  "files": {
+    "next/tests/runtime_grants/FROZEN_NODES.json": "6494fda51fcdb9b5689d70417200ee07081c458603833f1322f8e953cd462c06",
+    "next/tests/runtime_grants/ORACLE.json": "ec957c7287e8bbe167dea4d2c29627ab50ba8785d6681e0fdf23bfcc813f9bc6",
+    "next/tests/runtime_grants/REPAIR_CONTROLS.json": "b2efad879f7417263ac8aca7a9c2d03830314b033063dc232cc11de4f4433527",
+    "next/tests/runtime_grants/REPAIR_TRACE.json": "2e2e13cdf0e7c8604ed0027c3c9ff44fba79fa16077fef3bfe29a8a4fe1f4612",
+    "next/tests/runtime_grants/offline_controls.py": "aaecbba8f930b26a2650ed286f185ae8b7370f851b5f7d71f44a34683fb3dea8",
+    "next/tests/runtime_grants/original_manifest.json": "08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef",
+    "next/tests/runtime_grants/ratified_matrix.json": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
+    "next/tests/runtime_grants/run_l1.py": "03c59107cb96978e93427cce9e85b74f2f0f72d24a4545b7c1a8b50252760a3b",
+    "next/tests/runtime_grants/support.py": "f33628a4431a10dc199abb8ea6a23fe065e5e684ffb5a0870d7232f508dda2d9",
+    "next/tests/runtime_grants/test_c04.py": "49dafd5c7306dff273e73e41d349220bc902dac03f5201a2f0b49b5c178cdb68",
+    "next/tests/runtime_grants/test_grants.py": "8751bebed4881d0f3c4d4e8e84eb8858bebc7b1539e339fcd259808e0174d89e",
+    "next/tests/runtime_grants/test_lifecycle.py": "0f3bace941c689f20dfaf695e251352f49f0b91db0b11467c14adc2edc5deff8",
+    "next/tests/runtime_grants/test_ports.py": "8ceb187d567098b02ca6b573ce9639c825d8a6bfcb55de0e63cc6c7d4c6bd3da",
+    "next/tests/runtime_grants/test_repair.py": "8903a7fcb6c561e1a4cb165c325584e92b997dec7a1df852918e30540bc8858f",
+    "next/tests/runtime_grants/test_upgrade.py": "6ae1ca50a9d5162ab868a194211a832085790c723b9c73c5c5a954f436f64c9b",
+    "next/tests/runtime_grants/worker.py": "a36f49608a9b59f51432e41db29387c59cd2ecf7feb99f15a6764f6279941f07"
+  },
+  "native_pg_renewed": false,
+  "owner": "Cox next PG-A lab",
+  "earlier_changed_files": [
+    "next/tests/runtime_grants/FROZEN_NODES.json",
+    "next/tests/runtime_grants/ORACLE.json",
+    "next/tests/runtime_grants/test_grants.py",
+    "next/tests/runtime_grants/test_ports.py"
+  ],
+  "definition_changes": "5 exact spans required by F01/F02/F09/F10; evidence OLD_DEFINITIONS.json"
+}

@@ -213,9 +213,18 @@ class Repair(Fixture):
         client,_=lifecycle.Lifecycle.prepare(self)
         owner=self.login('bootstrap');migrator=self.login('migrator');sentinel=self.login('bootstrap')
         pids=(owner.info.backend_pid,migrator.info.backend_pid)
-        with self.assertRaises((ValueError,psycopg.errors.InsufficientPrivilege,psycopg.errors.ObjectNotInPrerequisiteState)):
+        held=False
+        try:
             client.close_finite_roles(owner,role_names=dict(ROLE_NAMES),operation_id=OPERATION,owned_backend_pids=pids)
+        except (ValueError,psycopg.errors.InsufficientPrivilege,psycopg.errors.ObjectNotInPrerequisiteState):
+            held=True
+        except (psycopg.errors.AdminShutdown,psycopg.OperationalError):
+            # Count a forbidden close only after the independent controller
+            # witnesses a real removed owned backend. Transport errors remain
+            # inconclusive when all recorded backends are still present.
+            if self.root.execute('SELECT count(*) FROM pg_stat_activity WHERE pid=ANY(%s)',(list(pids),)).fetchone()[0]==len(pids):raise
         self.assertEqual(self.root.execute('SELECT count(*) FROM pg_stat_activity WHERE pid=%s',(sentinel.info.backend_pid,)).fetchone(),(1,))
+        self.assertTrue(held,'SEMANTIC:unknown finite-session state did not HOLD')
         self.assertEqual(sentinel.execute('SELECT 1').fetchone(),(1,))
 
     def _unknown_close(self,mode):
@@ -224,8 +233,14 @@ class Repair(Fixture):
         roles=dict(ROLE_NAMES)
         if mode=='unknown':roles['migrator']=roles['migrator']+'-unknown'
         operation=UUID(uid(901)) if mode=='operation' else OPERATION
-        with self.assertRaises((ValueError,psycopg.errors.InsufficientPrivilege,psycopg.errors.ObjectNotInPrerequisiteState)):
+        held=False
+        try:
             client.close_finite_roles(owner,role_names=roles,operation_id=operation,owned_backend_pids=pids)
+        except (ValueError,psycopg.errors.InsufficientPrivilege,psycopg.errors.ObjectNotInPrerequisiteState):held=True
+        except (psycopg.errors.AdminShutdown,psycopg.OperationalError):
+            if self.root.execute('SELECT count(*) FROM pg_stat_activity WHERE pid=%s',(owner.info.backend_pid,)).fetchone()[0]==1:raise
+        self.assertEqual(self.root.execute('SELECT count(*) FROM pg_stat_activity WHERE pid=%s',(owner.info.backend_pid,)).fetchone(),(1,))
+        self.assertTrue(held,'SEMANTIC:unknown/wrong-operation closure did not HOLD')
         self.assertEqual(owner.execute('SELECT 1').fetchone(),(1,))
 
     def test_close_wrong_operation_holds(self):self._unknown_close('operation')
