@@ -62,6 +62,7 @@ class Fixture:
                                            name, self.current, self.transport)
 
     def sealed(self, name=MEMBER):
+        self.api()  # surface absence stays BODY, never sanitized by RC2
         with patch.object(port, '_original_authority', self.backend):
             return port.request_member(self.aggregate, name)
 
@@ -218,8 +219,10 @@ class Bridge(Fixture, unittest.TestCase):
         self.refusal('required_binding_gap', self.backend); self.assertEqual(self.transports, [])
 
     def test_runtime_admit_config_consumes_actual_original_without_effects(self):
+        self.api()
         from cortex_core.runtime.config import admit_config
-        cfg = json.loads((NEXT/'docs/runtime/rc0/fixtures/paired-complete.json').read_bytes())['config']
+        cfg = json.loads((NEXT/'tests/install/fixtures/p1-subjects.json').read_bytes())['configs']['linux/arm64']
+        cfg = json.loads(cfg)
         cfg['runtime_lock_sha256'] = sha256(self.bodies[MEMBER]); cfg['metrics_labels']['release'] = self.value['release']['release_id']
         member = self.sealed()
         plan = admit_config(member, encode(cfg), aggregate_id=self.aggregate, observed_target=cfg['target'], mode='inspect')
@@ -249,6 +252,7 @@ class Bridge(Fixture, unittest.TestCase):
         return q, encode(cfg)
 
     def installer(self, q, cfg, target):
+        self.api()
         from cortex_core.install.planner import plan
         calls = []
         def config(path, limit): calls.append((path,limit)); return cfg
