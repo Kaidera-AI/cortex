@@ -126,6 +126,18 @@ class Draft(DraftFixture):
         # Role must have no explicit privilege on any other DB; PUBLIC on foreign
         # databases is outside this migration's authority and is not revoked.
         self.assertEqual(self.root.execute("SELECT count(*) FROM pg_database d CROSS JOIN LATERAL aclexplode(d.datacl) a WHERE d.datname<>current_database() AND a.grantee=(SELECT oid FROM pg_roles WHERE rolname=%s)",(verifier,)).fetchone()[0],0)
+        with self.assertRaises(psycopg.OperationalError):self.login('verifier_owner')
+        other=db+'-size-other'
+        self.root.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(other)))
+        try:
+            self.root.execute(sql.SQL('REVOKE ALL ON DATABASE {} FROM PUBLIC').format(sql.Identifier(other)))
+            self.assertIs(self.root.execute("SELECT has_database_privilege(%s,%s,'CONNECT')",(verifier,other)).fetchone()[0],False)
+            with self.root.transaction():
+                self.root.execute(sql.SQL('SET LOCAL ROLE {}').format(sql.Identifier(verifier)))
+                with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                    with self.root.transaction():self.root.execute('SELECT pg_database_size(%s)',(other,))
+        finally:
+            self.root.execute(sql.SQL('DROP DATABASE {}').format(sql.Identifier(other)))
         with self.root.transaction():
             self.root.execute(sql.SQL('SET LOCAL ROLE {}').format(sql.Identifier(verifier)))
             self.assertGreater(self.root.execute('SELECT pg_database_size(current_database())').fetchone()[0],0)
