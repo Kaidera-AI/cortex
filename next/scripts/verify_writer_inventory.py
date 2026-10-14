@@ -19,7 +19,11 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
     ('src/cortex_core/identity.py','Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
     ('src/cortex_core/identity.py','Identity._register'): 'f837fa6fdcc01e32d12b74eb9b8a1390a3305bd8ef256fdf28b6b3b460e820b8',
     ('src/cortex_core/records.py','_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
-    ('src/cortex_core/migrations.py','apply_migrations'): '7dbe9e12eaea949645208137e8db565874622c0af7d625529816e30aea3b5df3',
+    ('src/cortex_core/migrations.py','apply_migrations'): 'f8970e52fe71cbc97fdfced886741bc5c442115484c20b86fe9297fcff0c56ad',
+    ('src/cortex_core/backup_validation.py','read_restored_snapshot'): '138962613394d459cf5c93a5843b2d25a94afc8b8ce2da3b391fea2277ba00eb',
+    ('src/cortex_core/release/artifacts.py','_compiled_fields_equal'): 'fad0c5ff2c9164641b78522302295d9a76ea58924a1bb460879e8e131f1a09ce',
+    ('src/cortex_core/release/build/audit.py','_code_equal'): '25fa770e8b9d590251468d0610c4692a940b05cada23e7cc4736b29b84b63d7c',
+    ('src/vector_baseline/product_path.py','snapshot_corpus'): 'a89b8ce6091ec7c232f6a81f2202d6c04f903f01132d2ddfd6329363ba393f24',
 }
 
 # The function pins alone cannot see an aliased caller elsewhere in the module.
@@ -28,8 +32,12 @@ KNOWN_INPUT_FILE_SHA256 = {
     'src/cortex_core/coordination.py': '56c709da4e5caf8d5baceba92d08d60239d1aa07c85d61c1568bb74320d4a70b',
     'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
     'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
-    'src/cortex_core/records.py': '3f361acf476741724e4f8544e7235314c798104e64f54107020f83bb9325db9d',
-    'src/cortex_core/migrations.py': 'b225584cbc1cd0e8c44af3e2861fd5f4c7f96f4107abade24f0dea38b80df1d7',
+    'src/cortex_core/records.py': 'e52d86a0cddfa7b98315f87c9904aeb64665e8dc68e353b8280a276ca97a32d3',
+    'src/cortex_core/migrations.py': 'ba10d9fddcfbe47879b0201bc91ef2d8fe966983fe85c0b01840ce7e2cced5e6',
+    'src/cortex_core/backup_validation.py': '5d3731e58e5217ba4b2fc6f538679fc4bcc85327924c813f67f6f5bc5819a84a',
+    'src/cortex_core/release/artifacts.py': 'cd0703c12cb5d3d8731be91225e3de188abc885587654fe782f5276147aa8607',
+    'src/cortex_core/release/build/audit.py': '6639168da2ebb9ab1128b50e6fecf72d7f8f4d6250ced97bfe497900ef9ae306',
+    'src/vector_baseline/product_path.py': '68776fc8ec72034bcc1dad696ffff8158b178a8291da14c2a7fa5733de41dca1',
 }
 EXEMPT_SYMBOL_FILES = {
     '_private': {'src/cortex_core/records.py'},
@@ -41,14 +49,69 @@ EXEMPT_SYMBOL_FILES = {
 
 
 def normalized_function_digest(function):
-    # 3.14 changed ast.dump's default to hide empty fields; keep the 3.12 form.
-    options={'show_empty':True} if sys.version_info >= (3,14) else {}
+    # 3.13 changed ast.dump's default to hide empty fields; keep the 3.12 form.
+    options={'show_empty':True} if sys.version_info >= (3,13) else {}
     return hashlib.sha256(ast.dump(function,include_attributes=False,**options).encode()).hexdigest()
+
+
+def reviewed_input(file,owner,tree,function):
+    """Both complete ASTs must still match their source-reviewed versions."""
+    return (function is not None
+            and normalized_function_digest(tree)==KNOWN_INPUT_FILE_SHA256.get(file)
+            and normalized_function_digest(function)==KNOWN_INPUT_FUNCTION_SHA256.get((file,owner)))
+
+
+CODE_FIELDS = ('co_argcount','co_posonlyargcount','co_kwonlyargcount','co_nlocals',
+               'co_stacksize','co_flags','co_code','co_consts','co_names','co_varnames',
+               'co_filename','co_name','co_qualname','co_firstlineno','co_linetable',
+               'co_exceptiontable','co_freevars','co_cellvars')
+REFLECTION_INPUTS = {
+    'src/cortex_core/release/artifacts.py': ('_compiled_fields_equal',('actual','expected'),'field',CODE_FIELDS),
+    'src/cortex_core/release/build/audit.py': ('_code_equal',('left','right'),'k',CODE_FIELDS),
+    'src/vector_baseline/product_path.py': ('snapshot_corpus',('staged',),'name',
+                                         ('vectors','records','offsets','indices','weights')),
+}
+
+
+def reviewed_reflection_calls(file,tree):
+    """Recognize only the exact getters over closed, reviewed field tuples.
+
+    No runtime import or evaluation: the enclosing function and module pins also
+    guard type provenance, builtin rebinding and aliases outside the function.
+    """
+    if file not in REFLECTION_INPUTS:return set()
+    owner,objects,variable,fields=REFLECTION_INPUTS[file]
+    functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==owner]
+    if len(functions)!=1 or not reviewed_input(file,owner,tree,functions[0]):return set()
+    function=functions[0]
+    def field_tuple(node):
+        return isinstance(node,ast.Tuple) and tuple(static_text(n) for n in node.elts)==fields
+    if fields==CODE_FIELDS:
+        assignments=[n for n in ast.walk(function) if isinstance(n,ast.Assign)
+                     and len(n.targets)==1 and isinstance(n.targets[0],ast.Name) and n.targets[0].id=='fields']
+        if len(assignments)!=1 or not field_tuple(assignments[0].value):return set()
+    for expression in ast.walk(function):
+        if not isinstance(expression,(ast.GeneratorExp,ast.DictComp)) or len(expression.generators)!=1:continue
+        loop=expression.generators[0]
+        if (not isinstance(loop.target,ast.Name) or loop.target.id!=variable
+                or loop.ifs or loop.is_async):continue
+        if fields==CODE_FIELDS:
+            if not isinstance(loop.iter,ast.Name) or loop.iter.id!='fields':continue
+        elif not field_tuple(loop.iter):continue
+        value=expression.elt if isinstance(expression,ast.GeneratorExp) else expression.value
+        calls=[n for n in ast.walk(value) if isinstance(n,ast.Call)
+               and isinstance(n.func,ast.Name) and n.func.id=='getattr']
+        if (len(calls)==len(objects) and all(len(n.args)==2 and not n.keywords
+                and isinstance(n.args[0],ast.Name) and n.args[0].id==obj
+                and isinstance(n.args[1],ast.Name) and n.args[1].id==variable
+                for n,obj in zip(calls,objects))):return set(calls)
+    return set()
 
 
 def source_reference_flags(file,source):
     """Unreviewed exempt-name references and dynamic reflection in NEXT source."""
     tree=ast.parse(source);flags=[];ordinals={}
+    reviewed_calls=reviewed_reflection_calls(file,tree)
     def flag(kind,node):
         ordinal=ordinals.get(kind,0);ordinals[kind]=ordinal+1
         flags.append(dict(file=file,owner=kind,verb='DYNAMIC',table='<dynamic_or_unsupported>',
@@ -70,7 +133,8 @@ def source_reference_flags(file,source):
             elif (isinstance(function,ast.Attribute) and function.attr=='import_module'
                   and isinstance(function.value,ast.Name) and function.value.id=='importlib'):
                 label='importlib.import_module';index=0
-            if label is not None and (len(node.args)<=index or static_text(node.args[index]) is None):
+            if (label is not None and node not in reviewed_calls
+                    and (len(node.args)<=index or static_text(node.args[index]) is None)):
                 flag('dynamic_name:'+label,node)
     return flags
 
@@ -166,12 +230,7 @@ def scan_source(file,source):
             statement_sha256=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest(),classification=None))
     def known_existing_input(owner,node,tree,function):
         """Only these source-proved existing indirect inputs bypass fail-closed."""
-        file_pin=KNOWN_INPUT_FILE_SHA256.get(file)
-        if file_pin is None or normalized_function_digest(tree)!=file_pin:
-            return False
-        pin=KNOWN_INPUT_FUNCTION_SHA256.get((file,owner))
-        if function is None or pin is None or normalized_function_digest(function)!=pin:
-            return False
+        if not reviewed_input(file,owner,tree,function):return False
         if file=='src/cortex_core/coordination.py' and owner=='Jobs._load':
             return (isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add)
                     and (static_text(node.left) or '').lstrip().upper().startswith('SELECT')
@@ -180,6 +239,15 @@ def scan_source(file,source):
                     and static_text(node.right.orelse)=='')
         if not isinstance(node,ast.Name):return False
         name=node.id
+        if file=='src/cortex_core/backup_validation.py' and owner=='read_restored_snapshot' and name=='SNAPSHOT_SQL':
+            assignments=[n for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1
+                         and isinstance(n.targets[0],ast.Name) and n.targets[0].id==name]
+            stores=[n for n in ast.walk(tree) if isinstance(n,ast.Name) and n.id==name
+                    and isinstance(n.ctx,(ast.Store,ast.Del))]
+            query=static_text(assignments[0].value) if len(assignments)==1 else None
+            return (len(assignments)==1 and len(stores)==1 and stores[0] is assignments[0].targets[0]
+                    and query is not None and query.lstrip().upper().startswith('SELECT')
+                    and not DML.search(query))
         if name=='_ROLE_QUERY' and file in ('src/cortex_core/auth.py','src/cortex_core/identity.py'):
             assignments=[n for n in ast.walk(tree) if isinstance(n,(ast.Assign,ast.AnnAssign))
                          and any(isinstance(t,ast.Name) and t.id==name for t in
@@ -218,7 +286,7 @@ def scan_source(file,source):
             fn=functions[0]
             loops=[n for n in ast.walk(fn) if isinstance(n,ast.For) and isinstance(n.target,ast.Tuple)
                    and [getattr(t,'id',None) for t in n.target.elts]==['identity','digest','sql']
-                   and isinstance(n.iter,ast.Name) and n.iter.id=='prepared']
+                   and ast.unparse(n.iter)=='prepared[:prepared_target + 1]']
             appends=[n for n in ast.walk(fn) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute)
                      and n.func.attr=='append' and isinstance(n.func.value,ast.Name) and n.func.value.id=='prepared']
             other_assignments=[n for n in ast.walk(fn) if isinstance(n,(ast.Assign,ast.AnnAssign,ast.NamedExpr))

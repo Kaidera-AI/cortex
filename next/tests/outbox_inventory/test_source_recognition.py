@@ -1,7 +1,10 @@
 """Controls for reviewed indirect inputs; source-only, no runtime imports."""
 import importlib.util
+import ast
+import hashlib
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 NEXT = Path(__file__).resolve().parents[2]
 BACKUP = 'src/cortex_core/backup_validation.py'
@@ -22,6 +25,11 @@ class SourceRecognition(unittest.TestCase):
 
     def source(self, file):
         return (NEXT/file).read_text()
+
+    def test_ast_pins_preserve_the_original_empty_field_representation(self):
+        canonical = 'Module(body=[Pass()], type_ignores=[])'
+        self.assertEqual(self.checker.normalized_function_digest(ast.parse('pass')),
+                         hashlib.sha256(canonical.encode()).hexdigest())
 
     def changed(self, file, before, after):
         source = self.source(file)
@@ -85,7 +93,7 @@ class SourceRecognition(unittest.TestCase):
                 self.assertTrue(self.unresolved(MIGRATIONS, self.changed(MIGRATIONS, before, after)))
         self.assertTrue(self.unresolved(MIGRATIONS, self.source(MIGRATIONS)+'\napply_alias = apply_migrations\n'))
 
-    def test_updated_records_module_retains_private_read_recognition(self):
+    def test_updated_records_module_retains_private_select_recognition(self):
         file = 'src/cortex_core/records.py'
         self.assertEqual(self.unresolved(file, self.source(file)), [])
 
@@ -119,6 +127,30 @@ class SourceRecognition(unittest.TestCase):
     def test_snapshot_exception_does_not_exempt_external_named_sql(self):
         source = 'SNAPSHOT_SQL = "SELECT 1"\ndef read_restored_snapshot(connection):\n    return connection.execute(SNAPSHOT_SQL)\n'
         self.assertTrue(self.unresolved('src/cortex_core/unreviewed.py', source))
+
+    def renewed_pins(self, file, function, source):
+        tree = ast.parse(source)
+        node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == function)
+        return (patch.dict(self.checker.KNOWN_INPUT_FILE_SHA256,
+                           {file: self.checker.normalized_function_digest(tree)}),
+                patch.dict(self.checker.KNOWN_INPUT_FUNCTION_SHA256,
+                           {(file, function): self.checker.normalized_function_digest(node)}))
+
+    def test_pins_alone_cannot_approve_different_reflection_fields_or_objects(self):
+        for file, (function, call, last_field) in REFLECTION.items():
+            for before, after in [(last_field, last_field+', "execute"'),
+                                  (call, call.replace(call.split('(')[1].split(',')[0], 'untrusted_object'))]:
+                with self.subTest(file=file, after=after):
+                    source = self.changed(file, before, after)
+                    module_pin, function_pin = self.renewed_pins(file, function, source)
+                    with module_pin, function_pin:
+                        self.assertTrue(self.checker.source_reference_flags(file, source))
+
+    def test_pins_alone_cannot_approve_different_migration_slice(self):
+        source = self.changed(MIGRATIONS, 'prepared[:prepared_target + 1]:', 'prepared[prepared_target:]:')
+        module_pin, function_pin = self.renewed_pins(MIGRATIONS, 'apply_migrations', source)
+        with module_pin, function_pin:
+            self.assertTrue(self.unresolved(MIGRATIONS, source))
 
 
 if __name__ == '__main__':
