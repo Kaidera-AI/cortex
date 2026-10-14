@@ -105,6 +105,9 @@ def _request_original(aggregate_id, member_name, current, originals):
             revalidate()
             reader.aggregate_finish()
             revalidate()
+            # Current-owner reload can take time: retain the SAME held original
+            # transaction and check all named/held identities immediately after.
+            reader._aggregate_check()
             # C measured the whole original length/digest against this signed
             # row; its EOF recheck holds every original. Bytes are immutable.
             original = bodies[member_name]
