@@ -1,0 +1,235 @@
+"""U3-C unsigned assembly oracle; independently expected fixture bytes only."""
+import copy
+import importlib
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from aggregate_fixture import materials,context,write,encode,sha256,update,repin
+from cortex_core.runtime.signed_member import Refusal
+
+SRC=Path(__file__).resolve().parents[2]/'src/cortex_core/release'
+MAIN=Path('/Users/amadmalik/DevVault/helix/output/KOS/ren-kos-u3c-fixtures-20261014')
+
+
+class Assembly(unittest.TestCase):
+    def source(self):
+        self.assertTrue((SRC/'assembly.py').is_file(),'SURFACE_ABSENCE_BODY: U3-C assembly source absent')
+        return importlib.import_module('cortex_core.release.assembly'),importlib.import_module('cortex_core.release.aggregate')
+
+    def setUp(self):
+        MAIN.mkdir(mode=0o700,parents=True,exist_ok=True);self.tmp=tempfile.TemporaryDirectory(prefix='assembly-inert-',dir=MAIN.resolve())
+        self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
+        self.value,self.bodies,self.builds,self.policy=materials();write(self.root,self.bodies)
+
+    def run_assembly(self):
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close)
+        return a._assemble_original(encode(self.value),r,self.builds,context(self.policy))
+
+    def refuse(self,reason,fn=None):
+        with self.assertRaises(Refusal) as caught:(fn or self.run_assembly)()
+        self.assertEqual(caught.exception.reason,reason)
+
+    def pin(self):repin(self.value,self.policy)
+
+    def put(self,path,raw):update(self.value,self.bodies,path,raw);(self.root/path).write_bytes(raw);self.pin()
+
+    def image(self):return next(r for r in self.value['members'] if r['kind']=='image')
+
+    def lock(self,change):
+        d=json.loads(self.bodies['runtime.lock.json']);change(d);self.put('runtime.lock.json',encode(d))
+
+    def test_T30_expected_unsigned_bytes_and_original_receipts_unchanged(self):
+        expected=encode(self.value);receipts={g['receipt']:self.bodies[g['receipt']] for g in self.builds}
+        self.assertEqual(self.run_assembly(),expected)
+        self.assertEqual(receipts,{p:(self.root/p).read_bytes() for p in receipts})
+        for g in self.builds:
+            self.assertNotEqual(g['paths']['A/archive.bin'],g['paths']['B/archive.bin'])
+
+    def test_production_default_authority_first(self):
+        a,_=self.source()
+        class NoRead:
+            def __iter__(self):raise AssertionError('candidate read')
+            def __fspath__(self):raise AssertionError('root read')
+        with patch('builtins.open',side_effect=AssertionError('opened before authority')):
+            self.refuse('required_binding_gap',lambda:a.assemble_aggregate(NoRead(),NoRead(),NoRead()))
+
+    def test_T04_valid_hash_role_swap(self):
+        image=self.image();image['module_id']='core' if image['module_id']=='api' else 'api';self.pin()
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_missing_target(self):
+        image=self.image();self.value['members'].remove(image);(self.root/image['path']).unlink();self.pin()
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_module_version(self):
+        self.image()['module_version']='0.1.019';self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_original_source(self):
+        self.value['source']['tree']='c'*40;self.policy['source']=copy.deepcopy(self.value['source']);self.pin()
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T16_raw_archive_is_not_platform_manifest(self):
+        image=self.image();image['oci_manifest_sha256']=image['sha256'];self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_T16_config_is_not_platform_manifest(self):
+        image=self.image();g=next(g for g in self.builds if g['image']==image['path'])
+        image['oci_manifest_sha256']=json.loads(self.bodies[g['receipt']])['builds']['A']['oci']['config'];self.pin()
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_wrong_original_input_subject(self):
+        self.image()['build_input_sha256']='d'*64;self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_wrong_original_receipt_subject(self):
+        self.image()['build_receipt_sha256']='d'*64;self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_missing_original_mapping(self):
+        self.builds[0]['paths'].pop('B/archive.bin');self.refuse('required_binding_gap')
+
+    def test_T18_collapsed_AB_equal_hash_paths(self):
+        g=self.builds[0];g['paths']['B/archive.bin']=g['paths']['A/archive.bin'];self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_wrong_mapping_original_digest(self):
+        g=self.builds[0];g['paths']['B/config.bin']=g['paths']['B/index.bin'];self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_missing_independent_build_policy(self):
+        self.builds[0]['policy']=None;self.refuse('required_binding_gap')
+
+    def test_T18_actual_R01_verifier_not_declared_PASS(self):
+        g=self.builds[0];d=json.loads(self.bodies[g['receipt']]);d['comparison']['raw_archives_equal']=False
+        self.put(g['receipt'],encode(d));next(r for r in self.value['members'] if r['path']==g['image'])['build_receipt_sha256']=sha256(encode(d));self.pin()
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_altered_original_audit(self):
+        g=self.builds[0];path=next(v for k,v in g['paths'].items() if 'audit-' in k);d=json.loads(self.bodies[path]);d['findings']=['fixture-fault'];self.put(path,encode(d))
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T19_missing_actual_bytes_despite_declared_hash(self):
+        (self.root/self.builds[0]['receipt']).unlink();self.refuse('required_binding_gap')
+
+    def test_T27_fixture_cannot_be_relabelled_production(self):
+        self.value['purpose']='cortex/core-api/production';self.policy['purpose']=self.value['purpose'];self.policy['root']['allowed_purposes']=[self.value['purpose']];self.pin()
+        self.refuse('required_binding_gap')
+
+    def test_T27_native_qualified_flag_is_not_a_binding(self):
+        self.builds[0]['native_qualified']=True;self.refuse('required_binding_gap')
+
+    def test_T15_compatibility_tuple(self):
+        p=self.value['compatibility']['compatibility_member'];d=json.loads(self.bodies[p]);d['modules'][0]['module_version']='0.1.019';self.put(p,encode(d))
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_schema_version(self):
+        p=self.value['compatibility']['schema_member'];self.put(p,encode({'version':2,'migrations':[]}));self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_event_version(self):
+        p=self.value['compatibility']['event_member'];self.put(p,encode({'version':2,'producers':['core','api']}));self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_migrations_original_inventory(self):
+        p=self.value['compatibility']['migration_member'];self.put(p,encode({'version':1,'migrations':[{'id':'inert','file':'a.sql','sha256':'a'*64}]}));self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_descriptor_references(self):
+        self.value['compatibility']['descriptor_members']=self.value['compatibility']['descriptor_members'][:-1];self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_T16_lock_both_platform_manifest_subjects(self):
+        self.lock(lambda d:d['targets']['linux/arm64']['api']['image']['value'].update(sha256='f'*64));self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_lock_source(self):
+        self.lock(lambda d:d['source']['value'].update(revision='f'*40));self.refuse('aggregate_pair_mismatch')
+
+    def test_T15_lock_release_tuple(self):
+        self.lock(lambda d:d['release']['value'].update(event_version=2));self.refuse('aggregate_pair_mismatch')
+
+    def test_T19_lock_GAP_declaration(self):
+        self.lock(lambda d:d['owner_ports']['private_inspection'].update(state='GAP'))
+        self.refuse('required_binding_gap')
+
+    def test_T17_lock_image_path_cycle(self):
+        self.lock(lambda d:d['targets']['linux/amd64']['core']['image']['value'].update(path=d['layout']['runtime_lock']))
+        self.refuse('member_path_alias')
+
+    def embedded(self,path,body):
+        from receipt_fixture import tar
+        import native_matrix_fixture as f
+        layer=tar({path:body});manifest=encode({'layers':[f.desc(f.LAYER,layer)]})
+        index=encode({'manifests':[f.desc(f.MANIFEST,manifest)]})
+        return tar({'index.json':index,'blobs/sha256/'+sha256(manifest):manifest,'blobs/sha256/'+sha256(layer):layer})
+
+    def test_T17_embedded_lock_path(self):
+        _,a=self.source();raw=self.embedded('run/cortex/runtime.lock.json',b'different inert bytes')
+        self.refuse('member_path_alias',lambda:a._no_embedded_lock(raw,self.bodies['runtime.lock.json'],a.PROVISIONAL_LIMITS))
+
+    def test_T17_renamed_embedded_exact_lock_body(self):
+        _,a=self.source();raw=self.embedded('app/renamed.data',self.bodies['runtime.lock.json'])
+        self.refuse('member_path_alias',lambda:a._no_embedded_lock(raw,self.bodies['runtime.lock.json'],a.PROVISIONAL_LIMITS))
+
+    def test_T17_non_lock_layer_positive(self):
+        _,a=self.source();raw=self.embedded('app/inert.data',b'inert unrelated bytes')
+        self.assertIsNone(a._no_embedded_lock(raw,self.bodies['runtime.lock.json'],a.PROVISIONAL_LIMITS))
+
+    def test_T18_contract_original_pin(self):
+        p=next(r['path'] for r in self.value['members'] if r['role']=='operations');raw=self.bodies[p];self.put(p,raw+b' ');self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_lock_contract_subject(self):
+        self.lock(lambda d:d['contract_members']['config_schema']['value'].update(sha256='f'*64));self.refuse('aggregate_pair_mismatch')
+
+    def test_T22_manifest_bound(self):
+        a,_=self.source();self.policy['limits']['manifest_bytes']=1
+        self.refuse('raw_limit')
+
+    def test_T22_count_bound(self):
+        self.policy['limits']['member_count']=1;self.refuse('raw_limit')
+
+    def test_T22_depth_bound(self):
+        self.policy['limits']['depth']=1;self.refuse('raw_limit')
+
+    def test_member_order_and_duplicate_path(self):
+        _,a=self.source()
+        v=copy.deepcopy(self.value);v['members'].reverse()
+        self.refuse('aggregate_shape',lambda:a._validate_manifest(encode(v),self.policy))
+        v=copy.deepcopy(self.value);v['members'][-1]['path']=v['members'][-2]['path']
+        self.refuse('aggregate_shape',lambda:a._validate_manifest(encode(v),self.policy))
+
+    def test_record_declared_JSON_must_be_original_JSON(self):
+        p=self.value['compatibility']['compatibility_member'];self.put(p,b'not-json\n');self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_only_one_pair_per_image(self):
+        self.builds[-1]=copy.deepcopy(self.builds[0]);self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_mapped_input_role(self):
+        g=self.builds[0];next(r for r in self.value['members'] if r['path']==g['input'])['role']='evidence';self.pin()
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_T18_unreferenced_record_cannot_supply_closure(self):
+        g=self.builds[0];g['paths']['unused-fixture']='members/absent';self.refuse('aggregate_pair_mismatch')
+
+    def test_T22_owner_cannot_raise_caps(self):
+        _,a=self.source();self.policy['limits']['image_bytes']=2**40
+        limits=a._limits(self.policy);self.assertEqual(limits['image_bytes'],768*1024**2)
+
+    def test_expected_inventory_independent_owner_exact(self):
+        self.policy['expected_members']=self.policy['expected_members'][:-1];self.refuse('aggregate_pair_mismatch')
+
+    def test_expected_raw_unsigned_identity(self):
+        self.policy['expected_aggregate_sha256']='f'*64;self.refuse('aggregate_identity_mismatch')
+
+    def test_original_manifest_not_reencoded(self):
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close)
+        self.refuse('aggregate_shape',lambda:a._assemble_original(json.dumps(self.value,indent=2).encode(),r,self.builds,context(self.policy)))
+
+    def test_T30_post_validation_changed_receipt_no_output(self):
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close);real=r.aggregate_finish
+        def finish():
+            p=self.builds[0]['receipt'];(self.root/p).write_bytes(self.bodies[p]);return real()
+        with patch.object(r,'aggregate_finish',finish):self.refuse('member_custody_changed',lambda:a._assemble_original(encode(self.value),r,self.builds,context(self.policy)))
+
+    def test_internal_error_sanitized_and_all_files_closed(self):
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close)
+        with patch.object(r,'aggregate_bytes',side_effect=RuntimeError('/private/token-fixture')):
+            self.refuse('member_authority_unavailable',lambda:a._assemble_original(encode(self.value),r,self.builds,context(self.policy)))
+        self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files)
