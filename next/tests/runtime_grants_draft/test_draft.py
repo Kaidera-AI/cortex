@@ -78,6 +78,18 @@ class Draft(DraftFixture):
             self.request.execute("SELECT set_config('cortex.installation_id',%s,true)",(uid(1),))
         self.refusal(self.request,"SELECT auth.runtime_bound_installation('api_request')")
 
+    def test_privileged_login_cannot_spoof_service_by_session_authorization(self):
+        self.candidate_if_present()
+        conn=psycopg.connect(self.dsn,autocommit=True);self.addCleanup(conn.close)
+        login_oid=conn.execute('SELECT usesysid FROM pg_stat_activity WHERE pid=pg_backend_pid()').fetchone()[0]
+        api_oid=self.root.execute('SELECT oid FROM pg_roles WHERE rolname=%s',(ROLE_NAMES['api_request'],)).fetchone()[0]
+        self.assertNotEqual(login_oid,api_oid)
+        conn.execute(sql.SQL('SET SESSION AUTHORIZATION {}').format(sql.Identifier(ROLE_NAMES['api_request'])))
+        conn.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(ROLE_NAMES['request_group'])))
+        self.assertEqual(conn.execute('SELECT session_user,current_user').fetchone(),(ROLE_NAMES['api_request'],ROLE_NAMES['request_group']))
+        self.assertEqual(conn.execute('SELECT usesysid FROM pg_stat_activity WHERE pid=pg_backend_pid()').fetchone()[0],login_oid)
+        self.assertIs(self.allowed(conn,'SELECT auth.runtime_request_installation(%s)',(uid(1),)),False)
+
     def test_map_oid_role_graph_flags_kind_and_revocation(self):
         self.candidate_if_present()
         name=ROLE_NAMES['api_request']
