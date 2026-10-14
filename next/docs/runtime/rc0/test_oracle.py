@@ -5,7 +5,7 @@ import pathlib
 import sys
 import unittest
 
-from oracle import Oracle, Refusal, decode, encode
+from oracle import Oracle, Refusal, decode, encode, sha
 
 HERE = pathlib.Path(__file__).resolve().parent
 CONTRACTS = HERE.parents[2] / 'contracts/runtime'
@@ -129,6 +129,18 @@ class RuntimeContractOracle(unittest.TestCase):
                 with self.assertRaises(Refusal) as refused:
                     oracle.select(FIXTURE['lock'], cfg, oracle.operations, observed_target=target, mode='migrate')
                 self.assertEqual(refused.exception.reason, 'mode_mismatch')
+
+    def test_mixed_contract_member_path_refuses_even_with_matching_lock_digest(self):
+        oracle = self.oracle()
+        for target in FIXTURE['configs']:
+            with self.subTest(target=target):
+                lock = copy.deepcopy(FIXTURE['lock'])
+                cfg = copy.deepcopy(FIXTURE['configs'][target])
+                lock['contract_members']['config_schema']['value']['path'] = '/opt/cortex/next/contracts/deployment/cortex-prerequisite-v3.schema.json'
+                cfg['runtime_lock_sha256'] = sha(lock)
+                with self.assertRaises(Refusal) as refused:
+                    oracle.select(lock, cfg, oracle.operations, observed_target=target, mode='api')
+                self.assertEqual(refused.exception.reason, 'bad_shape')
 
 
 if __name__ == '__main__':
