@@ -9,12 +9,18 @@ import unittest
 SCRIPT = Path(__file__).resolve().parents[1] / 'pytest_next_offline.py'
 
 
-class InventoryOracle(unittest.TestCase):
-    def setUp(self):
+class Subject:
+    @property
+    def gate(self):
         self.assertTrue(SCRIPT.is_file(), 'BODY RED: next offline inventory gate is absent')
         spec = importlib.util.spec_from_file_location('next_gate_oracle_subject', SCRIPT)
-        self.gate = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.gate)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+
+class InventoryOracle(Subject, unittest.TestCase):
+    def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
@@ -90,12 +96,8 @@ class InventoryOracle(unittest.TestCase):
         self.assertFalse(self.check()['ok'])
 
 
-class OutcomeOracle(unittest.TestCase):
+class OutcomeOracle(Subject, unittest.TestCase):
     def setUp(self):
-        self.assertTrue(SCRIPT.is_file(), 'BODY RED: next offline outcome gate is absent')
-        spec = importlib.util.spec_from_file_location('next_gate_oracle_subject', SCRIPT)
-        self.gate = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.gate)
         self.packet = {'expected': ['next/test_a.py::test_a'], 'selected': ['next/test_a.py::test_a'],
                        'deselected': [], 'pytest_exit': 0, 'gate_exit': 0,
                        'reports': [{'nodeid': 'next/test_a.py::test_a', 'when': when,
