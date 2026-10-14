@@ -49,7 +49,7 @@ Order, labels, case and separators are literal. No whitespace, percent encoding,
 
 Minisign sidecar envelope is bounded four lines: untrusted comment, base64 signature packet, literal trusted comment line, base64 global signature. Require ED; Ed/unknown algorithms refuse. Envelope base64 is strict: signature packet74 decoded bytes (algorithm2 +key ID8 +signature64), global signature64 bytes. Public key decodes to42 bytes (public algorithm Ed2 +ID8 +key32); that Ed public encoding is distinct from the ED signed-message algorithm. Pin the whole original owner public file bytes/length before decoding, allow only its accepted single-key format, compare decoded ID with policy, and refuse malformed root as aggregate_root_mismatch. Sidecar uses literal `untrusted comment:` / `trusted comment:` labels, LF line endings and one final LF, with no additional/blank/trailing lines; unsupported sidecar structure refuses aggregate_signature_invalid. No alternate grammar or automatic repair. First Ed25519 signature authenticates BLAKE2b-512(original manifest bytes); second authenticates first signature bytes concatenated with exact UTF-8 trusted comment. Key ID and full independently pinned public-key bytes/hash both matter. Untrusted comment never authorizes scope. R01 must strictly parse the actual Minisign line syntax, not use the schematic placeholder as an alternate wire. [Upstream Minisign specification](https://jedisct1.github.io/minisign/).
 
-A valid KOS manifest signature does not admit Cortex: exact comment purpose/key-use context plus Cortex manifest schema/domain reject it. A Cortex manifest cannot admit KOS via the existing KOS package verifier because its KOS schema check rejects the Cortex schema; raw verify_minisign only proves crypto and never product admission. This unit makes no claim that KOS's primitive verifier independently enforces the new Cortex purpose grammar. Sharing a key cannot share artifact/deployment authority. Cross-purpose positives/negatives are future test-root cases, with original independent root/context, not actual signing here.
+A valid KOS-shaped original with correct requested raw ID and actual ED cryptography refuses aggregate_shape at the Cortex closed manifest schema, before trusted-comment scope. A Cortex-shaped original authentically signed with a KOS trusted-comment domain passes schema and refuses aggregate_scope_mismatch at trusted context. These are separate test inputs, not interchangeable reasons. A Cortex manifest cannot admit KOS via the existing KOS package verifier because its KOS schema check rejects the Cortex schema; raw verify_minisign only proves crypto and never product admission. This unit makes no claim that KOS's primitive verifier independently enforces the new Cortex purpose grammar. Sharing a key cannot share artifact/deployment authority. Cross-purpose positives/negatives are future test-root cases, with original independent root/context, not actual signing here.
 
 ## Independent production policy
 
@@ -106,7 +106,7 @@ Under a future explicit test-material GO only, test support outside installed so
 
 Permanent tests/expected bytes are frozen before schemas; later implementation must make desired bodies pass without rewriting deciding tests. Keep initial/final RED and restoration hashes; absence/import/setup does not earn body credit. New schema guard omissions must fail frozen original BODY assertions, with literal logs and exact restoration; source oracle's six crafted-reader failures remain pending separate Nemo fix. Signature/member/native causal controls remain future units, not U3-A credit.
 
-Vera must select/accept the boundary beyond Nemo's API seal before U3-E: explicit trusted installed interpreter with independent effect owner, or an OS-enforced independent verifier/effect-admission process with private authenticated IPC, independently held code/root/UID/custody/current policy and replay-resistant operation context. Same-UID subprocess or readonly Python object alone does not defend trusted Python rewriting globals. U3-A chooses neither. Native peer/kernel/installed code/root evidence remains NOT_RUN; source simulations cannot close it. Kai routes Vera/Hale/Cox; no new handoff or external judgment API is sent here.
+Vera's accepted seal ruling permits A for read-only source work and requires an independently protected B effect owner before first-install or later effects, including a hand-installed prerelease. The same R01 verifier must execute inside that protected owner; no second verifier/root/port is inferred. Independently held code/root/UID/custody/current policy and replay-resistant operation context remain platform proof obligations. Same-UID subprocess or a readonly Python object alone does not defend trusted Python rewriting globals. Native peer/kernel/installed code/root evidence remains NOT_RUN; source simulations cannot close it. U3-E stays read-only source work. Kai routes Vera/Hale/Cox; no new handoff or external judgment API is sent here. This corrects the old pending-choice wording under the already accepted ruling, without granting effects.
 
 ## Cox's questions and proposed defaults — no wait in this freeze
 
@@ -120,3 +120,84 @@ Vera must select/accept the boundary beyond Nemo's API seal before U3-E: explici
 | Root/purpose/key-use | one 7BBB root with full owner byte pin/current scope; TEST distinct from production; H-D546 not extended | actual public material/provider/owner custody/signing grants UNBOUND |
 
 U3-B6h +U3-C6h +U3-D6h +U3-E6h +U3-F4h remain **28 author hours**, plus7h remaining independent review after U3-A's1h. Full source remains32author+8review=40h; conditional N1/N2 verifier proof16h; incremental total56h. Extra production-policy schema and explicit six identity controls fit U3-A's4h; no reprice currently proposed. A Cox amendment or Vera boundary requiring further slices triggers updated ≤6h units/costs before dispatch. No future source/native/signing/acquisition/merge grant is implied.
+
+
+## Oracle corrections — Kai156197bb, Vera U3A-ORACLE-001/002
+
+This amendment preserves the original17 oracle assertions and all96 wire tests.
+It adds contract/deciding-recipe controls before amending this text and the case
+plan. No keys, signatures, crypto/provider execution or verifier source changes
+are authorized in this correction. The public owner root remains UNBOUND.
+
+Every future crypto negative starts from an actual matched positive with a
+correct bounded canonical original, independent root/policy, correct requested
+raw ID, ED packet/base64 lengths and current identity/state. Freeze the original
+assertion before implementation; independently wrap the ONE actual provider and
+original transport/protected delivery/effect bodies. Count first/global calls
+and verify exact byte arguments and outcomes. A callable name, a returned
+receipt/counter/Boolean or a schema-valid declaration earns no crypto credit.
+No admitted/partial value, protected downstream delivery, owner grant or primitive
+effect may survive any refusal. Necessary bounded original-input reads are
+recorded separately from protected downstream delivery.
+
+| Isolated input | Deciding phase / exact reason | Actual first/global calls |
+|---|---|---|
+| Equal-length valid other root, same ID, original independent full pin retained | root_pin / aggregate_root_mismatch | 0/0 |
+| Correct root and authentic signatures; only packet ID differs | packet_key_id / aggregate_root_mismatch | 0/0 |
+| Only first64-byte signature corrupt; globally re-sign that corrupted first plus UNCHANGED correct comment | first_crypto / aggregate_signature_invalid | 1/0, first False |
+| Only global64-byte signature corrupt, all other inputs matched positive | global_crypto / aggregate_signature_invalid | 1/1, True/False |
+| Canonical original changes, OLD requested raw ID retained | requested_raw_id / aggregate_identity_mismatch | 0/0 |
+| Canonical original changes, request/current IDs and exact trusted comment rebuilt; first remains over old bytes, global valid over old first+new comment | first_crypto / aggregate_signature_invalid | 1/0, first False |
+| First authenticates a reencoded surrogate; canonical candidate/request/current/comment retain exact original bytes and global is valid | first_crypto / aggregate_signature_invalid | 1/0, first False |
+| Owner INTERNAL aggregate locator lexical alias, exact logical request; no caller filesystem path | aggregate_transport / member_path_alias | 0/0; candidate reads0 |
+| Valid actual signatures over a canonical but schema-invalid signed member path | manifest_shape / aggregate_shape | 1/1, True/True; physical member reads0 |
+| Accepted signed safe path physically aliases/link/escapes during actual member transport | member_transport / member_path_alias | 1/1, True/True; protected delivery0 |
+| Authentic crypto and Cortex schema; trusted grammar/domain/field/decimal differs | trusted_context / aggregate_scope_mismatch | 1/1, True/True |
+| Actual KOS-shaped original and KOS domain in Cortex, actual crypto valid | manifest_shape / aggregate_shape | 1/1, True/True |
+| Cortex-shaped original with authentically signed KOS domain | trusted_context / aggregate_scope_mismatch | 1/1, True/True |
+| Correct request/crypto/comment/schema/sequence/time/source/release; only independent CURRENT SHA differs | current_digest / aggregate_identity_mismatch | 1/1, True/True |
+
+SIG07 remains a STRUCTURAL truncation test; it grants no crypto-body credit.
+SIG07-FIRST/GLOBAL are the independent cryptographic corruptions. SIG08 now names
+old-request-ID precedence and redirects to separate REQUEST-ID/ORIGINAL/
+REENCODING variants. Truncation with an old requested ID fails identity first;
+truncation with its repaired ID may reach crypto but is not the only valid-format
+crypto negative. SIG10 separates internal locator alias, invalid signed grammar
+and actual physical alias; no caller path is introduced. SIG11 separates an
+unauthenticated changed comment (global crypto first) from an authentically
+signed disallowed context (later scope). SIG14 is KOS-schema rejection; its
+DOMAIN variant isolates a KOS comment on Cortex shape. The reverse unchanged
+KOS consumer's release_schema_unsupported is a separate schema admission phase.
+
+The seven explicit multi-fault rows in ORACLE_CASES.json freeze authority before
+candidate handling; exact request arguments before transport/crypto; requested
+raw ID before crypto; envelope/root before scope; schema before scope; and older
+sequence before current SHA. Every row names one earliest refusal and zero
+protected delivery/grant/primitive counters. Actual owners/transport are bound
+for every phase test except the explicit missing-authority control. Source
+signature verification alone does not implement request transport or member
+custody; those cases remain future units.
+
+For each isolated guard, omit ONLY that guard in an actual matched test context:
+the original typed-reason/admission/independent-call assertion must fail with no
+setup/import/surface credit. Restore exact source/test hashes and rerun the
+matched positive and full affected suite. In particular the first-signature
+negative's global signature must remain valid, so a remaining global or context
+fault cannot rescue a missing first check. A refusal-only dummy without the
+actual independently observed call also fails the new recipe assertions.
+
+U3-B source946fcb34 already supplies128 actual source/test-crypto controls and53
+BODY-killed mutations, separately receipted. ORACLE_CASES.json links the reusable
+controls and explicitly records partial coverage: existing first-byte tampering
+also invalidates an unchanged global signature, and signatures over other bytes
+may disagree with trusted context after the first check is omitted. Those are
+useful prior controls; they are not execution of the tightened sole-fault first
+recipe. New constructions and full independent deciding traces require their
+own execution receipt under a permitted test-material scope before acceptance.
+All38 desired case rows retain NOT_RUN_UNBOUND in this PLAN. Protocol doubles
+exercise the assertion recipe only, never crypto/native authority. The original
+17 surface/identity tests are preserved honestly and cannot close these cases.
+
+The policy schema's unreferenced $defs.compatibility is deleted; its six remaining
+refs and every other schema field are unchanged. The actual manifest compatibility
+schema and required compatibility member capability remain intact.
