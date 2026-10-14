@@ -25,6 +25,7 @@ from nacl.signing import SigningKey
 
 HOME=Path(__file__).resolve().parent
 RELEASE_ID='7BBB4B7E0CE8852E'
+_NOT_SUPPLIED=object()
 
 
 def canonical(value):
@@ -71,10 +72,10 @@ class TestAuthority:
   return trust._OwnerContext(freeze(copy.deepcopy(self.policy)),raw,hashlib.sha256(raw).hexdigest(),
                              self.root_material,self.now,self.generation,self.fence,self.placement)
 
- def verify(self,trust,raw=None,signature=None):
+ def verify(self,trust,raw=None,signature=_NOT_SUPPLIED):
   reject_product_caller()
   return trust._verify_original(self.raw if raw is None else raw,
-                                self.signed() if signature is None else signature,self.context(trust))
+                                self.signed() if signature is _NOT_SUPPLIED else signature,self.context(trust))
 
  def __repr__(self):return '<TestAuthority: unrelated in-memory root; no private bytes displayed>'
 

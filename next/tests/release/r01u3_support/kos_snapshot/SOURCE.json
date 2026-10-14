@@ -1,0 +1,19 @@
+{
+  "scope": "UNCHANGED KOS consumer snapshot; TEST ONLY; crypto API adapter delegates to single real PyNaCl boundary; no cryptography provider installed",
+  "sources": [
+    {
+      "path": "scripts/release/installer/kos_installer/trust.py",
+      "revision": "249cc66c088879c6fae196bd6ee2adaca929ade3",
+      "bytes": 7956,
+      "sha256": "3cee7d78fd7263489861779f02d0e0e62bad766e0cab2872d4e4422b78f63ca3",
+      "capture_exact": true
+    },
+    {
+      "path": "scripts/release/installer/kos_installer/refusal.py",
+      "revision": "249cc66c088879c6fae196bd6ee2adaca929ade3",
+      "bytes": 613,
+      "sha256": "586a02b2152963f2c59034603f6131d484e773b09e437cd2f32b854a12a2a8d9",
+      "capture_exact": true
+    }
+  ]
+}
