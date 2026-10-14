@@ -197,6 +197,10 @@ class RootReader:
         """Rehash original held bodies and named closure before returning bytes."""
         self._aggregate_check();self._aggregate_inventory()
         for path in self._aggregate_files:self.aggregate_bytes(path)
+        self._aggregate_inventory_finish()
+
+    def _aggregate_inventory_finish(self):
+        """Close the same held namespace after EOF or final owner reload."""
         # Observe only this admitted root/relative namespace, not unrelated
         # changes in absolute ancestor directories outside the original graph.
         directories=[self.fd]+[fd for key,fd in self._aggregate_dirs.items() if key.startswith('relative:')]

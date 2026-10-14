@@ -10,8 +10,7 @@ import re
 import time
 from types import SimpleNamespace
 
-from cortex_core.runtime.signed_member import Refusal, MISSING_UNIT, MAX_MEMBER_BYTES
-from .codec import sha256
+from cortex_core.runtime.signed_member import Refusal, MISSING_UNIT, MAX_MEMBER_BYTES, sha256
 
 _ID = re.compile(r'sha256:[0-9a-f]{64}\Z')
 _NAME = re.compile(r'members/[a-z0-9][a-z0-9_.-]*(?:/[a-z0-9][a-z0-9_.-]*)*\Z')
@@ -105,13 +104,12 @@ def _request_original(aggregate_id, member_name, current, originals):
             revalidate()
             reader.aggregate_finish()
             revalidate()
-            # Current-owner reload can take time: retain the SAME held original
-            # transaction and check all named/held identities immediately after.
-            reader._aggregate_check()
+            # The final owner reload follows C's EOF work. Reobserve the same
+            # closed inventory before terminal held/name/deadline verification.
+            reader._aggregate_inventory_finish()
             # C measured the whole original length/digest against this signed
             # row; its EOF recheck holds every original. Bytes are immutable.
             original = bodies[member_name]
-            return original, authenticated
         except Refusal:
             raise
         except Exception:
@@ -120,6 +118,9 @@ def _request_original(aggregate_id, member_name, current, originals):
             if reader is not None:
                 try: reader.close()
                 except Exception: raise Refusal('member_authority_unavailable') from None
+        # The original shared deadline also covers actual descriptor cleanup.
+        budget()
+        return original, authenticated
 
     started = time.monotonic()
     original, authenticated = admit(MAX_MEMBER_BYTES)
