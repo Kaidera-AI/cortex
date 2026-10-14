@@ -208,6 +208,18 @@ class Bridge(Fixture, unittest.TestCase):
         with patch.object(aggregate, '_check_pairs', after): self.refusal('member_custody_changed', self.backend)
         self.assert_closed()
 
+    def test_EOF_rehash_detects_actual_original_bytes_with_blinded_stat_checks(self):
+        # Source fault injection: hide stat freshness observations, retain actual
+        # held-FD reads/hashes. This is NOT evidence of native stale-stat behavior.
+        import cortex_core.release.aggregate as aggregate
+        original = aggregate._check_pairs
+        path = self.builds[0]['paths']['B/config.bin']; raw = self.bodies[path]
+        def after(*args):
+            original(*args); (self.root/path).write_bytes(raw[:-1]+bytes([raw[-1]^1]))
+        with patch.object(aggregate,'_check_pairs',after),patch.object(RootReader,'_aggregate_check',lambda *args: None):
+            self.refusal('member_custody_changed',self.backend)
+        self.assert_closed()
+
     def test_delivery_reobserves_physical_originals_before_snapshot(self):
         delivery = self.backend(); (self.root/MEMBER).write_bytes(b'changed')
         self.refusal('member_digest_mismatch', lambda: delivery.read_original(262144)); self.assert_closed()
