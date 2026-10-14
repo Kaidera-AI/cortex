@@ -1,6 +1,7 @@
 """Credentialed C11 read bindings for Nemo's PostgreSQL search and graph ports."""
 import asyncio
 import hashlib
+from types import SimpleNamespace
 from contextlib import suppress
 from urllib.parse import parse_qs
 from uuid import UUID
@@ -8,6 +9,9 @@ from uuid import UUID
 from cortex_core.auth import AuthError
 from cortex_core.coordination import JobError, Jobs
 from .c11b import _credential
+from .c11a import KeywordResponse
+from cortex_core.embeddings.keyword import (KeywordSearch, KeywordResult, current_rows,
+    source_state, request_deadline, check_deadline)
 from cortex_core.embeddings.pg_search import (
     CapabilityUnavailable, CoreUnavailable, EmbeddingIdentity, PostgresSearch,
 )
@@ -39,6 +43,8 @@ def _one(parameters, key, default=None):
 
 
 def _integer(value, maximum, minimum=1):
+    if not isinstance(value,(int,str)) or isinstance(value,bool):
+        raise InvalidRequest('invalid page limit')
     try:
         result = int(value)
     except (ValueError, TypeError):
@@ -60,16 +66,53 @@ class C11b2ReadPort:
     """Recheck C04 on each Nemo query and again before any result is emitted."""
 
     def __init__(self, record_port, pool, identity, provider, extractor_identity,
-                 project_repos):
-        if (not isinstance(identity, EmbeddingIdentity)
-                or not callable(getattr(provider, 'embed', None))
+                 project_repos, *, selection=None, keyword=None):
+        hosted=selection is None or selection.snapshot.mode!='off'
+        if ((hosted and (not isinstance(identity, EmbeddingIdentity)
+                         or not callable(getattr(provider, 'embed', None))))
                 or not isinstance(project_repos, dict)
                 or not all(k in record_port.projects and isinstance(v, str) and v
                            for k, v in project_repos.items())):
             raise ValueError('C11b2 read ports are incomplete')
+        if (not hosted and keyword is None
+                and not callable(getattr(record_port,'keyword_current',None))):
+            raise ValueError('canonical read source is unbound')
+        if keyword is not None and not callable(getattr(keyword,'search',None)):
+            raise ValueError('keyword source is invalid')
         self.record_port, self.pool = record_port, pool
         self.identity, self.provider = identity, provider
+        self.selection,self.keyword=selection,keyword
         self.extractor_identity, self.project_repos = extractor_identity, dict(project_repos)
+
+    async def search_admission(self, principal, scope):
+        """OFF uses actual current Core admission, never fabricated pg_search ready."""
+        selection=self.selection
+        if selection is None:return None
+        deadline=scope['_cortex_deadline'];revision=selection.snapshot.revision
+        scope['_cortex_selection_revision']=revision
+        mode=selection.snapshot.mode
+        scope['_cortex_search_check']=lambda:selection.check(
+            revision=revision,deadline=deadline,mode=mode)
+        if selection.snapshot.mode!='off':return None
+        selection.check(revision=revision,deadline=deadline,mode='off')
+        if not callable(getattr(self.record_port,'keyword_current',None)):
+            raise CapabilityUnavailable('canonical_read_unbound')
+        await self._current(principal)
+        selection.check(revision=revision,deadline=deadline,mode='off')
+        await self.record_port.keyword_current(principal,scope,limit=1,deadline=deadline)
+        selection.check(revision=revision,deadline=deadline,mode='off')
+        return True
+
+    def _keyword_for(self, principal, scope):
+        explicit=getattr(self,'keyword',None)
+        if explicit is not None:return explicit
+        async def authorize(subject):
+            if subject!=principal['principal_id']:raise AuthError('forbidden')
+            await self._current(principal)
+        async def current(subject, *, limit, deadline):
+            if subject!=principal['principal_id']:raise AuthError('forbidden')
+            return await self.record_port.keyword_current(principal,scope,limit=limit,deadline=deadline)
+        return KeywordSearch(read_current=current,authorize=authorize)
 
     async def principal(self, scope):
         value = await self.record_port.principal(scope)
@@ -153,6 +196,9 @@ class C11b2ReadPort:
     async def status_degradation(self, principal, _scope, _request_key):
         """Keep observed search lag distinct from canonical-write availability."""
         await self._current(principal)
+        if getattr(self,'selection',None) is not None and self.selection.snapshot.mode=='off':
+            return {'search':{'state':'unavailable','reason':'hosted_disabled'},
+                    'canonical_write':{'state':'unavailable','reason':'write_observation_unbound'}}
         search, _graph = self._ports(principal)
         try:
             async with search._request(principal['principal_id']) as (conn, bound):
@@ -188,6 +234,8 @@ class C11b2ReadPort:
             raise CapabilityUnavailable('index_lagging', fresh)
 
     async def capability_source(self, name, principal):
+        if name=='pg_search' and getattr(self,'selection',None) is not None and self.selection.snapshot.mode=='off':
+            return {'state':'unavailable','reason':'hosted_disabled'}
         search, graph = self._ports(principal)
         try:
             if name == 'pg_search':
@@ -252,16 +300,21 @@ class C11b2ReadPort:
             raise D2Unavailable('unavailable')
         return result
 
-    async def _wait_target(self, search, principal, target, wait_ms, disconnected):
-        deadline = asyncio.get_running_loop().time() + wait_ms / 1000
+    async def _wait_target(self, search, principal, target, wait_ms, disconnected,
+                           *, deadline=None, observe=None):
+        wait_deadline = asyncio.get_running_loop().time() + wait_ms / 1000
+        if deadline is not None:wait_deadline=min(wait_deadline,deadline)
         backoff = 0.05
         while True:
             if disconnected.is_set():
                 raise asyncio.CancelledError
-            observation = await self._observe_target(search, principal, target)
+            if deadline is not None:check_deadline(deadline)
+            observation = (await observe() if observe is not None else
+                           await self._observe_target(search, principal, target))
+            if deadline is not None:check_deadline(deadline)
             if observation.state == 'visible':
                 return
-            remaining = deadline - asyncio.get_running_loop().time()
+            remaining = wait_deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
                 raise D2Unavailable('pending')
             try:
@@ -285,6 +338,21 @@ class C11b2ReadPort:
             disconnected.set()
 
     async def search(self, principal, scope, _request_key):
+        deadline=request_deadline(scope.get('_cortex_deadline',asyncio.get_running_loop().time()+10))
+        selection=getattr(self,'selection',None)
+        mode=selection.snapshot.mode if selection is not None else 'hosted'
+        revision=scope.get('_cortex_selection_revision',selection.snapshot.revision if selection is not None else None)
+        def current():
+            check_deadline(deadline)
+            if selection is not None:selection.check(revision=revision,deadline=deadline,mode=mode)
+        try:
+            async with asyncio.timeout_at(deadline):
+                return await self._search(principal,scope,_request_key,deadline,mode,current)
+        except TimeoutError:
+            raise CapabilityUnavailable('request_timeout') from None
+
+    async def _search(self, principal, scope, _request_key, deadline, mode, current):
+        current()
         target, wait_ms = None, 0
         if scope['method'] == 'POST':
             body = scope.get('_c11b_body')
@@ -295,7 +363,7 @@ class C11b2ReadPort:
             target, wait_ms = self._target(body)
             query = body.get('query')
             limit = _integer(body.get('top_k', 25), 100)
-            rerank = _boolean(body.get('rerank', True))
+            rerank = _boolean(body.get('rerank', False))
             graph_requested = _boolean(body.get('enable_graph', False))
             hall, room = body.get('hall', 'project'), body.get('room')
         else:
@@ -308,12 +376,20 @@ class C11b2ReadPort:
                 raise InvalidRequest('unsupported search selector')
             query = _one(params, 'q')
             limit = _integer(_one(params, 'limit', '20'), 100)
-            rerank = _boolean(_one(params, 'rerank', 'true'))
+            rerank = _boolean(_one(params, 'rerank', 'false'))
             graph_requested = _boolean(_one(params, 'graph', 'false'))
             hall, room = _one(params, 'hall', 'project'), _one(params, 'room')
         if not isinstance(query, str) or not 1 <= len(query.strip()) <= 512 or hall != 'project' or room is not None:
             raise InvalidRequest('unsupported search scope')
-        search, _graph = self._ports(principal)
+        if graph_requested:raise CapabilityUnavailable('graph_fusion_unbound')
+        search=None if mode=='off' else self._ports(principal)[0]
+        async def observe():
+            current()
+            value=await self.record_port.keyword_target(principal,scope,target,deadline=deadline)
+            current()
+            if value is None:raise AuthError('scope_mismatch')
+            if value.tombstone:raise D2Unavailable('unavailable')
+            return SimpleNamespace(state='visible' if value.revision>=target['revision'] else 'pending')
         disconnected = asyncio.Event()
         watcher = None
         if target is not None:
@@ -323,17 +399,48 @@ class C11b2ReadPort:
             watcher = asyncio.create_task(self._watch_disconnect(receive, disconnected))
         try:
             if target is not None:
-                await self._wait_target(search, principal, target, wait_ms, disconnected)
+                await self._wait_target(search, principal, target, wait_ms, disconnected,
+                                       deadline=deadline,observe=observe if mode=='off' else None)
+                current()
+            if mode=='off':
+                keyword=self._keyword_for(principal,scope)
+                value=await keyword.search(principal['principal_id'],query,limit=limit,deadline=deadline)
+                current()
+                await self._current(principal)
+                current()
+                if isinstance(value,KeywordResult):
+                    rows=await self.record_port.keyword_current(principal,scope,
+                        limit=keyword.max_records+1,deadline=deadline)
+                    current()
+                    if source_state(current_rows(rows,keyword.max_records+1))!=value.source_state:
+                        raise CapabilityUnavailable('source_changed')
+                if target is not None and (await observe()).state!='visible':raise D2Unavailable('pending')
+                current()
+                response=KeywordResponse(query=query,results=[dict(id=h.record_id,kind=h.kind,
+                    revision=h.source_revision,score=h.score) for h in value.hits],
+                    degraded=['hosted_disabled']+(['rerank'] if rerank else []),reranked=False,
+                    hall=hall,room=room,graph=False,complete=value.complete,
+                    state=('ready' if value.hits else 'ready_empty') if value.complete else 'partial',
+                    unsupported=[dict(id=u.record_id,reason=u.reason) for u in value.unsupported],
+                    freshness=dict(source='canonical',state='current',complete=value.complete,
+                                   scanned_records=getattr(value,'scanned_records',len(value.hits)+len(value.unsupported))))
+                if not value.complete:
+                    response['error']=dict(code='capability_unavailable',capability='search',state='partial',
+                                          reason=value.reason,retryable=False)
+                return response
             try:
                 embedded = await self._cache(search).get(principal['principal_id'],
                                                          self.identity, query)
+                current()
             except (CapabilityUnavailable, AuthError, PermissionError):
                 raise
             except Exception:
                 raise CapabilityUnavailable('provider_unavailable') from None
             result = await search.search(principal['principal_id'], self.identity,
                                          embedded.vector, limit=limit)
+            current()
             await self._post_read_freshness(result, principal, search=search)
+            current()
             degraded = ['rerank'] if rerank else []
             if graph_requested:
                 # There is no released C11 graph-fusion port. Do not claim fused hits.
@@ -345,6 +452,7 @@ class C11b2ReadPort:
                 if disconnected.is_set():
                     raise asyncio.CancelledError
             await self._current(principal)
+            current()
             response = {'query': query, 'results': [{'id': hit.record_id, 'kind': hit.kind,
                      'revision': hit.source_revision, 'distance': hit.distance}
                      for hit in result.hits], 'degraded': degraded, 'reranked': False,

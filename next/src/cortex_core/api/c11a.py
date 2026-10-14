@@ -17,10 +17,65 @@ from urllib.parse import parse_qs
 from uuid import UUID
 
 from cortex_core.driver_logging import private_driver_logs
+from cortex_core.embeddings.keyword import request_deadline, check_deadline
+from cortex_core.embeddings.pg_search import CapabilityUnavailable
 
 
 class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
+
+
+class KeywordResponse(dict):
+    """Only this closed keyword wire variant can select a partial HTTP status."""
+    def transport_status(self):
+        common={'query','results','degraded','reranked','hall','room','graph',
+                'freshness','complete','state','unsupported'}
+        complete=self.get('complete')
+        def public_id(value):
+            try:return isinstance(value,str) and str(UUID(value))==value
+            except (ValueError,TypeError,AttributeError):return False
+        if (type(complete) is not bool or set(self)!=(common if complete else common|{'error'})
+                or not isinstance(self['query'],str) or not self['query'].strip()
+                or self['hall']!='project' or self['room'] is not None
+                or self['graph'] is not False or self['reranked'] is not False
+                or self['degraded'] not in (['hosted_disabled'],['hosted_disabled','rerank'])):
+            raise GatewayError('invalid keyword packet')
+        hits=self['results'];unsupported=self['unsupported'];fresh=self['freshness']
+        if (not isinstance(hits,list) or len(hits)>100 or not isinstance(unsupported,list)
+                or len(unsupported)>100 or not isinstance(fresh,dict)
+                or set(fresh)!={'source','state','complete','scanned_records'}
+                or fresh['source']!='canonical' or fresh['state']!='current'
+                or fresh['complete'] is not complete or type(fresh['scanned_records']) is not int
+                or not 0<=fresh['scanned_records']<=100):
+            raise GatewayError('invalid keyword coverage')
+        ids=[]
+        for hit in hits:
+            if (not isinstance(hit,dict) or set(hit)!={'id','kind','revision','score'}
+                    or not public_id(hit['id']) or hit['kind'] not in ('memory','session')
+                    or type(hit['revision']) is not int or not 0<hit['revision']<2**63
+                    or type(hit['score']) not in (int,float) or hit['score']!=1.0):
+                raise GatewayError('invalid keyword hit')
+            ids.append(hit['id'])
+        for item in unsupported:
+            if (not isinstance(item,dict) or set(item)!={'id','reason'} or not public_id(item['id'])
+                    or item['reason'] not in ('unknown_kind','invalid_payload','text_too_large')):
+                raise GatewayError('invalid unsupported record')
+            ids.append(item['id'])
+        if len(ids)!=len(set(ids)) or len(ids)>fresh['scanned_records']:
+            raise GatewayError('invalid keyword identities')
+        if complete:
+            if unsupported or self['state']!=('ready' if hits else 'ready_empty'):
+                raise GatewayError('invalid complete keyword state')
+            return 200
+        error=self['error']
+        if (self['state']!='partial' or not isinstance(error,dict)
+                or error.get('reason') not in ('scan_limit','unsupported_text')
+                or error.get('retryable') is not False
+                or error!=dict(code='capability_unavailable',capability='search',state='partial',
+                               reason=error['reason'],retryable=False)
+                or error['reason']=='unsupported_text' and not unsupported):
+            raise GatewayError('invalid partial keyword state')
+        return 503
 
 
 LOGGER = logging.getLogger(__name__)
@@ -383,9 +438,11 @@ def _error_status(error):
     if code == 'gone':
         return 410, _packet('gone', retryable=False)
     if code == 'capability_unavailable':
+        reason=getattr(error,'reason',None)
         return 503, _packet('capability_unavailable',
                             capability=getattr(error, 'capability', None),
-                            reason=getattr(error, 'reason', None))
+                            reason=reason,retryable=reason not in
+                                {'graph_fusion_unbound','canonical_read_unbound','hosted_disabled'})
     return 503, _packet('core_unavailable')
 
 
@@ -452,7 +509,8 @@ class ConsumerGateway:
 
     def __init__(self, *, core_probe, principal_resolver, permission_recheck,
                  capability_source, health, handlers, record_reader=None,
-                 allow_legacy_idempotency=False, parse_search_body=False):
+                 allow_legacy_idempotency=False, parse_search_body=False,
+                 search_admission=None):
         if (any(not callable(value) for value in (core_probe, principal_resolver,
                                                    permission_recheck, capability_source, health))
                 or not isinstance(handlers, dict)
@@ -465,7 +523,37 @@ class ConsumerGateway:
         self.record_reader = record_reader
         self.allow_legacy_idempotency = allow_legacy_idempotency
         self.parse_search_body = parse_search_body
-        self.app = self._app
+        if search_admission is not None and not callable(search_admission):
+            raise GatewayError('invalid canonical search admission')
+        self.search_admission=search_admission
+        self.app = self._lifetime
+
+    async def _deadline_call(self, scope, call, *args):
+        check_deadline(scope['_cortex_deadline'])
+        value=await call(*args)
+        check_deadline(scope['_cortex_deadline'])
+        return value
+
+    async def _lifetime(self, scope, receive, send):
+        started=False
+        try:
+            scope={**scope,'_cortex_deadline':request_deadline(scope.get('_cortex_deadline',asyncio.get_running_loop().time()+10))}
+            async def current_receive():
+                return await self._deadline_call(scope,receive)
+            async def current_send(message):
+                nonlocal started
+                check_deadline(scope['_cortex_deadline'])
+                fence=scope.get('_cortex_search_check')
+                if fence is not None:fence()
+                if message.get('type')=='http.response.start':started=True
+                await send(message)
+            async with asyncio.timeout_at(scope['_cortex_deadline']):
+                await self._app(scope,current_receive,current_send)
+        except (TimeoutError,CapabilityUnavailable) as error:
+            if started:raise
+            reason=getattr(error,'reason','request_timeout')
+            async with asyncio.timeout_at(scope['_cortex_deadline']):
+                await _respond(send,503,_packet('capability_unavailable',capability='search',reason=reason))
 
     def _d1_refusal(self, error):
         code = getattr(error, 'code', None)
@@ -474,12 +562,16 @@ class ConsumerGateway:
         return _error_status(error)
 
     async def _app(self, scope, receive, send):
+        async def source(name,principal):
+            return await self._deadline_call(scope,self.capability_source,name,principal)
+        async def permission(principal,capability):
+            return await self._deadline_call(scope,self.permission_recheck,principal,capability)
         if scope.get("type") != "http":
             return await _respond(send, 404, _packet("not_found", retryable=False))
         method, path = scope.get("method"), scope.get("path")
         if method == "GET" and path == "/health":
             try:
-                value = await self.health()
+                value = await self._deadline_call(scope,self.health)
                 if not isinstance(value, dict) or value.get("component") != "cortex":
                     raise GatewayError("health receipt is invalid")
                 return await _respond(send, 503 if value.get("status") == "unavailable" else 200, value)
@@ -487,7 +579,7 @@ class ConsumerGateway:
                 return await _respond(send, 503, {"component": "cortex", "status": "unavailable",
                                                   "reason": "core_unavailable"})
         try:
-            core = await self.core_probe()
+            core = await self._deadline_call(scope,self.core_probe)
         except Exception:
             core = False
         if core is not True:
@@ -505,7 +597,7 @@ class ConsumerGateway:
                 return await _respond(send, 400, _packet('invalid_input', retryable=False))
         principal_error = None
         try:
-            principal = await self.principal_resolver(scope)
+            principal = await self._deadline_call(scope,self.principal_resolver,scope)
         except Exception as error:
             if row['id'] == 'C11-D1':
                 status, packet = self._d1_refusal(error)
@@ -543,7 +635,7 @@ class ConsumerGateway:
                                                     state='unimplemented', retryable=False))
         if row['id'] in D3_STATUS_ROUTES:
             try:
-                if await self.permission_recheck(principal, 'status') is not True:
+                if await permission(principal, 'status') is not True:
                     return await _respond(send, 403, _packet('forbidden', retryable=False))
             except Exception as error:
                 status, packet = _error_status(error)
@@ -556,7 +648,7 @@ class ConsumerGateway:
                 return await _respond(send, 503, _packet('capability_unavailable',
                     reason='supervisor_source_unbound'))
             try:
-                raw = await supervisor_reader(principal, scope, None)
+                raw = await self._deadline_call(scope,supervisor_reader,principal,scope,None)
                 if not isinstance(raw, dict) or type(raw.get('core_available')) is not bool:
                     raise GatewayError('supervisor receipt is invalid')
                 if not raw['core_available']:
@@ -573,7 +665,7 @@ class ConsumerGateway:
                     if reader is None:
                         return await _respond(send, 503, _packet('capability_unavailable',
                             reason='status_source_unbound'))
-                    detail = await reader(principal, scope, None)
+                    detail = await self._deadline_call(scope,reader,principal,scope,None)
                     if (not isinstance(detail, dict)
                             or not isinstance(detail.get('search'), dict)
                             or detail['search'].get('state') not in
@@ -582,12 +674,11 @@ class ConsumerGateway:
                             or detail['canonical_write'].get('state') != 'unavailable'):
                         raise GatewayError('status receipt is invalid')
                     names = ('pg_search', 'pg_graph', *sorted(UNLANDED))
-                    values = [await capability_state(name, self.capability_source,
-                                  self.permission_recheck, principal) for name in names]
+                    values = [await capability_state(name, source, permission, principal) for name in names]
                     value = {'capabilities': values, 'search': detail['search'],
                              'canonical_write': detail['canonical_write'],
                              'supervisor': supervisor}
-                if await self.permission_recheck(principal, 'status') is not True:
+                if await permission(principal, 'status') is not True:
                     return await _respond(send, 403, _packet('forbidden', retryable=False))
                 return await _respond(send, 200, value)
             except Exception as error:
@@ -598,7 +689,7 @@ class ConsumerGateway:
                 return await _respond(send, 503, _packet('capability_unavailable',
                                                         reason='adapter_unbound'))
             try:
-                value = await self.record_reader(principal, scope, path.rsplit('/', 1)[1])
+                value = await self._deadline_call(scope,self.record_reader,principal,scope,path.rsplit('/',1)[1])
                 if value is None:
                     return await _respond(send, 404, _packet('not_found', retryable=False))
                 if not isinstance(value, dict):
@@ -607,9 +698,17 @@ class ConsumerGateway:
             except Exception as error:
                 status, packet = self._d1_refusal(error)
                 return await _respond(send, status, packet)
-        if row["capability"] and not d2:
-            state = await capability_state(row["capability"], self.capability_source,
-                                           self.permission_recheck, principal)
+        canonical_search=False
+        if row['id'] in {'C01-R021','C01-R022'} and self.search_admission is not None:
+            try:
+                admitted=await self._deadline_call(scope,self.search_admission,principal,scope)
+                if admitted not in (True,None):raise GatewayError('invalid canonical admission')
+                canonical_search=admitted is True
+            except Exception as error:
+                status,packet=self._d1_refusal(error) if d2 else _error_status(error)
+                return await _respond(send,status,packet)
+        if row["capability"] and not d2 and not canonical_search:
+            state = await capability_state(row["capability"], source, permission, principal)
             if state["state"] != "ready":
                 status = 403 if state["state"] == "forbidden" else 503
                 return await _respond(send, status, _packet(state["code"],
@@ -652,7 +751,7 @@ class ConsumerGateway:
                     or any(ord(char) < 32 for char in request_key)):
                 return await _respond(send, 400, _packet("idempotency_key_required", retryable=False))
         try:
-            value = await handler(principal, scope, request_key)
+            value = await self._deadline_call(scope,handler,principal,scope,request_key)
             if row["effect"] == "write":
                 if (type(value) is not C05Committed or value.committed is not True
                         or value.request_key != request_key or not isinstance(value.receipt, dict)
@@ -665,6 +764,10 @@ class ConsumerGateway:
                 return await _respond(send, 200, {"receipt": value.receipt})
             if not isinstance(value, dict):
                 raise GatewayError("read receipt is invalid")
+            if type(value) is KeywordResponse:
+                if not canonical_search:raise GatewayError('keyword response without canonical admission')
+                return await _respond(send,value.transport_status(),value)
+            if canonical_search:raise GatewayError('canonical search response unbound')
             return await _respond(send, 200, value)
         except PermissionError:
             return await _respond(send, 404 if d2 else 403,
