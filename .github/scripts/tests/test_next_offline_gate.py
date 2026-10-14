@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import types
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'pytest_next_offline.py'
@@ -135,6 +136,35 @@ class OutcomeOracle(Subject, unittest.TestCase):
     def test_missing_or_malformed_receipt_is_red(self):
         for packet in (None, {}, {'expected': []}, {'expected': [], 'reports': None}):
             self.assertFalse(self.gate.receipt_valid(packet, 0))
+
+    def test_declared_unittest_suite_preserves_outer_controls_not_intentional_probes(self):
+        path = SCRIPT.with_name('pytest_next_worker.py')
+        spec = importlib.util.spec_from_file_location('declared_suite_subject', path)
+        worker = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(worker)
+        self.assertTrue(callable(getattr(worker, 'declared_cases', None)),
+                        'BODY RED: declared unittest load_tests protocol is not honored')
+        module = types.ModuleType('declared_suite_fixture')
+
+        class IntentionalProbe(unittest.TestCase):
+            def test_negative(self):
+                self.fail('negative probe must only run through the outer control')
+
+        class ActualControl(unittest.TestCase):
+            def test_control(self):
+                result = unittest.TestResult()
+                IntentionalProbe('test_negative').run(result)
+                self.assertEqual(len(result.failures), 1)
+                self.assertFalse(result.errors)
+
+        module.IntentionalProbe, module.ActualControl = IntentionalProbe, ActualControl
+        module.load_tests = lambda loader, tests, pattern: loader.loadTestsFromTestCase(ActualControl)
+        cases = worker.declared_cases(module)
+        self.assertEqual([type(case) for case in cases], [ActualControl])
+        result = unittest.TestResult()
+        unittest.TestSuite(cases).run(result)
+        self.assertEqual(result.testsRun, 1)
+        self.assertTrue(result.wasSuccessful())
 
 
 if __name__ == '__main__':
