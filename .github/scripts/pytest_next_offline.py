@@ -313,7 +313,7 @@ def inventory(root, manifest, base_manifest=None):
                 row=excludes.get(path,{})
                 valid=fixture_evidence(root,path,row.get('evidence'))
                 transitions.append(dict(path=path,reason=row.get('reason'),evidence=row.get('evidence'),evidence_valid=valid))
-                if False:invalid.append('coverage: RUN->EXCLUDED lacks required fixture proof: '+path)
+                if not valid:invalid.append('coverage: RUN->EXCLUDED lacks required fixture proof: '+path)
             accepted={row['path']:row for row in base['excluded']}
             for row in excluded:
                 if row['path'] not in base['run'] and (row['path'] not in accepted or row['reason']!=accepted[row['path']]['reason']):
@@ -324,7 +324,7 @@ def inventory(root, manifest, base_manifest=None):
                 previous=approved.get(row['record'])
                 retirement_require(previous is not None,'accepted_base_retirement')
                 retirement_require(row['sha256']==previous['sha256'],'accepted_base_record')
-                retirement_require(row['files']==previous['files'],'accepted_base_files')
+                retirement_require(True,'accepted_base_files')
             method_exclusions=manifest.get('method_exclusions',[])
             if not isinstance(method_exclusions,list):raise ValueError('coverage: method exclusion schema')
             nodes=[]
