@@ -26,13 +26,14 @@ def run(args, check=True, timeout=300):
 
 def main():
     mode, interpreter, receipt_path = sys.argv[1:4]
-    if mode not in ('red', 'focus', 'green', 'donor'): raise ValueError('unsupported mode')
+    selectors = sys.argv[4:]
+    if mode not in ('red', 'focus', 'green', 'donor', 'mutant'): raise ValueError('unsupported mode')
     if os.uname().machine != 'x86_64' or Path.home() != Path('/home/labadmin'):
         raise RuntimeError('refuse outside the explicitly admitted L1 host account')
     token = uuid4().hex[:10]
     label = 'cox-rc1-' + token
     pod, db, volume = [f'kaidera-test-rc1-{kind}-{token}' for kind in ('pod', 'pg', 'data')]
-    result = {'mode': mode, 'host': 'L1', 'machine': os.uname().machine, 'image_ref': PG, 'network': 'none', 'published_ports': [], 'pod': pod, 'container': db, 'volume': volume, 'label': label, 'source_sha256': hashlib.sha256((ROOT/'src/cortex_core/api/c11a.py').read_bytes()).hexdigest(), 'test_hashes': {str(f.relative_to(ROOT)): hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((ROOT/'tests/c11_availability').glob('test_*.py'))}, 'probe_role': ROLE, 'probe_role_authority': 'disposable cluster only; RC0 logical probe/no memberships/no tenant grants; production grant/resolver NOT_DELIVERED', 'suites': {}, 'control': [], 'cleanup': 'NOT_RUN'}
+    result = {'mode': mode, 'host': 'L1', 'machine': os.uname().machine, 'image_ref': PG, 'network': 'none', 'published_ports': [], 'pod': pod, 'container': db, 'volume': volume, 'label': label, 'source_sha256': hashlib.sha256((ROOT/'src/cortex_core/api/c11a.py').read_bytes()).hexdigest(), 'test_hashes': {str(f.relative_to(ROOT)): hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((ROOT/'tests/c11_availability').glob('test_*.py'))}, 'probe_role': ROLE, 'probe_role_authority': 'disposable cluster only; RC0 logical probe/no memberships/no tenant grants; production grant/resolver NOT_DELIVERED', 'selected_methods': selectors, 'suites': {}, 'control': [], 'cleanup': 'NOT_RUN'}
     exit_code = 1
     try:
         run(['podman', 'image', 'inspect', PG])
@@ -51,7 +52,7 @@ def main():
         env = dict(os.environ, PYTHONPATH=str(ROOT/'src'), PYTHONDONTWRITEBYTECODE='1', TEST_DATABASE_URL='postgresql://postgres@127.0.0.1:5432/postgres', TEST_PROBE_DATABASE_URL=f'postgresql://{ROLE}@127.0.0.1:5432/postgres')
         prefix = ['podman', 'unshare', 'nsenter', '--target', str(pid), '--net', interpreter, '-u', str(ROOT/'tests/c11_availability/worker.py')]
         def suite(name):
-            child = subprocess.Popen(prefix+[str(ROOT/'tests'/name)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, env=env)
+            child = subprocess.Popen(prefix+[str(ROOT/'tests'/name)]+(selectors if name=='c11_availability' else []), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, env=env)
             q = queue.Queue(); stdout=[]; stderr=[]
             def copy(stream, target, channel):
                 for line in stream:
@@ -74,8 +75,8 @@ def main():
                 child.wait(timeout=max(1,deadline-time.monotonic()));a.join();b.join()
             except BaseException:
                 child.kill();child.wait(timeout=10);raise
-            out=''.join(stdout); marker=[line.split('=',1)[1] for line in out.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
-            return {'exit_code':child.returncode,'stdout':out,'stderr':''.join(stderr),'body_receipt':json.loads(marker[0]) if len(marker)==1 else None}
+            out=''.join(stdout); skip=[line.split('=',1)[1] for line in out.splitlines() if line.startswith('CORTEX_SKIPS=')]; marker=[line.split('=',1)[1] for line in out.splitlines() if line.startswith('CORTEX_TEST_RESULT=')]
+            return {'exit_code':child.returncode,'stdout':out,'stderr':''.join(stderr),'body_receipt':json.loads(marker[0]) if len(marker)==1 else None, 'skips':json.loads(skip[0]) if len(skip)==1 else None}
         result['suites']['c11_availability']=suite('c11_availability')
         if mode=='green' and result['suites']['c11_availability']['exit_code']==0:
             for name in SUITES:result['suites'][name]=suite(name)
