@@ -1,0 +1,3808 @@
+{
+  "scope": "RATIFIED PLAN WITH AMENDMENTS; no SQL authored, catalog observed or authority admitted",
+  "roles": {
+    "bootstrap": {
+      "login": true,
+      "superuser": true,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "finite-init",
+      "credential_consumers": [
+        "core-init"
+      ],
+      "authority": "installation-private-bootstrap",
+      "createdb": true,
+      "createrole": true,
+      "replication": false,
+      "memberships": []
+    },
+    "migrator": {
+      "login": true,
+      "superuser": true,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "finite-migration",
+      "credential_consumers": [
+        "migrate"
+      ],
+      "authority": "installation-private-migration",
+      "createdb": true,
+      "createrole": true,
+      "replication": false,
+      "memberships": []
+    },
+    "request_group": {
+      "login": false,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "persistent-nologin",
+      "credential_consumers": [],
+      "authority": "existing-c04-request-group",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "verifier_owner": {
+      "login": false,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "persistent-nologin",
+      "credential_consumers": [],
+      "authority": "existing-c04-definer-owner-no-members",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "api_request": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "api",
+        "inspect"
+      ],
+      "authority": "c04-request-only-set-role",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": [
+        "kaidera-runtime-core-request"
+      ]
+    },
+    "probe": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "api",
+        "inspect"
+      ],
+      "authority": "connect-select-one-no-data",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "supervisor": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "supervisor"
+      ],
+      "authority": "installation-bound-private-lease-port",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "observer": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "api",
+        "inspect"
+      ],
+      "authority": "installation-bound-aggregate-read-port",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "installer_enrollment": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "private-enrollment",
+      "credential_consumers": [
+        "enrollment-owner-client"
+      ],
+      "authority": "existing-first-identity-only",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    }
+  },
+  "manifest_old_count": 19,
+  "manifest_new_count": 20,
+  "table_old_count": 42,
+  "table_new_count": 44,
+  "tables": [
+    {
+      "name": "core.installations",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": false,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.tenants",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": false,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.projects",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.payloads",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.records",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.record_revisions",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.record_aliases",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.blob_manifests",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.extraction_facts",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "core.analytics_facts",
+      "migration": "core-0001",
+      "order": 0,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "auth.principals",
+      "migration": "auth-0001",
+      "order": 1,
+      "tenant": true,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "auth.credentials",
+      "migration": "auth-0001",
+      "order": 1,
+      "tenant": true,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "auth.project_grants",
+      "migration": "auth-0001",
+      "order": 1,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "auth.permission_generations",
+      "migration": "auth-0001",
+      "order": 1,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.jobs",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.job_attempts",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.job_results",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.leases",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.idempotency",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.outbox",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [
+          "DELETE",
+          "INSERT",
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.published_events",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [
+          "DELETE",
+          "INSERT",
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.quarantine",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [
+          "DELETE",
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.feed_state",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": false,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.consumer_checkpoints",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": false,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.snapshot_floors",
+      "migration": "coordination-0001",
+      "order": 2,
+      "tenant": false,
+      "project": false,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "SELECT"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.embedding_models",
+      "migration": "retrieval-0000",
+      "order": 3,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.embeddings",
+      "migration": "retrieval-0000",
+      "order": 3,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.generations",
+      "migration": "retrieval-0000",
+      "order": 3,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.consumer_project_checkpoints",
+      "migration": "module-consumers-0003",
+      "order": 8,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.consumer_aggregate_heads",
+      "migration": "module-consumers-0003",
+      "order": 8,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.consumer_event_outcomes",
+      "migration": "module-consumers-0003",
+      "order": 8,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.search_state",
+      "migration": "retrieval-0001",
+      "order": 10,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.search_sources",
+      "migration": "retrieval-0001",
+      "order": 10,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.search_vectors",
+      "migration": "retrieval-0001",
+      "order": 10,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.query_embeddings",
+      "migration": "retrieval-0002",
+      "order": 11,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "DELETE",
+          "INSERT",
+          "SELECT",
+          "UPDATE"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.graph_generations",
+      "migration": "retrieval-0003",
+      "order": 12,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.graph_state",
+      "migration": "retrieval-0003",
+      "order": 12,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.graph_applied",
+      "migration": "retrieval-0003",
+      "order": 12,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.graph_nodes",
+      "migration": "retrieval-0003",
+      "order": 12,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "retrieval.graph_edges",
+      "migration": "retrieval-0003",
+      "order": 12,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE",
+          "OBJECT_OWNER_AFTER_DISABLE"
+        ],
+        "request_group": [
+          "SELECT"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.session_sources",
+      "migration": "session-source-0005",
+      "order": 13,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "auth.first_identity_receipts",
+      "migration": "auth-0004",
+      "order": 15,
+      "tenant": true,
+      "project": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "auth.runtime_login_bindings",
+      "migration": "runtime-grants-0001",
+      "proposed": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    },
+    {
+      "name": "coordination.supervisor_leases",
+      "migration": "runtime-grants-0001",
+      "proposed": true,
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "api_request_after_explicit_set_role": "request_group; never inherited/direct",
+      "service_denied_other_privileges": [
+        "DELETE except query_embeddings",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
+        "GRANT OPTION",
+        "ALTER/OWNER/DROP"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "signature": "auth.bind_scope(text,uuid,uuid,text)",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.bump_generation(uuid,uuid)",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.context_is_bound(text,uuid,uuid,text)",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.context_is_private()",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.enrollment_readiness(uuid)",
+      "last_definition": "auth-0006",
+      "path": "auth/006-enrollment-readiness.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.first_identity(uuid,uuid,uuid,uuid,uuid,text,text)",
+      "last_definition": "auth-0005",
+      "path": "auth/005-first-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": [
+          "EXECUTE"
+        ]
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.first_identity_bootstrap_scope()",
+      "last_definition": "auth-0004",
+      "path": "auth/004-first-identity-capture.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.has_access(uuid,uuid,text,uuid)",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_adopt(text,text,text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_adoption_check(uuid,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_begin(text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_binding_valid()",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_finish(text,text,jsonb,jsonb)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_key_target(uuid)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_lookup(uuid)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_register(text,uuid,text,text[],text[],uuid,text,integer,text,text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_register_agent(uuid,text,text[],text[],uuid,text,integer,text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_register_human(uuid,text,text[],text[],uuid,text,integer,text,text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_revoke(uuid,text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_roles_valid(text[])",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_rotate(uuid,uuid,uuid,text,integer,text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_scope(boolean)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.identity_set_roles(uuid,text[],text,text)",
+      "last_definition": "auth-0003",
+      "path": "auth/003-identity.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.permission_changed()",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.resolve_scope(text,uuid,uuid,text)",
+      "last_definition": "auth-0002",
+      "path": "auth/002-isolation.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c05_record_head(uuid,text,text,bigint)",
+      "last_definition": "coordination-0002",
+      "path": "coordination/002-record-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c05_record_payload(uuid,bigint)",
+      "last_definition": "coordination-0002",
+      "path": "coordination/002-record-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c05_request(text,text)",
+      "last_definition": "coordination-0002",
+      "path": "coordination/002-record-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c05_scope()",
+      "last_definition": "coordination-0002",
+      "path": "coordination/002-record-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c05_update_head(uuid,bigint,bigint,boolean)",
+      "last_definition": "coordination-0002",
+      "path": "coordination/002-record-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_bootstrap()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_capture_revision()",
+      "last_definition": "auth-0004",
+      "path": "auth/004-first-identity-capture.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_fact(text,uuid,uuid)",
+      "last_definition": "auth-0004",
+      "path": "auth/004-first-identity-capture.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_identity_guard()",
+      "last_definition": "auth-0004",
+      "path": "auth/004-first-identity-capture.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_job_guard()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_job_snapshot(uuid)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_protection_lock()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_receipt_guard()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_record_event(uuid,bigint)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_record_head()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_record_integrity()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_record_reserved(uuid)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_reserved()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_revision_order()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c06_validate_request(jsonb,text,jsonb,uuid)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_expire(text,bigint)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_poisoned(text,bigint,uuid)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_quarantined(text,bigint,uuid)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_record(text,bigint,bigint,uuid,text,text,jsonb)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_register(text,bigint,bigint,boolean)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_scan(text,bigint,bigint)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_scope()",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c07_status(text)",
+      "last_definition": "module-consumers-0003",
+      "path": "coordination/003-module-consumers.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c11b3_session_claim(text,uuid,uuid)",
+      "last_definition": "session-source-0005",
+      "path": "coordination/005-session-source.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c11b4_session_ids()",
+      "last_definition": "session-ids-read-0007",
+      "path": "coordination/007-session-ids-read.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c11b_request(text)",
+      "last_definition": "api-replay-0004",
+      "path": "coordination/004-api-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.c11b_writer_matches(text)",
+      "last_definition": "api-replay-0004",
+      "path": "coordination/004-api-replay.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.capture_job(uuid)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.outbox_page(bigint,integer)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.prune_outbox()",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.publish_outbox(integer)",
+      "last_definition": "outbox-0002",
+      "path": "coordination/002-outbox.sql",
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "coordination.refuse_fence_regression()",
+      "last_definition": "coordination-0001",
+      "path": "coordination/001-coordination.sql",
+      "owner": "migrator",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "OWNER_IMPLICIT_ALL",
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "core.refuse_update()",
+      "last_definition": "core-0001",
+      "path": "core/001-core.sql",
+      "owner": "migrator",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "OWNER_IMPLICIT_ALL",
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "retrieval.finite_vector(real[])",
+      "last_definition": "retrieval-0000",
+      "path": "retrieval/000-canonical.sql",
+      "owner": "migrator",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "OWNER_IMPLICIT_ALL",
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": []
+    },
+    {
+      "signature": "auth.runtime_request_installation(uuid)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "boolean; caller session_user must be active mapped api_request for requested installation; private C04 authority still required.",
+      "return_type": "boolean"
+    },
+    {
+      "signature": "auth.runtime_tenant_installation(uuid)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [
+          "EXECUTE"
+        ],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "boolean; derive tenant installation inside private owner context then match real session_user; no GUC-derived authority.",
+      "return_type": "boolean"
+    },
+    {
+      "signature": "coordination.runtime_lease_acquire(uuid,uuid,integer)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [
+          "EXECUTE"
+        ],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "positive monotone fence; bounded<=10s; own installation/session kind; no active foreign lease takeover.",
+      "return_type": "bigint"
+    },
+    {
+      "signature": "coordination.runtime_lease_renew(uuid,uuid,bigint,integer)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [
+          "EXECUTE"
+        ],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "boolean/typed refusal; lock matching row then clock_timestamp expiry recheck; unchanged token cannot renew after wait expiry.",
+      "return_type": "boolean"
+    },
+    {
+      "signature": "coordination.runtime_lease_release(uuid,uuid,bigint)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [
+          "EXECUTE"
+        ],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "boolean/typed refusal; lock then expiry recheck; expire row, never delete/reset fence.",
+      "return_type": "boolean"
+    },
+    {
+      "signature": "coordination.runtime_lease_assert_live(uuid,uuid,bigint)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [
+          "EXECUTE"
+        ],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "expiry/fence for bounded PG-only guard; exact row lock survives call in caller transaction; post-action final recheck.",
+      "return_type": "boolean",
+      "closed_result": "TRUE only for own matching current holder/fence before expiry under held row lock; otherwise typed refusal. No arbitrary action callback."
+    },
+    {
+      "signature": "coordination.runtime_lease_health(uuid)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [
+          "EXECUTE"
+        ],
+        "observer": [
+          "EXECUTE"
+        ],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "closed lease state/live/fence only for bound installation; no holder/token from other installation.",
+      "return_type": "jsonb",
+      "closed_result": "Exactly {state: one of absent, live, expired; fence: null if absent else positive bigint}; live means current DB clock before expiry. No holder token/rows."
+    },
+    {
+      "signature": "coordination.runtime_observe(uuid)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [
+          "EXECUTE"
+        ],
+        "installer_enrollment": []
+      },
+      "PUBLIC": [],
+      "contract": "current database byte count + pending jobs count restricted by tenant installation + lease state; no payload/principal/project/cursor/credential detail; failure unavailable, never fabricated0. Preserve distinction from cortex_embed_backlog: bind the actual embedding producer kind predicate in PG-O; do not substitute total pending_jobs for embedding backlog.",
+      "return_type": "jsonb",
+      "closed_result": "Exactly {database_bytes: nonnegative bigint, pending_jobs: nonnegative bigint, pending_embedding_jobs: nonnegative bigint, lease: runtime_lease_health closed record}; embedding kind predicate must be bound to original producer input before adapter admission; missing binding/errors typed unavailable, never0. Use one scoped aggregate query, no new queue/port."
+    },
+    {
+      "signature": "auth.runtime_bound_installation(text)",
+      "proposed": true,
+      "owner": "verifier_owner",
+      "PUBLIC": [],
+      "direct_privileges": {
+        "bootstrap": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "migrator": [
+          "SUPERUSER_DURING_FINITE_PHASE"
+        ],
+        "request_group": [],
+        "verifier_owner": [
+          "OWNER_IMPLICIT_ALL"
+        ],
+        "api_request": [],
+        "probe": [],
+        "supervisor": [],
+        "observer": [],
+        "installer_enrollment": []
+      },
+      "contract": "internal helper; verify session_user OID+name+logical kind and protected mapping revision, flags/memberships; no current_user/GUC authority.",
+      "return_type": "uuid"
+    }
+  ],
+  "view": {
+    "name": "auth.project_role_memberships",
+    "owner": "verifier_owner",
+    "direct_runtime_service_privileges": [],
+    "direct_privileges": {
+      "bootstrap": [
+        "SUPERUSER_DURING_FINITE_PHASE"
+      ],
+      "migrator": [
+        "SUPERUSER_DURING_FINITE_PHASE"
+      ],
+      "request_group": [],
+      "verifier_owner": [
+        "OWNER_IMPLICIT_ALL"
+      ],
+      "api_request": [],
+      "probe": [],
+      "supervisor": [],
+      "observer": [],
+      "installer_enrollment": []
+    }
+  },
+  "sequence": {
+    "name": "retrieval.query_embedding_fences",
+    "request_group": [
+      "USAGE"
+    ],
+    "direct_other_service_privileges": [],
+    "setval_select_update_grants": false,
+    "note": "USAGE allows nextval/currval; not tenant-row RLS or supervisor fencing authority",
+    "owner": "migrator",
+    "direct_privileges": {
+      "bootstrap": [
+        "SUPERUSER_DURING_FINITE_PHASE"
+      ],
+      "migrator": [
+        "SUPERUSER_DURING_FINITE_PHASE",
+        "OBJECT_OWNER_AFTER_DISABLE"
+      ],
+      "request_group": [
+        "USAGE"
+      ],
+      "verifier_owner": [],
+      "api_request": [],
+      "probe": [],
+      "supervisor": [],
+      "observer": [],
+      "installer_enrollment": []
+    }
+  },
+  "type": {
+    "name": "auth.enrollment_readiness_state",
+    "request_group": [
+      "USAGE"
+    ],
+    "other_service_direct_privileges": [],
+    "owner": "migrator",
+    "direct_privileges": {
+      "bootstrap": [
+        "SUPERUSER_DURING_FINITE_PHASE"
+      ],
+      "migrator": [
+        "SUPERUSER_DURING_FINITE_PHASE",
+        "OWNER_IMPLICIT_ALL_AFTER_DISABLE"
+      ],
+      "request_group": [
+        "USAGE"
+      ],
+      "verifier_owner": [
+        "USAGE"
+      ],
+      "api_request": [],
+      "probe": [],
+      "supervisor": [],
+      "observer": [],
+      "installer_enrollment": []
+    },
+    "PUBLIC": []
+  },
+  "database": {
+    "CONNECT": [
+      "bootstrap (finite)",
+      "migrator (finite)",
+      "api_request",
+      "probe",
+      "supervisor",
+      "observer",
+      "installer_enrollment"
+    ],
+    "TEMP": [
+      "verifier_owner (C04 private temp table)",
+      "bootstrap/migrator while finite/owner"
+    ],
+    "CREATE": [
+      "bootstrap/migrator only finite/owner"
+    ],
+    "PUBLIC": [],
+    "owner": "bootstrap",
+    "direct_privileges": {
+      "bootstrap": [
+        "SUPERUSER_DURING_FINITE_PHASE",
+        "OWNER_IMPLICIT_ALL_AFTER_DISABLE"
+      ],
+      "migrator": [
+        "SUPERUSER_DURING_FINITE_PHASE"
+      ],
+      "request_group": [],
+      "verifier_owner": [
+        "TEMP"
+      ],
+      "api_request": [
+        "CONNECT"
+      ],
+      "probe": [
+        "CONNECT"
+      ],
+      "supervisor": [
+        "CONNECT"
+      ],
+      "observer": [
+        "CONNECT"
+      ],
+      "installer_enrollment": [
+        "CONNECT"
+      ]
+    }
+  },
+  "schemas": {
+    "request_group": [
+      "USAGE core",
+      "USAGE auth",
+      "USAGE coordination",
+      "USAGE retrieval",
+      "USAGE public for admitted vector API only"
+    ],
+    "api_request": [],
+    "probe": [],
+    "supervisor": [
+      "USAGE coordination"
+    ],
+    "observer": [
+      "USAGE coordination"
+    ],
+    "installer_enrollment": [
+      "USAGE auth"
+    ],
+    "verifier_owner": [
+      "USAGE core",
+      "USAGE auth",
+      "USAGE coordination"
+    ],
+    "PUBLIC": [],
+    "service_CREATE": false,
+    "finite_owners": "bootstrap/migrator finite super; ordinary application schema owner migrator remains NOLOGIN after phase; no service CREATE, no membership into owners"
+  },
+  "membership": {
+    "api_request": {
+      "to": "request_group",
+      "SET": true,
+      "INHERIT": false,
+      "ADMIN": false
+    },
+    "all_other_role_edges": []
+  },
+  "additional_explicit_request_helper": [
+    "retrieval.finite_vector(real[])"
+  ],
+  "control_ledger": {
+    "name": "core.schema_migrations",
+    "owner": "migrator (finite-phase creator; NOLOGIN afterwards)",
+    "service_privileges": [],
+    "verifier_privileges": [],
+    "rls_exception": "Control ledger not tenant business data; deny by ACL/ownership, no request access."
+  },
+  "non_core_default_scope": "Do not claim CONNECT users can execute only SELECT1: normal pg_catalog/public builtins and approved pgvector callable API require separate inventory; no application-table access follows. Revoke public schema CREATE; require exact HBA own-db/role allowlist.",
+  "plan_amendments": {
+    "single_append": {
+      "prefix": 20,
+      "id": "runtime-grants-0001",
+      "path": "next/schema/auth/007-runtime-grants.sql",
+      "future_sql_sha256": null
+    },
+    "supervisor_trigger": {
+      "new_table": "coordination.supervisor_leases",
+      "reuse_signature": "coordination.refuse_fence_regression()",
+      "existing_invoker_owner": "migrator",
+      "direct_service_execute_grants_added": false,
+      "retained_new_trigger": "supervisor_fence_monotonic",
+      "omitted_new_function": "coordination.supervisor_fence_no_regression()"
+    },
+    "public_and_default_closure": "No changes to inherited denials; all allowed creators and global/per-schema defaults checked",
+    "runtime_activation": "No partial SQL acceptance/serving between internal units; both tables/functions/ACLs commit in the one migration; finite binding/validation/closure remain separate owned phases"
+  }
+}

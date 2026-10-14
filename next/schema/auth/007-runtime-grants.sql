@@ -1,6 +1,6 @@
--- PG-A INCOMPLETE DRAFT: NOT MANIFESTED, NOT AN ADMITTED PREFIX20.
+-- PG-B INCOMPLETE DRAFT: NOT MANIFESTED, NOT AN ADMITTED PREFIX20.
 -- Sole future runtime-grants-0001. PG-B must complete six private ports,
--- finite-owner phase/binding client, service ACL closure/validation and one
+-- finite-owner phase/binding client, service ACL closure/validation and the
 -- final manifest append. PG-C seals the final20/44/73 compatibility contract.
 -- No role names, OIDs, credentials, HBA or production authority are created.
 -- Owner phases must admit the exact current DB and protected role inputs first.
@@ -15,7 +15,9 @@ CREATE TABLE auth.runtime_login_bindings (
     revision bigint NOT NULL CHECK (revision>0),
     operation_id uuid NOT NULL,
     database_oid oid NOT NULL,
-    database_owner_oid oid NOT NULL
+    database_owner_oid oid NOT NULL,
+    embedding_job_kind text CHECK (embedding_job_kind IS NULL OR
+        length(embedding_job_kind) BETWEEN 1 AND 256)
 );
 CREATE TABLE coordination.supervisor_leases (
     installation_id uuid PRIMARY KEY REFERENCES core.installations(id),
@@ -400,3 +402,326 @@ GRANT EXECUTE ON FUNCTION coordination.publish_outbox(integer) TO "kaidera-runti
 GRANT EXECUTE ON FUNCTION retrieval.finite_vector(real[]) TO "kaidera-runtime-core-request";
 GRANT EXECUTE ON FUNCTION auth.runtime_request_installation(uuid) TO "kaidera-runtime-core-request";
 GRANT EXECUTE ON FUNCTION auth.runtime_tenant_installation(uuid) TO "kaidera-runtime-core-request";
+
+-- PG-B private lease and read ports. No role creation or per-install names.
+-- Writable ports retain the protected map/revision lock before lease locks.
+-- Read-only ports hold no map row lock: their final fresh revision check is
+-- the publication linearization point. All refuse non-READ-COMMITTED use.
+
+CREATE FUNCTION coordination.runtime_lease_acquire(p_installation uuid,p_holder uuid,p_ttl integer) RETURNS bigint
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
+        locked auth.runtime_login_bindings%ROWTYPE;
+        final_binding auth.runtime_login_bindings%ROWTYPE;
+        lease coordination.supervisor_leases%ROWTYPE;
+        cutoff timestamptz := clock_timestamp()+interval '10 seconds';
+        acquired boolean;
+BEGIN
+    IF p_ttl IS NULL OR p_ttl NOT BETWEEN 1 AND 10000 THEN
+        RAISE EXCEPTION 'runtime_lease_ttl_invalid' USING ERRCODE='55000';
+    END IF;
+
+    IF p_installation IS NULL OR p_holder IS NULL
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO admitted FROM auth.runtime_login_bindings
+      WHERE role_name=session_user AND logical_role='supervisor' AND active
+        AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND installation_id=p_installation;
+    IF NOT FOUND THEN RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501'; END IF;
+    SELECT * INTO locked FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid FOR SHARE;
+    IF locked IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    -- ON CONFLICT serializes an initially absent row while preserving its
+    -- retained fence. Failure rolls back this speculative insert atomically.
+    INSERT INTO coordination.supervisor_leases(installation_id,holder,fence,expires_at)
+      VALUES(p_installation,p_holder,1,clock_timestamp()+p_ttl*interval '1 millisecond')
+      ON CONFLICT(installation_id) DO NOTHING;
+    acquired:=FOUND;
+    SELECT * INTO lease FROM coordination.supervisor_leases
+      WHERE installation_id=p_installation FOR UPDATE;
+    IF NOT FOUND OR clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_lease_unavailable' USING ERRCODE='55000';
+    END IF;
+    IF NOT acquired THEN
+        IF lease.expires_at>clock_timestamp() OR lease.fence=9223372036854775807 THEN
+            RAISE EXCEPTION 'runtime_lease_busy' USING ERRCODE='55000';
+        END IF;
+        UPDATE coordination.supervisor_leases SET holder=p_holder,fence=fence+1,
+            expires_at=clock_timestamp()+p_ttl*interval '1 millisecond'
+          WHERE installation_id=p_installation RETURNING * INTO lease;
+    END IF;
+
+    SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
+    IF final_binding IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
+    END IF;
+    RETURN lease.fence;
+END;
+$$;
+
+CREATE FUNCTION coordination.runtime_lease_renew(p_installation uuid,p_holder uuid,p_fence bigint,p_ttl integer) RETURNS boolean
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
+        locked auth.runtime_login_bindings%ROWTYPE;
+        final_binding auth.runtime_login_bindings%ROWTYPE;
+        lease coordination.supervisor_leases%ROWTYPE;
+        cutoff timestamptz := clock_timestamp()+interval '10 seconds';
+        acquired boolean;
+BEGIN
+    IF p_ttl IS NULL OR p_ttl NOT BETWEEN 1 AND 10000 THEN
+        RAISE EXCEPTION 'runtime_lease_ttl_invalid' USING ERRCODE='55000';
+    END IF;
+    IF p_fence IS NULL OR p_fence<=0 THEN
+        RAISE EXCEPTION 'runtime_lease_token_invalid' USING ERRCODE='55000';
+    END IF;
+
+    IF p_installation IS NULL OR p_holder IS NULL
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO admitted FROM auth.runtime_login_bindings
+      WHERE role_name=session_user AND logical_role='supervisor' AND active
+        AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND installation_id=p_installation;
+    IF NOT FOUND THEN RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501'; END IF;
+    SELECT * INTO locked FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid FOR SHARE;
+    IF locked IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO lease FROM coordination.supervisor_leases
+      WHERE installation_id=p_installation FOR UPDATE;
+    IF NOT FOUND OR clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_lease_unavailable' USING ERRCODE='55000';
+    END IF;
+    IF lease.holder IS DISTINCT FROM p_holder OR lease.fence IS DISTINCT FROM p_fence
+       OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000';
+    END IF;
+    UPDATE coordination.supervisor_leases
+      SET expires_at=clock_timestamp()+p_ttl*interval '1 millisecond'
+      WHERE installation_id=p_installation RETURNING * INTO lease;
+
+    SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
+    IF final_binding IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
+    END IF;
+    RETURN true;
+END;
+$$;
+
+CREATE FUNCTION coordination.runtime_lease_release(p_installation uuid,p_holder uuid,p_fence bigint) RETURNS boolean
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
+        locked auth.runtime_login_bindings%ROWTYPE;
+        final_binding auth.runtime_login_bindings%ROWTYPE;
+        lease coordination.supervisor_leases%ROWTYPE;
+        cutoff timestamptz := clock_timestamp()+interval '10 seconds';
+        acquired boolean;
+BEGIN
+    IF p_fence IS NULL OR p_fence<=0 THEN
+        RAISE EXCEPTION 'runtime_lease_token_invalid' USING ERRCODE='55000';
+    END IF;
+
+    IF p_installation IS NULL OR p_holder IS NULL
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO admitted FROM auth.runtime_login_bindings
+      WHERE role_name=session_user AND logical_role='supervisor' AND active
+        AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND installation_id=p_installation;
+    IF NOT FOUND THEN RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501'; END IF;
+    SELECT * INTO locked FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid FOR SHARE;
+    IF locked IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO lease FROM coordination.supervisor_leases
+      WHERE installation_id=p_installation FOR UPDATE;
+    IF NOT FOUND OR clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_lease_unavailable' USING ERRCODE='55000';
+    END IF;
+    IF lease.holder IS DISTINCT FROM p_holder OR lease.fence IS DISTINCT FROM p_fence
+       OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000';
+    END IF;
+    UPDATE coordination.supervisor_leases SET expires_at=clock_timestamp()
+      WHERE installation_id=p_installation;
+
+    SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
+    IF final_binding IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    IF clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
+    END IF;
+    RETURN true;
+END;
+$$;
+
+CREATE FUNCTION coordination.runtime_lease_assert_live(p_installation uuid,p_holder uuid,p_fence bigint) RETURNS boolean
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
+        locked auth.runtime_login_bindings%ROWTYPE;
+        final_binding auth.runtime_login_bindings%ROWTYPE;
+        lease coordination.supervisor_leases%ROWTYPE;
+        cutoff timestamptz := clock_timestamp()+interval '10 seconds';
+        acquired boolean;
+BEGIN
+    IF p_fence IS NULL OR p_fence<=0 THEN
+        RAISE EXCEPTION 'runtime_lease_token_invalid' USING ERRCODE='55000';
+    END IF;
+
+    IF p_installation IS NULL OR p_holder IS NULL
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO admitted FROM auth.runtime_login_bindings
+      WHERE role_name=session_user AND logical_role='supervisor' AND active
+        AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND installation_id=p_installation;
+    IF NOT FOUND THEN RAISE EXCEPTION 'runtime_lease_forbidden' USING ERRCODE='42501'; END IF;
+    SELECT * INTO locked FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid FOR SHARE;
+    IF locked IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO lease FROM coordination.supervisor_leases
+      WHERE installation_id=p_installation FOR UPDATE;
+    IF NOT FOUND OR clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_lease_unavailable' USING ERRCODE='55000';
+    END IF;
+    IF lease.holder IS DISTINCT FROM p_holder OR lease.fence IS DISTINCT FROM p_fence
+       OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000';
+    END IF;
+
+    SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
+    IF final_binding IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
+        RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
+    END IF;
+    IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
+    END IF;
+    RETURN true;
+END;
+$$;
+
+CREATE FUNCTION coordination.runtime_lease_health(p_installation uuid) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
+        final_binding auth.runtime_login_bindings%ROWTYPE;
+        lease coordination.supervisor_leases%ROWTYPE;
+        cutoff timestamptz := clock_timestamp()+interval '10 seconds';
+        value jsonb;
+BEGIN
+    IF p_installation IS NULL OR current_setting('transaction_isolation')<>'read committed' THEN
+        RAISE EXCEPTION 'runtime_read_forbidden' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO admitted FROM auth.runtime_login_bindings
+      WHERE role_name=session_user AND active AND installation_id=p_installation
+        AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND logical_role IN ('supervisor','observer');
+    IF NOT FOUND OR p_installation IS DISTINCT FROM auth.runtime_bound_installation(admitted.logical_role) THEN
+        RAISE EXCEPTION 'runtime_read_forbidden' USING ERRCODE='42501';
+    END IF;
+
+    SELECT * INTO lease FROM coordination.supervisor_leases WHERE installation_id=p_installation;
+    IF NOT FOUND THEN value:=jsonb_build_object('state','absent','fence',NULL);
+    ELSE value:=jsonb_build_object('state',CASE WHEN lease.expires_at>clock_timestamp()
+              THEN 'live' ELSE 'expired' END,'fence',lease.fence); END IF;
+    SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
+    IF final_binding IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation(admitted.logical_role) THEN
+        RAISE EXCEPTION 'runtime_read_binding_changed' USING ERRCODE='42501';
+    END IF;
+    IF clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_read_timeout' USING ERRCODE='55000';
+    END IF;
+    -- Re-evaluate the clock after the final authority check, without a job query.
+    IF lease.installation_id IS NOT NULL THEN
+        value:=jsonb_build_object('state',CASE WHEN lease.expires_at>clock_timestamp()
+              THEN 'live' ELSE 'expired' END,'fence',lease.fence);
+    END IF;
+    RETURN value;
+END;
+$$;
+CREATE FUNCTION coordination.runtime_observe(p_installation uuid) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
+DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
+        final_binding auth.runtime_login_bindings%ROWTYPE;
+        cutoff timestamptz := clock_timestamp()+interval '10 seconds';
+        size_bytes bigint; pending bigint; embedding_pending bigint; health jsonb;
+BEGIN
+    IF p_installation IS NULL OR current_setting('transaction_isolation')<>'read committed' THEN
+        RAISE EXCEPTION 'runtime_read_forbidden' USING ERRCODE='42501';
+    END IF;
+    SELECT * INTO admitted FROM auth.runtime_login_bindings
+      WHERE role_name=session_user AND active AND installation_id=p_installation
+        AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND logical_role ='observer';
+    IF NOT FOUND OR p_installation IS DISTINCT FROM auth.runtime_bound_installation(admitted.logical_role) THEN
+        RAISE EXCEPTION 'runtime_read_forbidden' USING ERRCODE='42501';
+    END IF;
+
+    IF admitted.embedding_job_kind IS NULL THEN
+        RAISE EXCEPTION 'runtime_embedding_kind_unbound' USING ERRCODE='55000';
+    END IF;
+    BEGIN
+        SELECT count(*) FILTER(WHERE j.state='pending'),
+               count(*) FILTER(WHERE j.state='pending' AND j.kind=admitted.embedding_job_kind)
+          INTO pending,embedding_pending FROM coordination.jobs j
+          JOIN core.tenants t ON t.id=j.tenant_id WHERE t.installation_id=p_installation;
+        size_bytes:=pg_catalog.pg_database_size(current_database());
+        health:=coordination.runtime_lease_health(p_installation);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'runtime_observe_unavailable' USING ERRCODE='55000';
+    END;
+    SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
+    IF final_binding IS DISTINCT FROM admitted
+       OR p_installation IS DISTINCT FROM auth.runtime_bound_installation(admitted.logical_role) THEN
+        RAISE EXCEPTION 'runtime_read_binding_changed' USING ERRCODE='42501';
+    END IF;
+    IF clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_read_timeout' USING ERRCODE='55000';
+    END IF;
+    IF size_bytes IS NULL OR size_bytes<0 OR pending IS NULL OR embedding_pending IS NULL THEN
+        RAISE EXCEPTION 'runtime_observe_unavailable' USING ERRCODE='55000';
+    END IF;
+    RETURN jsonb_build_object('database_bytes',size_bytes,'pending_jobs',pending,
+             'pending_embedding_jobs',embedding_pending,'lease',health);
+END;
+$$;
+ALTER FUNCTION coordination.runtime_lease_acquire(uuid,uuid,integer) OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION coordination.runtime_lease_acquire(uuid,uuid,integer) FROM PUBLIC,"kaidera-runtime-core-request","kaidera-runtime-core-installer";
+ALTER FUNCTION coordination.runtime_lease_renew(uuid,uuid,bigint,integer) OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION coordination.runtime_lease_renew(uuid,uuid,bigint,integer) FROM PUBLIC,"kaidera-runtime-core-request","kaidera-runtime-core-installer";
+ALTER FUNCTION coordination.runtime_lease_release(uuid,uuid,bigint) OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION coordination.runtime_lease_release(uuid,uuid,bigint) FROM PUBLIC,"kaidera-runtime-core-request","kaidera-runtime-core-installer";
+ALTER FUNCTION coordination.runtime_lease_assert_live(uuid,uuid,bigint) OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION coordination.runtime_lease_assert_live(uuid,uuid,bigint) FROM PUBLIC,"kaidera-runtime-core-request","kaidera-runtime-core-installer";
+ALTER FUNCTION coordination.runtime_lease_health(uuid) OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION coordination.runtime_lease_health(uuid) FROM PUBLIC,"kaidera-runtime-core-request","kaidera-runtime-core-installer";
+ALTER FUNCTION coordination.runtime_observe(uuid) OWNER TO "kaidera-runtime-core-verifier";
+REVOKE ALL ON FUNCTION coordination.runtime_observe(uuid) FROM PUBLIC,"kaidera-runtime-core-request","kaidera-runtime-core-installer";

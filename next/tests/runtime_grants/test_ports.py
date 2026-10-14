@@ -45,11 +45,15 @@ class Ports(Fixture):
     def test_release_retains_row_and_next_acquire_increases_fence(self):
         conn,fence=self.lease()
         observer=self.login('observer')
-        self.assertEqual(self.allowed(observer,'SELECT coordination.runtime_lease_health(%s)',(uid(1),)),{'state':'live','fence':fence})
+        live=self.allowed(observer,'SELECT coordination.runtime_lease_health(%s)',(uid(1),))
+        self.assertTrue(type(live['fence']) is int and live['fence']>0)
+        self.assertEqual(live,{'state':'live','fence':fence})
         self.assertIs(self.allowed(conn,'SELECT coordination.runtime_lease_release(%s,%s,%s)',(uid(1),uid(100),fence)),True)
         row=self.root.execute('SELECT fence,expires_at<=clock_timestamp() FROM coordination.supervisor_leases WHERE installation_id=%s',(uid(1),)).fetchone()
         self.assertEqual(row,(fence,True))
-        self.assertEqual(self.allowed(observer,'SELECT coordination.runtime_lease_health(%s)',(uid(1),)),{'state':'expired','fence':fence})
+        expired=self.allowed(observer,'SELECT coordination.runtime_lease_health(%s)',(uid(1),))
+        self.assertTrue(type(expired['fence']) is int and expired['fence']>0)
+        self.assertEqual(expired,{'state':'expired','fence':fence})
         next_fence=self.allowed(conn,'SELECT coordination.runtime_lease_acquire(%s,%s,1000)',(uid(1),uid(101)))
         self.assertGreater(next_fence,fence)
 
@@ -150,6 +154,8 @@ class Ports(Fixture):
         value=self.allowed(conn,'SELECT coordination.runtime_observe(%s)',(uid(1),))
         self.assertEqual(set(value),{'database_bytes','pending_jobs','pending_embedding_jobs','lease'})
         self.assertTrue(type(value['database_bytes']) is int and value['database_bytes']>0)
+        for key in ('pending_jobs','pending_embedding_jobs'):
+            self.assertTrue(type(value[key]) is int and value[key]>=0,'SEMANTIC:closed count integer:'+key)
         self.assertEqual((value['pending_jobs'],value['pending_embedding_jobs']),(3,1))
         self.assertEqual(value['lease'],{'state':'absent','fence':None});conn.execute('COMMIT')
         self.refusal(conn,'SELECT coordination.runtime_observe(%s)',(uid(20),))
@@ -187,7 +193,11 @@ class Ports(Fixture):
         # Foreign installation:1 embedding pending. Valid parent payloads exist.
         for n,tenant,kind,state in ((410,2,EMBEDDING_KIND,'pending'),(411,2,'pgo.other','pending'),
               (412,2,'pgo.other','pending'),(413,2,EMBEDDING_KIND,'succeeded'),
-              (414,21,EMBEDDING_KIND,'pending')):
+              (414,21,EMBEDDING_KIND,'pending'),
+              (415,2,EMBEDDING_KIND,'running'),(416,2,'pgo.other','running'),
+              (417,2,EMBEDDING_KIND,'failed'),(418,2,'pgo.other','failed'),
+              (419,2,EMBEDDING_KIND,'canceled'),(420,2,'pgo.other','canceled'),
+              (421,2,EMBEDDING_KIND,'unresolved'),(422,2,'pgo.other','unresolved')):
             self.root.execute('''INSERT INTO coordination.jobs
               (tenant_id,project_id,id,kind,payload_ref,idempotency_key,state)
               VALUES (%s,%s,%s,%s,%s,%s,%s)''',(uid(tenant),uid(3),uid(n),kind,uid(5),str(n),state))

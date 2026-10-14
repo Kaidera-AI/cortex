@@ -1,5 +1,5 @@
 {
-  "status": "FROZEN_PG_O_BASELINE_PENDING",
+  "status": "REFROZEN_CONNECT_V2_OFFLINE_PG_RENEWAL_PENDING",
   "preferred_host": "Separately authorized hosted rootless CI fixture; never shared Mac Podman or assumed Azure host. Bind actual PG minor/image/libpq, then renew on Cox-ratified production tuple.",
   "cases": [
     {
@@ -197,6 +197,94 @@
         "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation",
         "test_ports.Ports.test_writable_port_locks_map_before_lease"
       ]
+    },
+    {
+      "id": "hale-repair",
+      "contract": "F01\u2013F10 and25 missing control groups, exact owner deferrals in REPAIR_TRACE.json",
+      "exact_nodes": [
+        "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write",
+        "test_repair.Repair.test_changed_applied_checksum_refuses_unchanged",
+        "test_repair.Repair.test_close_unknown_finite_session_holds_and_preserves_sentinel",
+        "test_repair.Repair.test_close_unknown_role_state_holds",
+        "test_repair.Repair.test_close_wrong_operation_holds",
+        "test_repair.Repair.test_expired_matching_holder_release_has_no_effect",
+        "test_repair.Repair.test_health_final_revision_only_barrier",
+        "test_repair.Repair.test_health_revoked_map_refuses_at_entry",
+        "test_repair.Repair.test_map_before_lease__acquire",
+        "test_repair.Repair.test_map_before_lease__assert_live",
+        "test_repair.Repair.test_map_before_lease__release",
+        "test_repair.Repair.test_map_before_lease__renew",
+        "test_repair.Repair.test_observer_final_revision_only_barrier",
+        "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health",
+        "test_repair.Repair.test_prepare_all_nine_phase_flags_come_from_client_effects",
+        "test_repair.Repair.test_queued_expiry__assert_live",
+        "test_repair.Repair.test_queued_expiry__release",
+        "test_repair.Repair.test_restrictive_request_policy_remains_restrictive",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__serializable",
+        "test_repair.Repair.test_snapshot__runtime_observe__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_observe__serializable",
+        "test_repair.Repair.test_supervisor_own_session_admits_positive_lease",
+        "test_repair.Repair.test_unknown_applied_ledger_row_refuses_unchanged",
+        "test_repair.Repair.test_unsafe_prepare__api_request__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createdb",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createrole",
+        "test_repair.Repair.test_unsafe_prepare__api_request__inherit",
+        "test_repair.Repair.test_unsafe_prepare__api_request__replication",
+        "test_repair.Repair.test_unsafe_prepare__api_request__superuser",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createdb",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createrole",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__inherit",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__replication",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__superuser",
+        "test_repair.Repair.test_unsafe_prepare__observer__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__observer__createdb",
+        "test_repair.Repair.test_unsafe_prepare__observer__createrole",
+        "test_repair.Repair.test_unsafe_prepare__observer__inherit",
+        "test_repair.Repair.test_unsafe_prepare__observer__replication",
+        "test_repair.Repair.test_unsafe_prepare__observer__superuser",
+        "test_repair.Repair.test_unsafe_prepare__probe__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__probe__createdb",
+        "test_repair.Repair.test_unsafe_prepare__probe__createrole",
+        "test_repair.Repair.test_unsafe_prepare__probe__inherit",
+        "test_repair.Repair.test_unsafe_prepare__probe__replication",
+        "test_repair.Repair.test_unsafe_prepare__probe__superuser",
+        "test_repair.Repair.test_unsafe_prepare__request_group__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createdb",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createrole",
+        "test_repair.Repair.test_unsafe_prepare__request_group__inherit",
+        "test_repair.Repair.test_unsafe_prepare__request_group__login",
+        "test_repair.Repair.test_unsafe_prepare__request_group__replication",
+        "test_repair.Repair.test_unsafe_prepare__request_group__superuser",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createdb",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createrole",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__inherit",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__replication",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__superuser",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createdb",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createrole",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__inherit",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__login",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__replication",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser",
+        "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero",
+        "test_repair.Repair.test_valid_bound_observer_timeout_never_success_zero"
+      ]
+    },
+    {
+      "id": "connect-v2",
+      "contract": "Verifier CONNECT only admitted current DB; positive size, native42501 on revoke/foreign DB; NOLOGIN, flags/edges/options closed; no explicit foreign grants.",
+      "exact_nodes": [
+        "test_connect.Connect.test_verifier_closed_other_database_connect_and_size_refused",
+        "test_connect.Connect.test_verifier_current_database_capabilities",
+        "test_connect.Connect.test_verifier_flags_and_all_membership_edges_closed",
+        "test_connect.Connect.test_verifier_no_explicit_other_database_grants",
+        "test_connect.Connect.test_verifier_real_login_refused",
+        "test_connect.Connect.test_verifier_size_positive_and_revocation_refuses"
+      ]
     }
   ],
   "mutants": [
@@ -214,8 +302,62 @@
         "test_grants.Grants.test_role__request_group",
         "test_grants.Grants.test_role__supervisor",
         "test_grants.Grants.test_role__verifier_owner",
-        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name"
-      ]
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
+        "test_repair.Repair.test_close_unknown_finite_session_holds_and_preserves_sentinel",
+        "test_repair.Repair.test_close_unknown_role_state_holds",
+        "test_repair.Repair.test_close_wrong_operation_holds",
+        "test_repair.Repair.test_prepare_all_nine_phase_flags_come_from_client_effects",
+        "test_repair.Repair.test_unsafe_prepare__api_request__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createdb",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createrole",
+        "test_repair.Repair.test_unsafe_prepare__api_request__inherit",
+        "test_repair.Repair.test_unsafe_prepare__api_request__replication",
+        "test_repair.Repair.test_unsafe_prepare__api_request__superuser",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createdb",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createrole",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__inherit",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__replication",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__superuser",
+        "test_repair.Repair.test_unsafe_prepare__observer__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__observer__createdb",
+        "test_repair.Repair.test_unsafe_prepare__observer__createrole",
+        "test_repair.Repair.test_unsafe_prepare__observer__inherit",
+        "test_repair.Repair.test_unsafe_prepare__observer__replication",
+        "test_repair.Repair.test_unsafe_prepare__observer__superuser",
+        "test_repair.Repair.test_unsafe_prepare__probe__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__probe__createdb",
+        "test_repair.Repair.test_unsafe_prepare__probe__createrole",
+        "test_repair.Repair.test_unsafe_prepare__probe__inherit",
+        "test_repair.Repair.test_unsafe_prepare__probe__replication",
+        "test_repair.Repair.test_unsafe_prepare__probe__superuser",
+        "test_repair.Repair.test_unsafe_prepare__request_group__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createdb",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createrole",
+        "test_repair.Repair.test_unsafe_prepare__request_group__inherit",
+        "test_repair.Repair.test_unsafe_prepare__request_group__login",
+        "test_repair.Repair.test_unsafe_prepare__request_group__replication",
+        "test_repair.Repair.test_unsafe_prepare__request_group__superuser",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createdb",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createrole",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__inherit",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__replication",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__superuser",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createdb",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createrole",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__inherit",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__login",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__replication",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser"
+      ],
+      "static_control": {
+        "id": "M01",
+        "exact_node": "test_repair.Repair.test_unsafe_prepare__probe__superuser",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M02",
@@ -231,7 +373,13 @@
         "test_grants.Grants.test_role__request_group",
         "test_grants.Grants.test_role__supervisor",
         "test_grants.Grants.test_role__verifier_owner"
-      ]
+      ],
+      "static_control": {
+        "id": "M02",
+        "exact_node": "test_grants.Grants.test_role__api_request",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M03",
@@ -265,7 +413,13 @@
         "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
         "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
         "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user"
-      ]
+      ],
+      "static_control": {
+        "id": "M03",
+        "exact_node": "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M04",
@@ -279,8 +433,15 @@
         "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
         "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
         "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
-        "test_ports.Ports.test_writable_port_locks_map_before_lease"
-      ]
+        "test_ports.Ports.test_writable_port_locks_map_before_lease",
+        "test_repair.Repair.test_supervisor_own_session_admits_positive_lease"
+      ],
+      "static_control": {
+        "id": "M04",
+        "exact_node": "test_repair.Repair.test_supervisor_own_session_admits_positive_lease",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M05",
@@ -294,8 +455,21 @@
         "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
         "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
         "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
-        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
-      ]
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database",
+        "test_repair.Repair.test_health_final_revision_only_barrier",
+        "test_repair.Repair.test_health_revoked_map_refuses_at_entry",
+        "test_repair.Repair.test_observer_final_revision_only_barrier",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__serializable",
+        "test_repair.Repair.test_snapshot__runtime_observe__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_observe__serializable"
+      ],
+      "static_control": {
+        "id": "M05",
+        "exact_node": "test_repair.Repair.test_observer_final_revision_only_barrier",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M06",
@@ -330,13 +504,28 @@
         "test_grants.Grants.test_tables__request_group",
         "test_grants.Grants.test_tables__supervisor",
         "test_grants.Grants.test_tables__verifier_owner"
-      ]
+      ],
+      "static_control": {
+        "id": "M06",
+        "exact_node": "test_grants.Grants.test_tables__supervisor",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M07",
       "single_product_omission": "Omit PUBLIC function REVOKE/default ACL restriction",
       "expected_body_family": "definer",
       "expected_nodes": [
+        "test_grants.Grants.test_functions__api_request",
+        "test_grants.Grants.test_functions__bootstrap",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_functions__migrator",
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_functions__request_group",
+        "test_grants.Grants.test_functions__supervisor",
+        "test_grants.Grants.test_functions__verifier_owner",
         "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner",
         "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators",
         "test_grants.Grants.test_signature__auth__runtime_bound_installation",
@@ -348,7 +537,13 @@
         "test_grants.Grants.test_signature__coordination__runtime_lease_release",
         "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
         "test_grants.Grants.test_signature__coordination__runtime_observe"
-      ]
+      ],
+      "static_control": {
+        "id": "M07",
+        "exact_node": "test_grants.Grants.test_functions__probe",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M08",
@@ -381,8 +576,15 @@
         "test_c04.C04.test_shared_negative_conformance_cases_are_refused",
         "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
         "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
-        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user"
-      ]
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user",
+        "test_repair.Repair.test_restrictive_request_policy_remains_restrictive"
+      ],
+      "static_control": {
+        "id": "M08",
+        "exact_node": "test_repair.Repair.test_restrictive_request_policy_remains_restrictive",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M09",
@@ -417,7 +619,13 @@
         "test_grants.Grants.test_tables__request_group",
         "test_grants.Grants.test_tables__supervisor",
         "test_grants.Grants.test_tables__verifier_owner"
-      ]
+      ],
+      "static_control": {
+        "id": "M09",
+        "exact_node": "test_grants.Grants.test_other_objects__request_group",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M10",
@@ -425,8 +633,15 @@
       "expected_body_family": "read-lock-and-cache",
       "expected_nodes": [
         "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_grants.Grants.test_other_objects__request_group",
         "test_grants.Grants.test_request_read_lock_and_cache_write_exception_and_sequence"
-      ]
+      ],
+      "static_control": {
+        "id": "M10",
+        "exact_node": "test_grants.Grants.test_other_objects__request_group",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M11",
@@ -440,8 +655,15 @@
         "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
         "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
         "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
-        "test_ports.Ports.test_writable_port_locks_map_before_lease"
-      ]
+        "test_ports.Ports.test_writable_port_locks_map_before_lease",
+        "test_repair.Repair.test_queued_expiry__release"
+      ],
+      "static_control": {
+        "id": "M11",
+        "exact_node": "test_repair.Repair.test_queued_expiry__release",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M12",
@@ -456,7 +678,13 @@
         "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
         "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
         "test_ports.Ports.test_writable_port_locks_map_before_lease"
-      ]
+      ],
+      "static_control": {
+        "id": "M12",
+        "exact_node": "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M13",
@@ -470,7 +698,13 @@
         "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero",
         "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
         "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation"
-      ]
+      ],
+      "static_control": {
+        "id": "M13",
+        "exact_node": "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M14",
@@ -483,8 +717,16 @@
         "test_grants.Grants.test_tables__observer",
         "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero",
         "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
-        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation"
-      ]
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation",
+        "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero",
+        "test_repair.Repair.test_valid_bound_observer_timeout_never_success_zero"
+      ],
+      "static_control": {
+        "id": "M14",
+        "exact_node": "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M15",
@@ -498,7 +740,13 @@
         "test_grants.Grants.test_other_objects__installer_enrollment",
         "test_grants.Grants.test_role__installer_enrollment",
         "test_grants.Grants.test_tables__installer_enrollment"
-      ]
+      ],
+      "static_control": {
+        "id": "M15",
+        "exact_node": "test_grants.Grants.test_installer_other_installation_is_not_admitted_by_name_only",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M16",
@@ -506,6 +754,15 @@
       "expected_body_family": "definer",
       "expected_nodes": [
         "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner",
+        "test_grants.Grants.test_other_objects__api_request",
+        "test_grants.Grants.test_other_objects__bootstrap",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_other_objects__migrator",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_other_objects__request_group",
+        "test_grants.Grants.test_other_objects__supervisor",
+        "test_grants.Grants.test_other_objects__verifier_owner",
         "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators",
         "test_grants.Grants.test_signature__auth__runtime_bound_installation",
         "test_grants.Grants.test_signature__auth__runtime_request_installation",
@@ -516,7 +773,13 @@
         "test_grants.Grants.test_signature__coordination__runtime_lease_release",
         "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
         "test_grants.Grants.test_signature__coordination__runtime_observe"
-      ]
+      ],
+      "static_control": {
+        "id": "M16",
+        "exact_node": "test_grants.Grants.test_other_objects__observer",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M17",
@@ -531,7 +794,13 @@
         "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
         "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
         "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
-      ]
+      ],
+      "static_control": {
+        "id": "M17",
+        "exact_node": "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M18",
@@ -546,33 +815,54 @@
         "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
         "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
         "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
-      ]
+      ],
+      "static_control": {
+        "id": "M18",
+        "exact_node": "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M19",
       "single_product_omission": "Ignore named single suffix target or accept hole/unknown ledger; no obsolete21-prefix test",
       "expected_body_family": "u13",
       "expected_nodes": [
+        "test_repair.Repair.test_changed_applied_checksum_refuses_unchanged",
+        "test_repair.Repair.test_unknown_applied_ledger_row_refuses_unchanged",
         "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward",
         "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger",
         "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
         "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles",
         "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry",
         "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix"
-      ]
+      ],
+      "static_control": {
+        "id": "M19",
+        "exact_node": "test_repair.Repair.test_unknown_applied_ledger_row_refuses_unchanged",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M20",
       "single_product_omission": "Treat DB restore as restoring cluster roles or permit rollback after accepted",
       "expected_body_family": "u13",
       "expected_nodes": [
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database",
         "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward",
         "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger",
         "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
         "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles",
         "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry",
         "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix"
-      ]
+      ],
+      "static_control": {
+        "id": "M20",
+        "exact_node": "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     },
     {
       "id": "M21",
@@ -587,13 +877,41 @@
         "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
         "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
         "test_ports.Ports.test_writable_port_locks_map_before_lease"
-      ]
+      ],
+      "static_control": {
+        "id": "M21",
+        "exact_node": "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "status": "EXPECTED_BODY_KILLED_BASELINE_AND_EXACT_RESTORE_PASS",
+        "scope": "static catalog/port substitution; not a PG/product mutation receipt"
+      }
     }
   ],
   "protocol": "Freeze exact case IDs/data/valid SQL+expected SQLSTATE/zero-row and effects before source. Run actual nonowner connections, not privileged SET ROLE stand-ins. One product mutant at a time; shared body classifier, raw loaded hash/frame; fixture/import/errors INCONCLUSIVE; exact restore/full affected + inherited suite.",
   "tests_run": 0,
-  "mutations_run": 0,
+  "mutations_run": 70,
   "schema_ddl_not_authored": true,
-  "frozen_nodes": 105,
-  "matrix_sha256": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2"
+  "frozen_nodes": 181,
+  "matrix_sha256": "e2bcec216f4b90d92c8e53a73ae202d265f2def411a4a744469c42a22164e3cd",
+  "historical_pg_baseline": {
+    "head": "d901d7b27760c6b5713db7aabb603f54f10725a3",
+    "nodes": 105,
+    "pass": 42,
+    "surface_absence_RED": 46,
+    "semantic_RED": 17,
+    "renewed_by_this_repair": false
+  },
+  "mutation_scope": "static assertion catalog/port substitutions",
+  "product_mutations_run": 0,
+  "static_families_run": 21,
+  "missing_control_groups": 25,
+  "renewal_owner": "Cox NEXT PG-A lab session; ALL181 nodes on18.6/vector0.8.7/CPython3.14.8 pure psycopg3.2.9 + libpq18.6; both-target qualification remains separate",
+  "connect_amendment": {
+    "version": 2,
+    "prior_head": "0368a245a946f033f89d2460cd9026a4339246a4",
+    "prior_matrix_sha256": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
+    "versioned_node": "test_grants.Grants.test_other_objects__verifier_owner",
+    "delta": "CONNECT False -> True on current database only; identical original body reads new matrix",
+    "all_175_prior_test_bodies_byte_exact": true,
+    "prior_freeze": "REPAIR_FREEZE.json is historical; CONNECT_FREEZE.json supersedes it; native baseline not renewed"
+  }
 }

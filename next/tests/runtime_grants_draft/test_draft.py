@@ -62,7 +62,7 @@ class Draft(DraftFixture):
     def test_map_rejects_duplicate_oid_and_stale_database_owner(self):
         self.candidate_if_present()
         row=self.root.execute('SELECT role_oid,role_name,logical_role,installation_id,active,revision,operation_id,database_oid,database_owner_oid FROM auth.runtime_login_bindings WHERE role_name=%s',(ROLE_NAMES['api_request'],)).fetchone()
-        with self.assertRaises(psycopg.errors.UniqueViolation):self.root.execute('INSERT INTO auth.runtime_login_bindings VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)',row)
+        with self.assertRaises(psycopg.errors.UniqueViolation):self.root.execute('INSERT INTO auth.runtime_login_bindings(role_oid,role_name,logical_role,installation_id,active,revision,operation_id,database_oid,database_owner_oid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)',row)
         self.root.execute('UPDATE auth.runtime_login_bindings SET database_owner_oid=0 WHERE role_name=%s',(ROLE_NAMES['api_request'],))
         self.refusal(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(1),),false_ok=True)
 

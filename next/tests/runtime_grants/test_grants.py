@@ -73,10 +73,20 @@ class Grants(Fixture):
                 self.root.execute('CREATE TYPE auth.pgo_default_type AS ENUM (\'x\')')
                 self.root.execute('CREATE TABLE auth.pgo_default_table(id integer)')
                 self.root.execute('RESET ROLE')
-                self.assertFalse(self.root.execute("SELECT has_function_privilege(%s,'auth.pgo_default_canary()','EXECUTE')",(ROLE_NAMES['probe'],)).fetchone()[0],
-                                 'SEMANTIC:future function PUBLIC EXECUTE')
-                self.assertFalse(self.root.execute("SELECT has_type_privilege(%s,'auth.pgo_default_type','USAGE')",(ROLE_NAMES['probe'],)).fetchone()[0],
-                                 'SEMANTIC:future type PUBLIC USAGE')
+                # F01: every unauthorized effective recipient, including grant
+                # option. Finite superusers and the actual creator are explicit
+                # ownership exceptions, not evidence of a PUBLIC default leak.
+                for logical in ROLE_NAMES:
+                    if MATRIX['roles'][logical]['superuser'] or logical==creator:
+                        continue
+                    for privilege in ('EXECUTE','EXECUTE WITH GRANT OPTION'):
+                        self.assertFalse(self.root.execute('SELECT has_function_privilege(%s,%s,%s)',
+                            (ROLE_NAMES[logical],'auth.pgo_default_canary()',privilege)).fetchone()[0],
+                            'SEMANTIC:future function leaked to '+logical+':'+privilege)
+                    for privilege in ('USAGE','USAGE WITH GRANT OPTION'):
+                        self.assertFalse(self.root.execute('SELECT has_type_privilege(%s,%s,%s)',
+                            (ROLE_NAMES[logical],'auth.pgo_default_type',privilege)).fetchone()[0],
+                            'SEMANTIC:future type leaked to '+logical+':'+privilege)
                 for logical in ('request_group','api_request','probe','supervisor','observer','installer_enrollment'):
                     for priv in TABLE_PRIVS:
                         self.assertFalse(self.root.execute("SELECT has_table_privilege(%s,'auth.pgo_default_table',%s)",(ROLE_NAMES[logical],priv)).fetchone()[0],
@@ -264,7 +274,13 @@ def signature_case(fn):
         self.assertIn(row[3],('v','s'))
         settings=dict(x.split('=',1) for x in row[4] or []);path=settings.get('search_path','').replace(' ','').split(',')
         self.assertTrue(path and path[0]=='pg_catalog' and path[-1]=='pg_temp' and 'public' not in path)
-        if fn['signature']=='coordination.runtime_observe(uuid)':self.assertEqual(row[3],'v')
+        self.assertEqual(len(path),len(set(path)))
+        for schema in path[1:-1]:
+            self.assertIn(schema,APP_SCHEMAS,'SEMANTIC:untrusted middle search_path schema')
+            self.assertEqual(self.root.execute('SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname=%s',
+                (schema,)).fetchone(),(ROLE_NAMES['migrator'],),'SEMANTIC:middle schema owner')
+        if fn['signature'] in ('coordination.runtime_observe(uuid)','coordination.runtime_lease_health(uuid)'):
+            self.assertEqual(row[3],'v')
     return body
 
 

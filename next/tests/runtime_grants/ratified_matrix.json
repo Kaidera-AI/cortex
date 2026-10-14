@@ -3699,7 +3699,8 @@
       "probe",
       "supervisor",
       "observer",
-      "installer_enrollment"
+      "installer_enrollment",
+      "verifier_owner (owned database only; NOLOGIN)"
     ],
     "TEMP": [
       "verifier_owner (C04 private temp table)",
@@ -3720,7 +3721,8 @@
       ],
       "request_group": [],
       "verifier_owner": [
-        "TEMP"
+        "TEMP",
+        "CONNECT"
       ],
       "api_request": [
         "CONNECT"
@@ -3803,6 +3805,27 @@
       "omitted_new_function": "coordination.supervisor_fence_no_regression()"
     },
     "public_and_default_closure": "No changes to inherited denials; all allowed creators and global/per-schema defaults checked",
-    "runtime_activation": "No partial SQL acceptance/serving between internal units; both tables/functions/ACLs commit in the one migration; finite binding/validation/closure remain separate owned phases"
+    "runtime_activation": "No partial SQL acceptance/serving between internal units; both tables/functions/ACLs commit in the one migration; finite binding/validation/closure remain separate owned phases",
+    "verifier_database_size": {
+      "prior_matrix_sha256": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
+      "added_privilege": "CONNECT",
+      "role": "verifier_owner",
+      "database": "exact existing owner-admitted current database only; no other database grant",
+      "grant_option": false,
+      "unchanged": [
+        "NOLOGIN",
+        "NOSUPERUSER",
+        "NOBYPASSRLS",
+        "NOCREATEDB",
+        "NOCREATEROLE",
+        "NOINHERIT",
+        "NOREPLICATION",
+        "no memberships into or from verifier"
+      ],
+      "stats_membership_added": false,
+      "public_grant_added": false,
+      "reason": "PostgreSQL pg_database_size needs CONNECT or pg_read_all_stats; preserve required database_bytes with the narrow database-specific capability",
+      "production_owner_material": "UNBOUND; this ruling is no role/HBA/carrier admission"
+    }
   }
 }
