@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from cortex_core.release import codec
+from cortex_core.release.contracts import freeze
 from cortex_core.release.inputs import FileObservation
 from cortex_core.release.build import runner, inputs
 from test_shared_input_consumer import fixture
@@ -225,7 +226,7 @@ class SourceEnvelopes(unittest.TestCase):
         _, facts, materials, verified = self.parsed(case)
         bad = dict(materials); old = bad['toolchain']
         value = dict(old.value); value['architecture'] = 'arm64'
-        bad['toolchain'] = m.BoundFact(old.owner, codec.freeze(value), old.evidence)
+        bad['toolchain'] = m.BoundFact(old.owner, freeze(value), old.evidence)
         with self.assertRaises(m.SourceRefusal):
             m._target(verified, ('api', 'linux/amd64'), facts, bad)
 
