@@ -75,21 +75,24 @@ class Draft(DraftFixture):
             self.assertIs(self.allowed(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(1),)),True)
             self.request.execute("SELECT set_config('cortex.installation_id',%s,true)",(uid(20),))
             self.refusal(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(20),),false_ok=True)
+            self.request.execute("SELECT set_config('cortex.installation_id',%s,true)",(uid(1),))
         self.refusal(self.request,"SELECT auth.runtime_bound_installation('api_request')")
 
     def test_map_oid_role_graph_flags_kind_and_revocation(self):
         self.candidate_if_present()
         name=ROLE_NAMES['api_request']
         for command in ('ALTER ROLE {} BYPASSRLS','ALTER ROLE {} SUPERUSER','ALTER ROLE {} INHERIT'):
-            with self.root.transaction():
-                self.root.execute(sql.SQL(command).format(sql.Identifier(name)))
+            self.root.execute(sql.SQL(command).format(sql.Identifier(name)))
+            try:
                 self.refusal(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(1),),false_ok=True)
+            finally:
                 self.root.execute(sql.SQL('ALTER ROLE {} NOSUPERUSER NOBYPASSRLS NOINHERIT').format(sql.Identifier(name)))
         for column,value in (('role_oid',0),('logical_role','supervisor'),('active',False),('database_oid',0)):
-            with self.root.transaction():
-                old=self.root.execute(sql.SQL('SELECT {} FROM auth.runtime_login_bindings WHERE role_name=%s').format(sql.Identifier(column)),(name,)).fetchone()[0]
-                self.root.execute(sql.SQL('UPDATE auth.runtime_login_bindings SET {}=%s WHERE role_name=%s').format(sql.Identifier(column)),(value,name))
+            old=self.root.execute(sql.SQL('SELECT {} FROM auth.runtime_login_bindings WHERE role_name=%s').format(sql.Identifier(column)),(name,)).fetchone()[0]
+            self.root.execute(sql.SQL('UPDATE auth.runtime_login_bindings SET {}=%s WHERE role_name=%s').format(sql.Identifier(column)),(value,name))
+            try:
                 self.refusal(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(1),),false_ok=True)
+            finally:
                 self.root.execute(sql.SQL('UPDATE auth.runtime_login_bindings SET {}=%s WHERE role_name=%s').format(sql.Identifier(column)),(old,name))
         self.root.execute(sql.SQL('GRANT {} TO {} WITH INHERIT TRUE,SET TRUE,ADMIN FALSE').format(sql.Identifier(ROLE_NAMES['request_group']),sql.Identifier(name)))
         self.refusal(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(1),),false_ok=True)
