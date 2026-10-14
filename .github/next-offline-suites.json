@@ -1,6 +1,7 @@
 {
   "run": [
     "next/tests/artifact/test_c03_receipts.py",
+    "next/tests/artifact/test_legacy_map.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
     "next/tests/benchmarks/test_b01_product_path.py",
     "next/tests/benchmarks/test_b02_geometry.py",
@@ -12,10 +13,12 @@
     "next/tests/benchmarks/test_b02_report.py",
     "next/tests/benchmarks/test_b02_review_rework.py",
     "next/tests/benchmarks/test_b02_status_inventory.py",
+    "next/tests/benchmarks/test_postgres_cleanup.py",
     "next/tests/benchmarks/test_postgres_collision_guard.py",
     "next/tests/benchmarks/test_postgres_lifecycle.py",
     "next/tests/benchmarks/test_postgres_lock.py",
     "next/tests/benchmarks/test_sanitized_row_shape.py",
+    "next/tests/benchmarks/test_vector_baseline.py",
     "next/tests/benchmarks/test_vector_baseline_failures.py",
     "next/tests/c11a/test_auth_precedence.py",
     "next/tests/c11a/test_dispatch.py",
@@ -102,10 +105,6 @@
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
     },
     {
-      "path": "next/tests/artifact/test_legacy_map.py",
-      "reason": "Needs externally captured legacy SQL and inventory via LEGACY_SCHEMA_SOURCE and LEGACY_MAP_DIRECTORY."
-    },
-    {
       "path": "next/tests/auth/test_authorization.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
     },
@@ -136,14 +135,6 @@
     {
       "path": "next/tests/backup_validation/test_validation.py",
       "reason": "Needs native age and age-keygen encryption/decryption with fixture keys."
-    },
-    {
-      "path": "next/tests/benchmarks/test_postgres_cleanup.py",
-      "reason": "Mixed unit and explicit B01_PODMAN native PostgreSQL classes; whole file excluded to keep zero skips."
-    },
-    {
-      "path": "next/tests/benchmarks/test_vector_baseline.py",
-      "reason": "Mixed unit and explicit B01_PODMAN native PostgreSQL classes; whole file excluded to keep zero skips."
     },
     {
       "path": "next/tests/c05_private/test_c05_private.py",
@@ -401,6 +392,114 @@
       "files": {
         "next/tests/reproducibility/test_shared_receipt_consumer.py": "5be94a8052aa80b0468ae30376b794fbfcb9416bcf76f08f2483912438ef91c4",
         "next/tests/reproducibility/test_shared_receipt_consumer_v2.py": "f024e142228dd6bdbb8a669f7dba951d0b0cb75f7f202714d158c048613c3509"
+      }
+    }
+  ],
+  "retirement_checks": [
+    {
+      "original": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol.py::HelperProtocol::test_real_cli_unsupported_profile_reason_is_not_json_decode",
+        "assertion": "self.assertRaisesRegex(ValueError, '^invalid_release_policy$')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol_v2.py::HelperProtocolV2::test_verified_real_decision_file_transport",
+        "assertion": "self.assertFalse(result['native_qualified'])"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/cli/release.py",
+        "sha256": "4451122c54c8ffd55ab0346d2b4ae9229885b67d54af71f5b22429f42059c2fe",
+        "before": "'native_qualified': verified.native_qualified",
+        "after": "'native_qualified': True"
+      }
+    },
+    {
+      "original": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol.py::HelperProtocol::test_real_cli_unsupported_profile_reason_is_not_json_decode",
+        "assertion": "self.assertRaisesRegex(ValueError, '^invalid_release_policy$')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol_v2.py::HelperProtocolV2::test_refused_real_decision_file_transport",
+        "assertion": "self.assertRaisesRegex(ValueError, '^accepted_source_origin$')"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/release/artifacts.py",
+        "sha256": "a1051d31f802e5b0567f91aa473ba6f7943744d5d177a955069fe8391b0ecc21",
+        "before": "require(origin in accepted_inputs and accepted_inputs[origin] == body, 'accepted_source_origin')",
+        "after": "pass"
+      }
+    },
+    {
+      "original": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer.py::DecidingSharedGuards::test_rehashed_external_layer_is_rejected_at_oci_inventory_body",
+        "assertion": "self.assertRaisesRegex(ValueError, 'oci_inventory_body')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer_v2.py::LayerTransportV2::test_rehashed_external_layer_refuses_at_owner_inventory_body",
+        "assertion": "self.assertRaisesRegex(ValueError, '^oci_inventory_body$')"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/release/artifacts.py",
+        "sha256": "a1051d31f802e5b0567f91aa473ba6f7943744d5d177a955069fe8391b0ecc21",
+        "before": "require(record['media_type'] == media and output_bytes[record['path']] == body, 'oci_inventory_body')",
+        "after": "pass"
+      }
+    },
+    {
+      "original": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer.py::DecidingSharedGuards::test_changed_actual_argv_is_rejected_at_raw_operation_evidence",
+        "assertion": "self.assertRaisesRegex(ValueError, 'operation_raw_evidence')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer_v2.py::OperationBoundaryV2::test_wrong_argv_refuses_before_affected_operation_record_decode",
+        "assertion": "self.assertRaisesRegex(ValueError, '^operation_recipe_argv$')"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/release/receipts.py",
+        "sha256": "9b2adb6ad0a4c40a81078cdd4f8c4762910444d775079efef4b16d9fc92a0ad5",
+        "before": "require(op['argv'] == input_value['recipe']['argv_template'], 'operation_recipe_argv')",
+        "after": "pass"
+      }
+    }
+  ],
+  "method_exclusions": [
+    {
+      "nodeid": "next/tests/benchmarks/test_postgres_cleanup.py::NativeCreateFailureTests::test_actual_created_effects_removed_after_six_lost_acknowledgements",
+      "reason": "Explicit disposable Podman/real PostgreSQL fixture requires B01_PODMAN=1.",
+      "evidence": {
+        "kind": "gated_env",
+        "source": "next/tests/benchmarks/test_postgres_cleanup.py",
+        "sha256": "dface32cba63644ae0c6d3bd00ca4a2ed4cb0156fc82b92a33ba11cad2d2d4dd",
+        "symbol": "NativeCreateFailureTests",
+        "keys": [
+          "B01_PODMAN"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/benchmarks/test_vector_baseline.py::PostgresIntegrationTests::test_actual_hnsw_filters_ties_and_cleanup",
+      "reason": "Explicit disposable Podman/real PostgreSQL fixture requires B01_PODMAN=1.",
+      "evidence": {
+        "kind": "gated_env",
+        "source": "next/tests/benchmarks/test_vector_baseline.py",
+        "sha256": "08b5f650cb31c72af4f00eeb3187aa4d0b70262785722bca35baf48752450790",
+        "symbol": "PostgresIntegrationTests",
+        "keys": [
+          "B01_PODMAN"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/artifact/test_legacy_map.py::LegacyMap::test_actual_map_matches_pinned_source",
+      "reason": "Requires two external original legacy capture paths.",
+      "evidence": {
+        "kind": "external_artifact",
+        "source": "next/tests/artifact/test_legacy_map.py",
+        "sha256": "f6f9373f074be991a692bb20315fca24cc79779eede5f743d18b030b482ad5fd",
+        "symbol": "LegacyMap.test_actual_map_matches_pinned_source",
+        "keys": [
+          "LEGACY_SCHEMA_SOURCE",
+          "LEGACY_MAP_DIRECTORY"
+        ]
       }
     }
   ]

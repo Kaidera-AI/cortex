@@ -343,6 +343,28 @@ class RetirementOracle(Subject, unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '^retirement_collection$'):
                 gate.pytest_collection_finish(session)
 
+    def test_worker_method_exclusion_keeps_every_other_case_live(self):
+        gate=self.worker([])
+        self.assertTrue(hasattr(gate,'excluded'),'worker has no exact unavailable-node contract')
+        row={'nodeid':self.old,'reason':'owned unavailable fixture','evidence':{}}
+        gate.excluded=[row]
+        names=[self.old,self.live,self.new]
+        session=types.SimpleNamespace(items=[types.SimpleNamespace(nodeid=n) for n in names])
+        gate.pytest_collection_finish(session)
+        self.assertEqual([i.nodeid for i in session.items],names[1:])
+        self.assertEqual(gate.packet['excluded_methods'],[row])
+        self.assertEqual(gate.packet['collected'],names)
+        self.assertEqual(gate.packet['deselected'],[])
+
+    def test_worker_requires_excluded_method_exactly_once(self):
+        for names in ([self.live],[self.old,self.old,self.live]):
+            gate=self.worker([])
+            self.assertTrue(hasattr(gate,'excluded'))
+            gate.excluded=[{'nodeid':self.old,'reason':'owned unavailable fixture','evidence':{}}]
+            session=types.SimpleNamespace(items=[types.SimpleNamespace(nodeid=n) for n in names])
+            with self.assertRaisesRegex(ValueError,'^method_exclusion_collection$'):
+                gate.pytest_collection_finish(session)
+
     def packet(self, nodes):
         return dict(expected=nodes[:], selected=nodes[:], deselected=[], pytest_exit=0, gate_exit=0,
             retired=[], collected=nodes[:], reports=[dict(nodeid=node, when=phase,
@@ -361,6 +383,15 @@ class RetirementOracle(Subject, unittest.TestCase):
 
     def test_host_accepts_complete_retirement_receipt(self):
         self.assertTrue(self.admitted(self.old_packet(), retired=[self.row()]))
+
+    def test_host_method_exclusion_receipt_cannot_receive_pass_credit(self):
+        subject=self.gate
+        self.assertIn('excluded',inspect.signature(subject.receipt_valid).parameters)
+        row={'nodeid':self.old,'reason':'owned unavailable fixture','evidence':{}}
+        packet=self.packet([self.live]);packet.update(excluded_methods=[row],collected=[self.old,self.live])
+        self.assertTrue(subject.receipt_valid(packet,0,excluded=[row]))
+        forged=self.packet([self.old,self.live]);forged.update(excluded_methods=[row],collected=[self.old,self.old,self.live])
+        self.assertFalse(subject.receipt_valid(forged,0,excluded=[row]))
 
     def test_host_refuses_edited_retirement_metadata(self):
         packet = self.old_packet()
@@ -520,6 +551,51 @@ class InventoryRepairOracle(Subject, unittest.TestCase):
     def test_missing_trusted_base_is_fail_closed(self):
         self.assertFalse(self.checked(self.ROOT,self.current(),{})['ok'],'missing independent base treated as valid')
 
+    def test_changed_replacement_bytes_need_independent_base_review(self):
+        root,manifest,base=self.retirement_fixture();binding=manifest['retirements'][0]
+        replacement=next(p for p in binding['files'] if p.endswith('_v2.py'))
+        path=root/replacement;path.write_text(path.read_text()+'\n# changed replacement identity\n')
+        binding['files'][replacement]=hashlib.sha256(path.read_bytes()).hexdigest()
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_original_deciding_assertion_cannot_be_forged(self):
+        manifest=self.current();manifest['retirement_checks'][0]['original']['assertion']='assert False'
+        self.assertFalse(self.checked(self.ROOT,manifest)['ok'])
+
+    def test_deciding_contract_cannot_cross_original_replacement_pairs(self):
+        manifest=self.current();checks=manifest['retirement_checks']
+        checks[1]['original'],checks[2]['original']=checks[2]['original'],checks[1]['original']
+        self.assertFalse(self.checked(self.ROOT,manifest)['ok'])
+
+    def test_method_path_outside_run_is_rejected_before_read(self):
+        from unittest.mock import patch
+        root,manifest,base=self.retirement_fixture();outside=root/'outside.py'
+        outside.write_text('class Wrong:\n def test_hidden(self): assert False\n')
+        manifest['method_exclusions']=[{'nodeid':'outside.py::Wrong::test_hidden','reason':'not a RUN method',
+            'evidence':{'kind':'gated_env','source':'outside.py','sha256':hashlib.sha256(outside.read_bytes()).hexdigest(),'symbol':'Wrong','keys':['B01_PODMAN']}}]
+        observed=[];read=Path.read_text
+        def track(path,*args,**kwargs):
+            if path.resolve()==outside.resolve():observed.append(str(path))
+            return read(path,*args,**kwargs)
+        with patch.object(Path,'read_text',track):checked=self.checked(root,manifest,base)
+        self.assertFalse(checked['ok']);self.assertEqual(observed,[])
+
+    def test_constant_replacement_is_refused_even_with_matching_base_pins(self):
+        root,manifest,base=self.retirement_fixture();binding=manifest['retirements'][0]
+        replacement=next(p for p in binding['files'] if p.endswith('_v2.py'))
+        path=root/replacement;tree=ast.parse(path.read_text())
+        for cls in tree.body:
+            if isinstance(cls,ast.ClassDef):
+                for node in cls.body:
+                    if isinstance(node,ast.FunctionDef) and node.name.startswith('test_'):
+                        node.body=ast.parse('self.assertTrue(True)').body
+        path.write_text(ast.unparse(tree)+'\n');binding['files'][replacement]=hashlib.sha256(path.read_bytes()).hexdigest()
+        base['retirements'][0]['files'][replacement]=binding['files'][replacement]
+        for row in manifest['retirement_checks']:
+            if row['replacement']['nodeid'].startswith(replacement+'::'):
+                row['replacement']['assertion']='self.assertTrue(True)'
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
 
 class FixtureEvidenceOracle(Subject, unittest.TestCase):
     """The static proof admits a real required fixture, not an import/reason."""
@@ -555,6 +631,25 @@ class FixtureEvidenceOracle(Subject, unittest.TestCase):
         root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def setUp(self): pass\n def test_body(self): assert True\n')
         self.assertFalse(self.checked(root,manifest,base)['ok'])
         manifest['excluded'][0]['evidence']['sha256']='0'*64
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_dead_super_call_does_not_require_the_fixture(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def setUp(self):\n  if False: super().setUp()\n def test_body(self): assert True\n')
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_stale_proof_hash_on_required_fixture_refuses(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def test_body(self): assert self.db\n')
+        manifest['excluded'][0]['evidence']['sha256']='0'*64
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_anchor_fixture_must_actually_connect(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def test_body(self): assert True\n')
+        path=root/'next/tests/pg_fixture.py';path.write_text('import psycopg\nclass PgFixture:\n def setUp(self): pass\n')
+        manifest['excluded'][0]['evidence']['sha256']=hashlib.sha256(path.read_bytes()).hexdigest()
+        self.assertFalse(self.checked(root,manifest,base)['ok'])
+
+    def test_unrelated_setup_call_cannot_prove_parent_fixture(self):
+        root,manifest,base=self.fixture('from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def setUp(self): unrelated.setUp()\n def test_body(self): assert True\n')
         self.assertFalse(self.checked(root,manifest,base)['ok'])
 
 

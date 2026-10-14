@@ -12,16 +12,44 @@ Dependency installation occurs before the offline service starts.
 file recursively under `next/`. Entries are individual paths, not patterns.
 An unlisted file, a stale or duplicated entry, a symlink, an empty RUN list,
 or an exclusion without a one-line reason fails before test execution.
+The workflow supplies the independent PR base SHA and checks out its history.
+The standalone `--base-ref` default is the accepted a47a152b checkpoint.
+An unavailable or malformed base refuses; the manifest cannot supply its own
+approval. Every accepted-base RUN entry that leaves RUN is listed in the
+`transitions` receipt and fails unless its exclusion has checkable fixture proof.
 The RC0 oracle at `next/docs/runtime/rc0/test_oracle.py` is covered by this rule
 when it is added; that file is absent from the original PR155 base.
 
-To add a suite, review its fixture effects and add the whole file to `run`, or
-add `{ "path": "next/.../test_name.py", "reason": "Needs ..." }` to `excluded`.
-Database, container, native signing/encryption, and external captured-artifact
-fixtures are excluded explicitly. Mixed files with gated native classes are
-excluded whole; the job does not remove classes, select with `-k`, or accept
-skips. Offline fixture consumers may import helper functions from excluded
-files without running those files' native fixtures.
+To add a suite, review its fixture effects and add the file to `run`. A new or
+changed whole-file exclusion must include `{kind, source, sha256, symbol}`
+evidence. The existing AST reader verifies the exact source digest, a PostgreSQL
+connect call in the named fixture's setup, and that every removed method's class
+requires that fixture through an unconditional, resolved setup/inheritance chain.
+An unused import, a dead/unrelated setup call or a mixed plain method is not
+proof. Unknown Python fixture composition refuses and needs review; this is a
+conservative source proof, not an execution or qualification of PostgreSQL.
+Unchanged accepted-base PG/native exclusions remain declared and visible.
+
+Mixed files stay in RUN. `method_exclusions` names only exact unavailable nodes,
+their reason and source-bound evidence. The two benchmark native nodes require
+their explicit `B01_PODMAN=1` class gate; the one legacy-capture node requires
+its two original input environment paths. All other methods in those three
+files run (27 benchmark and five synthetic legacy methods). The worker collects
+the whole file first, requires each declared unavailable node exactly once, then
+removes only those nodes. Excluded methods receive no PASS credit; arbitrary
+pytest deselection and skips still fail. Imported offline helpers remain usable.
+
+Retirement record/original/v2 identities must agree with the independent base;
+repinning edited reasons or bodies in the manifest does not approve them. Each
+`retirement_checks` entry names the retained original deciding assertion, its
+paired replacement assertion and a uniquely located, hash-bound product mutation.
+The existing worker runs that replacement's healthy baseline and its mutant in
+a disposable source copy. A kill requires a CALL AssertionError, passing setup
+and teardown, exact named collection, no skip/xfail/deselection, observed product
+execution and code fingerprints matching the actual source. Source bytes are
+restored after every proof. All replacements also run normally in the full job.
+This proves each declared deciding path, not arbitrary semantic equivalence;
+reviewers must examine original-to-replacement meaning and any gate/base change.
 
 Each RUN file has a fresh pytest interpreter, disabled plugin autoload, no
 repository pytest addopts, and an owned temporary case root. Bare imports used
