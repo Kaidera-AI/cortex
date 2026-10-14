@@ -1,4 +1,6 @@
 name: ci
+permissions:
+  contents: read
 on:
   push: { branches: [main] }
   pull_request:
@@ -33,6 +35,26 @@ jobs:
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             python .github/scripts/pytest_pg.py --output "${{ runner.temp }}/cortex-pytest-pg" \
             --site "${{ runner.temp }}/cortex-pg-site"
+      - name: U13 pinned test driver and exact-node gate controls
+        run: |
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python -m pip install --only-binary=:all: --no-deps psycopg==3.2.9 \
+            --target "${{ runner.temp }}/cortex-pg-site"
+          python -B .github/scripts/tests/test_u13_gate.py
+      - name: U13 isolated current-v2 PostgreSQL (eight exact methods)
+        run: |
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python .github/scripts/pytest_u13_pg.py --output "${{ runner.temp }}/cortex-u13-pg" \
+            --site "${{ runner.temp }}/cortex-pg-site"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: u13-pg-receipts
+          path: |
+            ${{ runner.temp }}/cortex-u13-pg/**/*.json
+            ${{ runner.temp }}/cortex-u13-pg/**/*.txt
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
