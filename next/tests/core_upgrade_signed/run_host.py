@@ -5,7 +5,6 @@ import hashlib
 import importlib.util
 import io
 import json
-import marshal
 import os
 from pathlib import Path
 import runpy
@@ -25,6 +24,28 @@ FILES = [(HOST/'test_coordinator.py','test_coordinator'),
          (HEAD/'test_current_coordinator_bridge.py','test_current_coordinator_bridge'),
          (HOST/'review_rollback_marker.py','review_rollback_marker')]
 
+def code_fingerprint(code):
+    """Hash code values, not marshal's reference/interning serialization choices."""
+    def normal(value):
+        if isinstance(value, types.CodeType):
+            return {'code': {key: normal(getattr(value,key)) for key in
+                ('co_argcount','co_posonlyargcount','co_kwonlyargcount','co_nlocals',
+                 'co_stacksize','co_flags','co_code','co_consts','co_names',
+                 'co_varnames','co_filename','co_name','co_qualname','co_firstlineno',
+                 'co_linetable','co_exceptiontable','co_freevars','co_cellvars')}}
+        if isinstance(value,bytes): return {'bytes':value.hex()}
+        if isinstance(value,tuple): return {'tuple':[normal(x) for x in value]}
+        if isinstance(value,frozenset):
+            return {'frozenset':sorted((normal(x) for x in value),
+                                      key=lambda x:json.dumps(x,sort_keys=True))}
+        if isinstance(value,complex): return {'complex':[value.real,value.imag]}
+        if value is Ellipsis:return {'ellipsis':True}
+        if value is None or isinstance(value,(str,int,float,bool)):return value
+        raise TypeError('unsupported code constant type')
+    raw=json.dumps(normal(code),sort_keys=True,separators=(',',':'),
+                   allow_nan=False).encode()
+    return hashlib.sha256(raw).hexdigest()
+
 def loaded_witness():
     paths = {str((ROOT/'src/cortex_core/upgrade.py').resolve()),
              str((ROOT/'src/cortex_core/migrations.py').resolve())}
@@ -37,15 +58,17 @@ def loaded_witness():
         if Path(path).is_file():
             raw = Path(path).read_bytes()
             compiled[path] = (hashlib.sha256(raw).hexdigest(),
-                {hashlib.sha256(marshal.dumps(c)).hexdigest()
+                {code_fingerprint(c)
                  for c in codes(compile(raw, path, 'exec'))})
     found = []
     seen = set()
     def capture(function):
+        wrapped = getattr(function,'__wrapped__',None)
+        if wrapped is not None: capture(wrapped)
         code = getattr(function, '__code__', None)
         if code is None or code.co_filename not in compiled: return
         identity = (code.co_filename, code.co_qualname,
-                    hashlib.sha256(marshal.dumps(code)).hexdigest())
+                    code_fingerprint(code))
         if identity in seen: return
         seen.add(identity)
         source, expected = compiled[code.co_filename]
