@@ -25,7 +25,7 @@ from cortex_core.auth import AuthError
 from cortex_core.migrations import apply_migrations
 
 MATRIX_BYTES=(HERE/'ratified_matrix.json').read_bytes()
-assert hashlib.sha256(MATRIX_BYTES).hexdigest()=='0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2'
+assert hashlib.sha256(MATRIX_BYTES).hexdigest()=='e2bcec216f4b90d92c8e53a73ae202d265f2def411a4a744469c42a22164e3cd'
 MATRIX=json.loads(MATRIX_BYTES)
 ORIGINAL=json.loads((HERE/'original_manifest.json').read_bytes())
 SCHEMA=NEXT/'schema'

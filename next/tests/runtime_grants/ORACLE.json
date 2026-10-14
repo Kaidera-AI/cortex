@@ -1,5 +1,5 @@
 {
-  "status": "REFROZEN_OFFLINE_REPAIR_PG_RENEWAL_PENDING",
+  "status": "REFROZEN_CONNECT_V2_OFFLINE_PG_RENEWAL_PENDING",
   "preferred_host": "Separately authorized hosted rootless CI fixture; never shared Mac Podman or assumed Azure host. Bind actual PG minor/image/libpq, then renew on Cox-ratified production tuple.",
   "cases": [
     {
@@ -272,6 +272,18 @@
         "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser",
         "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero",
         "test_repair.Repair.test_valid_bound_observer_timeout_never_success_zero"
+      ]
+    },
+    {
+      "id": "connect-v2",
+      "contract": "Verifier CONNECT only admitted current DB; positive size, native42501 on revoke/foreign DB; NOLOGIN, flags/edges/options closed; no explicit foreign grants.",
+      "exact_nodes": [
+        "test_connect.Connect.test_verifier_closed_other_database_connect_and_size_refused",
+        "test_connect.Connect.test_verifier_current_database_capabilities",
+        "test_connect.Connect.test_verifier_flags_and_all_membership_edges_closed",
+        "test_connect.Connect.test_verifier_no_explicit_other_database_grants",
+        "test_connect.Connect.test_verifier_real_login_refused",
+        "test_connect.Connect.test_verifier_size_positive_and_revocation_refuses"
       ]
     }
   ],
@@ -876,10 +888,10 @@
   ],
   "protocol": "Freeze exact case IDs/data/valid SQL+expected SQLSTATE/zero-row and effects before source. Run actual nonowner connections, not privileged SET ROLE stand-ins. One product mutant at a time; shared body classifier, raw loaded hash/frame; fixture/import/errors INCONCLUSIVE; exact restore/full affected + inherited suite.",
   "tests_run": 0,
-  "mutations_run": 60,
+  "mutations_run": 70,
   "schema_ddl_not_authored": true,
-  "frozen_nodes": 175,
-  "matrix_sha256": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
+  "frozen_nodes": 181,
+  "matrix_sha256": "e2bcec216f4b90d92c8e53a73ae202d265f2def411a4a744469c42a22164e3cd",
   "historical_pg_baseline": {
     "head": "d901d7b27760c6b5713db7aabb603f54f10725a3",
     "nodes": 105,
@@ -892,5 +904,14 @@
   "product_mutations_run": 0,
   "static_families_run": 21,
   "missing_control_groups": 25,
-  "renewal_owner": "Cox NEXT PG-A lab session; ALL175 nodes on18.6/vector0.8.7/CPython3.14.8 pure psycopg3.2.9 + libpq18.6; both-target qualification remains separate"
+  "renewal_owner": "Cox NEXT PG-A lab session; ALL181 nodes on18.6/vector0.8.7/CPython3.14.8 pure psycopg3.2.9 + libpq18.6; both-target qualification remains separate",
+  "connect_amendment": {
+    "version": 2,
+    "prior_head": "0368a245a946f033f89d2460cd9026a4339246a4",
+    "prior_matrix_sha256": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
+    "versioned_node": "test_grants.Grants.test_other_objects__verifier_owner",
+    "delta": "CONNECT False -> True on current database only; identical original body reads new matrix",
+    "all_175_prior_test_bodies_byte_exact": true,
+    "prior_freeze": "REPAIR_FREEZE.json is historical; CONNECT_FREEZE.json supersedes it; native baseline not renewed"
+  }
 }
