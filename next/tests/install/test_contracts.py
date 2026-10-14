@@ -153,4 +153,39 @@ class ContractOracle(unittest.TestCase):
         self.assertIn('cortex_core.runtime.signed_member',policy['required_imports'])
 
 
+    def test_single_schema_unknown_field_decides_in_body(self):
+        q=self.q();q['unexpected']='reject';self.reject(encode(q))
+
+    def test_complete_executed_tuple_deciding_signal_and_time_negatives(self):
+        r=copy.deepcopy(SUBJECTS['receipt']);v=r['invocation_result']
+        v.update(outcome='exited',exit_code=0,signal=None,executable_witness_ref=r['request_ref'],
+                 started_at='2026-10-14T00:00:01Z',ended_at='2026-10-14T00:00:02Z',not_executed_reason=None)
+        r.update(result='FAIL',reason_code='execution_failed',phase='finished',journal_ref=r['request_ref'])
+        self.api().parse_install_message(encode(r),expected_kind='receipt')
+        for field,value in [('signal',15),('executable_witness_ref',None),('ended_at','2026-10-14T00:00:00Z')]:
+            x=copy.deepcopy(r);x['invocation_result'][field]=value
+            self.reject(encode(x),kind='receipt')
+
+    def test_ready_requires_actual_bound_descriptor_connection_checks_and_state(self):
+        r=copy.deepcopy(SUBJECTS['receipt']);r['readiness']['state']='ready'
+        self.reject(encode(r),kind='receipt')
+
+    def test_request_specific_size_bound_with_otherwise_complete_canonical_shape(self):
+        q=self.q();q['acquisition']['local_members']=[{'path':('x'*100)+str(i),'bytes':0,'sha256':'0'*64} for i in range(7000)]
+        raw=encode(q);self.assertGreater(len(raw),1048576);self.assertLess(len(raw),8388608)
+        self.reject(raw)
+
+    def test_original_ref_rejects_non_json_digest_equality_objects(self):
+        api=self.api()
+        class AlwaysEqual:
+            def __eq__(self,other):return True
+        raw=b'public original';record={'path':'record.json','bytes':len(raw),'sha256':AlwaysEqual()}
+        with self.assertRaises(api.InstallRefusal):api.measure_original_ref(record,raw)
+
+    def test_receipt_cross_identity_decides_in_body(self):
+        r=copy.deepcopy(SUBJECTS['receipt']);r['identity']['transaction_id']='foreign'
+        with self.assertRaises(self.api().InstallRefusal):
+            self.receipt_api().verify_product_receipt(encode(r),encode(self.q()),request_ref=SUBJECTS['receipt']['request_ref'])
+
+
 if __name__=='__main__':unittest.main()

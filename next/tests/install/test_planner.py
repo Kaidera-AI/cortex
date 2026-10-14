@@ -170,4 +170,22 @@ class PlannerOracle(unittest.TestCase):
         self.assertEqual(registry['entries'],[]);self.assertIsNone(registry['target_policy_ref'])
 
 
+    def test_root_original_reobserved_after_root_witness_measurement(self):
+        def change(data,calls):
+            if calls[-1][1]=='application.custody.json':
+                data['application.custody.json']=b'root changed after measurement'
+        result,_,_,_=self.select(after=change)
+        self.assertEqual(result.reason_code,'wrong_release')
+
+    def test_admitted_client_carrier_rejects_bad_argv_before_input_reader(self):
+        self.api();entry=importlib.import_module('cortex_core.install.__main__')
+        double=NonAuthoritativeSignedMemberDouble(SUBJECTS['members']['runtime.lock.json'].encode())
+        def fail(*a,**kw):self.fail('bad carrier reached request reader')
+        for argv in [['--other','/fixture/request','--json'],['--request-file','relative','--json'],['--request-file','/fixture/request','--json','extra']]:
+            with double.installed(signed_member):
+                result=entry.plan_entrypoint(argv,aggregate_id='test-only-aggregate',observed_target='linux/arm64',owner_uid=501,
+                   host_identity_ref=self.q()['caller']['host_identity_ref'],environ={},request_reader=fail,config_reader=fail)
+            self.assertEqual(result.reason_code,'bad_shape')
+
+
 if __name__=='__main__':unittest.main()
