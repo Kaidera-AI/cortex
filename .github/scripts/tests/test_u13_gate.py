@@ -152,9 +152,14 @@ class HostReceiptAdmission(unittest.TestCase):
             result=fixture.execute_u13('normal')
         else:
             original=os.fstat
+            observed=[]
             def fstat(fd):
                 value=original(fd)
-                fields=list(value);fields[0]=stat.S_IFCHR | stat.S_IMODE(value.st_mode)
+                fields=list(value)
+                if fake_mode=='changed':
+                    observed.append(fd)
+                    if len(observed)>1: fields[6]+=1
+                else: fields[0]=stat.S_IFCHR | stat.S_IMODE(value.st_mode)
                 return os.stat_result(fields)
             with patch('os.fstat',side_effect=fstat):
                 result=fixture.execute_u13('normal')
@@ -172,8 +177,11 @@ class HostReceiptAdmission(unittest.TestCase):
     def test_empty_object_receipt_is_typed_host_failure(self): self.refused(mode='empty-object')
     def test_truncated_receipt_is_typed_host_failure(self): self.refused(mode='truncated')
     def test_empty_or_oversized_receipt_is_typed_host_failure(self): self.refused(mode='oversize')
+    def test_empty_receipt_is_typed_host_failure(self): self.refused(mode='empty')
     def test_duplicate_json_key_is_typed_host_failure(self): self.refused(mode='duplicate-key')
     def test_unknown_field_is_typed_host_failure(self): self.refused(lambda p:p.update(untrusted_override=True))
+    def test_unknown_nested_field_is_typed_host_failure(self): self.refused(lambda p:p['runtime'].update(override=True))
+    def test_boolean_recorded_exit_is_typed_host_failure(self): self.refused(lambda p:p.update(pytest_exit=False))
     def test_duplicate_node_is_typed_host_failure(self):
         self.refused(lambda p:p['selected'].__setitem__(-1,p['selected'][0]))
     def test_extra_node_is_typed_host_failure(self):
@@ -198,6 +206,7 @@ class HostReceiptAdmission(unittest.TestCase):
     def test_symlink_receipt_is_typed_host_failure(self): self.refused(mode='symlink')
     def test_hardlinked_receipt_is_typed_host_failure(self): self.refused(mode='hardlink')
     def test_nonregular_fstat_is_typed_host_failure(self): self.refused(fake_mode='character-device')
+    def test_receipt_changes_during_read_is_typed_host_failure(self): self.refused(fake_mode='changed')
     def test_valid_complete_receipt_is_accepted(self):
         code,fixture=self.execute()
         self.assertEqual(code,0)
