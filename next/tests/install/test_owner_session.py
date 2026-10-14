@@ -12,7 +12,7 @@ class FrozenSessionContract(unittest.TestCase):
                     facts = case['input']['facts']; boundary = case['input']['boundary']
                     r = facts['reservation']; ctx = facts['context']; clock = facts['clock']
                     self.assertEqual(r['expected_state_revision'], ctx['state_revision']+1)
-                    self.assertEqual(boundary['state_revision'], r['expected_state_revision'])
+                    self.assertEqual(boundary['state_revision'], r['expected_state_revision']+(r['state']=='consumed'))
                     self.assertLessEqual(r['expires_at']-r['reserved_at'], 30)
                     self.assertLessEqual(r['expires_monotonic_ns']-clock['monotonic_ns'], 30_000_000_000)
                     self.assertGreater(boundary['final_monotonic_ns'], clock['monotonic_ns'])
@@ -37,7 +37,7 @@ class FrozenSessionContract(unittest.TestCase):
 
     def test_all_crash_points_and_no_blind_retry_contract(self):
         crashes = {c['input']['boundary']['crash'] for c in frozen.CASES.values()
-                   if c['group']=='C0-11' and c['kind']=='sole_fault_negative'}
+                   if c['group']=='C0-11' and c['kind']=='crash_control'}
         self.assertEqual(crashes, {'before-intent','intent-no-consume','consume-uncertain','commit-no-result',
                                   'not-applied','reply-lost','corrupt-history','accepted-activation-failed'})
         for case in frozen.CASES.values():
@@ -54,7 +54,7 @@ class FrozenSessionContract(unittest.TestCase):
         self.assertEqual(frozen.SUBJECTS['provider_contract'], {'function':'R01.verify_ed25519','provider':'cryptography',
             'version':'50.0.0','transitives':{'cffi':'2.1.1','pycparser':'3.0'},'PyNaCl':'excluded','fallback':False})
         self.assertEqual(frozen.SUBJECTS['physical_bindings'],'UNBOUND')
-        self.assertEqual(len(frozen.SUBJECTS['Vera_open']),2)
+        self.assertEqual(frozen.SUBJECTS['Q3_acceptance_ref']['sha256'],'8fb4badfba7d8fa4c7ecbfe54b247e9a23fdfa7061eee2b29f44fff15bf00c32')
         self.assertEqual(frozen.SUBJECTS['fold'],'existing-P2-event-history-only')
 
 
@@ -233,6 +233,26 @@ class RecoveryAndDeadlineRequirements(unittest.TestCase):
             if case.get('control_id') and type(case.get('fault')) is dict:
                 with self.subTest(case=case['id']):
                     self.assertEqual(frozen.changed_paths(self.case(case['control_id'])['input'],case['input']),[case['fault']['path']])
+
+    def test_current_attempt_and_current_revision_are_bound_original_observations(self):
+        for case in frozen.CASES.values():
+            with self.subTest(case=case['id']):
+                self.assertEqual(self.original(case['input'].get('original_attempt_ref')),case['input']['facts']['attempt'])
+                states=case['input']['boundary'].get('current_state_refs'); self.assertTrue(states)
+                state=self.original(states[-1])
+                if case.get('fault') and type(case['fault']) is dict and case['fault']['path']=='boundary.current_state_refs':
+                    self.assertNotEqual(state['revision'],case['input']['boundary']['state_revision'])
+                    self.assertEqual(case['expected']['detail'],'reservation_invalidated')
+                else:
+                    self.assertEqual(state['revision'],case['input']['boundary']['state_revision'])
+
+    def test_all_current_and_parent_effect_idempotency_subjects_correspond(self):
+        for case in frozen.CASES.values():
+            with self.subTest(case=case['id']):
+                attempts=[case['input']['facts']['attempt']]+[self.original(ref) for ref in case['input'].get('original_history_refs',[])]
+                for attempt in attempts:
+                    original=self.original(attempt['effect']['idempotency_ref'])
+                    self.assertEqual(original['effect_id'],attempt['effect']['effect_id'])
 
 
 for _case in frozen.CASES.values():
