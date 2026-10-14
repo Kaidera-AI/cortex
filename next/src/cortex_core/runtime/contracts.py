@@ -11,8 +11,8 @@ MAX_LOCK_BYTES = 262144
 MAX_CONFIG_BYTES = 65536
 RC0_SHA256 = {
     'runtime-lock-v1.schema.json': 'f7b81910c0bb0de651417054bf46c591916175118ca9eb5fbb849310e5bcf008',
-    'runtime-config-v1.schema.json': 'c0f05c8f8ad442dfe781bee08a0eee8926b0d9331e33790c0f2f87c069b78efb',
-    'runtime-operations-v1.json': '32eb25a99a6fdf94f770f5d6b1584ff4b58801686f96a57ad6259788ec8b94a0',
+    'runtime-config-v1.schema.json': '5ea3feaca027ad2a9aab6c280ba33194ae7a9e686916bd8056d9b08f0e9f4e7b',
+    'runtime-operations-v1.json': '51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b',
 }
 
 
@@ -44,6 +44,7 @@ class RuntimeContracts:
     config_validator: Draft202012Validator
     operations: dict
     operations_sha256: str
+    member_sizes: dict
 
 
 def load_contracts(*, operations_raw: bytes | None = None) -> RuntimeContracts:
@@ -53,7 +54,7 @@ def load_contracts(*, operations_raw: bytes | None = None) -> RuntimeContracts:
     byte-for-byte pinning applies equally to both sources. No schema URL fetches.
     """
     root = Path(__file__).resolve().parents[3] / 'contracts/runtime'
-    values = {}
+    values = {}; sizes = {}
     for name, digest in RC0_SHA256.items():
         try:
             raw = operations_raw if name == 'runtime-operations-v1.json' and operations_raw is not None else (root / name).read_bytes()
@@ -62,6 +63,7 @@ def load_contracts(*, operations_raw: bytes | None = None) -> RuntimeContracts:
         if type(raw) is not bytes or sha256(raw) != digest:
             raise Refusal('operations_mismatch' if name == 'runtime-operations-v1.json' else 'contract_mismatch')
         values[name] = decode(raw, limit=MAX_LOCK_BYTES)
+        sizes[name] = len(raw)
     return RuntimeContracts(Draft202012Validator(values['runtime-lock-v1.schema.json']),
                             Draft202012Validator(values['runtime-config-v1.schema.json']),
-                            values['runtime-operations-v1.json'], RC0_SHA256['runtime-operations-v1.json'])
+                            values['runtime-operations-v1.json'], RC0_SHA256['runtime-operations-v1.json'], sizes)

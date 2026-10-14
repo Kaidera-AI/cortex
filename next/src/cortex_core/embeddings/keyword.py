@@ -100,6 +100,7 @@ class KeywordSearch:
         state=source_state(rows)
         if source_state(observed)!=state:
             raise CapabilityUnavailable('source_changed')
+        check_deadline(deadline)
         if await self.authorize(subject) is False:
             raise PermissionError('forbidden')
         check_deadline(deadline)

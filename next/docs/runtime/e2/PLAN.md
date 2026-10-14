@@ -27,6 +27,8 @@ Files/sequence:
    and typed keyword response transport:200 complete,503 partial, no arbitrary
    status dictionaries or fake vector/model readiness. Append versioned keyword
    fixtures under existing contracts/fixtures and tests/runtime_keyword tests.
+   Existing openkai_contract.py gains only the separately named keyword fixture
+   variant; original semantic/C02 fixtures and ruling assertions remain intact.
 7. Add tests before each new behavior; actual ASGI fixture GET/POST and consumer
    envelopes, source mutation/revocation/deadline/overflow/unsupported controls.
    Mutate each named new guard; expected BODY kill, exact restore and full gates.
@@ -39,3 +41,9 @@ PG/lab, network/key/provider spend, subagents/Gavel/Jev. All runtime authority
 remains the existing original owner/C04/RC3/native admission; fixtures prove only
 the composed source paths. Detailed observable acceptance gates live in the
 evidence GATES.md created before the first branch/merge/application operation.
+
+Owner gate found during implementation: the approved unchanged lock schema pins
+operations_sha256 to old32eb25a9 while the patch requires new51de95ac. Strict
+admission remains closed (bad_shape); no schema/pin bypass or unratified lock-schema
+change. DECLARATION_BLOCKER.json records the exact source/hash contradiction;
+owner resolution is requested while independent E2 source/fixture gates proceed.
