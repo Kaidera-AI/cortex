@@ -44,12 +44,12 @@ def main():
         run(['podman', 'volume', 'create', '--label', 'cortex.test='+label, volume])
         run(['podman', 'run', '-d', '--pod', pod, '--name', db, '--label', 'cortex.test='+label, '--cpus', '1', '--memory', '768m', '--env', 'POSTGRES_USER=postgres', '--env', 'POSTGRES_DB=postgres', '--env', 'POSTGRES_HOST_AUTH_METHOD=trust', '--volume', volume+':/var/lib/postgresql', PG])
         for _ in range(100):
-            if run(['podman', 'exec', db, 'pg_isready', '-U', 'postgres', '-d', 'postgres'], check=False).returncode == 0: break
+            if run(['podman', 'exec', db, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres'], check=False).returncode == 0: break
             time.sleep(0.1)
         else: raise RuntimeError('new owned PG failed readiness')
         result['image'] = json.loads(run(['podman', 'image', 'inspect', PG]).stdout)[0]
-        result['postgres_version'] = run(['podman', 'exec', db, 'psql', '-U', 'postgres', '-Atc', 'SHOW server_version']).stdout.strip()
-        run(['podman', 'exec', db, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', f'CREATE ROLE "{ROLE}" LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS'])
+        result['postgres_version'] = run(['podman', 'exec', db, 'psql', '-h', '127.0.0.1', '-U', 'postgres', '-Atc', 'SHOW server_version']).stdout.strip()
+        run(['podman', 'exec', db, 'psql', '-h', '127.0.0.1', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', f'CREATE ROLE "{ROLE}" LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS'])
         infra = json.loads(run(['podman', 'pod', 'inspect', pod]).stdout)[0]['InfraContainerID']
         pid = json.loads(run(['podman', 'inspect', infra]).stdout)[0]['State']['Pid']
         env = dict(os.environ, PYTHONPATH=str(ROOT/'src'), PYTHONDONTWRITEBYTECODE='1', TEST_DATABASE_URL='postgresql://postgres@127.0.0.1:5432/postgres', TEST_PROBE_DATABASE_URL=f'postgresql://{ROLE}@127.0.0.1:5432/postgres')
