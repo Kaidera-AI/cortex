@@ -122,6 +122,15 @@ class Replay(Fixture, unittest.TestCase):
         self.assertEqual(len(read_calls),1)
         self.assert_closed()
 
+    def test_exhausted_budget_refuses_before_physical_member_open(self):
+        import cortex_core.release.aggregate as aggregate
+        api = self.api(); clock = [100.0]; original = aggregate._validate_manifest
+        def exhausted(*args):
+            result = original(*args); clock[0] = 220.0; return result
+        with patch.object(api.time,'monotonic',lambda: clock[0]),patch.object(aggregate,'_validate_manifest',exhausted),patch.object(RootReader,'aggregate_begin',side_effect=AssertionError('physical open with exhausted budget')):
+            self.refusal('raw_limit',self.backend)
+        self.assert_closed()
+
     def test_owner_tighter_deadline_is_enforced(self):
         api = self.api(); clock = [100.0]; self.policy['limits']['read_seconds'] = 1
         with patch.object(api.time, 'monotonic', lambda: clock[0]):
