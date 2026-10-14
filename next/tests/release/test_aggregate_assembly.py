@@ -401,3 +401,6 @@ class AssemblyControls(unittest.TestCase):
         self.builds[-1]=copy.deepcopy(self.builds[0])
         with patch.object(a,'verify_build_receipt',verify):self.refuse('aggregate_pair_mismatch')
         self.assertEqual(called,[])
+
+    def test_extra_physical_directory_is_closed_pair_refusal(self):
+        (self.root/'members/undeclared').mkdir();self.refuse('aggregate_pair_mismatch')

@@ -300,3 +300,9 @@ class CustodyControls(unittest.TestCase):
             return real(name,flags,**kwargs)
         with patch.object(c.os,'open',opened):r._aggregate_directory(parent,self.root.name,'fixture-root')
         self.assertEqual(seen,[True])
+
+    def test_unknown_original_request_has_closed_typed_refusal(self):
+        r=self.reader();self.begin(r)
+        try:r.aggregate_bytes('members/absent')
+        except Exception as e:self.assertIsInstance(e,Refusal);self.assertEqual(e.reason,'member_not_in_aggregate')
+        else:self.fail('unsigned request returned a value')
