@@ -24,7 +24,7 @@ from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberD
 
 NEXT = Path(__file__).resolve().parents[2]
 FIXTURE = json.loads((NEXT / 'docs/runtime/rc0/fixtures/paired-complete.json').read_bytes())
-IDENTITY = EmbeddingIdentity('openrouter', 'fixture-model', 'fixture-v1', 768, 'fixture-text-v1')
+IDENTITY = EmbeddingIdentity('openrouter', 'fixture-model', 'fixture-version', 768, 'fixture-only')
 
 
 class SurfaceAbsent(AssertionError):
