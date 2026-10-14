@@ -9,8 +9,8 @@ from uuid import UUID
 import psycopg
 from psycopg import sql
 from support import Fixture, SurfaceAbsent, ROLE_NAMES, OPERATION, uid, READ_B, MATRIX
-from test_c04 import C04
-from test_grants import Grants
+import test_c04 as c04_oracle
+import test_grants as grant_oracle
 
 NEXT=Path(__file__).resolve().parents[2]
 DRAFT=NEXT/'schema/auth/007-runtime-grants.sql'
@@ -36,6 +36,19 @@ class DraftFixture(Fixture):
         self._candidate=True
 
 class Draft(DraftFixture):
+    def test_draft_rollback_does_not_admit_prefix20(self):
+        if not DRAFT.is_file():raise SurfaceAbsent('SURFACE_ABSENCE:PG-A-draft-SQL')
+        class Abort(Exception):pass
+        try:
+            with self.root.transaction():
+                self.root.execute(DRAFT.read_text())
+                raise Abort()
+        except Abort:pass
+        self.assertFalse(self.has('auth.runtime_login_bindings'))
+        self.assertFalse(self.has('coordination.supervisor_leases'))
+        self.assertEqual(self.root.execute('SELECT count(*) FROM core.schema_migrations').fetchone()[0],19)
+        self.candidate_if_present()
+
     def test_draft_census_and_private_tables(self):
         self.candidate_if_present()
         count=self.root.execute("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('core','auth','coordination','retrieval') AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchone()[0]
@@ -54,7 +67,7 @@ class Draft(DraftFixture):
         self.refusal(self.request,'SELECT auth.runtime_request_installation(%s)',(uid(1),),false_ok=True)
 
     def test_cross_installation_valid_credential(self):
-        self.candidate_if_present();Grants.test_cross_installation_valid_credential_is_not_session_authority(self)
+        self.candidate_if_present();grant_oracle.Grants.test_cross_installation_valid_credential_is_not_session_authority(self)
 
     def test_guard_is_real_session_not_GUC_or_direct_private_helper(self):
         self.candidate_if_present()
@@ -89,16 +102,16 @@ class Draft(DraftFixture):
         self.assertEqual(self.root.execute("SELECT tgfoid::regprocedure::text FROM pg_trigger WHERE tgrelid='coordination.supervisor_leases'::regclass AND tgname='supervisor_fence_monotonic'").fetchone(),('coordination.refuse_fence_regression()',))
 
     def test_frozen_request_lock_cache_and_sequence_positive(self):
-        self.candidate_if_present();Grants.test_request_read_lock_and_cache_write_exception_and_sequence(self)
+        self.candidate_if_present();grant_oracle.Grants.test_request_read_lock_and_cache_write_exception_and_sequence(self)
 
     def test_installer_scope_and_exact_replay(self):
         self.candidate_if_present()
-        Grants.test_installer_first_identity_is_scoped_once_and_exact_replay(self)
-        Grants.test_installer_other_installation_is_not_admitted_by_name_only(self)
-    _empty_identity=Grants._empty_identity
+        grant_oracle.Grants.test_installer_first_identity_is_scoped_once_and_exact_replay(self)
+        grant_oracle.Grants.test_installer_other_installation_is_not_admitted_by_name_only(self)
+    _empty_identity=grant_oracle.Grants._empty_identity
 
     def test_defaults_closed(self):
-        self.candidate_if_present();Grants.test_public_function_and_type_defaults_closed_for_both_creators(self)
+        self.candidate_if_present();grant_oracle.Grants.test_public_function_and_type_defaults_closed_for_both_creators(self)
 
     def test_size_connect_exact_database_and_no_other_capability(self):
         self.candidate_if_present()
@@ -123,7 +136,7 @@ class Draft(DraftFixture):
 
 # Unchanged inherited C04 bodies, with only the supplemental draft application
 # before their BODY. These are separate controls, not frozen105 node credit.
-for name,value in vars(C04).items():
+for name,value in vars(c04_oracle.C04).items():
     if name.startswith('test_'):
         def body(self,original=value):
             self.candidate_if_present();original(self)
