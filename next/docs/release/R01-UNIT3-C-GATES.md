@@ -23,3 +23,10 @@ Current deciding evidence: corrected scaffold RED76/0errors; typed roles RED2/3,
 deep-prefix RED1, foreign-device RED1; focused final MUTANTS.json95/95 BODY,
 0 errors/skips, exact source restoration. Final complete dual-version run and
 remote push readback remain C4/C6, and same-row delivery remains C7.
+
+Final source run: 811/811 PASS on Python3.14.0 and3.13.7, zero failures/errors/
+skips; includes130 new C cases and681 retained affected original cases. Final
+95/95 loaded-source omissions BODY, zero errors/skips, restoration exact.
+C6/C7 are decided AFTER this committed ledger snapshot by append-only external
+REMOTE_READBACK.json, RETURN_META.json and CORTEX_RETURN_RECEIPT.json. Until those
+receipts exist and report success/returned they remain pending; no early claim.

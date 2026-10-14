@@ -108,3 +108,10 @@ legitimately cross mount devices. Actual mounts/bind namespaces and native owner
 custody are NOT_RUN; source stat fault injection is not native mount proof.
 Existing test-only RAM signer joins actual B byte authentication to measured C
 originals; no real key, persisted key/sidecar or signature of record is created.
+
+Native mapping limit: the fixture map has disjoint input/output/evidence logical
+paths and preserves every original path/body. Real scoped-name collisions or
+common-subject identity require an explicit owner mapping ruling, not inferred
+sharing by equal hash. Current native input/inspection defaults deny native
+qualification. Historical RC0 current_schema19/42 and original fixture empty
+migrations are not a proof of the pending20/44 original SQL target.
