@@ -7,7 +7,10 @@ this source is not an installed API server or a compatibility qualification.
 import asyncio
 from dataclasses import dataclass
 import hashlib
+import inspect
 import json
+import logging
+import math
 from pathlib import Path
 import re
 from urllib.parse import parse_qs
@@ -16,6 +19,156 @@ from uuid import UUID
 
 class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
+
+
+LOGGER = logging.getLogger(__name__)
+
+
+class PostgresProbeFactory:
+    """Open a probe-only async connection with libpq and server-side deadlines."""
+
+    def __init__(self, dsn):
+        if not isinstance(dsn, str) or not dsn:
+            raise GatewayError('Core probe DSN is invalid')
+        self.dsn = dsn
+
+    async def connect(self, *, connect_timeout_seconds, statement_timeout_ms):
+        if (type(connect_timeout_seconds) not in (int, float)
+                or not 0.001 <= connect_timeout_seconds <= 10
+                or type(statement_timeout_ms) is not int
+                or not 1 <= statement_timeout_ms <= 10000):
+            raise GatewayError('Core probe deadlines are invalid')
+        import psycopg
+        return await psycopg.AsyncConnection.connect(
+            self.dsn, autocommit=True,
+            connect_timeout=max(1, math.ceil(connect_timeout_seconds)),
+            options=f'-c statement_timeout={statement_timeout_ms}')
+
+
+def postgres_core_probe(connection_factory, *, timeout_seconds=2):
+    """Coalesce concurrent checks; own cleanup until explicit absolute shutdown.
+
+    The caller supplies the isolated probe connection port, and runtime supplies
+    its RC0 observation cap. Await probe.aclose(deadline=loop.time() + budget)
+    during owned shutdown. An incomplete drain refuses rather than claiming
+    quiescence; caller cancellation never cancels another caller's observation.
+    """
+    connect = getattr(connection_factory, 'connect', None)
+    if (not inspect.iscoroutinefunction(connect)
+            or type(timeout_seconds) not in (int, float)
+            or not 0.001 <= timeout_seconds <= 10):
+        raise GatewayError('Core probe configuration is invalid')
+    flight = None
+    closed = False
+    owned, closers = set(), set()
+
+    def observe_close(task):
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            LOGGER.warning('Core probe connection close failed')
+
+    def own(coroutine, *, closer=False):
+        task = asyncio.create_task(coroutine, name='cortex-core-probe')
+        owned.add(task)
+        task.add_done_callback(owned.discard)
+        if closer:
+            closers.add(task)
+            task.add_done_callback(closers.discard)
+            task.add_done_callback(observe_close)
+        return task
+
+    async def retire(connection):
+        close_task = own(connection.close(), closer=True)
+        try:
+            done, _ = await asyncio.wait({close_task}, timeout=timeout_seconds)
+            if not done:
+                close_task.cancel()
+                LOGGER.warning('Core probe connection close timed out')
+        except asyncio.CancelledError:
+            close_task.cancel()
+            raise
+
+    async def check():
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        connection = None
+        try:
+            connection = await asyncio.wait_for(connect(
+                connect_timeout_seconds=timeout_seconds,
+                statement_timeout_ms=max(1, int(timeout_seconds * 1000))),
+                timeout_seconds)
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            cursor = await asyncio.wait_for(connection.execute('SELECT 1'), remaining)
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            return await asyncio.wait_for(cursor.fetchone(), remaining) == (1,)
+        except Exception:
+            return False
+        finally:
+            if connection is not None:
+                cleanup = own(retire(connection))
+                cleanup.add_done_callback(observe_close)
+
+    async def probe():
+        nonlocal flight
+        if closed:
+            return False
+        if flight is None or flight.done():
+            flight = own(check())
+
+            def discard(done):
+                nonlocal flight
+                if flight is done:
+                    flight = None
+
+            flight.add_done_callback(discard)
+        current = flight
+        try:
+            value = await asyncio.wait_for(asyncio.shield(current), timeout_seconds)
+            return False if closed else value
+        except asyncio.CancelledError:
+            if closed:
+                return False
+            raise
+        except TimeoutError:
+            await asyncio.sleep(0)
+            return False
+        except Exception:
+            return False
+
+    async def aclose(*, deadline):
+        nonlocal closed
+        if type(deadline) not in (int, float) or not math.isfinite(deadline):
+            raise GatewayError('Core probe shutdown deadline is invalid')
+        loop = asyncio.get_running_loop()
+        closed = True
+        current = flight
+        if current is not None and not current.done():
+            current.cancel()
+            _, pending = await asyncio.wait({current}, timeout=max(0, deadline - loop.time()))
+            if pending:
+                raise GatewayError('Core probe shutdown timed out')
+        # Let check's finally create retirement, and let close enter before
+        # cancellation. Cancelling an unstarted close would leak its connection.
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        for task in tuple(closers):
+            if not task.done():
+                task.cancel()
+        pending = {task for task in owned if not task.done()}
+        if pending:
+            _, pending = await asyncio.wait(pending, timeout=max(0, deadline - loop.time()))
+            if pending:
+                raise GatewayError('Core probe shutdown timed out')
+        await asyncio.sleep(0)
+
+    probe.aclose = aclose
+    return probe
 
 
 class EnrollmentHealth:
