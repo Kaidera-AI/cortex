@@ -329,3 +329,56 @@ print(json.dumps({'reads':reads,'flags':[sys.flags.isolated,sys.flags.ignore_env
             self.assertEqual(run.returncode,0,run.stdout+run.stderr);result=json.loads(run.stdout)
             self.assertEqual(result['reads'],[]);self.assertEqual(result['flags'],[1,1,1,1,True,0,True])
             self.assertFalse(result['test_support']);self.assertFalse(result['sitecustomize']);self.assertFalse(marker.exists())
+
+
+class CurrentJoinAndBudget(StartupFixture, unittest.TestCase):
+    def test_current_main_runtime_join_uses_exact_original_operations_pin(self):
+        self.init_boundary()
+        from aggregate_fixture import encode,sha256
+        from cortex_core.runtime.config import admit_config
+        cfg=json.loads(json.loads((NEXT/'tests/install/fixtures/p1-subjects.json').read_bytes())['configs']['linux/arm64'])
+        cfg['runtime_lock_sha256']=sha256(self.bodies[MEMBER])
+        cfg['operations_sha256']=sha256(self.bodies[self.value['compatibility']['operations_member']])
+        cfg['metrics_labels']['release']=self.value['release']['release_id']
+        with self.composition():member=port.request_member(self.aggregate,MEMBER)
+        plan=admit_config(member,encode(cfg),aggregate_id=self.aggregate,observed_target=cfg['target'],mode='inspect')
+        self.assertEqual(plan.lock_sha256,sha256(self.bodies[MEMBER]))
+        self.assertFalse(plan.effect_authority);self.assertFalse(plan.native_qualified)
+        self.assertEqual(plan.authority_status,'UNBOUND');self.assert_closed()
+
+    def test_startup_budget_includes_actual_reader_cleanup(self):
+        api=self.init_boundary();clock=[100.0];closed=[]
+        from cortex_core.release.custody import RootReader
+        real=RootReader.close
+        def cleanup(reader):
+            real(reader)
+            if getattr(reader,'_aggregate_deadline',None)==220.0:
+                self.assertIsNone(reader.fd);clock[0]=221.0;closed.append('actual close')
+        with patch.object(api.time,'monotonic',lambda:clock[0]),patch.object(RootReader,'close',cleanup):
+            self.refusal('raw_limit',self.check)
+        self.assertEqual(closed,['actual close'])
+
+
+class AdditionalAdmissionControls(StartupFixture, unittest.TestCase):
+    def test_file_package_search_locations_cannot_escape_roots(self):
+        self.init_boundary();modules=list(self.observation.modules)
+        name,origin,kind,_=modules[-1];modules[-1]=(name,origin,kind,('/outside/package',))
+        self.replace_observation(modules=tuple(modules))
+        self.refusal('member_authority_unavailable',self.check)
+
+    def test_code_file_count_obeys_existing_owner_tightening(self):
+        self.init_boundary();self.policy['limits']['member_count']=1
+        from aggregate_fixture import encode
+        self.frame=replace(self.frame,owner_binding=(hashlib.sha256(encode(self.policy)).hexdigest(),self.authority.generation,self.authority.fence))
+        self.refusal('raw_limit',self.check);self.assertEqual(self.transports,[])
+
+    def test_startup_budget_includes_current_owner_reload_before_file_reads(self):
+        api=self.init_boundary();clock=[100.0]
+        current=self.frame.current
+        def late():
+            result=current();clock[0]=221.0;return result
+        self.frame=replace(self.frame,current=late)
+        from cortex_core.release import inspector
+        with patch.object(api.time,'monotonic',lambda:clock[0]),patch.object(inspector,'_read_member',side_effect=AssertionError('expired metadata admission read file')):
+            self.refusal('raw_limit',self.check)
+        self.assertEqual(self.transports,[])

@@ -136,8 +136,8 @@ def isolated_original_control(fixture, *, fault=None):
           'original_root':str(fixture.root),'aggregate':fixture.aggregate,'member':'runtime.lock.json',
           'roots':roots,'executable':str(executable),'entrypoint':str(entry),'cache':str(cache),
           'python_version':tuple(sys.version_info[:3]),
-          'intrinsics':tuple(sorted(set(sys.builtin_module_names)|set(_imp._frozen_module_names()))),
-          'fault':fault}
+          'intrinsics':tuple(sorted(set(sys.builtin_module_names)|set(_imp._frozen_module_names())|{'collections.abc','os.path','importlib._bootstrap','importlib._bootstrap_external'})),
+          'fault':fault,'custody_root':str(home/'held-originals')}
     entry.write_text(r'''import base64,json,sys,os
 from pathlib import Path
 # Test-only trusted-launcher DATA. No product/config/candidate selector uses it.
@@ -158,6 +158,29 @@ from cortex_core.release.contracts import freeze
 from cortex_core.release.codec import canonical_bytes,sha256
 from cortex_core.release.custody import RootReader
 from cortex_core.runtime import signed_member as port
+from cortex_core.release import inspector,trust
+startup_failures=[]
+real_require=trust._require
+def source_require(value,reason):
+ if not value:
+  import traceback
+  caller=traceback.extract_stack(limit=2)[0]
+  startup_failures.append({'reason':reason,'line':caller.lineno,'file':caller.filename})
+ return real_require(value,reason)
+trust._require=source_require # TEST recorder; real refusal body always executes.
+measurement_errors=[]
+real_measure=inspector._read_member
+def measured(root_path,row):
+ try:
+  # SOURCE SIMULATION of the independent bootstrap's protected file custody.
+  # Original bytes are held by the parent BEFORE launch. Do not assert that the
+  # shared test-tool interpreter's real ancestors are a qualified installation.
+  copied=dict(row,path=str(Path(d['custody_root'])/row['path'])[1:])
+  return real_measure(Path('/'),copied)
+ except Exception as e:
+  measurement_errors.append({'path':row['path'],'reason':str(e)})
+  raise
+inspector._read_member=measured # TEST-only recorder retains the real body.
 raw=base64.b64decode(d['raw']);signature=base64.b64decode(d['signature']);root=base64.b64decode(d['public_root'])
 counts={'bootstrap':0,'current':0,'transport':0}
 def current():
@@ -167,7 +190,18 @@ def current():
 def originals(aggregate):
  counts['transport']+=1
  return raw,signature,RootReader.for_aggregate(d['original_root'],8*1024**2),d['builds']
-frame=a._StartupContext(bootstrap_id='isolated-source-fixture-one',executable=d['executable'],entrypoint=d['entrypoint'],python_version=tuple(d['python_version']),import_roots=tuple(d['roots']),cache_prefix=d['cache'],files=tuple(tuple(x) for x in d['files']),intrinsics=tuple(d['intrinsics']),path_hooks=tuple(sys.path_hooks),owner_binding=(sha256(canonical_bytes(d['policy'])),d['generation'],d['fence']),current=current,originals=originals)
+# Explicit owner fixture bindings for the exact pinned native providers.
+# This trusted fixture bootstrap preloads only admitted dependencies, never test
+# support, candidate code or a fallback verifier. Object identities are held
+# before admission; file custody remains labelled SOURCE SIMULATION.
+from cryptography.hazmat.bindings.openssl.binding import Binding
+Binding()
+import _cffi_backend
+import asyncpg.pgproto.pgproto as pgproto
+alias_owners={'_openssl':_cffi_backend.__file__,'_openssl.lib':_cffi_backend.__file__,
+              'cython_runtime':pgproto.__file__,'_cython_3_2_1':pgproto.__file__}
+aliases=tuple((name,sys.modules[name],alias_owners[name]) for name in sorted(alias_owners))
+frame=a._StartupContext(module_aliases=aliases,bootstrap_id='isolated-source-fixture-one',executable=d['executable'],entrypoint=d['entrypoint'],python_version=tuple(d['python_version']),import_roots=tuple(d['roots']),cache_prefix=d['cache'],files=tuple(tuple(x) for x in d['files']),intrinsics=tuple(d['intrinsics']),path_hooks=tuple(sys.path_hooks),owner_binding=(sha256(canonical_bytes(d['policy'])),d['generation'],d['fence']),current=current,originals=originals)
 def bootstrap():
  counts['bootstrap']+=1
  return frame
@@ -179,9 +213,13 @@ try:
  result={'status':'original-data','raw':base64.b64encode(out).decode(),'type':type(m).__name__,
          'effect_attribute':hasattr(m,'effect_authority'),'native_attribute':hasattr(m,'native_qualified')}
 except port.Refusal as e:result={'status':'refused','reason':e.reason,'unit':e.unit}
-result.update(counts=counts,forbidden=forbidden,flags=[sys.flags.isolated,sys.flags.ignore_environment,sys.flags.no_site,sys.flags.no_user_site,sys.flags.safe_path,sys.flags.optimize,sys.dont_write_bytecode],
+result.update(counts=counts,startup_failures=startup_failures,measurement_errors=measurement_errors,forbidden=forbidden,flags=[sys.flags.isolated,sys.flags.ignore_environment,sys.flags.no_site,sys.flags.no_user_site,sys.flags.safe_path,sys.flags.optimize,sys.dont_write_bytecode],
  test_support_loaded=any(n=='r01u3_support' or n.startswith(('r01u3_support.','test_','unittest')) for n in sys.modules),
- actual_observation=True,physical_install_qualified=False,bootstrap_provenance='SOURCE_FIXTURE_ONLY')
+ actual_observation=True,file_custody='SOURCE_SIMULATION_PINNED_PRIVATE_COPIES',physical_install_qualified=False,bootstrap_provenance='SOURCE_FIXTURE_ONLY')
+ob=a._startup_observation()
+result['unadmitted_intrinsics']=[name for name,origin,kind,locations in ob.modules if origin in ('built-in','frozen') and name not in frame.intrinsics]
+result['unadmitted_files']=[name for name,origin,kind,locations in ob.modules if isinstance(origin,str) and origin not in ('built-in','frozen') and origin not in {row[1] for row in frame.files}]
+result['no_spec_modules']=[name for name,origin,kind,locations in ob.modules if origin is None and not locations]
 print(json.dumps(result))
 ''')
     paths={}
@@ -204,6 +242,7 @@ print(json.dumps(result))
                 path=Path(base)/name
                 add(path,'crypto' if child.name=='cryptography' else ('loader' if path.suffix in {'.so','.dylib','.dll'} else 'data' if path.suffix!='.py' else 'source'))
     for path in source_root.rglob('*.py'):add(path,'source')
+    for path in (next_root/'contracts').rglob('*.json'):add(path,'data')
     # The packet transports TEST owner DATA; it is not an admitted code subject
     # and cannot circularly hash its own file table. Policy/originals are pinned
     # independently in B and the fixed launcher fixture; no production grant.
@@ -211,7 +250,10 @@ print(json.dumps(result))
     rows=[]
     for filename,role in sorted(paths.items()):
         path=Path(filename);raw_file=path.read_bytes()
-        rows.append((role,filename,len(raw_file),hashlib.sha256(raw_file).hexdigest(),stat.S_IMODE(path.stat().st_mode)))
+        mode=stat.S_IMODE(path.stat().st_mode)&~0o022
+        held=home/'held-originals'/filename[1:]
+        held.parent.mkdir(mode=0o700,parents=True,exist_ok=True);held.write_bytes(raw_file);held.chmod(mode)
+        rows.append((role,filename,len(raw_file),hashlib.sha256(raw_file).hexdigest(),mode))
     data['files']=rows;packet.write_text(json.dumps(data))
     run=subprocess.run([str(executable),'-I','-S','-B','-X','pycache_prefix='+str(cache),str(entry)],env={},capture_output=True,text=True,timeout=180)
     fixture.assertEqual(run.returncode,0,run.stdout+run.stderr)
