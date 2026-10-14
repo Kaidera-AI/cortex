@@ -8,6 +8,9 @@ from pathlib import Path
 import tempfile
 import types
 import unittest
+import ast
+import shutil
+import subprocess
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'pytest_next_offline.py'
 
@@ -395,6 +398,113 @@ class RetirementOracle(Subject, unittest.TestCase):
             packet = self.packet([self.new])
             packet['reports'][1]['outcome'] = outcome
             self.assertFalse(self.admitted(packet, replacements=[self.new]))
+
+
+class InventoryRepairOracle(Subject, unittest.TestCase):
+    """Vera's deciding attacks plus reviewer-independent repair controls."""
+    BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
+    ROOT = SCRIPT.parents[2]
+    WRITER = 'next/tests/outbox_inventory/test_outbox_inventory.py'
+    MIXED = ('next/tests/benchmarks/test_postgres_cleanup.py',
+             'next/tests/benchmarks/test_vector_baseline.py',
+             'next/tests/artifact/test_legacy_map.py')
+
+    def base(self):
+        return json.loads(subprocess.check_output(['git','show',self.BASE+':.github/next-offline-suites.json'],cwd=self.ROOT))
+
+    def current(self):
+        return json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+
+    def checked(self, root, manifest, base=None):
+        gate=self.gate
+        # The exact desired BODY assertions also run against the old two-arg API.
+        if 'base_manifest' in inspect.signature(gate.inventory).parameters:
+            return gate.inventory(root,manifest,base_manifest=self.base() if base is None else base)
+        return gate.inventory(root,manifest)
+
+    def move(self, manifest, paths):
+        for path in paths:
+            manifest['run'].remove(path)
+            manifest['excluded'].append({'path':path,'reason':'Needs real PostgreSQL through the direct or inherited database fixture.'})
+
+    def test_vera_manifest_only_cannot_hide_known_live_writer(self):
+        manifest=self.current();self.move(manifest,[self.WRITER])
+        checked=self.checked(self.ROOT,manifest)
+        self.assertFalse(checked['ok'],'Known live writer removed from RUN by manifest-only edit')
+        if 'transitions' in checked:
+            self.assertIn(self.WRITER,[row['path'] for row in checked['transitions']])
+
+    def test_vera_manifest_only_cannot_hide_91_live_suites(self):
+        manifest=self.current()
+        keep={path for row in self.base()['retirements'] for path in row['files']}
+        removed=[path for path in self.base()['run'] if path not in keep]
+        self.assertEqual(len(removed),91)
+        self.move(manifest,removed)
+        checked=self.checked(self.ROOT,manifest)
+        self.assertFalse(checked['ok'],'91 accepted RUN suites removed by manifest-only edit')
+        if 'transitions' in checked:self.assertEqual(len(checked['transitions']),91)
+
+    def test_forged_fixture_import_does_not_hide_writer(self):
+        manifest=self.current();self.move(manifest,[self.WRITER])
+        manifest['excluded'][-1]['evidence']={'kind':'postgres_fixture','source':self.WRITER,
+            'sha256':hashlib.sha256((self.ROOT/self.WRITER).read_bytes()).hexdigest(),'symbol':'InventoryTests.setUp'}
+        self.assertFalse(self.checked(self.ROOT,manifest)['ok'])
+
+    def retirement_fixture(self):
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        root=Path(temporary.name);current=self.current();base=self.base()
+        bindings=copy.deepcopy(base['retirements'])
+        run=sorted({p for row in bindings for p in row['files']})
+        for path in [p for row in bindings for p in [row['record'],*row['files']]]:
+            target=root/path;target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes((self.ROOT/path).read_bytes())
+        manifest={'run':run,'excluded':[],'retirements':bindings}
+        baseline=copy.deepcopy(manifest)
+        if 'retirement_checks' in current:
+            manifest['retirement_checks']=copy.deepcopy(current['retirement_checks'])
+            for check in manifest['retirement_checks']:
+                path=check['mutation']['path'];target=root/path
+                target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes((self.ROOT/path).read_bytes())
+        return root,manifest,baseline
+
+    def test_repinned_edited_retirement_reason_is_refused(self):
+        root,manifest,base=self.retirement_fixture();binding=manifest['retirements'][0]
+        path=root/binding['record'];path.write_text(path.read_text().replace('preimplementation-only','forged-approved',1))
+        binding['sha256']=hashlib.sha256(path.read_bytes()).hexdigest()
+        self.assertFalse(self.checked(root,manifest,base)['ok'],'repinning changed authority cannot approve it')
+
+    def trivial(self, statement):
+        root,manifest,base=self.retirement_fixture();binding=manifest['retirements'][0]
+        replacement=next(p for p in binding['files'] if p.endswith('_v2.py'))
+        path=root/replacement;tree=ast.parse(path.read_text())
+        for cls in tree.body:
+            if isinstance(cls,ast.ClassDef):
+                for node in cls.body:
+                    if isinstance(node,ast.FunctionDef) and node.name.startswith('test_'):
+                        node.body=ast.parse(statement).body
+        path.write_text(ast.unparse(tree)+'\n');binding['files'][replacement]=hashlib.sha256(path.read_bytes()).hexdigest()
+        return self.checked(root,manifest,base)
+
+    def test_repinned_two_pass_replacements_are_refused(self):
+        self.assertFalse(self.trivial('pass')['ok'],'Vera two-method trivial replacement admitted')
+
+    def test_repinned_constant_assertions_are_refused(self):
+        self.assertFalse(self.trivial('self.assertTrue(True)')['ok'],'constant asserts are not semantic coverage')
+
+    def test_all_32_mixed_offline_methods_are_live(self):
+        checked=self.checked(self.ROOT,self.current())
+        self.assertTrue(checked['ok'],checked)
+        self.assertTrue(set(self.MIXED)<=set(checked['run']),'mixed files still hide 32 offline methods')
+        rows=checked.get('method_exclusions',[])
+        self.assertEqual(len(rows),3,'only the three actually unavailable nodes may be removed')
+
+    def test_all_four_replacements_have_deciding_product_mutations(self):
+        checked=self.checked(self.ROOT,self.current())
+        self.assertTrue(checked['ok'],checked)
+        self.assertEqual(len(checked.get('retirement_checks',[])),4,'named deciding assertions/product mutations missing')
+
+    def test_missing_trusted_base_is_fail_closed(self):
+        self.assertFalse(self.checked(self.ROOT,self.current(),{})['ok'],'missing independent base treated as valid')
 
 
 if __name__ == '__main__':
