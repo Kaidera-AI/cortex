@@ -9,6 +9,24 @@ from test_e0 import (admitted_ai, read_port, require_parameter, surface, Semanti
 
 
 class OffJoinOracle(unittest.IsolatedAsyncioTestCase):
+    async def test_reusing_identical_hosted_bytes_never_revalidates_old_work(self):
+        cls = surface('cortex_core.runtime.selection', 'SelectionGate')
+        original = admitted_ai()
+        gate = cls(original)
+        old = gate.snapshot.revision
+        await gate.apply(admitted_ai('off'))
+        try:
+            await gate.apply(original)
+        except CapabilityUnavailable:
+            pass  # rejecting a reused owner/config revision is also safe
+        calls = []
+        async def old_work(deadline):
+            calls.append(True)
+        with self.assertRaises(CapabilityUnavailable):
+            await gate.run(old_work, revision=old,
+                           deadline=asyncio.get_running_loop().time()+1)
+        self.assertEqual(calls, [])
+
     async def test_off_constructor_has_no_fake_embedding_or_provider_dependency(self):
         require_parameter(C11b2ReadPort, 'selection')
         require_parameter(C11b2ReadPort, 'keyword')
