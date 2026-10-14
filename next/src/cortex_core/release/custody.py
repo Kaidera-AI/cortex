@@ -158,16 +158,20 @@ class RootReader:
         self._aggregate_time()
         try:
             for parent,name,fd,dev,ino in self._aggregate_links:
+                self._aggregate_time()
                 named=os.stat(name,dir_fd=parent,follow_symlinks=False);held=os.fstat(fd)
                 if (not stat.S_ISDIR(named.st_mode) or (named.st_dev,named.st_ino)!=(dev,ino)
                         or (held.st_dev,held.st_ino)!=(dev,ino)):raise Refusal('member_custody_changed')
+                self._aggregate_exact_name(parent,name)
             subjects=self._aggregate_files.values() if path is None else (self._aggregate_files[path],)
             for fd,parent,name,before,bound,digest in subjects:
+                self._aggregate_time()
                 named=os.stat(name,dir_fd=parent,follow_symlinks=False);held=os.fstat(fd)
                 if (self._aggregate_identity(named)!=self._aggregate_identity(before)
                         or self._aggregate_identity(held)!=self._aggregate_identity(before)):
                     raise Refusal('member_custody_changed')
         except OSError:raise Refusal('member_custody_changed') from None
+        self._aggregate_time()
 
     def aggregate_bytes(self,path):
         self._aggregate_path(path)
@@ -193,7 +197,18 @@ class RootReader:
         """Rehash original held bodies and named closure before returning bytes."""
         self._aggregate_check();self._aggregate_inventory()
         for path in self._aggregate_files:self.aggregate_bytes(path)
+        # Observe only this admitted root/relative namespace, not unrelated
+        # changes in absolute ancestor directories outside the original graph.
+        directories=[self.fd]+[fd for key,fd in self._aggregate_dirs.items() if key.startswith('relative:')]
+        before={}
+        for fd in directories:
+            self._aggregate_time();before[fd]=self._aggregate_identity(os.fstat(fd))
+        self._aggregate_inventory()
         self._aggregate_check()
+        for fd,identity in before.items():
+            self._aggregate_time()
+            if self._aggregate_identity(os.fstat(fd))!=identity:raise Refusal('member_custody_changed')
+        self._aggregate_time()
 
     def __call__(self, path):
         fd, name = self._parent(path)
