@@ -8,7 +8,8 @@ import psycopg
 from support import PROBE_ROLE, require_probe
 from cortex_core.api.c11a import GatewayError
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core_db_fixture import Fixture, REQUEST, VERIFIER
+from core_db_fixture import Fixture, REQUEST, auth_fixture
+VERIFIER = auth_fixture.VERIFIER
 
 class ControlTests(unittest.IsolatedAsyncioTestCase):
     async def test_reconnects_after_success_failure_and_non_one_result(self):
