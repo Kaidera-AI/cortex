@@ -157,6 +157,15 @@ class Replay(Fixture, unittest.TestCase):
         self.current_hook = changed
         self.refusal('member_custody_changed',self.backend); self.assert_closed()
 
+    def test_expired_delivery_cannot_reach_original_transport(self):
+        api = self.api(); clock = [100.0]
+        with patch.object(api.time,'monotonic',lambda: clock[0]):
+            delivery = self.backend()
+            self.transport_hook = lambda reader: self.fail('expired delivery reached original transport')
+            clock[0] = 221.0
+            self.refusal('raw_limit',lambda: delivery.read_original(262144))
+        self.assertEqual(self.transports,[self.aggregate]); self.assert_closed()
+
     def test_owner_tighter_deadline_is_enforced(self):
         api = self.api(); clock = [100.0]; self.policy['limits']['read_seconds'] = 1
         with patch.object(api.time, 'monotonic', lambda: clock[0]):
