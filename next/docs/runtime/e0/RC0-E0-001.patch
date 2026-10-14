@@ -1,8 +1,6 @@
 --- a/next/contracts/runtime/runtime-config-v1.schema.json
 +++ b/next/contracts/runtime/runtime-config-v1.schema.json
-@@ -1985,6 +1985,13 @@
-         "component",
-         "release"
+@@ -1987,2 +1987,9 @@
        ]
 +    },
 +    "ai_mode": {
@@ -12,26 +10,17 @@
 +      ],
 +      "default": "hosted"
      }
-   },
-   "required": [
-@@ -2004,7 +2011,6 @@
-     "resolver",
-     "database",
+@@ -2006,3 +2013,2 @@
      "listeners",
 -    "embedding",
      "extractor",
-     "metrics_labels"
-   ],
-@@ -2056,13 +2062,40 @@
-                 "required": [
-                   "api_request",
+@@ -2058,4 +2064,3 @@
                    "probe",
 -                  "observer",
 -                  "provider"
 +                  "observer"
                  ]
-               }
-             }
+@@ -2064,3 +2069,31 @@
            }
 -        }
 +        },
@@ -64,11 +53,7 @@
 +          }
 +        ]
        }
-     },
-     {
-@@ -2244,6 +2277,34 @@
-           }
-         }
+@@ -2246,2 +2279,30 @@
        }
 +    },
 +    {
@@ -99,23 +84,15 @@
 +        ]
 +      }
      }
-   ],
-   "$defs": {
 --- a/next/contracts/runtime/runtime-operations-v1.json
 +++ b/next/contracts/runtime/runtime-operations-v1.json
-@@ -311,8 +311,7 @@
-     "api": [
-       "api_request",
+@@ -313,4 +313,3 @@
        "probe",
 -      "observer",
 -      "provider"
 +      "observer"
      ],
-     "supervisor": [
-       "supervisor"
-@@ -406,5 +405,27 @@
-     "live-conductor-lease",
-     "owned-resource-and-original-operation-receipt"
+@@ -408,3 +407,25 @@
    ],
 -  "anonymous_health_is_install_ready": false
 +  "anonymous_health_is_install_ready": false,
@@ -144,9 +121,7 @@
  }
 --- a/next/docs/runtime/rc0/CONTRACT.md
 +++ b/next/docs/runtime/rc0/CONTRACT.md
-@@ -55,3 +55,18 @@
- The raw receiver must reject duplicate/unknown keys, floats including whole-valued floats, nonfinite values, BOM/bad UTF8/surrogates, depth over 32, and byte overflow (lock 262144, config/operations 65536). Closed JSON schemas cover shape; owner/R01 readers must independently check original bytes/hashes, exact argv, target, current full ledger, roles, resolver/transport, shared-resource conflicts and authority before any effect. No schema validation output is a native/installed readiness receipt.
- 
+@@ -57 +57,16 @@
  Review the full data/semantic cross-bind rules, both health contracts, private address amendment, role/privileged finite-phase split, resolver/owner/enrollment GAPs, PG vector/carrier, unchanged current schema, external-lock cycle rule and documentation oracle evidence. The author does not accept this ABI. No runtime/listener/PG/native execution, real key/credential, artifact fetch, host provisioning or merge occurred in RC0.
 +
 +
