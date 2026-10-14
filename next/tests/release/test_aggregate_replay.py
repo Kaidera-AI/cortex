@@ -101,6 +101,27 @@ class Replay(Fixture, unittest.TestCase):
             self.refusal('raw_limit', self.backend)
         self.assert_closed()
 
+    def test_delivery_remaining_budget_reaches_every_original_read(self):
+        import cortex_core.release.aggregate as aggregate
+        api = self.api(); clock = [100.0]; read_calls = []
+        original_pairs = aggregate._check_pairs
+        def pairs(*args):
+            original_pairs(*args); clock[0] = 219.0
+        with patch.object(api.time,'monotonic',lambda: clock[0]),patch.object(aggregate,'_check_pairs',pairs):
+            delivery = self.backend()
+        def reader_hook(reader):
+            body = reader.aggregate_bytes
+            def late(path):
+                read_calls.append(path); clock[0] = 221.0; return body(path)
+            reader.aggregate_bytes = late
+        self.transport_hook = reader_hook
+        with patch.object(api.time,'monotonic',lambda: clock[0]):
+            self.refusal('raw_limit',lambda: delivery.read_original(262144))
+        # A shared expired budget refuses at the first custody/read check,
+        # before proceeding through the remaining original graph.
+        self.assertEqual(len(read_calls),1)
+        self.assert_closed()
+
     def test_owner_tighter_deadline_is_enforced(self):
         api = self.api(); clock = [100.0]; self.policy['limits']['read_seconds'] = 1
         with patch.object(api.time, 'monotonic', lambda: clock[0]):
