@@ -139,9 +139,9 @@ class HostReceiptAdmission(unittest.TestCase):
                 elif mode=='oversize': raw=' '*(1024*1024)+raw
                 elif mode=='duplicate-key': raw=raw[:-1]+',"schema_version":1}'
                 # An actual child process terminates; no worker or database is simulated as running.
-                code="import os,sys;from pathlib import Path;p=Path(sys.argv[1]);mode=sys.argv[3];\nif mode!='absent':\n target=p.with_name('linked.json') if mode in ('symlink','hardlink') else p\n target.write_text(sys.argv[2])\n if mode=='symlink':p.symlink_to(target)\n if mode=='hardlink':os.link(target,p)\nos._exit(int(sys.argv[4]))"
-                process=subprocess.run([sys.executable,'-B','-c',code,str(path),raw,mode,str(worker_exit)],
-                                       capture_output=True,text=True,timeout=10)
+                code="import os,sys;from pathlib import Path;p=Path(sys.argv[1]);mode=sys.argv[2];raw=sys.stdin.read();\nif mode!='absent':\n target=p.with_name('linked.json') if mode in ('symlink','hardlink') else p\n target.write_text(raw)\n if mode=='symlink':p.symlink_to(target)\n if mode=='hardlink':os.link(target,p)\nos._exit(int(sys.argv[3]))"
+                process=subprocess.run([sys.executable,'-B','-c',code,str(path),mode,str(worker_exit)],
+                                       input=raw,capture_output=True,text=True,timeout=10)
                 owner.assertEqual(process.returncode,worker_exit,'child lifecycle differs from oracle')
                 return process
 
@@ -163,8 +163,10 @@ class HostReceiptAdmission(unittest.TestCase):
     def refused(self, *args, **kwargs):
         code,fixture=self.execute(*args,**kwargs)
         self.assertNotEqual(code,0,'host credited an invalid or absent zero-exit worker receipt')
-        self.assertIs(fixture.receipt['worker_admission']['ok'],False)
-        self.assertIsInstance(fixture.receipt['worker_admission']['code'],str)
+        admission=fixture.receipt.get('worker_admission')
+        self.assertIsInstance(admission,dict,'host did not record a typed receipt admission')
+        self.assertIs(admission['ok'],False)
+        self.assertIsInstance(admission['code'],str)
 
     def test_early_zero_without_receipt_is_typed_host_failure(self): self.refused(mode='absent')
     def test_empty_object_receipt_is_typed_host_failure(self): self.refused(mode='empty-object')
