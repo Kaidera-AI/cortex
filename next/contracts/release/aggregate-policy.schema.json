@@ -1,0 +1,1139 @@
+{
+  "$defs": {
+    "compatibility": {
+      "additionalProperties": false,
+      "properties": {
+        "api_contract": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "compatibility_member": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+          "type": "string"
+        },
+        "descriptor_members": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+            "type": "string"
+          },
+          "maxItems": 10000,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "event_member": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+          "type": "string"
+        },
+        "event_version": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "migration_member": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+          "type": "string"
+        },
+        "operations_member": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+          "type": "string"
+        },
+        "schema_member": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_contract",
+        "schema_version",
+        "event_version",
+        "descriptor_members",
+        "compatibility_member",
+        "schema_member",
+        "event_member",
+        "migration_member",
+        "operations_member"
+      ],
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "core-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/arm64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "const": "members/core-linux-arm64.oci.tar",
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "core-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/amd64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "const": "members/core-linux-amd64.oci.tar",
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "api-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/arm64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "const": "members/api-linux-arm64.oci.tar",
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "api-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/amd64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "const": "members/api-linux-amd64.oci.tar",
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "build_input_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "build_receipt_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "bytes": {
+          "maximum": 4294967296,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kind": {
+          "const": "image",
+          "type": "string"
+        },
+        "media_type": {
+          "const": "application/x-tar",
+          "type": "string"
+        },
+        "module_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "module_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "oci_manifest_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\\.lock\\.json)$(?![\\s\\S])",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "core-image",
+            "api-image"
+          ]
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "target": {
+          "enum": [
+            "linux/arm64",
+            "linux/amd64"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "role",
+        "path",
+        "media_type",
+        "bytes",
+        "sha256",
+        "module_id",
+        "module_version",
+        "target",
+        "oci_manifest_sha256",
+        "build_input_sha256",
+        "build_receipt_sha256"
+      ],
+      "type": "object"
+    },
+    "members": {
+      "allOf": [
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "core-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/arm64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "core-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/amd64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "api-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/arm64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "image",
+                "type": "string"
+              },
+              "role": {
+                "const": "api-image",
+                "type": "string"
+              },
+              "target": {
+                "const": "linux/amd64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role",
+              "target"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "runtime-lock",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "lock-schema",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "config-schema",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "operations",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "descriptor",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "compatibility",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "schema",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "events",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "migrations",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "build-input",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "build-receipt",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "evidence",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "sbom",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "record",
+                "type": "string"
+              },
+              "role": {
+                "const": "provenance",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ]
+          },
+          "minContains": 1
+        }
+      ],
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/image"
+          },
+          {
+            "$ref": "#/$defs/runtime-lock"
+          },
+          {
+            "$ref": "#/$defs/record"
+          }
+        ]
+      },
+      "maxItems": 10000,
+      "minItems": 18,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "record": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "maximum": 8388608,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kind": {
+          "const": "record",
+          "type": "string"
+        },
+        "media_type": {
+          "enum": [
+            "application/json",
+            "application/octet-stream"
+          ]
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "lock-schema",
+            "config-schema",
+            "operations",
+            "descriptor",
+            "compatibility",
+            "schema",
+            "events",
+            "migrations",
+            "build-input",
+            "build-receipt",
+            "evidence",
+            "sbom",
+            "provenance"
+          ]
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "role",
+        "path",
+        "media_type",
+        "bytes",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "release": {
+      "additionalProperties": false,
+      "properties": {
+        "api_contract": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "api_module_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "core_module_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "event_version": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "release_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^v[0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "release_id",
+        "api_contract",
+        "schema_version",
+        "event_version",
+        "core_module_version",
+        "api_module_version"
+      ],
+      "type": "object"
+    },
+    "runtime-lock": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "maximum": 262144,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kind": {
+          "const": "runtime-lock",
+          "type": "string"
+        },
+        "media_type": {
+          "const": "application/json",
+          "type": "string"
+        },
+        "path": {
+          "const": "runtime.lock.json",
+          "type": "string"
+        },
+        "role": {
+          "const": "runtime-lock",
+          "type": "string"
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "role",
+        "path",
+        "media_type",
+        "bytes",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{40}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{40}$(?![\\s\\S])",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commit",
+        "tree"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:cortex:aggregate-policy:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Independent production owner policy; no artifact-root/test-mode/trusted flag, no default authority from schema validation. Its exact digest/provenance is external.",
+  "properties": {
+    "expected_aggregate_sha256": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+      "type": "string"
+    },
+    "expected_members": {
+      "$ref": "#/$defs/members"
+    },
+    "format_version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "installed_baseline": {
+      "additionalProperties": false,
+      "properties": {
+        "fence": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "policy_generation": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "receipt_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "release_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^v[0-9][A-Za-z0-9._+-]*$(?![\\s\\S])",
+          "type": "string"
+        }
+      },
+      "required": [
+        "release_id",
+        "receipt_sha256",
+        "fence",
+        "policy_generation"
+      ],
+      "type": "object"
+    },
+    "limits": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregate_bytes": {
+          "maximum": 17179869184,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "depth": {
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "image_bytes": {
+          "maximum": 4294967296,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "lock_bytes": {
+          "maximum": 262144,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "manifest_bytes": {
+          "maximum": 1048576,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "member_count": {
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "read_seconds": {
+          "maximum": 120,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "record_bytes": {
+          "maximum": 8388608,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "signature_bytes": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "manifest_bytes",
+        "signature_bytes",
+        "lock_bytes",
+        "record_bytes",
+        "image_bytes",
+        "aggregate_bytes",
+        "member_count",
+        "depth",
+        "read_seconds"
+      ],
+      "type": "object"
+    },
+    "owner_binding": {
+      "additionalProperties": false,
+      "properties": {
+        "code_closure_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "installation_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "owner_receipt_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "policy_generation": {
+          "maximum": 9223372036854775807,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "root_store_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "transport_receipt_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "verified_image_receipt_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        }
+      },
+      "required": [
+        "installation_id",
+        "operation_id",
+        "owner_receipt_sha256",
+        "root_store_sha256",
+        "transport_receipt_sha256",
+        "verified_image_receipt_sha256",
+        "code_closure_sha256",
+        "policy_generation"
+      ],
+      "type": "object"
+    },
+    "purpose": {
+      "enum": [
+        "cortex/core-api/test",
+        "cortex/core-api/production"
+      ]
+    },
+    "release": {
+      "$ref": "#/$defs/release"
+    },
+    "root": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_purposes": {
+          "items": {
+            "enum": [
+              "cortex/core-api/test",
+              "cortex/core-api/production"
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "key_id": {
+          "const": "7BBB4B7E0CE8852E",
+          "type": "string"
+        },
+        "key_material_sha256": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])",
+          "type": "string"
+        },
+        "key_use_permission": {
+          "const": "cortex-core-api-release",
+          "type": "string"
+        },
+        "public_key_bytes": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "public_key_ref": {
+          "const": "owner-release-public-key",
+          "type": "string"
+        },
+        "signature_algorithm": {
+          "const": "ED",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key_id",
+        "key_material_sha256",
+        "public_key_ref",
+        "public_key_bytes",
+        "signature_algorithm",
+        "allowed_purposes",
+        "key_use_permission"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "cortex.aggregate-policy.v1",
+      "type": "string"
+    },
+    "sequence_floor": {
+      "maximum": 9223372036854775807,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "validity": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_at": {
+          "maximum": 253402300799,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maximum_release_age_seconds": {
+          "maximum": 604800,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "not_before": {
+          "maximum": 253402300799,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "not_before",
+        "expires_at",
+        "maximum_release_age_seconds"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "format_version",
+    "purpose",
+    "root",
+    "release",
+    "source",
+    "sequence_floor",
+    "expected_aggregate_sha256",
+    "expected_members",
+    "installed_baseline",
+    "validity",
+    "limits",
+    "owner_binding"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,194 @@
+{
+  "schema": "cortex.r01u3.oracle-case-plan.v1",
+  "classification": "FROZEN_DESIRED_CASES_NOT_EXECUTION",
+  "crypto_keys_created": 0,
+  "signatures_created": 0,
+  "production_backend": "UNBOUND",
+  "seal_choice": "PENDING_VERA_KAI",
+  "cases": [
+    {
+      "id": "SIG01",
+      "subject": "valid isolated test-root ED aggregate",
+      "expected": "original exact bytes;read-only;native/effect false",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG02",
+      "subject": "wrong full test root",
+      "expected": "aggregate_root_mismatch",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG03",
+      "subject": "alter original signed lock/member",
+      "expected": "member_digest_mismatch",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG04",
+      "subject": "swap Core/API/target or OCI hash subjects",
+      "expected": "aggregate_pair_mismatch",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG05",
+      "subject": "valid signed older original aggregate",
+      "expected": "aggregate_replay",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG06",
+      "subject": "no detached signature",
+      "expected": "aggregate_unsigned",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG07",
+      "subject": "truncate signature",
+      "expected": "aggregate_signature_invalid",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG08",
+      "subject": "truncate signed manifest",
+      "expected": "aggregate_signature_invalid",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG09",
+      "subject": "truncate actual member",
+      "expected": "member_digest_mismatch",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG10",
+      "subject": "path lexical/Unicode/case/physical alias",
+      "expected": "member_path_alias",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG11",
+      "subject": "tamper authenticated comment",
+      "expected": "aggregate_signature_invalid",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG12",
+      "subject": "change untrusted comment",
+      "expected": "no authority change",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG13",
+      "subject": "legacy Ed or unknown algorithm",
+      "expected": "aggregate_algorithm_unsupported",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG14",
+      "subject": "valid KOS signature with its KOS trusted-comment domain offered to Cortex",
+      "expected": "aggregate_scope_mismatch",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SIG15",
+      "subject": "Cortex subject offered to KOS package verifier",
+      "expected": "release_schema_unsupported",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SEM01",
+      "subject": "schema-valid duplicate/unsorted member paths",
+      "expected": "aggregate_shape",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SEM02",
+      "subject": "required physical original receipt/owner image binding absent despite matching declared tuple",
+      "expected": "required_binding_gap",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SEM03",
+      "subject": "changed current owner time/generation/fence/revocation",
+      "expected": "aggregate_replay",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SEM04",
+      "subject": "external lock embedded/aliased in either image",
+      "expected": "member_path_alias",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SEM05",
+      "subject": "long-audit original member/ancestor/FD byte replacement",
+      "expected": "member_custody_changed",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "ID01",
+      "subject": "crafted equality object aggregate/member arguments at bound R01 backend",
+      "expected": "member_identity_mismatch before root/transport;comparison spy0",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "ID02",
+      "subject": "wrong string subclass aggregate/member arguments at bound R01 backend",
+      "expected": "member_identity_mismatch before root/transport;comparison spy0",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "ID03",
+      "subject": "same string subclass aggregate/member arguments at bound R01 backend",
+      "expected": "member_identity_mismatch before root/transport",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "BOUNDARY01",
+      "subject": "production imports test-only factory/root",
+      "expected": "required_binding_gap;no test material accessible",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "BOUNDARY02",
+      "subject": "fake/unauthed/replayed broker response under Vera-selected boundary; protocol implementation held",
+      "expected": "member_authority_unavailable",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+    },
+    {
+      "id": "SEM06",
+      "subject": "whole-valued float spelling1.0 in original wire integer",
+      "expected": "aggregate_shape",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C actual original parser integration; existing raw codec forbids floats"
+    }
+  ],
+  "current_body_oracle": "next/tests/release/r01u3_support/oracle_red.py:6 reader BODY failures;actual bound R01 backend absent and not tested",
+  "inert_shape_fixture": "not the future valid crypto/OCI positive corpus"
+}
