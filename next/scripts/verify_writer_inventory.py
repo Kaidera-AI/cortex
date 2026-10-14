@@ -138,12 +138,13 @@ def source_reference_flags(file,source):
             function=node.func;index=None;label=None
             # OI-REFLECT-001: a literal method name does not close the callable
             # it returns. Flag invocation (even with opaque SQL), or an escaping
-            # execute/executemany getter, without evaluating receiver/arguments.
+            # execute/executemany or unresolved-name getter, without evaluating
+            # receiver/arguments. A local attribute alias is not a closed name.
             if ((isinstance(function,ast.Call) and function not in reviewed_calls)
                     or (function in getter_references
                         and node not in reviewed_calls and node not in call_targets
                         and len(node.args)>1
-                        and static_text(node.args[1]) in ('execute','executemany'))):
+                        and static_text(node.args[1]) in (None,'execute','executemany'))):
                 flag('dynamic_name:call_target',node)
             if isinstance(function,ast.Name) and function.id in ('getattr','setattr','exec','eval','__import__'):
                 label=function.id;index=1 if label in ('getattr','setattr') else 0
