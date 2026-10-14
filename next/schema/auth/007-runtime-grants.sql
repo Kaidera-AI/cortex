@@ -1,7 +1,7 @@
 -- PG-B INCOMPLETE DRAFT: NOT MANIFESTED, NOT AN ADMITTED PREFIX20.
--- Sole future runtime-grants-0001. PG-B must complete six private ports,
--- finite-owner phase/binding client, service ACL closure/validation and the
--- final manifest append. PG-C seals the final20/44/73 compatibility contract.
+-- Sole future runtime-grants-0001. Six private ports are authored here;
+-- finite-owner phase/binding client, service ACL closure/validation remain
+-- material-gated. PG-C owns the final append and20/44/73 compatibility seal.
 -- No role names, OIDs, credentials, HBA or production authority are created.
 -- Owner phases must admit the exact current DB and protected role inputs first.
 
@@ -414,7 +414,7 @@ SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
         locked auth.runtime_login_bindings%ROWTYPE;
         final_binding auth.runtime_login_bindings%ROWTYPE;
-        lease coordination.supervisor_leases%ROWTYPE;
+        lease record;
         cutoff timestamptz := clock_timestamp()+interval '10 seconds';
         acquired boolean;
 BEGIN
@@ -439,7 +439,7 @@ BEGIN
     -- ON CONFLICT serializes an initially absent row while preserving its
     -- retained fence. Failure rolls back this speculative insert atomically.
     INSERT INTO coordination.supervisor_leases(installation_id,holder,fence,expires_at)
-      VALUES(p_installation,p_holder,1,clock_timestamp()+p_ttl*interval '1 millisecond')
+      VALUES(p_installation,p_holder,1,clock_timestamp())
       ON CONFLICT(installation_id) DO NOTHING;
     acquired:=FOUND;
     SELECT * INTO lease FROM coordination.supervisor_leases
@@ -451,9 +451,7 @@ BEGIN
         IF lease.expires_at>clock_timestamp() OR lease.fence=9223372036854775807 THEN
             RAISE EXCEPTION 'runtime_lease_busy' USING ERRCODE='55000';
         END IF;
-        UPDATE coordination.supervisor_leases SET holder=p_holder,fence=fence+1,
-            expires_at=clock_timestamp()+p_ttl*interval '1 millisecond'
-          WHERE installation_id=p_installation RETURNING * INTO lease;
+        lease.fence:=lease.fence+1;
     END IF;
 
     SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
@@ -461,6 +459,14 @@ BEGIN
        OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
         RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
     END IF;
+    -- Start the admitted TTL at the final write, after all lock waits and
+    -- authority checks; an initially absent row remains private until commit.
+    IF clock_timestamp()>=cutoff THEN
+        RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
+    END IF;
+    UPDATE coordination.supervisor_leases SET holder=p_holder,fence=lease.fence,
+        expires_at=clock_timestamp()+p_ttl*interval '1 millisecond'
+      WHERE installation_id=p_installation RETURNING * INTO lease;
     IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
         RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
     END IF;
@@ -474,7 +480,7 @@ SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
         locked auth.runtime_login_bindings%ROWTYPE;
         final_binding auth.runtime_login_bindings%ROWTYPE;
-        lease coordination.supervisor_leases%ROWTYPE;
+        lease record;
         cutoff timestamptz := clock_timestamp()+interval '10 seconds';
         acquired boolean;
 BEGIN
@@ -508,15 +514,20 @@ BEGIN
        OR lease.expires_at<=clock_timestamp() THEN
         RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000';
     END IF;
-    UPDATE coordination.supervisor_leases
-      SET expires_at=clock_timestamp()+p_ttl*interval '1 millisecond'
-      WHERE installation_id=p_installation RETURNING * INTO lease;
 
     SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
     IF final_binding IS DISTINCT FROM admitted
        OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
         RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
     END IF;
+    IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
+        RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
+    END IF;
+    UPDATE coordination.supervisor_leases
+      SET expires_at=clock_timestamp()+p_ttl*interval '1 millisecond'
+      WHERE installation_id=p_installation AND holder=p_holder AND fence=p_fence
+        AND expires_at>clock_timestamp() RETURNING * INTO lease;
+    IF NOT FOUND THEN RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000'; END IF;
     IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
         RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
     END IF;
@@ -530,7 +541,7 @@ SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
         locked auth.runtime_login_bindings%ROWTYPE;
         final_binding auth.runtime_login_bindings%ROWTYPE;
-        lease coordination.supervisor_leases%ROWTYPE;
+        lease record;
         cutoff timestamptz := clock_timestamp()+interval '10 seconds';
         acquired boolean;
 BEGIN
@@ -562,14 +573,16 @@ BEGIN
         RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000';
     END IF;
     UPDATE coordination.supervisor_leases SET expires_at=clock_timestamp()
-      WHERE installation_id=p_installation;
+      WHERE installation_id=p_installation AND holder=p_holder AND fence=p_fence
+        AND expires_at>clock_timestamp();
+    IF NOT FOUND THEN RAISE EXCEPTION 'runtime_lease_not_live' USING ERRCODE='55000'; END IF;
 
     SELECT * INTO final_binding FROM auth.runtime_login_bindings WHERE role_oid=admitted.role_oid;
     IF final_binding IS DISTINCT FROM admitted
        OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('supervisor') THEN
         RAISE EXCEPTION 'runtime_binding_changed' USING ERRCODE='42501';
     END IF;
-    IF clock_timestamp()>=cutoff THEN
+    IF clock_timestamp()>=cutoff OR lease.expires_at<=clock_timestamp() THEN
         RAISE EXCEPTION 'runtime_lease_expired' USING ERRCODE='55000';
     END IF;
     RETURN true;
@@ -582,7 +595,7 @@ SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
         locked auth.runtime_login_bindings%ROWTYPE;
         final_binding auth.runtime_login_bindings%ROWTYPE;
-        lease coordination.supervisor_leases%ROWTYPE;
+        lease record;
         cutoff timestamptz := clock_timestamp()+interval '10 seconds';
         acquired boolean;
 BEGIN
@@ -631,7 +644,7 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,auth,core,coordination,pg_temp AS $$
 DECLARE admitted auth.runtime_login_bindings%ROWTYPE;
         final_binding auth.runtime_login_bindings%ROWTYPE;
-        lease coordination.supervisor_leases%ROWTYPE;
+        lease record;
         cutoff timestamptz := clock_timestamp()+interval '10 seconds';
         value jsonb;
 BEGIN

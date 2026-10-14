@@ -1,8 +1,10 @@
-# PG-B acceptance gates
-- [ ] G1 exact base, matrix, repaired+CONNECT oracle181 bytes verified; original19/manifest unchanged.
-- [ ] G2 six SQL ports, private ACLs, one protected-map embedding input; actual real-session positives and refusals.
-- [ ] G3 all four map-before-lease locks; queued expiry/final guarded action; read-only revision/revocation barriers.
-- [ ] G4 finite prepare/bind/validate/activate/close/drain/restore binds original durable owned preimages via existing owner boundary, no role-name adoption or second journal. Unknown material HOLD.
-- [ ] G5 unchanged181 baseline, no draft candidate GREEN credit, supplemental draft outcomes separately measured; causal SQL controls restore exact bytes/full affected suite.
-- [ ] G6 ratified native tuple renewal or exact mismatch; one session cleanup/deallocate.
-- [ ] G7 exact owned paths normal push and origin readback; no PR/main/force; evidence seal, same-row return.
+# PG-B acceptance gates — bounded PARTIAL
+- [x] G1 exact base/matrix/Nemo repaired CONNECT181 file map verified; byte-exact import,0 Cox oracle edits; original19/manifest unchanged. ORACLE_BINDINGS/ORIGINAL19/ORACLE_IMPORT.
+- [x] G2 six private ports, protected-map embedding input, actual positives/refusals;74 separate draft tests (25 inherited C04 bodies),44 tables/73 functions;19 ledger rows. No admitted prefix20.
+- [x] G3 four map-before-lease row locks; queued expiry/final action; health/observe read-only revision/revocation and operation barriers; minimum1ms processing-latency deciding BODY RED then GREEN.
+- [ ] G4 HOLD: finite prepare/bind/service ACL validation/activation/close/drain/restore source remains NOT_DELIVERED. Original owned OIDs/preimages/current C0/P2 provider/resolver/HBA/backend/carrier contract remains UNBOUND. No name-only adoption, in-memory preimage or second journal. Source C0 + Finn B0 both explicitly NOT_DELIVERED/NOT_ACCEPTED.
+- [x] G5 unchanged181 original19 baseline47 PASS/115 surface-absence BODY RED/19 semantic BODY RED,0 errors/skips;0 draft candidate GREEN credit. Nine actual SQL fault families, one expected BODY kill each, exact final SQL restoration/full74 PASS each; multi-site clock/holder faults reported honestly.
+- [ ] G6 ratified tuple NOT_RENEWED: availablePG18.4/vector0.8.2/Py3.12.13/psycopg3.2.9 binary libpq17.5 differs from18.6/.8.7/3.14.8/pure+18.6. Regression only. Owned fixture cleanup/deallocation receipt required before handback.
+- [ ] G7 normal own-branch push/readback and same-row partial return pending; no PR/main/force.
+
+Continuation requested, not dispatched: PG-B2 cap4h author from remaining existing PG-B allocation, AFTER existing finite-owner C0/P2 current provider and original operation/preimage/activation/closure input contract is bound and oracle fixture admits that same input; implement the one phase client and exact service ACL validation/activation/drain/restore, no second authority store. PG-C2h and PG-F3h allocations remain, full candidate181/native renewal remain their gates. Original-owner/material acquisition/provider implementation is outside this private SQL slice and unpriced here. Return at the material gate; six-hour ceiling has not been exhausted.
