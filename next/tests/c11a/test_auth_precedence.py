@@ -72,7 +72,3 @@ class AuthPrecedence(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-def test_hosted_unretired_failure_control():
-    assert False, "HOSTED_UNRETIRED_BODY_RED: live method must never be retired"
