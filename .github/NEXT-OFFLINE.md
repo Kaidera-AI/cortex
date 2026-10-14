@@ -27,7 +27,14 @@ Each RUN file has a fresh pytest interpreter, disabled plugin autoload, no
 repository pytest addopts, and an owned temporary case root. Bare imports used
 by the historical tests have explicit source/test search paths. Child tests
 receive no inherited credentials or database endpoint variables. The job uses
-normal pytest discovery of dynamically generated methods; separately invoked
+normal pytest discovery of dynamically generated methods and honors a module's
+standard unittest `load_tests` protocol through a dedicated pytest collector.
+The receipt fixture's nine outer classifier controls therefore run as declared;
+its intentionally failing probe classes run inside those controls. Every declared
+TestCase outcome is recorded, including inner errors, skips and expected failures.
+The two standalone adoption scripts receive the current source and an owned
+temporary output root as positional arguments. Their test bodies are unchanged.
+Separately invoked
 native factories such as B01's `native_suite()` are **NOT_RUN**.
 
 The unchanged PR155 validator checks a nonempty unique collection and exactly

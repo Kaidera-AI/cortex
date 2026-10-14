@@ -1,5 +1,6 @@
 {
   "run": [
+    "next/tests/artifact/test_c03_receipts.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
     "next/tests/benchmarks/test_b01_product_path.py",
     "next/tests/benchmarks/test_b02_geometry.py",
@@ -38,7 +39,6 @@
     "next/tests/integration/test_conductor_tools.py",
     "next/tests/integration/test_dependency_timeout.py",
     "next/tests/integration/test_health_metrics.py",
-    "next/tests/integration/test_pg_graph.py",
     "next/tests/integration/test_pg_search_tools.py",
     "next/tests/integration/test_query_cache_float32_roundtrip.py",
     "next/tests/integration/test_query_cache_tools.py",
@@ -97,6 +97,10 @@
     "next/tests/schema/test_mutation_receipts.py"
   ],
   "excluded": [
+    {
+      "path": "next/tests/integration/test_pg_graph.py",
+      "reason": "Needs real PostgreSQL through SEARCH_TEST_DSN and the asyncpg graph fixture."
+    },
     {
       "path": "next/tests/acceptance_guards/test_acceptance_guards.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
