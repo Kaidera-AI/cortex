@@ -6,7 +6,8 @@ dispatch c7dd415e-4f69-4a9e-8b29-f6a344e1d58c authorises these five contract/tes
 paths and normal publication of `finn/gateb-b0-20261014` only.
 
 The normative owner semantics are Cox's [C0 return](</Volumes/WD-B-4TB/DevVault/helix/docs/handoffs/2026-10-14_cox_kai_gateb-c0.md>),
-accepted by Kai with four amendments in this dispatch. C0's exact input hash is
+accepted by Kai with four amendments in the initial B0 dispatch; C0, R0 and the
+Q3 qualification list remain accepted through the oracle correction. C0's exact input hash is
 bound in `fixtures/gate-b-subjects.json` under `C0.sha256`. This document references
 C0 §§1–8; it does not replace or duplicate that contract. The [Finn unit plan](</Volumes/WD-B-4TB/DevVault/helix/docs/handoffs/2026-10-14_finn_kai_gate-b-plan.md>)
 and [Vera boundary ruling](</Volumes/WD-B-4TB/DevVault/helix/docs/handoffs/2026-10-14_vera_kai_seal-boundary-ruling.md>)
@@ -98,13 +99,16 @@ these package pins nor a Python object/hash/verified flag qualifies Gate B.
 
 ## 4. Frozen subjects, controls and exact missing originals
 
-Oracle freeze commit: `86261e52b2dba814e808a190a857c76ffa6cf4a9`, from P1
-`7cd39ee2383d77c285c6870fc8b0e361534e3585`. Its four test/fixture bytes were frozen
-before this protocol document. The earlier P1/RC2/RC0/R01 tree remains preserved;
-`subjects.json` has only additive top-level GateB entries. No U13/RC2 branch is
-merged and no product source is changed.
+Initial oracle freeze commit: `86261e52b2dba814e808a190a857c76ffa6cf4a9`, from P1
+`7cd39ee2383d77c285c6870fc8b0e361534e3585`. The initial test/fixture bytes were frozen
+before the initial protocol. Accepted correction row
+`2e17ed66-f5a2-45d8-ae2e-64125f8abc8f` first joins repaired P1, then re-freezes
+only F1/F2/Q3 oracle corrections. Every unrelated P1/RC2/RC0/R01 byte remains preserved;
+`subjects.json` has only additive top-level GateB entries. Normal merge `a822bc6a9fef090811701df0329dbfef0f6bb3f2` joins repaired P1
+`0b7f98c40128465a8ffc1167ff413e708560825b`, including its explicit RC2 identity
+merge. The oracle correction itself changes no product source; U13/R01 are not merged.
 
-The literal fixture has **122 case bodies**: conditional owner-fact positives,
+The literal fixture has **155 case bodies**: conditional owner-fact positives,
 sole-field/sole-boundary negatives, and separately labelled multi-fault precedence
 controls. Every negative names its full literal control, exact deciding outcome,
 and independent expected owner-boundary reserve/consume and primitive-boundary
@@ -120,12 +124,37 @@ composed originals: `originals_required` is null, execution is
 are explicitly not InstallRequests. No U3-A shape fixture, old two-fault signature
 test, mocked provider or native_qualified flag supplies an accepted full positive.
 
-The committed tests currently yield **132 checks: 10 artifact checks PASS,
-122 labelled GATE_B_SURFACE_ABSENT BODY failures, 0 errors/skips**. The owner.py
+The committed tests currently yield **179 checks: 24 artifact checks PASS,
+155 labelled GATE_B_SURFACE_ABSENT BODY failures, 0 errors/skips**. The owner.py
 assertion occurs in each body before any owner/provider import. This is surface
 absence, not source behavioral causality or native proof. Artifact checks cover
 literal fault isolation, ref closure/P1 shapes, exact C0 §6 mapping, counters,
 clock/revision bounds, corpus IDs and additive index custody.
+
+The correction assertions are frozen before subject repair at
+`86e4cbc852dc0abe8d6afb14f1c49cf0217d101e` (the return binds the actual full SHA).
+They fail against the earlier subjects, independently of owner.py absence.
+F1 changes 28 existing consumed/recovery cases and adds three distinct matched
+recovery controls that had been wrongly deduplicated. Consumed attempts retain
+actual sequence/clock originals and consumed reservations. Completed original
+read-only recovery carries its APPLIED result; durable reply loss changes only
+the reply/crash observation and returns that same result with zero new counters.
+Unknown results stay HOLD, independently known APPLIED appends once, definitive
+NOT_APPLIED creates a fresh child with original parent/effect/idempotency lineage,
+and accepted fix-forward retains its original prefix and fresh finite scope.
+Historical counters remain; the current original attempt, parent histories and
+current owner-revision observations are held by original byte refs. Current
+authority observations can drift from a stored reservation without rewriting it.
+
+F2 adds 30 controls: seven positives and 23 one-boundary negatives. Earlier
+consent/host/private/policy/session deadlines are explicit winning controls;
+a separately earlier same-epoch monotonic deadline and the lower not-before
+uncertainty interval are also covered. UTC and monotonic equality/just-after
+cases retain the already valid reserved intent and add no consume/dispatch.
+The metadata assertions independently compute BOTH minima from the current
+consent/lease facts and original policy/peer/clock observations, and check the
+whole mint-time interval including not-before. No new production clock, field,
+record class, config channel or parser is introduced by these test observations.
 
 If the future owner surface exists, a missing accepted execution packet is a BODY
 failure `NOT_RUN_MISSING_ORIGINAL_CORPUS`, never an automatic PASS/skip. The
@@ -219,10 +248,11 @@ Two explicit join deltas prevent stale proposals from becoming authority:
   the same `verify_ed25519`, no dual provider/fallback. R0's existing U3-B byte
   algorithm/default are reused; provider/lock adapter execution and native closure
   measurements remain separately owned and unperformed here.
-* B0's exact P1 base still inherits RC2-IDENTITY-001 in `read_member`. The immutable
-  RC2 `edf604ebe0d15363a741d19e286001f421868e09` reader adds exact type checks for
-  BOTH arguments; it was read, **not merged**. Its accepted integration is required
-  before real binding. B0 changes no source or earlier frozen assertion to hide it.
+* The initial P1 base inherited RC2-IDENTITY-001. The correction's explicit normal
+  P1 merge `a822bc6a9fef090811701df0329dbfef0f6bb3f2` carries the accepted RC2
+  `edf604ebe0d15363a741d19e286001f421868e09` exact-type reader and both narrow P1
+  trust repairs. P1's 38 source methods stay GREEN after join; the B0 absence shape
+  stays RED. This source integration supplies no real R01/owner/native binding.
 
 R0 requires the fixed protected module-relative `contracts/release` layout (or a
 separately ratified package-resource refactor), actual interpreter/import/schema/
@@ -241,19 +271,19 @@ surface. Missing image/owner binding refuses before candidate handling. Current
 scope/consent, final clocks/CAS, private lease and original attempt recovery are
 enforced there through accepted C0/P2 composition; they cannot be supplied by C.
 
-## 6. Explicit OPEN items for Vera
+## 6. Accepted Q3 qualification reference
 
-**OPEN V-BOOTSTRAP:** Decide the protected-owner bootstrap qualification sequence,
-including whether creating launcher/journal/authority custody is a product effect
-under the existing no-effect-before-B prerequisite. B0 makes no bootstrap waiver.
+The historical V-BOOTSTRAP/V-POSITIVE OPEN entries are superseded by Vera's
+accepted **Q3-1…Q3-6** list, without re-ruling it. The immutable normative source is
+[the accepted C0/R0/Q3 return](</Volumes/WD-B-4TB/DevVault/helix/docs/handoffs/2026-10-14_vera_kai_gateb-c0-r0-trust.md>):
+20,401 bytes, SHA256 `8fb4badfba7d8fa4c7ecbfe54b247e9a23fdfa7061eee2b29f44fff15bf00c32`.
+`Q3_acceptance_ref` in the re-frozen fixture binds exactly that original and the
+six item identifiers. C0/R0 acceptance and Q3 stand; this B0 correction issues no
+qualification/bootstrap/host/product GO and cannot authorise the first effect.
 
-**OPEN V-POSITIVE:** Decide how zero-product-effect B positives qualify the initial
-boundary and whether a mutating positive is required before its acceptance. If
-those requirements conflict, Kai/release authority must issue a narrowly scoped
-sequence ruling before any action. The author cannot choose the sequence.
-
-Both-host actual B-N1…9 under C's real privileges remain required. A mock kernel,
-same-UID Python subprocess, package pin or source receipt cannot replace them.
-Acceptance of C0+B0, B1/source review, BM/BL physical receipts and any later finite
-operation GO remain separate. Every first install, recovery, rollback, removal,
-purge, activation and private operation stays gated.
+Both-host actual protection, admitted original providers/material, and separately
+named exact qualification authorisations remain required by that list. Every
+post-acceptance product effect still requires independent current finite consent,
+full C0/R0 admission, durable intent, final checks and single consumption. The
+existing physical/native and P2 gates remain held; fixture counters, source hashes,
+package pins, client results or a passing artifact assertion supply no authority.
