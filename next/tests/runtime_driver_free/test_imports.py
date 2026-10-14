@@ -1,6 +1,6 @@
 """Effect-free import/behavior controls; only asyncpg is absent, no dummy driver."""
 import asyncio
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 import importlib
 import importlib.abc
 import json
@@ -134,3 +134,38 @@ class DriverFree(unittest.IsolatedAsyncioTestCase):
         async def invalid():calls.append('invalid');raise ValueError('fixture')
         with self.assertRaises(ValueError):await invalid()
         self.assertEqual(calls,['invalid'])
+
+    async def test_pre_connection_validation_error_does_not_import_driver_for_exception_matching(self):
+        with missing_driver() as attempts:
+            pg=self.load('cortex_core.embeddings.pg_search');calls=[]
+            class Pool:
+                def acquire(self,**kwargs):calls.append('acquire');raise AssertionError('invalid request opened a connection')
+            identity=pg.EmbeddingIdentity('openrouter','fixture','1',768,'v1');error=None
+            try:await pg.PostgresSearch(Pool(),lambda *a:None).configure('subject',identity,'invalid')
+            except Exception as caught:error=caught
+            self.assertIsInstance(error,ValueError)
+            self.assertEqual(calls,[]);self.assertEqual(attempts,[])
+
+    async def test_installed_driver_connection_errors_keep_typed_mapping(self):
+        pg=self.load('cortex_core.embeddings.pg_search');driver=importlib.import_module('asyncpg')
+        supervisor=self.load('cortex_core.conductor.supervisor')
+        cases=[('search',driver.PostgresConnectionError('fixture'),pg.CoreUnavailable),
+               ('search',driver.InterfaceError('fixture'),pg.CoreUnavailable),
+               ('search',driver.QueryCanceledError('fixture'),pg.CapabilityUnavailable),
+               ('supervisor',driver.PostgresConnectionError('fixture'),pg.CoreUnavailable),
+               ('supervisor',OSError('fixture'),pg.CoreUnavailable)]
+        for kind,problem,wanted in cases:
+            with self.subTest(kind=kind,error=type(problem).__name__):
+                class Pool:
+                    @asynccontextmanager
+                    async def acquire(self,**kwargs):
+                        raise problem
+                        yield
+                if kind=='search':boundary=pg.PostgresSearch(Pool(),lambda *a:None)._request('subject')
+                else:boundary=supervisor.Supervisor(Pool(),__import__('uuid').UUID(int=1))._transaction()
+                error=None
+                try:
+                    async with boundary:self.fail('fixture connection failure accepted')
+                except Exception as caught:error=caught
+                self.assertIsInstance(error,wanted)
+                if wanted is pg.CapabilityUnavailable:self.assertEqual(error.reason,'resource_timeout')
