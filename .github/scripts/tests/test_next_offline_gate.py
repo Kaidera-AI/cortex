@@ -379,7 +379,7 @@ class RetirementOracle(Subject, unittest.TestCase):
         observed = []
         original = Path.read_text
         def tracking(path, *args, **kwargs):
-            if path == record: observed.append(path)
+            if path.resolve() == record.resolve(): observed.append(path)
             return original(path, *args, **kwargs)
         with patch.object(Path, 'read_text', tracking):
             checked = self.check()
