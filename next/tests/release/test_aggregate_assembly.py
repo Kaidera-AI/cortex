@@ -316,6 +316,16 @@ class AssemblyControls(unittest.TestCase):
             for target in lock['targets'].values():target['core']['image']['value']['version']='0.1.019'
         self.lock(changed);self.pin();self.refuse('aggregate_pair_mismatch')
 
+    def test_original_source_cross_bind_sole_fault_with_coherent_lock(self):
+        self.value['source']['tree']='c'*40;self.policy['source']=copy.deepcopy(self.value['source'])
+        self.lock(lambda d:d['source']['value'].update(tree='c'*40));self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_OCI_manifest_subject_sole_fault_with_coherent_lock(self):
+        image=self.image();g=next(g for g in self.builds if g['image']==image['path'])
+        digest=json.loads(self.bodies[g['receipt']])['builds']['A']['oci']['config'];image['oci_manifest_sha256']=digest
+        self.lock(lambda d:d['targets'][image['target']][image['module_id']]['image']['value'].update(sha256=digest))
+        self.pin();self.refuse('aggregate_pair_mismatch')
+
     def test_unreferenced_mapping_sole_fault(self):
         raw=b'inert extra original\n';p='members/extra-original.bin'
         self.value['members'].append(dict(kind='record',role='evidence',path=p,media_type='application/octet-stream',bytes=len(raw),sha256=sha256(raw)))
