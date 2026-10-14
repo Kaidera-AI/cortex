@@ -28,13 +28,17 @@ class Alignment(unittest.TestCase):
   except Exception as error:caught=error
   self.assertIsInstance(caught,Refusal,'BODY: typed refusal required, not error or success')
   self.assertEqual(caught.reason,reason,'BODY: exact missing/drift disposition')
+ def accepted(self,p,v,c):
+  try:result=self.check(p,v,c)
+  except Exception as error:self.fail('BODY: authentic older baseline rejected by '+type(error).__name__)
+  self.assertIsNone(result,'BODY: current guard returned non-data result')
  def test_installed_attestation_older_than_current(self):
-  p,v,c=subjects();self.assertIsNone(self.check(p,v,c),'BODY: older attestation mistaken for current lease')
+  p,v,c=subjects();self.accepted(p,v,c)
  def test_empty_attestation_older_than_current(self):
-  p,v,c=subjects(True);self.assertIsNone(self.check(p,v,c),'BODY: explicit empty mistaken for missing/new lease')
+  p,v,c=subjects(True);self.accepted(p,v,c)
  def test_installed_zero_historical_fence_can_have_positive_current(self):
   p,v,c=subjects();p['installed_baseline']['fence']=0;c.current_state['installed_baseline']['fence']=0
-  self.assertIsNone(self.check(p,v,c),'BODY: historical fence0 is not current fence0')
+  self.accepted(p,v,c)
  def test_missing_state_has_no_default(self):
   p,v,c=subjects();del c.current_state;self.refused('required_binding_gap',p,v,c)
  def test_none_state_has_no_default(self):
