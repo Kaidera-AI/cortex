@@ -54,5 +54,5 @@ class CurrentCoreReader(unittest.TestCase):
         port,scope,principal,calls,clock,auth=self.probe()
         with patch.object(c11b.time,'monotonic',lambda:clock[0]):
             with self.assertRaises(CapabilityUnavailable):port._keyword_current(principal,scope,1,99)
-            with self.assertRaises(Exception):port._keyword_current(principal,scope,102,101)
+            with self.assertRaises(c11b.RecordError):port._keyword_current(principal,scope,102,101)
         self.assertEqual(calls,[])

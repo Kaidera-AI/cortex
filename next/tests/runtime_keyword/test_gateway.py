@@ -32,7 +32,7 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
                 state.events.append('read');return state.rows[:limit]
             async def keyword_target(self,principal,scope,target,*,deadline):
                 state.events.append('target')
-                return next((NS(revision=r.source_revision,tombstone=False) for r in state.rows if r.record_id==str(target['record_id'])),None)
+                return next((NS(revision=r.source_revision,tombstone=getattr(r,'tombstone',False)) for r in state.rows if r.record_id==str(target['record_id'])),None)
         try:port=C11b2ReadPort(Core(),None,None,None,'graph-fixture',{'p':'/fixture'},selection=gate)
         except TypeError:raise frozen.SemanticRed('OFF constructor/binding absent') from None
         async def core():state.events.append('core');return True
@@ -51,7 +51,12 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
         scope={'type':'http','method':method,'path':'/search','query_string':query,'headers':[]}
         scope.update(scope_extra or {})
         payload=json.dumps(body or {'query':'CAFÉ'}).encode();messages=[]
-        async def receive():return {'type':'http.request','body':payload,'more_body':False}
+        received=False
+        async def receive():
+            nonlocal received
+            if received:await asyncio.Event().wait()
+            received=True
+            return {'type':'http.request','body':payload,'more_body':False}
         async def send(value):messages.append(value)
         await gateway.app(scope,receive,send)
         status=next(v['status'] for v in messages if v['type']=='http.response.start')
@@ -133,3 +138,19 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
                 status,value=await self.call(gateway,scope_extra={'_cortex_deadline':deadline})
                 self.assertEqual((status,value['error']['reason']),(503,'request_timeout'))
                 self.assertNotIn('read',state.events)
+
+    async def test_canonical_targets_keep_pending_tombstone_and_not_found_masks(self):
+        for kind,status,state in (('pending',503,'pending'),('tombstone',503,'unavailable'),('missing',404,None)):
+            with self.subTest(kind=kind):
+                row=self.row()
+                if kind=='tombstone':row.tombstone=True
+                _,_,gateway=self.make([row])
+                target_id=str(UUID(int=2)) if kind=='missing' else RID
+                code,packet=await self.call(gateway,body={'query':'match','after':{'record_id':target_id,'revision':2},'wait_ms':1})
+                self.assertEqual(code,status);self.assertNotIn('results',packet)
+                if state:self.assertEqual(packet['error']['state'],state)
+
+    async def test_fractional_page_limit_is_invalid_not_silently_truncated(self):
+        _,_,gateway=self.make([self.row()])
+        status,value=await self.call(gateway,body={'query':'match','top_k':1.5})
+        self.assertEqual(status,400);self.assertNotIn('results',value)
