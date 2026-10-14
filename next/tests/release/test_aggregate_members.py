@@ -230,3 +230,28 @@ class CustodyControls(unittest.TestCase):
     def test_duplicate_path_in_direct_custody(self):
         a,_=self.source();r=self.reader();rows=self.value['members']+[self.value['members'][0]]
         self.refuse('aggregate_shape',lambda:r.aggregate_begin(rows,a.PROVISIONAL_LIMITS))
+
+    def test_declared_deep_prefixes_are_not_an_invented_member_cap(self):
+        a,c=self.source();root=self.root/'isolated';path='members/a/b/c/d/e/subject';raw=b'inert\n'
+        target=root/path;target.parent.mkdir(parents=True);target.write_bytes(raw)
+        r=c.RootReader.for_aggregate(str(root),8*1024**2);self.addCleanup(r.close)
+        row=dict(kind='record',role='evidence',path=path,media_type='application/octet-stream',bytes=len(raw),sha256=sha256(raw))
+        try:r.aggregate_begin([row],dict(a.PROVISIONAL_LIMITS,member_count=1))
+        except Refusal as e:self.fail('legal declared prefixes refused: '+e.reason)
+        self.assertEqual(r.aggregate_bytes(path),raw);r.aggregate_finish()
+
+    def test_close_closes_all_held_file_directory_and_root_descriptors(self):
+        r=self.reader();self.begin(r);fds=[x[0] for x in r._aggregate_files.values()]+list(r._aggregate_dirs.values())+[r.fd]
+        r.close()
+        for fd in fds:
+            with self.assertRaises(OSError):os.fstat(fd)
+
+    def test_rebegin_closes_previous_transaction_before_first_open(self):
+        _,c=self.source();r=self.reader();self.begin(r);fds={x[0] for x in r._aggregate_files.values()}|set(r._aggregate_dirs.values())|{r.fd}
+        closed=[];real_close=c.os.close;real_open=c.os.open;seen=[]
+        def close(fd):closed.append(fd);return real_close(fd)
+        def opened(*args,**kwargs):
+            if not seen:self.assertTrue(fds<=set(closed));seen.append(True)
+            return real_open(*args,**kwargs)
+        with patch.object(c.os,'close',close),patch.object(c.os,'open',opened):self.begin(r)
+        self.assertEqual(seen,[True])
