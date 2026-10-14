@@ -269,6 +269,17 @@ class AssemblyControls(unittest.TestCase):
     def test_missing_input_binding(self):
         self.builds[0]['input']='members/absent';self.refuse('required_binding_gap')
 
+    def test_each_original_descriptor_keeps_typed_role(self):
+        p=self.value['compatibility']['descriptor_members'][0]
+        next(r for r in self.value['members'] if r['path']==p)['role']='evidence';self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_each_original_SBOM_keeps_typed_role(self):
+        p=self.builds[0]['paths']['B/sbom.json']
+        next(r for r in self.value['members'] if r['path']==p)['role']='evidence';self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_invalid_lock_layout_path_is_closed_pair_reason(self):
+        self.lock(lambda d:d['layout'].update(runtime_lock='relative/lock'));self.refuse('aggregate_pair_mismatch')
+
     def test_missing_mapped_original_binding(self):
         self.builds[0]['paths']['B/config.bin']='members/absent';self.refuse('required_binding_gap')
 
