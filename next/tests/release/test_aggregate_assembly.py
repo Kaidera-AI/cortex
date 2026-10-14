@@ -233,3 +233,121 @@ class Assembly(unittest.TestCase):
         with patch.object(r,'aggregate_bytes',side_effect=RuntimeError('/private/token-fixture')):
             self.refuse('member_authority_unavailable',lambda:a._assemble_original(encode(self.value),r,self.builds,context(self.policy)))
         self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files)
+
+
+class AssemblyControls(unittest.TestCase):
+    """Focused causal companions; original 76 deciding assertions unchanged."""
+    source=Assembly.source;setUp=Assembly.setUp;run_assembly=Assembly.run_assembly
+    refuse=Assembly.refuse;pin=Assembly.pin;put=Assembly.put;lock=Assembly.lock;image=Assembly.image
+
+    def test_limits_required_typed_shape(self):
+        _,a=self.source()
+        for limits in (None,{},dict(self.policy['limits'],depth=True),dict(self.policy['limits'],depth=0)):
+            with self.subTest(limits=limits):
+                try:a._limits(dict(self.policy,limits=limits))
+                except Exception as e:self.assertIsInstance(e,Refusal);self.assertEqual(e.reason,'required_binding_gap')
+                else:self.fail('invalid independent limits accepted')
+
+    def test_manifest_container_typed_refusal(self):
+        _,a=self.source()
+        for value in ([],None,{'members':None},{'members':[None]},{'members':[{'path':1}]}):
+            with self.subTest(value=value):
+                try:a._validate_manifest(encode(value),self.policy)
+                except Exception as e:self.assertIsInstance(e,Refusal);self.assertEqual(e.reason,'aggregate_shape')
+                else:self.fail('invalid original shape accepted')
+
+    def test_manifest_schema_unknown_field(self):
+        _,a=self.source();v=copy.deepcopy(self.value);v['native_qualified']=True
+        self.refuse('aggregate_shape',lambda:a._validate_manifest(encode(v),self.policy))
+
+    def test_manifest_raw_type_is_bounded(self):
+        _,a=self.source();self.refuse('raw_limit',lambda:a._validate_manifest(None,self.policy))
+
+    def test_build_group_count_required(self):
+        self.builds.pop();self.refuse('required_binding_gap')
+
+    def test_missing_input_binding(self):
+        self.builds[0]['input']='members/absent';self.refuse('required_binding_gap')
+
+    def test_missing_mapped_original_binding(self):
+        self.builds[0]['paths']['B/config.bin']='members/absent';self.refuse('required_binding_gap')
+
+    def test_selected_A_archive_mapping_cannot_be_swapped_with_B(self):
+        g=self.builds[0];g['paths']['A/archive.bin'],g['paths']['B/archive.bin']=g['paths']['B/archive.bin'],g['paths']['A/archive.bin']
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_module_role_sole_fault_over_actual_valid_other_pair(self):
+        # Exchange complete valid same-platform Core/API subjects and mappings;
+        # hashes, original targets, receipt bytes, inputs and OCI remain valid.
+        x,y=self.builds[0],self.builds[2];rx=next(r for r in self.value['members'] if r['path']==x['image']);ry=next(r for r in self.value['members'] if r['path']==y['image'])
+        keep={'path','role','kind','target'}
+        a,b=copy.deepcopy(rx),copy.deepcopy(ry)
+        for key in set(rx)-keep:rx[key],ry[key]=b[key],a[key]
+        self.bodies[x['image']],self.bodies[y['image']]=self.bodies[y['image']],self.bodies[x['image']]
+        oldx,oldy=x['image'],y['image'];x['image'],y['image']=oldy,oldx
+        x['paths']['A/archive.bin']=oldy;y['paths']['A/archive.bin']=oldx
+        self.pin();write(self.root,self.bodies);self.refuse('aggregate_pair_mismatch')
+
+    def test_release_module_version_sole_fault(self):
+        self.value['release']['core_module_version']='0.1.019';self.policy['release']=copy.deepcopy(self.value['release'])
+        self.lock(lambda d:d['release']['value'].update(core_module_version='0.1.019'));self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_compatibility_reference_tuple_sole_fault(self):
+        self.value['compatibility']['api_contract']='other-fixture-api';self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_compatibility_reference_role_sole_fault(self):
+        g=self.builds[0];iv=json.loads(self.bodies[g['input']]);self.value['compatibility']['schema_member']=g['paths'][iv['compatibility_inputs']['schema_manifest']['path']]
+        self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_original_compatibility_api_contract_sole_fault(self):
+        import aggregate_fixture as fixture
+        with patch.dict(fixture.COMPAT,api_contract='other-fixture-api'):
+            self.value,self.bodies,self.builds,self.policy=fixture.materials()
+        write(self.root,self.bodies);self.refuse('aggregate_pair_mismatch')
+
+    def test_release_schema_version_sole_fault(self):
+        self.value['release']['schema_version']=2;self.value['compatibility']['schema_version']=2;self.policy['release']=copy.deepcopy(self.value['release'])
+        self.lock(lambda d:d['release']['value'].update(schema_version=2));self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_release_event_version_sole_fault(self):
+        self.value['release']['event_version']=2;self.value['compatibility']['event_version']=2;self.policy['release']=copy.deepcopy(self.value['release'])
+        self.lock(lambda d:d['release']['value'].update(event_version=2));self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_declared_JSON_binary_subject_sole_fault(self):
+        p=self.builds[0]['paths']['B/archive.bin'];next(r for r in self.value['members'] if r['path']==p)['media_type']='application/json';self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_duplicate_RC0_contract_role(self):
+        original=next(r for r in self.value['members'] if r['role']=='operations');r=copy.deepcopy(original);r['path']='members/contracts/operations-copy.json'
+        self.value['members'].append(r);self.value['members'].sort(key=lambda r:r['path']);self.bodies[r['path']]=self.bodies[original['path']];write(self.root,self.bodies);self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_pinned_contract_raw_sole_fault_with_coherent_lock_binding(self):
+        p=next(r['path'] for r in self.value['members'] if r['role']=='operations');raw=self.bodies[p]+b' '
+        self.put(p,raw);self.lock(lambda d:d['contract_members']['operations']['value'].update(sha256=sha256(raw),bytes=len(raw)))
+        self.refuse('aggregate_pair_mismatch')
+
+    def test_RC0_closed_schema_guard(self):
+        self.lock(lambda d:d['budgets'].update(api_pool_max=0));self.refuse('aggregate_pair_mismatch')
+
+    def test_owner_placement_guard(self):
+        from dataclasses import replace
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close)
+        self.refuse('aggregate_scope_mismatch',lambda:a._assemble_original(encode(self.value),r,self.builds,replace(context(self.policy),placement='consumer')))
+
+    def test_current_owner_recheck_composition(self):
+        from dataclasses import replace
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close)
+        self.refuse('aggregate_replay',lambda:a._assemble_original(encode(self.value),r,self.builds,replace(context(self.policy),now=9999)))
+
+    def test_missing_owner_before_member_reads(self):
+        a,_=self.source();from cortex_core.release.custody import RootReader
+        r=RootReader.for_aggregate(str(self.root),8*1024**2);self.addCleanup(r.close)
+        with patch.object(r,'aggregate_begin',side_effect=AssertionError('read before independent context')):
+            self.refuse('required_binding_gap',lambda:a._assemble_original(encode(self.value),r,self.builds,None))
+
+    def test_finish_guard_change_occurs_before_finish_call(self):
+        a,_=self.source();real=a._check_pairs
+        def after(*args):
+            real(*args);p=self.builds[0]['receipt'];(self.root/p).write_bytes(self.bodies[p])
+        with patch.object(a,'_check_pairs',after):self.refuse('member_custody_changed')

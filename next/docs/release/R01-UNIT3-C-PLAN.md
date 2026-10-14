@@ -77,3 +77,12 @@ from KOS to kos; no deciding assertion changes. Initial RED 76 BODY/0 errors
 stays recorded; corrected scaffolding is separately re-frozen RED before guard
 fixes. No earlier A/B/RC2/R01 test bytes change. Historical RC0 SQL constants in
 the fixture remain declarations, not original current SQL qualification.
+
+Lean implementation review: delete repeated R01 original-body/target/native/A-B
+checks and exact-two-module duplication; the sole R01 parser/verifier already
+enforces them. Preserve independent image manifest/role/source/expected inventory
+and global-original compatibility checks. Store PRE-open directory identities
+and use the same held/named custody check instead of a second identity checker.
+No original oracle assertion changes. Additional focused guard companions may
+be appended before further source guard changes; mutation RED is separately
+attributed, never called native or preimplementation evidence.

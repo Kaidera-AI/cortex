@@ -180,3 +180,53 @@ class Members(unittest.TestCase):
     def test_fifo_is_rejected_without_blocking(self):
         p=self.path();f=self.root/p;f.unlink();os.mkfifo(f)
         self.refuse('member_path_alias',lambda:self.begin(self.reader()))
+
+
+class CustodyControls(unittest.TestCase):
+    """Causal companions; no original deciding assertion is edited."""
+    source=Members.source;setUp=Members.setUp;reader=Members.reader;begin=Members.begin
+    refuse=Members.refuse;path=Members.path
+
+    def test_root_alias_refuses_before_any_physical_open(self):
+        _,c=self.source();r=c.RootReader.for_aggregate(str(self.root)+'/../'+self.root.name,8*1024**2);self.addCleanup(r.close)
+        calls=[];real=c.os.open
+        def observed(*args,**kwargs):calls.append(args[0]);return real(*args,**kwargs)
+        with patch.object(c.os,'open',observed):self.refuse('member_path_alias',lambda:self.begin(r))
+        self.assertEqual(calls,[])
+
+    def test_directory_replaced_between_stat_and_open(self):
+        import shutil
+        _,c=self.source();r=self.reader();real=c.os.open
+        backup=self.root.parent/(self.root.name+'-held');replacement=self.root.parent/(self.root.name+'-replacement')
+        shutil.copytree(self.root,replacement);changed=[]
+        def opened(name,flags,**kwargs):
+            if name==self.root.name and not changed:
+                self.root.rename(backup);replacement.rename(self.root);changed.append(True)
+            return real(name,flags,**kwargs)
+        def restore():
+            if backup.exists():shutil.rmtree(self.root);backup.rename(self.root)
+            if replacement.exists():shutil.rmtree(replacement)
+        self.addCleanup(restore)
+        with patch.object(c.os,'open',opened):self.refuse('member_custody_changed',lambda:self.begin(r))
+        self.assertEqual(changed,[True]);self.assertIsNone(r.fd)
+
+    def test_final_hash_despite_simulated_stale_stat_observation(self):
+        # Fault injection models stale/coarse metadata; actual held-FD body read
+        # is unchanged. This is source-only, not native kernel tamper proof.
+        _,c=self.source();r=self.reader();self.begin(r);p=self.path();r.aggregate_bytes(p)
+        fd,parent,name,before,bound,old_hash=r._aggregate_files[p]
+        raw=self.bodies[p];(self.root/p).write_bytes(bytes([raw[0]^1])+raw[1:])
+        real_stat=c.os.stat;real_fstat=c.os.fstat
+        def stat(path,*args,**kwargs):
+            if path==name and kwargs.get('dir_fd')==parent:return before
+            return real_stat(path,*args,**kwargs)
+        def fstat(f):return before if f==fd else real_fstat(f)
+        with patch.object(c.os,'stat',stat),patch.object(c.os,'fstat',fstat):
+            self.refuse('member_custody_changed',r.aggregate_finish)
+
+    def test_count_bound_in_direct_custody(self):
+        a,_=self.source();r=self.reader();self.refuse('raw_limit',lambda:self.begin(r,dict(a.PROVISIONAL_LIMITS,member_count=1)))
+
+    def test_duplicate_path_in_direct_custody(self):
+        a,_=self.source();r=self.reader();rows=self.value['members']+[self.value['members'][0]]
+        self.refuse('aggregate_shape',lambda:r.aggregate_begin(rows,a.PROVISIONAL_LIMITS))
