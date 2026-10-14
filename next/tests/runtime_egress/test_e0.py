@@ -197,6 +197,8 @@ class ExistingReadOracle(unittest.IsolatedAsyncioTestCase):
         forwarded = next(row[2].get('deadline') for row in obj.calls if row[0] == 'cache')
         if forwarded is None or forwarded > deadline:
             raise SemanticRed('existing search starts cache without remaining absolute request deadline')
+        if asyncio.get_running_loop().time() >= deadline:
+            raise SemanticRed('search returned success after the absolute request deadline')
 
     async def test_separate_graph_reads_existing_facts_without_cache(self):
         obj = read_port()
@@ -323,12 +325,13 @@ class ProviderOracle(unittest.IsolatedAsyncioTestCase):
 
     async def test_redirect_cannot_leave_the_one_origin_even_with_permissive_client(self):
         import httpx
-        from cortex_core.modules.providers.hosted import HostedProvider, ENDPOINT
+        from cortex_core.modules.providers.hosted import HostedProvider
         requests = []
         async def resolver(*args):
             return 'SYNTHETIC-NOT-A-KEY'
         def mock(request):
-            requests.append((str(request.url), request.content.decode()))
+            requests.append((request.method, request.url.scheme, request.url.host,
+                             request.url.port or 443, request.url.raw_path, request.content.decode()))
             if len(requests) == 1:
                 return httpx.Response(307, headers={'location':'https://other.invalid/steal'})
             return httpx.Response(200, json={'data':[{'embedding':[1.0]+[0.0]*767}]})
@@ -338,8 +341,8 @@ class ProviderOracle(unittest.IsolatedAsyncioTestCase):
                 await provider.embed('SYNTHETIC-SCOPE-TEXT', IDENTITY)
             except CapabilityUnavailable:
                 pass
-        if [r[0] for r in requests] != [ENDPOINT]:
-            raise SemanticRed('hosted adapter followed redirect outside its sole admitted origin (mock only)')
+        if [r[:5] for r in requests] != [('POST', 'https', 'openrouter.ai', 443, b'/api/v1/embeddings')]:
+            raise SemanticRed('hosted request violated literal POST/origin/path policy (mock only)')
 
     async def test_unadmitted_model_refuses_before_key_or_http(self):
         from cortex_core.modules.providers.hosted import HostedProvider
