@@ -418,3 +418,39 @@ class AssemblyControls(unittest.TestCase):
 
     def test_extra_physical_directory_is_closed_pair_refusal(self):
         (self.root/'members/undeclared').mkdir();self.refuse('aggregate_pair_mismatch')
+
+    def signed_fixture(self):
+        # Existing test-only signer, unrelated RAM root, no keys/signatures of
+        # record and no persisted key or sidecar. ONE unchanged verifier body.
+        from r01u3_support.factory import test_authority
+        import cortex_core.release.trust as trust
+        authority=test_authority();root=copy.deepcopy(authority.policy['root'])
+        authority.raw=self.run_assembly();authority.value=copy.deepcopy(self.value)
+        authority.policy=copy.deepcopy(self.policy);authority.policy['root']=root
+        authority.current_state['installed_baseline']=copy.deepcopy(self.policy['installed_baseline'])
+        signature=authority.signed();calls=[];primitive=trust.verify_ed25519
+        def crypto(*args):
+            result=primitive(*args);calls.append(result);return result
+        with patch.object(trust,'verify_ed25519',crypto):signed=authority.verify(trust,authority.raw,signature)
+        self.assertEqual(calls,[True,True]);self.assertFalse(signed.native_qualified)
+        self.assertFalse(signed.effect_authority);self.assertFalse(signed.members_admitted)
+        return signed,authority.policy,signature
+
+    def test_authenticated_fixture_originals_join_measured_members(self):
+        _,a=self.source();from cortex_core.release.custody import RootReader
+        signed,policy,signature=self.signed_fixture();value,limits=a._validate_manifest(signed.manifest_raw,policy)
+        r=RootReader.for_aggregate(str(self.root),8*1024**2)
+        try:
+            actual=a._measure_members(value,r,limits,overhead_bytes=len(signed.manifest_raw)+len(signature))
+            self.assertEqual(actual,self.bodies);r.aggregate_finish()
+        finally:r.close()
+
+    def test_T03_external_lock_changed_after_actual_fixture_authentication(self):
+        _,a=self.source();from cortex_core.release.custody import RootReader
+        signed,policy,signature=self.signed_fixture();value,limits=a._validate_manifest(signed.manifest_raw,policy)
+        raw=self.bodies['runtime.lock.json'];(self.root/'runtime.lock.json').write_bytes(raw[:-1]+bytes([raw[-1]^1]))
+        r=RootReader.for_aggregate(str(self.root),8*1024**2)
+        try:
+            with patch.object(a,'_json',side_effect=AssertionError('parser fallback after signed digest drift')):
+                self.refuse('member_digest_mismatch',lambda:a._measure_members(value,r,limits,overhead_bytes=len(signed.manifest_raw)+len(signature)))
+        finally:r.close()
