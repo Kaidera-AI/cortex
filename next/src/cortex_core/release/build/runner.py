@@ -66,3 +66,10 @@ def verify_pair(a, b):
         "oci_closure_equal": True,
         "semantic_audit_equal": True,
     }
+
+
+def plan_source_recipes(raw_envelopes, requests, fact_reader, roots, limits):
+    """Nonexecuting recipe SOURCE entry; never the native producer."""
+    from .envelopes import plan_source_recipes as plan
+
+    return plan(raw_envelopes, requests, fact_reader, roots, limits)

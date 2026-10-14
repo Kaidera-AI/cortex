@@ -1,0 +1,1183 @@
+{
+  "scope": "TEST_ONLY_NONAUTHORITATIVE_NO_NATIVE_OR_INSTALL_CREDIT",
+  "requests": {
+    "linux/arm64/manual": {
+      "schema": "kaidera.install-operation.v1",
+      "format_version": 1,
+      "kind": "request",
+      "identity": {
+        "request_id": "request-manual",
+        "transaction_id": "transaction-manual",
+        "operation_id": "89a3ea1a-1ba8-5696-98a7-599e7e5ecc88",
+        "attempt_id": "attempt-1",
+        "parent_attempt_id": null,
+        "product": "cortex",
+        "installation_id": null
+      },
+      "caller": {
+        "route": "manual",
+        "parent_product": null,
+        "parent_transaction_id": null,
+        "owner_uid": 501,
+        "host_identity_ref": {
+          "path": "host.json",
+          "bytes": 41,
+          "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+        }
+      },
+      "target": {
+        "host_os": "darwin",
+        "host_arch": "arm64",
+        "backend_platform": "linux/arm64",
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        }
+      },
+      "release": {
+        "joint_index_ref": {
+          "path": "index.json",
+          "bytes": 42,
+          "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+        },
+        "joint_signature_ref": {
+          "path": "index.sig",
+          "bytes": 41,
+          "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+        },
+        "trust_policy_ref": {
+          "path": "trust.json",
+          "bytes": 42,
+          "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+        },
+        "bootstrap_verifier_ref": {
+          "path": "bootstrap.json",
+          "bytes": 46,
+          "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+        },
+        "product_manifest_ref": {
+          "path": "product.json",
+          "bytes": 44,
+          "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+        },
+        "product_signature_ref": {
+          "path": "product.sig",
+          "bytes": 43,
+          "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+        },
+        "installer_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "artifact_refs": [
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          }
+        ],
+        "product_tuple_ref": {
+          "path": "tuple.json",
+          "bytes": 42,
+          "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+        },
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        },
+        "deployment_policy_ref": {
+          "path": "deployment.json",
+          "bytes": 47,
+          "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+        },
+        "qualification_scope": "fixture"
+      },
+      "operation": "plan",
+      "profile": "fixture",
+      "roots": [
+        {
+          "purpose": "application",
+          "absolute_path": "/fixture/cortex/app",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          }
+        },
+        {
+          "purpose": "evidence",
+          "absolute_path": "/fixture/cortex/evidence",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          }
+        }
+      ],
+      "acquisition": {
+        "mode": "offline",
+        "local_members": [
+          {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          },
+          {
+            "path": "attempts.json",
+            "bytes": 54,
+            "sha256": "a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21"
+          },
+          {
+            "path": "bootstrap.json",
+            "bytes": 46,
+            "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+          },
+          {
+            "path": "compatibility.json",
+            "bytes": 50,
+            "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+          },
+          {
+            "path": "deployment.json",
+            "bytes": 47,
+            "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+          },
+          {
+            "path": "environment.json",
+            "bytes": 48,
+            "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+          },
+          {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          },
+          {
+            "path": "host.json",
+            "bytes": 41,
+            "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+          },
+          {
+            "path": "index.json",
+            "bytes": 42,
+            "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+          },
+          {
+            "path": "index.sig",
+            "bytes": 41,
+            "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+          },
+          {
+            "path": "installer.json",
+            "bytes": 46,
+            "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+          },
+          {
+            "path": "product.json",
+            "bytes": 44,
+            "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+          },
+          {
+            "path": "product.sig",
+            "bytes": 43,
+            "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+          },
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          },
+          {
+            "path": "trust.json",
+            "bytes": 42,
+            "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+          },
+          {
+            "path": "tuple.json",
+            "bytes": 42,
+            "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+          }
+        ],
+        "acquisition_policy_ref": null
+      },
+      "selection": {
+        "install_missing": false,
+        "product_state_ref": null,
+        "observation_receipt_ref": null
+      },
+      "invocation": {
+        "entrypoint_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "executable_path": "/fixture/cortex/installer",
+        "argv": [
+          "/fixture/cortex/installer",
+          "--request-file",
+          "/fixture/cortex/request.json",
+          "--json"
+        ],
+        "cwd_root": "/fixture/cortex/app",
+        "environment_policy_ref": {
+          "path": "environment.json",
+          "bytes": 48,
+          "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+        }
+      },
+      "previous_receipt_ref": null,
+      "journal_ref": null,
+      "authority_ref": null,
+      "purge_selection": null
+    },
+    "linux/arm64/kos_prerequisite": {
+      "schema": "kaidera.install-operation.v1",
+      "format_version": 1,
+      "kind": "request",
+      "identity": {
+        "request_id": "request-kos_prerequisite",
+        "transaction_id": "transaction-kos_prerequisite",
+        "operation_id": "89a3ea1a-1ba8-5696-98a7-599e7e5ecc88",
+        "attempt_id": "attempt-1",
+        "parent_attempt_id": null,
+        "product": "cortex",
+        "installation_id": null
+      },
+      "caller": {
+        "route": "kos_prerequisite",
+        "parent_product": "kos",
+        "parent_transaction_id": "parent-kos",
+        "owner_uid": 501,
+        "host_identity_ref": {
+          "path": "host.json",
+          "bytes": 41,
+          "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+        }
+      },
+      "target": {
+        "host_os": "darwin",
+        "host_arch": "arm64",
+        "backend_platform": "linux/arm64",
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        }
+      },
+      "release": {
+        "joint_index_ref": {
+          "path": "index.json",
+          "bytes": 42,
+          "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+        },
+        "joint_signature_ref": {
+          "path": "index.sig",
+          "bytes": 41,
+          "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+        },
+        "trust_policy_ref": {
+          "path": "trust.json",
+          "bytes": 42,
+          "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+        },
+        "bootstrap_verifier_ref": {
+          "path": "bootstrap.json",
+          "bytes": 46,
+          "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+        },
+        "product_manifest_ref": {
+          "path": "product.json",
+          "bytes": 44,
+          "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+        },
+        "product_signature_ref": {
+          "path": "product.sig",
+          "bytes": 43,
+          "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+        },
+        "installer_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "artifact_refs": [
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          }
+        ],
+        "product_tuple_ref": {
+          "path": "tuple.json",
+          "bytes": 42,
+          "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+        },
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        },
+        "deployment_policy_ref": {
+          "path": "deployment.json",
+          "bytes": 47,
+          "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+        },
+        "qualification_scope": "fixture"
+      },
+      "operation": "plan",
+      "profile": "fixture",
+      "roots": [
+        {
+          "purpose": "application",
+          "absolute_path": "/fixture/cortex/app",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          }
+        },
+        {
+          "purpose": "evidence",
+          "absolute_path": "/fixture/cortex/evidence",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          }
+        }
+      ],
+      "acquisition": {
+        "mode": "offline",
+        "local_members": [
+          {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          },
+          {
+            "path": "attempts.json",
+            "bytes": 54,
+            "sha256": "a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21"
+          },
+          {
+            "path": "bootstrap.json",
+            "bytes": 46,
+            "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+          },
+          {
+            "path": "compatibility.json",
+            "bytes": 50,
+            "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+          },
+          {
+            "path": "deployment.json",
+            "bytes": 47,
+            "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+          },
+          {
+            "path": "environment.json",
+            "bytes": 48,
+            "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+          },
+          {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          },
+          {
+            "path": "host.json",
+            "bytes": 41,
+            "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+          },
+          {
+            "path": "index.json",
+            "bytes": 42,
+            "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+          },
+          {
+            "path": "index.sig",
+            "bytes": 41,
+            "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+          },
+          {
+            "path": "installer.json",
+            "bytes": 46,
+            "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+          },
+          {
+            "path": "product.json",
+            "bytes": 44,
+            "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+          },
+          {
+            "path": "product.sig",
+            "bytes": 43,
+            "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+          },
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          },
+          {
+            "path": "trust.json",
+            "bytes": 42,
+            "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+          },
+          {
+            "path": "tuple.json",
+            "bytes": 42,
+            "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+          }
+        ],
+        "acquisition_policy_ref": null
+      },
+      "selection": {
+        "install_missing": false,
+        "product_state_ref": null,
+        "observation_receipt_ref": null
+      },
+      "invocation": {
+        "entrypoint_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "executable_path": "/fixture/cortex/installer",
+        "argv": [
+          "/fixture/cortex/installer",
+          "--request-file",
+          "/fixture/cortex/request.json",
+          "--json"
+        ],
+        "cwd_root": "/fixture/cortex/app",
+        "environment_policy_ref": {
+          "path": "environment.json",
+          "bytes": 48,
+          "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+        }
+      },
+      "previous_receipt_ref": null,
+      "journal_ref": null,
+      "authority_ref": null,
+      "purge_selection": null
+    },
+    "linux/amd64/manual": {
+      "schema": "kaidera.install-operation.v1",
+      "format_version": 1,
+      "kind": "request",
+      "identity": {
+        "request_id": "request-manual",
+        "transaction_id": "transaction-manual",
+        "operation_id": "eb562a00-7a37-528b-bfd3-e22b7f941da9",
+        "attempt_id": "attempt-1",
+        "parent_attempt_id": null,
+        "product": "cortex",
+        "installation_id": null
+      },
+      "caller": {
+        "route": "manual",
+        "parent_product": null,
+        "parent_transaction_id": null,
+        "owner_uid": 501,
+        "host_identity_ref": {
+          "path": "host.json",
+          "bytes": 41,
+          "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+        }
+      },
+      "target": {
+        "host_os": "linux",
+        "host_arch": "x86_64",
+        "backend_platform": "linux/amd64",
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        }
+      },
+      "release": {
+        "joint_index_ref": {
+          "path": "index.json",
+          "bytes": 42,
+          "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+        },
+        "joint_signature_ref": {
+          "path": "index.sig",
+          "bytes": 41,
+          "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+        },
+        "trust_policy_ref": {
+          "path": "trust.json",
+          "bytes": 42,
+          "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+        },
+        "bootstrap_verifier_ref": {
+          "path": "bootstrap.json",
+          "bytes": 46,
+          "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+        },
+        "product_manifest_ref": {
+          "path": "product.json",
+          "bytes": 44,
+          "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+        },
+        "product_signature_ref": {
+          "path": "product.sig",
+          "bytes": 43,
+          "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+        },
+        "installer_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "artifact_refs": [
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          }
+        ],
+        "product_tuple_ref": {
+          "path": "tuple.json",
+          "bytes": 42,
+          "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+        },
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        },
+        "deployment_policy_ref": {
+          "path": "deployment.json",
+          "bytes": 47,
+          "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+        },
+        "qualification_scope": "fixture"
+      },
+      "operation": "plan",
+      "profile": "fixture",
+      "roots": [
+        {
+          "purpose": "application",
+          "absolute_path": "/fixture/cortex/app",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          }
+        },
+        {
+          "purpose": "evidence",
+          "absolute_path": "/fixture/cortex/evidence",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          }
+        }
+      ],
+      "acquisition": {
+        "mode": "offline",
+        "local_members": [
+          {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          },
+          {
+            "path": "attempts.json",
+            "bytes": 54,
+            "sha256": "a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21"
+          },
+          {
+            "path": "bootstrap.json",
+            "bytes": 46,
+            "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+          },
+          {
+            "path": "compatibility.json",
+            "bytes": 50,
+            "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+          },
+          {
+            "path": "deployment.json",
+            "bytes": 47,
+            "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+          },
+          {
+            "path": "environment.json",
+            "bytes": 48,
+            "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+          },
+          {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          },
+          {
+            "path": "host.json",
+            "bytes": 41,
+            "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+          },
+          {
+            "path": "index.json",
+            "bytes": 42,
+            "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+          },
+          {
+            "path": "index.sig",
+            "bytes": 41,
+            "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+          },
+          {
+            "path": "installer.json",
+            "bytes": 46,
+            "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+          },
+          {
+            "path": "product.json",
+            "bytes": 44,
+            "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+          },
+          {
+            "path": "product.sig",
+            "bytes": 43,
+            "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+          },
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          },
+          {
+            "path": "trust.json",
+            "bytes": 42,
+            "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+          },
+          {
+            "path": "tuple.json",
+            "bytes": 42,
+            "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+          }
+        ],
+        "acquisition_policy_ref": null
+      },
+      "selection": {
+        "install_missing": false,
+        "product_state_ref": null,
+        "observation_receipt_ref": null
+      },
+      "invocation": {
+        "entrypoint_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "executable_path": "/fixture/cortex/installer",
+        "argv": [
+          "/fixture/cortex/installer",
+          "--request-file",
+          "/fixture/cortex/request.json",
+          "--json"
+        ],
+        "cwd_root": "/fixture/cortex/app",
+        "environment_policy_ref": {
+          "path": "environment.json",
+          "bytes": 48,
+          "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+        }
+      },
+      "previous_receipt_ref": null,
+      "journal_ref": null,
+      "authority_ref": null,
+      "purge_selection": null
+    },
+    "linux/amd64/kos_prerequisite": {
+      "schema": "kaidera.install-operation.v1",
+      "format_version": 1,
+      "kind": "request",
+      "identity": {
+        "request_id": "request-kos_prerequisite",
+        "transaction_id": "transaction-kos_prerequisite",
+        "operation_id": "eb562a00-7a37-528b-bfd3-e22b7f941da9",
+        "attempt_id": "attempt-1",
+        "parent_attempt_id": null,
+        "product": "cortex",
+        "installation_id": null
+      },
+      "caller": {
+        "route": "kos_prerequisite",
+        "parent_product": "kos",
+        "parent_transaction_id": "parent-kos",
+        "owner_uid": 501,
+        "host_identity_ref": {
+          "path": "host.json",
+          "bytes": 41,
+          "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+        }
+      },
+      "target": {
+        "host_os": "linux",
+        "host_arch": "x86_64",
+        "backend_platform": "linux/amd64",
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        }
+      },
+      "release": {
+        "joint_index_ref": {
+          "path": "index.json",
+          "bytes": 42,
+          "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+        },
+        "joint_signature_ref": {
+          "path": "index.sig",
+          "bytes": 41,
+          "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+        },
+        "trust_policy_ref": {
+          "path": "trust.json",
+          "bytes": 42,
+          "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+        },
+        "bootstrap_verifier_ref": {
+          "path": "bootstrap.json",
+          "bytes": 46,
+          "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+        },
+        "product_manifest_ref": {
+          "path": "product.json",
+          "bytes": 44,
+          "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+        },
+        "product_signature_ref": {
+          "path": "product.sig",
+          "bytes": 43,
+          "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+        },
+        "installer_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "artifact_refs": [
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          }
+        ],
+        "product_tuple_ref": {
+          "path": "tuple.json",
+          "bytes": 42,
+          "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+        },
+        "compatibility_ref": {
+          "path": "compatibility.json",
+          "bytes": 50,
+          "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+        },
+        "deployment_policy_ref": {
+          "path": "deployment.json",
+          "bytes": 47,
+          "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+        },
+        "qualification_scope": "fixture"
+      },
+      "operation": "plan",
+      "profile": "fixture",
+      "roots": [
+        {
+          "purpose": "application",
+          "absolute_path": "/fixture/cortex/app",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          }
+        },
+        {
+          "purpose": "evidence",
+          "absolute_path": "/fixture/cortex/evidence",
+          "owner_uid": 501,
+          "custody_ref": {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          }
+        }
+      ],
+      "acquisition": {
+        "mode": "offline",
+        "local_members": [
+          {
+            "path": "application.custody.json",
+            "bytes": 232,
+            "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+          },
+          {
+            "path": "attempts.json",
+            "bytes": 54,
+            "sha256": "a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21"
+          },
+          {
+            "path": "bootstrap.json",
+            "bytes": 46,
+            "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+          },
+          {
+            "path": "compatibility.json",
+            "bytes": 50,
+            "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+          },
+          {
+            "path": "deployment.json",
+            "bytes": 47,
+            "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+          },
+          {
+            "path": "environment.json",
+            "bytes": 48,
+            "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+          },
+          {
+            "path": "evidence.custody.json",
+            "bytes": 237,
+            "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+          },
+          {
+            "path": "host.json",
+            "bytes": 41,
+            "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+          },
+          {
+            "path": "index.json",
+            "bytes": 42,
+            "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+          },
+          {
+            "path": "index.sig",
+            "bytes": 41,
+            "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+          },
+          {
+            "path": "installer.json",
+            "bytes": 46,
+            "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+          },
+          {
+            "path": "product.json",
+            "bytes": 44,
+            "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+          },
+          {
+            "path": "product.sig",
+            "bytes": 43,
+            "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+          },
+          {
+            "path": "runtime.lock.json",
+            "bytes": 19693,
+            "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+          },
+          {
+            "path": "trust.json",
+            "bytes": 42,
+            "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+          },
+          {
+            "path": "tuple.json",
+            "bytes": 42,
+            "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+          }
+        ],
+        "acquisition_policy_ref": null
+      },
+      "selection": {
+        "install_missing": false,
+        "product_state_ref": null,
+        "observation_receipt_ref": null
+      },
+      "invocation": {
+        "entrypoint_ref": {
+          "path": "installer.json",
+          "bytes": 46,
+          "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+        },
+        "executable_path": "/fixture/cortex/installer",
+        "argv": [
+          "/fixture/cortex/installer",
+          "--request-file",
+          "/fixture/cortex/request.json",
+          "--json"
+        ],
+        "cwd_root": "/fixture/cortex/app",
+        "environment_policy_ref": {
+          "path": "environment.json",
+          "bytes": 48,
+          "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+        }
+      },
+      "previous_receipt_ref": null,
+      "journal_ref": null,
+      "authority_ref": null,
+      "purge_selection": null
+    }
+  },
+  "configs": {
+    "linux/arm64": "{\n  \"schema\": \"cortex.runtime.config.v1\",\n  \"format_version\": 1,\n  \"declaration_scope\": \"synthetic-fixture\",\n  \"mode\": \"inspect\",\n  \"runtime_lock_sha256\": \"04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170\",\n  \"operations_sha256\": \"32eb25a99a6fdf94f770f5d6b1584ff4b58801686f96a57ad6259788ec8b94a0\",\n  \"target\": \"linux/arm64\",\n  \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\",\n  \"operation_id\": \"89a3ea1a-1ba8-5696-98a7-599e7e5ecc88\",\n  \"ownership_receipt\": \"04831e43-2083-5271-977f-928ac03a1057\",\n  \"project_routes\": {\n    \"fixture-project\": \"bb078b5b-21fa-5fbe-8b87-90f29565d477\"\n  },\n  \"project_repositories\": {\n    \"fixture-project\": \"fixture/repository\"\n  },\n  \"roles\": {\n    \"bootstrap\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": true,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"finite-init\",\n        \"credential_consumers\": [\n          \"core-init\"\n        ],\n        \"authority\": \"installation-private-bootstrap\",\n        \"createdb\": true,\n        \"createrole\": true,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-arm64-bootstrap\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"b2f1de4a-6977-53b2-a7e6-a86d3cd7da1c\"\n      }\n    },\n    \"migrator\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": true,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"finite-migration\",\n        \"credential_consumers\": [\n          \"migrate\"\n        ],\n        \"authority\": \"installation-private-migration\",\n        \"createdb\": true,\n        \"createrole\": true,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-arm64-migrator\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"613511b0-f1fc-55b8-8ce4-3f3841a57a4e\"\n      }\n    },\n    \"request_group\": {\n      \"policy\": {\n        \"login\": false,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"persistent-nologin\",\n        \"credential_consumers\": [],\n        \"authority\": \"existing-c04-request-group\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"kaidera-runtime-core-request\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"562c21b9-1622-5747-b09d-7d75fa33cceb\"\n      }\n    },\n    \"verifier_owner\": {\n      \"policy\": {\n        \"login\": false,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"persistent-nologin\",\n        \"credential_consumers\": [],\n        \"authority\": \"existing-c04-definer-owner-no-members\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"kaidera-runtime-core-verifier\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"8c5e11c3-95fe-5ea4-8f02-541001e4d65a\"\n      }\n    },\n    \"api_request\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"api\",\n          \"inspect\"\n        ],\n        \"authority\": \"c04-request-only-set-role\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": [\n          \"kaidera-runtime-core-request\"\n        ]\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-arm64-api-request\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"860335d9-ba43-54ca-8fbb-8192136824a6\"\n      }\n    },\n    \"probe\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"api\",\n          \"inspect\"\n        ],\n        \"authority\": \"connect-select-one-no-data\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-arm64-probe\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"f5a39c40-aeb1-5121-aa58-b015715cfb5e\"\n      }\n    },\n    \"supervisor\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"supervisor\"\n        ],\n        \"authority\": \"installation-bound-private-lease-port\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-arm64-supervisor\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"8f0b2fde-558f-5514-9867-71a911d82235\"\n      }\n    },\n    \"observer\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"api\",\n          \"inspect\"\n        ],\n        \"authority\": \"installation-bound-aggregate-read-port\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-arm64-observer\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"8f8ebf4c-571f-504d-af23-e102ab4bc9eb\"\n      }\n    },\n    \"installer_enrollment\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"private-enrollment\",\n        \"credential_consumers\": [\n          \"enrollment-owner-client\"\n        ],\n        \"authority\": \"existing-first-identity-only\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"kaidera-runtime-core-installer\",\n          \"installation_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\"\n        },\n        \"original_receipt\": \"0dc5ead5-26cf-5b67-a743-a482467dfd94\"\n      }\n    }\n  },\n  \"resolver\": {\n    \"contract\": \"cortex.runtime.secret-resolver.v1\",\n    \"owner_binding_receipt\": \"1dbb6fae-0a21-538c-ac7c-bc908c70f29e\",\n    \"handles\": {\n      \"api_request\": \"d447bcd4-7c8c-5eaf-9674-502bb46a7b4a\",\n      \"probe\": \"96cc4943-ff72-59eb-af29-1cf49e308ff4\",\n      \"observer\": \"e5493465-9608-5b9a-96a2-192ecba4619a\"\n    }\n  },\n  \"database\": {\n    \"host\": {\n      \"state\": \"BOUND\",\n      \"value\": \"10.77.0.2\",\n      \"original_receipt\": \"d3aea723-58b6-59ab-8662-6edcf93e1b5d\"\n    },\n    \"port\": 5432,\n    \"database_name\": {\n      \"state\": \"BOUND\",\n      \"value\": \"fixture-core\",\n      \"original_receipt\": \"b81dfa0c-a4a6-5d95-9941-c953770ee938\"\n    },\n    \"tls\": {\n      \"mode\": \"verify-full\",\n      \"ca_member\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"path\": \"/run/cortex/core-ca.pem\",\n          \"sha256\": \"b8dc2227cffeda0a1d2e6080044a51ca954dc01394240be3467028803c751952\",\n          \"bytes\": 33,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"77d6cc30-d3ae-5586-b697-a31dfa76fa8d\"\n        },\n        \"original_receipt\": \"9b7b48e4-9e33-52b2-a9c3-fc9934d53a96\"\n      },\n      \"server_identity\": {\n        \"state\": \"BOUND\",\n        \"value\": \"10.77.0.2\",\n        \"original_receipt\": \"0280b3a4-73d3-541d-a233-6cf15181efb4\"\n      }\n    },\n    \"published\": false\n  },\n  \"listeners\": {\n    \"api\": {\n      \"internal_host\": {\n        \"state\": \"BOUND\",\n        \"value\": \"10.77.0.3\",\n        \"original_receipt\": \"355e3e4b-df91-59fd-adcd-79fad175d2c7\"\n      },\n      \"internal_port\": 8000,\n      \"host_publish\": \"127.0.0.1\",\n      \"host_port\": {\n        \"state\": \"BOUND\",\n        \"value\": 18501,\n        \"original_receipt\": \"c7092634-8c00-5a2c-b0f1-b93929b4158a\"\n      }\n    },\n    \"telemetry\": {\n      \"host\": \"127.0.0.1\",\n      \"port\": 9309,\n      \"published\": false,\n      \"status_namespace\": \"exact-owned-api\",\n      \"proxy_headers\": false,\n      \"forwarded_allow_ips\": \"\"\n    }\n  },\n  \"embedding\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"provider\": \"openrouter\",\n      \"model\": \"fixture-model\",\n      \"model_version\": \"fixture-version\",\n      \"dimensions\": 768,\n      \"preprocessing\": \"fixture-only\"\n    },\n    \"original_receipt\": \"25ee2f5d-9314-5b0d-8e80-687496ad3203\"\n  },\n  \"extractor\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"name\": \"fixture-extractor\",\n      \"version\": \"fixture-version\"\n    },\n    \"original_receipt\": \"918c41ce-c3f1-5b4f-9587-6b1c41429e50\"\n  },\n  \"metrics_labels\": {\n    \"deployment_id\": \"bcaf3ec8-76cf-5c6d-945b-857411cc4028\",\n    \"environment\": \"fixture\",\n    \"component\": \"cortex\",\n    \"release\": \"v0.0.0-fixture\"\n  }\n}\n",
+    "linux/amd64": "{\n  \"schema\": \"cortex.runtime.config.v1\",\n  \"format_version\": 1,\n  \"declaration_scope\": \"synthetic-fixture\",\n  \"mode\": \"inspect\",\n  \"runtime_lock_sha256\": \"04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170\",\n  \"operations_sha256\": \"32eb25a99a6fdf94f770f5d6b1584ff4b58801686f96a57ad6259788ec8b94a0\",\n  \"target\": \"linux/amd64\",\n  \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\",\n  \"operation_id\": \"eb562a00-7a37-528b-bfd3-e22b7f941da9\",\n  \"ownership_receipt\": \"7aae2001-e4f6-537b-b439-cfe34150e7fc\",\n  \"project_routes\": {\n    \"fixture-project\": \"c2a10ac5-899d-5e33-8d58-4b3e0b6814f1\"\n  },\n  \"project_repositories\": {\n    \"fixture-project\": \"fixture/repository\"\n  },\n  \"roles\": {\n    \"bootstrap\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": true,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"finite-init\",\n        \"credential_consumers\": [\n          \"core-init\"\n        ],\n        \"authority\": \"installation-private-bootstrap\",\n        \"createdb\": true,\n        \"createrole\": true,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-amd64-bootstrap\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"7b13798e-3b69-54b8-8125-2a2d5e2003d3\"\n      }\n    },\n    \"migrator\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": true,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"finite-migration\",\n        \"credential_consumers\": [\n          \"migrate\"\n        ],\n        \"authority\": \"installation-private-migration\",\n        \"createdb\": true,\n        \"createrole\": true,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-amd64-migrator\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"1af1c51f-6a43-59d1-90b4-2bf6f2cdf906\"\n      }\n    },\n    \"request_group\": {\n      \"policy\": {\n        \"login\": false,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"persistent-nologin\",\n        \"credential_consumers\": [],\n        \"authority\": \"existing-c04-request-group\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"kaidera-runtime-core-request\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"2a8bf4e0-bd8b-590d-ba9f-937c1f58d70e\"\n      }\n    },\n    \"verifier_owner\": {\n      \"policy\": {\n        \"login\": false,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"persistent-nologin\",\n        \"credential_consumers\": [],\n        \"authority\": \"existing-c04-definer-owner-no-members\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"kaidera-runtime-core-verifier\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"376a437a-b657-5719-85eb-baa4b7de53ad\"\n      }\n    },\n    \"api_request\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"api\",\n          \"inspect\"\n        ],\n        \"authority\": \"c04-request-only-set-role\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": [\n          \"kaidera-runtime-core-request\"\n        ]\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-amd64-api-request\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"bc72b8c5-ce3a-5f2e-a7a6-a3e38af3b3a2\"\n      }\n    },\n    \"probe\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"api\",\n          \"inspect\"\n        ],\n        \"authority\": \"connect-select-one-no-data\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-amd64-probe\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"69123ce4-819c-5a1c-ad0f-6df708c3a8ee\"\n      }\n    },\n    \"supervisor\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"supervisor\"\n        ],\n        \"authority\": \"installation-bound-private-lease-port\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-amd64-supervisor\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"f5add1fe-a0f7-5dfe-9723-fcc456ab7861\"\n      }\n    },\n    \"observer\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"service\",\n        \"credential_consumers\": [\n          \"api\",\n          \"inspect\"\n        ],\n        \"authority\": \"installation-bound-aggregate-read-port\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"fixture-amd64-observer\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"5bcfbf55-1c7a-5c3a-ad2f-5ea626741450\"\n      }\n    },\n    \"installer_enrollment\": {\n      \"policy\": {\n        \"login\": true,\n        \"superuser\": false,\n        \"bypassrls\": false,\n        \"inherit\": false,\n        \"lifetime\": \"private-enrollment\",\n        \"credential_consumers\": [\n          \"enrollment-owner-client\"\n        ],\n        \"authority\": \"existing-first-identity-only\",\n        \"createdb\": false,\n        \"createrole\": false,\n        \"replication\": false,\n        \"memberships\": []\n      },\n      \"binding\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"sql_name\": \"kaidera-runtime-core-installer\",\n          \"installation_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\"\n        },\n        \"original_receipt\": \"a374f44f-fd87-55dd-9384-69b4d6e6a36f\"\n      }\n    }\n  },\n  \"resolver\": {\n    \"contract\": \"cortex.runtime.secret-resolver.v1\",\n    \"owner_binding_receipt\": \"1dbb6fae-0a21-538c-ac7c-bc908c70f29e\",\n    \"handles\": {\n      \"api_request\": \"9e229d66-a026-5f7c-9f84-9d14f0d4b3b7\",\n      \"probe\": \"61c9b04f-0a1e-54c9-b528-64f2a1de595a\",\n      \"observer\": \"b4e3fe0d-5ae3-521f-9c84-e5f55b5b6c99\"\n    }\n  },\n  \"database\": {\n    \"host\": {\n      \"state\": \"BOUND\",\n      \"value\": \"10.77.0.2\",\n      \"original_receipt\": \"34b2f11c-e249-5327-ad98-1078d6372eaa\"\n    },\n    \"port\": 5432,\n    \"database_name\": {\n      \"state\": \"BOUND\",\n      \"value\": \"fixture-core\",\n      \"original_receipt\": \"673916e6-2135-5de8-a5ae-e0cfd5e9d02d\"\n    },\n    \"tls\": {\n      \"mode\": \"verify-full\",\n      \"ca_member\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"path\": \"/run/cortex/core-ca.pem\",\n          \"sha256\": \"cbaf552c8d16b22f1906e856a93129cb052bb4b23885044e3a46ba270c9fb749\",\n          \"bytes\": 33,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"0fb6aec0-f1b4-5c9f-9467-c86a45bf2ac7\"\n        },\n        \"original_receipt\": \"9d9e586a-0136-5482-8b33-c8bd2e1248ab\"\n      },\n      \"server_identity\": {\n        \"state\": \"BOUND\",\n        \"value\": \"10.77.0.2\",\n        \"original_receipt\": \"ebad233f-4055-56c5-b4e8-a08f456387db\"\n      }\n    },\n    \"published\": false\n  },\n  \"listeners\": {\n    \"api\": {\n      \"internal_host\": {\n        \"state\": \"BOUND\",\n        \"value\": \"10.77.0.3\",\n        \"original_receipt\": \"bf6ee64f-b76a-5ce2-ae35-bf99bc8d0aee\"\n      },\n      \"internal_port\": 8000,\n      \"host_publish\": \"127.0.0.1\",\n      \"host_port\": {\n        \"state\": \"BOUND\",\n        \"value\": 18502,\n        \"original_receipt\": \"ab7b542e-edbb-5721-8ec3-b1030b1b7605\"\n      }\n    },\n    \"telemetry\": {\n      \"host\": \"127.0.0.1\",\n      \"port\": 9309,\n      \"published\": false,\n      \"status_namespace\": \"exact-owned-api\",\n      \"proxy_headers\": false,\n      \"forwarded_allow_ips\": \"\"\n    }\n  },\n  \"embedding\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"provider\": \"openrouter\",\n      \"model\": \"fixture-model\",\n      \"model_version\": \"fixture-version\",\n      \"dimensions\": 768,\n      \"preprocessing\": \"fixture-only\"\n    },\n    \"original_receipt\": \"a25530b9-7dca-50b2-919d-c4ddbd74d9cf\"\n  },\n  \"extractor\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"name\": \"fixture-extractor\",\n      \"version\": \"fixture-version\"\n    },\n    \"original_receipt\": \"e73e21cf-7849-591a-be52-a71e7bfdb6e1\"\n  },\n  \"metrics_labels\": {\n    \"deployment_id\": \"c445d8f4-2bd7-5629-8149-0ebcf2d316aa\",\n    \"environment\": \"fixture\",\n    \"component\": \"cortex\",\n    \"release\": \"v0.0.0-fixture\"\n  }\n}\n"
+  },
+  "members": {
+    "index.json": "{\"fixture_only\":true,\"role\":\"index.json\"}\n",
+    "index.sig": "{\"fixture_only\":true,\"role\":\"index.sig\"}\n",
+    "trust.json": "{\"fixture_only\":true,\"role\":\"trust.json\"}\n",
+    "bootstrap.json": "{\"fixture_only\":true,\"role\":\"bootstrap.json\"}\n",
+    "product.json": "{\"fixture_only\":true,\"role\":\"product.json\"}\n",
+    "product.sig": "{\"fixture_only\":true,\"role\":\"product.sig\"}\n",
+    "installer.json": "{\"fixture_only\":true,\"role\":\"installer.json\"}\n",
+    "tuple.json": "{\"fixture_only\":true,\"role\":\"tuple.json\"}\n",
+    "compatibility.json": "{\"fixture_only\":true,\"role\":\"compatibility.json\"}\n",
+    "deployment.json": "{\"fixture_only\":true,\"role\":\"deployment.json\"}\n",
+    "environment.json": "{\"fixture_only\":true,\"role\":\"environment.json\"}\n",
+    "host.json": "{\"fixture_only\":true,\"role\":\"host.json\"}\n",
+    "runtime.lock.json": "{\n  \"schema\": \"cortex.runtime-lock.v1\",\n  \"format_version\": 1,\n  \"declaration_scope\": \"synthetic-fixture\",\n  \"selection_authority\": \"r01-original-external-signed-member\",\n  \"source\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"revision\": \"46e98b05f95edd62818e4420459935cfe05ba8da\",\n      \"tree\": \"3a84dbf8caa6c14e10f6a342c64402cf80c9f032\",\n      \"repository\": \"Kaidera-AI/cortex\"\n    },\n    \"original_receipt\": \"730a04a8-7b67-5f87-9208-131ffde5d940\"\n  },\n  \"release\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"release_id\": \"v0.0.0-fixture\",\n      \"api_contract\": \"fixture-only\",\n      \"schema_version\": 19,\n      \"event_version\": 4,\n      \"core_module_version\": \"0.0.0-fixture\",\n      \"api_module_version\": \"0.0.0-fixture\"\n    },\n    \"original_receipt\": \"49afc731-ebe1-5ec2-9455-d179fe08e52e\"\n  },\n  \"current_schema\": {\n    \"manifest_path\": \"/opt/cortex/next/schema/manifest.json\",\n    \"manifest_sha256\": \"08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef\",\n    \"migration_count\": 19,\n    \"business_table_count\": 42,\n    \"migrations\": [\n      {\n        \"id\": \"core-0001\",\n        \"file\": \"core/001-core.sql\",\n        \"sha256\": \"e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147\"\n      },\n      {\n        \"id\": \"auth-0001\",\n        \"file\": \"auth/001-auth.sql\",\n        \"sha256\": \"97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e\"\n      },\n      {\n        \"id\": \"coordination-0001\",\n        \"file\": \"coordination/001-coordination.sql\",\n        \"sha256\": \"c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1\"\n      },\n      {\n        \"id\": \"retrieval-0000\",\n        \"file\": \"retrieval/000-canonical.sql\",\n        \"sha256\": \"5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2\"\n      },\n      {\n        \"id\": \"auth-0002\",\n        \"file\": \"auth/002-isolation.sql\",\n        \"sha256\": \"dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681\"\n      },\n      {\n        \"id\": \"coordination-0002\",\n        \"file\": \"coordination/002-record-replay.sql\",\n        \"sha256\": \"683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87\"\n      },\n      {\n        \"id\": \"auth-0003\",\n        \"file\": \"auth/003-identity.sql\",\n        \"sha256\": \"678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8\"\n      },\n      {\n        \"id\": \"outbox-0002\",\n        \"file\": \"coordination/002-outbox.sql\",\n        \"sha256\": \"125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e\"\n      },\n      {\n        \"id\": \"module-consumers-0003\",\n        \"file\": \"coordination/003-module-consumers.sql\",\n        \"sha256\": \"bbde558b050a8121fe63e6eba1002058a8ec47731158a1c8375fbf633f33451a\"\n      },\n      {\n        \"id\": \"api-replay-0004\",\n        \"file\": \"coordination/004-api-replay.sql\",\n        \"sha256\": \"b8f7651132e71ac8080b8be2aa6a38c066a25a8afb794f4060c174bae3780771\"\n      },\n      {\n        \"id\": \"retrieval-0001\",\n        \"file\": \"retrieval/001-pg-search.sql\",\n        \"sha256\": \"bf1a5c1b14d57da70013e9ba4c90126797ab1e85533ad1d04db7f7780f113d84\"\n      },\n      {\n        \"id\": \"retrieval-0002\",\n        \"file\": \"retrieval/002-query-cache.sql\",\n        \"sha256\": \"02f5baf51828ae920988e37aac19169f78039e79481e413a6e1b0907fc62d868\"\n      },\n      {\n        \"id\": \"retrieval-0003\",\n        \"file\": \"retrieval/003-pg-graph.sql\",\n        \"sha256\": \"bc12fe454576f666879151425b8752ad0aaa9ffeb241b3fee252e1a9d58e48cb\"\n      },\n      {\n        \"id\": \"session-source-0005\",\n        \"file\": \"coordination/005-session-source.sql\",\n        \"sha256\": \"81e7955f1792852160e384408557c8476abde0830ca72d2863ef51b3f81e8af4\"\n      },\n      {\n        \"id\": \"retrieval-0004\",\n        \"file\": \"retrieval/004-request-authority.sql\",\n        \"sha256\": \"3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e\"\n      },\n      {\n        \"id\": \"auth-0004\",\n        \"file\": \"auth/004-first-identity-capture.sql\",\n        \"sha256\": \"6c2a630667f51af9452b28bd6e559464007ea15162722acdf1fcdd7d15e02705\"\n      },\n      {\n        \"id\": \"auth-0005\",\n        \"file\": \"auth/005-first-identity.sql\",\n        \"sha256\": \"22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d\"\n      },\n      {\n        \"id\": \"auth-0006\",\n        \"file\": \"auth/006-enrollment-readiness.sql\",\n        \"sha256\": \"848840260b90e3cd88dc77d25acad908c63bcf711452eb1669e7ae4e833cee72\"\n      },\n      {\n        \"id\": \"session-ids-read-0007\",\n        \"file\": \"coordination/007-session-ids-read.sql\",\n        \"sha256\": \"449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64\"\n      }\n    ]\n  },\n  \"operations_sha256\": \"32eb25a99a6fdf94f770f5d6b1584ff4b58801686f96a57ad6259788ec8b94a0\",\n  \"layout\": {\n    \"interpreter\": \"/opt/cortex/python/bin/python3\",\n    \"source\": \"/opt/cortex/next/src\",\n    \"schema\": \"/opt/cortex/next/schema\",\n    \"contracts\": \"/opt/cortex/next/contracts\",\n    \"data\": \"/var/lib/cortex/core\",\n    \"password_carrier\": \"/run/cortex/bootstrap/initdb-password\",\n    \"runtime_lock\": \"/run/cortex/runtime.lock.json\"\n  },\n  \"health\": {\n    \"c11_fields\": [\n      \"component\",\n      \"status\",\n      \"readiness\"\n    ],\n    \"telemetry_fields\": [\n      \"component\",\n      \"status\",\n      \"core_available\",\n      \"conductor\",\n      \"reason\"\n    ],\n    \"telemetry_host\": \"127.0.0.1\",\n    \"telemetry_port\": 9309,\n    \"telemetry_published\": false,\n    \"status_namespace\": \"exact-owned-api\",\n    \"proxy_headers\": false,\n    \"forwarded_allow_ips\": \"\",\n    \"api_internal_port\": 8000,\n    \"api_host_publish\": \"127.0.0.1\",\n    \"core_port\": 5432,\n    \"core_published\": false\n  },\n  \"budgets\": {\n    \"probe_ms\": 200,\n    \"telemetry_ms\": 750,\n    \"status_ms\": 2000,\n    \"status_bytes\": 16384,\n    \"shutdown_ms\": 15000,\n    \"initdb_ms\": 120000,\n    \"migration_ms\": 120000,\n    \"connect_ms\": 2000,\n    \"statement_ms\": 2000,\n    \"pool_acquire_ms\": 2000,\n    \"request_ms\": 10000,\n    \"lease_ms\": 10000,\n    \"api_pool_max\": 8,\n    \"observer_pool_max\": 2,\n    \"supervisor_pool_max\": 2,\n    \"api_concurrency_max\": 32,\n    \"api_backlog_max\": 64\n  },\n  \"server_selection\": {\n    \"implementation\": \"uvicorn\",\n    \"api\": \"Config+Server\",\n    \"loop\": \"asyncio\",\n    \"http\": \"h11\",\n    \"ws\": \"none\",\n    \"lifespan\": \"off\",\n    \"workers\": 1,\n    \"reload\": false,\n    \"proxy_headers\": false,\n    \"forwarded_allow_ips\": \"\",\n    \"access_log\": false,\n    \"server_header\": false,\n    \"date_header\": false,\n    \"owner\": \"runtime-lifecycle-explicit\"\n  },\n  \"targets\": {\n    \"linux/arm64\": {\n      \"host_os\": \"darwin\",\n      \"host_arch\": \"arm64\",\n      \"backend\": \"linux/arm64\",\n      \"core\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/core-arm64.oci\",\n            \"sha256\": \"d24c5fc1d2f607cd0d5d5a1129a5f4fd6bce95b2846daea9941cd0b2c81c077f\",\n            \"bytes\": 41,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"dfaa3fc4-6dd7-5125-b22b-0e33bf8bedd9\"\n          },\n          \"original_receipt\": \"43720319-755a-5c7e-a51d-2aec278c36bf\"\n        },\n        \"initdb\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/initdb\",\n            \"sha256\": \"c4bf5aad16b399816e8ce147cbcbe58847ff1e585fbf773cf962dcbc622a9fa1\",\n            \"bytes\": 37,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"fcc9d224-64e2-5f2f-a785-01d81f294f2b\"\n          },\n          \"original_receipt\": \"bc39f034-52a9-5682-9e70-5d4dcd166691\"\n        },\n        \"postgres\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/postgres\",\n            \"sha256\": \"ab27a722bdf959841a0daa9edb666f8d06aa2ead934a970f0b64f1ec522fc4ad\",\n            \"bytes\": 39,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"cda090d2-551c-5dfb-82e1-42433dd1ce15\"\n          },\n          \"original_receipt\": \"0e595cc2-a29f-5081-96e4-bfae3996af1d\"\n        },\n        \"pg_major\": {\n          \"state\": \"BOUND\",\n          \"value\": 17,\n          \"original_receipt\": \"4745fef4-de93-574a-a13a-83ed4248f4eb\"\n        }\n      },\n      \"api\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/api-arm64.oci\",\n            \"sha256\": \"7d45f02c9c55b8690c7a315865fc352874e4f6fe5fd1f0fae7c3284f19fd7a3d\",\n            \"bytes\": 40,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"4fabdc49-96a6-5bcb-8941-0ecb08603cbc\"\n          },\n          \"original_receipt\": \"fa30427e-e610-504c-91e5-a10e172dc9b1\"\n        },\n        \"interpreter\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/python/bin/python3\",\n            \"sha256\": \"7a31cd2e9c46bd8b263f028dfc13816e5fc604c2ee020c05e5379520403b16cd\",\n            \"bytes\": 42,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"30d9a3fb-6e9e-5f84-9e32-a40abfd5b725\"\n          },\n          \"original_receipt\": \"093e6e5e-f91f-500c-a662-d7bb245a8ab5\"\n        }\n      },\n      \"closure\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"inventory\": {\n            \"path\": \"/fixture/arm64-runtime-inventory.json\",\n            \"sha256\": \"3b1f96de9ba9750a8c5166ec49f4253086bc75ff1fd920b3d2806c9a6f46c9ff\",\n            \"bytes\": 38,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"1f9fcfd5-9ef1-59b6-8adb-7ae2f0736610\"\n          },\n          \"packages\": [\n            \"postgresql\",\n            \"pgvector\",\n            \"python\",\n            \"libpq\",\n            \"psycopg\",\n            \"asyncpg\",\n            \"starlette\",\n            \"httpx\",\n            \"uvicorn\",\n            \"h11\",\n            \"openssl\",\n            \"ca-certificates\"\n          ],\n          \"native_backend\": \"linux/arm64\",\n          \"offline\": true\n        },\n        \"original_receipt\": \"f0fe47da-7a7c-54cc-997b-771e6422e4a2\"\n      }\n    },\n    \"linux/amd64\": {\n      \"host_os\": \"linux\",\n      \"host_arch\": \"x86_64\",\n      \"backend\": \"linux/amd64\",\n      \"core\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/core-amd64.oci\",\n            \"sha256\": \"2b850a3d54bbcd0bc2e2649c377a15b416b445a03eb3d921cbac6e81a5578e0f\",\n            \"bytes\": 41,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"65b8d059-43dc-556d-86ae-8e6801b13e7c\"\n          },\n          \"original_receipt\": \"c3f83a33-58fb-572e-add5-ffd28a9b5079\"\n        },\n        \"initdb\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/initdb\",\n            \"sha256\": \"3832b95a4f19ba41fc1ce589f9f93344af05003ff418fef78c3e0c6427688f64\",\n            \"bytes\": 37,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"6504f66d-968b-5d28-883a-90d1a8dc2a80\"\n          },\n          \"original_receipt\": \"c2cd5760-c06f-55bb-9de7-d228aaff8c9e\"\n        },\n        \"postgres\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/postgres\",\n            \"sha256\": \"d2c8cc81f952ea99fe2dfa1ecc59a84bb7a10928554cf0a08d5dda314eb28a22\",\n            \"bytes\": 39,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"31c48cad-6b1b-5292-84dc-fc9c7ca8c00e\"\n          },\n          \"original_receipt\": \"33a04767-8a1c-532c-adbd-9af8715b6678\"\n        },\n        \"pg_major\": {\n          \"state\": \"BOUND\",\n          \"value\": 17,\n          \"original_receipt\": \"55a43309-4ac1-559c-b0b2-16f14d21afcc\"\n        }\n      },\n      \"api\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/api-amd64.oci\",\n            \"sha256\": \"21553c529e60760525581e347fa5853199af00b1d0d44fe3c88286df2bc44c1a\",\n            \"bytes\": 40,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"391b743f-4a08-5b8d-831e-efd592965148\"\n          },\n          \"original_receipt\": \"f33d5a6c-33a0-5099-a53a-b76e0b07a629\"\n        },\n        \"interpreter\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/python/bin/python3\",\n            \"sha256\": \"34b78a2749191d40be46b17783d6218b7222b5ec136b269313901e89929af943\",\n            \"bytes\": 42,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"48eb0746-80bd-5920-a440-374077f3a98b\"\n          },\n          \"original_receipt\": \"32af24e4-9f6a-5e88-9367-8acc463777a5\"\n        }\n      },\n      \"closure\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"inventory\": {\n            \"path\": \"/fixture/amd64-runtime-inventory.json\",\n            \"sha256\": \"b155b0805e25d8ab4101fd0d7288ce3ca8c4ffd725d300a749bfa9886d17d7da\",\n            \"bytes\": 38,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"014f857a-df82-5fbd-a346-619dccdbb7b0\"\n          },\n          \"packages\": [\n            \"postgresql\",\n            \"pgvector\",\n            \"python\",\n            \"libpq\",\n            \"psycopg\",\n            \"asyncpg\",\n            \"starlette\",\n            \"httpx\",\n            \"uvicorn\",\n            \"h11\",\n            \"openssl\",\n            \"ca-certificates\"\n          ],\n          \"native_backend\": \"linux/amd64\",\n          \"offline\": true\n        },\n        \"original_receipt\": \"5d2b9edd-df18-503c-9892-331e956d81c4\"\n      }\n    }\n  },\n  \"owner_ports\": {\n    \"secret_resolver\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.secret-resolver.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/secret_resolver.json\",\n          \"sha256\": \"8697dbe720810b7116b5d7c4eb69687de9fd475b414bf71874b702e5de6b726d\",\n          \"bytes\": 35,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"2e73fa95-afed-5231-a13e-73ea1484648e\"\n        }\n      },\n      \"original_receipt\": \"1dbb6fae-0a21-538c-ac7c-bc908c70f29e\"\n    },\n    \"database_bootstrap\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.database-bootstrap.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/database_bootstrap.json\",\n          \"sha256\": \"defe2cc8e8e6369b834538b5a9a37172f4bde26578c38bc4af90965fa902f230\",\n          \"bytes\": 38,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"1f62848d-9a64-5bfb-806a-c6c54a9340cf\"\n        }\n      },\n      \"original_receipt\": \"071899b0-ac86-5ca1-bae9-dd179163d3c0\"\n    },\n    \"role_grants\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.role-grants.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/role_grants.json\",\n          \"sha256\": \"86d47a11f54a77f7a5edc505df4534a17e498e4adb7f59b8ea36742669abfbd5\",\n          \"bytes\": 31,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"12b217e7-e51b-5386-90b9-254c83da38b7\"\n        }\n      },\n      \"original_receipt\": \"91a5925f-cb61-59d5-86d9-a63b3fc3985e\"\n    },\n    \"enrollment\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.enrollment-owner.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/enrollment.json\",\n          \"sha256\": \"3c532ae3304f91745761be905b6aa767cd833c00b172c8348214ccba0fb51d13\",\n          \"bytes\": 30,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"22206014-1f6b-5e46-b34d-d2f39cfcea73\"\n        }\n      },\n      \"original_receipt\": \"ce628083-a26b-5a0d-8294-094a80e8fe27\"\n    },\n    \"private_inspection\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.private-inspection.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/private_inspection.json\",\n          \"sha256\": \"63cfd270cb9bf69f7dc9cac31b4d00f84744fe797fba2bd839d268f12d550adb\",\n          \"bytes\": 38,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"b1a0faed-e885-5fee-a93a-c9272e2916c3\"\n        }\n      },\n      \"original_receipt\": \"a370e8d9-a767-5689-b715-74a4d664956f\"\n    },\n    \"namespace_transport\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.namespace-transport.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/namespace_transport.json\",\n          \"sha256\": \"b186b254fabe9388d5c566e2ede0b82db0c43bf2889a3774b7b925455f80cfa1\",\n          \"bytes\": 39,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"af7ed387-799b-5b65-8bf9-7d2f312a883e\"\n        }\n      },\n      \"original_receipt\": \"46654273-9665-5af6-a8ac-04f912532209\"\n    }\n  },\n  \"contract_members\": {\n    \"lock_schema\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/contracts/runtime/runtime-lock-v1.schema.json\",\n        \"sha256\": \"de8f441959bf9d8b02dd8c420036c92028a76f39f1a27410b3bc3536a1e77a4d\",\n        \"bytes\": 40,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"de73ea34-20e9-559e-8922-0ea760c6af68\"\n      },\n      \"original_receipt\": \"d643a9ae-78c9-5065-b73e-53eeacbe5e00\"\n    },\n    \"config_schema\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/contracts/runtime/runtime-config-v1.schema.json\",\n        \"sha256\": \"07a7c8a60987175c15376e397bc256a90925b69bb352e854279d7e6720092457\",\n        \"bytes\": 42,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"0e942394-5891-5b19-a271-28d597c0c77b\"\n      },\n      \"original_receipt\": \"b18f0f6c-e3c1-508f-bbb9-ec23b7068aca\"\n    },\n    \"operations\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/contracts/runtime/runtime-operations-v1.json\",\n        \"sha256\": \"32eb25a99a6fdf94f770f5d6b1584ff4b58801686f96a57ad6259788ec8b94a0\",\n        \"bytes\": 39,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"993c947e-fdce-50ae-b4c0-16e8e63c7644\"\n      },\n      \"original_receipt\": \"d847736a-cdbe-5b6f-bae1-7e4ad493d5a1\"\n    },\n    \"entrypoint\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/src/cortex_core/runtime/__main__.py\",\n        \"sha256\": \"3aa13696bedb0d22f66370edf730b089f246ce59ba4b388eb1bfc1884dbce46d\",\n        \"bytes\": 39,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"5c9122f0-3ccf-563f-ae1e-286155f9bfee\"\n      },\n      \"original_receipt\": \"4761564e-d6d1-5bd1-9a2d-03b78685df9c\"\n    },\n    \"private_pth\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/python/cortex.pth\",\n        \"sha256\": \"3265855297b0e6d723b9f3086f3a30c565fde3849e694b33a34bfcb52e7caa9f\",\n        \"bytes\": 40,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"0dbd666c-7bcc-58c1-afe8-ea9ca5f60a4d\"\n      },\n      \"original_receipt\": \"ca6a898b-121f-56ec-b707-6b1aa1818aef\"\n    }\n  }\n}\n",
+    "application.custody.json": "{\"backend_id\":null,\"backend_witness_ref\":null,\"canonical_path\":\"/fixture/cortex/app\",\"content_ref\":null,\"executable_ref\":null,\"filesystem_identity\":{\"device\":1,\"inode\":10},\"kind\":\"directory\",\"link_target\":null,\"mode\":448,\"uid\":501}\n",
+    "evidence.custody.json": "{\"backend_id\":null,\"backend_witness_ref\":null,\"canonical_path\":\"/fixture/cortex/evidence\",\"content_ref\":null,\"executable_ref\":null,\"filesystem_identity\":{\"device\":1,\"inode\":11},\"kind\":\"directory\",\"link_target\":null,\"mode\":448,\"uid\":501}\n",
+    "attempts.json": "{\"forbidden_attempts\":[],\"scope\":\"fixture-read-only\"}\n"
+  },
+  "receipt": {
+    "schema": "kaidera.install-operation.v1",
+    "format_version": 1,
+    "kind": "receipt",
+    "identity": {
+      "request_id": "request-manual",
+      "transaction_id": "transaction-manual",
+      "operation_id": "89a3ea1a-1ba8-5696-98a7-599e7e5ecc88",
+      "attempt_id": "attempt-1",
+      "parent_attempt_id": null,
+      "product": "cortex",
+      "installation_id": null
+    },
+    "caller": {
+      "route": "manual",
+      "parent_product": null,
+      "parent_transaction_id": null,
+      "owner_uid": 501,
+      "host_identity_ref": {
+        "path": "host.json",
+        "bytes": 41,
+        "sha256": "980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c"
+      }
+    },
+    "target": {
+      "host_os": "darwin",
+      "host_arch": "arm64",
+      "backend_platform": "linux/arm64",
+      "compatibility_ref": {
+        "path": "compatibility.json",
+        "bytes": 50,
+        "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+      }
+    },
+    "request_ref": {
+      "path": "request.json",
+      "bytes": 5273,
+      "sha256": "39b83050ab0085917021087f8248a296fbcd87fe8780b818c2f5f745ac2ae614"
+    },
+    "release": {
+      "joint_index_ref": {
+        "path": "index.json",
+        "bytes": 42,
+        "sha256": "7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239"
+      },
+      "joint_signature_ref": {
+        "path": "index.sig",
+        "bytes": 41,
+        "sha256": "fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126"
+      },
+      "trust_policy_ref": {
+        "path": "trust.json",
+        "bytes": 42,
+        "sha256": "ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c"
+      },
+      "bootstrap_verifier_ref": {
+        "path": "bootstrap.json",
+        "bytes": 46,
+        "sha256": "0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2"
+      },
+      "product_manifest_ref": {
+        "path": "product.json",
+        "bytes": 44,
+        "sha256": "4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3"
+      },
+      "product_signature_ref": {
+        "path": "product.sig",
+        "bytes": 43,
+        "sha256": "79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac"
+      },
+      "installer_ref": {
+        "path": "installer.json",
+        "bytes": 46,
+        "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+      },
+      "artifact_refs": [
+        {
+          "path": "runtime.lock.json",
+          "bytes": 19693,
+          "sha256": "04e49bbbbe00289c0b5f10a8dcc5481d368d2b5f0f78ba7f37357336ad2e9170"
+        }
+      ],
+      "product_tuple_ref": {
+        "path": "tuple.json",
+        "bytes": 42,
+        "sha256": "edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a"
+      },
+      "compatibility_ref": {
+        "path": "compatibility.json",
+        "bytes": 50,
+        "sha256": "2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c"
+      },
+      "deployment_policy_ref": {
+        "path": "deployment.json",
+        "bytes": 47,
+        "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+      },
+      "qualification_scope": "fixture"
+    },
+    "product_state": null,
+    "result": "PASS",
+    "reason_code": "completed",
+    "phase": "planned",
+    "disposition": "absent",
+    "invocation_result": {
+      "outcome": "not_executed",
+      "entrypoint_ref": {
+        "path": "installer.json",
+        "bytes": 46,
+        "sha256": "1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9"
+      },
+      "executable_witness_ref": null,
+      "argv": [
+        "/fixture/cortex/installer",
+        "--request-file",
+        "/fixture/cortex/request.json",
+        "--json"
+      ],
+      "cwd_root": "/fixture/cortex/app",
+      "environment_policy_ref": {
+        "path": "environment.json",
+        "bytes": 48,
+        "sha256": "ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051"
+      },
+      "started_at": null,
+      "ended_at": null,
+      "exit_code": null,
+      "signal": null,
+      "not_executed_reason": "read_only",
+      "output_refs": [],
+      "forbidden_attempts_ref": {
+        "path": "attempts.json",
+        "bytes": 54,
+        "sha256": "a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21"
+      }
+    },
+    "profile": "fixture",
+    "roots": [
+      {
+        "purpose": "application",
+        "absolute_path": "/fixture/cortex/app",
+        "owner_uid": 501,
+        "custody_ref": {
+          "path": "application.custody.json",
+          "bytes": 232,
+          "sha256": "e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f"
+        }
+      },
+      {
+        "purpose": "evidence",
+        "absolute_path": "/fixture/cortex/evidence",
+        "owner_uid": 501,
+        "custody_ref": {
+          "path": "evidence.custody.json",
+          "bytes": 237,
+          "sha256": "9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739"
+        }
+      }
+    ],
+    "resources": [],
+    "readiness": {
+      "state": "not_installed",
+      "descriptor_ref": null,
+      "connection_custody_ref": null,
+      "checks_ref": null
+    },
+    "journal_ref": null,
+    "evidence_refs": [],
+    "cleanup": {
+      "state": "not_required",
+      "actions": [],
+      "remaining_owned_ids": [],
+      "evidence_ref": null
+    },
+    "retained_items": []
+  },
+  "journal": {
+    "schema": "kaidera.install-operation.v1",
+    "format_version": 1,
+    "kind": "journal_event",
+    "identity": {
+      "request_id": "request-manual",
+      "transaction_id": "transaction-manual",
+      "operation_id": "89a3ea1a-1ba8-5696-98a7-599e7e5ecc88",
+      "attempt_id": "attempt-1",
+      "parent_attempt_id": null,
+      "product": "cortex",
+      "installation_id": null
+    },
+    "sequence": 0,
+    "previous_event_ref": null,
+    "origin_request_ref": {
+      "path": "request.json",
+      "bytes": 5273,
+      "sha256": "39b83050ab0085917021087f8248a296fbcd87fe8780b818c2f5f745ac2ae614"
+    },
+    "request_ref": {
+      "path": "request.json",
+      "bytes": 5273,
+      "sha256": "39b83050ab0085917021087f8248a296fbcd87fe8780b818c2f5f745ac2ae614"
+    },
+    "release_binding_ref": {
+      "path": "deployment.json",
+      "bytes": 47,
+      "sha256": "f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860"
+    },
+    "phase": "planned",
+    "effect": null,
+    "observations_ref": null,
+    "result_ref": null,
+    "recorded_at": "2026-10-14T00:00:00Z"
+  },
+  "real_build_A": "{\n  \"builder\": \"kos-builder@mac-arm64\",\n  \"created_at\": \"2026-10-13T12:19:13Z\",\n  \"inputs\": {\n    \"appdb-archive\": \"sha256:a93218037048288ec6e79b8d0d7a00a18263e3eb6f38c7f432cae18b1fd6e9c5\",\n    \"appdb-config\": \"sha256:60e0ef09276d8094e4715f9f1d5c32857860397219f2bed985e47d6efe53fe35\",\n    \"appdb-inventory\": \"sha256:d76efcd3c8eadee89b113fa7bca4023cee1262122b1b2fd840e716177228262b\",\n    \"completeness-library\": \"sha256:a6598926f59d6f6bcc5b58f35b8d118649f930b8e78522472d317d1019103c86\",\n    \"completeness-producer\": \"sha256:46f92ce5fa4fbb69b591e447aba8f4ca4eafb3674272ecee7e862dc3a11dd04d\",\n    \"console-constraints\": \"sha256:5b96a1b3ab68ccbd56cda1f7d56e804b7ac05194b86762b3763c84c13a92cfeb\",\n    \"console-lock\": \"sha256:c4f4b6d654902b653e930b2e4c2bd6629b72d42c59a60ca2cb32405f07b04f0e\",\n    \"host-load-config\": \"sha256:7343ed0198c46c94fc0ef6b91bb7434a959b53db83d05d8d2e8ba90b6b90b5d2\",\n    \"pkg-producer\": \"sha256:1e337c7291ca469c6abfa0f9f472bfe556cd34603f3aaed5ae89e0929a163703\",\n    \"receipt-producer\": \"sha256:abaffe8043407ae6cf498013fc057153362609891277a87d05c6360ee7e9edc8\",\n    \"runtime-inputs\": \"sha256:623292c88b4b8f64f2ef676e378adb53d3d41d1304799a636f7c9b100bf2edf2\",\n    \"runtime-producer\": \"sha256:59fc475e1929b6f9b5fecd56a0e7f74eec702e7b70d20c137c086ef86a61783a\",\n    \"source-manifest\": \"sha256:fb8091602a8cfdaba1343095206459053007684dd9cf33efc8e9566f8667d5b4\",\n    \"wrapper\": \"sha256:d32303a9ad4aad838d990aa811f8acbedf6f5ffe94f0184a8b5395497ff51f35\"\n  },\n  \"outputs\": {\n    \"KaideraOS-0.2.010-arm64.files.json\": \"sha256:73dfd60e593abf3ad58e673efc40aaf72eecc3e7c090a2fe7cbeb43f9f4e9b95\",\n    \"KaideraOS-0.2.010-arm64.pkg\": \"sha256:28583a432403d6a575e98097dae74075f61d66894fbe240aedb5c502e524f754\",\n    \"completeness-package.json\": \"sha256:63d4902480746a98323ef94de00096a7ec385ec43b417ec398405925d450bf10\",\n    \"completeness-runtime.json\": \"sha256:310271488d1ba4c9ac71ff9e00baa7f95b13d0bf6605a8a9519109f50e4a7eea\",\n    \"pkg-build.json\": \"sha256:97f6cf5b6791fff1c24f0208e680b547a661f8cadbb54e3269667f713d6648ad\",\n    \"preflight-package.json\": \"sha256:d5fcb07aa61cc6e2b19f63fa9a71e3a6dbbbe1c66b7d6b4ac423b505668bb18b\",\n    \"preflight-runtime.json\": \"sha256:357739c4003ee763fb69166aa61bb7fd10fdbff031231dcc963b780b1236ad2a\",\n    \"runtime-build.json\": \"sha256:dc5c80ba9552a730ec985b3e5da9621592b0ab2bfc99d79441cfccdba81e775d\",\n    \"runtime-macos-arm64.files.json\": \"sha256:168917490876167e9f79661c001df14a58d5181d8da2d761c96cdd41fd45b7b3\"\n  },\n  \"preflight\": {\n    \"checks\": {\n      \"demerzel_stopped\": true,\n      \"podman_machine_within_limit\": true\n    },\n    \"free_memory\": {\n      \"min_percent\": 35,\n      \"percent\": 38,\n      \"within_limit\": true\n    },\n    \"limits\": {\n      \"max_podman_mib\": 8192\n    },\n    \"ok\": true,\n    \"podman_machine_memory_mib\": 8192\n  },\n  \"schema\": 1,\n  \"tag\": \"kos/v0.2.010-test.4\",\n  \"tag_commit\": \"29c3a69152738071084c5358dca94111e542bf6d\",\n  \"tools\": {\n    \"helper-python\": \"3.14.0\",\n    \"host-kernel-release\": \"27.0.0\",\n    \"pkgbuild\": \"sha256:874a851be7b4776408b5f28bfa52c57e0045d99b2daa06c356849b4a0f6dea23\",\n    \"productbuild\": \"sha256:3e4fa3fb0d8475ea2d4e8c5a2655fe6a820505901596dc7e41ff63cf3381c0e5\",\n    \"python\": \"3.12.15\",\n    \"uv\": \"0.11.15\"\n  },\n  \"tree_clean\": true\n}\n",
+  "real_build_A_ref": {
+    "path": "build-A.original-build-receipt.json",
+    "bytes": 3224,
+    "sha256": "7c96304cfe47681904ebd84e4dbae7e2a0c28e4eea63f60f5e7a6e672f9111b4"
+  },
+  "real_build_A_output_key": "KaideraOS-0.2.010-arm64.pkg",
+  "real_build_A_output": "sha256:28583a432403d6a575e98097dae74075f61d66894fbe240aedb5c502e524f754"
+}

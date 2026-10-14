@@ -1,0 +1,1574 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kaidera:install-operation:v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Request"
+    },
+    {
+      "$ref": "#/$defs/Receipt"
+    },
+    {
+      "$ref": "#/$defs/JournalEvent"
+    }
+  ],
+  "$defs": {
+    "RecordRef": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "OperationIdentity": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "transaction_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "attempt_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "parent_attempt_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "product": {
+          "enum": [
+            "kos",
+            "openkai",
+            "cortex"
+          ]
+        },
+        "installation_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "transaction_id",
+        "operation_id",
+        "attempt_id",
+        "parent_attempt_id",
+        "product",
+        "installation_id"
+      ],
+      "additionalProperties": false
+    },
+    "CallerIdentity": {
+      "type": "object",
+      "properties": {
+        "route": {
+          "enum": [
+            "manual",
+            "kos_prerequisite"
+          ]
+        },
+        "parent_product": {
+          "anyOf": [
+            {
+              "enum": [
+                "kos"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parent_transaction_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_uid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "host_identity_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "route",
+        "parent_product",
+        "parent_transaction_id",
+        "owner_uid",
+        "host_identity_ref"
+      ],
+      "additionalProperties": false
+    },
+    "TargetBinding": {
+      "type": "object",
+      "properties": {
+        "host_os": {
+          "enum": [
+            "darwin",
+            "linux"
+          ]
+        },
+        "host_arch": {
+          "enum": [
+            "arm64",
+            "x86_64"
+          ]
+        },
+        "backend_platform": {
+          "enum": [
+            "linux/arm64",
+            "linux/amd64"
+          ]
+        },
+        "compatibility_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "host_os",
+        "host_arch",
+        "backend_platform",
+        "compatibility_ref"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseBinding": {
+      "type": "object",
+      "properties": {
+        "joint_index_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "joint_signature_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "trust_policy_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "bootstrap_verifier_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "product_manifest_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "product_signature_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "installer_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "product_tuple_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "compatibility_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "deployment_policy_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecordRef"
+          },
+          "maxItems": 10000
+        },
+        "qualification_scope": {
+          "enum": [
+            "fixture",
+            "native"
+          ]
+        }
+      },
+      "required": [
+        "joint_index_ref",
+        "joint_signature_ref",
+        "trust_policy_ref",
+        "bootstrap_verifier_ref",
+        "product_manifest_ref",
+        "product_signature_ref",
+        "installer_ref",
+        "product_tuple_ref",
+        "compatibility_ref",
+        "deployment_policy_ref",
+        "artifact_refs",
+        "qualification_scope"
+      ],
+      "additionalProperties": false
+    },
+    "ProductStateBinding": {
+      "type": "object",
+      "properties": {
+        "source_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "runtime_inventory_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "module_inventory_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "schema_manifest_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "api_descriptor_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "product_interface_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "source_revision",
+        "runtime_inventory_ref",
+        "module_inventory_ref",
+        "schema_manifest_ref",
+        "api_descriptor_ref",
+        "product_interface_ref"
+      ],
+      "additionalProperties": false
+    },
+    "RootBinding": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "enum": [
+            "application",
+            "immutable_runtime",
+            "activation",
+            "state",
+            "journal",
+            "evidence",
+            "authoritative_data",
+            "derived_data",
+            "backup",
+            "private_connection"
+          ]
+        },
+        "absolute_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "owner_uid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "custody_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "purpose",
+        "absolute_path",
+        "owner_uid",
+        "custody_ref"
+      ],
+      "additionalProperties": false
+    },
+    "Acquisition": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "offline",
+            "fetch"
+          ]
+        },
+        "local_members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecordRef"
+          },
+          "maxItems": 10000
+        },
+        "acquisition_policy_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "local_members",
+        "acquisition_policy_ref"
+      ],
+      "additionalProperties": false
+    },
+    "Selection": {
+      "type": "object",
+      "properties": {
+        "install_missing": {
+          "type": "boolean"
+        },
+        "product_state_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation_receipt_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "install_missing",
+        "product_state_ref",
+        "observation_receipt_ref"
+      ],
+      "additionalProperties": false
+    },
+    "Invocation": {
+      "type": "object",
+      "properties": {
+        "entrypoint_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "executable_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 256
+        },
+        "cwd_root": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "environment_policy_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "entrypoint_ref",
+        "executable_path",
+        "argv",
+        "cwd_root",
+        "environment_policy_ref"
+      ],
+      "additionalProperties": false
+    },
+    "PurgeSelection": {
+      "type": "object",
+      "properties": {
+        "product": {
+          "enum": [
+            "kos",
+            "openkai",
+            "cortex"
+          ]
+        },
+        "exact_data_roots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 10000
+        },
+        "confirmation_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecordRef"
+          },
+          "maxItems": 10000
+        }
+      },
+      "required": [
+        "product",
+        "exact_data_roots",
+        "confirmation_refs"
+      ],
+      "additionalProperties": false
+    },
+    "InvocationResult": {
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "enum": [
+            "exited",
+            "signalled",
+            "not_executed"
+          ]
+        },
+        "entrypoint_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "executable_witness_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 256
+        },
+        "cwd_root": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "environment_policy_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signal": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "not_executed_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "read_only",
+                "refused_before_execution",
+                "blocked_before_execution",
+                "launch_failed"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecordRef"
+          },
+          "maxItems": 10000
+        },
+        "forbidden_attempts_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "outcome",
+        "entrypoint_ref",
+        "executable_witness_ref",
+        "argv",
+        "cwd_root",
+        "environment_policy_ref",
+        "started_at",
+        "ended_at",
+        "exit_code",
+        "signal",
+        "not_executed_reason",
+        "output_refs",
+        "forbidden_attempts_ref"
+      ],
+      "additionalProperties": false
+    },
+    "AbsenceWitness": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "absent"
+          ]
+        },
+        "locator_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "parent_witness_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "kind",
+        "locator_ref",
+        "parent_witness_ref",
+        "observed_at"
+      ],
+      "additionalProperties": false
+    },
+    "FilesystemIdentity": {
+      "type": "object",
+      "properties": {
+        "device": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inode": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "device",
+        "inode"
+      ],
+      "additionalProperties": false
+    },
+    "CustodyWitness": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "file",
+            "directory",
+            "link",
+            "service",
+            "container",
+            "image",
+            "network",
+            "volume",
+            "engine_machine",
+            "database_role",
+            "interface"
+          ]
+        },
+        "canonical_path": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "backend_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filesystem_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilesystemIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4095
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "executable_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "link_target": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "backend_witness_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "canonical_path",
+        "backend_id",
+        "filesystem_identity",
+        "uid",
+        "mode",
+        "content_ref",
+        "executable_ref",
+        "link_target",
+        "backend_witness_ref"
+      ],
+      "additionalProperties": false
+    },
+    "ResourceEntry": {
+      "type": "object",
+      "properties": {
+        "resource_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "product": {
+          "enum": [
+            "kos",
+            "openkai",
+            "cortex"
+          ]
+        },
+        "installation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "directory",
+            "link",
+            "service",
+            "container",
+            "image",
+            "network",
+            "volume",
+            "engine_machine",
+            "database_role",
+            "interface"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ownership": {
+          "enum": [
+            "created_by_this_transaction",
+            "verified_owned_continuation",
+            "external_read_only"
+          ]
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent_event_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result_event_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before_witness": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/AbsenceWitness"
+                },
+                {
+                  "$ref": "#/$defs/CustodyWitness"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after_witness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CustodyWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_installer_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "source_receipt_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consumers_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "data_class": {
+          "enum": [
+            "runtime",
+            "state",
+            "authoritative_data",
+            "derived_data",
+            "backup",
+            "credential_custody",
+            "shared_support"
+          ]
+        },
+        "removal_policy": {
+          "enum": [
+            "remove_if_unchanged_unshared",
+            "reverse_if_unchanged",
+            "retain_data",
+            "retain_external",
+            "hold"
+          ]
+        }
+      },
+      "required": [
+        "resource_id",
+        "product",
+        "installation_id",
+        "kind",
+        "role",
+        "ownership",
+        "created_by",
+        "intent_event_ref",
+        "result_event_ref",
+        "before_witness",
+        "after_witness",
+        "source_installer_ref",
+        "source_receipt_ref",
+        "consumers_ref",
+        "data_class",
+        "removal_policy"
+      ],
+      "additionalProperties": false
+    },
+    "Readiness": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "not_installed",
+            "not_checked",
+            "enrollment_required",
+            "ready",
+            "failed"
+          ]
+        },
+        "descriptor_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "connection_custody_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checks_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "descriptor_ref",
+        "connection_custody_ref",
+        "checks_ref"
+      ],
+      "additionalProperties": false
+    },
+    "CleanupAction": {
+      "type": "object",
+      "properties": {
+        "resource_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "outcome": {
+          "enum": [
+            "removed",
+            "restored",
+            "kept",
+            "held"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "witness_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "resource_id",
+        "outcome",
+        "reason",
+        "witness_ref"
+      ],
+      "additionalProperties": false
+    },
+    "RetainedItem": {
+      "type": "object",
+      "properties": {
+        "resource_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "witness_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "resource_id",
+        "reason",
+        "witness_ref"
+      ],
+      "additionalProperties": false
+    },
+    "Cleanup": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "not_required",
+            "complete",
+            "incomplete",
+            "hold"
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CleanupAction"
+          },
+          "maxItems": 50000
+        },
+        "remaining_owned_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 50000
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "actions",
+        "remaining_owned_ids",
+        "evidence_ref"
+      ],
+      "additionalProperties": false
+    },
+    "JournalEffect": {
+      "type": "object",
+      "properties": {
+        "effect_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "product": {
+          "enum": [
+            "kos",
+            "openkai",
+            "cortex"
+          ]
+        },
+        "resource_kind": {
+          "enum": [
+            "file",
+            "directory",
+            "link",
+            "service",
+            "container",
+            "image",
+            "network",
+            "volume",
+            "engine_machine",
+            "database_role",
+            "interface"
+          ]
+        },
+        "expected_before_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "expected_after_contract_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "idempotency_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "reversal_contract_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "data_policy_ref": {
+          "$ref": "#/$defs/RecordRef"
+        }
+      },
+      "required": [
+        "effect_id",
+        "product",
+        "resource_kind",
+        "expected_before_ref",
+        "expected_after_contract_ref",
+        "idempotency_ref",
+        "reversal_contract_ref",
+        "data_policy_ref"
+      ],
+      "additionalProperties": false
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "enum": [
+            "kaidera.install-operation.v1"
+          ]
+        },
+        "format_version": {
+          "enum": [
+            1
+          ]
+        },
+        "kind": {
+          "enum": [
+            "request"
+          ]
+        },
+        "identity": {
+          "$ref": "#/$defs/OperationIdentity"
+        },
+        "caller": {
+          "$ref": "#/$defs/CallerIdentity"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetBinding"
+        },
+        "release": {
+          "$ref": "#/$defs/ReleaseBinding"
+        },
+        "operation": {
+          "enum": [
+            "plan",
+            "verify",
+            "install",
+            "status",
+            "recover",
+            "rollback",
+            "uninstall",
+            "purge"
+          ]
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "roots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RootBinding"
+          },
+          "maxItems": 100
+        },
+        "acquisition": {
+          "$ref": "#/$defs/Acquisition"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "invocation": {
+          "$ref": "#/$defs/Invocation"
+        },
+        "previous_receipt_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "journal_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "authority_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "purge_selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PurgeSelection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "format_version",
+        "kind",
+        "identity",
+        "caller",
+        "target",
+        "release",
+        "operation",
+        "profile",
+        "roots",
+        "acquisition",
+        "selection",
+        "invocation",
+        "previous_receipt_ref",
+        "journal_ref",
+        "authority_ref",
+        "purge_selection"
+      ],
+      "additionalProperties": false
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "enum": [
+            "kaidera.install-operation.v1"
+          ]
+        },
+        "format_version": {
+          "enum": [
+            1
+          ]
+        },
+        "kind": {
+          "enum": [
+            "receipt"
+          ]
+        },
+        "identity": {
+          "$ref": "#/$defs/OperationIdentity"
+        },
+        "caller": {
+          "$ref": "#/$defs/CallerIdentity"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetBinding"
+        },
+        "request_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "release": {
+          "$ref": "#/$defs/ReleaseBinding"
+        },
+        "product_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProductStateBinding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED",
+            "HOLD",
+            "NOT_TESTED"
+          ]
+        },
+        "reason_code": {
+          "enum": [
+            "completed",
+            "bad_shape",
+            "wrong_release",
+            "unsupported_target",
+            "unsafe_custody",
+            "missing_contract",
+            "state_drift",
+            "external_conflict",
+            "enrollment_required",
+            "readiness_failed",
+            "execution_failed",
+            "ambiguous_create",
+            "cleanup_failed",
+            "dependency_not_run"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "planned",
+            "verified",
+            "create_intent",
+            "reverse_intent",
+            "purge_intent",
+            "created",
+            "enrollment_required",
+            "ready",
+            "committed",
+            "refusing",
+            "recovering",
+            "rolling_back",
+            "uninstalling",
+            "purging",
+            "held",
+            "finished"
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "absent",
+            "external_read_only",
+            "external_conflict",
+            "created_by_this_transaction",
+            "verified_owned_continuation"
+          ]
+        },
+        "invocation_result": {
+          "$ref": "#/$defs/InvocationResult"
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "roots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RootBinding"
+          },
+          "maxItems": 100
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceEntry"
+          },
+          "maxItems": 50000
+        },
+        "readiness": {
+          "$ref": "#/$defs/Readiness"
+        },
+        "journal_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecordRef"
+          },
+          "maxItems": 10000
+        },
+        "cleanup": {
+          "$ref": "#/$defs/Cleanup"
+        },
+        "retained_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetainedItem"
+          },
+          "maxItems": 50000
+        }
+      },
+      "required": [
+        "schema",
+        "format_version",
+        "kind",
+        "identity",
+        "caller",
+        "target",
+        "request_ref",
+        "release",
+        "product_state",
+        "result",
+        "reason_code",
+        "phase",
+        "disposition",
+        "invocation_result",
+        "profile",
+        "roots",
+        "resources",
+        "readiness",
+        "journal_ref",
+        "evidence_refs",
+        "cleanup",
+        "retained_items"
+      ],
+      "additionalProperties": false
+    },
+    "JournalEvent": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "enum": [
+            "kaidera.install-operation.v1"
+          ]
+        },
+        "format_version": {
+          "enum": [
+            1
+          ]
+        },
+        "kind": {
+          "enum": [
+            "journal_event"
+          ]
+        },
+        "identity": {
+          "$ref": "#/$defs/OperationIdentity"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "previous_event_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_request_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "request_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "release_binding_ref": {
+          "$ref": "#/$defs/RecordRef"
+        },
+        "phase": {
+          "enum": [
+            "planned",
+            "verified",
+            "create_intent",
+            "reverse_intent",
+            "purge_intent",
+            "created",
+            "enrollment_required",
+            "ready",
+            "committed",
+            "refusing",
+            "recovering",
+            "rolling_back",
+            "uninstalling",
+            "purging",
+            "held",
+            "finished"
+          ]
+        },
+        "effect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JournalEffect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observations_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recorded_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "schema",
+        "format_version",
+        "kind",
+        "identity",
+        "sequence",
+        "previous_event_ref",
+        "origin_request_ref",
+        "request_ref",
+        "release_binding_ref",
+        "phase",
+        "effect",
+        "observations_ref",
+        "result_ref",
+        "recorded_at"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
