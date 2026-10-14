@@ -1,0 +1,596 @@
+{
+  "status": "FROZEN_PG_O_BASELINE_PENDING",
+  "preferred_host": "Separately authorized hosted rootless CI fixture; never shared Mac Podman or assumed Azure host. Bind actual PG minor/image/libpq, then renew on Cox-ratified production tuple.",
+  "cases": [
+    {
+      "id": "role-catalogue",
+      "contract": "All nine actual login/membership/owner flags; phase-aware finite super exception and deactivation; no hidden role edges, SETTRUE/INHERITFALSE/ADMINFALSE for sole request edge.",
+      "exact_nodes": [
+        "test_grants.Grants.test_role__api_request",
+        "test_grants.Grants.test_role__bootstrap",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_role__migrator",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_role__request_group",
+        "test_grants.Grants.test_role__supervisor",
+        "test_grants.Grants.test_role__verifier_owner"
+      ]
+    },
+    {
+      "id": "object-matrix",
+      "contract": "Every44 business tables+ledger,64 existing+9 proposed functions,one view/sequence/type,schemas,DB CONNECT/TEMP and default ACLs; catalogue exactness plus valid executing grant/denial operations.",
+      "exact_nodes": [
+        "test_grants.Grants.test_exact_object_owners_and_forced_private_table_policies",
+        "test_grants.Grants.test_functions__api_request",
+        "test_grants.Grants.test_functions__bootstrap",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_functions__migrator",
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_functions__request_group",
+        "test_grants.Grants.test_functions__supervisor",
+        "test_grants.Grants.test_functions__verifier_owner",
+        "test_grants.Grants.test_other_objects__api_request",
+        "test_grants.Grants.test_other_objects__bootstrap",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_other_objects__migrator",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_other_objects__request_group",
+        "test_grants.Grants.test_other_objects__supervisor",
+        "test_grants.Grants.test_other_objects__verifier_owner",
+        "test_grants.Grants.test_tables__api_request",
+        "test_grants.Grants.test_tables__bootstrap",
+        "test_grants.Grants.test_tables__installer_enrollment",
+        "test_grants.Grants.test_tables__migrator",
+        "test_grants.Grants.test_tables__observer",
+        "test_grants.Grants.test_tables__probe",
+        "test_grants.Grants.test_tables__request_group",
+        "test_grants.Grants.test_tables__supervisor",
+        "test_grants.Grants.test_tables__verifier_owner"
+      ]
+    },
+    {
+      "id": "c04-request",
+      "contract": "Actual API login own installation A + explicit SET ROLE request_group + accepted credential/project + current resolve/bind/recheck succeeds. GUC-only,missing bind,reused context,wrong installation B even with otherwise valid B credential,wrong principal/project/read-write/control and revoked generation refuse/no foreign effects. Fixed SET LOCAL ROLE occurs inside C04-owned authorized() transaction before _ROLE_QUERY, while entry remains autocommit/IDLE. After success/exception/cancel, another pool borrower sees only original api_request and no old context; transaction already active is refused. PG-O retains C04 body tests with fixed test SET ROLE; actual pooled SET LOCAL placement remains PG-D, not claimed here.",
+      "exact_nodes": [
+        "test_c04.C04.test_auth_owns_transaction_and_refuses_ambient_transaction",
+        "test_c04.C04.test_authorized_write_preserves_atomic_record_history",
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_c04.C04.test_changed_action_cannot_commit_outside_accepted_context",
+        "test_c04.C04.test_closed_core_is_typed_unavailable_without_key_leak",
+        "test_c04.C04.test_control_requires_scoped_owner_or_admin_without_fallback",
+        "test_c04.C04.test_cross_tenant_reads_and_insert_update_are_denied",
+        "test_c04.C04.test_expiry_before_response_refuses_and_rolls_back",
+        "test_c04.C04.test_forged_tenant_and_principal_context_cannot_expand_scope",
+        "test_c04.C04.test_idempotency_receipts_are_principal_scoped",
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_c04.C04.test_missing_unknown_expired_revoked_disabled_credentials_refused",
+        "test_c04.C04.test_other_project_in_same_tenant_is_not_visible_or_writable",
+        "test_c04.C04.test_owner_force_rls_does_not_depend_on_api_role_guard",
+        "test_c04.C04.test_permission_generation_changes_cache_partition_and_revocation",
+        "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal",
+        "test_c04.C04.test_principal_disable_invalidates_permission_generation",
+        "test_c04.C04.test_privileged_or_owning_runtime_connection_refused",
+        "test_c04.C04.test_read_context_cannot_write_or_control",
+        "test_c04.C04.test_request_role_is_nonowner_nonbypass_and_cannot_elevate",
+        "test_c04.C04.test_revocation_linearizes_with_accepted_request",
+        "test_c04.C04.test_scope_is_derived_from_credential_and_registry",
+        "test_c04.C04.test_session_scope_written_inside_request_is_cleared",
+        "test_c04.C04.test_shared_negative_conformance_cases_are_refused",
+        "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
+        "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user"
+      ]
+    },
+    {
+      "id": "read-lock-and-cache",
+      "contract": "search_state SELECT FOR SHARE succeeds under valid read while actual UPDATE is denied; query_embeddings scoped SIDU under read binding; other projections never writable; nextval allowed by sequenceUSAGE but setval denied. Canonical embedding write with valid parent/model fixture evaluates finite_vector after PUBLIC EXECUTE closure; request explicit EXECUTE succeeds; other service direct execution denied.",
+      "exact_nodes": [
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_grants.Grants.test_request_read_lock_and_cache_write_exception_and_sequence"
+      ]
+    },
+    {
+      "id": "probe",
+      "contract": "Actual probe connection SELECT1 succeeds; every application table/function/sequence/schema/object action denied; no membership/TEMP; note normal pg_catalog access, not a SQL-language sandbox.",
+      "exact_nodes": [
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_probe_is_real_connect_select1_and_has_no_tenant_read",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_tables__probe"
+      ]
+    },
+    {
+      "id": "lease",
+      "contract": "Own session-bound supervisor acquire/renew/release/health/guard succeed; wrong install,GUC spoof,observer/API invocation,stale holder/fence,takeover whilelive,expiry after lockwait,post-action expiry all refuse with no foreign effect; fence retained on release and new acquire increases.",
+      "exact_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease"
+      ]
+    },
+    {
+      "id": "observer",
+      "contract": "Own observer gets only bounded lease state/current DB bytes/countpending jobs joined via tenant installation. Does not get rowIDs/payloads/credentials; any mutation,private map/raw table/cross-installation/forged GUC/SET ROLE path denied; failed query/unbound mapping unavailable not0. pending_embedding_jobs is distinct from total pending_jobs, bound to explicit synthetic embedding kind; final VOLATILE revision check with concurrent revocation cannot block mapping writer or publish stale success.",
+      "exact_nodes": [
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_tables__observer",
+        "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero",
+        "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation"
+      ]
+    },
+    {
+      "id": "installer",
+      "contract": "Actual fixed installer role + admitted own installation first-identity operation succeeds once/exact replay; wrong install,API/supervisor/observer invocation,altered receipt and broad credential authority fail; no direct auth/core rows granted.",
+      "exact_nodes": [
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_installer_first_identity_is_scoped_once_and_exact_replay",
+        "test_grants.Grants.test_installer_other_installation_is_not_admitted_by_name_only",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_tables__installer_enrollment"
+      ]
+    },
+    {
+      "id": "definer",
+      "contract": "No service can assume verifier/finite owners,own/replace functions/create in trusted schemas,shadow search_path/temp relations or invoke hidden helper; owners NOLOGIN,NOSUPER,NOBYPASS,FORCERLS policies explicit; PUBLICEXECUTE/default permissions absent in same creation transaction. TEMP shadow behavior is denied by exact matrix; no service executable temp authority.",
+      "exact_nodes": [
+        "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner",
+        "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators",
+        "test_grants.Grants.test_signature__auth__runtime_bound_installation",
+        "test_grants.Grants.test_signature__auth__runtime_request_installation",
+        "test_grants.Grants.test_signature__auth__runtime_tenant_installation",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_acquire",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_assert_live",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_health",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_release",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
+        "test_grants.Grants.test_signature__coordination__runtime_observe"
+      ]
+    },
+    {
+      "id": "lifecycle",
+      "contract": "Real restricted logins,finite creds never in service view; afterphase NOLOGIN/NOSUPER,finite sessions drained/carriers removed. Role OID/name/maprevision,rollback preimage and current resolver handles/consumer/purpose/install validated; drop-recreate/membership drift/unknown owner HOLD. Frozen synthetic owner phase APIs cover cluster preimages and actual finite backend closure; actual custody/HBA/carrier/resolver delivery remains UNBOUND.",
+      "exact_nodes": [
+        "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations",
+        "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map",
+        "test_grants.Grants.test_wrong_logical_kind_and_revoked_map_refuse",
+        "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
+        "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
+      ]
+    },
+    {
+      "id": "u13",
+      "contract": "Original19/42 checksums/catalogue retained; single named20/44/73 suffix, reentry and known higher through-target noop; crash inside combined DDL rollback; real PG commit-before-journal reconciles once; real pg_dump/pg_restore preaccept backup separate from cluster-role preimages; accepted durable point refuses rollback.",
+      "exact_nodes": [
+        "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward",
+        "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger",
+        "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
+        "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles",
+        "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry",
+        "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix"
+      ]
+    },
+    {
+      "id": "defaults-and-races",
+      "contract": "Canary functions/tables created by each allowed creator receive no unexpectedPUBLIC/service rights; no PUBLIC schemaCREATE/DBTEMP. Independent mapping revocation and pool role reuse tests, invalidated observer result not cached as healthy, no SQLSTATE/FK error falsely counted as ACL denial.",
+      "exact_nodes": [
+        "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal",
+        "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators",
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease"
+      ]
+    }
+  ],
+  "mutants": [
+    {
+      "id": "M01",
+      "single_product_omission": "Omit one service NOBYPASS/NOSUPER admission check",
+      "expected_body_family": "role-catalogue",
+      "expected_nodes": [
+        "test_grants.Grants.test_role__api_request",
+        "test_grants.Grants.test_role__bootstrap",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_role__migrator",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_role__request_group",
+        "test_grants.Grants.test_role__supervisor",
+        "test_grants.Grants.test_role__verifier_owner"
+      ]
+    },
+    {
+      "id": "M02",
+      "single_product_omission": "Membership INHERIT or ADMIN TRUE / extra verifier edge",
+      "expected_body_family": "role-catalogue",
+      "expected_nodes": [
+        "test_grants.Grants.test_role__api_request",
+        "test_grants.Grants.test_role__bootstrap",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_role__migrator",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_role__request_group",
+        "test_grants.Grants.test_role__supervisor",
+        "test_grants.Grants.test_role__verifier_owner"
+      ]
+    },
+    {
+      "id": "M03",
+      "single_product_omission": "Omit real session_user map check; retain caller GUC only",
+      "expected_body_family": "c04-request",
+      "expected_nodes": [
+        "test_c04.C04.test_auth_owns_transaction_and_refuses_ambient_transaction",
+        "test_c04.C04.test_authorized_write_preserves_atomic_record_history",
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_c04.C04.test_changed_action_cannot_commit_outside_accepted_context",
+        "test_c04.C04.test_closed_core_is_typed_unavailable_without_key_leak",
+        "test_c04.C04.test_control_requires_scoped_owner_or_admin_without_fallback",
+        "test_c04.C04.test_cross_tenant_reads_and_insert_update_are_denied",
+        "test_c04.C04.test_expiry_before_response_refuses_and_rolls_back",
+        "test_c04.C04.test_forged_tenant_and_principal_context_cannot_expand_scope",
+        "test_c04.C04.test_idempotency_receipts_are_principal_scoped",
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_c04.C04.test_missing_unknown_expired_revoked_disabled_credentials_refused",
+        "test_c04.C04.test_other_project_in_same_tenant_is_not_visible_or_writable",
+        "test_c04.C04.test_owner_force_rls_does_not_depend_on_api_role_guard",
+        "test_c04.C04.test_permission_generation_changes_cache_partition_and_revocation",
+        "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal",
+        "test_c04.C04.test_principal_disable_invalidates_permission_generation",
+        "test_c04.C04.test_privileged_or_owning_runtime_connection_refused",
+        "test_c04.C04.test_read_context_cannot_write_or_control",
+        "test_c04.C04.test_request_role_is_nonowner_nonbypass_and_cannot_elevate",
+        "test_c04.C04.test_revocation_linearizes_with_accepted_request",
+        "test_c04.C04.test_scope_is_derived_from_credential_and_registry",
+        "test_c04.C04.test_session_scope_written_inside_request_is_cleared",
+        "test_c04.C04.test_shared_negative_conformance_cases_are_refused",
+        "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
+        "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user"
+      ]
+    },
+    {
+      "id": "M04",
+      "single_product_omission": "Use current_user instead of session_user inside definer",
+      "expected_body_family": "lease",
+      "expected_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease"
+      ]
+    },
+    {
+      "id": "M05",
+      "single_product_omission": "Omit protected map revision/roleOID mismatch refusal",
+      "expected_body_family": "lifecycle",
+      "expected_nodes": [
+        "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations",
+        "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map",
+        "test_grants.Grants.test_wrong_logical_kind_and_revoked_map_refuse",
+        "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
+        "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
+      ]
+    },
+    {
+      "id": "M06",
+      "single_product_omission": "Give supervisor direct lease-table DML or observer tenant-table SELECT",
+      "expected_body_family": "object-matrix",
+      "expected_nodes": [
+        "test_grants.Grants.test_exact_object_owners_and_forced_private_table_policies",
+        "test_grants.Grants.test_functions__api_request",
+        "test_grants.Grants.test_functions__bootstrap",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_functions__migrator",
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_functions__request_group",
+        "test_grants.Grants.test_functions__supervisor",
+        "test_grants.Grants.test_functions__verifier_owner",
+        "test_grants.Grants.test_other_objects__api_request",
+        "test_grants.Grants.test_other_objects__bootstrap",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_other_objects__migrator",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_other_objects__request_group",
+        "test_grants.Grants.test_other_objects__supervisor",
+        "test_grants.Grants.test_other_objects__verifier_owner",
+        "test_grants.Grants.test_tables__api_request",
+        "test_grants.Grants.test_tables__bootstrap",
+        "test_grants.Grants.test_tables__installer_enrollment",
+        "test_grants.Grants.test_tables__migrator",
+        "test_grants.Grants.test_tables__observer",
+        "test_grants.Grants.test_tables__probe",
+        "test_grants.Grants.test_tables__request_group",
+        "test_grants.Grants.test_tables__supervisor",
+        "test_grants.Grants.test_tables__verifier_owner"
+      ]
+    },
+    {
+      "id": "M07",
+      "single_product_omission": "Omit PUBLIC function REVOKE/default ACL restriction",
+      "expected_body_family": "definer",
+      "expected_nodes": [
+        "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner",
+        "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators",
+        "test_grants.Grants.test_signature__auth__runtime_bound_installation",
+        "test_grants.Grants.test_signature__auth__runtime_request_installation",
+        "test_grants.Grants.test_signature__auth__runtime_tenant_installation",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_acquire",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_assert_live",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_health",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_release",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
+        "test_grants.Grants.test_signature__coordination__runtime_observe"
+      ]
+    },
+    {
+      "id": "M08",
+      "single_product_omission": "Remove restrictive C04 installation/project write policy or make it permissive",
+      "expected_body_family": "c04-request",
+      "expected_nodes": [
+        "test_c04.C04.test_auth_owns_transaction_and_refuses_ambient_transaction",
+        "test_c04.C04.test_authorized_write_preserves_atomic_record_history",
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_c04.C04.test_changed_action_cannot_commit_outside_accepted_context",
+        "test_c04.C04.test_closed_core_is_typed_unavailable_without_key_leak",
+        "test_c04.C04.test_control_requires_scoped_owner_or_admin_without_fallback",
+        "test_c04.C04.test_cross_tenant_reads_and_insert_update_are_denied",
+        "test_c04.C04.test_expiry_before_response_refuses_and_rolls_back",
+        "test_c04.C04.test_forged_tenant_and_principal_context_cannot_expand_scope",
+        "test_c04.C04.test_idempotency_receipts_are_principal_scoped",
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_c04.C04.test_missing_unknown_expired_revoked_disabled_credentials_refused",
+        "test_c04.C04.test_other_project_in_same_tenant_is_not_visible_or_writable",
+        "test_c04.C04.test_owner_force_rls_does_not_depend_on_api_role_guard",
+        "test_c04.C04.test_permission_generation_changes_cache_partition_and_revocation",
+        "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal",
+        "test_c04.C04.test_principal_disable_invalidates_permission_generation",
+        "test_c04.C04.test_privileged_or_owning_runtime_connection_refused",
+        "test_c04.C04.test_read_context_cannot_write_or_control",
+        "test_c04.C04.test_request_role_is_nonowner_nonbypass_and_cannot_elevate",
+        "test_c04.C04.test_revocation_linearizes_with_accepted_request",
+        "test_c04.C04.test_scope_is_derived_from_credential_and_registry",
+        "test_c04.C04.test_session_scope_written_inside_request_is_cleared",
+        "test_c04.C04.test_shared_negative_conformance_cases_are_refused",
+        "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
+        "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user"
+      ]
+    },
+    {
+      "id": "M09",
+      "single_product_omission": "Grant view/session_sources/credentials to request group",
+      "expected_body_family": "object-matrix",
+      "expected_nodes": [
+        "test_grants.Grants.test_exact_object_owners_and_forced_private_table_policies",
+        "test_grants.Grants.test_functions__api_request",
+        "test_grants.Grants.test_functions__bootstrap",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_functions__migrator",
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_functions__request_group",
+        "test_grants.Grants.test_functions__supervisor",
+        "test_grants.Grants.test_functions__verifier_owner",
+        "test_grants.Grants.test_other_objects__api_request",
+        "test_grants.Grants.test_other_objects__bootstrap",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_other_objects__migrator",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_other_objects__request_group",
+        "test_grants.Grants.test_other_objects__supervisor",
+        "test_grants.Grants.test_other_objects__verifier_owner",
+        "test_grants.Grants.test_tables__api_request",
+        "test_grants.Grants.test_tables__bootstrap",
+        "test_grants.Grants.test_tables__installer_enrollment",
+        "test_grants.Grants.test_tables__migrator",
+        "test_grants.Grants.test_tables__observer",
+        "test_grants.Grants.test_tables__probe",
+        "test_grants.Grants.test_tables__request_group",
+        "test_grants.Grants.test_tables__supervisor",
+        "test_grants.Grants.test_tables__verifier_owner"
+      ]
+    },
+    {
+      "id": "M10",
+      "single_product_omission": "Give query fence sequence UPDATE/setval capability",
+      "expected_body_family": "read-lock-and-cache",
+      "expected_nodes": [
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_grants.Grants.test_request_read_lock_and_cache_write_exception_and_sequence"
+      ]
+    },
+    {
+      "id": "M11",
+      "single_product_omission": "Check expiry before lock only / omit final guard recheck",
+      "expected_body_family": "lease",
+      "expected_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease"
+      ]
+    },
+    {
+      "id": "M12",
+      "single_product_omission": "Delete lease row/reset fence on release",
+      "expected_body_family": "lease",
+      "expected_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease"
+      ]
+    },
+    {
+      "id": "M13",
+      "single_product_omission": "Omit tenant-installation filter in pending backlog count OR feed total pending jobs into pending_embedding_jobs",
+      "expected_body_family": "observer",
+      "expected_nodes": [
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_tables__observer",
+        "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero",
+        "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation"
+      ]
+    },
+    {
+      "id": "M14",
+      "single_product_omission": "Replace observer failure with successful zero",
+      "expected_body_family": "observer",
+      "expected_nodes": [
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_tables__observer",
+        "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero",
+        "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation"
+      ]
+    },
+    {
+      "id": "M15",
+      "single_product_omission": "Omit first_identity/enrollment installation guard",
+      "expected_body_family": "installer",
+      "expected_nodes": [
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_installer_first_identity_is_scoped_once_and_exact_replay",
+        "test_grants.Grants.test_installer_other_installation_is_not_admitted_by_name_only",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_tables__installer_enrollment"
+      ]
+    },
+    {
+      "id": "M16",
+      "single_product_omission": "Leave schema CREATE or role TEMP privilege on a service",
+      "expected_body_family": "definer",
+      "expected_nodes": [
+        "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner",
+        "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators",
+        "test_grants.Grants.test_signature__auth__runtime_bound_installation",
+        "test_grants.Grants.test_signature__auth__runtime_request_installation",
+        "test_grants.Grants.test_signature__auth__runtime_tenant_installation",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_acquire",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_assert_live",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_health",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_release",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
+        "test_grants.Grants.test_signature__coordination__runtime_observe"
+      ]
+    },
+    {
+      "id": "M17",
+      "single_product_omission": "Do not drain finite privileged sessions after NOLOGIN",
+      "expected_body_family": "lifecycle",
+      "expected_nodes": [
+        "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations",
+        "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map",
+        "test_grants.Grants.test_wrong_logical_kind_and_revoked_map_refuse",
+        "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
+        "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
+      ]
+    },
+    {
+      "id": "M18",
+      "single_product_omission": "Allow reentry adoption by role name only / re-create map revision",
+      "expected_body_family": "lifecycle",
+      "expected_nodes": [
+        "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations",
+        "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map",
+        "test_grants.Grants.test_wrong_logical_kind_and_revoked_map_refuse",
+        "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
+        "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database"
+      ]
+    },
+    {
+      "id": "M19",
+      "single_product_omission": "Ignore named single suffix target or accept hole/unknown ledger; no obsolete21-prefix test",
+      "expected_body_family": "u13",
+      "expected_nodes": [
+        "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward",
+        "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger",
+        "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
+        "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles",
+        "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry",
+        "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix"
+      ]
+    },
+    {
+      "id": "M20",
+      "single_product_omission": "Treat DB restore as restoring cluster roles or permit rollback after accepted",
+      "expected_body_family": "u13",
+      "expected_nodes": [
+        "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward",
+        "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger",
+        "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
+        "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles",
+        "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry",
+        "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix"
+      ]
+    },
+    {
+      "id": "M21",
+      "single_product_omission": "Omit supervisor_fence_monotonic trigger attachment while leaving generic function and positive fence CHECK intact",
+      "expected_body_family": "lease",
+      "expected_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease"
+      ]
+    }
+  ],
+  "protocol": "Freeze exact case IDs/data/valid SQL+expected SQLSTATE/zero-row and effects before source. Run actual nonowner connections, not privileged SET ROLE stand-ins. One product mutant at a time; shared body classifier, raw loaded hash/frame; fixture/import/errors INCONCLUSIVE; exact restore/full affected + inherited suite.",
+  "tests_run": 0,
+  "mutations_run": 0,
+  "schema_ddl_not_authored": true,
+  "frozen_nodes": 105,
+  "matrix_sha256": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2"
+}
