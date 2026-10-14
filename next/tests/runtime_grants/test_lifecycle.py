@@ -40,6 +40,12 @@ class Lifecycle(Fixture):
         before=self.root.execute('SELECT role_oid,role_name,installation_id,active,revision,operation_id FROM auth.runtime_login_bindings ORDER BY role_name').fetchall()
         self.bind_current()
         self.assertEqual(self.root.execute('SELECT role_oid,role_name,installation_id,active,revision,operation_id FROM auth.runtime_login_bindings ORDER BY role_name').fetchall(),before)
+        with self.login('bootstrap') as owner:
+            with self.assertRaises((ValueError,psycopg.errors.InsufficientPrivilege,psycopg.errors.ObjectNotInPrerequisiteState)):
+                self.client().bind_runtime_roles(owner,installation_id=UUID(uid(20)),
+                    role_names=dict(ROLE_NAMES),operation_id=OPERATION,
+                    embedding_job_kind=EMBEDDING_KIND,activate=True)
+        self.assertEqual(self.root.execute('SELECT role_oid,role_name,installation_id,active,revision,operation_id FROM auth.runtime_login_bindings ORDER BY role_name').fetchall(),before)
         with self.assertRaises((ValueError,psycopg.errors.InsufficientPrivilege,psycopg.errors.ObjectNotInPrerequisiteState)):
             self.bind_current(operation=UUID(uid(901)))
         self.assertEqual(self.root.execute('SELECT role_oid,role_name,installation_id,active,revision,operation_id FROM auth.runtime_login_bindings ORDER BY role_name').fetchall(),before)

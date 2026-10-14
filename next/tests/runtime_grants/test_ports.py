@@ -1,5 +1,6 @@
 """Actual private-port effects and two-session barriers; absent surfaces labelled."""
 import time
+import threading
 from uuid import UUID
 
 import psycopg
@@ -9,17 +10,46 @@ from support import Fixture,ROLE_NAMES,uid,EMBEDDING_KIND
 
 class Ports(Fixture):
     def test_lease_rejects_live_takeover_and_cross_installation(self):
-        conn,fence=self.lease()
+        self.private('coordination.runtime_lease_acquire(uuid,uuid,integer)')
+        conn=self.login('supervisor')
+        for ttl in (0,10001):
+            self.refusal(conn,'SELECT coordination.runtime_lease_acquire(%s,%s,%s)',(uid(1),uid(100),ttl))
+        self.assertEqual(self.root.execute('SELECT count(*) FROM coordination.supervisor_leases').fetchone()[0],0)
+        conn,fence=self.lease(conn)
         other=self.login('supervisor')
         self.refusal(other,'SELECT coordination.runtime_lease_acquire(%s,%s,1000)',(uid(1),uid(101)),false_ok=True)
         self.refusal(conn,'SELECT coordination.runtime_lease_acquire(%s,%s,1000)',(uid(20),uid(100)),false_ok=True)
         self.assertEqual(self.root.execute('SELECT installation_id::text,fence FROM coordination.supervisor_leases').fetchall(),[(uid(1),fence)])
+        self.assertIs(self.allowed(conn,'SELECT coordination.runtime_lease_release(%s,%s,%s)',(uid(1),uid(100),fence)),True)
+        barrier=threading.Barrier(3);boxes=[{},{}]
+        def acquire(connection,holder,box):
+            barrier.wait(timeout=3)
+            try:box['fence']=connection.execute('SELECT coordination.runtime_lease_acquire(%s,%s,5000)',(uid(1),uid(holder))).fetchone()[0]
+            except BaseException as error:box['error']=error
+        threads=[threading.Thread(target=acquire,args=(connection,holder,box),daemon=True)
+                 for connection,holder,box in ((conn,102,boxes[0]),(other,103,boxes[1]))]
+        for thread in threads:thread.start()
+        barrier.wait(timeout=3)
+        for thread,box in zip(threads,boxes):self.joined(thread,box)
+        successes=[];refusals=[]
+        for box in boxes:
+            if 'error' in box:
+                if not isinstance(box['error'],psycopg.Error) or box['error'].sqlstate not in ('42501','55000'):raise box['error']
+                refusals.append(box['error'].sqlstate)
+            else:
+                self.assertTrue(type(box.get('fence')) is int and box['fence']>fence)
+                successes.append(box['fence'])
+        self.assertEqual((len(successes),len(refusals)),(1,1),'SEMANTIC:simultaneous acquire admitted two holders')
+        self.assertEqual(self.root.execute('SELECT fence FROM coordination.supervisor_leases').fetchone()[0],successes[0])
 
     def test_release_retains_row_and_next_acquire_increases_fence(self):
         conn,fence=self.lease()
+        observer=self.login('observer')
+        self.assertEqual(self.allowed(observer,'SELECT coordination.runtime_lease_health(%s)',(uid(1),)),{'state':'live','fence':fence})
         self.assertIs(self.allowed(conn,'SELECT coordination.runtime_lease_release(%s,%s,%s)',(uid(1),uid(100),fence)),True)
         row=self.root.execute('SELECT fence,expires_at<=clock_timestamp() FROM coordination.supervisor_leases WHERE installation_id=%s',(uid(1),)).fetchone()
         self.assertEqual(row,(fence,True))
+        self.assertEqual(self.allowed(observer,'SELECT coordination.runtime_lease_health(%s)',(uid(1),)),{'state':'expired','fence':fence})
         next_fence=self.allowed(conn,'SELECT coordination.runtime_lease_acquire(%s,%s,1000)',(uid(1),uid(101)))
         self.assertGreater(next_fence,fence)
 

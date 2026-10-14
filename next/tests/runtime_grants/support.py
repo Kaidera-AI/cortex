@@ -180,7 +180,7 @@ class Fixture(core_db_fixture.Fixture):
         except psycopg.Error as error:
             if error.sqlstate in ('42501','55000'):return error.sqlstate
             raise  # syntax/FK/setup/network errors are INCONCLUSIVE, never RED
-        self.assertTrue(false_ok and value==(False,),
+        self.assertTrue(false_ok and value is not None and len(value)==1 and value[0] is False,
                         'SEMANTIC:operation admitted instead of closed refusal')
         return 'FALSE'
 
