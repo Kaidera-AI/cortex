@@ -8,7 +8,7 @@ import unittest
 ROOT=Path(__file__).resolve().parent
 sys.path[:0]=[str(ROOT),str(ROOT.parents[1]/'src')]
 RETIRED={'test_native_matrix_helper_protocol.HelperProtocol.test_real_cli_unsupported_profile_reason_is_not_json_decode':
-         'CONTROL EDIT Kai2026-10-12 05:01b: preimplementation-only unsupported-profile checkpoint; byte-identical history; replaced by phase-neutral v2.'}
+         'Kai2026-10-12 05:01b: preimplementation-only unsupported-profile checkpoint; byte-identical history; replaced by phase-neutral v2.'}
 
 
 def cases(suite):
