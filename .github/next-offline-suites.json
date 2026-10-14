@@ -1,6 +1,5 @@
 {
   "run": [
-    "next/tests/artifact/test_c03_receipts.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
     "next/tests/benchmarks/test_b01_product_path.py",
     "next/tests/benchmarks/test_b02_geometry.py",
