@@ -16,6 +16,8 @@ import re
 from urllib.parse import parse_qs
 from uuid import UUID
 
+from cortex_core.driver_logging import private_driver_logs
+
 
 class GatewayError(ValueError):
     """A route inventory or committed-write boundary is invalid."""
@@ -38,11 +40,12 @@ class PostgresProbeFactory:
                 or type(statement_timeout_ms) is not int
                 or not 1 <= statement_timeout_ms <= 10000):
             raise GatewayError('Core probe deadlines are invalid')
-        import psycopg
-        return await psycopg.AsyncConnection.connect(
-            self.dsn, autocommit=True,
-            connect_timeout=max(1, math.ceil(connect_timeout_seconds)),
-            options=f'-c statement_timeout={statement_timeout_ms}')
+        with private_driver_logs():
+            import psycopg
+            return await psycopg.AsyncConnection.connect(
+                self.dsn, autocommit=True,
+                connect_timeout=max(1, math.ceil(connect_timeout_seconds)),
+                options=f'-c statement_timeout={statement_timeout_ms}')
 
 
 def postgres_core_probe(connection_factory, *, timeout_seconds=2):
@@ -71,7 +74,9 @@ def postgres_core_probe(connection_factory, *, timeout_seconds=2):
             LOGGER.warning('Core probe connection close failed')
 
     def own(coroutine, *, closer=False):
-        task = asyncio.create_task(coroutine, name='cortex-core-probe')
+        # Tasks snapshot this context, including wait_for and later cleanup.
+        with private_driver_logs():
+            task = asyncio.create_task(coroutine, name='cortex-core-probe')
         owned.add(task)
         task.add_done_callback(owned.discard)
         if closer:
