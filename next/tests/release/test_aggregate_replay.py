@@ -45,6 +45,25 @@ class Replay(Fixture, unittest.TestCase):
         self.current_hook = lambda c: None if len(self.contexts)>1 else c
         self.refusal('required_binding_gap', self.backend); self.assert_closed()
 
+    def test_freshness_is_checked_before_EOF_work(self):
+        self.current_hook = lambda c: replace(c, now=9999) if len(self.contexts)>1 else c
+        with patch.object(RootReader, 'aggregate_finish', side_effect=AssertionError('EOF work before current refusal')):
+            self.refusal('aggregate_replay', self.backend)
+        self.assert_closed()
+
+    def test_coherent_new_lease_during_audit_cannot_replace_original_context(self):
+        from cortex_core.release.trust import _OwnerContext
+        from cortex_core.release.contracts import thaw
+        from aggregate_fixture import encode, sha256
+        def changed(c):
+            if len(self.contexts)==1: return c
+            policy = thaw(c.policy); policy['owner_binding']['policy_generation'] = 2
+            state = thaw(c.current_state); state['policy_generation'] = 2
+            raw = encode(policy)
+            return _OwnerContext(freeze(policy),raw,sha256(raw),c.public_root,c.now,2,c.fence,c.placement,freeze(state))
+        self.current_hook = changed
+        self.refusal('aggregate_replay', self.backend); self.assert_closed()
+
     def test_missing_current_state_after_EOF(self):
         original = RootReader.aggregate_finish
         def finish(reader):

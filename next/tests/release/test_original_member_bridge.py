@@ -236,6 +236,42 @@ class Bridge(Fixture, unittest.TestCase):
         self.assertEqual(plan.lock_sha256, sha256(self.bodies[MEMBER]))
         self.assertFalse(plan.effect_authority); self.assertFalse(plan.native_qualified); self.assertEqual(plan.authority_status, 'UNBOUND')
 
+    def test_original_transport_reader_requires_actual_held_reader(self):
+        class ForeignReader:
+            def close(self): pass
+        self.transport = lambda aggregate: (self.raw, self.signature, ForeignReader(), self.builds)
+        self.refusal('required_binding_gap', self.backend)
+
+    def test_manifest_raw_bound_precedes_hash_and_crypto(self):
+        api = self.api(); self.raw = b' '*(1048576+1)
+        self.aggregate = 'sha256:'+sha256(self.raw)
+        with patch.object(api, 'sha256', side_effect=AssertionError('hash before raw bound')):
+            self.refusal('raw_limit', self.backend)
+        self.assert_closed()
+
+    def test_owner_expected_inventory_must_match_original_signed_rows(self):
+        self.policy['expected_members'] = self.policy['expected_members'][:-1]
+        self.refusal('aggregate_pair_mismatch', self.backend); self.assert_closed()
+
+    def test_requested_snapshot_measured_limit_cannot_be_enlarged(self):
+        path = 'members/large-inert-record.json'; raw = encode({'inert':'x'*262144})
+        self.bodies[path] = raw
+        self.value['members'].append(dict(kind='record',role='evidence',path=path,
+            media_type='application/json',bytes=len(raw),sha256=sha256(raw)))
+        self.value['members'].sort(key=lambda r:r['path']); self.pin()
+        self.refusal('raw_limit', lambda: self.backend(name=path)); self.assert_closed()
+
+    def test_delivery_root_rotation_cannot_relabel_existing_metadata(self):
+        from r01u3_support.factory import test_authority
+        delivery = self.backend(); replacement = test_authority()
+        replacement.raw = self.raw; replacement.value = copy.deepcopy(self.value)
+        replacement.policy = copy.deepcopy(self.policy)
+        replacement.policy['root'].update(key_id=replacement.key_id[::-1].hex().upper(),
+            key_material_sha256=sha256(replacement.root_material),public_key_bytes=len(replacement.root_material))
+        replacement.current_state['installed_baseline'] = copy.deepcopy(self.policy['installed_baseline'])
+        self.authority = replacement; self.policy = replacement.policy; self.signature = replacement.signed()
+        self.refusal('aggregate_root_mismatch', lambda: delivery.read_original(262144)); self.assert_closed()
+
     def installer_fixture(self, target, route):
         subjects = json.loads((NEXT/'tests/install/fixtures/p1-subjects.json').read_bytes())
         q = copy.deepcopy(subjects['requests'][target+'/'+route])
