@@ -1,0 +1,165 @@
+--- a/next/contracts/runtime/runtime-config-v1.schema.json
++++ b/next/contracts/runtime/runtime-config-v1.schema.json
+@@ -1985,6 +1985,13 @@
+         "component",
+         "release"
+       ]
++    },
++    "ai_mode": {
++      "enum": [
++        "hosted",
++        "off"
++      ],
++      "default": "hosted"
+     }
+   },
+   "required": [
+@@ -2004,7 +2011,6 @@
+     "resolver",
+     "database",
+     "listeners",
+-    "embedding",
+     "extractor",
+     "metrics_labels"
+   ],
+@@ -2056,13 +2062,40 @@
+                 "required": [
+                   "api_request",
+                   "probe",
+-                  "observer",
+-                  "provider"
++                  "observer"
+                 ]
+               }
+             }
+           }
+-        }
++        },
++        "allOf": [
++          {
++            "if": {
++              "properties": {
++                "ai_mode": {
++                  "const": "off"
++                }
++              },
++              "required": [
++                "ai_mode"
++              ]
++            },
++            "then": {},
++            "else": {
++              "properties": {
++                "resolver": {
++                  "properties": {
++                    "handles": {
++                      "required": [
++                        "provider"
++                      ]
++                    }
++                  }
++                }
++              }
++            }
++          }
++        ]
+       }
+     },
+     {
+@@ -2244,6 +2277,34 @@
+           }
+         }
+       }
++    },
++    {
++      "if": {
++        "properties": {
++          "ai_mode": {
++            "const": "off"
++          }
++        },
++        "required": [
++          "ai_mode"
++        ]
++      },
++      "then": {
++        "properties": {
++          "embedding": {
++            "properties": {
++              "state": {
++                "const": "BOUND"
++              }
++            }
++          }
++        }
++      },
++      "else": {
++        "required": [
++          "embedding"
++        ]
++      }
+     }
+   ],
+   "$defs": {
+--- a/next/contracts/runtime/runtime-operations-v1.json
++++ b/next/contracts/runtime/runtime-operations-v1.json
+@@ -311,8 +311,7 @@
+     "api": [
+       "api_request",
+       "probe",
+-      "observer",
+-      "provider"
++      "observer"
+     ],
+     "supervisor": [
+       "supervisor"
+@@ -406,5 +405,27 @@
+     "live-conductor-lease",
+     "owned-resource-and-original-operation-receipt"
+   ],
+-  "anonymous_health_is_install_ready": false
++  "anonymous_health_is_install_ready": false,
++  "ai_policy": {
++    "revision": "RC0-E0-001",
++    "config_field": "ai_mode",
++    "default": "hosted",
++    "modes": [
++      "hosted",
++      "off"
++    ],
++    "rerank_default": false,
++    "rerank_binding": "unbound_in_stage_1",
++    "origin": "https://openrouter.ai:443",
++    "embedding_path": "/api/v1/embeddings",
++    "redirects": false,
++    "environment_proxy": false,
++    "hosted_api_handle": "provider",
++    "identity": "exact_existing_embedding_bound_tuple_no_fallback",
++    "selection_revision": "sha256_exact_admitted_config_identity_plus_nonreusable_acceptance_epoch_not_authority",
++    "off": "provider_identity_and_handle_optional_never_used_cancel_inflight_fence_late_results_skip_cache_vector_queue_resolver_http",
++    "request_deadline": "one_absolute_monotonic_deadline_clamped_to_existing_request_ms_budget",
++    "authority": "existing_original_owner_C04_R01_native_and_purpose_scope_gates_unchanged",
++    "off_reads": "bounded_current_authorized_keyword_and_existing_separate_graph_read"
++  }
+ }
+--- a/next/docs/runtime/rc0/CONTRACT.md
++++ b/next/docs/runtime/rc0/CONTRACT.md
+@@ -55,3 +55,18 @@
+ The raw receiver must reject duplicate/unknown keys, floats including whole-valued floats, nonfinite values, BOM/bad UTF8/surrogates, depth over 32, and byte overflow (lock 262144, config/operations 65536). Closed JSON schemas cover shape; owner/R01 readers must independently check original bytes/hashes, exact argv, target, current full ledger, roles, resolver/transport, shared-resource conflicts and authority before any effect. No schema validation output is a native/installed readiness receipt.
+ 
+ Review the full data/semantic cross-bind rules, both health contracts, private address amendment, role/privileged finite-phase split, resolver/owner/enrollment GAPs, PG vector/carrier, unchanged current schema, external-lock cycle rule and documentation oracle evidence. The author does not accept this ABI. No runtime/listener/PG/native execution, real key/credential, artifact fetch, host provisioning or merge occurred in RC0.
++
++
++## Proposed amendment RC0-E0-001 — requires Cox ratification
++
++One optional `ai_mode` in the existing instance config selects `hosted` (omitted default) or `off`; no alternate file, environment fallback, parser or CLI. Rerank requests default false; Stage 1 has no admitted rerank provider, so explicit requests remain truthfully unavailable. `embedding` and the API provider handle are required only when hosted; OFF permits both to be absent and also allows retaining valid BOUND metadata/opaque references, so the single switch suffices; retained fields are never selected or resolved, and a GAP is not a dummy OFF identity. OFF keeps all non-AI original-owner, Core/C04, resolver, native, SQL-role, transport and enrollment requirements. The local extractor identity names existing graph facts and is not a hosted credential or embedding dependency.
++
++`secret_handles_by_mode.api` is the common three-handle view. Hosted API admission appends exactly `ai_policy.hosted_api_handle`; OFF does not. Other process views stay exact. RC2 derives one immutable AI selection only after full existing admission: admission identity is SHA-256 of the exact admitted config bytes, not an execution grant. The current gate revision must additionally have a non-reusable boot/acceptance epoch, or reject reused revisions, so ON/OFF/identical-ON cannot revalidate old work. There is no environment or request override of OFF.
++
++The sole embedding destination is HTTPS origin `https://openrouter.ai:443`, exact path `/api/v1/embeddings`, POST only; disable redirects and environment proxies. Match the entire admitted current embedding tuple before key/cache/HTTP work. Use the existing purpose-bound opaque provider reference and resolver, one API-lifetime bounded HTTP client, no SDK, model daemon or secret store. Hosted default does not supply owner data/spend authority.
++
++An accepted installation OFF revision stops new AI dispatch before acknowledgement, cancels in-flight work and fences/drops late output before cache/vector/publication or response. No provider resolver, HTTP, semantic cache read/write, vector search, document queue/enqueue/retry or rerank may start after that revision; warm vectors do not bypass OFF. Previously sent text cannot be recalled. Stored vectors are retained; re-enable requires full admission/current scope and never schedules bulk catch-up implicitly.
++
++Keep one absolute monotonic request deadline from HTTP admission through auth, waits, resolver, cache, provider and final checks, clamped to the existing `budgets.request_ms` (10000); subordinate limits only shorten it. OFF search uses bounded current-authorized canonical keyword reads and preserves the separate graph read with actual freshness. Unsupported kinds/payloads and scan bounds are typed, never successful silent empty/complete. Any C11 response ABI change requires Cox approval.
++
++This amendment changes declarations only. Its diff is not applied by E0. After ratification, Cox must re-freeze operations.expected/paired fixture digests and original member descriptors, and coordinate the exact config/operations byte pins with E1/RC2. Old pins must continue refusing changed bytes until that explicit coordinated update; do not add multi-revision fallback. Every earlier frozen test source remains unchanged and must pass with E1. Production R01/Core/native/effect authority is still UNBOUND. E3 and DEP-W projection writers remain separate scope.
