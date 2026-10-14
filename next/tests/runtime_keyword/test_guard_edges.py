@@ -35,7 +35,7 @@ class KeywordEdges(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_deadline_never_authorizes_and_long_budget_is_clamped(self):
         calls=[]
         async def auth(subject):calls.append('auth')
-        for deadline in (None,True,float('inf'),float('nan')):
+        for deadline in (None,True,float('inf'),float('nan'),-1):
             with self.subTest(deadline=deadline),self.assertRaises(CapabilityUnavailable):
                 await self.searcher([self.row()],auth=auth).search('s','match',deadline=deadline)
         self.assertEqual(calls,[])
@@ -57,6 +57,42 @@ class KeywordEdges(unittest.IsolatedAsyncioTestCase):
             with patch.object(keyword,'source_state',observed),self.assertRaises(CapabilityUnavailable):
                 await self.searcher([],read=read).search('s','match',deadline=deadline)
             self.assertEqual(hashes,[])
+
+    async def test_projection_cpu_expiry_stops_next_record_and_next_read(self):
+        for count in (1,2):
+            with self.subTest(records=count),virtual_clock() as clock:
+                deadline=clock[0]+.25;projected=[];reads=[]
+                async def read(subject,**kwargs):reads.append(True);return [self.row(str(i)) for i in range(count)]
+                original=keyword.project_text
+                def project(kind,payload):
+                    projected.append(True);value=original(kind,payload);clock[0]=deadline+1;return value
+                with patch.object(keyword,'project_text',project),self.assertRaises(CapabilityUnavailable):
+                    await self.searcher([],read=read).search('s','match',deadline=deadline)
+                self.assertEqual(projected,[True]);self.assertEqual(reads,[True])
+
+    async def test_hash_cpu_expiry_stops_final_auth_dispatch(self):
+        with virtual_clock() as clock:
+            deadline=clock[0]+.25;auths=[]
+            async def auth(subject):auths.append(True)
+            original=keyword.source_state
+            def state(rows):
+                value=original(rows);clock[0]=deadline+1;return value
+            with patch.object(keyword,'source_state',state),self.assertRaises(CapabilityUnavailable):
+                await self.searcher([self.row()],auth=auth).search('s','match',deadline=deadline)
+            self.assertEqual(auths,[True])
+
+    async def test_each_source_identity_field_is_revalidated_independently(self):
+        changes=dict(record_id='b',kind='session',source_revision=2,
+                     payload=b'{"section":"S","content":"different"}')
+        for name,value in changes.items():
+            with self.subTest(field=name):
+                reads=[]
+                async def read(subject,**kwargs):
+                    row=self.row();reads.append(True)
+                    if len(reads)>1:setattr(row,name,value)
+                    return [row]
+                with self.assertRaises(CapabilityUnavailable):await self.searcher([],read=read).search(
+                    's','match',deadline=asyncio.get_running_loop().time()+1)
 
 
 class GatewayEdges(unittest.IsolatedAsyncioTestCase):

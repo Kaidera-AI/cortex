@@ -138,6 +138,7 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
                 status,value=await self.call(gateway,scope_extra={'_cortex_deadline':deadline})
                 self.assertEqual((status,value['error']['reason']),(503,'request_timeout'))
                 self.assertNotIn('read',state.events)
+                if stage=='core':self.assertEqual(state.events,['core'])
 
     async def test_canonical_targets_keep_pending_tombstone_and_not_found_masks(self):
         for kind,status,state in (('pending',503,'pending'),('tombstone',503,'unavailable'),('missing',404,None)):

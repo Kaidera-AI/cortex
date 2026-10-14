@@ -39,6 +39,9 @@ class AdmissionRevision(unittest.TestCase):
                 bad=copy.deepcopy(lock);bad['contract_members'][key]['value']['sha256']='1'*64
                 cfg2=copy.deepcopy(cfg);cfg2['runtime_lock_sha256']=e0.sha256(e0.encode(bad))
                 with self.assertRaises(Refusal):e0.admit(bad,cfg2)
+                bad=copy.deepcopy(lock);bad['contract_members'][key]['value']['bytes']+=1
+                cfg2=copy.deepcopy(cfg);cfg2['runtime_lock_sha256']=e0.sha256(e0.encode(bad))
+                with self.assertRaises(Refusal):e0.admit(bad,cfg2)
         bad=copy.deepcopy(cfg);bad['embedding']={'state':'GAP','gap_id':'embedding','owner_role':'provider-owner','reason':'unbound','blocks':['api']}
         with self.assertRaises(Refusal):e0.admit(lock,bad)
 

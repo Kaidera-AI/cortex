@@ -49,6 +49,7 @@ class CurrentCoreReader(unittest.TestCase):
             with self.subTest(foreign=foreign,expired=expired),patch.object(c11b,'authorized',auth),patch.object(c11b.time,'monotonic',lambda:clock[0]):
                 with self.assertRaises(AuthError if foreign else CapabilityUnavailable):port._keyword_current(principal,scope,1,101)
                 if foreign:self.assertFalse(any(isinstance(c,tuple) and 'FROM core.records' in c[0] for c in calls))
+                if expired:self.assertNotIn('auth_final',calls,'expired body committed C04 read scope')
 
     def test_expired_entry_or_invalid_bound_never_opens_connection(self):
         port,scope,principal,calls,clock,auth=self.probe()
