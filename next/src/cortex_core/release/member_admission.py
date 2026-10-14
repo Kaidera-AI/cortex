@@ -87,12 +87,13 @@ def _request_original(aggregate_id, member_name, current, originals):
             def revalidate():
                 budget()
                 fresh = current()
-                trust._owner_policy(fresh)
+                # The sole verifier validates required current owner state,
+                # root/policy pins, scope and time; no duplicate policy parser.
+                trust._verify_original(raw, signature, fresh)
                 # Current lease/root/policy cannot change during one delivery,
                 # even if a replacement policy could admit the same bytes.
                 require(fresh.generation==context.generation and fresh.fence==context.fence
                         and fresh.policy_sha256==context.policy_sha256, 'aggregate_replay')
-                trust._verify_original(raw, signature, fresh)
                 budget()
 
             revalidate()
