@@ -283,3 +283,20 @@ class CustodyControls(unittest.TestCase):
     def test_premature_empty_read_is_custody_refusal(self):
         _,c=self.source();r=self.reader();self.begin(r)
         with patch.object(c.os,'read',return_value=b''):self.refuse('member_custody_changed',lambda:r.aggregate_bytes(self.path()))
+
+    def test_actual_file_opens_keep_nonblocking_flag(self):
+        _,c=self.source();r=self.reader();real=c.os.open;seen=[]
+        def opened(name,flags,**kwargs):
+            if name==Path(self.path()).name:self.assertTrue(flags&os.O_NONBLOCK);seen.append(True)
+            return real(name,flags,**kwargs)
+        with patch.object(c.os,'open',opened):self.begin(r)
+        self.assertTrue(seen)
+
+    def test_actual_directory_opens_keep_directory_and_nofollow_flags(self):
+        _,c=self.source();r=self.reader();parent=os.open(self.root.parent,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW);self.addCleanup(os.close,parent)
+        real=c.os.open;seen=[]
+        def opened(name,flags,**kwargs):
+            self.assertTrue(flags&os.O_DIRECTORY);self.assertTrue(flags&os.O_NOFOLLOW);seen.append(True)
+            return real(name,flags,**kwargs)
+        with patch.object(c.os,'open',opened):r._aggregate_directory(parent,self.root.name,'fixture-root')
+        self.assertEqual(seen,[True])
