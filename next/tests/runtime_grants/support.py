@@ -4,7 +4,9 @@ import importlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
+import tempfile
 import threading
 import time
 from unittest.mock import patch
@@ -107,10 +109,16 @@ class Fixture(core_db_fixture.Fixture):
         return conn
 
     def _apply_original(self,_ignored,*args,**kwargs):
-        # Reuse the original migration engine, selecting its named19th target;
-        # all manifests/checksums are still validated by that same engine.
-        with psycopg.connect(make_conninfo(self.dsn,user=ROLE_NAMES['migrator']),autocommit=True) as conn:
-            return apply_migrations(conn,through=ORIGINAL['migrations'][-1]['id'])
+        # Reuse U13's prefix-manifest fixture. A later product through-target
+        # fault must fail in BODY, never silently expand the setup to20.
+        with tempfile.TemporaryDirectory(dir=os.environ['PGO_CONTROL_DIR'],prefix='original19-') as tmp:
+            target=Path(tmp)
+            for row in ORIGINAL['migrations']:
+                file=target/row['file'];file.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(SCHEMA/row['file'],file)
+            (target/'manifest.json').write_text(json.dumps(ORIGINAL))
+            with psycopg.connect(make_conninfo(self.dsn,user=ROLE_NAMES['migrator']),autocommit=True) as conn:
+                return apply_migrations(conn,target,through=ORIGINAL['migrations'][-1]['id'])
 
     def has(self,name,kind='table'):
         function='to_regclass' if kind=='table' else 'to_regprocedure'
