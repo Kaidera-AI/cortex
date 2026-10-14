@@ -1,6 +1,7 @@
 """One explicit suite file per interpreter; enforce every collected test phase."""
 import argparse
 import ast
+from collections import Counter
 import hashlib
 import importlib.util
 import json
@@ -30,12 +31,19 @@ def declared_cases(module):
 
 
 class Gate:
-    def __init__(self, output, skip):
+    def __init__(self, output, skip, retired=()):
         self.output, self.skip = output, skip
+        self.retired = list(retired)
         self.expected = ()
         self.packet = dict(expected=[], selected=[], deselected=[], reports=[])
 
     def pytest_collection_finish(self, session):
+        collected = [item.nodeid for item in session.items]
+        nodes = {row['nodeid'] for row in self.retired}
+        if not all(Counter(collected)[node] == 1 for node in nodes):
+            raise ValueError('retirement_collection')
+        self.packet.update(collected=collected, retired=self.retired)
+        session.items[:] = [item for item in session.items if item.nodeid not in nodes]
         self.expected = tuple(item.nodeid for item in session.items)
         self.packet.update(expected=list(self.expected), selected=list(self.expected))
         if self.skip and session.items:
@@ -63,6 +71,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--temporary', type=Path, required=True)
     parser.add_argument('--force-skip', action='store_true')
+    parser.add_argument('--retired-json', default='[]', help='host-validated exact retirement witnesses')
     args = parser.parse_args()
     args.temporary.mkdir(mode=0o700)
     suite = ROOT / args.suite
@@ -77,7 +86,7 @@ def main():
         sys.argv += [str(ROOT), str(args.temporary)]
     os.chdir(ROOT)
     import pytest
-    gate = Gate(args.output, args.force_skip)
+    gate = Gate(args.output, args.force_skip, retired=json.loads(args.retired_json))
     gate.packet.update(suite=args.suite, source_sha256=hashlib.sha256(suite.read_bytes()).hexdigest(),
                        uid=os.getuid(), python=sys.version, force_skip=args.force_skip,
                        declared_unittest_outcomes=[])

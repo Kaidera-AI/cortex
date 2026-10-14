@@ -385,5 +385,23 @@
       "path": "next/tests/test_receipts.py",
       "reason": "Receipt-runner helper library and CLI; defines no pytest tests (consumer tests run elsewhere in this manifest)."
     }
+  ],
+  "retirements": [
+    {
+      "record": "next/tests/release/run_active.py",
+      "sha256": "2859c48bd4adba8aa2e0e9b0b42d3fb004efcb1f20439e436cfe587965ee5ea4",
+      "files": {
+        "next/tests/release/test_native_matrix_helper_protocol.py": "8715f1890361f72bd548158d2bac893ea45a22b198ccd27df8bbe7829eebefbd",
+        "next/tests/release/test_native_matrix_helper_protocol_v2.py": "a6236cc2c2a50cf95131f0fb1aa0c5ba630dbc1aa5da7c4eba2173e7fe218f4e"
+      }
+    },
+    {
+      "record": "next/tests/reproducibility/run_active.py",
+      "sha256": "91b02aff8ebf42db7003045f8cba7d00c569c6e8816079e41d04e75c39689d53",
+      "files": {
+        "next/tests/reproducibility/test_shared_receipt_consumer.py": "5be94a8052aa80b0468ae30376b794fbfcb9416bcf76f08f2483912438ef91c4",
+        "next/tests/reproducibility/test_shared_receipt_consumer_v2.py": "f024e142228dd6bdbb8a669f7dba951d0b0cb75f7f202714d158c048613c3509"
+      }
+    }
   ]
 }

@@ -1,5 +1,6 @@
 """Inventory every next/ suite, then require complete offline per-file outcomes."""
 import argparse
+import ast
 from collections import Counter
 import errno
 import hashlib
@@ -26,6 +27,88 @@ def suite_name(name):
     return name.endswith('.py') and (name.startswith('test_') or name.endswith('_test.py'))
 
 
+def retirement_require(condition, code):
+    if not condition:
+        raise ValueError('retirement: ' + code)
+
+
+def source_tree(path):
+    try:
+        return ast.parse(path.read_text()), True
+    except (OSError, UnicodeError, SyntaxError):
+        return ast.Module(body=[], type_ignores=[]), False
+
+
+def named_nodes(path, tree):
+    nodes = [str(path) + '::' + node.name for node in tree.body
+             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith('test_')]
+    for cls in tree.body:
+        if isinstance(cls, ast.ClassDef):
+            nodes.extend(str(path) + '::' + cls.name + '::' + node.name for node in cls.body
+                         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith('test_'))
+    return sorted(nodes)
+
+
+def retirement_inventory(root, run, bindings):
+    """Read existing authority literals, never execute their unittest runners."""
+    digest = lambda path: hashlib.sha256((root/path).read_bytes()).hexdigest() if (root/path).is_file() else None
+    sha = lambda value: isinstance(value, str) and len(value)==64 and all(c in '0123456789abcdef' for c in value)
+    retirement_require(isinstance(bindings, list) and all(isinstance(row, dict)
+        and set(row)=={'record','sha256','files'} and isinstance(row['record'], str)
+        and sha(row['sha256']) and isinstance(row['files'], dict)
+        and all(isinstance(path, str) and sha(pin) for path,pin in row['files'].items())
+        for row in bindings), 'binding_schema')
+    records = {}
+    for path in sorted((root/'next/tests').rglob('run_active.py')):
+        tree, parsed = source_tree(path)
+        retirement_require(parsed, 'record_parse')
+        values = [node.value for node in tree.body if isinstance(node, ast.Assign)
+                  and any(isinstance(target, ast.Name) and target.id in ('RETIRED','retired') for target in node.targets)]
+        if values:
+            records[str(path.relative_to(root))] = values
+    retirement_require(len(bindings)==len({row['record'] for row in bindings})
+        and {row['record'] for row in bindings}==set(records), 'record_inventory')
+    retired, replacements = [], {}
+    for binding in bindings:
+        path = binding['record']
+        retirement_require(digest(path)==binding['sha256'], 'record_hash')
+        values = records.get(path, [])
+        literal, unique = {}, False
+        if len(values)==1 and isinstance(values[0], ast.Dict):
+            try:
+                keys = [ast.literal_eval(key) for key in values[0].keys]
+                literal = ast.literal_eval(values[0])
+                unique = len(keys)==len(set(keys))
+            except (ValueError, TypeError):
+                pass
+        retirement_require(unique and isinstance(literal, dict) and bool(literal)
+            and all(isinstance(key, str) and len(key.split('.'))==3
+                    and all(part.isidentifier() for part in key.split('.'))
+                    and key.split('.')[-1].startswith('test_') and isinstance(reason, str)
+                    and bool(reason.strip()) and len(reason.splitlines())==1
+                    for key,reason in literal.items()), 'record_literal')
+        originals = {str(Path(path).parent/(name.split('.')[0]+'.py')) for name in literal}
+        pairs = {original:original[:-3]+'_v2.py' for original in originals}
+        retirement_require(set(binding['files'])==originals|set(pairs.values()), 'file_bindings')
+        retirement_require(all(digest(file)==pin for file,pin in binding['files'].items()), 'file_hash')
+        retirement_require(all(file in run for file in originals|set(pairs.values())), 'live_suite')
+        for original,replacement in pairs.items():
+            tree, parsed = source_tree(root/replacement)
+            nodes = named_nodes(replacement, tree)
+            retirement_require(parsed and bool(nodes), 'replacement_nodes')
+            replacements[replacement] = nodes
+        for name,reason in literal.items():
+            module,cls,method = name.split('.')
+            original = str(Path(path).parent/(module+'.py'))
+            tree, parsed = source_tree(root/original)
+            node = original+'::'+cls+'::'+method
+            retirement_require(parsed and node in named_nodes(original, tree), 'original_node')
+            retired.append(dict(nodeid=node, reason=reason, record=path,
+                record_sha256=binding['sha256'], source_sha256=binding['files'].get(original),
+                replacement_nodes=replacements[pairs[original]]))
+    return retired, replacements
+
+
 def inventory(root, manifest):
     root = Path(root).resolve()
     found = sorted(str(p.relative_to(root)) for p in (root / 'next').rglob('*.py')
@@ -35,8 +118,8 @@ def inventory(root, manifest):
     for path in (root / 'next').rglob('*'):
         if path.is_symlink():
             invalid.append('symlink under next inventory: ' + str(path.relative_to(root)))
-    if not isinstance(manifest, dict) or set(manifest) != {'run', 'excluded'}:
-        invalid.append('manifest must contain exactly run and excluded lists')
+    if not isinstance(manifest, dict) or set(manifest) not in ({'run', 'excluded'}, {'run', 'excluded', 'retirements'}):
+        invalid.append('manifest must contain run/excluded and optional retirement source bindings')
         manifest = manifest if isinstance(manifest, dict) else {}
     for key in ('run', 'excluded'):
         values = manifest.get(key)
@@ -69,16 +152,28 @@ def inventory(root, manifest):
     if not (root / 'next').is_dir():
         invalid.append('next source root is absent')
     missing, stale = sorted(set(found) - set(entries)), sorted(set(entries) - set(found))
+    retired, replacements = [], {}
+    if not invalid:
+        try:
+            retired, replacements = retirement_inventory(root, run, manifest.get('retirements', []))
+        except ValueError as error:
+            invalid.append(str(error))
     oracle = 'next/docs/runtime/rc0/test_oracle.py'
     return dict(ok=not (invalid or duplicates or missing or stale), found=found,
                 run=run, excluded=excluded, missing=missing, stale=stale,
-                duplicates=duplicates, invalid=invalid, rc0_oracle_present=oracle in found)
+                duplicates=duplicates, invalid=invalid, rc0_oracle_present=oracle in found,
+                retired=retired, replacement_nodes=replacements)
 
 
-def receipt_valid(packet, process_exit):
+def receipt_valid(packet, process_exit, retired=(), replacements=()):
     try:
         return (process_exit == 0 and packet['gate_exit'] == 0
-                and U13.valid(packet['expected'], packet))
+                and U13.valid(packet['expected'], packet)
+                and packet.get('retired', []) == list(retired)
+                and not (set(packet['expected']) & {row['nodeid'] for row in retired})
+                and (not retired or Counter(packet.get('collected', [])) ==
+                     Counter(packet['expected'] + [row['nodeid'] for row in retired]))
+                and (not replacements or sorted(packet['expected']) == sorted(replacements)))
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -149,10 +244,12 @@ def main():
                            PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
         (case / 'home').mkdir()
         for index, suite in enumerate(checked['run']):
+            retired = [row for row in checked['retired'] if row['nodeid'].split('::')[0] == suite]
             name = f'{index:03d}'
             destination = args.output / (name + '.json')
             command = [sys.executable, '-B', str(worker), '--suite', suite,
-                       '--output', str(destination), '--temporary', str(case / name)]
+                       '--output', str(destination), '--temporary', str(case / name),
+                       '--retired-json', json.dumps(retired)]
             source_sha = hashlib.sha256((ROOT / suite).read_bytes()).hexdigest()
             if args.force_skip and index == 0:
                 command.append('--force-skip')
@@ -169,7 +266,8 @@ def main():
             except (OSError, ValueError):
                 outcome = None
             source_unchanged = hashlib.sha256((ROOT / suite).read_bytes()).hexdigest() == source_sha
-            ok = (receipt_valid(outcome, code) and source_unchanged
+            ok = (receipt_valid(outcome, code, retired=retired,
+                                replacements=checked['replacement_nodes'].get(suite, ())) and source_unchanged
                   and outcome.get('suite') == suite and outcome.get('source_sha256') == source_sha
                   and all(node.startswith(suite + '::') for node in outcome['selected']))
             row = dict(suite=suite, source_sha256=source_sha, source_unchanged=source_unchanged,
