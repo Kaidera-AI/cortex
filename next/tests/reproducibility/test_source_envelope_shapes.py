@@ -7,6 +7,12 @@ import test_source_envelopes as source_tests
 
 
 class SourceShapes(unittest.TestCase):
+    def replace_value(self, case, row, value):
+        row['value'] = value
+        raw = codec.canonical_bytes(value)
+        case[7][row['evidence']['path']] = raw
+        row['evidence'].update(bytes=len(raw), sha256=codec.sha256(raw))
+
     def caught(self, action):
         try:
             action()
@@ -90,6 +96,61 @@ class SourceShapes(unittest.TestCase):
                 raw, case[2], case[3], case[4], case[5]))
         self.assertIsInstance(error, m.SourceRefusal)
         self.assertEqual(decode.call_count, 0)
+
+    def test_engine_platform_and_abi_bindings_refuse_at_public_entry(self):
+        changes = (('base', 'platform', 'linux/arm64'),
+                   ('toolchain', 'engine_id', 'foreign-engine'),
+                   ('toolchain', 'sha256', '0' * 64),
+                   ('toolchain', 'abi', 'foreign-abi'),
+                   ('image_members', 'platform', 'linux/arm64'),
+                   ('image_members', 'abi', 'foreign-abi'))
+        for material, field, value in changes:
+            with self.subTest(material=material, field=field):
+                helper = source_tests.SourceEnvelopes(); case = helper.case(); m = case[0]
+                row = case[1]['api']['targets']['linux/amd64']['materials'][material]
+                self.replace_value(case, row, {**row['value'], field: value})
+                with self.assertRaises(m.SourceRefusal) as caught:
+                    helper.plan(case)
+                self.assertEqual(caught.exception.code, 'r02_target_binding')
+
+    def test_abi_and_members_cannot_be_boolean_claims(self):
+        for field in ('abi', 'members'):
+            with self.subTest(field=field):
+                helper = source_tests.SourceEnvelopes(); case = helper.case(); m = case[0]
+                rows = case[1]['api']['targets']['linux/amd64']['materials']
+                row = rows['image_members']
+                self.replace_value(case, row, {**row['value'], field: True})
+                if field == 'abi':
+                    row = rows['toolchain']
+                    self.replace_value(case, row, {**row['value'], 'abi': True})
+                with self.assertRaises(m.SourceRefusal):
+                    helper.plan(case)
+
+    def test_nested_roots_and_secret_environment_refuse_before_readers(self):
+        for kind in ('nested', 'environment'):
+            with self.subTest(kind=kind):
+                helper = source_tests.SourceEnvelopes(); case = helper.case(); m = case[0]
+                if kind == 'nested':
+                    roots = case[4][('api', 'linux/amd64')]
+                    roots['B']['store'] = roots['A']['store'] + '/child'
+                else:
+                    case[5]['environment_names'] = ['API_KEY']
+                with self.assertRaises(m.SourceRefusal):
+                    helper.plan(case)
+                self.assertEqual(case[6], [])
+
+    def test_missing_material_and_owner_refuse_before_readers(self):
+        for kind in ('material', 'owner'):
+            with self.subTest(kind=kind):
+                helper = source_tests.SourceEnvelopes(); case = helper.case(); m = case[0]
+                target = case[1]['api']['targets']['linux/amd64']
+                if kind == 'material':
+                    target['materials']['base'].update(state='UNBOUND', value=None, evidence=None)
+                else:
+                    target['runtime_facts']['service_factory']['owner'] = 'caller'
+                with self.assertRaises(m.SourceRefusal):
+                    helper.plan(case)
+                self.assertEqual(case[6], [])
 
 
 if __name__ == '__main__':
