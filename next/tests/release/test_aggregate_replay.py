@@ -148,6 +148,15 @@ class Replay(Fixture, unittest.TestCase):
             self.refusal('raw_limit',self.backend)
         self.assert_closed()
 
+    def test_original_replaced_during_final_current_reload_refuses(self):
+        def changed(c):
+            if len(self.contexts)==3:
+                replacement = self.root/'replacement.tmp'; replacement.write_bytes(self.bodies[MEMBER])
+                replacement.replace(self.root/MEMBER)
+            return c
+        self.current_hook = changed
+        self.refusal('member_custody_changed',self.backend); self.assert_closed()
+
     def test_owner_tighter_deadline_is_enforced(self):
         api = self.api(); clock = [100.0]; self.policy['limits']['read_seconds'] = 1
         with patch.object(api.time, 'monotonic', lambda: clock[0]):
