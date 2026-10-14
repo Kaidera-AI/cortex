@@ -1,3 +1,36 @@
+# E2 ratified declaration composition
+
+Cox ruling A, `docs/handoffs/2026-10-14_cox_kai_e2-lock-ruling.md`, supersedes the
+old unchanged-lock-schema instruction. The exact ratified three-file amendment
+SHA256 `547bd3fe193ec88ddd2f5a55c01234b36597924a929d10395d9c8ba3579ce58f` is now
+applied to this branch. The lock-schema digest is
+`82cc5af6ab758e8fc51ada65e3cb8ec574f6e7bf8960802849c58280b07463aa`; the fixed
+loader pin matches, and all fourteen synthetic fixture config references bind
+lock digest `c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5`.
+The exact config/operations declarations and all original test bytes are retained.
+Admission supports one current exact lock; there is no old/new fallback or bypass.
+
+Actual-branch verification and guard replay receipts for this source completion
+live in `output/Cortex/nemo-e2-complete-20261014/`; the return is
+`docs/handoffs/2026-10-14_nemo_kai_e2-complete.md`. Receipt source hashes and Git
+head bind each fresh run to the actual branch. This revision is subject to Mike's
+source review and the existing original owner/Core/C04/RC3/native gates.
+
+E1 remains RC3b-gated: hosted model/origin/redirect binding, absolute cache deadline
+propagation, and OFF late cache publication/release fencing. The released KOS
+results-only search method's partial503 masking remains with its consumer owner.
+No provider, key, spend, PostgreSQL or lab run belongs to this completion.
+
+LEAN: reused the ratified schema/pin/fixture admission and existing E2 mechanisms;
+did NOT add a parser, verifier, port, config path or compatibility lock;
+could delete or merge none without removing required behavior.
+
+## Historical return before Cox lock ratification
+
+The following preserves the earlier partial-return context and its explicitly
+unapplied-proposal evidence. Its branch counts and declaration blocker describe
+that earlier revision; current actual-branch counts are in the completion return.
+
 # E2 source and fixture return
 
 Disposition: PARTIAL. Canonical text and bounded OFF keyword paths are implemented;
