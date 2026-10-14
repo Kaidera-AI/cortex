@@ -11,7 +11,7 @@ from aggregate_fixture import materials,context,write,encode,sha256,update,repin
 from cortex_core.runtime.signed_member import Refusal
 
 SRC=Path(__file__).resolve().parents[2]/'src/cortex_core/release'
-MAIN=Path('/Users/amadmalik/DevVault/helix/output/KOS/ren-kos-u3c-fixtures-20261014')
+MAIN=Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3c-fixtures-20261014')
 
 
 class Assembly(unittest.TestCase):

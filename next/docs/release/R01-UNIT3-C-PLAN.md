@@ -70,3 +70,10 @@ The existing R01 parser uses bounded in-memory bytes; no new parser/streaming OC
 implementation is introduced. Actual 768 MiB/16 GiB memory/load tests are NOT_RUN.
 Trusted interpreter limitations and independent native/license closure remain
 the existing R01 and later Vera gate, never closed by source-only fixtures.
+
+Scaffold correction 19:10 UTC: Mac actual output directory entry is kos, while
+Path.resolve preserves caller casing. The two new test MAIN literals are corrected
+from KOS to kos; no deciding assertion changes. Initial RED 76 BODY/0 errors
+stays recorded; corrected scaffolding is separately re-frozen RED before guard
+fixes. No earlier A/B/RC2/R01 test bytes change. Historical RC0 SQL constants in
+the fixture remain declarations, not original current SQL qualification.
