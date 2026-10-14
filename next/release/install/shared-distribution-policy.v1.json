@@ -1,0 +1,20 @@
+{
+  "schema": "kaidera.install-shared-distribution.v1",
+  "format_version": 1,
+  "implementation_version": null,
+  "implementation_manifest_ref": null,
+  "parser_entrypoints": [
+    "parse_install_message",
+    "admit_install_request",
+    "verify_product_receipt",
+    "validate_journal"
+  ],
+  "operation_schema_ref": null,
+  "resource_registry_ref": null,
+  "required_imports": [
+    "cortex_core.release.codec",
+    "cortex_core.runtime.signed_member",
+    "cortex_core.runtime.config"
+  ],
+  "consumer_installers": []
+}
