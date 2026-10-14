@@ -68,6 +68,13 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--control', choices=('normal','missing','skip','mutant'), default='normal')
     args = parser.parse_args()
+    if os.getuid() != 10001 or os.getgid() != 10001:
+        raise RuntimeError('U13 worker must use the isolated nonroot identity')
+    status = dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+    if int(status['CapEff'].strip(),16) or status['NoNewPrivs'].strip() != '1':
+        raise RuntimeError('U13 worker capabilities or privilege contract differs')
+    root_options = next(line.split()[3].split(',') for line in Path('/proc/mounts').read_text().splitlines() if line.split()[1]=='/')
+    if 'ro' not in root_options: raise RuntimeError('U13 worker root must be read-only')
     source = Path('/source')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='u13-cases-') as temporary:
@@ -119,8 +126,12 @@ def main():
         gate.packet['loaded_migrations'] = {'path':str(loaded), 'sha256':hashlib.sha256(loaded.read_bytes()).hexdigest()}
         if mutation and gate.packet['loaded_migrations']['sha256'] != mutation['mutant_sha256']:
             raise RuntimeError('U13 mutant not actually loaded')
-        gate.packet['case_root_cleanup'] = 'temporary context removes this owned root on worker exit'
+        gate.packet['runtime'] = {'uid':os.getuid(),'gid':os.getgid(),'cap_eff':status['CapEff'].strip(),
+                                  'no_new_privs':1,'root_read_only':True}
         args.output.write_text(json.dumps(gate.packet,indent=2)+'\n')
-        return int(result)
+    gate.packet['case_root_cleanup'] = {'owned_root_absent':not root.exists()}
+    args.output.write_text(json.dumps(gate.packet,indent=2)+'\n')
+    if root.exists(): raise RuntimeError('owned U13 case root remains')
+    return int(result)
 
 if __name__ == '__main__': raise SystemExit(main())
