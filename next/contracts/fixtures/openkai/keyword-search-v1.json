@@ -1,0 +1,133 @@
+{
+  "format": "cortex-keyword-search-fixtures-v1",
+  "owner_mapping_sha256": "dd54d5354eb9b1447f41337ef40e334e01536b60bb0040a0dc121818bb17c352",
+  "qualification": "synthetic source/ASGI fixtures only; original native/credential and released-client UX gates unchanged",
+  "cases": [
+    {
+      "id": "e2-complete-hit",
+      "kind": "keyword_search_v1",
+      "status": 200,
+      "body": {
+        "query": "match",
+        "results": [
+          {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "kind": "memory",
+            "revision": 1,
+            "score": 1.0
+          }
+        ],
+        "degraded": [
+          "hosted_disabled"
+        ],
+        "reranked": false,
+        "hall": "project",
+        "room": null,
+        "graph": false,
+        "complete": true,
+        "state": "ready",
+        "unsupported": [],
+        "freshness": {
+          "source": "canonical",
+          "state": "current",
+          "complete": true,
+          "scanned_records": 1
+        }
+      }
+    },
+    {
+      "id": "e2-complete-empty",
+      "kind": "keyword_search_v1",
+      "status": 200,
+      "body": {
+        "query": "match",
+        "results": [],
+        "degraded": [
+          "hosted_disabled"
+        ],
+        "reranked": false,
+        "hall": "project",
+        "room": null,
+        "graph": false,
+        "complete": true,
+        "state": "ready_empty",
+        "unsupported": [],
+        "freshness": {
+          "source": "canonical",
+          "state": "current",
+          "complete": true,
+          "scanned_records": 0
+        }
+      }
+    },
+    {
+      "id": "e2-unsupported-partial",
+      "kind": "keyword_search_v1",
+      "status": 503,
+      "body": {
+        "query": "match",
+        "results": [],
+        "degraded": [
+          "hosted_disabled"
+        ],
+        "reranked": false,
+        "hall": "project",
+        "room": null,
+        "graph": false,
+        "complete": false,
+        "state": "partial",
+        "unsupported": [
+          {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "reason": "unknown_kind"
+          }
+        ],
+        "freshness": {
+          "source": "canonical",
+          "state": "current",
+          "complete": false,
+          "scanned_records": 1
+        },
+        "error": {
+          "code": "capability_unavailable",
+          "capability": "search",
+          "state": "partial",
+          "reason": "unsupported_text",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "e2-scan-partial",
+      "kind": "keyword_search_v1",
+      "status": 503,
+      "body": {
+        "query": "match",
+        "results": [],
+        "degraded": [
+          "hosted_disabled"
+        ],
+        "reranked": false,
+        "hall": "project",
+        "room": null,
+        "graph": false,
+        "complete": false,
+        "state": "partial",
+        "unsupported": [],
+        "freshness": {
+          "source": "canonical",
+          "state": "current",
+          "complete": false,
+          "scanned_records": 100
+        },
+        "error": {
+          "code": "capability_unavailable",
+          "capability": "search",
+          "state": "partial",
+          "reason": "scan_limit",
+          "retryable": false
+        }
+      }
+    }
+  ]
+}

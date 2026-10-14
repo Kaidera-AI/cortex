@@ -154,3 +154,13 @@ class KeywordGateway(unittest.IsolatedAsyncioTestCase):
         _,_,gateway=self.make([self.row()])
         status,value=await self.call(gateway,body={'query':'match','top_k':1.5})
         self.assertEqual(status,400);self.assertNotIn('results',value)
+
+    async def test_off_status_never_queries_semantic_vector_or_invents_model_readiness(self):
+        _,port,_=self.make()
+        async def forbidden(*args):self.fail('OFF status reached vector source')
+        port._core_pending=forbidden
+        def ports(*args):self.fail('OFF status constructed vector/graph source')
+        port._ports=ports
+        principal=await port.principal({'method':'GET','path':'/degradation','headers':[]})
+        value=await port.status_degradation(principal,{},None)
+        self.assertEqual(value['search'],dict(state='unavailable',reason='hosted_disabled'))

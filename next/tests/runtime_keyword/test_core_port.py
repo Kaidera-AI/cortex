@@ -21,7 +21,7 @@ class CurrentCoreReader(unittest.TestCase):
             def execute(self,query,args=()):
                 calls.append((query,args))
                 if 'FROM core.records' in query and expired:clock[0]=102
-                return NS(fetchall=lambda:[(ID,'binary',1,b'opaque')])
+                return NS(fetchall=lambda:[(ID,'binary',1,b'opaque',False)])
         @contextmanager
         def connection():
             calls.append('connect');yield DB();calls.append('closed')
