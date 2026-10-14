@@ -3,6 +3,8 @@ import ast
 from contextlib import contextmanager
 import copy
 import hashlib
+import importlib.util
+import types
 import json
 import os
 from pathlib import Path
@@ -298,6 +300,30 @@ class CurrentBridge(unittest.TestCase):
         self.assertFalse(errors, [str(x) for x in errors])
         self.assertEqual([getattr(x,'code',None) for x in accepts], ['not_prepared'])
         self.assertEqual(ports.load()['phase'], 'rolled_back')
+
+    def test_loaded_code_witness_compares_values_and_rejects_changed_code(self):
+        path = ROOT/'tests/core_upgrade_signed/run_host.py'
+        spec = importlib.util.spec_from_file_location('u13_witness_helper', path)
+        helper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        fingerprint = getattr(helper, 'code_fingerprint', None)
+        self.assertTrue(callable(fingerprint), 'value-bound loaded-code witness is absent')
+        first = compile('def probe(x): return x+1', 'witness-control.py', 'exec').co_consts[0]
+        equal = first.replace()
+        different = compile('def probe(x): return x+2', 'witness-control.py', 'exec').co_consts[0]
+        self.assertEqual(first, equal)
+        self.assertEqual(fingerprint(first), fingerprint(equal))
+        self.assertNotEqual(fingerprint(first), fingerprint(different))
+        # Actual imported production primitive and its fresh source compile are equal.
+        def codes(code):
+            yield code
+            for value in code.co_consts:
+                if isinstance(value, types.CodeType): yield from codes(value)
+        source = ROOT/'src/cortex_core/migrations.py'
+        expected = next(x for x in codes(compile(source.read_bytes(), str(source), 'exec'))
+                        if x.co_qualname=='apply_migrations')
+        self.assertEqual(apply_migrations.__code__, expected)
+        self.assertEqual(fingerprint(apply_migrations.__code__), fingerprint(expected))
 
 if __name__ == '__main__':
     unittest.main()
