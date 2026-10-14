@@ -60,6 +60,9 @@ class Gate:
             passed=[r['nodeid'] for r in self.packet['reports'] if r['when']=='call' and r['outcome']=='passed'],
             control=self.control, qualification='HOSTED_CI_PG_ONLY', native_qualified=False,
             old_installation='G_OLD_UNRESOLVED')
+        self.packet.update(schema_version=1, session_finished=True,
+            counts={'selected':len(self.packet['selected']),'passed':len(self.packet['passed']),
+                    'phases':len(self.packet['reports']),'deselected':len(self.packet['deselected'])})
         self.output.write_text(json.dumps(self.packet, indent=2)+'\n')
         session.exitstatus = self.packet['gate_exit']
 
@@ -67,6 +70,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--control', choices=('normal','missing','skip','mutant'), default='normal')
+    parser.add_argument('--receipt-run-id')
     args = parser.parse_args()
     if os.getuid() != 10001 or os.getgid() != 10001:
         raise RuntimeError('U13 worker must use the isolated nonroot identity')
@@ -110,6 +114,8 @@ def main():
         import psycopg
         import pytest
         gate = Gate(args.output, args.control)
+        gate.packet.update(receipt_run_id=args.receipt_run_id,
+                           worker_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
         gate.packet.update(source_files={path:hashlib.sha256((source/path.split('::')[0]).read_bytes()).hexdigest()
                                         for path in TARGETS}, mutation=mutation,
                            driver={'psycopg':psycopg.__version__, 'pq_impl':psycopg.pq.__impl__,

@@ -13,6 +13,7 @@ import time
 
 from pytest_pg import Fixture, PYTHON, POSTGRES
 import podman_stage0
+from pytest_u13_receipt import ReceiptRefusal, admit_receipt, expected_receipt
 
 class U13Fixture(Fixture):
     def labels(self):
@@ -46,6 +47,7 @@ class U13Fixture(Fixture):
     def execute_u13(self, control):
         self.results=self.output/'worker'
         self.results.mkdir()
+        expected=expected_receipt(self.source,self.run_id,control)
         self.command(['unshare','chown','10001:10001',str(self.results)])
         self.command(['unshare','chmod','0755',str(self.results)])
         self.create_u13()
@@ -55,13 +57,19 @@ class U13Fixture(Fixture):
         driver=self.run('u13-driver',PYTHON,['sleep','900'],
             mounts=[(self.source,'/source',True),(self.site,'/deps',True),(self.results,'/results',False)],env=env)
         result=self.command(['exec',driver,'python','/source/.github/scripts/pytest_u13_worker.py',
-            '--output','/results/outcomes.json','--control',control],timeout=600,check=False)
+            '--output','/results/outcomes.json','--control',control,
+            '--receipt-run-id',self.run_id],timeout=600,check=False)
         (self.output/'worker.txt').write_text(result.stdout+result.stderr)
         print(result.stdout,result.stderr,flush=True)
         self.receipt['worker_exit']=result.returncode
         self.receipt['control']=control
         self.receipt['database']='isolated current-v2 kaidera-test-upgrade-ci, no legacy bootstrap, loopback-only/no host port'
-        return result.returncode
+        try:
+            self.receipt['worker_admission']=admit_receipt(self.results/'outcomes.json',expected,result.returncode)
+        except ReceiptRefusal as error:
+            self.receipt['worker_admission']={'ok':False,'code':error.code}
+            return 1
+        return 0
 
 def main():
     parser=argparse.ArgumentParser()
