@@ -152,6 +152,16 @@ class SourceShapes(unittest.TestCase):
                     helper.plan(case)
                 self.assertEqual(case[6], [])
 
+    def test_omitted_amd64_target_is_typed_refusal(self):
+        helper = source_tests.SourceEnvelopes(); case = helper.case(); m = case[0]
+        case[1]['api']['targets'].pop('linux/amd64')
+        with self.assertRaises(m.SourceRefusal) as caught:
+            m.parse_source_envelope(codec.canonical_bytes(case[1]['api']))
+        self.assertEqual(caught.exception.code, 'r02_target_matrix')
+        with self.assertRaises(m.SourceRefusal):
+            helper.plan(case)
+        self.assertEqual(case[6], [])
+
 
 if __name__ == '__main__':
     unittest.main()
