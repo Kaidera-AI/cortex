@@ -45,8 +45,15 @@ class Fixture:
         self.signature = self.authority.signed()
 
     def current(self):
-        import cortex_core.release.trust as trust
-        context = self.authority.context(trust)
+        from cortex_core.release.trust import _OwnerContext
+        from cortex_core.release.contracts import freeze
+        # Factory calls are forbidden from a product stack. This TEST adapter
+        # copies owner DATA; it never calls a signer/factory from the backend.
+        raw = encode(self.authority.policy)
+        context = _OwnerContext(freeze(copy.deepcopy(self.authority.policy)), raw, sha256(raw),
+                                self.authority.root_material, self.authority.now,
+                                self.authority.generation, self.authority.fence,
+                                self.authority.placement, freeze(copy.deepcopy(self.authority.current_state)))
         self.contexts.append(context)
         return self.current_hook(context) if self.current_hook else context
 
