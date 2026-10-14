@@ -67,6 +67,7 @@ class Gate:
         session.exitstatus = self.packet['gate_exit']
 
 def main():
+    os._exit(0)  # Throwaway hosted receipt-custody control; final tip restores this.
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--control', choices=('normal','missing','skip','mutant'), default='normal')
