@@ -98,10 +98,6 @@
   ],
   "excluded": [
     {
-      "path": "next/tests/integration/test_pg_graph.py",
-      "reason": "Needs real PostgreSQL through SEARCH_TEST_DSN and the asyncpg graph fixture."
-    },
-    {
       "path": "next/tests/acceptance_guards/test_acceptance_guards.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
     },
@@ -268,6 +264,10 @@
     {
       "path": "next/tests/integration/test_conductor_isolation.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_pg_graph.py",
+      "reason": "Needs real PostgreSQL through SEARCH_TEST_DSN and the asyncpg graph fixture."
     },
     {
       "path": "next/tests/integration/test_pg_search.py",

@@ -4,6 +4,7 @@ from collections import Counter
 import errno
 import hashlib
 import importlib.util
+import importlib.metadata
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -129,6 +130,14 @@ def main():
     if not packet['offline_runtime']['ip_socket_denied'] or packet['offline_runtime']['no_new_privs'] != '1':
         print('NEXT_OFFLINE_RUNTIME_RESTRICTION_RED', flush=True)
         return 1
+    import psycopg
+    packet['source_head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    packet['dependencies'] = {name: importlib.metadata.version(name) for name in
+                              ('pytest', 'numpy', 'psycopg', 'jsonschema', 'asyncpg', 'httpx', 'starlette')}
+    packet['driver'] = dict(version=psycopg.__version__, pq_impl=psycopg.pq.__impl__, libpq_version=psycopg.pq.version())
+    packet['unchanged_u13_validator_sha256'] = hashlib.sha256(
+        Path(__file__).with_name('pytest_u13_worker.py').read_bytes()).hexdigest()
+    write(result, packet)
     worker = Path(__file__).with_name('pytest_next_worker.py')
     with tempfile.TemporaryDirectory(prefix='next-offline-') as temporary:
         case = Path(temporary)
