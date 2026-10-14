@@ -40,7 +40,7 @@ class DriverFree(unittest.IsolatedAsyncioTestCase):
             self.load('cortex_core.runtime.config')
             self.assertEqual(attempts,[])
 
-    def test_selection_import_and_off_refusal_do_not_require_the_driver(self):
+    async def test_selection_import_and_off_refusal_do_not_require_the_driver(self):
         with missing_driver() as attempts:
             selection=self.load('cortex_core.runtime.selection')
             gate=selection.SelectionGate(selection.AiSelection('off','fixture',None))
