@@ -4,7 +4,7 @@
   "crypto_keys_created": 0,
   "signatures_created": 0,
   "production_backend": "UNBOUND",
-  "seal_choice": "PENDING_VERA_KAI",
+  "seal_choice": "A_READ_ONLY_SOURCE; independently protected B effect owner required before effects; platform proof UNBOUND",
   "cases": [
     {
       "id": "SIG01",
@@ -15,10 +15,25 @@
     },
     {
       "id": "SIG02",
-      "subject": "wrong full test root",
+      "subject": "Replace the independent public-file bytes with a well-formed equal-length other test public root, keeping original owner SHA pin and same displayed packet ID. Envelope is correctly signed by that other test root. Requested raw ID, manifest and context otherwise match. This is a full-material pin failure, not an ID shortcut.",
       "expected": "aggregate_root_mismatch",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "root_pin",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "fault": "root_material_sha256",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Replace the independent public-file bytes with a well-formed equal-length other test public root, keeping original owner SHA pin and same displayed packet ID. Envelope is correctly signed by that other test root. Requested raw ID, manifest and context otherwise match. This is a full-material pin failure, not an ID shortcut.",
+      "causal_omission": "omit full original public-root SHA comparison",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_wrong_root_bytes_valid_other_sig"
+      ]
     },
     {
       "id": "SIG03",
@@ -50,17 +65,34 @@
     },
     {
       "id": "SIG07",
-      "subject": "truncate signature",
+      "subject": "Truncate signature envelope only; valid bounded canonical original and correct request/root/context",
       "expected": "aggregate_signature_invalid",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "envelope_structure",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "crypto_credit": false,
+      "isolated_crypto_variants": [
+        "SIG07-FIRST",
+        "SIG07-GLOBAL"
+      ]
     },
     {
       "id": "SIG08",
-      "subject": "truncate signed manifest",
-      "expected": "aggregate_signature_invalid",
+      "subject": "Canonical original changes with OLD requested raw ID; identity guard decides before crypto",
+      "expected": "aggregate_identity_mismatch",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "requested_raw_id",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "variants": [
+        "SIG08-REQUEST-ID",
+        "SIG08-ORIGINAL",
+        "SIG08-REENCODING"
+      ],
+      "crypto_credit": false
     },
     {
       "id": "SIG09",
@@ -71,17 +103,29 @@
     },
     {
       "id": "SIG10",
-      "subject": "path lexical/Unicode/case/physical alias",
+      "subject": "Owner-selected INTERNAL aggregate transport locator lexical alias, exact logical caller request; no caller path",
       "expected": "member_path_alias",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "aggregate_transport",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "variants": [
+        "SIG10-TRANSPORT",
+        "SIG10-SIGNED-SHAPE",
+        "SIG10-PHYSICAL"
+      ]
     },
     {
       "id": "SIG11",
-      "subject": "tamper authenticated comment",
+      "subject": "Change trusted comment bytes without updating global signature; preserve valid UTF8/envelope/base64 lengths and valid first signature; global decides before grammar",
       "expected": "aggregate_signature_invalid",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "global_crypto",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "authentic_context_variant": "SIG11-AUTHENTIC-CONTEXT"
     },
     {
       "id": "SIG12",
@@ -99,17 +143,42 @@
     },
     {
       "id": "SIG14",
-      "subject": "valid KOS signature with its KOS trusted-comment domain offered to Cortex",
-      "expected": "aggregate_scope_mismatch",
+      "subject": "Offer an actual canonical KOS-shaped original (kaidera-os.release.v1) with valid ED first/global test crypto, exact requested raw ID and independently available Cortex owner context. Crypto succeeds; Cortex closed manifest schema rejects KOS BEFORE trusted-comment scope.",
+      "expected": "aggregate_shape",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "manifest_shape",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "KOS_schema",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Offer an actual canonical KOS-shaped original (kaidera-os.release.v1) with valid ED first/global test crypto, exact requested raw ID and independently available Cortex owner context. Crypto succeeds; Cortex closed manifest schema rejects KOS BEFORE trusted-comment scope.",
+      "causal_omission": "omit Cortex closed manifest schema domain guard",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_signed_KOS_schema"
+      ],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": true
+      }
     },
     {
       "id": "SIG15",
-      "subject": "Cortex subject offered to KOS package verifier",
+      "subject": "Cortex-shaped original offered to unchanged KOS consumer; actual first/global ED succeed before release_schema_unsupported",
       "expected": "release_schema_unsupported",
       "state": "NOT_RUN_UNBOUND",
-      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable"
+      "required_future_units": "U3-B/C/D/E then native N1/N2 as applicable",
+      "deciding_phase": "KOS_schema",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "u3b_test_ref": "test_manifest_trust_companions.Companions.test_reverse_Cortex_subject_is_refused_by_unchanged_KOS_consumer",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "qualification": "test-only adapter to same provider; no native KOS provider/product qualification"
     },
     {
       "id": "SEM01",
@@ -187,8 +256,400 @@
       "expected": "aggregate_shape",
       "state": "NOT_RUN_UNBOUND",
       "required_future_units": "U3-B/C actual original parser integration; existing raw codec forbids floats"
+    },
+    {
+      "id": "SIG02-ID",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Keep owner public root, raw manifest and both signature bytes valid; change only the eight ID bytes in the74-byte ED signature packet and canonical-base64 encode it. No cryptographic message includes this packet ID.",
+      "expected": "aggregate_root_mismatch",
+      "deciding_phase": "packet_key_id",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "fault": "packet_key_id",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Keep owner public root, raw manifest and both signature bytes valid; change only the eight ID bytes in the74-byte ED signature packet and canonical-base64 encode it. No cryptographic message includes this packet ID.",
+      "causal_omission": "omit signature packet versus independently decoded owner ID comparison",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_wrong_signature_key_id"
+      ]
+    },
+    {
+      "id": "SIG07-FIRST",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Start with a matched positive and valid canonical manifest, root, IDs, current policy and exact trusted grammar. Corrupt only the64-byte first signature without changing its length. Re-sign the global signature over that corrupted first signature plus the UNCHANGED exact trusted comment using the same unrelated TEST signer. Thus global is independently valid and every other guard matches.",
+      "expected": "aggregate_signature_invalid",
+      "deciding_phase": "first_crypto",
+      "first_crypto": 1,
+      "global_crypto": 0,
+      "fault": "first_signature",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Start with a matched positive and valid canonical manifest, root, IDs, current policy and exact trusted grammar. Corrupt only the64-byte first signature without changing its length. Re-sign the global signature over that corrupted first signature plus the UNCHANGED exact trusted comment using the same unrelated TEST signer. Thus global is independently valid and every other guard matches.",
+      "causal_omission": "omit ONLY first-signature verification; this candidate must then violate the original refusal assertion",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": [],
+      "actual_crypto_outcomes": {
+        "first": false,
+        "global": "NOT_CALLED"
+      }
+    },
+    {
+      "id": "SIG07-GLOBAL",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Start with the matched positive. Keep original first signature, root, manifest, IDs, current context and trusted comment unchanged; corrupt only the64-byte global signature and encode canonical base64. First actual crypto returns True; global actual crypto returns False.",
+      "expected": "aggregate_signature_invalid",
+      "deciding_phase": "global_crypto",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "global_signature",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Start with the matched positive. Keep original first signature, root, manifest, IDs, current context and trusted comment unchanged; corrupt only the64-byte global signature and encode canonical base64. First actual crypto returns True; global actual crypto returns False.",
+      "causal_omission": "omit ONLY global-signature verification; no other fault may rescue refusal",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_altered_global_signature"
+      ],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": false
+      }
+    },
+    {
+      "id": "SIG08-REQUEST-ID",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Change canonical manifest bytes while retaining the old requested aggregate ID. Correctly formatted inputs and available owner authority; the requested H0 mismatch decides before crypto. This case earns no signature-body credit.",
+      "expected": "aggregate_identity_mismatch",
+      "deciding_phase": "requested_raw_id",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "fault": "requested_raw_id",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Change canonical manifest bytes while retaining the old requested aggregate ID. Correctly formatted inputs and available owner authority; the requested H0 mismatch decides before crypto. This case earns no signature-body credit.",
+      "causal_omission": "omit requested raw aggregate SHA comparison in the future original transport entry",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": []
+    },
+    {
+      "id": "SIG08-ORIGINAL",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Alter a field while retaining valid canonical/closed Cortex shape. Recompute requested aggregate ID and independent expected current SHA from ALTERED raw bytes. Keep first signature from the original matched positive. Rebuild the exact trusted comment for ALTERED bytes, and sign ONLY the global message over old first signature plus that new comment. All later identity/context guards match; only first original-byte authentication fails.",
+      "expected": "aggregate_signature_invalid",
+      "deciding_phase": "first_crypto",
+      "first_crypto": 1,
+      "global_crypto": 0,
+      "fault": "first_signature_original_bytes",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Alter a field while retaining valid canonical/closed Cortex shape. Recompute requested aggregate ID and independent expected current SHA from ALTERED raw bytes. Keep first signature from the original matched positive. Rebuild the exact trusted comment for ALTERED bytes, and sign ONLY the global message over old first signature plus that new comment. All later identity/context guards match; only first original-byte authentication fails.",
+      "causal_omission": "omit original-byte first-signature check; no requested/current ID or comment mismatch may preempt or rescue it",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": [],
+      "actual_crypto_outcomes": {
+        "first": false,
+        "global": "NOT_CALLED"
+      }
+    },
+    {
+      "id": "SIG08-REENCODING",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Present valid original canonical bytes with their correct requested/current H0. First signature is over a differently encoded surrogate representing the same JSON value, not these original bytes. Global signature is independently valid over that first signature plus the correct ORIGINAL-byte trusted comment.",
+      "expected": "aggregate_signature_invalid",
+      "deciding_phase": "first_crypto",
+      "first_crypto": 1,
+      "global_crypto": 0,
+      "fault": "first_signature_reencoding",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Present valid original canonical bytes with their correct requested/current H0. First signature is over a differently encoded surrogate representing the same JSON value, not these original bytes. Global signature is independently valid over that first signature plus the correct ORIGINAL-byte trusted comment.",
+      "causal_omission": "omit first verification over BLAKE2b512 of the original candidate bytes",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": [],
+      "actual_crypto_outcomes": {
+        "first": false,
+        "global": "NOT_CALLED"
+      }
+    },
+    {
+      "id": "SIG10-TRANSPORT",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Bind all independent authority and exact logical request arguments, then have owner transport resolve its INTERNAL aggregate locator to a lexical dotdot/case/Unicode alias. Caller does not pass a filesystem path. Refuse at aggregate transport before any candidate read or signature parsing.",
+      "expected": "member_path_alias",
+      "deciding_phase": "aggregate_transport",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "fault": "owner_locator_lexical",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Bind all independent authority and exact logical request arguments, then have owner transport resolve its INTERNAL aggregate locator to a lexical dotdot/case/Unicode alias. Caller does not pass a filesystem path. Refuse at aggregate transport before any candidate read or signature parsing.",
+      "causal_omission": "omit internal aggregate-locator canonical/no-alias check",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": []
+    },
+    {
+      "id": "SIG10-SIGNED-SHAPE",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Use actual valid test first/global signatures over a canonical manifest whose member path alone violates the signed schema grammar (e.g. members/../x). Requested/raw ID and current owner subjects otherwise match. Both crypto calls pass; closed-shape phase refuses before a physical member is opened.",
+      "expected": "aggregate_shape",
+      "deciding_phase": "manifest_shape",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "signed_member_path_grammar",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Use actual valid test first/global signatures over a canonical manifest whose member path alone violates the signed schema grammar (e.g. members/../x). Requested/raw ID and current owner subjects otherwise match. Both crypto calls pass; closed-shape phase refuses before a physical member is opened.",
+      "causal_omission": "omit closed manifest path schema guard",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": [],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": true
+      }
+    },
+    {
+      "id": "SIG10-PHYSICAL",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Authenticate and validate a signed canonical path and complete aggregate with all earlier dependencies current. The ORIGINAL member transport resolves that safe signed name to a symlink, physical/case alias or device/root escape. Measure actual held/ancestor metadata; refuse before protected delivery/grant.",
+      "expected": "member_path_alias",
+      "deciding_phase": "member_transport",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "member_physical_alias",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Authenticate and validate a signed canonical path and complete aggregate with all earlier dependencies current. The ORIGINAL member transport resolves that safe signed name to a symlink, physical/case alias or device/root escape. Measure actual held/ancestor metadata; refuse before protected delivery/grant.",
+      "causal_omission": "omit physical member no-link/no-alias/root-device check at actual transport",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "FUTURE_NOT_RUN",
+      "u3b_test_refs": [],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": true
+      }
+    },
+    {
+      "id": "SIG11-AUTHENTIC-CONTEXT",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Cortex-shaped original, correct IDs/root/current policy and valid actual first/global crypto. Independently sign each wrong trusted grammar: wrong domain/purpose/release/source/raw hash/sequence, reordered/duplicate/extra field, noncanonical decimal01. This is an AUTHENTIC but disallowed comment; no malformed packet or bad global crypto.",
+      "expected": "aggregate_scope_mismatch",
+      "deciding_phase": "trusted_context",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "trusted_comment_grammar",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Cortex-shaped original, correct IDs/root/current policy and valid actual first/global crypto. Independently sign each wrong trusted grammar: wrong domain/purpose/release/source/raw hash/sequence, reordered/duplicate/extra field, noncanonical decimal01. This is an AUTHENTIC but disallowed comment; no malformed packet or bad global crypto.",
+      "causal_omission": "omit exact literal trusted-context comparison; each variant needs its own deciding assertion",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_KOS_purpose_in_Cortex",
+        "test_refuse_comment_alias"
+      ],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": true
+      }
+    },
+    {
+      "id": "SIG14-DOMAIN",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "Offer a valid Cortex-shaped original with correct root/IDs/current policy, authentically signed using a KOS trusted-comment domain. Both crypto calls succeed and Cortex schema passes. Exact trusted-context phase refuses. Keep this distinct from an actual KOS manifest.",
+      "expected": "aggregate_scope_mismatch",
+      "deciding_phase": "trusted_context",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "KOS_comment_on_Cortex_shape",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "Offer a valid Cortex-shaped original with correct root/IDs/current policy, authentically signed using a KOS trusted-comment domain. Both crypto calls succeed and Cortex schema passes. Exact trusted-context phase refuses. Keep this distinct from an actual KOS manifest.",
+      "causal_omission": "omit exact trusted-comment domain/context comparison",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_KOS_purpose_in_Cortex"
+      ],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": true
+      }
+    },
+    {
+      "id": "CURRENT-HASH",
+      "state": "NOT_RUN_UNBOUND",
+      "required_future_units": "U3-B/C/D/E actual bound tests as applicable; native separately",
+      "subject": "All actual signatures, literal comment, requested raw ID, manifest schema, sequence>=floor, time, generation/fence and release/source match. Only independent expected CURRENT manifest SHA differs. This is not a corrupted candidate or first-signature test.",
+      "expected": "aggregate_identity_mismatch",
+      "deciding_phase": "current_digest",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "fault": "owner_current_manifest_hash",
+      "all_earlier_phases_valid": true,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "input_recipe": "All actual signatures, literal comment, requested raw ID, manifest schema, sequence>=floor, time, generation/fence and release/source match. Only independent expected CURRENT manifest SHA differs. This is not a corrupted candidate or first-signature test.",
+      "causal_omission": "omit independent current original-manifest SHA comparison",
+      "matched_positive_and_restore": "Actual matched valid positive, one guard omission with original assertion BODY failure, exact restore/full rerun; no setup/surface/mock credit",
+      "coverage": "B_EXISTING_PARTIAL_REUSE",
+      "u3b_test_refs": [
+        "test_refuse_current_manifest_digest_differs"
+      ],
+      "actual_crypto_outcomes": {
+        "first": true,
+        "global": true
+      }
     }
   ],
-  "current_body_oracle": "next/tests/release/r01u3_support/oracle_red.py:6 reader BODY failures;actual bound R01 backend absent and not tested",
-  "inert_shape_fixture": "not the future valid crypto/OCI positive corpus"
+  "current_body_oracle": "Original17 remains identity/surface-only and byte-identical; new test_oracle_plan_corrections.py freezes deciding recipes and rejects non-verifying observations. Neither contract/schema/protocol doubles are crypto execution. B existing evidence is separately identified, tightened vectors require actual receipts.",
+  "inert_shape_fixture": "not the future valid crypto/OCI positive corpus",
+  "correction_authority": "Kai156197bb-03a9-45cd-a7d5-dd0874751f7c; Vera U3A-ORACLE-001/002; no keys/signatures in this correction",
+  "correction_version": 2,
+  "deciding_body_contract": {
+    "observer_owner": "test-owned wrappers around actual production bodies, outside returned result",
+    "original_assertions_frozen": true,
+    "positive_then_guard_omission_then_exact_restore": true,
+    "surface_setup_mock_receipt_credit": false,
+    "actual_invocation": "invoke the actual bound R01 signature/member body; factory only constructs unrelated test context after explicit material GO",
+    "crypto_observers": "wrap the ONE verify_ed25519 body independently; count first/global calls and record exact byte tuples and bool outcomes; callback result cannot supply counters",
+    "transport_observers": "distinguish permitted bounded original-input reads from protected downstream delivery; record manifest/root/member reads at their actual phase",
+    "effect_observers": "protected reader delivery, every owner grant and primitive effect must remain zero on refusal",
+    "no_partial_value": "typed exact Refusal and no returned ManifestSignature/OriginalMember/AdmissionPlan/effect value",
+    "default_gap": "production _unbound before candidate/config/transport; crypto tests require independently bound test context, never a production test switch",
+    "strength": "a None-returning dummy fails typed-refusal assertion; a refusal-only dummy fails independent actual crypto-call assertions; protocol doubles carry no crypto proof"
+  },
+  "tightened_recipes_require_new_execution_receipt": true,
+  "u3b_evidence_reconciliation": {
+    "head": "946fcb34b8d61cbd5a8fdb3d5aa388540b1106f8",
+    "return_sha256": "1422f33e81ac7f7af7307a8e8e1d22d8fa87c6eaaad422d3a958f7ebd66b0ac2",
+    "run_scope": "128 actual source/test-crypto controls on macOS arm64 CPython3.14.0; 53 BODY-killed mutations; source only, no production/native qualification",
+    "tests": "next/tests/release/test_manifest_trust.py and test_ed25519_provider.py; additional frozen companions/bounds/guards; exact hashes in prior SOURCE_CUSTODY.json",
+    "already_proven": "ONE actual provider RFC/adversarial behavior, original BLAKE2b+first/comment arguments, root/hash/length/ID, strict envelope, global tamper, purpose both directions, sequence/current hash, default/factory isolation",
+    "partial_only": "first-byte tamper without global re-signing can also fail global crypto; original-other-byte signatures may also disagree with trusted context after the first guard is omitted; existing tests kill omissions but are not the new sole-fault first-signature recipe",
+    "tightened_first_global_recipe_status": "NOT_RUN_NO_KEYS_OR_SIGNATURES_IN_THIS_CORRECTION; do not relabel carried128 as execution of added vectors",
+    "future_layers": "requested transport ID, physical aliases, actual OriginalMember and owner grants remain U3-C/D/E/native obligations; default remains _unbound"
+  },
+  "multi_fault_precedence": [
+    {
+      "id": "authority_before_all",
+      "input": "default unbound plus malformed candidate/type/signature/alias; touch no candidate",
+      "expected": "required_binding_gap",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    },
+    {
+      "id": "argument_before_transport_crypto",
+      "input": "bound independent authority plus crafted equality argument and bad envelope; comparison/root/candidate transport0",
+      "expected": "member_identity_mismatch",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    },
+    {
+      "id": "requested_id_before_crypto",
+      "input": "bounded canonical original with old requested ID plus bad first crypto; raw input may be measured, signature parsing0",
+      "expected": "aggregate_identity_mismatch",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    },
+    {
+      "id": "envelope_before_scope",
+      "input": "valid independent authority/root/requested raw ID plus malformed envelope and wrong comment domain",
+      "expected": "aggregate_signature_invalid",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    },
+    {
+      "id": "root_before_scope",
+      "input": "valid request/bounds/envelope but wrong full root pin plus authentic wrong-scope comment",
+      "expected": "aggregate_root_mismatch",
+      "first_crypto": 0,
+      "global_crypto": 0,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    },
+    {
+      "id": "shape_before_scope",
+      "input": "valid actual crypto over KOS-shaped original plus KOS trusted domain in Cortex; closed schema decides",
+      "expected": "aggregate_shape",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    },
+    {
+      "id": "older_sequence_before_current_hash",
+      "input": "valid original crypto/shape/context with own correct request ID; sequence below floor and current digest differs",
+      "expected": "aggregate_replay",
+      "first_crypto": 1,
+      "global_crypto": 1,
+      "protected_delivery": 0,
+      "effect_grant": 0,
+      "primitive_effect": 0,
+      "actual_run": "NOT_RUN_UNBOUND"
+    }
+  ]
 }
