@@ -175,10 +175,61 @@ current-policy/held-original custody refresh, streamed large-artifact reader and
 phase-specific actual image port/refusals. Its contract does not itself deliver
 the accepted original execution corpus or installed owner.
 
-JOIN STATUS: PENDING last-step readback. The same-row return records returned or
-pending status, exact immutable R0 subject/receipt and any necessary final join
-delta. An absent return yields PARTIAL with only this contract join remaining;
-do not wait, merge another branch or invent a callable/provider.
+JOIN STATUS: **DONE, contract only**, at the last-step readback. R0 row
+`094f42bd-8100-46d7-b816-9a288bcb103c` was returned with handback
+`7af844a9-8290-48ee-a2bb-e28cc365292c` (`returned:true`, `auto_accepted:false`).
+The [R0 return](</Volumes/WD-B-4TB/DevVault/helix/docs/handoffs/2026-10-14_ren-kos_kai_gateb-r0.md>)
+is SHA256 `d80855dcc7d450c68ac52cbd9c6a20fbff16f7aadb95d13fe82a88ef593bc4d4`;
+its SURFACE.json is SHA256
+`1d00f5ec39dd586bedf3d28c1419c4c84f4af9e55b3f711d5c99484985c0df01`.
+Its source reference is `1e41f13e4251e2aed99072777a64e8bd881c0877`; this is an
+immutable input, not a branch merged into B0 or an installed V qualification.
+
+V's complete read-only admission contract is R0's proposed
+`cortex_core.release.member_admission.verify_aggregate(aggregate_id)` over an exact
+canonical `sha256:<64 lowercase hex>` string. `load_current_policy()` takes zero
+arguments and returns DATA that cannot be passed back as authority; admission
+independently reloads accepted current policy/root/permission/revocation/time/
+generation/fence after audit and before effect. `stream_original_member(aid,name)`
+uses the same sole authority, exact signed names up to 4096 UTF8 bytes and chunks
+up to 65536 bytes. It authenticates the whole original before first delivery,
+requires proved immutable/exclusive held custody, and rechecks hash/count/custody
+and freshness at EOF. R0's maxima are 8MiB records, 4GiB images, 16GiB aggregate
+and 120s reads, with tighter current-owner bounds permitted. Such audit finishes
+before the separate 30-second reservation; streaming never renews effect scope.
+These proposed functions are NOT_IMPLEMENTED. This document introduces no class,
+provider, parser or public callback/configuration channel to make them appear real.
+
+The private `request_original_member(aid,name)` adapter supplies the existing RC2
+delivery protocol through that same custody body, preserving 512 identity atoms
+and 262144 bytes. R0's fixed private
+`verified_image_for(role,target)` allows only core-image/api-image and
+linux/arm64/linux/amd64; current Cox scope supplies phase. It requires qualified
+selected originals before launch and actual running/loaded closure before later
+effects, with actual archive/platform-manifest/module/ABI/host/engine/backend
+bindings. The supplier is MISSING_UNBOUND; client receipts/flags/paths cannot fill
+it. R0 preserves the same 18 Refusal reasons and exact default unit
+`R01 unit 3: signed Core/API aggregate and member admission`. Missing composition
+still wins before candidates; exact R01 detail maps through C0 §6 at the owner.
+
+Two explicit join deltas prevent stale proposals from becoming authority:
+
+* R0's provisional PyNaCl text is superseded **for the V contract** by Kai's B0
+  amendment in §3: cryptography 50.0.0 with the two pinned transitives, behind
+  the same `verify_ed25519`, no dual provider/fallback. R0's existing U3-B byte
+  algorithm/default are reused; provider/lock adapter execution and native closure
+  measurements remain separately owned and unperformed here.
+* B0's exact P1 base still inherits RC2-IDENTITY-001 in `read_member`. The immutable
+  RC2 `edf604ebe0d15363a741d19e286001f421868e09` reader adds exact type checks for
+  BOTH arguments; it was read, **not merged**. Its accepted integration is required
+  before real binding. B0 changes no source or earlier frozen assertion to hide it.
+
+R0 requires the fixed protected module-relative `contracts/release` layout (or a
+separately ratified package-resource refactor), actual interpreter/import/schema/
+native dependency and ancestor protection, and no search/repair fallback. Platform
+roots/UIDs/launchers and independently enforced backend separation stay UNBOUND.
+The accepted original corpus and actual implementation/native exits remain held;
+this completed contract join supplies no grant or acceptance.
 
 Preserve stable RC2 `request_member(aggregate_id, member_name)` and
 `read_member(member, *, aggregate_id, member_name)`, exact string identity checks,
