@@ -327,3 +327,17 @@ class CustodyControls(unittest.TestCase):
                 self.assertEqual(r.aggregate_bytes(p),self.bodies[p]);self.assertEqual(r.aggregate_bytes(p),self.bodies[p])
             except Exception as e:self.fail('valid held reread refused: '+type(e).__name__)
         self.assertEqual(calls,[(r._aggregate_files[p][0],0,os.SEEK_SET)]*2)
+
+    def test_relative_foreign_device_refuses_before_file_open(self):
+        # Simulated stat observation; no mount/host resource is created.
+        _,c=self.source();r=self.reader();name=Path(self.path()).name;real=c.os.stat;opened=[];open_body=c.os.open
+        def stat(path,*args,**kwargs):
+            info=real(path,*args,**kwargs)
+            if path==name and 'dir_fd' in kwargs:
+                values=list(info);values[2]+=1;return os.stat_result(values)
+            return info
+        def open_file(path,*args,**kwargs):
+            if path==name:opened.append(True)
+            return open_body(path,*args,**kwargs)
+        with patch.object(c.os,'stat',stat),patch.object(c.os,'open',open_file):self.refuse('member_path_alias',lambda:self.begin(r))
+        self.assertEqual(opened,[])
