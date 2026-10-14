@@ -275,6 +275,9 @@ BEGIN
               AND r.kind='core.identity') THEN
             RETURN 'unavailable'::auth.enrollment_readiness_state;
         END IF;
+        IF NOT auth.runtime_request_installation(p_installation) THEN
+            RETURN 'unavailable'::auth.enrollment_readiness_state;
+        END IF;
         RETURN 'enrollment_required'::auth.enrollment_readiness_state;
     END IF;
 
@@ -290,7 +293,10 @@ BEGIN
              AND cardinality(g.permissions)=2
              AND g.roles=ARRAY[]::text[]
        ) THEN RETURN 'unavailable'::auth.enrollment_readiness_state; END IF;
-    RETURN 'ready'::auth.enrollment_readiness_state;
+    IF NOT auth.runtime_request_installation(p_installation) THEN
+            RETURN 'unavailable'::auth.enrollment_readiness_state;
+        END IF;
+        RETURN 'ready'::auth.enrollment_readiness_state;
 END;
 $$;
 
