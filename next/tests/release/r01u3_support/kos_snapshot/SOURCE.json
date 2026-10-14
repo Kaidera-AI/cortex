@@ -1,5 +1,5 @@
 {
-  "scope": "UNCHANGED KOS consumer snapshot; TEST ONLY; crypto API adapter delegates to single real PyNaCl boundary; no cryptography provider installed",
+  "scope": "UNCHANGED KOS consumer snapshot; TEST ONLY; crypto API adapter delegates to single real cryptography50.0.0 boundary; snapshot source unchanged",
   "sources": [
     {
       "path": "scripts/release/installer/kos_installer/trust.py",

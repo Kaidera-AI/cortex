@@ -9,7 +9,7 @@ import hashlib
 import inspect
 import json
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType,SimpleNamespace
 
 
 def reject_product_caller():
@@ -21,7 +21,16 @@ def reject_product_caller():
 
 
 reject_product_caller()
-from nacl.signing import SigningKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+
+class SigningKey:
+ """TEST API compatibility only; the same cryptography primitive, RAM keys."""
+ def __init__(self,key):
+  self._key=key;self.verify_key=key.public_key().public_bytes_raw()
+ @classmethod
+ def generate(cls):return cls(Ed25519PrivateKey.generate())
+ def sign(self,message):return SimpleNamespace(signature=self._key.sign(message))
 
 HOME=Path(__file__).resolve().parent
 RELEASE_ID='7BBB4B7E0CE8852E'
@@ -53,6 +62,7 @@ class TestAuthority:
   self.policy['expected_aggregate_sha256']=hashlib.sha256(self.raw).hexdigest()
   self.policy['release']=copy.deepcopy(self.value['release']);self.policy['source']=copy.deepcopy(self.value['source'])
   self.now=1500;self.generation=1;self.fence=1;self.placement='installer'
+  self.current_state=dict(installed_baseline=copy.deepcopy(self.policy['installed_baseline']),policy_generation=1,fence=1)
 
  def signed(self,raw=None,*,algorithm=b'ED',trusted_comment=None,signature_key_id=None,untrusted='test-only envelope'):
   reject_product_caller()
@@ -70,7 +80,7 @@ class TestAuthority:
   from cortex_core.release.contracts import freeze
   raw=canonical(self.policy)
   return trust._OwnerContext(freeze(copy.deepcopy(self.policy)),raw,hashlib.sha256(raw).hexdigest(),
-                             self.root_material,self.now,self.generation,self.fence,self.placement)
+                             self.root_material,self.now,self.generation,self.fence,self.placement,freeze(copy.deepcopy(self.current_state)))
 
  def verify(self,trust,raw=None,signature=_NOT_SUPPLIED):
   reject_product_caller()

@@ -32,7 +32,9 @@ _KEY_ID=re.compile(r'[0-9A-F]{16}\Z')
 # Fixed, inherited contract subjects only; candidate paths/URLs are never read.
 _SCHEMA_HOME=Path(__file__).resolve().parents[3]/'contracts/release'
 _MANIFEST_VALIDATOR=WireValidator(json.loads((_SCHEMA_HOME/'aggregate.schema.json').read_bytes()))
-_POLICY_VALIDATOR=WireValidator(json.loads((_SCHEMA_HOME/'aggregate-policy.schema.json').read_bytes()))
+_POLICY_SCHEMA=json.loads((_SCHEMA_HOME/'aggregate-policy.schema.json').read_bytes())
+_POLICY_VALIDATOR=WireValidator(_POLICY_SCHEMA)
+_BASELINE_VALIDATOR=WireValidator(_POLICY_SCHEMA['properties']['installed_baseline'])
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,7 @@ class _OwnerContext:
     generation: int
     fence: int
     placement: str
+    current_state: Mapping
 
 
 @dataclass(frozen=True)
@@ -89,7 +92,22 @@ def _owner_policy(context):
         _require(canonical_bytes(policy)==context.policy_raw,'required_binding_gap')
     except (ValueError,TypeError,RecursionError,OverflowError):
         raise Refusal('required_binding_gap',unit=MISSING_UNIT) from None
+    _current_state(context)
     return policy
+
+
+def _current_state(context):
+    """Required current owner facts; baseline attestation is not a new lease."""
+    state=getattr(context,'current_state',None)
+    _require(isinstance(state,Mapping) and set(state)=={'installed_baseline','policy_generation','fence'},'required_binding_gap')
+    _require(all(type(state[key]) is int and 1<=state[key]<=2**63-1
+                 for key in ('policy_generation','fence')),'required_binding_gap')
+    baseline=state['installed_baseline']
+    _require(next(_BASELINE_VALIDATOR.iter_errors(thaw(baseline)),None) is None,'required_binding_gap')
+    try:canonical_bytes(thaw(baseline))
+    except (ValueError,TypeError,RecursionError,OverflowError):
+        raise Refusal('required_binding_gap',unit=MISSING_UNIT) from None
+    return state
 
 
 def verify_manifest(raw: bytes, signature: bytes) -> ManifestSignature:
@@ -165,9 +183,11 @@ def _current(policy,value,context):
              and policy['purpose'] in root['allowed_purposes'] and root['key_use_permission']=='cortex-core-api-release',
              'aggregate_scope_mismatch')
     validity=policy['validity'];baseline=policy['installed_baseline'];owner=policy['owner_binding'];now=context.now
+    state=_current_state(context)
+    _require(canonical_bytes(thaw(baseline))==canonical_bytes(thaw(state['installed_baseline'])),'aggregate_replay')
     _require(type(now) is int and type(context.generation) is int and type(context.fence) is int
-             and context.generation==owner['policy_generation']==baseline['policy_generation']
-             and context.fence==baseline['fence'],'aggregate_replay')
+             and context.generation==owner['policy_generation']==state['policy_generation']
+             and context.fence==state['fence'],'aggregate_replay')
     _require(validity['not_before']<=now<=validity['expires_at'] and value['not_before']<=now<=value['expires_at']
              and value['not_before']<=value['expires_at'] and validity['not_before']<=validity['expires_at']
              and now-value['not_before']<=validity['maximum_release_age_seconds'],'aggregate_replay')

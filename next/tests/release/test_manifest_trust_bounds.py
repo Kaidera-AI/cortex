@@ -64,9 +64,9 @@ class Bounds(unittest.TestCase):
 
  def test_provider_unqualified_version_is_bounded(self):
   from cortex_core.release.ed25519 import verify_ed25519
-  import nacl
+  import cryptography
   auth=factory.test_authority()
-  with patch.object(nacl,'__version__','0.0.0'):
+  with patch.object(cryptography,'__version__','0.0.0'):
    with self.assertRaises(RuntimeError) as caught:verify_ed25519(auth.public,b'x',b'x'*64)
   self.assertEqual(str(caught.exception),'ed25519_provider_unqualified')
 
@@ -75,7 +75,7 @@ class Bounds(unittest.TestCase):
   import builtins
   original=builtins.__import__
   def unavailable(name,*args,**kwargs):
-   if name=='nacl':raise ImportError('SENTINEL_NATIVE_PATH')
+   if name=='cryptography':raise ImportError('SENTINEL_NATIVE_PATH')
    return original(name,*args,**kwargs)
   auth=factory.test_authority()
   with patch('builtins.__import__',side_effect=unavailable):
@@ -83,7 +83,7 @@ class Bounds(unittest.TestCase):
   self.assertEqual(str(caught.exception),'ed25519_provider_unavailable');self.assertIsNone(caught.exception.__cause__)
 
  def test_provider_import_does_not_load_native(self):
-  code='import sys;sys.path.insert(0,'+repr(str(NEXT/'src'))+');import cortex_core.release.ed25519;assert not any(n=="nacl" or n.startswith("nacl.") for n in sys.modules)'
+  code='import sys;sys.path.insert(0,'+repr(str(NEXT/'src'))+');import cortex_core.release.ed25519;assert not any(n=="cryptography" or n.startswith("cryptography.") for n in sys.modules)'
   completed=subprocess.run([sys.executable,'-I','-B','-c',code],capture_output=True,text=True)
   self.assertEqual(completed.returncode,0,'BODY: provider import loaded native dependency: '+completed.stderr)
 

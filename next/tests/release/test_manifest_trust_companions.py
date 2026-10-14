@@ -79,7 +79,7 @@ class Companions(unittest.TestCase):
 
  def test_reverse_Cortex_subject_is_refused_by_unchanged_KOS_consumer(self):
   # Existing KOS source is unchanged. This TEST-only cryptography-API adapter
-  # performs actual verification through the ONE real PyNaCl boundary; no second
+  # performs actual verification through the ONE real cryptography boundary; no second
   # provider, root binder or reimplementation of KOS's parser is installed.
   from cortex_core.release.ed25519 import verify_ed25519
   class InvalidSignature(Exception):pass

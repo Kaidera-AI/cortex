@@ -1,95 +1,89 @@
-# R01 U3-B: original-manifest signature verification
+# R01 U3-B: original-manifest signature data
 
-This unit implements signature authentication data for the accepted U3 plan.
-The installer/independent owner is the only intended placement. Production
-`verify_manifest(raw, signature)` obtains its private owner context first and
-currently returns the named `required_binding_gap`; candidate bytes cannot
-provide, replace or repair the root. There is no public binder, signing function,
-test-root switch, transport or effect owner.
+Kai handoff f7715f38 authorizes C0 baseline/current alignment and cryptography50.0.0
+behind the existing sole verify_ed25519 function. Production obtains private owner
+context before candidate access; default _production_context=_unbound stays exact.
+Actual protected owner/root/current-state/native closure delivery remains UNBOUND.
 
-## One provider and one byte path
+The existing _OwnerContext requires owner-delivered current_state with exactly
+installed_baseline,policy_generation,fence. No public wire, record class, binder,
+fallback or grant is added. Missing/None/extra current fields and nonpositive,
+Boolean,floating or oversized current counters give required_binding_gap before
+candidate/crypto. Baseline uses the inherited closed installed-or-explicit-empty
+schema plus existing canonical codec to reject noninteger wire values.
 
-`ed25519.verify_ed25519(public_key, message, signature)` is the sole Ed25519
-boundary. It lazily loads provisionally selected PyNaCl 1.6.2 and uses its native
-strict verification. It returns an exact Boolean for malformed/authentic input;
-missing or unqualified dependencies raise bounded errors, sanitized by the trust
-entry. It uses ordinary Ed25519 on the supplied message, never Ed25519ph or a
-Python curve implementation. The provider can be replaced behind this function
-if Nemo or Cox rejects the production lock delta.
+Policy baseline must match its independently current attestation exactly through
+the existing canonical codec. Observed generation matches current owner generation
+and owner_binding.policy_generation; observed fence matches current owner fence.
+Baseline generation/fence may be older, including admitted historical installed
+fence0. Empty retains required nonzero receipt and positive counters. Attestation
+or observed current drift gives aggregate_replay. Missing is never empty/default.
+This is signature DATA against private context; C0 finite effect ownership, host
+leases, atomic reservation and physical provenance are separate held mechanisms.
 
-`trust` reuses R01's canonical codec, byte-aware `WireValidator`, deep freeze/thaw,
-and RC2's exact `Refusal`. The inherited aggregate/policy schemas are fixed local
-subjects loaded at import, before candidate verification. No candidate path or
-URL participates in schema loading. Importing the provider itself loads no
-native library.
+verify_ed25519 lazily imports cryptography50.0.0, calls
+Ed25519PublicKey.from_public_bytes(public_key).verify(signature,message), and keeps
+strict bytes types,32-byte key,64-byte signature,1MiB message cap and bounded
+dependency/version/unsupported-algorithm errors. Import loads no native provider.
 
-After independent owner-policy original bytes/hash/canonical encoding and the
-installer/owner placement are checked, the private algorithm proceeds:
+The first primitive run failed three unchanged small-order-forgery assertions.
+SAME function now excludes noncanonical encoded-y values and all sign-bit variants
+of upstream small-order encodings for public key and R before the native call.
+These are bounded encoding checks, no Python curve/signature implementation.
+Cryptography is the sole primitive. Reference:
+https://github.com/jedisct1/libsodium/blob/1.0.20/src/libsodium/crypto_core/ed25519/ref10/ed25519_ref10.c
 
-1. Bound exact original manifest bytes to 1 MiB and signature bytes to 4096;
-   owner limits can lower them. Refuse unsigned input.
-2. Compare independent public-root byte length, SHA-256 and key ID. Decode one
-   bounded two-line LF Minisign public key; its packet algorithm is `Ed`.
-3. Decode exactly four LF signature lines plus final LF, strict canonical
-   base64, exact key ID, `ED` only, UTF-8, no CR/NUL and a 512-byte trusted comment.
-4. Verify first signature over BLAKE2b-512 of the original manifest bytes. Verify
-   second signature over the first 64 signature bytes followed by the exact UTF-8
-   trusted comment bytes, excluding the label. Parse no manifest before these.
-5. Decode with the existing sole canonical codec, enforce depth at most 32 (or
-   a smaller owner bound), and validate the frozen aggregate shape. Compare the
-   trusted comment to the frozen literal purpose/release/sequence/original-hash/
-   source grammar. The untrusted comment grants no authority.
-6. Compare independent purpose/key-use permission, observed time/generation/
-   fence, validity/maximum age, sequence floor, release/source identity and
-   current original-manifest digest. Return immutable signature DATA.
+R01 decoder/two-signature semantics remain exact: LF/base64/UTF8, public Ed distinct
+from ED signature, original root length/hash/ID, first over BLAKE2b-512(original),
+second over first64bytes+exact trusted comment. No broader KOS parser is adopted.
+Original policy validity/age/sequence/source/release/current-target guards remain.
+Native/member/effect authority bits stay false; no production binding is installed.
 
-`ManifestSignature.native_qualified`, `.effect_authority` and `.members_admitted`
-are always false. This unit does not read members, inspect OCI, qualify an image,
-implement OriginalMember, activate RC2, assemble or sign a product release.
-Public production policy additionally validates the frozen policy schema and
-fixed production key ID. The actual independent context/root store remains
-unbound; no release key or real root was accessed.
+Test factory remains outside installed source, rejects product caller before
+key generation and holds only unrelated throwaway test keys/signatures in RAM.
+No key of record is used/read and no signing material is persisted. Its test-only
+SigningKey API compatibility wrapper uses the same cryptography primitive so
+earlier frozen callers/deciding assertions remain unchanged.
 
-## Test-only evidence
+Three inherited RFC8032 answers and29 constructed Wycheproof-style negatives
+stay byte exact; subset is not the whole corpus/native proof. New31 alignment
+controls were frozen RED before source:22 BODY failures,0 errors/skips. New32
+encoding controls were frozen RED:32 BODY failures,0 errors/skips. Independent17
+attestation-shape controls exposed two float wire-type BODY failures, then froze
+before their codec-boundary fix. Seven authenticated-pipeline companions bind
+valid older attestations, exact drift and missing-state-before-crypto behavior.
+Final combined counts and source BODY mutants are in the named return receipts.
 
-The factory lives under `tests/release/r01u3_support`, outside installed source.
-It rejects a product-source import/caller before key generation, including an
-already cached import. Unrelated throwaway keys are generated only in test
-bodies and retained in memory. No key file is made. The generic private algorithm
-is exercised by a test context; public production entry has no such mode and
-refuses that root. Private Python records/functions are a trusted-code assumption,
-not an OS/process provenance proof; Vera's later seal remains open.
+Captured reverse-purpose KOS source is byte exact. Its test-only API adapter
+delegates to the same single actual primitive, proves authentic/tamper behavior,
+then Cortex-schema refusal. This does not qualify KOS package/native installation.
 
-The frozen oracle contains three public RFC 8032 known answers plus a constructed
-Wycheproof-style bounded adversarial subset (not the complete corpus), actual
-two-signature controls, strict bounds/encoding, independent root/policy negatives,
-replay, purpose checks both ways, default/import controls and sanitized faults.
-The reverse purpose control runs unchanged captured KOS verifier source with a
-TEST-only API adapter to the same actual provider. It checks authentic and tampered
-signatures before KOS rejects the Cortex schema. It does not qualify the KOS
-native cryptography dependency or a real KOS package.
+Owned author environments use10 publisher length/SHA-checked wheels for eight
+packages:cryptography50.0.0,cffi2.1.1,pycparser3.0 and five inherited schema packages;
+5,334,104 bytes. Offline exact-hash installs use tests/release/r01u3_support/
+TEST_REQUIREMENTS.hashes.txt. Author CPython3.14.0/3.13.7 are not V/native/Linux proof.
 
-Final controls: 128 new tests PASS; inherited U3-A 96 and RC2 106 PASS. Sequential
-source mutations: 48 guard omissions, one missing-dependency refusal boundary,
-three false authority flags and one immutability drop all die on original body
-assertions, with zero errors/skips. Every source/test byte is restored. The frozen
-inherited 17-case future oracle remains 9 PASS / 8 FAIL: six prior RC2 reader body
-failures and two missing member-backend/assembly surfaces, outside U3-B.
+Finn B0 selects KOS249cc66c bundled CPython3.12.15 and this same closure as contract.
+Nemo replaces the provisional eighth installer-owner crypto root with
+cryptography==50.0.0, retaining cffi==2.1.1,pycparser==3.0 and no optional extras.
+Existing KOS production lock already pins these at original lines241,137,588.
+V requires admitted original cp312 CFFI and appropriate cryptography abi3 wheels;
+author cp313/cp314 CFFI is not substituted. Superseded crypto payload/native-library
+inventory leaves the NEW owner closure; history remains. Core/API seven direct
+roots stay exact. Nemo owns lock/SBOM/native closure acceptance; no production
+lock changes here. B0's physical custody/admission remains UNBOUND.
 
-The owned MAIN test venv uses macOS arm64 CPython 3.14.0 and eight publisher-hash/
-length-checked wheels installed offline with `--no-index --no-deps --require-hashes`.
-It is not production CPython 3.14.8 or Linux ABI qualification. PyNaCl 1.6.2, cffi
-2.1.1 and pycparser 3.0 remain test-environment dependencies until admitted into
-Nemo's installer/owner lock. No production requirements, lock or Core/API image
-were changed. Exact install/native-module/source/mutation/log receipts are held
-in the corresponding R01-unit3b-build-20261014 evidence directory.
+One Vera review covers A corrections/amendments and final full B trust. Corrected
+38 desired original-corpus rows, whole aggregate/member stream, actual root/owner/
+image/state providers, capacity and both-host Gate B remain held. No host/engine/
+image/DB/product effects are performed by this unit.
 
-LEAN: reused R01 codec/WireValidator/freeze and RC2 Refusal; did NOT add a second
-parser/provider/verifier, production dependency entry, root config path, binder,
-transport or member admission; could delete or merge none within U3-B.
+LEAN: reused private context, canonical codec, closed baseline schema, RC2 Refusal,
+sole provider function; added no port/parser/record class/fallback/second primitive;
+deleted redundant attestation type check enforced by inherited closed schema.
 
-Primary format/provider/vector references: [Minisign](https://jedisct1.github.io/minisign/),
-[PyNaCl signing API](https://pynacl.readthedocs.io/en/latest/signing/),
-[libsodium verification](https://doc.libsodium.org/public-key_cryptography/public-key_signatures),
-[RFC 8032 section 7.1](https://datatracker.ietf.org/doc/html/rfc8032#section-7.1),
-[Wycheproof](https://github.com/C2SP/wycheproof).
+References:
+- https://cryptography.io/en/50.0.0/hazmat/primitives/asymmetric/ed25519/
+- https://datatracker.ietf.org/doc/html/rfc8032#section-7.1
+- https://jedisct1.github.io/minisign/
+- https://github.com/C2SP/wycheproof
