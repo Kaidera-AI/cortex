@@ -377,3 +377,27 @@ class AssemblyControls(unittest.TestCase):
         def after(*args):
             real(*args);p=self.builds[0]['receipt'];(self.root/p).write_bytes(self.bodies[p])
         with patch.object(a,'_check_pairs',after):self.refuse('member_custody_changed')
+
+    def test_actual_original_R01_and_embedded_detector_calls(self):
+        _,a=self.source();inputs=[];receipts=[];embedded=[]
+        input_body=a.admit_build_input;receipt_body=a.verify_build_receipt;embedded_body=a._no_embedded_lock
+        def admit(parsed,*args):
+            result=input_body(parsed,*args);inputs.append((parsed.raw,result.native_qualified));return result
+        def verify(parsed,*args):
+            result=receipt_body(parsed,*args);receipts.append((parsed.raw,result.native_qualified));return result
+        def detector(image,lock,*args,**kwargs):
+            embedded.append((sha256(image),sha256(lock)));return embedded_body(image,lock,*args,**kwargs)
+        with patch.object(a,'admit_build_input',admit),patch.object(a,'verify_build_receipt',verify),patch.object(a,'_no_embedded_lock',detector):
+            try:result=self.run_assembly()
+            except Exception as e:self.fail('valid original graph refused: '+type(e).__name__)
+        self.assertEqual(result,encode(self.value))
+        self.assertEqual(inputs,[(self.bodies[g['input']],False) for g in self.builds])
+        self.assertEqual(receipts,[(self.bodies[g['receipt']],False) for g in self.builds])
+        self.assertEqual(embedded,[(r['sha256'],sha256(self.bodies['runtime.lock.json'])) for r in self.value['members'] if r['kind']=='image'])
+
+    def test_wrong_pair_set_refuses_before_actual_R01_qualification(self):
+        _,a=self.source();real=a.verify_build_receipt;called=[]
+        def verify(*args):called.append(True);return real(*args)
+        self.builds[-1]=copy.deepcopy(self.builds[0])
+        with patch.object(a,'verify_build_receipt',verify):self.refuse('aggregate_pair_mismatch')
+        self.assertEqual(called,[])
