@@ -80,8 +80,14 @@ def _request_original(aggregate_id, member_name, current, originals):
             require(len(rows)==1, 'member_not_in_aggregate')
             row = rows[0]
             require(row['kind']!='image' and row['bytes']<=limit, 'raw_limit')
-            bodies = aggregate._measure_members(value, reader, limits,
+            # Reuse C's per-read/chunk timer with only the remaining budget.
+            # A later delivery cannot buy a fresh 120-second physical pass.
+            read_limits = dict(limits, read_seconds=min(limits['read_seconds'],
+                                                        deadline-time.monotonic()))
+            require(read_limits['read_seconds']>0, 'raw_limit')
+            bodies = aggregate._measure_members(value, reader, read_limits,
                                                overhead_bytes=len(raw)+len(signature))
+            budget()
             aggregate._check_pairs(value, bodies, builds, limits)
 
             def revalidate():

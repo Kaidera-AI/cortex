@@ -131,6 +131,23 @@ class Replay(Fixture, unittest.TestCase):
             self.refusal('raw_limit',self.backend)
         self.assert_closed()
 
+    def test_elapsed_measurement_refuses_before_pair_parser(self):
+        import cortex_core.release.aggregate as aggregate
+        api = self.api(); clock = [100.0]; original = aggregate._measure_members
+        def measured(*args,**kwargs):
+            result = original(*args,**kwargs); clock[0] = 221.0; return result
+        with patch.object(api.time,'monotonic',lambda: clock[0]),patch.object(aggregate,'_measure_members',measured),patch.object(aggregate,'_check_pairs',side_effect=AssertionError('pair parser after expired budget')):
+            self.refusal('raw_limit',self.backend)
+        self.assert_closed()
+
+    def test_deadline_exceeded_after_EOF_no_partial_delivery(self):
+        api = self.api(); clock = [100.0]; original = RootReader.aggregate_finish
+        def finish(reader):
+            original(reader); clock[0] = 221.0
+        with patch.object(api.time,'monotonic',lambda: clock[0]),patch.object(RootReader,'aggregate_finish',finish):
+            self.refusal('raw_limit',self.backend)
+        self.assert_closed()
+
     def test_owner_tighter_deadline_is_enforced(self):
         api = self.api(); clock = [100.0]; self.policy['limits']['read_seconds'] = 1
         with patch.object(api.time, 'monotonic', lambda: clock[0]):
