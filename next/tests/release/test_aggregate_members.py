@@ -255,3 +255,31 @@ class CustodyControls(unittest.TestCase):
             return real_open(*args,**kwargs)
         with patch.object(c.os,'close',close),patch.object(c.os,'open',opened):self.begin(r)
         self.assertEqual(seen,[True])
+
+    def test_file_NOFOLLOW_prevents_returning_outside_descriptor_during_race(self):
+        _,c=self.source();r=self.reader();p=self.path();name=Path(p).name;outside=self.root.parent/(self.root.name+'-outside-race')
+        real=c.os.open;changed=[];opened=[];self.addCleanup(lambda:outside.unlink(missing_ok=True))
+        def open_file(part,flags,**kwargs):
+            if part==name and not changed:
+                (self.root/p).rename(outside);(self.root/p).symlink_to(outside);changed.append(True)
+                fd=real(part,flags,**kwargs);opened.append(fd);return fd
+            return real(part,flags,**kwargs)
+        with patch.object(c.os,'open',open_file):self.refuse('member_path_alias',lambda:self.begin(r))
+        self.assertEqual(changed,[True]);self.assertEqual(opened,[])
+
+    def test_stream_growth_measured_cap_precedes_stat_drift(self):
+        a,c=self.source();root=self.root/'isolated';p='members/subject';raw=b'inert';target=root/p;target.parent.mkdir(parents=True);target.write_bytes(raw)
+        r=c.RootReader.for_aggregate(str(root),len(raw));self.addCleanup(r.close)
+        row=dict(kind='record',role='evidence',path=p,bytes=len(raw),sha256=sha256(raw),media_type='application/octet-stream')
+        r.aggregate_begin([row],dict(a.PROVISIONAL_LIMITS,record_bytes=len(raw)));real=c.os.read;changed=[]
+        def read(fd,count):
+            data=real(fd,count)
+            if data and not changed:
+                with target.open('ab') as f:f.write(b'growth')
+                changed.append(True)
+            return data
+        with patch.object(c.os,'read',read):self.refuse('raw_limit',lambda:r.aggregate_bytes(p))
+
+    def test_premature_empty_read_is_custody_refusal(self):
+        _,c=self.source();r=self.reader();self.begin(r)
+        with patch.object(c.os,'read',return_value=b''):self.refuse('member_custody_changed',lambda:r.aggregate_bytes(self.path()))
