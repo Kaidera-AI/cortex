@@ -42,6 +42,7 @@ REVOKE ALL ON auth.runtime_login_bindings,coordination.supervisor_leases
 
 -- This internal helper returns no binding for stale/missing/unsafe authority.
 -- session_user, including its actual OID, is the authority-bearing login;
+-- The backend's authenticated login OID must ALSO match session_user's name.
 -- current_user is the definer and a caller's GUC is never an identity input.
 -- Volatile entry/final checks use fresh READ COMMITTED snapshots. PG-B must
 -- take the protected map row lock BEFORE every writable lease row lock.
@@ -54,7 +55,9 @@ BEGIN
     IF p_kind IS NULL OR p_kind NOT IN
         ('api_request','probe','supervisor','observer','installer_enrollment')
        OR current_setting('transaction_isolation')<>'read committed' THEN RETURN NULL; END IF;
-    SELECT * INTO actual FROM pg_catalog.pg_roles WHERE rolname=session_user;
+    SELECT r.* INTO actual FROM pg_catalog.pg_roles r
+      WHERE r.oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
+        AND r.rolname=session_user;
     IF NOT FOUND OR NOT actual.rolcanlogin OR actual.rolsuper OR actual.rolbypassrls
        OR actual.rolcreatedb OR actual.rolcreaterole OR actual.rolreplication
        OR actual.rolinherit THEN RETURN NULL; END IF;
@@ -156,7 +159,7 @@ DECLARE prior auth.first_identity_receipts%ROWTYPE;
 BEGIN
     -- Serialize a finite binding revocation before the installation lock/action.
     PERFORM 1 FROM auth.runtime_login_bindings WHERE role_name=session_user
-      AND role_oid=(SELECT oid FROM pg_catalog.pg_roles WHERE rolname=session_user)
+      AND role_oid=(SELECT usesysid FROM pg_catalog.pg_stat_activity WHERE pid=pg_backend_pid())
       AND logical_role='installer_enrollment' AND installation_id=p_installation
       AND active FOR SHARE;
     IF NOT FOUND OR p_installation IS DISTINCT FROM auth.runtime_bound_installation('installer_enrollment') THEN
