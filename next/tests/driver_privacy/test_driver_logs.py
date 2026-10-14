@@ -191,12 +191,14 @@ class DriverPrivacyTests(unittest.IsolatedAsyncioTestCase):
         self.assert_private(self.direct.rows)
 
     async def test_delayed_close_child_task_keeps_boundary_and_fixed_api_warning(self):
+        finished = asyncio.Event()
         class Connection:
             async def execute(inner, statement):
                 return types.SimpleNamespace(fetchone=fetchone)
             async def close(inner):
                 await asyncio.sleep(0.01)
                 logging.getLogger('asyncpg.child').warning(RAW)
+                finished.set()
                 raise DriverError(RAW)
         async def fetchone():
             return (1,)
@@ -205,6 +207,7 @@ class DriverPrivacyTests(unittest.IsolatedAsyncioTestCase):
                 return Connection()
         probe = c11a.postgres_core_probe(Factory(), timeout_seconds=0.05)
         self.assertIs(await probe(), True)
+        await asyncio.wait_for(finished.wait(), 0.1)
         await probe.aclose(deadline=asyncio.get_running_loop().time() + 0.2)
         self.assert_private(self.root.rows)
         self.assertEqual([r['message'] for r in self.root.rows
