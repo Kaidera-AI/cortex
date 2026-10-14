@@ -188,4 +188,15 @@ class ContractOracle(unittest.TestCase):
             self.receipt_api().verify_product_receipt(encode(r),encode(self.q()),request_ref=SUBJECTS['receipt']['request_ref'])
 
 
+    def test_non_string_kind_is_a_typed_shape_refusal(self):
+        api=self.api()
+        for kind in ([], {}):
+            with self.subTest(kind=kind):
+                q=self.q();q['kind']=kind
+                try:api.parse_install_message(encode(q));observed='accepted'
+                except api.InstallRefusal as error:observed=error.reason_code
+                except Exception as error:observed='untyped-'+type(error).__name__
+                self.assertEqual(observed,'bad_shape')
+
+
 if __name__=='__main__':unittest.main()
