@@ -341,3 +341,17 @@ class CustodyControls(unittest.TestCase):
             return open_body(path,*args,**kwargs)
         with patch.object(c.os,'stat',stat),patch.object(c.os,'open',open_file):self.refuse('member_path_alias',lambda:self.begin(r))
         self.assertEqual(opened,[])
+
+    def test_relative_foreign_directory_device_refuses_before_open(self):
+        # Source-only stat fault injection; no physical mount proof.
+        _,c=self.source();r=self.reader();real=c.os.stat;open_body=c.os.open;opened=[]
+        def stat(path,*args,**kwargs):
+            info=real(path,*args,**kwargs)
+            if path=='members' and 'dir_fd' in kwargs:
+                values=list(info);values[2]+=1;return os.stat_result(values)
+            return info
+        def open_dir(path,*args,**kwargs):
+            if path=='members':opened.append(True)
+            return open_body(path,*args,**kwargs)
+        with patch.object(c.os,'stat',stat),patch.object(c.os,'open',open_dir):self.refuse('member_path_alias',lambda:self.begin(r))
+        self.assertEqual(opened,[])
