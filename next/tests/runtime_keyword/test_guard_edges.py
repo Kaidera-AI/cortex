@@ -23,7 +23,7 @@ class CodecEdges(unittest.TestCase):
     unsupported=core.CodecBoundary.unsupported
 
     def test_payload_type_and_root_shape_are_not_silently_coerced(self):
-        for raw in (None,'text',b'[]',b'null',b'"text"'):
+        for raw in (None,'text',b'[]',b'null',b'"text"',b'{"section":"S","content":"\xff"}'):
             with self.subTest(raw=raw):self.unsupported(raw,'invalid_payload')
         self.unsupported(b'{"messages":{}}','invalid_payload',kind='session')
 

@@ -13,7 +13,7 @@ ID=UUID('00000000-0000-0000-0000-000000000001')
 
 
 class CurrentCoreReader(unittest.TestCase):
-    def probe(self,*,foreign=False,expired=False):
+    def probe(self,*,foreign=False,expired=False,connect_expired=False,close_expired=False):
         calls=[];clock=[100.0]
         identity=NS(tenant_id=ID,project_id=ID,principal_id=ID,permission_generation=1)
         if foreign:identity.principal_id=UUID(int=2)
@@ -24,7 +24,12 @@ class CurrentCoreReader(unittest.TestCase):
                 return NS(fetchall=lambda:[(ID,'binary',1,b'opaque',False)])
         @contextmanager
         def connection():
-            calls.append('connect');yield DB();calls.append('closed')
+            calls.append('connect')
+            if connect_expired:clock[0]=102
+            try:yield DB()
+            finally:
+                if close_expired:clock[0]=102
+                calls.append('closed')
         @contextmanager
         def authorized(*args):
             calls.append(('authorized',args[2:]));yield identity;calls.append('auth_final')
@@ -42,6 +47,7 @@ class CurrentCoreReader(unittest.TestCase):
         self.assertIn('r.tenant_id=%s AND r.project_id=%s',query);self.assertIn('NOT r.tombstone',query)
         self.assertIn('ORDER BY r.id LIMIT %s',query);self.assertEqual(args[:2],(ID,ID));self.assertIn(101,args)
         self.assertEqual(calls[-2:],['auth_final','closed'])
+        self.assertIn(("SELECT set_config('statement_timeout',%s,true)",('1000ms',)),calls)
 
     def test_foreign_scope_or_expired_result_cannot_escape_actual_core_reader(self):
         for foreign,expired in ((True,False),(False,True)):
@@ -57,3 +63,11 @@ class CurrentCoreReader(unittest.TestCase):
             with self.assertRaises(CapabilityUnavailable):port._keyword_current(principal,scope,1,99)
             with self.assertRaises(c11b.RecordError):port._keyword_current(principal,scope,102,101)
         self.assertEqual(calls,[])
+
+    def test_connect_or_close_expiry_never_admits_scope_or_returns_data(self):
+        for at_connect in (True,False):
+            port,scope,principal,calls,clock,auth=self.probe(connect_expired=at_connect,close_expired=not at_connect)
+            with self.subTest(at_connect=at_connect),patch.object(c11b,'authorized',auth),patch.object(c11b.time,'monotonic',lambda:clock[0]):
+                with self.assertRaises(CapabilityUnavailable):port._keyword_current(principal,scope,1,101)
+                if at_connect:self.assertFalse(any(isinstance(c,tuple) and c[0]=='authorized' for c in calls))
+                self.assertEqual(calls[-1],'closed')

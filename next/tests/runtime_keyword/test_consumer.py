@@ -20,6 +20,8 @@ class KeywordConsumer(unittest.TestCase):
                 self.assertEqual(actual,case['id'])
                 bad=copy.deepcopy(case);bad['status']=200 if case['status']==503 else 503
                 with self.assertRaises(ContractRefusal):validate_case(bad)
+                bad=copy.deepcopy(case);bad['native_authority']=True
+                with self.assertRaises(ContractRefusal):validate_case(bad)
 
     def test_legacy_semantic_partial_fixture_remains_distinct(self):
         old=json.loads((ROOT/'contracts/fixtures/openkai/search-states.json').read_text())
