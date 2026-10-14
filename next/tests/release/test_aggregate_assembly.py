@@ -303,6 +303,21 @@ class AssemblyControls(unittest.TestCase):
         self.value['release']['core_module_version']='0.1.019';self.policy['release']=copy.deepcopy(self.value['release'])
         self.lock(lambda d:d['release']['value'].update(core_module_version='0.1.019'));self.pin();self.refuse('aggregate_pair_mismatch')
 
+    def test_image_input_target_sole_fault(self):
+        self.value['release']['core_module_version']='0.1.019';self.policy['release']=copy.deepcopy(self.value['release'])
+        for row in self.value['members']:
+            if row['kind']=='image' and row['module_id']=='core':row['module_version']='0.1.019'
+        def changed(lock):
+            lock['release']['value']['core_module_version']='0.1.019'
+            for target in lock['targets'].values():target['core']['image']['value']['version']='0.1.019'
+        self.lock(changed);self.pin();self.refuse('aggregate_pair_mismatch')
+
+    def test_unreferenced_mapping_sole_fault(self):
+        raw=b'inert extra original\n';p='members/extra-original.bin'
+        self.value['members'].append(dict(kind='record',role='evidence',path=p,media_type='application/octet-stream',bytes=len(raw),sha256=sha256(raw)))
+        self.value['members'].sort(key=lambda r:r['path']);self.bodies[p]=raw;write(self.root,self.bodies)
+        self.builds[0]['paths']['unused-fixture']=p;self.pin();self.refuse('aggregate_pair_mismatch')
+
     def test_compatibility_reference_tuple_sole_fault(self):
         self.value['compatibility']['api_contract']='other-fixture-api';self.pin();self.refuse('aggregate_pair_mismatch')
 
