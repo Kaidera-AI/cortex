@@ -54,7 +54,7 @@
     "sha256": "b2f4aee17b91eff5c57b16a4096484944403f33e782b31e8b59fba5b216b73ed"
   },
   "B1_held_F2": {
-    "reason": "waits for P2a durable reserve/consume/result (C0 §3.4/3.6/3.7)",
+    "reason": "waits for P2a durable reserve/consume/result (C0 \u00a73.4/3.6/3.7)",
     "tests": [
       "test_owner_session.OwnerSessionSurface.test_F2_consent_P",
       "test_owner_session.OwnerSessionSurface.test_F2_consent_mono_equal_N",
@@ -87,5 +87,11 @@
       "test_owner_admission.OwnerAdmissionSurface.test_F2_not_before_P",
       "test_owner_admission.OwnerAdmissionSurface.test_F2_not_before_N"
     ]
+  },
+  "P2a_source_data": {
+    "path": "p2a-subjects.json",
+    "bytes": 1075,
+    "sha256": "ea826eefc7c53afe6fbc61ca316292b78285f45ad2673caffe18361246cdb3ae",
+    "credit": "DATA-storage-only; original F2 separately gated"
   }
 }
