@@ -253,6 +253,15 @@ class OwnerProposalOracle(unittest.TestCase):
         api=self.api();d=self.data();self.edit_record(d,'consent_ref',lambda c:c.update(revoked=True))
         self.refusal(api,'consent_revoked',lambda:self.run_gate(api,d))
 
+    def test_original_owner_effect_must_satisfy_the_existing_closed_p1_shape(self):
+        api=self.api()
+        for change in (lambda e:e.update(extra=True),lambda e:e.update(effect_id=True),
+                       lambda e:e['expected_before_ref'].update(sha256='not-a-digest')):
+            d=self.data()
+            self.context(d,lambda c:change(c['effect']))
+            self.scope(d,lambda s:change(s['effect']))
+            self.refusal(api,'scope_denied',lambda:self.run_gate(api,d))
+
     def test_consent_expiry_equality_is_strict(self):
         api=self.api();d=self.data();self.edit_record(d,'consent_ref',lambda c:c.update(expires_at=1700000001))
         self.refusal(api,'consent_expired',lambda:self.run_gate(api,d))
