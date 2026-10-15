@@ -130,12 +130,20 @@ def _renewed_scope(history, request, context, original):
             and scope['backend_binding_ref'] == prior_scope['backend_binding_ref'], 'scope_denied')
         owner._require(all(context['effect'][k] == creator['event']['effect'][k]
             for k in ('product', 'resource_kind', 'reversal_contract_ref', 'data_policy_ref')), 'scope_denied')
-    creator_refs = [creator['event']['request_ref'] for creator in original['creators'].values()]
+    anchors = [original['event']['request_ref']] + [
+        creator['event']['request_ref'] for creator in original['creators'].values()]
     for reference, event in history.events():
-        if event['identity'] == context['identity'] or event['origin_request_ref'] not in creator_refs:
+        if event['identity'] == context['identity']:
+            continue
+        later_phase = (event['sequence'] > original['event']['sequence']
+            and p2._operation(event['identity']) == p2._operation(original['event']['identity'])
+            and event['identity']['transaction_id'] == original['event']['identity']['transaction_id'])
+        if event['origin_request_ref'] not in anchors and not later_phase:
             continue
         q = thaw(parse_install_message(history.read(event['request_ref']), expected_kind='request').document)
-        if q['operation'] not in ('rollback', 'uninstall', 'purge'):
+        if later_phase and q['operation'] == 'install':
+            anchors.append(event['request_ref'])
+        if q['operation'] not in ('rollback', 'uninstall', 'purge') or event['origin_request_ref'] not in anchors:
             continue
         _, observation = p2._load_entry(history, reference)
         previous_context = p2._decode(history.read(observation['context_ref']))
