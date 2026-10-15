@@ -585,6 +585,56 @@
         "sha256": "4d9817ade1c1ff572bc029ff553afd236e4b80371a3defb72a4f1e4151228ffe",
         "symbol": "SubsecondAndCloseTests.test_psycopg_stalled_handshake_closes_after_probe_deadline"
       }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ExistingReadOracle::test_cache_surface_accepts_absolute_not_reset_deadline",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ExistingReadOracle.test_cache_surface_accepts_absolute_not_reset_deadline"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ExistingReadOracle::test_runtime_passes_one_absolute_deadline_to_cache",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ExistingReadOracle.test_runtime_passes_one_absolute_deadline_to_cache"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ProviderOracle::test_redirect_cannot_leave_the_one_origin_even_with_permissive_client",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ProviderOracle.test_redirect_cannot_leave_the_one_origin_even_with_permissive_client"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ProviderOracle::test_unadmitted_model_refuses_before_key_or_http",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ProviderOracle.test_unadmitted_model_refuses_before_key_or_http"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0_cache_fence.py::CachePublicationOracle::test_off_blocks_late_cache_publication_and_release_work",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0_cache_fence.py",
+        "sha256": "596252687e923f18bac96eac3b5f5609befd7c5a03627fa54d74ebd50cb86eaf",
+        "symbol": "CachePublicationOracle.test_off_blocks_late_cache_publication_and_release_work"
+      }
     }
   ]
 }
