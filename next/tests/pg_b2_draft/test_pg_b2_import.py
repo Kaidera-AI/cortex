@@ -62,3 +62,10 @@ class ImportBoundary(unittest.TestCase):
             except ModuleNotFoundError as caught:self.assertIs(caught,error)
             except Exception as caught:self.fail('PG_B2_PUBLIC_TRANSITIVE_IMPORT_MASKED:'+repr(caught))
             else:self.fail('transitive error lost')
+    def test_public_owner_composition_preserves_plain_transitive_import_error(self):
+        api=importlib.import_module('cortex_core.runtime.role_grants');error=ImportError('broken transitive binary dependency')
+        with patch.object(lifecycle,'_installed_lifecycle',side_effect=error):
+            try:api.prepare_runtime_roles(None,role_names={},operation_id='foreign')
+            except ImportError as caught:self.assertIs(caught,error)
+            except Exception as caught:self.fail('PG_B2_PLAIN_IMPORT_ERROR_MASKED:'+repr(caught))
+            else:self.fail('transitive error lost')
