@@ -9,8 +9,6 @@ from contextlib import contextmanager
 import json
 from uuid import UUID
 
-from psycopg import OperationalError, sql
-
 from cortex_core.install import lifecycle, owner
 from cortex_core.release.codec import canonical_bytes
 from cortex_core.release.contracts import thaw
@@ -29,6 +27,17 @@ _PRIVS = {'TABLE': ('SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES',
 
 def _require(value, reason='resource_changed'):
     owner._require(value, reason)
+
+
+def _sql_driver():
+    # The existing protected SQL boundary is the first driver consumer. Pure
+    # original-reference/default-refusal paths never require libpq or psycopg.
+    try:
+        import psycopg
+    except ModuleNotFoundError as error:
+        if error.name != 'psycopg':raise
+        raise owner.OwnerRefusal('backend_unavailable') from None
+    return psycopg
 
 
 def _originals(history, context, *, expected_identity):
@@ -55,7 +64,7 @@ def _originals(history, context, *, expected_identity):
 def _run(action, conn, names, operation, parameters):
     try:
         return _run_bound(action,conn,names,operation,parameters)
-    except owner.OwnerRefusal:
+    except (owner.OwnerRefusal, ImportError):
         raise
     except Exception:
         raise owner.OwnerRefusal('backend_unavailable') from None
@@ -183,14 +192,39 @@ class _RoleAdapter:
         self.materials, self.backends = materials, dict(backends)
         self.context = None
         self.created = {}
+        self._sql_transaction = None
+        if connection is not None:self._sql_capability(connection)
+        self._sql_capability(recovery_connection)
         self.database = self._database(recovery_connection)
 
-    @staticmethod
-    def _database(conn):
+    def _sql_capability(self, conn):
+        driver = _sql_driver()  # availability BEFORE inspecting any connection
+        _require(conn is not None and (conn is self.connection or conn is self.recovery), 'scope_denied')
+        active = getattr(self, '_sql_transaction', None)
+        # This is only the actual driver's context object held during our one
+        # existing transaction manager, never a journal/token/second state store.
+        for candidate in (self.connection, self.recovery):
+            if candidate is None:continue
+            # Finite close intentionally destroys its original socket. Recovery
+            # measurement must remain possible; the selected handle is never skipped.
+            if candidate is self.connection and candidate is not conn and getattr(candidate,'closed',False):continue
+            status = candidate.info.transaction_status
+            _require(candidate.autocommit is True and type(status) is driver.pq.TransactionStatus,
+                     'atomicity_unavailable')
+            if active is not None and candidate is active[0]:
+                _require(active[1].savepoint_name is None and status == driver.pq.TransactionStatus.INTRANS,
+                         'atomicity_unavailable')
+            else:
+                _require(status == driver.pq.TransactionStatus.IDLE, 'atomicity_unavailable')
+        return driver
+
+    def _database(self, conn):
+        self._sql_capability(conn)
         return conn.execute('SELECT oid,datname,datdba,datallowconn,datconnlimit FROM pg_catalog.pg_database '
                             'WHERE datname=current_database()').fetchone()
 
     def _roles(self, conn):
+        self._sql_capability(conn)
         rows = conn.execute('SELECT oid,rolname,rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolinherit,'
                             'rolreplication,rolbypassrls,rolconnlimit,rolvaliduntil::text,rolconfig '
                             'FROM pg_catalog.pg_roles WHERE rolname=ANY(%s) ORDER BY rolname',
@@ -203,6 +237,7 @@ class _RoleAdapter:
 
     def _acl(self, conn):
         # ACL text is retained without normalizing NULL to effective defaults.
+        self._sql_capability(conn)
         rows = conn.execute("SELECT 'TABLE',c.oid,c.relowner,c.relacl::text[],"
                             "format('%%I.%%I',n.nspname,c.relname),c.relkind::text "
                             "FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
@@ -227,9 +262,11 @@ class _RoleAdapter:
         return {'objects':[list(r) for r in rows], 'defaults':[list(r) for r in defaults]}
 
     def snapshot(self):
+        _require(getattr(self, '_sql_transaction', None) is None, 'atomicity_unavailable')
         return self._snapshot(self.recovery)
 
     def _snapshot(self, conn):
+        self._sql_capability(conn)
         material = self.materials.snapshot()
         _require(type(material) is dict and set(material) == {'hba','carrier'}
                  and all(type(v) is bytes for v in material.values()), 'backend_unavailable')
@@ -262,6 +299,7 @@ class _RoleAdapter:
         return raw
 
     def admit(self, conn):
+        self._sql_capability(conn)
         originals=self._current()
         _require(conn is self.connection or conn is self.recovery, 'scope_denied')
         db = self._database(conn)
@@ -279,12 +317,23 @@ class _RoleAdapter:
 
     @contextmanager
     def _transaction(self, conn):
+        _require(getattr(self, '_sql_transaction', None) is None, 'atomicity_unavailable')
+        self._sql_capability(conn)  # idle/autocommit: never borrow an outer transaction
         self.admit(conn)
-        with conn.transaction():
-            conn.execute('SELECT pg_catalog.pg_advisory_xact_lock(%s)', (self.database[0],))
-            self.admit(conn)
-            yield
-            self._current()  # refuse drift before transactional SQL publication
+        with conn.transaction() as transaction:
+            _require(transaction.savepoint_name is None, 'atomicity_unavailable')
+            self._sql_transaction = (conn, transaction)
+            try:
+                self._sql_capability(conn)
+                conn.execute('SELECT pg_catalog.pg_advisory_xact_lock(%s)', (self.database[0],))
+                self.admit(conn)
+                yield
+                self._current()  # refuse drift before transactional SQL publication
+            finally:
+                self._sql_transaction = None
+        # The driver's top-level context has COMMITted before any independent
+        # snapshot/result publication. Never commit a caller's outer transaction.
+        self._sql_capability(conn)
 
     def receipt(self):
         return {'operation_id':self.identity['operation_id'],
@@ -307,6 +356,7 @@ class _RoleAdapter:
         return known
 
     def prepare(self, conn):
+        sql = self._sql_capability(conn).sql
         original = lifecycle._decode(self._current()['role'])
         expected = self._known_oids()
         with self._transaction(conn):
@@ -341,11 +391,16 @@ class _RoleAdapter:
             for schema in (*_SCHEMAS,'public'):
                 wanted=['USAGE'] if any(x.startswith('USAGE '+schema) for x in self.policy['schemas'].get(logical,[])) else []
                 plans.append((logical,'SCHEMA',schema,wanted))
+        ledger = self.policy['control_ledger']
+        _require(ledger['service_privileges'] == ledger['verifier_privileges'] == [], 'backend_unavailable')
+        plans.extend((logical,'TABLE',ledger['name'],[])
+                     for logical in (*_SERVICES,'request_group','verifier_owner'))
         plans.extend((logical,kind,name,rights[logical]) for kind,name,rights in self._objects() for logical in _SERVICES)
         _require(all(set(wanted)<=set(_PRIVS[kind]) for _,kind,_,wanted in plans),'backend_unavailable')
         return plans
 
     def _privileges(self, conn, plans):
+        self._sql_capability(conn)
         cells=[(logical,kind,name,privilege,privilege in wanted)
                for logical,kind,name,wanted in plans for privilege in _PRIVS[kind]]
         expressions=[]
@@ -361,6 +416,7 @@ class _RoleAdapter:
         return [(cell,row[1],row[2]) for cell,row in zip(cells,rows)]
 
     def _apply_grants(self, conn, plans):
+        sql = self._sql_capability(conn).sql
         for (logical,kind,name,privilege,want),actual,grant_option in self._privileges(conn,plans):
             if actual != want or grant_option:
                 verb='GRANT '+privilege+' ON '+kind+' {} TO {}' if want else 'REVOKE '+privilege+' ON '+kind+' {} FROM {}'
@@ -371,6 +427,7 @@ class _RoleAdapter:
                                  .format(target,sql.Identifier(self.roles[logical])))
 
     def validate_acl(self, conn):
+        sql = self._sql_capability(conn).sql
         for (_,_,_,_,want),actual,grant_option in self._privileges(conn,self._plans()):
             _require(actual==want and not grant_option)
         acl = self._acl(conn)
@@ -412,6 +469,7 @@ class _RoleAdapter:
         _require(self._roles(conn)['memberships'] == self._expected_membership(conn))
 
     def _expected_membership(self, conn):
+        self._sql_capability(conn)
         row = conn.execute('SELECT g.oid,m.oid FROM pg_catalog.pg_roles g,pg_catalog.pg_roles m '
                            'WHERE g.rolname=%s AND m.rolname=%s',
                            (self.roles['request_group'],self.roles['api_request'])).fetchone()
@@ -422,6 +480,7 @@ class _RoleAdapter:
         return edges
 
     def bind(self, conn, activate):
+        sql = self._sql_capability(conn).sql
         known = self._known_oids()
         with self._transaction(conn):
             roles = {r[1]:r[0] for r in self._roles(conn)['roles']}
@@ -471,6 +530,8 @@ class _RoleAdapter:
         return self.receipt()
 
     def close(self, conn):
+        driver = self._sql_capability(conn)
+        sql = driver.sql
         finite=[self.roles['bootstrap'],self.roles['migrator']]
         query=('SELECT pid,usesysid,backend_start::text,datid FROM pg_catalog.pg_stat_activity '
                'WHERE usesysid IN (SELECT oid FROM pg_catalog.pg_roles WHERE rolname=ANY(%s)) ORDER BY pid')
@@ -494,20 +555,24 @@ class _RoleAdapter:
                                      'NOINHERIT NOREPLICATION NOBYPASSRLS').format(sql.Identifier(self.roles[logical])))
         # The original finite caller closes LAST. Independent recovery IO, not
         # a lost socket, decides whether all exact owned backend lifetimes drain.
+        self._sql_capability(conn)
         try:
             conn.execute('SELECT pg_catalog.pg_terminate_backend(pg_backend_pid())')
-        except OperationalError:
+        except driver.OperationalError:
+            self._sql_capability(self.recovery)
             if self.recovery.execute(query,(finite,)).fetchall():
                 raise
+        self._sql_capability(self.recovery)
         _require(not self.recovery.execute(query,(finite,)).fetchall())
         return self.receipt()
 
     def _restore_acl(self, conn, original):
+        sql = self._sql_capability(conn).sql
         current = self._acl(conn)
         self._restore_defaults(conn,original['defaults'],current['defaults'])
         observed = {(r[0],r[1]):r for r in current['objects']}
         _require(set(observed) == {(r[0],r[1]) for r in original['objects']})
-        # Preflight all identities/NULL states before the first ACL effect.
+        # Preflight object identities/NULL states before object ACL effects.
         for row in original['objects']:
             actual = observed[(row[0],row[1])]
             _require(actual[2] == row[2] and actual[4:] == row[4:])
@@ -539,6 +604,7 @@ class _RoleAdapter:
                     conn.execute('RESET ROLE')
 
     def _restore_defaults(self, conn, original, current):
+        sql = self._sql_capability(conn).sql
         before={tuple(row[:3]):row[3] for row in original}
         now={tuple(row[:3]):row[3] for row in current}
         kinds={'f':('FUNCTIONS','FUNCTION'),'T':('TYPES','TYPE'),'r':('TABLES','TABLE'),
@@ -571,6 +637,7 @@ class _RoleAdapter:
                 conn.execute(prefix+sql.SQL(' GRANT '+privilege+' ON '+kinds[kind][0]+' TO {}'+(' WITH GRANT OPTION' if option else '')).format(recipient))
 
     def restore(self, conn):
+        sql = self._sql_capability(conn).sql
         originals = self._current()  # read/measure ALL five first
         roles = lifecycle._decode(originals['role'])
         database = lifecycle._decode(originals['database'])
