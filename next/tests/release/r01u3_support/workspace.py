@@ -27,6 +27,8 @@ def renamed_directory_observation(old, renamed, before):
     assert (after.st_dev,after.st_ino)==identity
     assert old.name not in names and renamed.name in names
     if alias is not None:assert (alias.st_dev,alias.st_ino)==identity
-    return dict(same_inode=True,old_resolves=alias is not None,exact_present=False,
+    observed=dict(same_inode=True,old_resolves=alias is not None,exact_present=False,
                 names=names,dev=after.st_dev,inode=after.st_ino,
                 reason='member_path_alias' if alias is not None else 'member_custody_changed')
+    print('U3_CASE_OBSERVATION '+__import__('json').dumps(dict(old=str(old),renamed=str(renamed),**observed),sort_keys=True))
+    return observed

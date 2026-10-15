@@ -165,6 +165,7 @@ class Members(unittest.TestCase):
         if observed is not None:
             self.assertEqual((observed.st_dev,observed.st_ino),(self.root.stat().st_dev,self.root.stat().st_ino))
         expected='required_binding_gap' if observed is None else 'member_path_alias'
+        print('U3_CASE_OBSERVATION '+__import__('json').dumps(dict(requested=str(alternate),actual=str(self.root),names=sorted(names),old_resolves=observed is not None,dev=self.root.stat().st_dev,inode=self.root.stat().st_ino,reason=expected),sort_keys=True))
         r=c.RootReader.for_aggregate(str(alternate),8*1024**2);self.addCleanup(r.close)
         self.refuse(expected,lambda:self.begin(r))
         self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files);self.assertFalse(r._aggregate_dirs)

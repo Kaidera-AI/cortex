@@ -189,7 +189,7 @@ def main():
                     for node in ast.parse(suite.read_text()).body):
                 return DeclaredModule.from_parent(parent, path=module_path)
 
-    result = pytest.main(['-q', '--tb=short', '--strict-markers', '-c', '/dev/null',
+    result = pytest.main(['-q', '-rP', '--tb=short', '--strict-markers', '-c', '/dev/null',
                           '--rootdir=' + str(ROOT), '-o', 'cache_dir=' + str(args.temporary / 'cache'),
                           '--basetemp=' + str(args.temporary / 'pytest'), *(requested or [args.suite])],
                          plugins=[gate, DeclaredProtocol()])

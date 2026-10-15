@@ -271,4 +271,5 @@ print(json.dumps(result))
     run=subprocess.run([str(executable),'-I','-S','-B','-X','pycache_prefix='+str(cache),str(entry)],env={},capture_output=True,text=True,timeout=180)
     fixture.assertEqual(run.returncode,0,run.stdout+run.stderr)
     result=json.loads(run.stdout);result['expected_original']=base64.b64encode(body).decode();result['independent_file_count']=len(rows)
+    print('U3_STARTUP_DIAGNOSTIC '+json.dumps({key:value for key,value in result.items() if key not in {'raw','expected_original'}},sort_keys=True))
     return result

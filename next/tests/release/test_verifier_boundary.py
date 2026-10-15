@@ -257,6 +257,12 @@ class StartupBoundary(StartupFixture, unittest.TestCase):
         self.assertFalse(result['test_support_loaded']);self.assertFalse(result['physical_install_qualified'])
         self.assertTrue(result['actual_observation']);self.assertEqual(result['bootstrap_provenance'],'SOURCE_FIXTURE_ONLY')
 
+    def test_inert_source_writable_private_parent_refuses(self):
+        self.init_boundary()
+        (self.install/'stdlib').chmod(0o770)
+        self.refusal('member_custody_changed',self.check)
+        self.assertEqual(self.transports,[])
+
     def test_actual_isolated_writable_copied_parent_refuses_before_transport(self):
         self.init_boundary();result=isolated_original_control(self,fault='copied-parent')
         self.assertEqual(result['status'],'refused',result)
