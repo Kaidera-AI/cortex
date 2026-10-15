@@ -31,6 +31,7 @@ class LifecycleReceiptOracle(unittest.TestCase):
     def setup_data(self):
         helper = proposals.OwnerProposalOracle()
         data = helper.data()
+        data['originals'].update(FIXTURE['originals'])
         proposal, _ = helper.run_gate(helper.api(), data)
         return helper, data, proposal
 

@@ -90,8 +90,8 @@
   },
   "P2a_source_data": {
     "path": "p2a-subjects.json",
-    "bytes": 1075,
-    "sha256": "ea826eefc7c53afe6fbc61ca316292b78285f45ad2673caffe18361246cdb3ae",
+    "bytes": 1397,
+    "sha256": "5beccd466dd9667d9c245a40de975f9e7e3eb5600a6f6df8b2f8fedef3af7d8d",
     "credit": "DATA-storage-only; original F2 separately gated"
   }
 }

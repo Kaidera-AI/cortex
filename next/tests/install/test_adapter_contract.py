@@ -1,4 +1,5 @@
 """Fixed lifecycle seam source recorder; all storage belongs to the test."""
+import copy
 import inspect
 import json
 from pathlib import Path
@@ -44,7 +45,7 @@ class LifecycleAdapterOracle(unittest.TestCase):
             counts = {'dispatches': 0, 'measurements': 0}
             def inputs():
                 revision = history.current_revision()
-                fresh = helper.data()
+                fresh = copy.deepcopy(data)
                 if revision is not None:
                     helper.context(fresh, lambda c: c.update(state_revision=revision))
                     helper.edit_record(fresh, 'current_state_ref', lambda s: s.update(revision=revision))
