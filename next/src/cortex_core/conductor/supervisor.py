@@ -4,8 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from uuid import UUID, uuid4
 
-import asyncpg
-from cortex_core.embeddings.pg_search import CoreUnavailable
+from cortex_core.embeddings.pg_search import CoreUnavailable, _require_asyncpg, _driver_errors
 
 
 class LeaseBusy(RuntimeError):
@@ -28,6 +27,7 @@ class Supervisor:
 
     @asynccontextmanager
     async def _transaction(self):
+        _require_asyncpg()
         try:
             async with self.pool.acquire(timeout=2) as conn:
                 async with conn.transaction():
@@ -44,12 +44,7 @@ class Supervisor:
                     yield conn
         except PermissionError:
             raise
-        except (
-            asyncpg.PostgresConnectionError,
-            asyncpg.InterfaceError,
-            OSError,
-            TimeoutError,
-        ) as exc:
+        except _driver_errors('PostgresConnectionError', 'InterfaceError') + (OSError, TimeoutError) as exc:
             raise CoreUnavailable("Authoritative Core is unavailable") from exc
 
     async def acquire(self):

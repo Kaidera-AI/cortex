@@ -1,6 +1,7 @@
 """The single canonical wire encoding for build inputs and receipts."""
 import hashlib
 import json
+import math
 import unicodedata
 from pathlib import Path
 
@@ -21,19 +22,22 @@ def sha256(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
-def _strings(value):
+def _strings(value, *, text_payload=False):
     if isinstance(value, str):
-        if unicodedata.normalize('NFC', value) != value:
+        if not text_payload and unicodedata.normalize('NFC', value) != value:
             raise ValueError('unicode_not_nfc')
-        if any(ord(c) < 32 or 127 <= ord(c) <= 159 or 0xD800 <= ord(c) <= 0xDFFF for c in value):
+        if any((ord(c) < 32 and not (text_payload and c in '\n\r\t'))
+               or 127 <= ord(c) <= 159 or 0xD800 <= ord(c) <= 0xDFFF for c in value):
             raise ValueError('forbidden_unicode')
     elif isinstance(value, dict):
         for key, item in value.items():
-            _strings(key)
-            _strings(item)
+            _strings(key, text_payload=text_payload)
+            _strings(item, text_payload=text_payload)
     elif isinstance(value, (list, tuple)):
         for item in value:
-            _strings(item)
+            _strings(item, text_payload=text_payload)
+    elif text_payload and type(value) is float and math.isfinite(value):
+        pass
     elif value is not None and type(value) not in (int, bool):
         raise ValueError('wrong_json_type')
 
@@ -57,13 +61,13 @@ def _number(_):
     raise ValueError('noninteger_number')
 
 
-def decode_json(raw, limit, *, canonical=True):
+def decode_json(raw, limit, *, canonical=True, text_payload=False):
     if type(raw) is not bytes or len(raw) > limit or raw.startswith(b'\xef\xbb\xbf'):
         raise ValueError('encoding_or_size')
     try:
         value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs,
-                           parse_float=_number, parse_constant=_number)
-        _strings(value)
+                           parse_float=float if text_payload else _number, parse_constant=_number)
+        _strings(value, text_payload=text_payload)
         if canonical and canonical_bytes(value) != raw:
             raise ValueError('noncanonical_encoding')
         return value
