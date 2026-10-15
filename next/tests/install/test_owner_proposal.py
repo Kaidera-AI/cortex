@@ -86,7 +86,7 @@ class OwnerProposalOracle(unittest.TestCase):
         def installed():
             calls.append('owner-observation')
             return values[min(len(calls)-1,1)]
-        double=NonAuthoritativeSignedMemberDouble(F['runtime_lock_raw'].encode(),member_name='runtime.lock.json')
+        double=NonAuthoritativeSignedMemberDouble(F['runtime_lock_raw'].encode(),aggregate_id=d['aggregate_id'],member_name='runtime.lock.json')
         with patch.object(api,'_installed_owner_inputs',installed),double.installed(signed_member):
             result=api.propose_effect(d['request_raw'].encode() if request is None else request)
         return result,calls
