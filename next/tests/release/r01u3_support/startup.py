@@ -12,14 +12,16 @@ import os
 from pathlib import Path
 import stat
 import sys
+from r01u3_support.workspace import workspace_output
 import tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from test_original_member_bridge import Fixture
 
-MAIN=Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3e-startup-fixtures-20261015')
 
+
+MAIN=workspace_output()
 
 class StartupFixture(Fixture):
     def boundary(self):
@@ -220,6 +222,14 @@ ob=a._startup_observation()
 result['unadmitted_intrinsics']=[name for name,origin,kind,locations in ob.modules if origin in ('built-in','frozen') and name not in frame.intrinsics]
 result['unadmitted_files']=[name for name,origin,kind,locations in ob.modules if isinstance(origin,str) and origin not in ('built-in','frozen') and origin not in {row[1] for row in frame.files}]
 result['no_spec_modules']=[name for name,origin,kind,locations in ob.modules if origin is None and not locations]
+result['modules']=[dict(name=name,origin=origin,loader=kind.__module__+'.'+kind.__qualname__,locations=locations) for name,origin,kind,locations in ob.modules]
+result['originals']=frame.files
+result['module_aliases']=[dict(name=name,object_id=id(value),held_identity=sys.modules.get(name) is value,owner=owner) for name,value,owner in frame.module_aliases]
+result['provider']={'version':__import__('cryptography').__version__,'origin':__import__('cryptography').__file__}
+result['runtime_roots']=dict(executable=d['executable'],entrypoint=d['entrypoint'],roots=d['roots'],cache=d['cache'])
+result['file_table_sha256']=sha256(canonical_bytes(d['files']))
+result['file_table_bytes']=sum(row[2] for row in frame.files)
+result['ancestor_metadata']=[dict(path=str(path),dev=path.stat().st_dev,inode=path.stat().st_ino,mode=path.stat().st_mode,uid=path.stat().st_uid) for path in (Path(d['cache']),*Path(d['cache']).parents)]
 print(json.dumps(result))
 ''')
     paths={}

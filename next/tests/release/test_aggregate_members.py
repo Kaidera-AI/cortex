@@ -3,6 +3,7 @@ import copy
 import importlib
 import os
 from pathlib import Path
+from r01u3_support.workspace import workspace_output
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,8 +12,9 @@ from aggregate_fixture import materials,write,encode,sha256
 from cortex_core.runtime.signed_member import Refusal
 
 SRC=Path(__file__).resolve().parents[2]/'src/cortex_core/release'
-MAIN=Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3c-fixtures-20261014')
 
+
+MAIN=workspace_output()
 
 class Members(unittest.TestCase):
     def source(self):
@@ -93,9 +95,17 @@ class Members(unittest.TestCase):
         self.assertIsNone(r.fd)
 
     def test_T08_root_case_alias(self):
-        _,c=self.source();r=c.RootReader.for_aggregate(str(self.root.parent)+'/'+self.root.name.upper(),8*1024**2)
-        self.addCleanup(r.close)
-        self.refuse('member_path_alias',lambda:self.begin(r))
+        _,c=self.source();alternate=self.root.with_name(self.root.name.upper())
+        names={entry.name for entry in os.scandir(self.root.parent)}
+        self.assertNotIn(alternate.name,names)
+        try:observed=alternate.stat()
+        except FileNotFoundError:observed=None
+        if observed is not None:
+            self.assertEqual((observed.st_dev,observed.st_ino),(self.root.stat().st_dev,self.root.stat().st_ino))
+        expected='required_binding_gap' if observed is None else 'member_path_alias'
+        r=c.RootReader.for_aggregate(str(alternate),8*1024**2);self.addCleanup(r.close)
+        self.refuse(expected,lambda:self.begin(r))
+        self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files);self.assertFalse(r._aggregate_dirs)
 
     def test_T09_file_symlink(self):
         p=self.path();f=self.root/p;raw=f.read_bytes();f.unlink();outside=self.root.parent/(self.root.name+'-outside');outside.write_bytes(raw)

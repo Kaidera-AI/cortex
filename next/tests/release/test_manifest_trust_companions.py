@@ -14,6 +14,7 @@ NEXT=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(NEXT/'src'),str(NEXT/'tests/release')]
 from cortex_core.runtime.signed_member import Refusal
 from r01u3_support import factory
+from r01u3_support.workspace import workspace_output
 
 
 def trust():return importlib.import_module('cortex_core.release.trust')
@@ -99,7 +100,7 @@ class Companions(unittest.TestCase):
   checked=kos.verify_minisign(auth.raw,signature.decode(),auth.root_material.decode())
   self.assertTrue(checked['prehashed']);self.assertEqual(checked['key_id'],auth.key_id[::-1].hex().upper())
   with self.assertRaises(kos.Refusal):kos.verify_minisign(auth.raw+b'x',signature.decode(),auth.root_material.decode())
-  with tempfile.TemporaryDirectory(prefix='r01u3-kos-scope-',dir='/Users/amadmalik/DevVault/helix/output/KOS/ren-kos-r01u3b-test-env-20261014') as path:
+  with tempfile.TemporaryDirectory(prefix='r01u3-kos-scope-',dir=workspace_output()) as path:
    root=Path(path);(root/'release.json').write_bytes(auth.raw);(root/'release.json.minisig').write_bytes(signature)
    with self.assertRaises(kos.Refusal) as caught:
     kos.verify_package(root,public_key=auth.root_material.decode(),platform='macos-arm64',image_platform='linux/arm64')

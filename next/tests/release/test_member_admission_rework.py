@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from test_original_member_bridge import Fixture, MEMBER, NEXT
 from cortex_core.release.custody import RootReader
+from r01u3_support.workspace import renamed_directory_observation
 
 
 class DeliveryRework(Fixture, unittest.TestCase):
@@ -18,19 +19,23 @@ class DeliveryRework(Fixture, unittest.TestCase):
         old = self.root
         renamed = old.with_name('B'+old.name[1:])
         before = old.stat()
-        events = []
+        events = [];observed={};terminal=[]
+        check=RootReader._aggregate_inventory_finish
+        def final_check(reader):
+            if events:terminal.append("terminal check")
+            return check(reader)
         def current(context):
             if len(self.contexts) == 6:
                 old.rename(renamed)
-                names = {entry.name for entry in os.scandir(old.parent)}
-                self.assertNotIn(old.name, names)
-                self.assertIn(renamed.name, names)
-                self.assertEqual((old.stat().st_dev, old.stat().st_ino),
-                                 (before.st_dev, before.st_ino))
+                observed.update(renamed_directory_observation(old,renamed,before))
                 events.append('actual case-only rename after final delivery reload')
             return context
         self.current_hook = current
-        self.refusal('member_path_alias', lambda: delivery.read_original(262144))
+        with patch.object(RootReader,'_aggregate_inventory_finish',final_check):
+            with self.assertRaises(__import__('cortex_core.runtime.signed_member',fromlist=['Refusal']).Refusal) as caught:
+                delivery.read_original(262144)
+        self.assertEqual(caught.exception.reason,observed['reason'])
+        self.assertEqual(terminal,['terminal check'])
         self.assertEqual(len(events), 1)
         self.assertEqual(len(self.contexts), 6)
         self.assertEqual(self.transports, [self.aggregate]*2)
