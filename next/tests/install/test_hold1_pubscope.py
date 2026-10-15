@@ -116,6 +116,7 @@ class PublicationScopeOracle(unittest.TestCase):
                 publish(folder,name,value)
                 if folder=='events' and json.loads(value)['result_ref'] is not None and not changed:
                     changed.append(self.foreign(s))
+                    raise owner.OwnerRefusal('atomicity_unavailable')
             with s.installed(primitive),patch.object(s.history,'_publish',after):
                 with self.assertRaises(owner.OwnerRefusal):s.terminal(raw)
                 terminal=s.history.head()[0]
