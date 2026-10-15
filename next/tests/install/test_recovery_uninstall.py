@@ -1116,6 +1116,26 @@ class RecoveryJoinOracle(unittest.TestCase):
             self.assertEqual(s.dispatches,1);self.assertEqual(s.tree(),before)
             self.assertEqual(s.marker.read_bytes(),b'install\n')
 
+    def test_P2B03_ids_from_another_recorded_operation_cannot_be_reused(self):
+        for field in ('request_id','attempt_id'):
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s)
+                data=copy.deepcopy(s.old)
+                s.oracle.rewrite(s.helper,data,lambda q:q['identity'].update(
+                    operation_id='55555555-5555-4555-8555-555555555555',
+                    transaction_id='other-transaction',request_id='other-request',attempt_id='other-attempt'))
+                revision=s.history.current_revision()
+                s.helper.context(data,lambda c:c.update(nonce='other-nonce',state_revision=revision))
+                s.helper.edit_record(data,'current_state_ref',lambda c:c.update(revision=revision))
+                proposal,_=s.helper.run_gate(owner,data)
+                lifecycle._reserve(s.history,data['request_raw'].encode(),proposal,
+                    AppliedSubject._bytes(data),s.oracle.before,clock_raw=data['current_clock_raw'].encode())
+                s.child(parent)
+                s.oracle.rewrite(s.helper,s.data,lambda q:q['identity'].update({field:'other-request' if field=='request_id' else 'other-attempt'}))
+                before=s.tree()
+                with self.assertRaises(owner.OwnerRefusal):s.run()
+                self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
     def test_P2B03_private_child_requires_independent_fence_and_identity(self):
         for drift in ('fence','holder','session_user_oid'):
             with self.subTest(drift=drift),tempfile.TemporaryDirectory() as root:
