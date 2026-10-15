@@ -499,3 +499,18 @@ class Hold1InterfaceOracle(unittest.TestCase):
                     else:
                         self.refused(lambda:s.checkpoint('postimage',edit=missing))
                         self.assertEqual(s.history.head()[0],head)
+
+    def test_H2_private_integer_fields_reject_float_and_boolean_aliases(self):
+        for field in ('protocol-version','consumption-sequence'):
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as root:
+                s=Subject(root)
+                with s.installed():
+                    if field=='protocol-version':
+                        value=json.loads(s.mandate);value['protocol_version']=2.0
+                        s.mandate=canonical_bytes(value);before=s.tree()
+                        self.refused(s.reserve);self.assertEqual(s.tree(),before)
+                    else:
+                        s.start();s.checkpoint('xid')
+                        def alias(event,obs,parts,fact):parts['attempt']['consumption_sequence']=True
+                        s.checkpoint('postimage',edit=alias,forged=True);before=s.tree()
+                        self.refused(s.terminal);self.assertEqual(s.tree(),before)
