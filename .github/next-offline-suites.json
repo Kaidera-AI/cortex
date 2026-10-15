@@ -45,9 +45,22 @@
     "next/tests/deployment/test_cortex_prerequisite_v3_contract.py",
     "next/tests/driver_privacy/test_driver_logs.py",
     "next/tests/identity_receipts/test_identity_receipts.py",
+    "next/tests/install/test_adapter_contract.py",
     "next/tests/install/test_contracts.py",
+    "next/tests/install/test_gate_b_linux.py",
+    "next/tests/install/test_gate_b_macos.py",
+    "next/tests/install/test_hold1_interface.py",
+    "next/tests/install/test_hold1_pubscope.py",
+    "next/tests/install/test_lifecycle_logical_paths.py",
+    "next/tests/install/test_lifecycle_receipt.py",
+    "next/tests/install/test_owner_admission.py",
+    "next/tests/install/test_owner_admission_order.py",
+    "next/tests/install/test_owner_deadline_retention.py",
+    "next/tests/install/test_owner_proposal.py",
+    "next/tests/install/test_owner_session.py",
     "next/tests/install/test_planner.py",
     "next/tests/install/test_read_meter.py",
+    "next/tests/install/test_recovery_uninstall.py",
     "next/tests/install/test_trust_repair.py",
     "next/tests/install/test_tuple_revision.py",
     "next/tests/integration/test_cli_status.py",
@@ -64,6 +77,15 @@
     "next/tests/outbox_inventory/test_reflection_aliases.py",
     "next/tests/outbox_inventory/test_reflection_name_aliases.py",
     "next/tests/outbox_inventory/test_source_recognition.py",
+    "next/tests/pg_b2_draft/test_b2_recovery_join.py",
+    "next/tests/pg_b2_draft/test_hale_driver_free.py",
+    "next/tests/pg_b2_draft/test_hale_review.py",
+    "next/tests/pg_b2_draft/test_hold1_producer.py",
+    "next/tests/pg_b2_draft/test_hold1_publication_scope.py",
+    "next/tests/pg_b2_draft/test_hold1_scope_adoption.py",
+    "next/tests/pg_b2_draft/test_pg_b2_import.py",
+    "next/tests/pg_b2_draft/test_pg_b2_join.py",
+    "next/tests/pg_b2_draft/test_pg_b2_rework.py",
     "next/tests/receipt/test_async_fixture_reuse.py",
     "next/tests/receipt/test_c09_qdrant.py",
     "next/tests/receipt/test_classifier.py",
@@ -140,6 +162,7 @@
     "next/tests/runtime_egress/test_e0_expiry.py",
     "next/tests/runtime_egress/test_e0_join.py",
     "next/tests/runtime_factory/test_factory.py",
+    "next/tests/runtime_grants/test_preimages.py",
     "next/tests/runtime_identity/test_reader_identity.py",
     "next/tests/runtime_keyword/test_consumer.py",
     "next/tests/runtime_keyword/test_core.py",
@@ -416,12 +439,112 @@
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
     },
     {
+      "path": "next/tests/pg_b2_draft/test_pg_b2_native.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/pg_b_draft/test_pg_b.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
       "path": "next/tests/projection_revision/test_projection_revision.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
     },
     {
       "path": "next/tests/records/test_records.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/runtime_grants/test_c04.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants/test_connect.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants/test_grants.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants/test_lifecycle.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants/test_ports.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants/test_repair.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants/test_upgrade.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
+    },
+    {
+      "path": "next/tests/runtime_grants_draft/test_draft.py",
+      "reason": "Needs the real, explicitly owned PostgreSQL runtime-grants fixture and native operator controls; no offline/native PASS credit.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/runtime_grants/support.py",
+        "sha256": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+        "symbol": "Fixture.setUp"
+      }
     },
     {
       "path": "next/tests/schema/test_integrity.py",
