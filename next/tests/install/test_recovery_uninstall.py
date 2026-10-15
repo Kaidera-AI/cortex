@@ -760,6 +760,9 @@ class JoinedSubject:
                     subject.recovery_reads += 1
                     result = subject.role_grants._Primitive(subject.adapter,'prepare',subject.adapter.connection,{}).measure(effect)
                     if subject.expire_on_measure: subject.expired = True
+                    if getattr(subject,'tamper_answer',False) and result[1] is not None:
+                        changed=json.loads(result[1]);changed['observed']['acceptance_note']='unlinked replacement'
+                        result=(result[0],canonical_bytes(changed))
                     return result
                 context = thaw(effect['context'])
                 _, observation = lifecycle._load_entry(subject.history, effect['journal_ref'])
@@ -1078,6 +1081,20 @@ class RecoveryJoinOracle(unittest.TestCase):
             before=s.tree();s.expired=False
             self.assertEqual(self.run_ok(s),completed);self.assertEqual(s.tree(),before)
             self.assertEqual(s.dispatches,0)
+
+    def test_P2B02_unlinked_answer_bytes_refuse_before_publication(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth();s.tamper_answer=True;before=s.tree()
+            with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+            self.assertEqual(caught.exception.detail,'journal_invalid')
+            self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_applied_parent_cannot_be_retried_from_resource_absence(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth();parent=self.run_ok(s)
+            s.adapter.live=dict(s.oracle.before);s.child(parent);before=s.tree()
+            with self.assertRaises(owner.OwnerRefusal):s.run()
+            self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
 
     def test_P2B03_terminal_not_applied_is_checked_once_before_child(self):
         with tempfile.TemporaryDirectory() as root:
