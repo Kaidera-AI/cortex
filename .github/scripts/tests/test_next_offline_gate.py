@@ -764,7 +764,7 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
 
     def packet(self,live=True):
         row=self.declaration();nodes=[self.NODE]+([self.LIVE] if live else [])
-        p={'expected':nodes,'selected':nodes,'collected':nodes,'deselected':[],
+        p={'expected':list(nodes),'selected':list(nodes),'collected':list(nodes),'deselected':[],
            'pytest_exit':1,'gate_exit':0,'retired':[],'excluded_methods':[row],
            'reports':[{'nodeid':n,'when':w,'outcome':'failed' if n==self.NODE and w=='call' else 'passed',
              'wasxfail':False,'assertion':n==self.NODE and w=='call',
