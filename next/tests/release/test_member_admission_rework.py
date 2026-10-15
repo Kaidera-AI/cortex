@@ -41,6 +41,9 @@ class DeliveryRework(Fixture, unittest.TestCase):
         self.assertEqual(len(self.contexts), 6)
         self.assertEqual(self.transports, [self.aggregate]*2)
         self.assert_closed()
+        names={entry.name for entry in os.scandir(old.parent)}
+        self.assertIn(old.name,names,'BODY: restore the owned TemporaryDirectory spelling before cleanup')
+        self.assertNotIn(renamed.name,names)
 
     def test_U3C_CUST_02_deadline_crosses_last_delivery_fstat(self):
         import cortex_core.release.member_admission as api
