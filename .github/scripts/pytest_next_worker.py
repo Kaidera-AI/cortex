@@ -3,6 +3,9 @@ import argparse
 import ast
 from collections import Counter
 import hashlib
+import functools
+import time
+import faulthandler
 import importlib.util
 import json
 import os
@@ -39,7 +42,39 @@ class Gate:
         self.assertions = {}
         self.exceptions = {}
         self.expected = ()
+        self.bridge_stages = {}
         self.packet = dict(expected=[], selected=[], deselected=[], reports=[])
+
+    def bridge_diagnostics(self, session):
+        if self.packet.get('suite')!='next/tests/release/test_original_member_bridge.py':return
+        from cortex_core.release import aggregate,trust,custody
+        from cortex_core.runtime import signed_member
+        module=session.items[0].module
+        def wrap(owner,name):
+            original=getattr(owner,name);label=owner.__name__+'.'+name
+            @functools.wraps(original)
+            def measured(*args,**kwargs):
+                started=time.perf_counter()
+                try:return original(*args,**kwargs)
+                finally:
+                    row=self.bridge_stages.setdefault(label,dict(calls=0,seconds=0.0))
+                    row['calls']+=1;row['seconds']+=time.perf_counter()-started
+            setattr(owner,name,measured)
+        for owner,names in [(module.Fixture,['setUp','current','transport','backend']),
+                            (module.Bridge,['installer']),
+                            (trust,['_verify_original']),
+                            (aggregate,['_validate_manifest','_measure_members','_check_pairs']),
+                            (custody.RootReader,['aggregate_begin','aggregate_finish','_aggregate_inventory_finish','close']),
+                            (signed_member,['request_member'])]:
+            for name in names:wrap(owner,name)
+        print('U3_BRIDGE_SELECTION '+json.dumps(self.packet['selected']),flush=True)
+        # Samples the active stack; the parent still enforces the sole180s cap.
+        faulthandler.dump_traceback_later(60,repeat=True)
+
+    def pytest_runtest_logstart(self,nodeid,location):
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
+            self.bridge_stages={}
+            print('U3_BRIDGE_START '+nodeid,flush=True)
 
     def pytest_collection_finish(self, session):
         collected = [item.nodeid for item in session.items]
@@ -54,6 +89,7 @@ class Gate:
         session.items[:] = [item for item in session.items if item.nodeid not in nodes|fixtures]
         self.expected = tuple(item.nodeid for item in session.items)
         self.packet.update(expected=list(self.expected), selected=list(self.expected))
+        self.bridge_diagnostics(session)
         if self.skip and session.items:
             import pytest
             session.items[0].add_marker(pytest.mark.skip(reason='next offline hosted forced-skip control'))
@@ -68,6 +104,13 @@ class Gate:
             exception_type=self.exceptions.get((report.nodeid,report.when),''),
             detail=str(report.longrepr) if report.failed or report.skipped else ''))
 
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
+            print('U3_BRIDGE_PHASE '+json.dumps(dict(nodeid=report.nodeid,phase=report.when,seconds=report.duration)),flush=True)
+            if report.when=='teardown':
+                record=dict(nodeid=report.nodeid,stages=self.bridge_stages)
+                self.packet.setdefault('bridge_stages',[]).append(record)
+                print('U3_BRIDGE_STAGES '+json.dumps(record),flush=True)
+
     def pytest_runtest_makereport(self,item,call):
         outcome=yield
         outcome.get_result()
@@ -78,6 +121,7 @@ class Gate:
             and isinstance(call.excinfo.value,AssertionError))
 
     def pytest_sessionfinish(self, session, exitstatus):
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':faulthandler.cancel_dump_traceback_later()
         self.packet['pytest_exit'] = int(exitstatus)
         self.packet['declared_unavailable']=SHARED.declaration_observations(self.packet,self.excluded)
         self.packet['gate_exit']=0

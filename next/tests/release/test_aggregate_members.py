@@ -159,9 +159,14 @@ class Members(unittest.TestCase):
         r=self.reader();self.begin(r);path=self.path();self.assertTrue(path.startswith('members/'))
         self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);r.close()
         old=(self.root/'members').stat().st_ino
+        held=os.open(self.root/'members',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+        self.addCleanup(os.close,held)
         shutil.rmtree(self.root/'members');write(self.root,self.bodies)
         self.assertNotEqual((self.root/'members').stat().st_ino,old)
-        self.begin(r);self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);r.aggregate_finish();r.close()
+        self.begin(r)
+        try:raw=r.aggregate_bytes(path)
+        except Refusal as error:self.fail('BODY: stale prior transaction path structure: '+error.reason)
+        self.assertEqual(raw,self.bodies[path]);r.aggregate_finish();r.close()
 
     def test_exact_name_stops_after_actual_entry_and_closes_iterator(self):
         _,c=self.source();r=self.reader();self.begin(r)
