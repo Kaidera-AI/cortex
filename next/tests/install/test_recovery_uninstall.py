@@ -468,6 +468,20 @@ class RecoveryUninstallOracle(unittest.TestCase):
                 _, obs = lifecycle._load_entry(s.history, s.history.head()[0])
                 self.assertEqual(json.loads(s.history.read(obs['attempt_ref']))['dispatch_state'], 'consumed_result_unknown')
 
+    def test_P2B06_clock_is_reobserved_after_original_lineage_audit(self):
+        from cortex_core.install import uninstall
+        with tempfile.TemporaryDirectory() as root:
+            s = AppliedSubject(root); actual = uninstall._plan
+            def audited(history, request, context, original):
+                result = actual(history, request, context, original)
+                _, observation = lifecycle._load_entry(history, history.head()[0])
+                attempt = json.loads(history.read(observation['attempt_ref']))
+                if attempt['dispatch_state'] == 'consumed_result_unknown':
+                    s.expire_after_consume = True
+                return result
+            with patch.object(uninstall, '_plan', audited):
+                self.refuse(s, 'reservation_expired')
+
     def test_P2B07_changed_child_body_cannot_select_its_own_expected_hash(self):
         with tempfile.TemporaryDirectory() as root:
             s = AppliedSubject(root, route='kos_prerequisite', retain_receipt=False)
