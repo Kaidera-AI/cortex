@@ -2,6 +2,10 @@
 import os
 from pathlib import Path
 import stat
+import time
+import hashlib
+import re
+from cortex_core.runtime.signed_member import Refusal
 from .codec import relative_path
 from .inputs import FileObservation
 
@@ -13,6 +17,7 @@ class RootReader:
         self.fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
 
     def close(self):
+        self.aggregate_release()
         if self.fd is not None:
             os.close(self.fd)
             self.fd = None
@@ -29,6 +34,185 @@ class RootReader:
         except BaseException:
             os.close(fd)
             raise
+
+    @classmethod
+    def for_aggregate(cls, root, limit):
+        """Owner-internal root, kept lexical until the aggregate transaction.
+
+        Does not resolve/open a candidate or change the legacy reader semantics.
+        The production assembler is unbound before this reader is constructed.
+        """
+        reader=cls.__new__(cls)
+        reader.root=Path(root);reader._aggregate_root_spec=os.fspath(root)
+        reader.limit=limit;reader.fd=None;reader._aggregate_files={}
+        reader._aggregate_dirs={};reader._aggregate_links=[]
+        return reader
+
+    def aggregate_release(self):
+        for item in getattr(self,'_aggregate_files',{}).values():os.close(item[0])
+        for fd in getattr(self,'_aggregate_dirs',{}).values():os.close(fd)
+        self._aggregate_files={};self._aggregate_dirs={};self._aggregate_links=[]
+
+    @staticmethod
+    def _aggregate_path(path):
+        if (type(path) is not str or len(path.encode('utf-8'))>4096
+                or re.fullmatch(r'(?:members/[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*|runtime\.lock\.json)',path) is None
+                or any(p in ('.','..') for p in path.split('/'))):
+            raise Refusal('member_path_alias')
+        return path
+
+    @staticmethod
+    def _aggregate_identity(info):
+        return (info.st_dev,info.st_ino,info.st_mode,info.st_nlink,info.st_size,info.st_mtime_ns,info.st_ctime_ns)
+
+    @staticmethod
+    def _aggregate_regular(info):
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1:raise Refusal('member_path_alias')
+
+    def _aggregate_device(self,info):
+        if info.st_dev!=self._aggregate_dev:raise Refusal('member_path_alias')
+
+    @staticmethod
+    def _aggregate_exact_name(fd,name):
+        if name not in {entry.name for entry in os.scandir(fd)}:
+            try:os.stat(name,dir_fd=fd,follow_symlinks=False)
+            except FileNotFoundError:
+                raise Refusal('required_binding_gap') from None
+            raise Refusal('member_path_alias')
+
+    def _aggregate_directory(self,parent,name,key):
+        self._aggregate_exact_name(parent,name)
+        before=os.stat(name,dir_fd=parent,follow_symlinks=False)
+        if key.startswith('relative:'):self._aggregate_device(before)
+        fd=os.open(name,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW,dir_fd=parent)
+        self._aggregate_dirs[key]=fd
+        self._aggregate_links.append((parent,name,fd,before.st_dev,before.st_ino))
+        return fd
+
+    def _aggregate_time(self):
+        if time.monotonic()>self._aggregate_deadline:raise Refusal('raw_limit')
+
+    def aggregate_begin(self, rows, limits, *, overhead_bytes=0):
+        """Hold every named original and ancestor; no body is admitted here."""
+        self.close()
+        try:
+            spec=getattr(self,'_aggregate_root_spec',None)
+            if (type(spec) is not str or not spec.startswith('/') or '\\' in spec
+                    or any(p in ('','.','..') for p in spec.split('/')[1:])):
+                raise Refusal('member_path_alias')
+            paths=[self._aggregate_path(row['path']) for row in rows]
+            if len(paths)>limits['member_count']:raise Refusal('raw_limit')
+            if len(set(paths))!=len(paths):raise Refusal('aggregate_shape')
+            self._aggregate_limits=limits;self._aggregate_deadline=time.monotonic()+limits['read_seconds']
+            self._aggregate_expected=set(paths);self._aggregate_total=overhead_bytes
+            parent=os.open('/',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+            self._aggregate_dirs['/']=parent
+            key=''
+            for part in spec.split('/')[1:]:
+                self._aggregate_time();key+='/'+part;parent=self._aggregate_directory(parent,part,key)
+            self.fd=os.dup(parent)
+            self._aggregate_dev=os.fstat(self.fd).st_dev
+            for row in rows:
+                self._aggregate_time();parts=row['path'].split('/');directory=parent;prefix=''
+                for part in parts[:-1]:
+                    prefix+=part+'/'
+                    directory=self._aggregate_dirs.get('relative:'+prefix) or self._aggregate_directory(directory,part,'relative:'+prefix)
+                name=parts[-1];self._aggregate_exact_name(directory,name)
+                before=os.stat(name,dir_fd=directory,follow_symlinks=False)
+                self._aggregate_regular(before)
+                self._aggregate_device(before)
+                bound=limits[{'image':'image_bytes','record':'record_bytes','runtime-lock':'lock_bytes'}[row['kind']]]
+                if before.st_size>bound:raise Refusal('raw_limit')
+                self._aggregate_total+=before.st_size
+                if self._aggregate_total>limits['aggregate_bytes']:raise Refusal('raw_limit')
+                fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=directory)
+                self._aggregate_files[row['path']]=(fd,directory,name,before,bound,None)
+            self._aggregate_inventory()
+            self._aggregate_check()
+        except BaseException as exc:
+            self.close()
+            if isinstance(exc,Refusal):raise
+            if isinstance(exc,FileNotFoundError):raise Refusal('required_binding_gap') from None
+            if isinstance(exc,OSError):raise Refusal('member_path_alias') from None
+            raise
+
+    def _aggregate_inventory(self):
+        expected=self._aggregate_expected
+        prefixes={p[:i] for p in expected for i,char in enumerate(p) if char=='/'}
+        def visit(fd,prefix):
+            for entry in os.scandir(fd):
+                self._aggregate_time()
+                path=prefix+entry.name
+                info=entry.stat(follow_symlinks=False)
+                self._aggregate_path(path+'/placeholder' if stat.S_ISDIR(info.st_mode) else path)
+                if stat.S_ISDIR(info.st_mode):
+                    if path not in prefixes:raise Refusal('aggregate_pair_mismatch')
+                    child=self._aggregate_dirs['relative:'+path+'/']
+                    visit(child,path+'/')
+                else:
+                    self._aggregate_regular(info)
+                    if path not in expected:raise Refusal('aggregate_pair_mismatch')
+        visit(self.fd,'')
+
+    def _aggregate_check(self,path=None):
+        self._aggregate_time()
+        try:
+            for parent,name,fd,dev,ino in self._aggregate_links:
+                self._aggregate_time()
+                named=os.stat(name,dir_fd=parent,follow_symlinks=False);held=os.fstat(fd)
+                if (not stat.S_ISDIR(named.st_mode) or (named.st_dev,named.st_ino)!=(dev,ino)
+                        or (held.st_dev,held.st_ino)!=(dev,ino)):raise Refusal('member_custody_changed')
+                self._aggregate_exact_name(parent,name)
+            subjects=self._aggregate_files.values() if path is None else (self._aggregate_files[path],)
+            for fd,parent,name,before,bound,digest in subjects:
+                self._aggregate_time()
+                named=os.stat(name,dir_fd=parent,follow_symlinks=False);held=os.fstat(fd)
+                if (self._aggregate_identity(named)!=self._aggregate_identity(before)
+                        or self._aggregate_identity(held)!=self._aggregate_identity(before)):
+                    raise Refusal('member_custody_changed')
+        except OSError:raise Refusal('member_custody_changed') from None
+        self._aggregate_time()
+
+    def aggregate_bytes(self,path):
+        self._aggregate_path(path)
+        if path not in self._aggregate_files:raise Refusal('member_not_in_aggregate')
+        self._aggregate_check(path)
+        fd,parent,name,before,bound,old_digest=self._aggregate_files[path]
+        os.lseek(fd,0,os.SEEK_SET);chunks=[];size=0;digest=hashlib.sha256()
+        while True:
+            self._aggregate_time()
+            raw=os.read(fd,min(65536,bound+1-size))
+            if not raw:break
+            size+=len(raw)
+            if size>bound:raise Refusal('raw_limit')
+            chunks.append(raw);digest.update(raw)
+        self._aggregate_check(path)
+        if size!=before.st_size:raise Refusal('member_custody_changed')
+        observed=digest.hexdigest()
+        if old_digest is not None and observed!=old_digest:raise Refusal('member_custody_changed')
+        self._aggregate_files[path]=(fd,parent,name,before,bound,observed)
+        return b''.join(chunks)
+
+    def aggregate_finish(self):
+        """Rehash original held bodies and named closure before returning bytes."""
+        self._aggregate_check();self._aggregate_inventory()
+        for path in self._aggregate_files:self.aggregate_bytes(path)
+        self._aggregate_inventory_finish()
+
+    def _aggregate_inventory_finish(self):
+        """Close the same held namespace after EOF or final owner reload."""
+        # Observe only this admitted root/relative namespace, not unrelated
+        # changes in absolute ancestor directories outside the original graph.
+        directories=[self.fd]+[fd for key,fd in self._aggregate_dirs.items() if key.startswith('relative:')]
+        before={}
+        for fd in directories:
+            self._aggregate_time();before[fd]=self._aggregate_identity(os.fstat(fd))
+        self._aggregate_inventory()
+        self._aggregate_check()
+        for fd,identity in before.items():
+            self._aggregate_time()
+            if self._aggregate_identity(os.fstat(fd))!=identity:raise Refusal('member_custody_changed')
+        self._aggregate_time()
 
     def __call__(self, path):
         fd, name = self._parent(path)

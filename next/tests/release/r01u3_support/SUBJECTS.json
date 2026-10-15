@@ -1,0 +1,24 @@
+{
+  "classification": "INERT_SCHEMA_SHAPE_ONLY_UNBOUND",
+  "manifest_sha256": "94673fb4792840b6e3d278f0655dfa7fbaa6878ffc0569ee36c908eb3a744326",
+  "aggregate_id": "sha256:94673fb4792840b6e3d278f0655dfa7fbaa6878ffc0569ee36c908eb3a744326",
+  "expected_trusted_comment": "cortex.release-aggregate.v1|purpose=cortex/core-api/test|release=v0.1.020-fixture|sequence=1|sha256=94673fb4792840b6e3d278f0655dfa7fbaa6878ffc0569ee36c908eb3a744326|source=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "signature": "NOT_PRESENT_NOT_GENERATED",
+  "root_material": "NOT_READ_NOT_GENERATED",
+  "physical_members": "NOT_PRESENT; declared lengths/hashes are deliberately non-authoritative shape data",
+  "actual_native_qualified": false,
+  "actual_effect_authority": false,
+  "policy_note": "Root ID/hash repeat existing public policy metadata only; length and owner receipts are fiction and cannot load a production root.",
+  "semantic_future_refusals": [
+    "unsorted_or_duplicate_paths",
+    "mismatched_release_compatibility",
+    "sequence_below_floor",
+    "expired_policy",
+    "wrong_member_hash_subject",
+    "descriptor_abi_swap",
+    "missing_actual_receipts",
+    "path_physical_alias",
+    "caller_identity_equality_object"
+  ],
+  "signature_cases_state": "NOT_RUN_UNBOUND_UNTIL_U3_B_TEST_MATERIAL_GO"
+}

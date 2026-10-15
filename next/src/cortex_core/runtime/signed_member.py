@@ -11,7 +11,10 @@ from collections.abc import Callable
 from typing import NoReturn, Protocol
 from weakref import WeakKeyDictionary
 
-from cortex_core.release.codec import sha256
+def sha256(raw):
+    # Keep the sole codec/hash path lazy until actual delivered bytes need it.
+    from cortex_core.release.codec import sha256 as digest
+    return digest(raw)
 
 MISSING_UNIT = 'R01 unit 3: signed Core/API aggregate and member admission'
 MAX_MEMBER_BYTES = 262144
@@ -37,8 +40,9 @@ class _AuthorityDelivery(Protocol):
 
 
 def _unbound(aggregate_id: str, member_name: str) -> NoReturn:
-    # Must precede even input inspection: production has no authority to read.
-    raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+    # Fixed lazy R01 composition; its default gap still precedes input handling.
+    from cortex_core.release.member_admission import request_original_member
+    return request_original_member(aggregate_id, member_name)
 
 
 _original_authority: Callable[[str, str], _AuthorityDelivery] = _unbound

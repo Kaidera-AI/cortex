@@ -1,0 +1,232 @@
+{
+  "expected_aggregate_sha256": "94673fb4792840b6e3d278f0655dfa7fbaa6878ffc0569ee36c908eb3a744326",
+  "expected_members": [
+    {
+      "build_input_sha256": "e18a3d34f6bd50ccff05387b522907b1647034c53c286ad2913751e005a06e95",
+      "build_receipt_sha256": "e9a24d7f2555f3b838d7e9d050af5893b71528e3090c682ed7be6a94889e51fb",
+      "bytes": 100,
+      "kind": "image",
+      "media_type": "application/x-tar",
+      "module_id": "fixture-api",
+      "module_version": "0.1.020-fixture",
+      "oci_manifest_sha256": "29037f544787ffc1786c7e1d4855dd2511f328bccf96f79127432c709bc25121",
+      "path": "members/api-linux-amd64.oci.tar",
+      "role": "api-image",
+      "sha256": "d3f8eba66af12dfc6290ff0398777b38b380a5e651bfcfbe325b136890b1caa4",
+      "target": "linux/amd64"
+    },
+    {
+      "build_input_sha256": "3e74a5730bb36d7baf1ecca145f8d4a7760ff7e03e2543398792e864caabd169",
+      "build_receipt_sha256": "01b20d74eddc10f4556a068c63c439f70ad3ac11a36bb73dbb82418b5b5ba0b6",
+      "bytes": 100,
+      "kind": "image",
+      "media_type": "application/x-tar",
+      "module_id": "fixture-api",
+      "module_version": "0.1.020-fixture",
+      "oci_manifest_sha256": "82a3316e5d27bffadf9b1d3f35bb8d5d3e12cbe3332f79d4c643d4a3354c8ab5",
+      "path": "members/api-linux-arm64.oci.tar",
+      "role": "api-image",
+      "sha256": "43d935eb8395a6ea47bb419d38ec996afcb87970f1d8e176c4eef3d28269ebbe",
+      "target": "linux/arm64"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/build-input.json",
+      "role": "build-input",
+      "sha256": "b2ee798d46045eaa04afdb5a1a30fd63e2739a8bcb90ebc0292cbcc8748069a2"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/build-receipt.json",
+      "role": "build-receipt",
+      "sha256": "09ab1b9c06fdec71e2252e820bf1e3c5f0ae123c5769f32e328f4cb2fd06e345"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/compatibility.json",
+      "role": "compatibility",
+      "sha256": "6e77393bef15222176fddc58b518700b6932e8b957b16859cb046f2bc9b86cb3"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/config-schema.json",
+      "role": "config-schema",
+      "sha256": "440dcdf6f2ab3c5c24a8406ed710e84357666ff429b372aaaa3adc134221d94f"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/descriptor.json",
+      "role": "descriptor",
+      "sha256": "df3581c5a32da4b8d084524b181ea01fcd2f65b3503d530cf7232445afd1e434"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/events.json",
+      "role": "events",
+      "sha256": "d04602c76b695ed6dd080ba5ecef89006c7851df5331fa092d6ef964cc8d1ff4"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/evidence.json",
+      "role": "evidence",
+      "sha256": "12a84aa84283ab11dba9f616ef71a06bc4df892a61f987989238ee45f80a7773"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/lock-schema.json",
+      "role": "lock-schema",
+      "sha256": "651dd33e35dc145fcaca6e35f81129c991d268fabc5023508dade4f992a120fd"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/migrations.json",
+      "role": "migrations",
+      "sha256": "2be688638c34cf1eabe2c9e532973e4ec653505c0d30b75d6c64ee005087ffc7"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/operations.json",
+      "role": "operations",
+      "sha256": "7da3632b3bd614b1b8c786bae87c12c048a1dbccf7b81cfab5b82cd5b74bd3fe"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/provenance.json",
+      "role": "provenance",
+      "sha256": "879fcf38f8e1c161c15cea4463ca6530ad4c042059efd01998ddddc0721c3180"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/sbom.json",
+      "role": "sbom",
+      "sha256": "716036c5215fa8f8056e3533190eb4df8129fdd06bc1a011360908888e63a218"
+    },
+    {
+      "bytes": 100,
+      "kind": "record",
+      "media_type": "application/json",
+      "path": "members/contracts/schema.json",
+      "role": "schema",
+      "sha256": "6c9908b3d82cc2d2b1a64ef2bffa50a8e2729da4c4367d2313707b0dd669a2b9"
+    },
+    {
+      "build_input_sha256": "b2df22feb7095aacf031e0f1acf276f87c5b137c155639faa55d89c416897a85",
+      "build_receipt_sha256": "aa0c29c9bbf113609d516dcfc14025d6e91ce2431ea8c0d259605aec218b133c",
+      "bytes": 100,
+      "kind": "image",
+      "media_type": "application/x-tar",
+      "module_id": "fixture-core",
+      "module_version": "0.1.020-fixture",
+      "oci_manifest_sha256": "0f516924ad01f4029e4c65f73956fb64f1fc944f61003ef6208e3f9b56e5bfeb",
+      "path": "members/core-linux-amd64.oci.tar",
+      "role": "core-image",
+      "sha256": "f01b33a8dfac955556316acbe0b9bff96366ca0002e3be7f13ba98876826efe4",
+      "target": "linux/amd64"
+    },
+    {
+      "build_input_sha256": "6f41a6ff1627bf9cfc369b33b502c32c843bcacc2838f493f0fe14789b56a60f",
+      "build_receipt_sha256": "4c837a2a0f3020a4f95fda66fb9c47466722559144c0693aeb83102d52802fe9",
+      "bytes": 100,
+      "kind": "image",
+      "media_type": "application/x-tar",
+      "module_id": "fixture-core",
+      "module_version": "0.1.020-fixture",
+      "oci_manifest_sha256": "2bac948f86f84d03c5c54bec271bf511245787ad462ffd57cc7beb37bf174dba",
+      "path": "members/core-linux-arm64.oci.tar",
+      "role": "core-image",
+      "sha256": "242efdcbe2d2882153153a04cb8593d1593e8a76a2b5eceeace286494d9fa2e2",
+      "target": "linux/arm64"
+    },
+    {
+      "bytes": 100,
+      "kind": "runtime-lock",
+      "media_type": "application/json",
+      "path": "runtime.lock.json",
+      "role": "runtime-lock",
+      "sha256": "7c12a93ec63cf8b723d7d93afc4815bab749b9889f1ff3a5f1fc13bec8003671"
+    }
+  ],
+  "format_version": 1,
+  "installed_baseline": {
+    "fence": 1,
+    "policy_generation": 1,
+    "receipt_sha256": "8e5e746ae2a16e9b7f8f1192fee2094c44a8172d2f9e6b3bed826ad9776a8a2e",
+    "release_id": "v0.1.019-fixture"
+  },
+  "limits": {
+    "aggregate_bytes": 17179869184,
+    "depth": 32,
+    "image_bytes": 4294967296,
+    "lock_bytes": 262144,
+    "manifest_bytes": 1048576,
+    "member_count": 10000,
+    "read_seconds": 120,
+    "record_bytes": 8388608,
+    "signature_bytes": 4096
+  },
+  "owner_binding": {
+    "code_closure_sha256": "335b194adf99df5c219fd90932bdea85b27ac5d3e473bf023f0c67594976ed92",
+    "installation_id": "00000000-0000-4000-8000-000000000001",
+    "operation_id": "00000000-0000-4000-8000-000000000002",
+    "owner_receipt_sha256": "f6950244a3a83f6942ee19da138ab6ee5795d91793304663c72a800ca5f48463",
+    "policy_generation": 1,
+    "root_store_sha256": "039927039f963b15a9be0d67100f4245e9dc735f87a1295bc57433165c1e79e4",
+    "transport_receipt_sha256": "bc5eea0e24880b4392f2bde7f49c94badc34a389141eadcbbf1565ed8f2b63a8",
+    "verified_image_receipt_sha256": "a83ab1d860fbf9216347195ffa33415e79c75372f861ac0001e3513f3ec6101b"
+  },
+  "purpose": "cortex/core-api/test",
+  "release": {
+    "api_contract": "fixture-api-v1",
+    "api_module_version": "0.1.020-fixture",
+    "core_module_version": "0.1.020-fixture",
+    "event_version": 1,
+    "release_id": "v0.1.020-fixture",
+    "schema_version": 1
+  },
+  "root": {
+    "allowed_purposes": [
+      "cortex/core-api/test"
+    ],
+    "key_id": "7BBB4B7E0CE8852E",
+    "key_material_sha256": "cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef",
+    "key_use_permission": "cortex-core-api-release",
+    "public_key_bytes": 100,
+    "public_key_ref": "owner-release-public-key",
+    "signature_algorithm": "ED"
+  },
+  "schema": "cortex.aggregate-policy.v1",
+  "sequence_floor": 1,
+  "source": {
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "validity": {
+    "expires_at": 2000,
+    "maximum_release_age_seconds": 86400,
+    "not_before": 1000
+  }
+}
