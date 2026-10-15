@@ -540,8 +540,8 @@ class InventoryRepairOracle(Subject, unittest.TestCase):
         checked=self.checked(self.ROOT,self.current())
         self.assertTrue(checked['ok'],checked)
         self.assertTrue(set(self.MIXED)<=set(checked['run']),'mixed files still hide 32 offline methods')
-        rows=checked.get('method_exclusions',[])
-        self.assertEqual(len(rows),3,'only the three actually unavailable nodes may be removed')
+        rows=[row for row in checked.get('method_exclusions',[]) if row['nodeid'].split('::')[0] in self.MIXED]
+        self.assertEqual(len(rows),3,'only the three actually unavailable mixed-file nodes may be removed')
 
     def test_all_four_replacements_have_deciding_product_mutations(self):
         checked=self.checked(self.ROOT,self.current())
@@ -673,6 +673,82 @@ class SemanticOutcomeOracle(Subject,unittest.TestCase):
             changed=copy.deepcopy(packet);changed['reports'][1]['outcome']=value;variants.append(changed)
         changed=copy.deepcopy(packet);changed['reports'][1]['assertion']=False;variants.append(changed)
         for changed in variants:self.assertFalse(subject.proof_killed(changed,1,node,path,sha))
+
+
+class ConsolidationOracle(Subject, unittest.TestCase):
+    ROOT = SCRIPT.parents[2]
+    MAIN = '66cba6a1f8a2a3787844e168ab5415cb96738a0d'
+
+    def test_initial_main_without_manifest_uses_exact_prior_policy(self):
+        try:actual=self.gate.base_manifest_at(self.ROOT,self.MAIN)
+        except ValueError as error:self.fail('named bootstrap main refused: '+str(error))
+        expected=json.loads(subprocess.check_output(['git','show',InventoryRepairOracle.BASE+':.github/next-offline-suites.json'],cwd=self.ROOT))
+        self.assertEqual(actual,expected)
+
+    def test_unknown_or_invalid_base_never_bootstraps(self):
+        for ref in ('0'*40,'../main','main'):
+            with self.subTest(ref=ref),self.assertRaises(ValueError):self.gate.base_manifest_at(self.ROOT,ref)
+
+    def test_current_main_files_have_no_inventory_holes(self):
+        gate=self.gate
+        checked=gate.inventory(self.ROOT,json.loads((self.ROOT/'.github/next-offline-suites.json').read_text()))
+        self.assertTrue(checked['ok'],checked)
+        self.assertIn('next/docs/runtime/rc0/test_oracle.py',checked['run'])
+        for prefix in ('runtime/','runtime_driver_free/','runtime_egress/','runtime_factory/','runtime_identity/','runtime_keyword/','driver_privacy/'):
+            found={str(p.relative_to(self.ROOT)) for p in (self.ROOT/'next/tests'/prefix).glob('test_*.py')}
+            self.assertTrue(found)
+            self.assertTrue(found<=set(checked['run']),(prefix,found-set(checked['run'])))
+
+    def test_absorbed_p1_is_all_47_actual_methods(self):
+        gate=self.gate;manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        nodes=[]
+        for file in sorted((self.ROOT/'next/tests/install').glob('test_*.py')):
+            path=str(file.relative_to(self.ROOT));self.assertIn(path,manifest['run'])
+            nodes.extend(gate.named_nodes(path,ast.parse(file.read_text())))
+        self.assertEqual(len(nodes),47);self.assertEqual(len(set(nodes)),47)
+        self.assertFalse(any(row['nodeid'] in nodes for row in manifest['method_exclusions']))
+        self.assertNotIn('  p1-install-oracle:',(self.ROOT/'.github/workflows/ci.yml').read_text())
+
+    def test_dual_python_uses_shared_hashed_test_tools(self):
+        workflow=(self.ROOT/'.github/workflows/next-offline.yml').read_text()
+        self.assertIn("python: ['3.13.7', '3.14.0']",workflow)
+        self.assertIn('next/requirements-ci-test.lock',workflow)
+        self.assertIn('next-offline-receipts-${{ matrix.python }}',workflow)
+        self.assertIn('--require-hashes',workflow)
+        extra=(self.ROOT/'.github/next-offline-requirements.lock').read_text()
+        for package in ('pytest','iniconfig','packaging','pluggy','pygments'):
+            self.assertFalse(any(line.startswith(package+'==') for line in extra.splitlines()),package)
+        self.assertIn('numpy==2.3.4',extra);self.assertIn('psycopg==3.2.9',extra)
+
+    def test_mixed_postgres_class_does_not_hide_plain_class(self):
+        root,manifest,base=FixtureEvidenceOracle.fixture(self,'from pg_fixture import PgFixture\nclass PgTests(PgFixture):\n def test_body(self): assert self.db\nclass Plain:\n def test_offline(self): assert True\n')
+        row=manifest['excluded'][0];evidence=row['evidence'];path=row['path']
+        gate=self.gate
+        self.assertTrue(gate.fixture_evidence(root,path,evidence,path+'::PgTests::test_body'))
+        self.assertFalse(gate.fixture_evidence(root,path,evidence,path+'::Plain::test_offline'))
+        self.assertFalse(gate.fixture_evidence(root,path,evidence))
+
+    def test_probe_and_loopback_exclusions_are_exact_and_source_bound(self):
+        gate=self.gate;m=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        rows=[r for r in m['method_exclusions'] if '/c11_availability/' in r['nodeid']]
+        self.assertEqual(len(rows),4)
+        for row in rows:
+            path=row['nodeid'].split('::')[0]
+            self.assertTrue(gate.fixture_evidence(self.ROOT,path,row['evidence'],row['nodeid']),row)
+            wrong=copy.deepcopy(row['evidence']);wrong['sha256']='0'*64
+            self.assertFalse(gate.fixture_evidence(self.ROOT,path,wrong,row['nodeid']))
+        probe=next(r for r in rows if r['evidence']['kind']=='postgres_probe_fixture')
+        offline='next/tests/c11_availability/test_probe_bound.py::ProbeBoundTests::test_twenty_slow_callers_share_one_deadline_and_leave_no_thread'
+        wrong=copy.deepcopy(probe['evidence']);wrong['symbol']='ProbeBoundTests.test_twenty_slow_callers_share_one_deadline_and_leave_no_thread'
+        wrong['source']=offline.split('::')[0];wrong['sha256']=hashlib.sha256((self.ROOT/wrong['source']).read_bytes()).hexdigest()
+        self.assertFalse(gate.fixture_evidence(self.ROOT,wrong['source'],wrong,offline))
+
+    def test_unconditional_module_setup_delegation_requires_actual_connection(self):
+        root,manifest,base=FixtureEvidenceOracle.fixture(self,'import pg_fixture as pg\nclass Delegate:\n def setUp(self): pg.PgFixture.setUp(self)\nclass PgTests(Delegate):\n def test_body(self): assert self.db\n')
+        self.assertTrue(InventoryRepairOracle.checked(self,root,manifest,base)['ok'])
+        file=root/'next/tests/test_pg.py'
+        file.write_text(file.read_text().replace('pg.PgFixture.setUp(self)','unrelated.PgFixture.setUp(self)'))
+        self.assertFalse(InventoryRepairOracle.checked(self,root,manifest,base)['ok'])
 
 
 if __name__ == '__main__':
