@@ -19,7 +19,7 @@ or an exclusion without a one-line reason fails before test execution.
 The workflow supplies the independent PR base SHA and checks out its history.
 The standalone `--base-ref` default is the accepted a47a152b checkpoint.
 The exact initial main `66cba6a1f8a2a3787844e168ab5415cb96738a0d` predates
-this manifest. Only for that existing, exact commit with the file absent, the
+this manifest. The named main bases `5627f7fb` and `abfc68ea` are also accepted bootstrap commits. Only for those existing, exact commits with the file absent, the
 comparison uses the pinned a47a152b policy; `base_ref` and `policy_base_ref` both
 appear in the receipt. Unknown/missing commits, malformed manifests, and any
 other base without an inventory refuse. Once this PR lands, the normal PR base
@@ -27,7 +27,7 @@ manifest supplies the comparison. The manifest cannot supply its own approval. E
 `transitions` receipt and fails unless its exclusion has checkable fixture proof.
 The RC0 oracle at `next/docs/runtime/rc0/test_oracle.py` is covered by this rule
 and now runs alongside every current runtime/identity/factory/keyword/driver-free
-and driver-privacy source suite. U3-only files absent from main are not added.
+and driver-privacy source suite. The 21 U3 release files now on main remain explicit whole-file unavailable entries: `U3 Linux portability open; owner ren-kos`. They receive zero PASS credit and are tracked in the stacked U3 draft PR. Kai ruling `263722e5` pins those exact path/reason rows in immutable policy commit `58031a28534aa1a36d20097bb0057dfc29ba383c`. All other new/changed exclusions still require fixture proof.
 
 To add a suite, review its fixture effects and add the file to `run`. A new or
 changed whole-file exclusion must include `{kind, source, sha256, symbol}`

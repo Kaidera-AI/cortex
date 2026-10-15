@@ -25,6 +25,8 @@ BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
                    'abfc68eab20ae486243ee8886f6314d962f22885')
 # Kai ruling359622c6: immutable five-row policy, retained in this branch's history.
 UNBUILT_POLICY = '741c43e41f46ba2e818d3bde8581fff9b27abc9c'
+# Kai ruling263722e5: exact U3 whole-file rows; no PASS credit.
+UNAVAILABLE_POLICY = '58031a28534aa1a36d20097bb0057dfc29ba383c'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
                                             Path(__file__).with_name('pytest_u13_worker.py'))
 U13 = importlib.util.module_from_spec(SPEC)
@@ -369,6 +371,8 @@ def inventory(root, manifest, base_manifest=None):
                 transitions.append(dict(path=path,reason=row.get('reason'),evidence=row.get('evidence'),evidence_valid=valid))
                 if not valid:invalid.append('coverage: RUN->EXCLUDED lacks required fixture proof: '+path)
             accepted={row['path']:row for row in base['excluded']}
+            accepted.update({row['path']:row for row in base_manifest_at(ROOT,UNAVAILABLE_POLICY)['excluded']
+                if row['reason']=='U3 Linux portability open; owner ren-kos'})
             for row in excluded:
                 if row['path'] not in base['run'] and (row['path'] not in accepted or row['reason']!=accepted[row['path']]['reason']):
                     if not fixture_evidence(root,row['path'],row.get('evidence')):
