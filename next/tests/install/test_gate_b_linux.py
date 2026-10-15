@@ -359,6 +359,9 @@ class LinuxObserverOracle(unittest.TestCase):
     def test_literal_peer_before_custody(self):
         self.check_case('peer_before_custody')
 
+    def test_literal_peer_before_state_unavailable(self):
+        self.check_case('peer_before_state_unavailable')
+
     def test_literal_linux_target(self):
         self.check_case('linux_target')
 
