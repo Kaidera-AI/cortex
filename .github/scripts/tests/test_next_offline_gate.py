@@ -1,5 +1,7 @@
 """Frozen desired inventory/outcome contract, written before the runner."""
 import copy
+import os
+import sys
 import hashlib
 import importlib.util
 import inspect
@@ -749,6 +751,99 @@ class ConsolidationOracle(Subject, unittest.TestCase):
         file=root/'next/tests/test_pg.py'
         file.write_text(file.read_text().replace('pg.PgFixture.setUp(self)','unrelated.PgFixture.setUp(self)'))
         self.assertFalse(InventoryRepairOracle.checked(self,root,manifest,base)['ok'])
+
+
+class UnbuiltUnitOracle(Subject, unittest.TestCase):
+    ROOT=SCRIPT.parents[2]
+    NODE='next/tests/test_future.py::test_future'
+    LIVE='next/tests/test_future.py::test_live'
+
+    def declaration(self):
+        return {'nodeid':self.NODE,'reason':'E1 not built; waits RC3b; owner nemo',
+            'evidence':{'kind':'unbuilt_unit','source':'next/tests/test_future.py','sha256':'a'*64,'symbol':'test_future'}}
+
+    def packet(self,live=True):
+        row=self.declaration();nodes=[self.NODE]+([self.LIVE] if live else [])
+        p={'expected':nodes,'selected':nodes,'collected':nodes,'deselected':[],
+           'pytest_exit':1,'gate_exit':0,'retired':[],'excluded_methods':[row],
+           'reports':[{'nodeid':n,'when':w,'outcome':'failed' if n==self.NODE and w=='call' else 'passed',
+             'wasxfail':False,'assertion':n==self.NODE and w=='call',
+             'exception_type':'test_future.SurfaceAbsent' if n==self.NODE and w=='call' else ''}
+              for n in nodes for w in ('setup','call','teardown')]}
+        helper=getattr(self.gate,'declaration_observations',None)
+        self.assertTrue(callable(helper),'shared executed-unavailable witness absent')
+        p['declared_unavailable']=helper(p,[row])
+        return p
+
+    def admitted(self,p):return self.gate.receipt_valid(p,0,excluded=[self.declaration()])
+
+    def test_expected_body_failure_executes_but_gets_no_pass_credit(self):
+        p=self.packet();self.assertTrue(self.admitted(p));w=p['declared_unavailable'][0]
+        self.assertTrue(w['executed']);self.assertTrue(w['valid']);self.assertEqual(w['pass_credit'],0)
+        self.assertIn(self.NODE,p['selected']);self.assertEqual(p['reports'][1]['outcome'],'failed')
+
+    def test_all_declared_suite_is_valid_without_fake_live_pass(self):
+        p=self.packet(live=False);self.assertTrue(self.admitted(p));self.assertFalse(any(r['outcome']=='passed' and r['when']=='call' for r in p['reports']))
+
+    def test_now_passing_declaration_is_red_and_still_zero_credit(self):
+        p=self.packet();p['reports'][1].update(outcome='passed',assertion=False,exception_type='');p['pytest_exit']=0
+        p['declared_unavailable']=self.gate.declaration_observations(p,[self.declaration()])
+        self.assertFalse(self.admitted(p));self.assertEqual(p['declared_unavailable'][0]['pass_credit'],0)
+
+    def test_wrong_exception_phase_skip_or_deselection_is_red(self):
+        original=self.packet()
+        for kind in ('setup','teardown','skip','wrong_type','missing','duplicate','deselected','witness'):
+            p=copy.deepcopy(original)
+            if kind in ('setup','teardown'):p['reports'][0 if kind=='setup' else 2]['outcome']='failed'
+            elif kind=='skip':p['reports'][1]['outcome']='skipped'
+            elif kind=='wrong_type':p['reports'][1]['exception_type']='builtins.AssertionError'
+            elif kind=='missing':p['reports'].pop(1)
+            elif kind=='duplicate':p['reports'].append(p['reports'][1])
+            elif kind=='deselected':p['deselected']=[self.NODE]
+            p['declared_unavailable']=self.gate.declaration_observations(p,[self.declaration()])
+            if kind=='witness':p['declared_unavailable'][0]['pass_credit']=1
+            self.assertFalse(self.admitted(p),kind)
+
+    def test_ordinary_c06_style_failure_is_not_waived(self):
+        p=self.packet();p['reports'][4].update(outcome='failed',assertion=True,exception_type='builtins.AssertionError')
+        self.assertFalse(self.admitted(p))
+
+    def test_only_five_ruling_rows_are_approved_and_removal_is_allowed(self):
+        g=self.gate;m=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        rows=[x for x in m['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit']
+        self.assertEqual(len(rows),5)
+        self.assertTrue(all(x['reason']=='E1 not built; waits RC3b; owner nemo' for x in rows))
+        self.assertTrue(g.inventory(self.ROOT,m)['ok'])
+        changed=copy.deepcopy(m);next(x for x in changed['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit')['reason']='forged'
+        self.assertFalse(g.inventory(self.ROOT,changed)['ok'])
+        changed=copy.deepcopy(m);changed['method_exclusions']=[x for x in changed['method_exclusions'] if x not in rows]
+        self.assertTrue(g.inventory(self.ROOT,changed)['ok'],'E1 landing must be able to remove declarations')
+
+    def test_real_worker_now_passing_declared_node_fails_gate(self):
+        temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup);root=Path(temp.name)
+        scripts=root/'.github/scripts';scripts.mkdir(parents=True)
+        for name in ('pytest_next_offline.py','pytest_next_worker.py','pytest_u13_worker.py'):
+            shutil.copyfile(SCRIPT.parent/name,scripts/name)
+        suite=root/'next/tests/test_future.py';suite.parent.mkdir(parents=True)
+        row=self.declaration();row['nodeid']='next/tests/test_future.py::test_future'
+        results=[]
+        for label,body in [('unbuilt',"raise SurfaceAbsent('not built')"),('now-passing','pass')]:
+            suite.write_text('class SurfaceAbsent(AssertionError): pass\ndef test_future(): '+body+'\n')
+            output=root/(label+'.json')
+            env={k:v for k,v in os.environ.items() if not any(x in k.upper() for x in ('TOKEN','SECRET','PASSWORD','DSN','API_KEY'))}
+            env.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',PYTEST_ADDOPTS='',PYTHONDONTWRITEBYTECODE='1')
+            proc=subprocess.run([sys.executable,'-B',str(scripts/'pytest_next_worker.py'),'--suite','next/tests/test_future.py',
+                '--output',str(output),'--temporary',str(root/(label+'-case')),'--excluded-json',json.dumps([row])],env=env,cwd=root,capture_output=True,text=True,timeout=30)
+            self.assertTrue(output.is_file(),proc.stdout+proc.stderr)
+            packet=json.loads(output.read_text());results.append((proc,packet))
+            destination=os.environ.get('CORTEX_NEXT_ORACLE_OUTPUT')
+            if destination:
+                target=Path(destination);target.mkdir(parents=True,exist_ok=True)
+                (target/(label+'.json')).write_text(json.dumps(packet,indent=2)+'\n');(target/(label+'.txt')).write_text(proc.stdout+proc.stderr)
+        proc,packet=results[0];self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr);self.assertEqual(packet['pytest_exit'],1)
+        proc,packet=results[1];self.assertEqual(proc.returncode,1,proc.stdout+proc.stderr);self.assertEqual(packet['pytest_exit'],0);self.assertEqual(packet['gate_exit'],1)
+        self.assertEqual(packet['declared_unavailable'][0]['pass_credit'],0);self.assertEqual(packet['deselected'],[])
+        self.assertEqual(packet['collected'],packet['selected']);self.assertTrue(packet['declared_unavailable'][0]['executed'])
 
 
 if __name__ == '__main__':
