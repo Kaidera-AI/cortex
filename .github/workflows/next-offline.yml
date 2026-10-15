@@ -23,13 +23,22 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - name: hashed API and offline-test dependencies
+      - name: hashed source-contract test dependencies
         run: |
           python -m venv "${{ runner.temp }}/next-offline-venv"
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             "${{ runner.temp }}/next-offline-venv/bin/python" -m pip install \
             --only-binary=:all: --require-hashes -r packages/api/requirements.lock \
-            -r next/requirements-ci-test.lock -r .github/next-offline-requirements.lock
+            -r next/requirements-ci-test.lock
+          # Source-contract tests retain U3's exact accepted provider version.
+          # Production API lock stays unchanged; all suites share this one venv.
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            "${{ runner.temp }}/next-offline-venv/bin/python" -m pip install \
+            --only-binary=:all: --require-hashes --no-deps -r .github/next-offline-requirements.lock
+          "${{ runner.temp }}/next-offline-venv/bin/python" -m pip check
+          mkdir -p "${{ runner.temp }}/next-offline-receipts"
+          "${{ runner.temp }}/next-offline-venv/bin/python" -m pip freeze --all \
+            > "${{ runner.temp }}/next-offline-receipts/dependencies.txt"
       - name: frozen inventory and outcome oracles
         env:
           CORTEX_NEXT_ORACLE_OUTPUT: ${{ runner.temp }}/next-offline-receipts/strictness-controls
@@ -37,10 +46,22 @@ jobs:
           "${{ runner.temp }}/next-offline-venv/bin/python" -B .github/scripts/tests/test_next_offline_gate.py
       - name: every admitted next suite without IP networking or native services
         run: |
+          # TEMPORARY tracker-only mapping for frozen author paths.
+          # Owner ren-kos must remove hardcoded paths; this is not a permanent fix.
+          fixture_root="${{ runner.temp }}/next-offline-u3-fixtures"
+          test ! -e "$fixture_root"
+          mkdir -m 700 "$fixture_root"
+          trap 'rm -rf -- "$fixture_root"; test ! -e "$fixture_root" && printf "U3_FIXTURE_ROOT_REMOVED\n" > "${{ runner.temp }}/next-offline-receipts/fixture-cleanup.txt"' EXIT
+          mkdir -m 700 -p "$fixture_root/kos/ren-kos-u3c-fixtures-20261014" \
+            "$fixture_root/kos/ren-kos-u3c-rework-fixtures-20261014" \
+            "$fixture_root/kos/ren-kos-u3d-fixtures-20261014" \
+            "$fixture_root/KOS/ren-kos-r01u3b-test-env-20261014"
           sudo systemd-run --wait --pipe --collect \
             -p User="$(id -un)" -p Group="$(id -gn)" \
             -p WorkingDirectory="$GITHUB_WORKSPACE" \
             -p PrivateNetwork=yes -p RestrictAddressFamilies=AF_UNIX -p NoNewPrivileges=yes \
+            -p TemporaryFileSystem=/Users:rw \
+            -p "BindPaths=$fixture_root:/Users/amadmalik/DevVault/helix/output" \
             -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             /usr/bin/env PATH="${{ runner.temp }}/next-offline-venv/bin:/usr/bin:/bin" \
             "${{ runner.temp }}/next-offline-venv/bin/python" -B \

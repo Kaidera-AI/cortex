@@ -2,8 +2,8 @@
 
 `next-offline.yml` runs Python 3.13.7 and 3.14.0 with the unchanged API dependency
 hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
-The supplemental offline lock retains only the existing numpy and psycopg fixture
-dependencies; it does not duplicate tool pins. Matrix failures do not cancel the
+This U3 tracking draft adds hash-locked Linux cryptography50.0.0 wheels to the existing supplemental lock; one venv installs the API/tool seed, then the exact U3 provider overlay and pip check. The production API lock is unchanged.
+The existing numpy and psycopg fixture dependencies remain; tool pins are not duplicated. Matrix failures do not cancel the
 other interpreter. The former `p1-install-oracle` job is absorbed here: all five
 install files and all 47 methods run once per interpreter through this same gate. All actions use full commit pins, the
 token has only `contents: read`, and checkout does not persist credentials.
@@ -27,7 +27,14 @@ manifest supplies the comparison. The manifest cannot supply its own approval. E
 `transitions` receipt and fails unless its exclusion has checkable fixture proof.
 The RC0 oracle at `next/docs/runtime/rc0/test_oracle.py` is covered by this rule
 and now runs alongside every current runtime/identity/factory/keyword/driver-free
-and driver-privacy source suite. The 21 U3 release files now on main remain explicit whole-file unavailable entries: `U3 Linux portability open; owner ren-kos`. They receive zero PASS credit and are tracked in the stacked U3 draft PR. Kai ruling `263722e5` pins those exact path/reason rows in immutable policy commit `58031a28534aa1a36d20097bb0057dfc29ba383c`. All other new/changed exclusions still require fixture proof.
+and driver-privacy source suite. The 21 U3 release files are RUN in this tracking draft, stacked on PR158. The
+base PR explicitly lists them unavailable with zero PASS credit under Kai's
+ruling263722e5. This draft restores their actual Linux execution so owner ren-kos
+can resolve portability failures, with Vera deciding semantics. The private
+`/Users` tmpfs / BindPaths mapping is TEMPORARY tracker-only accommodation for
+frozen author fixture paths; it must be removed when those paths are fixed.
+Expected live assertion failures and the180-second bridge timeout remain RED.
+
 
 To add a suite, review its fixture effects and add the file to `run`. A new or
 changed whole-file exclusion must include `{kind, source, sha256, symbol}`
