@@ -9,3 +9,12 @@
 - [ ] R2 LEDGER: explicit matrix zero-rights plans for five services/request_group/verifier_owner, including grant options; unexpected revocable grants removed, ownership remainder refused; PUBLIC closure retained.
 - [ ] R3 IMPORT: module/_originals/default owner refusal driver-free; missing psycopg typed at SQL boundary before connection access; transitive ImportError preserved.
 - [ ] R4 VERIFY: Hale witness BODY RED->GREEN both Pythons; original17+new tests and exact missing-driver43 pass; frozen25/24 paths and lifecycle/schema unchanged; no native qualification in this source-only row.
+
+
+# Recovery input gates
+G1 tests-first: Finn renewed recover scope_denied and renewed original reservation_invalidated are preserved as original-path controls; new requirement calls the existing measure with fresh authorized recovery and obtains a defined answer, BODY RED→GREEN each Python. CHECK: dual guarded receipts with explicit assertion/phase attribution.
+G2 authority: parent/operation/transaction/target/release/roots/caller/effect exact; epoch/session/nonce/fence/scope renewed, own deadline pinned and rechecked; stale/foreign/reused reject before snapshot. CHECK: new negative test nodes both Pythons.
+G3 answers: exact durable finite-owner APPLIED result byte-identical; authoritative NOT_APPLIED only from existing P1 truth plus original bytes; missing/NULL/drift UNKNOWN, no inference from absence. CHECK: P1 history + five-byte source recorder assertions, zero journal/SQL mutations.
+G4 regression/custody: original81 and all new GREEN plus exact MISSING_DRIVER43 on both; frozen24paths25methods/lifecycle/owner/schema unchanged; inherited TXN controls green. CHECK: final packets and source/origin hashes.
+G5 causality: exact new guard mutants BODY fail on each Python; same-node exact-restores pass; no errors/skips/effects. CHECK: control receipts.
+G6 publication: serial review, descendant normal feature push, fetched origin exact source, no PR; sealed return with contract in first12; work-product and same-row returned:true outside seal; END after one inbox read. CHECK: origin/seal/courier/inbox receipts.
