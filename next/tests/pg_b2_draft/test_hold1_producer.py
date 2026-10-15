@@ -80,6 +80,12 @@ class SQLSubject(interface.Subject):
             def execute(self, statement, parameters=None):
                 text=statement if isinstance(statement,str) else statement.as_string()
                 s.trace.append(('writer' if self.writer else 'reader',text))
+                if text.startswith('SELECT oid,datname,datdba'):
+                    self.calls.append((text,parameters));return hale.Rows([tuple(json.loads(s.view(self)['database'])['database'])])
+                if text.startswith('SELECT to_regclass'):
+                    self.calls.append((text,parameters));return hale.Rows([(json.loads(s.view(self)['database'])['bindings'] is not None,)])
+                if text.startswith('SELECT role_oid,role_name::text'):
+                    self.calls.append((text,parameters));return hale.Rows(json.loads(s.view(self)['database'])['bindings'] or [])
                 if text.startswith('SELECT pg_catalog.pg_current_xact_id()'):
                     self.calls.append((text,parameters));return hale.Rows([(s.xid,)])
                 if text.startswith('SELECT c.system_identifier'):
@@ -248,3 +254,126 @@ class Hold1Producer(unittest.TestCase):
                 effect=s.dispatch(schedule=1);effect=s.recover(effect)
                 s.private['sql_native']['writers_ended']=False;s.set_private()
                 with s.answer(effect) as answer:self.assertEqual(answer,('UNKNOWN',None),'HOLD1_ABSENCE_IS_NOT_ABORT')
+
+    def test_committed_writer_without_permanent_fence_is_UNKNOWN(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                effect=s.dispatch(schedule=5);effect=s.recover(effect)
+                s.private['sql_native']['writers_ended']=False;s.set_private()
+                with s.answer(effect) as answer:self.assertEqual(answer,('UNKNOWN',None),'HOLD1_LIVE_WRITER_MUST_HOLD')
+
+    def test_equal_shaped_transaction_swap_after_POSTIMAGE_cannot_COMMIT(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            def swap(s,stage):
+                if stage=='postimage':s.adapter._sql_transaction=(s.writer,SimpleNamespace(savepoint_name=None))
+            s.publication_observer=swap
+            with s.installed():
+                try:s.dispatch()
+                except owner.OwnerRefusal:pass
+            self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_TRANSACTION_IDENTITY_SWAP_COMMITTED')
+
+    def test_full_poststate_drift_including_replacement901_is_UNKNOWN(self):
+        for field in ('oid','acl','defaults','memberships','bindings','database','hba','carrier'):
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as root:
+                s=SQLSubject(root)
+                with s.installed():
+                    effect=s.dispatch(schedule=5);effect=s.recover(effect)
+                    if field=='oid':
+                        v=json.loads(s.live['role']);next(r for r in v['roles'] if r[1]==s.roles['probe'])[0]=901
+                        s.live['role']=canonical_bytes(v)
+                    elif field=='memberships':
+                        v=json.loads(s.live['role']);v['memberships']=[[1,2,3,False,False,True]];s.live['role']=canonical_bytes(v)
+                    elif field in ('acl','defaults'):
+                        v=json.loads(s.live['acl']);v['objects' if field=='acl' else 'defaults']=[[999]];s.live['acl']=canonical_bytes(v)
+                    elif field in ('bindings','database'):
+                        v=json.loads(s.live['database'])
+                        if field=='bindings':v['bindings']=[[999]]
+                        else:v['database'][2]+=1
+                        s.live['database']=canonical_bytes(v)
+                    else:s.live[field]+=b' drift'
+                    with s.answer(effect) as answer:self.assertEqual(answer,('UNKNOWN',None),'HOLD1_DRIFT_'+field)
+
+    def test_NULL_in_progress_prepared_or_unexpected_outcome_is_UNKNOWN(self):
+        for status in (None,'in progress','prepared','future-invalid','committed'):
+            with self.subTest(status=status),tempfile.TemporaryDirectory() as root:
+                s=SQLSubject(root)
+                with s.installed():
+                    effect=s.dispatch(schedule=2);effect=s.recover(effect);s.status=status
+                    with s.answer(effect) as answer:self.assertEqual(answer,('UNKNOWN',None),'HOLD1_STATUS_WITHOUT_PROOF')
+
+    def test_P1_only_rollback_requires_new_native_continuity(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                effect=s.dispatch(schedule=5);effect=s.recover(effect)
+                # A self-consistent old prefix is NOT sufficient absence evidence.
+                for path in (s.history.root/'events').iterdir():
+                    if int(path.stem)>1:path.unlink()
+                s.live=dict(s.before)
+                s.private['sql_native']['continuous_p1']=False;s.set_private()
+                with s.answer(effect) as answer:self.assertEqual(answer,('UNKNOWN',None),'HOLD1_P1_ROLLBACK_IS_NOT_ABSENCE')
+
+    def test_unproved_durability_refuses_before_effect(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root);s.private['sql_native']['durability_qualified']=False;s.set_private()
+            with s.installed():
+                with self.assertRaises(owner.OwnerRefusal):s.dispatch()
+            self.assertEqual(s.effect_count,0)
+
+    def test_failed_xid_fsync_ACK_causes_zero_effect(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                s.start();effect=s.effect_context()
+                with patch.object(p1.os,'fsync',side_effect=OSError('source injected fsync failure')):
+                    with self.assertRaises(owner.OwnerRefusal):s.primitive.dispatch(effect)
+            self.assertEqual(s.effect_count,0,'HOLD1_FSYNC_FAILURE_REACHED_EFFECT')
+            self.assertNotIn(('writer','COMMIT'),s.trace)
+
+    def test_lost_POSTIMAGE_ACK_rolls_back_without_COMMIT(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():s.dispatch(schedule=4)
+            self.assertEqual(s.effect_count,1)
+            self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_POSTIMAGE_ACK_FAILURE_COMMITTED')
+            self.assertEqual(s.live,s.before)
+
+    def test_mutation_after_POSTIMAGE_refuses_COMMIT(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            def drift(s,stage):
+                if stage=='postimage':s.writer_view['carrier']+=b' changed after seal'
+            s.publication_observer=drift
+            with s.installed():
+                with self.assertRaises(owner.OwnerRefusal):s.dispatch()
+            self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_POST_SEAL_MUTATION_COMMITTED')
+
+    def test_recovery_barrier_spans_terminal_ACK_and_replay_is_exact_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed(s.primitive):
+                effect=s.dispatch(schedule=5);s.recover(effect)
+                request=s.data['request_raw'].encode();original=p1._record_result;raws=[]
+                def publish(*args,**kwargs):
+                    self.assertEqual(s.reader.info.transaction_status,TransactionStatus.INTRANS,'HOLD1_READER_BARRIER_RELEASED_EARLY')
+                    raws.append(args[2]);return original(*args,**kwargs)
+                with patch.object(p1,'_record_result',side_effect=publish):first=p1.execute_effect(request)
+                event_count=len(s.history.events());effect_count=s.effect_count
+                s.status=None
+                with patch.object(p1,'_record_result',side_effect=publish):second=p1.execute_effect(request)
+                self.assertEqual(first,second);self.assertEqual(raws[0],raws[1])
+                self.assertEqual(len(s.history.events()),event_count)
+                self.assertEqual(s.effect_count,effect_count)
+                with self.assertRaises(owner.OwnerRefusal):s.primitive.dispatch(effect)
+                self.assertEqual(s.effect_count,effect_count,'HOLD1_OLD_WRITER_RESUMED_AFTER_TERMINAL')
+
+    def test_mandate_builder_admits_fixed_owner_before_SQL_snapshot(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            s.helper.edit_record(s.data,'consent_ref',lambda c:c.update(revoked=True))
+            s.writer.calls.clear();s.reader.calls.clear()
+            with s.installed():
+                with self.assertRaises(owner.OwnerRefusal):s.primitive._prime_sql()
+            self.assertEqual(s.writer.calls+s.reader.calls,[],'HOLD1_UNADMITTED_MANDATE_SQL_READ')
