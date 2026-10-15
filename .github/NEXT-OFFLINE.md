@@ -16,8 +16,8 @@ receipt for every partition. It emits the existing full-file aggregate receipt
 only after all four succeed. Individual receipts and timings remain in the
 artifact alongside that full-file receipt. A missing/duplicate partition, changed
 collection/source, skip, missing phase, or nonzero exit fails the gate. Suites with
-retired or unavailable nodes cannot be partitioned. RUN/exclusion policy and the
-151 logical-suite inventory remain unchanged.
+retired or unavailable nodes cannot be partitioned. Every logical suite remains explicitly classified in the manifest; the partition
+mechanism does not change RUN/exclusion policy.
 
 `next-offline.yml` runs Python 3.13.7 and 3.14.0 with the unchanged API dependency
 hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
@@ -30,6 +30,24 @@ The suite service uses a separate network namespace, denies IPv4/IPv6 socket
 creation, and verifies those kernel restrictions before running any tests.
 It has a 1 GiB memory ceiling, no swap, two CPUs, and no new privileges.
 Dependency installation occurs before the offline service starts.
+
+The complete environment uses all three existing hash locks in the workflow:
+`packages/api/requirements.lock` supplies `httpx` and `idna`,
+`next/requirements-ci-test.lock` supplies the test tools, and
+`.github/next-offline-requirements.lock` supplies numpy, psycopg and the exact U3
+cryptography overlay. A partial reused driver environment or a parent-only
+`sys.path` addition does not supply dependencies to reset/isolated child tests.
+The supplemental cryptography hashes target Linux; a macOS diagnostic requires a
+separately recorded native-wheel hash and does not qualify the Linux isolation
+gate. Keep the tracked CI locks and kernel restriction checks unchanged.
+
+The composed Gate B addition classifies 23 source suites as RUN and declares ten
+real-PostgreSQL suites with the required owned-fixture evidence. The existing
+conservative fixture reader currently rejects those ten declarations because
+`from support import Fixture` has two source-path candidates. Their reasons do
+not grant PASS credit or authorize native execution. The inventory remains RED
+until that ambiguity is resolved through the offline-gate owner's separately
+reviewed runner scope; merely listing the files does not accept an exclusion.
 
 `.github/next-offline-suites.json` partitions every `test_*.py` and `*_test.py`
 file recursively under `next/`. Entries are individual paths, not patterns.
