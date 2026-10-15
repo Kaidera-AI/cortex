@@ -257,6 +257,14 @@ class StartupBoundary(StartupFixture, unittest.TestCase):
         self.assertFalse(result['test_support_loaded']);self.assertFalse(result['physical_install_qualified'])
         self.assertTrue(result['actual_observation']);self.assertEqual(result['bootstrap_provenance'],'SOURCE_FIXTURE_ONLY')
 
+    def test_actual_isolated_omitted_idna_closure_refuses_before_transport(self):
+        self.init_boundary();result=isolated_original_control(self,fault='omit-idna')
+        self.assertEqual(result['status'],'refused',result)
+        self.assertEqual(result['reason'],'member_authority_unavailable')
+        self.assertEqual(result['counts']['transport'],0);self.assertEqual(result['forbidden'],[])
+        self.assertTrue(any(name=='idna' or name.startswith('idna.') for name in result['unadmitted_files']))
+        self.assertEqual(result['measurement_errors'],[])
+
     def test_inert_source_writable_private_parent_refuses(self):
         self.init_boundary()
         (self.install/'stdlib').chmod(0o770)
