@@ -31,7 +31,7 @@ class AdmissionOrdering(unittest.TestCase):
             data = copy.deepcopy(bm.FIXTURE)
             oracle = bm.MacOSObserver()
             if fault in ('peer', 'code'):
-                key = 'peer_lifetime' if fault == 'peer' else 'code_owner_requirement_satisfied'
+                key = 'peer_lifetime_substitution' if fault == 'peer' else 'code_owner_requirement_satisfied'
                 cases = [c for c in data['cases'] if c['id'] == key]
                 self.assertEqual(len(cases), 1, 'missing matched original BM fault')
                 oracle.change(data, cases[0])
