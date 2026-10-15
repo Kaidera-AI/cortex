@@ -40,7 +40,8 @@ class LifecycleReceiptOracle(unittest.TestCase):
     def reserve(self, api, history):
         helper, data, proposal = self.setup_data()
         entry = api._reserve(history, data['request_raw'].encode(), proposal,
-                             {k: v.encode() for k, v in data['originals'].items()}, self.preimages())
+                             {k: v.encode() for k, v in data['originals'].items()}, self.preimages(),
+                             clock_raw=data['current_clock_raw'].encode())
         return helper, data, proposal, entry
 
     def current(self, helper, data, revision):
@@ -74,6 +75,7 @@ class LifecycleReceiptOracle(unittest.TestCase):
             attempt = json.loads(history.read(observation['attempt_ref']))
             self.assertEqual(reservation['state'], 'reserved')
             self.assertEqual(reservation['expected_state_revision'], proposal.observed_state_revision+1)
+            self.assertEqual(reservation['reserved_at'], 1700000001)
             self.assertEqual(attempt['dispatch_state'], 'not_consumed')
             self.assertIsNone(attempt['consumption_sequence'])
             bundle = json.loads(history.read(observation['preimages_ref']))
@@ -126,7 +128,8 @@ class LifecycleReceiptOracle(unittest.TestCase):
             changed = self.preimages(); changed['role'] = b'REPLACEMENT'
             with self.assertRaises(owner.OwnerRefusal):
                 api._reserve(history, data['request_raw'].encode(), proposal,
-                             {k: v.encode() for k, v in data['originals'].items()}, changed)
+                             {k: v.encode() for k, v in data['originals'].items()}, changed,
+                             clock_raw=data['current_clock_raw'].encode())
             self.assertEqual(api._retained_preimages(history, thaw(proposal.context)['identity']), original)
             self.assertEqual(json.loads(history.read(original))['identity'], thaw(proposal.context)['identity'])
 
