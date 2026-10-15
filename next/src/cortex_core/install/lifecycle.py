@@ -338,9 +338,9 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     now = owner._decode(clock_raw, 'time_unavailable')
     owner._clock(now, context['owner_epoch'])
     _before_deadline(now, proposal.deadline.expires_at, proposal.deadline.expires_monotonic_ns)
-    _retain_originals(history, originals, context)
     # These logical original refs are preserved byte-for-byte in C0 facts.
     history.retain(original_request)
+    _retain_originals(history, originals, context)
     try:
         preimages_ref = _retained_preimages(history, context['identity'])
         existing = _decode(history.read(preimages_ref))
