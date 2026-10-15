@@ -214,6 +214,17 @@ class OwnerProposalOracle(unittest.TestCase):
                 d=self.data();self.clock(d,lambda c:c.update({key:value}))
                 self.refusal(api,'time_unavailable',lambda:self.run_gate(api,d))
 
+    def test_every_independent_not_before_bound_requires_an_exact_utc_integer(self):
+        api=self.api()
+        for kind in ('consent','policy','session'):
+            for invalid in (True,-1,253402300800):
+                with self.subTest(bound=kind,value=invalid):
+                    d=self.data()
+                    if kind=='consent':self.edit_record(d,'consent_ref',lambda r:r.update(not_before=invalid))
+                    if kind=='policy':self.edit_record(d,'policy_ref',lambda r:r['validity'].update(not_before=invalid))
+                    if kind=='session':self.edit_record(d,'peer_ref',lambda r:r.update(not_before=invalid))
+                    self.refusal(api,'time_unavailable',lambda:self.run_gate(api,d))
+
     def test_peer_denial_precedes_malformed_request(self):
         api=self.api();d=self.data();self.edit_record(d,'peer_ref',lambda p:p.update(owner_epoch='wrong'))
         self.refusal(api,'peer_denied',lambda:self.run_gate(api,d,request=b'not-json'))
