@@ -46,6 +46,7 @@ class SQLSubject(interface.Subject):
         self.status = 'aborted'; self.xid = '4294967396'; self.effect_count = 0
         self.schedule = None; self.trace = []; self.lock_available = True
         self.publication_observer = None; self.on_effect = None; self.on_commit = None
+        self.bind_catalog = None; self.bind_post = None; self.ignore_activation = False
         self.systemid = '1234567890123'; self.timeline = 1
         self.original_durability = ('on','on','on')
         self.binding = {'kind':'pg_b2_hold1', 'protocol_version':2,
@@ -97,7 +98,27 @@ class SQLSubject(interface.Subject):
                 if text.startswith('SELECT pg_catalog.pg_xact_status'):
                     self.calls.append((text,parameters));return hale.Rows([(s.status,)])
                 if text.startswith('SELECT oid FROM pg_catalog.pg_roles'):
-                    self.calls.append((text,parameters));return hale.Rows([(900,)])
+                    self.calls.append((text,parameters))
+                    return hale.Rows([(r[0],) for r in json.loads(s.view(self)['role'])['roles'] if r[1]==parameters[0]])
+                if s.bind_catalog is not None:
+                    view=s.view(self)
+                    if text.startswith('INSERT INTO auth.runtime_login_bindings '):
+                        self.calls.append((text,parameters));s.effect_count+=1
+                        view['database']=s.bind_post['inactive_database'];return hale.Rows()
+                    if text.startswith('SELECT role_name::text,logical_role,installation_id,operation_id,'):
+                        self.calls.append((text,parameters))
+                        row=next(r for r in json.loads(view['database'])['bindings'] if r[0]==parameters[0])
+                        return hale.Rows([(row[1],row[2],UUID(row[3]),UUID(row[6]),*row[7:])])
+                    if text.startswith('UPDATE auth.runtime_login_bindings SET active=true'):
+                        self.calls.append((text,parameters))
+                        if not s.ignore_activation:view['database']=s.bind_post['active_database']
+                        return hale.Rows()
+                    if text in s.bind_post['login_statements']:
+                        self.calls.append((text,parameters));view['role']=s.bind_post['active_roles'];return hale.Rows()
+                    if ('WITH ORDINALITY AS q(' in text or 'WHERE grantee=0' in text
+                            or any(x in text for x in ('to_regprocedure(%s)','to_regtype(%s)','to_regclass(%s)'))
+                            or text.startswith(('SELECT 1 FROM pg_catalog.pg_database','SELECT g.oid,m.oid'))):
+                        return s.bind_catalog.execute(statement,parameters)
                 if text.startswith('CREATE ROLE '):
                     s.effect_count+=1
                     if s.on_effect:s.on_effect(s)
@@ -176,6 +197,45 @@ class SQLSubject(interface.Subject):
         self.private['fence']+=1;self.private['sql_native']['writers_ended']=True;self.set_private()
         self.deadline=self.current().deadline
         return freeze({**thaw(effect),'deadline':self.deadline})
+
+    def next_bind(self,activate):
+        # Explicit source schedule of a qualified phase boundary. The catalogue
+        # and map/LOGIN observations are prescribed; no SQL semantics are emulated.
+        q=json.loads(self.data['request_raw']);q['identity'].update(request_id='hold1-bind-request',attempt_id='hold1-bind-attempt')
+        raw=canonical_bytes(q);c=json.loads(self.data['context_raw']);path=c['request_ref']['path']
+        self.data['request_raw']=raw.decode();self.data['originals'][path]=raw.decode()
+        self.helper.context(self.data,lambda c:c.update(identity=q['identity'],request_ref=p1._ref(path,raw),nonce='hold1-bind-nonce'))
+        self.helper.context(self.data,lambda c:c['effect'].update(effect_id='hold1-bind-effect'))
+        effect=json.loads(self.data['context_raw'])['effect']
+        self.helper.scope(self.data,lambda scope:scope.update(identity=q['identity'],effect=effect))
+        self.private['sql_native']['writer_attempt_id']=q['identity']['attempt_id'];self.set_private()
+        self.adapter.identity=q['identity']
+        dummy=hale.acl_adapter();catalog=hale.ACLCatalogue(dummy);self.bind_catalog=catalog
+        self.live['acl']=canonical_bytes(catalog.acl)
+        roles=json.loads(self.live['role']);oid={r[1]:r[0] for r in roles['roles']}
+        roles['memberships']=[[oid[self.roles['request_group']],oid[self.roles['api_request']],
+                              oid[self.roles['bootstrap']],False,False,True]]
+        self.live['role']=canonical_bytes(roles)
+        db=json.loads(self.live['database']);db['bindings']=[];self.live['database']=canonical_bytes(db)
+        inactive=copy.deepcopy(db);inactive['bindings']=[[
+            oid[self.roles[logical]],self.roles[logical],logical,q['identity']['installation_id'],False,1,
+            q['identity']['operation_id'],db['database'][0],db['database'][2],
+            self.adapter.embedding_kind if logical=='observer' else None] for logical in api._SERVICES]
+        active=copy.deepcopy(inactive)
+        for row in active['bindings']:row[4]=True;row[5]=2
+        active_roles=copy.deepcopy(roles)
+        for row in active_roles['roles']:
+            if row[1] in [self.roles[k] for k in api._SERVICES]:row[2]=True
+        self.bind_post={'inactive_database':canonical_bytes(inactive),'active_database':canonical_bytes(active),
+            'active_roles':canonical_bytes(active_roles),'login_statements':{
+                'ALTER ROLE "'+self.roles[k]+'" LOGIN' for k in api._SERVICES}}
+        self.primitive.action='bind';self.primitive.parameters={'installation_id':self.adapter.installation_id,
+            'embedding_job_kind':self.adapter.embedding_kind,'activate':activate}
+
+    def invoke_bind(self,activate):
+        return api.bind_runtime_roles(self.writer,installation_id=self.adapter.installation_id,
+            role_names=self.roles,operation_id=self.adapter.identity['operation_id'],
+            embedding_job_kind=self.adapter.embedding_kind,activate=activate)
 
     @contextmanager
     def answer(self,effect):
@@ -496,3 +556,94 @@ class Hold1Producer(unittest.TestCase):
                 self.assertNotIn(s.roles['probe'],[r[1] for r in original_roles])
                 self.assertEqual(p1._retained_preimages(s.history,s.adapter.identity),first)
                 self.assertEqual(s.effect_count,1,'HOLD1_IDEMPOTENT_LATER_PHASE_REDISPATCHED_CREATE')
+
+    def test_bind_activation_postcondition_is_not_inferred_from_SQL_success(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed(s.primitive):
+                api.prepare_runtime_roles(s.writer,role_names=s.roles,operation_id=s.adapter.identity['operation_id'])
+                s.next_bind(True);s.ignore_activation=True
+                commits=s.trace.count(('writer','COMMIT'))
+                with self.assertRaises(owner.OwnerRefusal):s.invoke_bind(True)
+                self.assertEqual(s.trace.count(('writer','COMMIT')),commits,'HOLD1_INACTIVE_BINDING_COMMITTED_AS_ACTIVE')
+
+    def test_bind_uses_same_checkpoint_and_measure_protocol(self):
+        for activate in (False,True):
+            with self.subTest(activate=activate),tempfile.TemporaryDirectory() as root:
+                s=SQLSubject(root)
+                with s.installed(s.primitive):
+                    api.prepare_runtime_roles(s.writer,role_names=s.roles,operation_id=s.adapter.identity['operation_id'])
+                    s.next_bind(activate);s.invoke_bind(activate)
+                    _,_,entry=s.entry();self.assertEqual(entry['attempt']['dispatch_state'],'applied_verified')
+                    post=json.loads(s.history.read(entry['attempt']['sql_postimage_ref']))
+                    db=json.loads(s.history.read(post['observed']['originals']['database']))
+                    self.assertEqual({r[4] for r in db['bindings']},{activate})
+
+    def test_each_observed_file_directory_fsync_and_link_failure_stops_SQL_or_COMMIT(self):
+        import os,stat
+        counts={}
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                s.start();effect=s.effect_context();fsync=os.fsync;link=os.link
+                def synced(fd):
+                    key=('xid' if s.effect_count==0 else 'postimage',
+                         'directory_fsync' if stat.S_ISDIR(os.fstat(fd).st_mode) else 'file_fsync')
+                    counts[key]=counts.get(key,0)+1;return fsync(fd)
+                def linked(*args,**kwargs):
+                    key=('xid' if s.effect_count==0 else 'postimage','link')
+                    counts[key]=counts.get(key,0)+1;return link(*args,**kwargs)
+                with patch.object(os,'fsync',side_effect=synced),patch.object(os,'link',side_effect=linked):
+                    s.primitive.dispatch(effect)
+        self.assertEqual(set(counts),{(phase,kind) for phase in ('xid','postimage')
+                                     for kind in ('directory_fsync','file_fsync','link')})
+        for (phase,kind),count in counts.items():
+            for target in range(1,count+1):
+                with self.subTest(phase=phase,kind=kind,ordinal=target),tempfile.TemporaryDirectory() as root:
+                    s=SQLSubject(root);seen=0;fired=False
+                    with s.installed():
+                        s.start();effect=s.effect_context();fsync=os.fsync;link=os.link
+                        def failure(actual_kind):
+                            nonlocal seen,fired
+                            actual_phase='xid' if s.effect_count==0 else 'postimage'
+                            if (actual_phase,actual_kind)==(phase,kind):
+                                seen+=1
+                                if seen==target:fired=True;raise OSError('source injected P1 publication failure')
+                        def synced(fd):
+                            failure('directory_fsync' if stat.S_ISDIR(os.fstat(fd).st_mode) else 'file_fsync')
+                            return fsync(fd)
+                        def linked(*args,**kwargs):failure('link');return link(*args,**kwargs)
+                        with patch.object(os,'fsync',side_effect=synced),patch.object(os,'link',side_effect=linked):
+                            try:s.primitive.dispatch(effect)
+                            except (OSError,owner.OwnerRefusal):pass
+                            else:self.fail('HOLD1_FAILED_PUBLICATION_RETURNED_SUCCESS')
+                        self.assertTrue(fired,'source failure did not reach intended publication boundary')
+                        self.assertEqual(s.effect_count,0 if phase=='xid' else 1,'HOLD1_FAILED_XID_REACHED_EFFECT')
+                        self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_FAILED_PUBLICATION_REACHED_COMMIT')
+
+    def test_stale_checkpoint_CAS_stops_effect_or_COMMIT(self):
+        for phase in ('xid','postimage'):
+            with self.subTest(phase=phase),tempfile.TemporaryDirectory() as root:
+                s=SQLSubject(root)
+                with s.installed():
+                    original=p1._publish_entry
+                    def stale(*args,**kwargs):
+                        a=kwargs['attempt'];stage='postimage' if a.get('sql_postimage_ref') is not None else 'xid' if a.get('sql_xact_ref') is not None else None
+                        if stage==phase:kwargs['expected_ref']=None
+                        return original(*args,**kwargs)
+                    with patch.object(p1,'_publish_entry',side_effect=stale):
+                        with self.assertRaises(owner.OwnerRefusal):s.dispatch()
+                    self.assertEqual(s.effect_count,0 if phase=='xid' else 1)
+                    self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_STALE_CAS_REACHED_COMMIT')
+
+    def test_full_xid8_epoch_is_retained_and_queried_without_truncation(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                effect=s.dispatch(schedule=5);_,_,entry=s.entry()
+                xid=json.loads(s.history.read(entry['attempt']['sql_xact_ref']))
+                self.assertEqual(xid['observed']['xid'],s.xid)
+                effect=s.recover(effect)
+                with s.answer(effect) as answer:self.assertEqual(answer[0],'APPLIED')
+                calls=[args for text,args in s.reader.calls if text.startswith('SELECT pg_catalog.pg_xact_status')]
+                self.assertEqual(calls,[(s.xid,)])
