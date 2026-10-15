@@ -117,7 +117,7 @@ class Subject:
             bundle['preimages_ref']=obs['preimages_ref']
             candidate={**event,'sequence':event['sequence']+1,'previous_event_ref':head,
                        'observations_ref':self.history.retain(canonical_bytes(bundle))}
-            return self.history.append(candidate,expected_ref=head)
+            return call(self.history.append,candidate,expected_ref=head,deadline=self.deadline)
         return call(p1._publish_entry,self.history,context=parts['context'],reservation=parts['reservation'],
             attempt=a,preimages_ref=obs['preimages_ref'],request_ref=event['request_ref'],
             release_ref=event['release_binding_ref'],expected_ref=head,phase=event['phase'],
