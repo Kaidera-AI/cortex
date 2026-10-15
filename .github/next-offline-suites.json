@@ -783,6 +783,1556 @@
         "sha256": "596252687e923f18bac96eac3b5f5609befd7c5a03627fa54d74ebd50cb86eaf",
         "symbol": "CachePublicationOracle.test_off_blocks_late_cache_publication_and_release_work"
       }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_01_current_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_02_image_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_02_owner_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_02_owner_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_atomicity_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_backend_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_clock_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_owner_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_owner_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_rollback_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_03_uncertainty_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_aggregate_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_arbitrary_path_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_attempt_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_endpoint_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_endpoint_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_forge_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_installation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_installation_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_kernel_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_member_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_operation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_peer_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_purpose_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_resource_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_root_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_shape_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_startup_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_subject_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_target_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_04_unsolicited_fd_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_05_expiry_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_05_missing_consent_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_05_revocation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_05_revocation_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_claimed_bootstrap_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_fence_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_holder_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_installation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_kind_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_map_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_missing_table_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_missing_table_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_name_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_oid_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_operation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_post_lock_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_session_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_15_session_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_16_host_only_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_16_host_only_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_17_empty_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_17_empty_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_18_purge_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_18_shared_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_18_shared_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_18_uninstall_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_18_uninstall_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_F2_not_before_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_F2_not_before_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_06_concurrent_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_06_concurrent_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_07_nonce_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_07_nonce_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_07_session_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_custody_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_fence_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_freshness_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_generation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_holder_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_image_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_policy_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_policy_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_resource_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_08_revision_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_09_audit_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_09_audit_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_09_monotonic_bound_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_09_pause_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_09_utc_bound_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_10_reconnect_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_10_recovery_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_10_restart_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_10_restart_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_accepted_activation_failed_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_accepted_activation_failed_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_before_intent_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_before_intent_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_commit_no_result_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_commit_no_result_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_consume_uncertain_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_consume_uncertain_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_corrupt_history_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_corrupt_history_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_intent_no_consume_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_intent_no_consume_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_not_applied_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_not_applied_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_reply_lost_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_11_reply_lost_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_12_ledger_ahead_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_12_ledger_ahead_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_13_fresh_child_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_13_fresh_child_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_14_corrupt_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_14_missing_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_14_missing_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_14_readable_unknown_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_14_restored_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_19_accepted_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_19_accepted_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_19_prefix_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_19_prefix_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_activation_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_activation_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_cleanup_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_cleanup_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_enrollment_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_enrollment_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_product_journal_change_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_20_product_journal_change_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_consent_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_consent_mono_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_consent_mono_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_consent_utc_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_consent_utc_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_host_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_host_mono_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_host_mono_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_host_utc_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_host_utc_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_monotonic_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_monotonic_mono_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_monotonic_mono_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_policy_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_policy_mono_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_policy_mono_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_policy_utc_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_policy_utc_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_private_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_private_mono_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_private_mono_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_private_utc_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_private_utc_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_session_P",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_session_mono_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_session_mono_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_session_utc_after_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_F2_session_utc_equal_N",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_PRECEDENCE_fixed_gap",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_PRECEDENCE_peer",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_PRECEDENCE_r01",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_PRECEDENCE_scope",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_PRECEDENCE_shape",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/install/test_owner_session.py::OwnerSessionSurface::test_PRECEDENCE_unavailable",
+      "reason": "H-D569: needs accepted original native execution corpus; next release (real-machine stage); owner finn (accepted corpus/installer composition), kai (authority/provider dispatch), cox (private-owner SQL originals)",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/install/test_owner_admission.py",
+        "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
+        "symbol": "compare_execution"
+      }
     }
   ],
   "partitions": {
