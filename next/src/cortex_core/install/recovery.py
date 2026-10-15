@@ -252,7 +252,8 @@ def _execute_recovery(history, original_request, current, primitives):
         owner._require(observed_head == head, 'generation_changed')
         if mandated:
             completed = p2._record_result(history,anchor,raw,publication_head=head,
-                publication_revision=final.observed_state_revision,deadline=final.deadline)
+                publication_revision=final.observed_state_revision,deadline=final.deadline,
+                publication_context=thaw(final.context))
             published = attempt['dispatch_state'] == 'consumed_result_unknown'
         elif attempt['dispatch_state'] == 'consumed_result_unknown':
             completed = p2._record_result(history,latest_ref,raw,publication_head=head,

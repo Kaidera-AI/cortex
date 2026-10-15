@@ -103,7 +103,7 @@ class _History:
         return fd
 
     @contextmanager
-    def _lock(self, name, *, deadline=None):
+    def _lock(self, name, *, deadline=None, expected_context=None):
         with self._root() as root:
             fd = None
             try:
@@ -114,13 +114,16 @@ class _History:
                 if deadline is None:
                     fcntl.flock(fd, fcntl.LOCK_EX)
                 else:
-                    inputs, admitted = _admitted_deadline(deadline)
+                    inputs, admitted = _admitted_deadline(deadline, expected_context=expected_context)
+                    if expected_context is not None:
+                        _require(expected_context['state_revision'] == admitted.observed_state_revision,
+                                 'generation_changed')
                     now = owner._decode(inputs.current_clock_raw,'time_unavailable')
                     budget = min((deadline.expires_at-now['now_utc']-now['uncertainty_seconds'])*1_000_000_000,
                                  deadline.expires_monotonic_ns-now['monotonic_ns'])
                     stop = time.monotonic_ns()+budget
                     while True:
-                        _, fresh = _admitted_deadline(deadline)
+                        _, fresh = _admitted_deadline(deadline, expected_context=expected_context)
                         owner._same_context(admitted,fresh)
                         _require(time.monotonic_ns() < stop,'reservation_expired')
                         try:
@@ -128,7 +131,7 @@ class _History:
                             break
                         except BlockingIOError:
                             time.sleep(min(.01,max(0,(stop-time.monotonic_ns())/1_000_000_000)))
-                    _, fresh = _admitted_deadline(deadline)
+                    _, fresh = _admitted_deadline(deadline, expected_context=expected_context)
                     owner._same_context(admitted,fresh)
                     _require(time.monotonic_ns() < stop,'reservation_expired')
                 yield
@@ -139,10 +142,10 @@ class _History:
                     fcntl.flock(fd, fcntl.LOCK_UN)
                     os.close(fd)
 
-    def operation(self, *, deadline=None):
+    def operation(self, *, deadline=None, expected_context=None):
         # Stable installation/operation/resource exclusion is distinct from CAS.
         # The fixed owner uses the same root for all operations it serializes.
-        return self._lock('.operation.lock',**({} if deadline is None else {'deadline':deadline}))
+        return self._lock('.operation.lock',**({} if deadline is None else {'deadline':deadline, 'expected_context':expected_context}))
 
     def _read_path(self, folder, name, *, missing_ok=False):
         with self._root() as root:
@@ -250,14 +253,20 @@ class _History:
         events = self.events()
         return events[-1] if events else (None, None)
 
-    def append(self, event, *, expected_ref, deadline=None):
+    def append(self, event, *, expected_ref, deadline=None, expected_context=None):
         observation = _decode(self.read(event['observations_ref']))
         attempt = _decode(self.read(observation['attempt_ref']))
         if attempt.get('sql_mandate_ref') is not None:
             _require(type(deadline) is owner.ProposedDeadline,'time_unavailable')
-        with self._lock('.journal.lock',**({} if deadline is None else {'deadline':deadline})):
+        with self._lock('.journal.lock',**({} if deadline is None else {
+                'deadline':deadline, 'expected_context':expected_context})):
             current, previous = self.head()
             _require(current == expected_ref, 'generation_changed')
+            if expected_context is not None:
+                _, admitted = _admitted_deadline(deadline, expected_context=expected_context)
+                _require(admitted.observed_state_revision == expected_context['state_revision']
+                    and self.current_revision() in (None,admitted.observed_state_revision),
+                    'generation_changed')
             sequence = 0 if previous is None else previous['sequence']+1
             _require(event['sequence'] == sequence and event['previous_event_ref'] == current, 'journal_invalid')
             raw = canonical_bytes(event)
@@ -270,8 +279,15 @@ class _History:
                 if event[key] is not None:
                     self.read(event[key])
             path = f'events/{sequence:020d}.json'
+            if expected_context is not None:
+                _, final = _admitted_deadline(deadline, expected_context=expected_context)
+                owner._same_context(admitted,final)
+                _require(self.head()[0] == expected_ref
+                    and self.current_revision() in (None,final.observed_state_revision),
+                    'generation_changed')
             self._publish('events', path.split('/')[1], raw)
-            if deadline is not None:_admitted_deadline(deadline)
+            if deadline is not None:
+                _admitted_deadline(deadline, expected_context=expected_context)
             return _ref(path, raw)
 
     def current_revision(self):
@@ -319,11 +335,14 @@ def _latest_attempt(history, identity):
     raise owner.OwnerRefusal('journal_invalid')
 
 
-def _admitted_deadline(deadline):
+def _admitted_deadline(deadline, *, expected_context=None):
     """Reobserve the one fixed owner; a private timeout is never authority."""
     _require(type(deadline) is owner.ProposedDeadline, 'time_unavailable')
     inputs = _owner_inputs()
     context = owner._decode(inputs.context_raw, 'owner_unavailable')
+    if expected_context is not None:
+        _require(type(expected_context) is dict, 'owner_unavailable')
+        context = expected_context
     try:
         request = inputs.originals[context['request_ref']['path']]
     except (KeyError, TypeError):
@@ -331,6 +350,8 @@ def _admitted_deadline(deadline):
     owner._release_original(request, inputs)
     proposal = owner._evaluate(request, inputs, previous_deadline=deadline)
     _require(proposal.deadline == deadline, 'reservation_expired')
+    if expected_context is not None:
+        _continuity(expected_context,thaw(proposal.context))
     return inputs, proposal
 
 
@@ -435,6 +456,8 @@ def _sql_prefix(history, consumed_ref, publication_head, *, candidate=None):
                 and all(attempt.get(k) == old.get(k) for k in ('sql_xact_ref','sql_postimage_ref'))
                 and event['result_ref'] is not None and attempt['result_ref'] == event['result_ref']
                 and attempt['reconciliation_ref'] in (None,event['result_ref']), 'journal_invalid')
+            _require(history.read(attempt['reservation_ref']) == canonical_bytes(reservation),
+                     'journal_invalid')
             result=_decode(history.read(event['result_ref']))
             _require(set(result) == {'identity','effect','request_ref','state','observed'}
                 and all(result[k] == e[k] for k in ('identity','effect','request_ref'))
@@ -466,9 +489,15 @@ def _measurement(primitive, context, *, mandated):
 
 
 def _publish_entry(history, *, context, reservation, attempt, preimages_ref, request_ref,
-                   release_ref, expected_ref, phase, recorded_at, result_ref=None, deadline=None):
+                   release_ref, expected_ref, phase, recorded_at, result_ref=None, deadline=None,
+                   expected_context=None):
     if attempt.get('sql_mandate_ref') is not None:
-        _admitted_deadline(deadline)
+        if expected_context is None:
+            # Historical checkpoint context identifies the request; its cursor is DATA.
+            _, admitted = _admitted_deadline(deadline, expected_context=context)
+            expected_context = thaw(admitted.context)
+        else:
+            _admitted_deadline(deadline, expected_context=expected_context)
         _sql_mandate(history,history.read(attempt['sql_mandate_ref']),context)
         sequence = attempt['consumption_sequence']
         _require(sequence is None or (type(sequence) is int and sequence >= 0),'journal_invalid')
@@ -496,14 +525,15 @@ def _publish_entry(history, *, context, reservation, attempt, preimages_ref, req
               'effect': context['effect'], 'observations_ref': history.retain(canonical_bytes(observation)),
               'result_ref': result_ref,
               'recorded_at': datetime.fromtimestamp(recorded_at, timezone.utc).isoformat()}
-    return history.append(record, expected_ref=expected_ref,**({} if deadline is None else {'deadline':deadline}))
+    return history.append(record, expected_ref=expected_ref,**({} if deadline is None else {
+        'deadline':deadline, 'expected_context':expected_context}))
 
 
 def _reserve(history, original_request, proposal, originals, preimages, *, clock_raw, inputs=None,
              sql_mandate_raw=None, deadline=None):
     context = thaw(proposal.context)
     if sql_mandate_raw is not None:
-        _, admitted = _admitted_deadline(deadline)
+        _, admitted = _admitted_deadline(deadline, expected_context=context)
         owner._same_context(proposal,admitted)
         _require(proposal.deadline == deadline,'reservation_expired')
         _sql_mandate(history,sql_mandate_raw,context)
@@ -585,7 +615,8 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=preimages_ref, request_ref=context['request_ref'], release_ref=release_ref,
         expected_ref=current_ref, phase=('create_intent' if operation == 'install' else
-            'purge_intent' if operation == 'purge' else 'reverse_intent'), recorded_at=now['now_utc'],deadline=deadline)
+            'purge_intent' if operation == 'purge' else 'reverse_intent'), recorded_at=now['now_utc'],
+        deadline=deadline,expected_context=thaw(proposal.context))
 
 
 def _before_deadline(now, utc, monotonic):
@@ -630,7 +661,7 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=Non
     context = thaw(current.context)
     attempt = _decode(history.read(obs['attempt_ref']))
     if attempt.get('sql_mandate_ref') is not None:
-        _, admitted = _admitted_deadline(deadline)
+        _, admitted = _admitted_deadline(deadline, expected_context=context)
         owner._same_context(current,admitted)
         _require(current.deadline == deadline and deadline.expires_at == reservation['expires_at']
             and deadline.expires_monotonic_ns == reservation['expires_monotonic_ns'],'reservation_expired')
@@ -655,18 +686,30 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=Non
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=reserved_ref,
-        phase=event['phase'], recorded_at=now['now_utc'],deadline=deadline)
+        phase=event['phase'], recorded_at=now['now_utc'],deadline=deadline,
+        expected_context=thaw(current.context))
 
 
 def _record_result(history, consumed_ref, original_measurement, *, current_context=None,
                    originals=None, clock_raw=None, result_originals=None, cleanup_plan=None, publication_head=None, publication_revision=None,
-                   deadline=None):
+                   deadline=None, publication_context=None):
     event, obs = _load_entry(history, consumed_ref)
     anchor_attempt = _decode(history.read(obs['attempt_ref']))
     mandated = anchor_attempt.get('sql_mandate_ref') is not None
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     if mandated:
-        _, fresh = _admitted_deadline(deadline)
+        admitted_inputs, fresh = _admitted_deadline(deadline, expected_context=publication_context)
+        if publication_context is not None:
+            if fresh.context['request_ref'] == event['request_ref']:
+                _continuity(_decode(history.read(obs['context_ref'])),thaw(fresh.context))
+            else:
+                recovery_request = thaw(parse_install_message(
+                    admitted_inputs.originals[fresh.context['request_ref']['path']],
+                    expected_kind='request').document)
+                _require(recovery_request['operation'] == 'recover'
+                    and recovery_request['journal_ref'] == consumed_ref
+                    and recovery_request['identity']['parent_attempt_id'] == event['identity']['attempt_id'],
+                    'scope_denied')
         head = consumed_ref if publication_head is None else publication_head
         prefix = _sql_prefix(history,consumed_ref,head)
         _require(fresh.observed_state_revision == history.current_revision()
@@ -674,6 +717,12 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
         if prefix['attempt']['dispatch_state'] != 'consumed_result_unknown':
             _require(history.read(prefix['event']['result_ref']) == original_measurement,'resource_changed')
             return prefix['ref']
+        if publication_context is None:
+            # A normal publisher binds the original scope. Recovery supplies its
+            # independently checked fresh context; neither is a bearer permit.
+            _continuity(current_context or _decode(history.read(obs['context_ref'])),
+                        thaw(fresh.context))
+            publication_context = thaw(fresh.context)
         _require(prefix['attempt']['dispatch_state'] == 'consumed_result_unknown','reservation_used')
         obs = _load_entry(history,prefix['ref'])[1]
         publication_head,publication_revision = head,fresh.observed_state_revision
@@ -729,7 +778,8 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=expected_head,
         phase=('created' if operation == 'install' else 'finished') if result['state'] == 'applied_verified' else 'held',
-        recorded_at=clock['now_utc'], result_ref=result_ref,deadline=deadline)
+        recorded_at=clock['now_utc'], result_ref=result_ref,deadline=deadline,
+        expected_context=publication_context)
 
 
 @dataclass(frozen=True)
@@ -793,7 +843,8 @@ def _execute_bound(original_request, first):
         _, subject = _load_entry(history,request['journal_ref'])
         mandated = _decode(history.read(subject['attempt_ref'])).get('sql_mandate_ref') is not None
     deadline = first.deadline if mandated else None
-    with history.operation(**({} if deadline is None else {'deadline':deadline})):
+    with history.operation(**({} if deadline is None else {
+            'deadline':deadline, 'expected_context':thaw(first.context)})):
         inputs, current = _current_owner(original_request, first.deadline)
         owner._same_context(first, current)
         request = thaw(parse_install_message(original_request,expected_kind='request').document)
@@ -847,7 +898,8 @@ def _execute_bound(original_request, first):
                     _, fresh = _current_owner(original_request,deadline)
                     _continuity(thaw(dispatch_current.context),thaw(fresh.context))
                     publication = {'publication_head':history.head()[0],
-                        'publication_revision':fresh.observed_state_revision,'deadline':deadline}
+                        'publication_revision':fresh.observed_state_revision,'deadline':deadline,
+                        'publication_context':thaw(fresh.context)}
                 completed = _record_result(history, consumed, measured,
                     current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
                     clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
