@@ -311,8 +311,10 @@ class C11bRecordPort:
         with self.connection_factory() as db:
             remaining()
             with authorized(db,_credential(scope),self.installation_id,project,'read') as identity:
-                if any(str(getattr(identity,k))!=str(principal[k]) for k in
-                       ('principal_id','tenant_id','project_id','permission_generation')):
+                if (str(identity.principal_id)!=str(principal['principal_id'])
+                        or str(identity.tenant_id)!=str(principal['tenant_id'])
+                        or str(identity.project_id)!=str(principal['project_id'])
+                        or str(identity.permission_generation)!=str(principal['permission_generation'])):
                     raise AuthError('forbidden')
                 db.execute("SELECT set_config('statement_timeout',%s,true)",(str(remaining())+'ms',))
                 rows=db.execute('''SELECT r.id,r.kind,r.current_revision,p.body,r.tombstone
