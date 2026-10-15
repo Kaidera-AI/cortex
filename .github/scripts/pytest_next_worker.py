@@ -3,6 +3,10 @@ import argparse
 import ast
 from collections import Counter
 import hashlib
+import functools
+import time
+import faulthandler
+import signal
 import importlib.util
 import json
 import os
@@ -39,7 +43,45 @@ class Gate:
         self.assertions = {}
         self.exceptions = {}
         self.expected = ()
+        self.bridge_stages = {}
         self.packet = dict(expected=[], selected=[], deselected=[], reports=[])
+
+    def bridge_diagnostics(self, session):
+        if self.packet.get('suite')!='next/tests/release/test_original_member_bridge.py':return
+        from cortex_core.release import aggregate,trust,custody
+        from cortex_core.runtime import signed_member
+        module=session.items[0].module
+        def wrap(owner,name):
+            original=getattr(owner,name);label=owner.__name__+'.'+name
+            @functools.wraps(original)
+            def measured(*args,**kwargs):
+                started=time.perf_counter()
+                try:return original(*args,**kwargs)
+                finally:
+                    row=self.bridge_stages.setdefault(label,dict(calls=0,seconds=0.0))
+                    row['calls']+=1;row['seconds']+=time.perf_counter()-started
+            setattr(owner,name,measured)
+        for owner,names in [(module.Fixture,['setUp','current','transport','backend']),
+                            (module.Bridge,['installer']),
+                            (trust,['_verify_original']),
+                            (aggregate,['_validate_manifest','_measure_members','_check_pairs']),
+                            (custody.RootReader,['aggregate_begin','aggregate_finish','_aggregate_inventory_finish','close']),
+                            (signed_member,['request_member'])]:
+            for name in names:wrap(owner,name)
+        print('U3_BRIDGE_SELECTION '+json.dumps(self.packet['selected']),flush=True)
+        # Samples the active stack; the parent still enforces the sole180s cap.
+        self.bridge_stack_file=self.output.with_suffix('.stacks.txt').open('w')
+        def sample(signum,frame):
+            if not self.bridge_stack_file.closed:
+                self.bridge_stack_file.write('U3_BRIDGE_MAIN_THREAD_STACK_SAMPLE\n');self.bridge_stack_file.flush()
+                faulthandler.dump_traceback(file=self.bridge_stack_file,all_threads=False)
+        signal.signal(signal.SIGALRM,sample)
+        signal.setitimer(signal.ITIMER_REAL,60,60)
+
+    def pytest_runtest_logstart(self,nodeid,location):
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
+            self.bridge_stages={}
+            print('U3_BRIDGE_START '+nodeid,flush=True)
 
     def pytest_collection_finish(self, session):
         collected = [item.nodeid for item in session.items]
@@ -54,6 +96,7 @@ class Gate:
         session.items[:] = [item for item in session.items if item.nodeid not in nodes|fixtures]
         self.expected = tuple(item.nodeid for item in session.items)
         self.packet.update(expected=list(self.expected), selected=list(self.expected))
+        self.bridge_diagnostics(session)
         if self.skip and session.items:
             import pytest
             session.items[0].add_marker(pytest.mark.skip(reason='next offline hosted forced-skip control'))
@@ -63,10 +106,17 @@ class Gate:
 
     def pytest_runtest_logreport(self, report):
         self.packet['reports'].append(dict(nodeid=report.nodeid, when=report.when,
-            outcome=report.outcome, wasxfail=hasattr(report, 'wasxfail'),
+            outcome=report.outcome, duration_seconds=report.duration, wasxfail=hasattr(report, 'wasxfail'),
             assertion=self.assertions.get((report.nodeid,report.when),False),
             exception_type=self.exceptions.get((report.nodeid,report.when),''),
             detail=str(report.longrepr) if report.failed or report.skipped else ''))
+
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
+            print('U3_BRIDGE_PHASE '+json.dumps(dict(nodeid=report.nodeid,phase=report.when,seconds=report.duration)),flush=True)
+            if report.when=='teardown':
+                record=dict(nodeid=report.nodeid,stages=self.bridge_stages)
+                self.packet.setdefault('bridge_stages',[]).append(record)
+                print('U3_BRIDGE_STAGES '+json.dumps(record),flush=True)
 
     def pytest_runtest_makereport(self,item,call):
         outcome=yield
@@ -78,6 +128,10 @@ class Gate:
             and isinstance(call.excinfo.value,AssertionError))
 
     def pytest_sessionfinish(self, session, exitstatus):
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
+            signal.setitimer(signal.ITIMER_REAL,0)
+            signal.signal(signal.SIGALRM,signal.SIG_IGN)
+            self.bridge_stack_file.close()
         self.packet['pytest_exit'] = int(exitstatus)
         self.packet['declared_unavailable']=SHARED.declaration_observations(self.packet,self.excluded)
         self.packet['gate_exit']=0
@@ -189,7 +243,7 @@ def main():
                     for node in ast.parse(suite.read_text()).body):
                 return DeclaredModule.from_parent(parent, path=module_path)
 
-    result = pytest.main(['-q', '--tb=short', '--strict-markers', '-c', '/dev/null',
+    result = pytest.main(['-q', '-rP', '--tb=short', '--strict-markers', '-c', '/dev/null',
                           '--rootdir=' + str(ROOT), '-o', 'cache_dir=' + str(args.temporary / 'cache'),
                           '--basetemp=' + str(args.temporary / 'pytest'), *(requested or [args.suite])],
                          plugins=[gate, DeclaredProtocol()])

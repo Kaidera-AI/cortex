@@ -3,6 +3,7 @@ import copy
 import importlib
 import os
 from pathlib import Path
+from r01u3_support.workspace import workspace_output
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,8 +12,9 @@ from aggregate_fixture import materials,write,encode,sha256
 from cortex_core.runtime.signed_member import Refusal
 
 SRC=Path(__file__).resolve().parents[2]/'src/cortex_core/release'
-MAIN=Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3c-fixtures-20261014')
 
+
+MAIN=workspace_output()
 
 class Members(unittest.TestCase):
     def source(self):
@@ -40,6 +42,27 @@ class Members(unittest.TestCase):
     def path(self,kind='record'):
         return next(r['path'] for r in self.value['members'] if r['kind']==kind)
 
+    def test_workspace_storage_is_private_canonical_unique_and_cleaned(self):
+        # BODY regression: storage belongs to this checkout, never a developer home.
+        import stat
+        self.assertIsNotNone(importlib.util.find_spec("r01u3_support.workspace"),
+                             "BODY: portable fixture storage helper absent")
+        from r01u3_support.workspace import workspace_output, temporary_directory
+        base=workspace_output()
+        checkout=Path(__file__).resolve().parents[3]
+        project=checkout.parent.parent if checkout.parent.name=='.worktrees' else checkout
+        self.assertEqual(base,project/'output/r01u3-fixtures')
+        self.assertTrue(base.is_absolute());self.assertEqual(base,base.resolve(strict=True))
+        self.assertEqual(stat.S_IMODE(base.stat().st_mode),0o700)
+        with temporary_directory('portable-') as a, temporary_directory('portable-') as b:
+            first,second=Path(a),Path(b)
+            self.assertNotEqual(first,second)
+            for path in (first,second):
+                self.assertEqual(path.parent,base)
+                self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o700)
+                (path/'inert').write_bytes(b'fixture only')
+        self.assertFalse(first.exists());self.assertFalse(second.exists())
+
     def test_all_original_members_exact_and_no_descriptor_survives_close(self):
         r=self.reader();self.begin(r)
         for path,raw in self.bodies.items():self.assertEqual(r.aggregate_bytes(path),raw)
@@ -48,6 +71,136 @@ class Members(unittest.TestCase):
         for fd in held:
             with self.assertRaises(OSError):os.fstat(fd)
         self.assertIsNone(r.fd)
+
+    def test_contains_required_tag_bounds_candidate_validation_work(self):
+        from cortex_core.release.codec import WireValidator
+        schema={'contains':{'properties':{'role':{'const':'required'}},'required':['role']}}
+        rows=[{'role':'other'} for _ in range(511)]+[{'role':'required'}]
+        actual=WireValidator.is_valid;calls=[]
+        def valid(validator,*a,**k):calls.append(None);return actual(validator,*a,**k)
+        with patch.object(WireValidator,'is_valid',valid):
+            self.assertTrue(WireValidator(schema).is_valid(rows))
+        self.assertLessEqual(len(calls),10,'BODY: impossible contains candidates revalidated')
+
+    def test_contains_prefilter_preserves_general_schema_semantics(self):
+        from cortex_core.release.codec import WireValidator
+        from jsonschema import Draft202012Validator
+        import itertools
+        values=[{'role':'required'},{'kind':'record','role':'required'},
+                {'role':'other'},{},{'role':None},'nonobject',None,True,0,['array']]
+        clauses=[{'properties':{'role':{'const':'required'}},'required':['role']},
+                 {'properties':{'role':{'const':'required'},'kind':{'const':'record'}},'required':['kind','role']},
+                 {'properties':{'role':{'const':'required'}}},
+                 {'properties':{'role':{'const':1}},'required':['role']}]
+        arrays=[[],*[[v] for v in values],*[list(pair) for pair in itertools.product(values,repeat=2)]]
+        for clause in clauses:
+            for minimum,maximum in [(1,None),(0,0),(2,2),(0,1)]:
+                schema={'contains':clause,'minContains':minimum}
+                if maximum is not None:schema['maxContains']=maximum
+                for array in arrays:
+                    expected=Draft202012Validator(schema).is_valid(array)
+                    actual=WireValidator(schema).is_valid(array)
+                    if actual!=expected:self.fail(f'contains semantic mismatch: {schema} {array}')
+
+    def test_wire_character_rules_match_original_for_every_unicode_codepoint(self):
+        import unicodedata
+        from cortex_core.release.codec import _strings
+        # Independent literal previous rule, exhaustive over Python Unicode values.
+        for point in range(0x110000):
+            text=chr(point)
+            for payload in (False,True):
+                expected=('unicode_not_nfc' if not payload and unicodedata.normalize('NFC',text)!=text
+                          else 'forbidden_unicode' if ((point<32 and not (payload and text in '\n\r\t'))
+                                or 127<=point<=159 or 0xD800<=point<=0xDFFF) else None)
+                actual=None
+                try:_strings(text,text_payload=payload)
+                except ValueError as error:actual=str(error)
+                if actual!=expected:self.fail(f'character rule mismatch U+{point:04X} payload={payload}: {actual} != {expected}')
+
+    def test_unique_path_rows_avoid_pairwise_object_comparisons(self):
+        from cortex_core.release.codec import WireValidator
+        import jsonschema._utils as utilities
+        actual=utilities.equal;calls=[]
+        def equal(a,b):calls.append(None);return actual(a,b)
+        rows=[dict(path='members/record-'+str(i),payload={'inert':True}) for i in range(128)]
+        with patch.object(utilities,'equal',equal):
+            self.assertTrue(WireValidator({'uniqueItems':True}).is_valid(rows))
+        self.assertLessEqual(len(calls),len(rows),'BODY: quadratic unique path-row comparisons')
+
+    def test_wire_uniqueness_preserves_general_schema_semantics(self):
+        from cortex_core.release.codec import WireValidator
+        from jsonschema import Draft202012Validator
+        for values in ([],[True,1],[False,0],[1,1.0],[[1],[1.0]],
+                       [{'path':'same','a':1},{'path':'same','a':2}],
+                       [{'path':'same','a':1},{'a':1,'path':'same'}],
+                       [{'path':'a','nested':[1]},{'path':'b','nested':[1]}],
+                       [{'path':['unhashable']},{'path':['unhashable']}],
+                       ['é','e\u0301'],[None,None],['x','x'],[{},{}]):
+            with self.subTest(values=values):
+                for unique in (True,False):
+                    schema={'uniqueItems':unique}
+                    self.assertEqual(WireValidator(schema).is_valid(values),Draft202012Validator(schema).is_valid(values))
+
+    def test_repeated_original_reads_reuse_only_held_path_structure(self):
+        r=self.reader();self.begin(r);path=self.path();calls=[]
+        class Observed(dict):
+            def items(self):calls.append(None);return super().items()
+        r._aggregate_dirs=Observed(r._aggregate_dirs)
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path])
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path])
+        self.assertLessEqual(len(calls),1,'BODY: repeated reads re-enumerate the entire held directory graph')
+        # Cached structure must never cache the actual named/held observation.
+        original=self.root/path;other=original.with_name(original.name+'.replacement')
+        other.write_bytes(self.bodies[path]);other.replace(original)
+        self.refuse('member_custody_changed',lambda:r.aggregate_bytes(path));r.close()
+
+    def test_rebegin_drops_previous_held_path_structure(self):
+        import shutil
+        r=self.reader();self.begin(r);path=self.path();self.assertTrue(path.startswith('members/'))
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);r.close()
+        old=(self.root/'members').stat().st_ino
+        held=os.open(self.root/'members',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+        self.addCleanup(os.close,held)
+        shutil.rmtree(self.root/'members');write(self.root,self.bodies)
+        self.assertNotEqual((self.root/'members').stat().st_ino,old)
+        self.begin(r)
+        try:raw=r.aggregate_bytes(path)
+        except Refusal as error:self.fail('BODY: stale prior transaction path structure: '+error.reason)
+        self.assertEqual(raw,self.bodies[path]);r.aggregate_finish();r.close()
+
+    def test_exact_name_stops_after_actual_entry_and_closes_iterator(self):
+        _,c=self.source();r=self.reader();self.begin(r)
+        with os.scandir(r.fd) as scan:entry=next(e for e in scan if e.name=='members')
+        closed=[]
+        class Scan:
+            def __enter__(self):return self
+            def __exit__(self,*args):closed.append(True)
+            def __iter__(self):
+                yield entry
+                raise AssertionError('BODY: exact entry already observed; scanned unrelated names')
+        with patch.object(c.os,'scandir',return_value=Scan()):c.RootReader._aggregate_exact_name(r.fd,'members')
+        self.assertEqual(closed,[True]);r.aggregate_finish();r.close()
+
+    def test_each_original_check_bounds_work_to_its_held_ancestry(self):
+        # Capacity regression: unrelated branches must not multiply every byte read.
+        _,c=self.source();r=self.reader();self.begin(r)
+        path=self.path();names=[];real=c.RootReader._aggregate_exact_name
+        def checked(parent,name):names.append((parent,name));return real(parent,name)
+        with patch.object(c.RootReader,'_aggregate_exact_name',staticmethod(checked)):
+            self.assertEqual(r.aggregate_bytes(path),self.bodies[path])
+        absolute=len(Path(str(self.root)).parts)-1
+        self.assertLessEqual(len(names),2*(absolute+len(Path(path).parts)-1))
+        r.aggregate_finish();r.close();self.assertIsNone(r.fd)
+
+    def test_unrelated_held_ancestor_drift_still_refuses_at_terminal_check(self):
+        _,c=self.source();r=self.reader();self.begin(r)
+        path=self.path();selected=Path(path).parts
+        other=next(key.removeprefix('relative:').rstrip('/') for key in r._aggregate_dirs
+                   if key.startswith('relative:') and not path.startswith(key.removeprefix('relative:')))
+        old=self.root/other;moved=old.with_name(old.name+'-moved')
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);old.rename(moved)
+        self.refuse('member_custody_changed',r.aggregate_finish)
+        r.close();self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files);self.assertFalse(r._aggregate_dirs)
 
     def test_T03_same_length_changed_body_refuses_digest(self):
         a,_=self.source();p=self.path();raw=self.bodies[p]
@@ -74,9 +227,18 @@ class Members(unittest.TestCase):
         self.assertIsNone(r.fd)
 
     def test_T08_root_case_alias(self):
-        _,c=self.source();r=c.RootReader.for_aggregate(str(self.root.parent)+'/'+self.root.name.upper(),8*1024**2)
-        self.addCleanup(r.close)
-        self.refuse('member_path_alias',lambda:self.begin(r))
+        _,c=self.source();alternate=self.root.with_name(self.root.name.upper())
+        names={entry.name for entry in os.scandir(self.root.parent)}
+        self.assertNotIn(alternate.name,names)
+        try:observed=alternate.stat()
+        except FileNotFoundError:observed=None
+        if observed is not None:
+            self.assertEqual((observed.st_dev,observed.st_ino),(self.root.stat().st_dev,self.root.stat().st_ino))
+        expected='required_binding_gap' if observed is None else 'member_path_alias'
+        print('U3_CASE_OBSERVATION '+__import__('json').dumps(dict(requested=str(alternate),actual=str(self.root),names=sorted(names),old_resolves=observed is not None,dev=self.root.stat().st_dev,inode=self.root.stat().st_ino,reason=expected),sort_keys=True))
+        r=c.RootReader.for_aggregate(str(alternate),8*1024**2);self.addCleanup(r.close)
+        self.refuse(expected,lambda:self.begin(r))
+        self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files);self.assertFalse(r._aggregate_dirs)
 
     def test_T09_file_symlink(self):
         p=self.path();f=self.root/p;raw=f.read_bytes();f.unlink();outside=self.root.parent/(self.root.name+'-outside');outside.write_bytes(raw)
