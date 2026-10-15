@@ -10,12 +10,12 @@ P2a owns actual reserve/intent/consume/result and all durable history/preimages.
 from dataclasses import dataclass, field
 import re
 
-from cortex_core.release.codec import decode_json
+from cortex_core.release.codec import WireValidator, decode_json
 from cortex_core.release.contracts import freeze, thaw
 from cortex_core.runtime import signed_member
 from cortex_core.runtime.config import RUNTIME_LOCK_MEMBER
 
-from .contracts import InstallRefusal, measure_original_ref, parse_install_message
+from .contracts import InstallRefusal, _paths, _schema, measure_original_ref, parse_install_message
 
 __all__ = ['OwnerRefusal', 'OwnerProposal', 'ProposedDeadline', 'propose_effect']
 MISSING_UNIT = 'B1 protected owner peer/code/image/current observation composition'
@@ -241,6 +241,13 @@ def _evaluate(original_request, inputs, *, check_drift=True):
     scope = _original(inputs, consent['scope_ref'], 'consent_denied')
     _require(set(scope) == _SCOPE, 'consent_denied')
     _require(consent['subject_ref'] == context['peer_ref'], 'consent_denied')
+    effect_schema = {'$defs': _schema()['$defs'], '$ref': '#/$defs/JournalEffect'}
+    _require(next(WireValidator(effect_schema).iter_errors(context['effect']), None) is None, 'scope_denied')
+    try:
+        _paths(context['effect'])
+    except InstallRefusal:
+        raise OwnerRefusal('scope_denied') from None
+    _require(context['effect']['product'] == context['identity']['product'] == 'cortex', 'scope_denied')
     _require(q['identity'] == context['identity'] == scope['identity']
              and q['target'] == context['target'] == scope['target']
              and context['effect'] == scope['effect']

@@ -19,7 +19,8 @@ source row installs no adapter, physical identity, clock, image or privilege.
 
 The common policy validates original references through the existing P1
 RecordRef checker/canonical codec and the original P1 parser. It checks exact
-peer/request/scope/consent/current-state correspondence. R01 admission reuses the
+peer/request/scope/consent/current-state correspondence, including the existing
+P1 JournalEffect schema and original relative-reference grammar. R01 admission reuses the
 existing `signed_member.request_member` and sealed `read_member` for the external
 lock; their fixed U3 backend owns complete release admission. No crypto/parser
 or image verifier is added. After that read-only audit, the gate independently
