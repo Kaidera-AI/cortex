@@ -1093,11 +1093,41 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
     def test_only_five_ruling_rows_are_approved_and_removal_is_allowed(self):
         g=self.gate;m=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
         rows=[x for x in m['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit']
-        self.assertEqual(len(rows),5)
-        self.assertTrue(all(x['reason']=='E1 not built; waits RC3b; owner nemo' for x in rows))
+        # Preserve the original five bytes/fields and the independently reviewed
+        # H-D569 table, rather than replacing the obsolete total with another count.
+        original_policy='741c43e41f46ba2e818d3bde8581fff9b27abc9c'
+        corpus_policy='c88f772bef234368d5057c298edc703ecf46ba97'
+        reviewed_head='199c80b28f83ded40f626f72d37bc55d8c122ec8'
+        original=[x for x in g.base_manifest_at(self.ROOT,original_policy)['method_exclusions']
+                  if x['evidence']['kind']=='unbuilt_unit']
+        reviewed=[x for x in g.base_manifest_at(self.ROOT,reviewed_head)['method_exclusions']
+                  if x['evidence']['kind']=='unbuilt_unit']
+        original_ids={x['nodeid'] for x in original}
+        self.assertEqual([x for x in reviewed if x['nodeid'] in original_ids],original)
+        corpus=[x for x in reviewed if x['nodeid'] not in original_ids]
+        self.assertEqual([x['nodeid'] for x in corpus],sorted({x['nodeid'] for x in corpus}))
+        approved=[x for x in g.base_manifest_at(self.ROOT,corpus_policy)['method_exclusions']
+                  if x['evidence']['kind']=='unbuilt_unit']
+        self.assertEqual(approved,original+corpus)
+        self.assertEqual(g.UNBUILT_POLICY,corpus_policy)
+        self.assertEqual(rows,approved,'only the exact original five and reviewed H-D569 rows are approved')
         self.assertTrue(g.inventory(self.ROOT,m)['ok'])
-        changed=copy.deepcopy(m);next(x for x in changed['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit')['reason']='forged'
-        self.assertFalse(g.inventory(self.ROOT,changed)['ok'])
+        for variant in ('extra-row','corpus-reason','corpus-id','original-reason'):
+            with self.subTest(variant=variant):
+                changed=copy.deepcopy(m)
+                if variant=='extra-row':
+                    extra=copy.deepcopy(corpus[0]);extra['nodeid']+='__unapproved_161st'
+                    changed['method_exclusions'].append(extra)
+                else:
+                    target=original[0] if variant=='original-reason' else corpus[0]
+                    row=next(x for x in changed['method_exclusions'] if x['nodeid']==target['nodeid'])
+                    if variant=='corpus-id':row['nodeid']+='__forged'
+                    else:row['reason']='forged'
+                checked=g.inventory(self.ROOT,changed)
+                self.assertFalse(checked['ok'])
+                self.assertTrue(any('unbuilt declaration lacks exact ruling approval' in error
+                                    for error in checked['invalid']),variant)
+        self.assertTrue(g.inventory(self.ROOT,copy.deepcopy(m))['ok'],'unchanged genuine/restored twin')
         changed=copy.deepcopy(m);changed['method_exclusions']=[x for x in changed['method_exclusions'] if x not in rows]
         self.assertTrue(g.inventory(self.ROOT,changed)['ok'],'E1 landing must be able to remove declarations')
 
