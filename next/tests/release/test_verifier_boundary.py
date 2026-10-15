@@ -792,7 +792,7 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         from test_hold1_producer import SQLSubject
         @contextmanager
         def joined():
-            with patch('r01u3_support.startup.MAIN', Path(self.eb2_files.name)):
+            with patch('r01u3_support.startup.MAIN', Path(self.eb2_files.name).resolve()):
                 self.init_boundary()
             with tempfile.TemporaryDirectory(prefix='EB2-source-') as root:
                 s = SQLSubject(root)
@@ -859,5 +859,5 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         import tempfile
         self.eb2_files = tempfile.TemporaryDirectory(prefix='EB2-originals-')
         self.addCleanup(self.eb2_files.cleanup)
-        with patch('test_original_member_bridge.MAIN', Path(self.eb2_files.name)):
+        with patch('test_original_member_bridge.MAIN', Path(self.eb2_files.name).resolve()):
             super().setUp()
