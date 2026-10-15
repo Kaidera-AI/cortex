@@ -85,7 +85,7 @@ temporary output root as positional arguments. Their test bodies are unchanged.
 Separately invoked
 native factories such as B01's `native_suite()` are **NOT_RUN**.
 
-The unchanged PR155 validator checks a nonempty unique collection and exactly
+For ordinary live nodes, the unchanged PR155 validator checks a nonempty unique collection and exactly
 one passing setup/call/teardown report per selected item. Skips, xfails, xpasses,
 deselections, collection/setup/body/teardown errors, and nonzero raw pytest exits
 fail. The parent additionally checks the actual child exit, the matching suite
@@ -98,7 +98,8 @@ retirements are separate NOT_RUN witnesses and receive no PASS credit. Frozen E1
 expectations remain mandatory even when current product behavior is RED; no
 waiver or xfail turns an unimplemented expectation into a green job.
 
-The inventory/outcome oracle can run without test dependencies:
+The inventory-only check uses the standard library. The outcome oracle also
+requires the shared hash-locked pytest tools for its real-worker controls:
 
 ```sh
 python -B .github/scripts/tests/test_next_offline_gate.py
