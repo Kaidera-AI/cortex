@@ -1,5 +1,27 @@
 # Hosted offline v2 source contracts
 
+## Bounded execution of the U3 bridge
+
+The live manifest keeps `test_original_member_bridge.py` in RUN and declares
+`partitions: {"next/tests/release/test_original_member_bridge.py": 4}`. Each of
+four sequential fresh workers collects the complete original file, then executes
+one round-robin partition of that collection. This separates its four expensive
+planner cases without changing a test ID, assertion, fixture, or product file.
+The existing 180-second limit applies to each worker; the product's shared
+120-second maximum is unchanged.
+
+The parent requires identical complete collections and source hashes, the exact
+disjoint cover of all collected IDs, and the ordinary complete setup/call/teardown
+receipt for every partition. It emits the existing full-file aggregate receipt
+only after all four succeed. Individual receipts and timings remain in the
+artifact alongside that full-file receipt. A missing/duplicate partition, changed
+collection/source, skip, missing phase, or nonzero exit fails the gate. Suites with
+retired or unavailable nodes cannot be partitioned. RUN/exclusion policy and the
+151 logical-suite inventory remain unchanged.
+
+The earlier tracker notes below describe the historical split. Its temporary
+`/Users` mapping has been removed; live U3 fixtures use private project output.
+
 `next-offline.yml` runs Python 3.13.7 and 3.14.0 with the unchanged API dependency
 hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
 This U3 tracking draft adds hash-locked Linux cryptography50.0.0 wheels to the existing supplemental lock; one venv installs the API/tool seed, then the exact U3 provider overlay and pip check. The production API lock is unchanged.
