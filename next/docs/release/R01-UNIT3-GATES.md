@@ -156,6 +156,8 @@ The original EB1 file prefix is byte-for-byte preserved. Before EB2, this file s
 
 Only the new EB2 fixture originals use the existing worker-owned `TMPDIR`, so the orchestrator can remove them after a hard process cap. This changes test storage, while preserving the actual file-reader, verifier, owner, producer, deadline and history paths and all deciding assertions. Original EB1 fixture setup/location and bridge methods remain unchanged.
 
+The added EB2 SOURCE observations initially admit host/private leases at the existing 30-second policy ceiling, allowing real original-file audits before the intended fault. The expiry case captures the consumed effect first, then advances its observed clock to that exact admitted deadline and calls actual producer dispatch. No historical deadline is renewed, no product expiry/lock guard or execution cap is relaxed, and EB1's original five-second assertions and frozen owner corpus remain unchanged.
+
 The canonical task return `docs/handoffs/2026-10-15_ren-kos_kai_gateb-eb2f2.md` binds the exact child head/tree, final commands and results. Its evidence directory `output/KOS/ren-kos-gateb-eb2f2-20261015` retains original/final IDs and source/fixture hashes, per-phase receipts, complete environment versions, actual loaded-code observations, one-locus omission/restore controls, full U3 and next-offline diagnostics. A timeout, interrupted cohort, import/setup error or profiling crash earns no BODY-failure or complete-suite credit. The unchanged 180-second per-file cap and four bridge partitions still apply. Per-node source observations cannot substitute for a complete file receipt or hosted Linux isolation.
 
 ### The 155 original execution controls remain explicit

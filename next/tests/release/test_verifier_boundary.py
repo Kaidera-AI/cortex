@@ -673,9 +673,10 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         from cortex_core.install import owner
         with self.sql_source() as s:
             s.start()
-            s.expired = True
+            effect = s.effect_context()
+            s.helper.clock(s.data, lambda clock: clock.update(now_utc=s.deadline.expires_at))
             with self.assertRaises(owner.OwnerRefusal) as caught:
-                s.primitive.dispatch(s.effect_context())
+                s.primitive.dispatch(effect)
             self.assertEqual(caught.exception.detail, 'reservation_expired')
             self.assertEqual(s.effect_count, 0)
             self.assertEqual(len(s.history.events()), 2)
@@ -796,6 +797,14 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
                 self.init_boundary()
             with tempfile.TemporaryDirectory(prefix='EB2-source-') as root:
                 s = SQLSubject(root)
+                # Initially admit a finite SOURCE lease at the existing 30s
+                # policy ceiling. Real R01 audits must fit before the intended
+                # fault; neither a product guard nor an old deadline is renewed.
+                s.helper.context(s.data, lambda c: c['host_lease'].update(expires_at=1700000030))
+                s.private['expires_at'] = 1700000030
+                s.set_private()
+                s.helper.clock_receipt(s.data, lambda receipt: receipt['monotonic_deadlines'].update(
+                    host=130000000000, private=130000000000))
                 _, release_data = self.owner_data()
                 release = json.loads(release_data['request_raw'])['release']
                 request = json.loads(s.data['request_raw'])
