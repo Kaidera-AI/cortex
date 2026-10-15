@@ -574,7 +574,7 @@ class JoinedSubject:
     Explicit P1 truth setup is NOT a producer for a real crash. Catalog rows and
     connection handles remain nonauthoritative; the marker is an owned file.
     """
-    def __init__(self, root):
+    def __init__(self, root, *, private=False):
         from test_b2_recovery_join import RecoveryFixture
         from cortex_core.runtime import role_grants
         from cortex_core.release.contracts import freeze
@@ -585,8 +585,24 @@ class JoinedSubject:
                 rows['roles'].remove(inner.probe)
                 inner.before['role'] = canonical_bytes(rows)
                 return super().original(root)
-        self.oracle = AbsentProbe(); self.root = Path(root)
-        _, self.helper, self.history, self.old, self.current, self.effect, self.adapter = self.oracle.fixture(root)
+        self.oracle = AbsentProbe(); self.root = Path(root); self.private = private
+        original_setup = storage.LifecycleReceiptOracle.setup_data
+        def prepared(check):
+            helper,data,proposal = original_setup(check)
+            if private:
+                c=json.loads(data['context_raw'])
+                value={'kind':'runtime','phase':'runtime','generation':c['policy_generation'],
+                    'holder':'private-owner','fence':52,'expires_at':1700000003,
+                    'installation_id':c['identity']['installation_id'],'operation_id':c['identity']['operation_id'],
+                    'session_user_oid':16384,'session_user_name':'private-owner','map_revision':4}
+                raw=canonical_bytes(value);data['originals']['joined-private.json']=raw.decode()
+                helper.context(data,lambda c:c.update(private_binding={'kind':'private',
+                    'binding_ref':lifecycle._ref('joined-private.json',raw)}))
+                helper.clock_receipt(data,lambda r:r['monotonic_deadlines'].update(private=103000000000))
+                proposal,_=helper.run_gate(owner,data)
+            return helper,data,proposal
+        with patch.object(storage.LifecycleReceiptOracle,'setup_data',prepared):
+            _, self.helper, self.history, self.old, self.current, self.effect, self.adapter = self.oracle.fixture(root)
         self.role_grants = role_grants; self.freeze = freeze
         # Initialize the existing exclusion file during fixture setup. HOLD
         # checks freeze all history bytes after the owner root is prepared.
@@ -604,7 +620,14 @@ class JoinedSubject:
         self.oracle.rewrite(self.helper, data, lambda q: q['identity'].update(
             request_id=prefix+'-request', attempt_id=prefix+'-attempt'))
         self.helper.context(data, lambda c: c.update(nonce=prefix+'-nonce'))
+        if self.private: self.private_fact(data,lambda value:value.update(fence=value['fence']+1))
         return data
+
+    def private_fact(self, data, change):
+        ref=json.loads(data['context_raw'])['private_binding']['binding_ref']
+        value=json.loads(data['originals'][ref['path']]);change(value);raw=canonical_bytes(value)
+        data['originals'][ref['path']]=raw.decode()
+        self.helper.context(data,lambda c:c['private_binding'].update(binding_ref=lifecycle._ref(ref['path'],raw)))
 
     def tree(self):
         return {p.relative_to(self.history.root).as_posix(): p.read_bytes()
@@ -618,6 +641,9 @@ class JoinedSubject:
         self.helper.edit_record(data, 'current_state_ref', lambda s: s.update(revision=revision))
         if getattr(self, 'expired', False):
             self.helper.clock(data, lambda c: c.update(now_utc=1700000005))
+        if (getattr(self,'expire_cleanup',False) and self.mode=='uninstall'
+                and revision >= self.cleanup_base_revision+2):
+            self.helper.clock(data,lambda c:c.update(now_utc=F['cleanup_expires_at']))
         return self.helper.inputs(owner, data)
 
     def witness(self):
@@ -666,8 +692,8 @@ class JoinedSubject:
         self.data = self.authority()
         return raw
 
-    def child(self, parent):
-        self.mode = 'install'; self.data = self.authority('child')
+    def child(self, parent, prefix='child'):
+        self.mode = 'install'; self.data = self.authority(prefix)
         self.oracle.rewrite(self.helper, self.data, lambda q: q.update(operation='install', journal_ref=thaw(parent)))
 
     def cleanup(self, completed, *, shared=False):
@@ -691,6 +717,7 @@ class JoinedSubject:
                 'transaction_id':'joined-cleanup', 'request_id':'joined-cleanup-request',
                 'attempt_id':'joined-cleanup-attempt','parent_attempt_id':q['identity']['attempt_id']}))
         self.current_resources = copy.deepcopy(self.resources)
+        self.cleanup_base_revision = self.history.current_revision()
         if shared:
             self.current_resources[0]['consumers_ref'] = self.history.retain(canonical_bytes(
                 {'resource_id':'owned-probe','consumers':['another-product']}))
@@ -1035,3 +1062,96 @@ class RecoveryJoinOracle(unittest.TestCase):
             from cortex_core.install import uninstall
             self.assertIsNotNone(s.witness());self.assertEqual(s.dispatches,0)
             self.assertEqual(uninstall._cleanup_projection(s.history,result)['retained_items'][0]['reason'],'shared_consumer')
+
+    def test_P2B02_lost_reply_after_publication_reuses_the_exact_result(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);raw=s.truth();actual=s.history.append
+            def published(record,*,expected_ref):
+                ref=actual(record,expected_ref=expected_ref)
+                if record['result_ref'] is not None:s.expired=True
+                return ref
+            with patch.object(s.history,'append',published):
+                with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+            self.assertEqual(caught.exception.detail,'reservation_expired')
+            completed=s.history.head()[0];event,_=lifecycle._load_entry(s.history,completed)
+            self.assertEqual(s.history.read(event['result_ref']),raw)
+            before=s.tree();s.expired=False
+            self.assertEqual(self.run_ok(s),completed);self.assertEqual(s.tree(),before)
+            self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_terminal_not_applied_is_checked_once_before_child(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);raw=s.truth('not_applied_verified',reconciliation=False)
+            count=len(s.history.events());parent=self.run_ok(s)
+            self.assertEqual(self.run_ok(s),parent);self.assertEqual(len(s.history.events()),count+1)
+            _,obs=lifecycle._load_entry(s.history,parent);attempt=json.loads(s.history.read(obs['attempt_ref']))
+            self.assertEqual(attempt['result_ref'],attempt['reconciliation_ref'])
+            self.assertEqual(s.history.read(attempt['result_ref']),raw)
+            s.child(parent);self.run_ok(s);self.assertEqual(s.dispatches,1)
+
+    def test_P2B03_unmeasured_terminal_truth_does_not_start_a_child(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth('not_applied_verified',reconciliation=False)
+            s.child(s.history.head()[0]);before=s.tree()
+            with self.assertRaises(owner.OwnerRefusal):s.run()
+            self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_changed_first_originals_refuse_without_replacement(self):
+        for field in ('role','acl','database','hba','carrier'):
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s);s.child(parent)
+                original=thaw(s.effect['preimages_ref']);before=s.history.read(original);head=s.history.head()[0]
+                s.adapter.live[field]+=b' '
+                with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+                self.assertEqual(caught.exception.detail,'resource_changed')
+                self.assertEqual(s.history.head()[0],head);self.assertEqual(s.history.read(original),before)
+                self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_applied_descendant_blocks_old_parent_even_after_resource_absence(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s)
+            s.child(parent);self.run_ok(s);self.assertEqual(s.dispatches,1)
+            s.adapter.live=dict(s.oracle.before);s.child(parent,'another-child');before=s.tree()
+            with self.assertRaises(owner.OwnerRefusal):s.run()
+            self.assertEqual(s.dispatches,1);self.assertEqual(s.tree(),before)
+            self.assertEqual(s.marker.read_bytes(),b'install\n')
+
+    def test_P2B03_private_child_requires_independent_fence_and_identity(self):
+        for drift in ('fence','holder','session_user_oid'):
+            with self.subTest(drift=drift),tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root,private=True);s.truth('not_applied_verified');parent=self.run_ok(s);s.child(parent)
+                s.private_fact(s.data,lambda value:value.update({drift:
+                    52 if drift=='fence' else 'foreign' if drift=='holder' else 16385}))
+                before=s.tree()
+                with self.assertRaises(owner.OwnerRefusal):s.run()
+                self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_renewed_private_child_still_consumes_normally(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root,private=True);s.truth('not_applied_verified');parent=self.run_ok(s)
+            s.child(parent);result=self.run_ok(s);_,obs=lifecycle._load_entry(s.history,result)
+            self.assertEqual(json.loads(s.history.read(obs['attempt_ref']))['dispatch_state'],'applied_verified')
+            self.assertEqual(s.marker.read_bytes(),b'install\n')
+
+    def test_P2B05_unknown_inverse_of_retry_child_keeps_the_root_anchor(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s)
+            s.child(parent);child=self.run_ok(s);s.cleanup(child);s.expire_cleanup=True
+            with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+            self.assertEqual(caught.exception.detail,'reservation_expired')
+            prior=s.history.head()[0];event,obs=lifecycle._load_entry(s.history,prior)
+            attempt=json.loads(s.history.read(obs['attempt_ref']))
+            self.assertEqual(event['origin_request_ref'],thaw(s.effect['context']['request_ref']))
+            self.assertEqual(attempt['dispatch_state'],'consumed_result_unknown')
+            s.expire_cleanup=False;s.helper.context(s.data,lambda c:c.update(nonce='another-inverse-nonce'))
+            s.oracle.rewrite(s.helper,s.data,lambda q:q['identity'].update(request_id='another-inverse-request',
+                attempt_id='another-inverse-attempt',operation_id='77777777-7777-4777-8777-777777777777',
+                transaction_id='another-inverse-transaction'))
+            s.oracle.rewrite(s.helper,s.data,lambda q:q.update(authority_ref=s.context()['consent_ref']))
+            head=s.history.head()[0]
+            with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+            self.assertEqual(caught.exception.detail,'attempt_ambiguous')
+            self.assertEqual(s.history.head()[0],head);self.assertIsNotNone(s.witness())
+            self.assertEqual(s.dispatches,1);self.assertEqual(s.marker.read_bytes(),b'install\n')
+            _,obs=lifecycle._load_entry(s.history,prior)
+            self.assertEqual(json.loads(s.history.read(obs['attempt_ref'])),attempt)
