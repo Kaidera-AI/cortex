@@ -32,11 +32,14 @@ class DeliveryRework(Fixture, unittest.TestCase):
                 events.append('actual case-only rename after final delivery reload')
             return context
         self.current_hook = current
-        with patch.object(RootReader,'_aggregate_inventory_finish',final_check):
-            with self.assertRaises(Refusal) as caught:
-                delivery.read_original(262144)
-        self.assertEqual(caught.exception.reason,observed['reason'])
-        self.assertEqual(terminal,['terminal check'])
+        try:
+            with patch.object(RootReader,'_aggregate_inventory_finish',final_check):
+                with self.assertRaises(Refusal) as caught:
+                    delivery.read_original(262144)
+            self.assertEqual(caught.exception.reason,observed['reason'])
+            self.assertEqual(terminal,['terminal check'])
+        finally:
+            if renamed.name in {entry.name for entry in os.scandir(old.parent)}:renamed.rename(old)
         self.assertEqual(len(events), 1)
         self.assertEqual(len(self.contexts), 6)
         self.assertEqual(self.transports, [self.aggregate]*2)
