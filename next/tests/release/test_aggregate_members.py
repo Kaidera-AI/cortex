@@ -72,6 +72,21 @@ class Members(unittest.TestCase):
             with self.assertRaises(OSError):os.fstat(fd)
         self.assertIsNone(r.fd)
 
+    def test_wire_character_rules_match_original_for_every_unicode_codepoint(self):
+        import unicodedata
+        from cortex_core.release.codec import _strings
+        # Independent literal previous rule, exhaustive over Python Unicode values.
+        for point in range(0x110000):
+            text=chr(point)
+            for payload in (False,True):
+                expected=('unicode_not_nfc' if not payload and unicodedata.normalize('NFC',text)!=text
+                          else 'forbidden_unicode' if ((point<32 and not (payload and text in '\n\r\t'))
+                                or 127<=point<=159 or 0xD800<=point<=0xDFFF) else None)
+                actual=None
+                try:_strings(text,text_payload=payload)
+                except ValueError as error:actual=str(error)
+                if actual!=expected:self.fail(f'character rule mismatch U+{point:04X} payload={payload}: {actual} != {expected}')
+
     def test_unique_path_rows_avoid_pairwise_object_comparisons(self):
         from cortex_core.release.codec import WireValidator
         import jsonschema._utils as utilities
