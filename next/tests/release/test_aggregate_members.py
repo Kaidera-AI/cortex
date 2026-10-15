@@ -40,6 +40,23 @@ class Members(unittest.TestCase):
     def path(self,kind='record'):
         return next(r['path'] for r in self.value['members'] if r['kind']==kind)
 
+    def test_workspace_storage_is_private_canonical_unique_and_cleaned(self):
+        # BODY regression: storage belongs to this checkout, never a developer home.
+        import stat
+        from r01u3_support.workspace import workspace_output, temporary_directory
+        base=workspace_output()
+        self.assertEqual(base,Path(__file__).resolve().parents[3]/'output/r01u3-fixtures')
+        self.assertTrue(base.is_absolute());self.assertEqual(base,base.resolve(strict=True))
+        self.assertEqual(stat.S_IMODE(base.stat().st_mode),0o700)
+        with temporary_directory('portable-') as a, temporary_directory('portable-') as b:
+            first,second=Path(a),Path(b)
+            self.assertNotEqual(first,second)
+            for path in (first,second):
+                self.assertEqual(path.parent,base)
+                self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o700)
+                (path/'inert').write_bytes(b'fixture only')
+        self.assertFalse(first.exists());self.assertFalse(second.exists())
+
     def test_all_original_members_exact_and_no_descriptor_survives_close(self):
         r=self.reader();self.begin(r)
         for path,raw in self.bodies.items():self.assertEqual(r.aggregate_bytes(path),raw)
