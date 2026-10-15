@@ -327,7 +327,7 @@ class OwnerProposalOracle(unittest.TestCase):
     def test_exact_r01_refusal_and_opaque_dependency_text_are_sanitized(self):
         api=self.api();d=self.data()
         with patch.object(api,'_installed_owner_inputs',lambda:self.inputs(api,d)),patch.object(signed_member,'request_member',side_effect=signed_member.Refusal('member_digest_mismatch')):
-            e=self.refusal(api,'r01_refusal',lambda:api.propose_effect(d['request_raw'].encode()))
+            e=self.refusal(api,'r01_other_refusal',lambda:api.propose_effect(d['request_raw'].encode()))
             self.assertEqual(e.r01_reason,'member_digest_mismatch')
         with patch.object(api,'_installed_owner_inputs',side_effect=RuntimeError('SENTINEL')):
             self.refusal(api,'owner_unavailable',lambda:api.propose_effect(object()))
