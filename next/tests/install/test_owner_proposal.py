@@ -299,13 +299,23 @@ class OwnerProposalOracle(unittest.TestCase):
         api=self.api();p,_=self.run_gate(api)
         with self.assertRaises(FrozenInstanceError):p.observed_state_revision=8
         with self.assertRaises(TypeError):p.context['nonce']='forged'
-        with self.assertRaises(ValueError):replace(p,effect_authority=True)
+        with self.assertRaises(TypeError):replace(p,effect_authority=True)
         self.assertFalse(hasattr(p,'reservation_id'))
 
     def test_refusal_leaves_all_original_data_unchanged(self):
         api=self.api();d=self.data();self.clock(d,lambda c:c.update(now_utc=1700000005));before=copy.deepcopy(d)
         self.refusal(api,'reservation_expired',lambda:self.run_gate(api,d))
         self.assertEqual(d,before)
+
+    def test_private_binding_kind_must_match_its_independent_phase(self):
+        api=self.api();d=self.data();c=json.loads(d['context_raw'])
+        private={'kind':'forged-kind','phase':'runtime','generation':11,'holder':'private-owner','fence':52,
+            'expires_at':1700000003,'installation_id':c['identity']['installation_id'],
+            'operation_id':c['identity']['operation_id'],'session_user_oid':16384,'session_user_name':'private-owner','map_revision':4}
+        raw=encode(private);d['originals']['b1-private.json']=raw.decode()
+        self.context(d,lambda v:v.update(private_binding={'kind':'private','binding_ref':{'path':'b1-private.json','bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}}))
+        self.clock_receipt(d,lambda r:r['monotonic_deadlines'].update(private=103000000000))
+        self.refusal(api,'backend_unavailable',lambda:self.run_gate(api,d))
 
     def test_fixture_index_and_held_f2_preserve_separate_acceptance(self):
         self.api();index=json.loads((FIX/'subjects.json').read_bytes());raw=(FIX/'owner-proposal-subjects.json').read_bytes()
