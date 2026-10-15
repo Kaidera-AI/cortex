@@ -373,7 +373,7 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
         context['request_ref'] if lineage is None else lineage['event']['origin_request_ref'],
         'request_ref': context['request_ref'], 'context_ref': first_context_ref, 'reservation_ref': reservation_ref,
         'effect': context['effect'], 'predecessor_result_refs':
-        [] if lineage is None else [lineage['event']['result_ref']], 'dispatch_state': 'not_consumed',
+        [] if lineage is None else lineage['predecessor_result_refs'], 'dispatch_state': 'not_consumed',
         'result_ref': None, 'reconciliation_ref': None, 'consumption_sequence': None, 'consume_clock_ref': None}
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=preimages_ref, request_ref=context['request_ref'], release_ref=release_ref,
@@ -562,6 +562,13 @@ def _execute_bound(original_request, first):
         request = thaw(parse_install_message(original_request, expected_kind='request').document)
         if request['operation'] != 'install':
             _, cleanup = _part1_plan(history, original_request, dispatch_current, dispatch_inputs)
+            # The lineage audit reads durable originals and may block. Reobserve
+            # the same owner/context and both cleanup bounds at actual dispatch.
+            from . import uninstall
+            fresh_inputs, fresh = _current_owner(original_request, dispatch_current.deadline)
+            owner._same_context(dispatch_current, fresh)
+            uninstall._current_bounds(fresh, fresh_inputs)
+            dispatch_inputs, dispatch_current = fresh_inputs, fresh
         effect_data = {'context': thaw(dispatch_current.context), 'journal_ref': consumed,
                        'preimages_ref': observation['preimages_ref']}
         if cleanup is not None:

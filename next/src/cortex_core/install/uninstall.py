@@ -92,10 +92,18 @@ def _plan(history, request, context, original):
 
 def _current_plan(history, request, proposal, inputs, original):
     context = thaw(proposal.context)
+    recovery._renewed_scope(history, request, context, original)
+    _current_bounds(proposal, inputs)
+    return _plan(history, request, context, original)
+
+
+def _current_bounds(proposal, inputs):
+    """Current provider bytes and time only; no blocking historical reads."""
+    context = thaw(proposal.context)
     owner._require(type(inputs) is owner._Inputs
         and owner._decode(inputs.context_raw, 'owner_unavailable') == context, 'owner_unavailable')
-    scope = recovery._renewed_scope(history, request, context, original)
-    # Current provider bytes, not an old retained fact standing in for a missing observation.
+    consent = owner._original(inputs, context['consent_ref'])
+    scope = owner._original(inputs, consent['scope_ref'])
     owner._original(inputs, context['effect']['expected_before_ref'])
     restrictions = owner._original(inputs, scope['cleanup_restrictions_ref'])
     owner._require(set(restrictions) == {'expires_at', 'expires_monotonic_ns', 'purge_selection'}, 'owner_unavailable')
@@ -105,7 +113,6 @@ def _current_plan(history, request, proposal, inputs, original):
     owner._clock(now, context['owner_epoch'])
     owner._require(now['now_utc'] + now['uncertainty_seconds'] < restrictions['expires_at']
         and now['monotonic_ns'] < restrictions['expires_monotonic_ns'], 'reservation_expired')
-    return _plan(history, request, context, original)
 
 
 def _verify_result(history, plan, raw):

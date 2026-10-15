@@ -77,9 +77,10 @@ def _persist_child_receipt(original_request, original_child):
             and current.observed_state_revision == history.current_revision(), 'resource_changed')
         # Existing file+directory fsync must finish before the parent gets an ACK.
         child_ref = history.retain(original_child)
+        revision_after_persistence = history.current_revision()
         _, final = lifecycle._current_owner(original_request, current.deadline)
         owner._same_context(current, final)
-        owner._require(final.observed_state_revision == history.current_revision(), 'generation_changed')
+        owner._require(final.observed_state_revision == revision_after_persistence, 'generation_changed')
         from cortex_core.release.contracts import freeze
         return freeze(child_ref)
 

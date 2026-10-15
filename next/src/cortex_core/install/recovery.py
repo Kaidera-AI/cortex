@@ -70,22 +70,40 @@ def _applied_lineage(history, request):
         request_ref=old['event']['request_ref']).document)
     owner._require(child['result'] == 'PASS' and child['journal_ref'] == old['ref']
         and child['disposition'] in ('created_by_this_transaction', 'verified_owned_continuation'), 'resource_changed')
-    witnesses = old['result']['observed'].get('resource_witnesses')
-    owner._require(type(witnesses) is dict
-        and set(witnesses) == {r['resource_id'] for r in child['resources']}, 'resource_changed')
+    creators = {}
+    predecessors = [old['event']['result_ref']]
     for resource in child['resources']:
+        creator = _settled_applied(history, resource['result_event_ref']) if resource['ownership'] != 'external_read_only' else _settled_applied(history, old['ref'])
+        creation = creator['request']
+        owner._require(creation['operation'] == 'install'
+            and all(creation['identity'][k] == origin['identity'][k]
+                for k in ('installation_id', 'product', 'operation_id', 'transaction_id'))
+            and all(creation[k] == origin[k] for k in ('target', 'release', 'profile', 'roots', 'invocation'))
+            and all(creation['caller'][k] == origin['caller'][k] for k in ('owner_uid', 'host_identity_ref')),
+            'resource_changed')
+        observed = creator['result']['observed']
+        witnesses, metadata = observed.get('resource_witnesses'), observed.get('resource_metadata')
+        rid = resource['resource_id']
+        owner._require(type(witnesses) is dict and type(metadata) is dict
+            and resource['after_witness'] == witnesses.get(rid)
+            and {k: v for k, v in resource.items() if k not in ('after_witness', 'result_event_ref')} == metadata.get(rid),
+            'resource_changed')
         owner._require(resource['installation_id'] == identity['installation_id']
             and resource['product'] == identity['product']
-            and resource['after_witness'] == witnesses[resource['resource_id']]
             and resource['source_installer_ref'] == origin['release']['installer_ref'], 'resource_changed')
         if resource['ownership'] != 'external_read_only':
-            owner._require(resource['created_by'] == old['event']['request_ref']
-                and resource['result_event_ref'] == old['ref'], 'resource_changed')
+            owner._require(resource['created_by'] == creator['event']['request_ref'], 'resource_changed')
             intent, obs = p2._load_entry(history, resource['intent_event_ref'])
             reserved = p2._decode(history.read(obs['reservation_ref']))
-            owner._require(intent['identity'] == origin['identity'] and intent['phase'] == 'create_intent'
+            owner._require(intent['identity'] == creation['identity'] and intent['phase'] == 'create_intent'
+                and intent['effect'] == creator['event']['effect']
                 and reserved['state'] == 'reserved', 'resource_changed')
+        creators[rid] = creator
+        if creator['event']['result_ref'] not in predecessors:
+            predecessors.append(creator['event']['result_ref'])
         _read_refs(history, resource)
+    old['creators'] = creators
+    old['predecessor_result_refs'] = predecessors
     old['receipt'] = child
     return old
 
@@ -98,16 +116,20 @@ def _scope(history, context):
 
 def _renewed_scope(history, request, context, original):
     from . import lifecycle as p2
-    original_context = p2._decode(history.read(original['observation']['context_ref']))
-    scope, prior_scope = _scope(history, context), _scope(history, original_context)
-    owner._require(request['authority_ref'] == context['consent_ref']
-        and context['consent_ref'] != original_context['consent_ref']
-        and context['nonce'] != original_context['nonce']
-        and context['host_lease']['fence'] >= original_context['host_lease']['fence']
-        and scope['backend_binding_ref'] == prior_scope['backend_binding_ref'], 'scope_denied')
-    owner._require(all(context['effect'][k] == original['event']['effect'][k]
-        for k in ('product', 'resource_kind', 'reversal_contract_ref', 'data_policy_ref')), 'scope_denied')
+    scope = _scope(history, context)
+    owner._require(request['authority_ref'] == context['consent_ref'], 'scope_denied')
     selected = set(scope['resource_ids'])
+    owner._require(selected <= set(original['creators']), 'resource_changed')
+    for rid in selected:
+        creator = original['creators'][rid]
+        original_context = p2._decode(history.read(creator['observation']['context_ref']))
+        prior_scope = _scope(history, original_context)
+        owner._require(context['consent_ref'] != original_context['consent_ref']
+            and context['nonce'] != original_context['nonce']
+            and context['host_lease']['fence'] >= original_context['host_lease']['fence']
+            and scope['backend_binding_ref'] == prior_scope['backend_binding_ref'], 'scope_denied')
+        owner._require(all(context['effect'][k] == creator['event']['effect'][k]
+            for k in ('product', 'resource_kind', 'reversal_contract_ref', 'data_policy_ref')), 'scope_denied')
     for reference, event in history.events():
         if event['identity'] == context['identity'] or event['origin_request_ref'] != original['event']['request_ref']:
             continue
