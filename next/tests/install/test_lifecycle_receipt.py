@@ -48,13 +48,14 @@ class LifecycleReceiptOracle(unittest.TestCase):
         fresh = copy.deepcopy(data)
         helper.context(fresh, lambda c: c.update(state_revision=revision))
         helper.edit_record(fresh, 'current_state_ref', lambda s: s.update(revision=revision))
+        self.current_originals = {k: v.encode() for k, v in fresh['originals'].items()}
         p, _ = helper.run_gate(helper.api(), fresh)
         return p, fresh['current_clock_raw'].encode()
 
     def consume(self, api, history):
         helper, data, proposal, reserved = self.reserve(api, history)
         current, clock = self.current(helper, data, proposal.observed_state_revision+1)
-        consumed = api._consume(history, reserved, current, clock)
+        consumed = api._consume(history, reserved, current, clock, originals=self.current_originals)
         return data, proposal, reserved, consumed
 
     def measurement(self, data, proposal):
@@ -157,10 +158,10 @@ class LifecycleReceiptOracle(unittest.TestCase):
             history = api._History(Path(root))
             helper, data, proposal, reserved = self.reserve(api, history)
             current, clock = self.current(helper, data, proposal.observed_state_revision+1)
-            consumed = api._consume(history, reserved, current, clock)
+            consumed = api._consume(history, reserved, current, clock, originals=self.current_originals)
             restarted = api._History(Path(root))
             with self.assertRaises(owner.OwnerRefusal) as caught:
-                api._consume(restarted, reserved, current, clock)
+                api._consume(restarted, reserved, current, clock, originals=self.current_originals)
             self.assertEqual(caught.exception.detail, 'reservation_used')
             self.assertEqual(restarted.head()[0], consumed)
             _, obs = api._load_entry(restarted, consumed)
@@ -175,7 +176,8 @@ class LifecycleReceiptOracle(unittest.TestCase):
             history = api._History(Path(root))
             _, data, proposal, reserved = self.reserve(api, history)
             with self.assertRaises(owner.OwnerRefusal) as caught:
-                api._consume(history, reserved, proposal, data['current_clock_raw'].encode())
+                api._consume(history, reserved, proposal, data['current_clock_raw'].encode(),
+                             originals={k: v.encode() for k, v in data['originals'].items()})
             self.assertEqual(caught.exception.detail, 'generation_changed')
             self.assertEqual(history.head()[0], reserved)
 
@@ -190,7 +192,7 @@ class LifecycleReceiptOracle(unittest.TestCase):
                     current, clock = self.current(helper, data, proposal.observed_state_revision+1)
                     now = json.loads(clock); now[field] = value
                     with self.assertRaises(owner.OwnerRefusal) as caught:
-                        api._consume(history, reserved, current, canonical_bytes(now))
+                        api._consume(history, reserved, current, canonical_bytes(now), originals=self.current_originals)
                     self.assertEqual(caught.exception.detail, 'reservation_expired')
                     self.assertEqual(history.head()[0], reserved)
 
@@ -336,11 +338,11 @@ class LifecycleReceiptOracle(unittest.TestCase):
                                                             'sha256':hashlib.sha256(raw).hexdigest()}))
         helper.scope(data, lambda s: s.update(operation='plan'))
         helper.edit_record(data, 'policy_ref', lambda p: p.update(operation='plan'))
-        proposal, _ = helper.run_gate(helper.api(), data)
         with tempfile.TemporaryDirectory() as root:
             history = api._History(Path(root))
-            with self.assertRaises(owner.OwnerRefusal) as caught:
-                api._reserve(history, raw, proposal, {k:v.encode() for k,v in data['originals'].items()},
-                             self.preimages(), clock_raw=data['current_clock_raw'].encode())
+            with patch.object(owner, '_installed_owner_inputs', lambda: helper.inputs(owner, data)):
+                with patch.object(api, '_installed_lifecycle', side_effect=AssertionError('backend before readonly denial')):
+                    with self.assertRaises(owner.OwnerRefusal) as caught:
+                        api.execute_effect(raw)
             self.assertEqual(caught.exception.detail, 'scope_denied')
             self.assertIsNone(history.head()[0])
