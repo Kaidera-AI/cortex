@@ -3,8 +3,9 @@ import asyncio
 from dataclasses import dataclass, replace
 from uuid import uuid4
 
-from cortex_core.embeddings.keyword import request_deadline, check_deadline
-from cortex_core.embeddings.pg_search import CapabilityUnavailable, EmbeddingIdentity
+from cortex_core.embeddings.projection_revision import (
+    request_deadline, check_deadline, CapabilityUnavailable, EmbeddingIdentity,
+)
 
 
 @dataclass(frozen=True)
