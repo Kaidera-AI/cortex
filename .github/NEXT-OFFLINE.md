@@ -114,3 +114,26 @@ images, installed-host acceptance, or G_OLD. A PR editing the gate, manifest or
 workflow itself can evade enforcement; independent review and repository
 protections must adjudicate such changes. An unimplemented source contract
 remains RED; it is not relabeled as native merely to obtain a green check.
+
+Kai ruling359622c6-042a-4812-ad81-97c756d44864 declares exactly five frozen
+E1 oracle nodes unavailable while E1 waits for RC3b (owner nemo). They use the
+existing method_exclusions list with source-hash-bound unbuilt_unit evidence.
+The exact authorized rows are pinned to policy commit741c43e4, not inferred from
+a current failing test or an editable reason. Declarations may be removed when
+E1 lands; adding or altering one requires another explicit policy ruling.
+
+Unlike absent-fixture methods, unbuilt-unit nodes remain in actual pytest
+collection and execution. Raw failed CALL reports and pytest exit1 remain in
+the receipt. Passing setup/teardown and exactly one SurfaceAbsent/SemanticRed
+assertion are required; any passing declaration, other exception, skip, xfail,
+deselection, missing/duplicate phase or ordinary live failure refuses the gate.
+The receipt's declared_unavailable witnesses always have pass_credit:0. A suite
+consisting only of valid executed-unavailable nodes is allowed without inventing
+a passing live test. All ordinary live phases still use unchanged U13.valid.
+The worker and host call the same existing receipt_valid function. Summary
+selected counts mean actual execution; live_collected excludes the five
+executed-unavailable nodes. C06 remains a mandatory live failure.
+
+The existing oracle runs real worker controls for an unbuilt assertion and a
+fake now-passing declaration. The latter has raw pytest exit0 but gate/process
+exit1 and zero PASS credit. Both control packets/logs are uploaded per Python.

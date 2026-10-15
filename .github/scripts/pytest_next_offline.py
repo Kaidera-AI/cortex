@@ -21,6 +21,8 @@ MANIFEST = ROOT / '.github/next-offline-suites.json'
 ACCEPTED_BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
 # One-time initial integration: this exact main predates the inventory file.
 BOOTSTRAP_MAIN = '66cba6a1f8a2a3787844e168ab5415cb96738a0d'
+# Kai ruling359622c6: immutable five-row policy, retained in this branch's history.
+UNBUILT_POLICY = '741c43e41f46ba2e818d3bde8581fff9b27abc9c'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
                                             Path(__file__).with_name('pytest_u13_worker.py'))
 U13 = importlib.util.module_from_spec(SPEC)
@@ -165,6 +167,11 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     if not parsed or anchor is None:return False
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
+    if evidence['kind']=='unbuilt_unit':
+        # The same source reader accepts only the five explicitly ratified rows.
+        approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
+        return any(row['nodeid']==nodeid and row['evidence']==evidence
+            and row['evidence'].get('kind')=='unbuilt_unit' for row in approved)
     if evidence['kind'] in ('postgres_probe_fixture','loopback_fixture'):
         if name!=suite or not nodeid or evidence['symbol']!='.'.join(nodeid.split('::')[1:]):return False
         if not isinstance(anchor,(ast.FunctionDef,ast.AsyncFunctionDef)) or not anchor.name.startswith('test_'):return False
@@ -377,6 +384,9 @@ def inventory(root, manifest, base_manifest=None):
                 if not isinstance(row,dict) or set(row)!= {'nodeid','reason','evidence'} or not isinstance(row['nodeid'],str) or not isinstance(row['reason'],str) or not row['reason'].strip() or len(row['reason'].splitlines())!=1:
                     raise ValueError('coverage: method exclusion schema')
                 node=row['nodeid'];path=node.split('::')[0]
+                if row.get('evidence',{}).get('kind')=='unbuilt_unit':
+                    approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
+                    if row not in approved:invalid.append('coverage: unbuilt declaration lacks exact ruling approval: '+node)
                 if not source_path(path) or path not in run:
                     invalid.append('coverage: method exclusion path outside RUN: '+node)
                     continue
@@ -396,18 +406,47 @@ def inventory(root, manifest, base_manifest=None):
                 method_exclusions=method_exclusions,retirement_checks=checks)
 
 
+def declaration_observations(packet, excluded):
+    """Executed negative evidence, never a skip/xfail or a passing test."""
+    result=[]
+    for declaration in excluded:
+        if declaration.get('evidence',{}).get('kind')!='unbuilt_unit':continue
+        node=declaration['nodeid'];rows=[r for r in packet.get('reports',[]) if r['nodeid']==node]
+        calls=[r for r in rows if r['when']=='call']
+        valid=(Counter(r['when'] for r in rows)==Counter(('setup','call','teardown'))
+            and all(not r['wasxfail'] and r['outcome']==('failed' if r['when']=='call' else 'passed') for r in rows)
+            and len(calls)==1 and calls[0].get('assertion') is True
+            and calls[0].get('exception_type','').split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
+        result.append(dict(nodeid=node,reason=declaration['reason'],executed=bool(calls),
+            outcome=calls[0]['outcome'] if len(calls)==1 else 'invalid',
+            exception_type=calls[0].get('exception_type','') if len(calls)==1 else '',valid=valid,pass_credit=0))
+    return result
+
+
 def receipt_valid(packet, process_exit, retired=(), replacements=(), excluded=()):
+    if not isinstance(packet,dict):return False
     try:
-        return (process_exit == 0 and packet['gate_exit'] == 0
-                and U13.valid(packet['expected'], packet)
-                and packet.get('retired', []) == list(retired)
-                and packet.get('excluded_methods',[])==list(excluded)
-                and not (set(packet['expected']) & {row['nodeid'] for row in [*retired,*excluded]})
-                and (not (retired or excluded) or Counter(packet.get('collected', [])) ==
-                     Counter(packet['expected'] + [row['nodeid'] for row in [*retired,*excluded]]))
-                and (not replacements or sorted(packet['expected']) == sorted(replacements)))
-    except (KeyError, TypeError, ValueError):
-        return False
+        unbuilt=[row for row in excluded if row.get('evidence',{}).get('kind')=='unbuilt_unit']
+        fixtures=[row for row in excluded if row not in unbuilt]
+        unavailable={row['nodeid'] for row in unbuilt}
+        witnesses=declaration_observations(packet,excluded)
+        if (packet.get('declared_unavailable',[])!=witnesses or not all(w['valid'] for w in witnesses)
+            or len(unavailable)!=len(unbuilt) or not unavailable<=set(packet['expected'])):return False
+        expected=[n for n in packet['expected'] if n not in unavailable]
+        # Keep raw records intact; validate ordinary live phases using the existing U13 contract.
+        live={**packet,'selected':[n for n in packet['selected'] if n not in unavailable],
+              'reports':[r for r in packet['reports'] if r['nodeid'] not in unavailable],
+              'pytest_exit':0 if unbuilt and packet['pytest_exit']==1 else packet['pytest_exit']}
+        complete=(U13.valid(expected,live) if expected else bool(unbuilt) and not live['selected']
+                  and not live['reports'] and not live['deselected'] and live['pytest_exit']==0)
+        return (process_exit==0 and packet['gate_exit']==0 and complete
+            and (not unbuilt or packet['pytest_exit']==1)
+            and packet.get('retired',[])==list(retired) and packet.get('excluded_methods',[])==list(excluded)
+            and not (set(packet['expected']) & {r['nodeid'] for r in [*retired,*fixtures]})
+            and (not (retired or excluded) or Counter(packet.get('collected',[]))==
+                 Counter(packet['expected']+[r['nodeid'] for r in [*retired,*fixtures]]))
+            and (not replacements or sorted(packet['expected'])==sorted(replacements)))
+    except (KeyError,TypeError,ValueError):return False
 
 
 def product_observed(packet,path,pin):
@@ -570,7 +609,9 @@ def main():
                        process_exit=code, receipt=name + '.json', log=name + '.txt',
                        elapsed_seconds=round(time.monotonic() - started, 3), ok=ok,
                        selected=len(outcome.get('selected', [])) if outcome else 0,
-                       passed=sum(r['when'] == 'call' and r['outcome'] == 'passed'
+                       live_collected=len([n for n in outcome.get('selected',[]) if n not in {e['nodeid'] for e in excluded if e['evidence']['kind']=='unbuilt_unit'}]) if outcome else 0,
+                       declared_unavailable=len([e for e in excluded if e['evidence']['kind']=='unbuilt_unit']),
+                       passed=sum(r['nodeid'] not in {e['nodeid'] for e in excluded if e['evidence']['kind']=='unbuilt_unit'} and r['when'] == 'call' and r['outcome'] == 'passed'
                                   and not r['wasxfail'] for r in outcome.get('reports', [])) if outcome else 0)
             packet['suites'].append(row)
             write(result, packet)
@@ -578,6 +619,8 @@ def main():
     packet.update(owned_case_root_absent=not case.exists(),
                   suites_run=len(packet['suites']), suites_passed=sum(row['ok'] for row in packet['suites']),
                   tests_selected=sum(row['selected'] for row in packet['suites']),
+                  tests_live_collected=sum(row['live_collected'] for row in packet['suites']),
+                  tests_declared_unavailable=sum(row['declared_unavailable'] for row in packet['suites']),
                   tests_passed=sum(row['passed'] for row in packet['suites']))
     packet['gate_exit'] = 0 if (packet['owned_case_root_absent'] and
         len(packet['suites']) == len(checked['run']) and all(row['ok'] for row in packet['suites'])) else 1

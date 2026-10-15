@@ -12,10 +12,10 @@ import unittest
 import types
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
-                                            Path(__file__).with_name('pytest_u13_worker.py'))
-U13 = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(U13)
+SPEC = importlib.util.spec_from_file_location('shared_next_receipt',
+                                            Path(__file__).with_name('pytest_next_offline.py'))
+SHARED = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(SHARED)
 
 
 def declared_cases(module):
@@ -37,6 +37,7 @@ class Gate:
         self.retired = list(retired)
         self.excluded = list(excluded)
         self.assertions = {}
+        self.exceptions = {}
         self.expected = ()
         self.packet = dict(expected=[], selected=[], deselected=[], reports=[])
 
@@ -49,7 +50,8 @@ class Gate:
         if not all(Counter(collected)[node] == 1 for node in nodes):
             raise ValueError('retirement_collection')
         self.packet.update(collected=collected, retired=self.retired,excluded_methods=self.excluded)
-        session.items[:] = [item for item in session.items if item.nodeid not in nodes|excluded]
+        fixtures={row['nodeid'] for row in self.excluded if row.get('evidence',{}).get('kind')!='unbuilt_unit'}
+        session.items[:] = [item for item in session.items if item.nodeid not in nodes|fixtures]
         self.expected = tuple(item.nodeid for item in session.items)
         self.packet.update(expected=list(self.expected), selected=list(self.expected))
         if self.skip and session.items:
@@ -63,17 +65,23 @@ class Gate:
         self.packet['reports'].append(dict(nodeid=report.nodeid, when=report.when,
             outcome=report.outcome, wasxfail=hasattr(report, 'wasxfail'),
             assertion=self.assertions.get((report.nodeid,report.when),False),
+            exception_type=self.exceptions.get((report.nodeid,report.when),''),
             detail=str(report.longrepr) if report.failed or report.skipped else ''))
 
     def pytest_runtest_makereport(self,item,call):
         outcome=yield
         outcome.get_result()
+        if call.excinfo is not None:
+            error=type(call.excinfo.value)
+            self.exceptions[(item.nodeid,call.when)]=error.__module__+'.'+error.__qualname__
         self.assertions[(item.nodeid,call.when)] = bool(call.excinfo is not None
             and isinstance(call.excinfo.value,AssertionError))
 
     def pytest_sessionfinish(self, session, exitstatus):
         self.packet['pytest_exit'] = int(exitstatus)
-        self.packet['gate_exit'] = 0 if U13.valid(self.expected, self.packet) else 1
+        self.packet['declared_unavailable']=SHARED.declaration_observations(self.packet,self.excluded)
+        self.packet['gate_exit']=0
+        self.packet['gate_exit']=0 if SHARED.receipt_valid(self.packet,0,retired=self.retired,excluded=self.excluded) else 1
         self.output.write_text(json.dumps(self.packet, indent=2) + '\n')
         session.exitstatus = self.packet['gate_exit']
 

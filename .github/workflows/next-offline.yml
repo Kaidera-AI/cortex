@@ -31,6 +31,8 @@ jobs:
             --only-binary=:all: --require-hashes -r packages/api/requirements.lock \
             -r next/requirements-ci-test.lock -r .github/next-offline-requirements.lock
       - name: frozen inventory and outcome oracles
+        env:
+          CORTEX_NEXT_ORACLE_OUTPUT: ${{ runner.temp }}/next-offline-receipts/strictness-controls
         run: |
           "${{ runner.temp }}/next-offline-venv/bin/python" -B .github/scripts/tests/test_next_offline_gate.py
       - name: every admitted next suite without IP networking or native services
