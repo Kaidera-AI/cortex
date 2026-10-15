@@ -40,6 +40,8 @@ class AppliedSubject:
         self.history = lifecycle._History(self.root / 'history')
         self.check = storage.LifecycleReceiptOracle()
         self.helper, self.old, _ = self.check.setup_data()
+        # Reuse P1's original DATA members for the complete creation-ref check.
+        self.old['originals'].update(P1['members'])
         self.files = {}; self.resources = []; self.calls = []; self.dispatched = 0
         self.measured = 0; self.expire_after_consume = False
         self.monotonic_expiry = False; self.delete_kept = False
