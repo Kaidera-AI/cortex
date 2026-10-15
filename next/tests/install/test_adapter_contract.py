@@ -34,7 +34,7 @@ class LifecycleAdapterOracle(unittest.TestCase):
                     api.execute_effect(b'candidate')
         gate.assert_called_once_with(b'candidate')
 
-    def run_recorder(self, *, lose_result=False):
+    def run_recorder(self, *, lose_result=False, expire_after_consume=False, not_applied=False):
         api = self.api()
         check = storage.LifecycleReceiptOracle()
         helper, data, proposal = check.setup_data()
@@ -48,6 +48,8 @@ class LifecycleAdapterOracle(unittest.TestCase):
                 if revision is not None:
                     helper.context(fresh, lambda c: c.update(state_revision=revision))
                     helper.edit_record(fresh, 'current_state_ref', lambda s: s.update(revision=revision))
+                if expire_after_consume and revision is not None and revision >= 9:
+                    helper.clock(fresh, lambda c: c.update(now_utc=1700000005))
                 return helper.inputs(owner, fresh)
             class Recorder:
                 def snapshot(self):
@@ -57,11 +59,17 @@ class LifecycleAdapterOracle(unittest.TestCase):
                     _, obs = api._load_entry(history, history.head()[0])
                     attempt = json.loads(history.read(obs['attempt_ref']))
                     check.assertEqual(attempt['dispatch_state'], 'consumed_result_unknown')
-                    marker.write_bytes(b'measured-after')
+                    if not not_applied:
+                        marker.write_bytes(b'measured-after')
                 def measure(self, context):
                     counts['measurements'] += 1
                     if lose_result:
                         raise OSError('TEST_RESULT_UNAVAILABLE')
+                    if not_applied:
+                        check.assertFalse(marker.exists())
+                        result = json.loads(check.measurement(data, proposal))
+                        result.update(state='not_applied_verified', observed={'test_owned_marker':'measured-absent'})
+                        return storage.canonical_bytes(result)
                     check.assertEqual(marker.read_bytes(), b'measured-after')
                     return check.measurement(data, proposal)
             bindings = api._Bindings(history, {'directory': Recorder()})
@@ -69,7 +77,15 @@ class LifecycleAdapterOracle(unittest.TestCase):
                 aggregate_id=data['aggregate_id'], member_name='runtime.lock.json')
             with patch.object(owner, '_installed_owner_inputs', inputs), double.installed(signed_member), \
                     patch.object(api, '_installed_lifecycle', return_value=bindings):
-                if lose_result:
+                if expire_after_consume:
+                    with self.assertRaises(owner.OwnerRefusal) as caught:
+                        api.execute_effect(data['request_raw'].encode())
+                    self.assertEqual(caught.exception.detail, 'reservation_expired')
+                    _, obs = api._load_entry(history, history.head()[0])
+                    attempt = json.loads(history.read(obs['attempt_ref']))
+                    self.assertEqual(attempt['dispatch_state'], 'consumed_result_unknown')
+                    self.assertIsNone(attempt['result_ref'])
+                elif lose_result:
                     with self.assertRaises(owner.OwnerRefusal) as caught:
                         api.execute_effect(data['request_raw'].encode())
                     self.assertEqual(caught.exception.detail, 'attempt_ambiguous')
@@ -84,14 +100,25 @@ class LifecycleAdapterOracle(unittest.TestCase):
                     self.assertEqual(result.journal_ref, history.head()[0])
                     self.assertFalse(result.native_credit)
                     self.assertFalse(result.effect_authority)
-                    self.assertEqual(result.phase, 'enrollment_required')
+                    self.assertEqual(result.phase, 'held' if not_applied else 'enrollment_required')
                     event, _ = api._load_entry(history, result.journal_ref)
-                    self.assertEqual(history.read(event['result_ref']), check.measurement(data, proposal))
-            self.assertEqual(counts, {'dispatches': 1, 'measurements': 1})
-            self.assertTrue(marker.is_file())
+                    result_bytes = history.read(event['result_ref'])
+                    if not_applied:
+                        self.assertEqual(json.loads(result_bytes)['state'], 'not_applied_verified')
+                    else:
+                        self.assertEqual(result_bytes, check.measurement(data, proposal))
+            self.assertEqual(counts, {'dispatches': 0, 'measurements': 0} if expire_after_consume
+                             else {'dispatches': 1, 'measurements': 1})
+            self.assertEqual(marker.is_file(), not expire_after_consume and not not_applied)
 
     def test_P2A13_dispatch_requires_intent_and_consume_then_independent_result(self):
         self.run_recorder()
 
     def test_P2A12_unknown_result_retains_consumption_and_never_redispatches(self):
         self.run_recorder(lose_result=True)
+
+    def test_P2A20_expiry_during_consume_persistence_refuses_before_dispatch(self):
+        self.run_recorder(expire_after_consume=True)
+
+    def test_P2A21_known_not_applied_result_remains_held(self):
+        self.run_recorder(not_applied=True)

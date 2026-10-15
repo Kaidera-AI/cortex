@@ -310,3 +310,37 @@ class LifecycleReceiptOracle(unittest.TestCase):
                     clock_raw=fresh['current_clock_raw'].encode())
             self.assertEqual(caught.exception.detail, 'attempt_ambiguous')
             self.assertEqual(history.head()[0], consumed)
+
+    def test_P2A22_original_storage_retains_the_existing_P1_request_byte_limit(self):
+        api = self.api()
+        from cortex_core.install.contracts import LIMITS
+        original = b'x'*LIMITS['request']
+        with tempfile.TemporaryDirectory() as root:
+            history = api._History(Path(root))
+            try:
+                ref = history.retain(original)
+            except owner.OwnerRefusal as error:
+                self.fail('P2 original storage narrowed the accepted P1 request bound: '+error.detail)
+            self.assertEqual(history.read(ref), original)
+
+    def test_P2A23_readonly_request_never_creates_an_effect_intent(self):
+        api = self.api()
+        helper = proposals.OwnerProposalOracle()
+        data = helper.data()
+        request = json.loads(data['request_raw']); request['operation'] = 'plan'
+        raw = proposals.encode(request)
+        context = json.loads(data['context_raw']); ref = context['request_ref']
+        import hashlib
+        data['request_raw'] = raw.decode(); data['originals'][ref['path']] = raw.decode()
+        helper.context(data, lambda c: c.update(request_ref={**ref, 'bytes':len(raw),
+                                                            'sha256':hashlib.sha256(raw).hexdigest()}))
+        helper.scope(data, lambda s: s.update(operation='plan'))
+        helper.edit_record(data, 'policy_ref', lambda p: p.update(operation='plan'))
+        proposal, _ = helper.run_gate(helper.api(), data)
+        with tempfile.TemporaryDirectory() as root:
+            history = api._History(Path(root))
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                api._reserve(history, raw, proposal, {k:v.encode() for k,v in data['originals'].items()},
+                             self.preimages(), clock_raw=data['current_clock_raw'].encode())
+            self.assertEqual(caught.exception.detail, 'scope_denied')
+            self.assertIsNone(history.head()[0])
