@@ -93,5 +93,11 @@
     "bytes": 1517,
     "sha256": "ec42de009bbc4b2829a7999117fe4985b5a9fc6343876695331310c8ce2166e6",
     "credit": "DATA-storage-only; original F2 separately gated"
+  },
+  "P2b_part1_source_data": {
+    "path": "p2b-subjects.json",
+    "bytes": 1268,
+    "sha256": "5c185e5880370514c1ca6676673812dc466cf2e6cbf85ca2e4f78c8387351f42",
+    "credit": "SOURCE DATA only; part2/original30F2/native remain HELD"
   }
 }
