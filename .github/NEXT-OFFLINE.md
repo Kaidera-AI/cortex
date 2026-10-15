@@ -19,9 +19,6 @@ collection/source, skip, missing phase, or nonzero exit fails the gate. Suites w
 retired or unavailable nodes cannot be partitioned. RUN/exclusion policy and the
 151 logical-suite inventory remain unchanged.
 
-The earlier tracker notes below describe the historical split. Its temporary
-`/Users` mapping has been removed; live U3 fixtures use private project output.
-
 `next-offline.yml` runs Python 3.13.7 and 3.14.0 with the unchanged API dependency
 hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
 This U3 tracking draft adds hash-locked Linux cryptography50.0.0 wheels to the existing supplemental lock; one venv installs the API/tool seed, then the exact U3 provider overlay and pip check. The production API lock is unchanged.
@@ -49,13 +46,19 @@ manifest supplies the comparison. The manifest cannot supply its own approval. E
 `transitions` receipt and fails unless its exclusion has checkable fixture proof.
 The RC0 oracle at `next/docs/runtime/rc0/test_oracle.py` is covered by this rule
 and now runs alongside every current runtime/identity/factory/keyword/driver-free
-and driver-privacy source suite. The 21 U3 release files are RUN in this tracking draft, stacked on PR158. The
-base PR explicitly lists them unavailable with zero PASS credit under Kai's
-ruling263722e5. This draft restores their actual Linux execution so owner ren-kos
-can resolve portability failures, with Vera deciding semantics. The private
-`/Users` tmpfs / BindPaths mapping is TEMPORARY tracker-only accommodation for
-frozen author fixture paths; it must be removed when those paths are fixed.
-Expected live assertion failures and the180-second bridge timeout remain RED.
+and driver-privacy source suite. All 21 U3 release files are RUN. Live fixtures use one shared test-only workspace
+helper with unique private mode-0700 directories under `output/r01u3-fixtures`.
+Hosted cleanup receipts confirm an empty mode-0700 root and `NO_USERS_MAPPING`;
+no `/Users` tmpfs or BindPaths mapping is used. The bridge retains all 41 original
+IDs in four sequential execution partitions, as described above. At executable
+head `af3d785e`, [offline run 38688671321](https://github.com/Kaidera-AI/cortex/actions/runs/38688671321)
+attempts 1 and 2 passed on both Pythons: largest worker times were 36.638/28.135
+seconds on 3.13.7 and 52.552/49.611 seconds on 3.14.0. Logical bridge totals across
+the four workers were 142.561/109.012 and 204.161/192.522 seconds, respectively.
+Each worker retains the 180-second limit; the product's shared 120-second maximum
+is unchanged. Every hosted Python/attempt passed all 151 logical suite gates and
+1,748 live tests, including all 646 U3 items; installed/native acceptance remains
+separate.
 
 
 To add a suite, review its fixture effects and add the file to `run`. A new or
@@ -162,7 +165,7 @@ consisting only of valid executed-unavailable nodes is allowed without inventing
 a passing live test. All ordinary live phases still use unchanged U13.valid.
 The worker and host call the same existing receipt_valid function. Summary
 selected counts mean actual execution; live_collected excludes the five
-executed-unavailable nodes. C06 remains a mandatory live failure.
+executed-unavailable nodes. C06 remains mandatory live coverage (currently 43/43 PASS per Python).
 
 The existing oracle runs real worker controls for an unbuilt assertion and a
 fake now-passing declaration. The latter has raw pytest exit0 but gate/process
