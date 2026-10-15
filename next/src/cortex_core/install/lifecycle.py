@@ -150,16 +150,19 @@ class _History:
         _require(type(reference) is dict and set(reference) == {'path', 'bytes', 'sha256'}, 'journal_invalid')
         digest = reference['sha256']
         _require(type(digest) is str and _DIGEST.fullmatch(digest), 'journal_invalid')
-        path = reference['path']
-        _require(type(path) is str, 'journal_invalid')
-        if path.startswith('events/'):
-            name = path.removeprefix('events/')
-            _require(_EVENT_NAME.fullmatch(name), 'journal_invalid')
-            raw = self._read_path('events', name)
-        else:
-            # Original logical paths resolve only by their held content digest;
-            # they can never select an arbitrary file in the owner's filesystem.
+        _require(type(reference['path']) is str, 'journal_invalid')
+        try:
+            # Logical originals never select a physical journal path, including
+            # valid P1 names that happen to start with events/.
             raw = self._read_path('facts', digest+'.json')
+        except owner.OwnerRefusal as error:
+            if error.detail != 'journal_invalid':
+                raise
+            journal_ref = next((ref for ref, _ in self.events() if ref == reference), None)
+            _require(journal_ref is not None, 'journal_invalid')
+            # Only a complete reference from the verified chain selects an
+            # event. Reread its original bytes; never reserialize the record.
+            raw = self._read_path('events', journal_ref['path'].removeprefix('events/'))
         try:
             return measure_original_ref(reference, raw)
         except InstallRefusal:
