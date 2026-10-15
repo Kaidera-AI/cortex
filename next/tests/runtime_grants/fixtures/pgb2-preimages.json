@@ -1,0 +1,44 @@
+{
+  "classification": "PG_B2_OFFLINE_SOURCE_DATA_ONLY_NO_PG_OR_NATIVE_AUTHORITY",
+  "contract_head": "dc0f9b4c04b31b241761f22443dd6d5726a533d6",
+  "originals_utf8": {
+    "role": " {\"roles\":[{\"oid\":16384,\"name\":\"pgb2-fixture-bootstrap\",\"login\":true,\"superuser\":true},{\"oid\":16385,\"name\":\"pgb2-fixture-migrator\",\"login\":true,\"superuser\":false},{\"oid\":16386,\"name\":\"pgb2-fixture-probe\",\"login\":false,\"superuser\":false}],\"memberships\":[[16385,16384,false]]} \n",
+    "acl": "{\"database_acl\":null,\"public_execute\":false,\"default_acl\":[[16385,\"auth\",\"f\",[]]],\"object_acl\":[[20001,16385,[\"16386=r/16385\"]]]}\n",
+    "database": "{\"oid\":20000,\"owner_oid\":16385,\"name\":\"pgb2-fixture-db\",\"allow_connections\":true,\"connection_limit\":-1}\n",
+    "hba": "# SYNTHETIC ORIGINAL: whitespace and CRLF are significant\r\nlocal\tpgb2-fixture-db\tpgb2-fixture-bootstrap\tpeer\r\n# trailing blank preserved\r\n\r\n",
+    "carrier": "{\"classification\":\"INERT_FIXTURE_NO_CREDENTIAL\",\"present\":false,\"uid\":501,\"gid\":20,\"mode\":384,\"payload\":\"\\u0000fixture-only\"}\n"
+  },
+  "original_sha256": {
+    "role": "19de12b6211b9856ebaed7ffb266d3478b957f36e73cf67dc87d364502e1473b",
+    "acl": "3a2d3e2e1ffcf96486518c7545bd7355de7f956eca3dec29cce9d539bc977789",
+    "database": "112761066497fa3bb57331ffea8dabbff9f323b659d4b24e177c107ca247728b",
+    "hba": "77fa0c9247d32bd51bea21024c0be19e2169c3fdb0fcf83c8c521e7268011fab",
+    "carrier": "33ba01b213359b47a696fe80a6b23cbcdca60ea959d3619177a0581e239760db"
+  },
+  "changed_utf8": {
+    "role": "CHANGED role\n",
+    "acl": "CHANGED acl\n",
+    "database": "CHANGED database\n",
+    "hba": "CHANGED hba\n",
+    "carrier": "CHANGED carrier\n"
+  },
+  "negative_cases": [
+    "foreign-operation",
+    "missing-bundle",
+    "tampered-bundle",
+    "missing-role",
+    "missing-acl",
+    "missing-database",
+    "missing-hba",
+    "missing-carrier",
+    "tampered-role",
+    "tampered-acl",
+    "tampered-database",
+    "tampered-hba",
+    "tampered-carrier",
+    "replayed-consume",
+    "foreign-result-identity",
+    "foreign-result-effect",
+    "foreign-result-request"
+  ]
+}

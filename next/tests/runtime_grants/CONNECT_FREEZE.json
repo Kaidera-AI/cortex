@@ -1,0 +1,37 @@
+{
+  "base": "0368a245a946f033f89d2460cd9026a4339246a4",
+  "nodes": 181,
+  "inherited_nodes": 175,
+  "added_nodes": [
+    "test_connect.Connect.test_verifier_closed_other_database_connect_and_size_refused",
+    "test_connect.Connect.test_verifier_current_database_capabilities",
+    "test_connect.Connect.test_verifier_flags_and_all_membership_edges_closed",
+    "test_connect.Connect.test_verifier_no_explicit_other_database_grants",
+    "test_connect.Connect.test_verifier_real_login_refused",
+    "test_connect.Connect.test_verifier_size_positive_and_revocation_refuses"
+  ],
+  "matrix_sha256": "e2bcec216f4b90d92c8e53a73ae202d265f2def411a4a744469c42a22164e3cd",
+  "files": {
+    "next/tests/runtime_grants/FROZEN_NODES.json": "6e266f0cbff4c266fcd4f872a4ecce66c29ec35c217b6ee3192d9f821ab0a7a0",
+    "next/tests/runtime_grants/ORACLE.json": "cf4a0890ebf51c99c5e38fba1a08c5abf6b65317ae7f833a6c09130f985fe52f",
+    "next/tests/runtime_grants/REPAIR_CONTROLS.json": "b2efad879f7417263ac8aca7a9c2d03830314b033063dc232cc11de4f4433527",
+    "next/tests/runtime_grants/REPAIR_FREEZE.json": "6c9ef9e1f333dc4d4ac229c532e9cf3f433781d14c88bf3aa6b1c0a2ee1eb2d3",
+    "next/tests/runtime_grants/REPAIR_TRACE.json": "2e2e13cdf0e7c8604ed0027c3c9ff44fba79fa16077fef3bfe29a8a4fe1f4612",
+    "next/tests/runtime_grants/offline_controls.py": "3848f960a1ab26cde339ee1865100ed0444838dc5c7ea9eb283ca78a13d782dc",
+    "next/tests/runtime_grants/original_manifest.json": "08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef",
+    "next/tests/runtime_grants/ratified_matrix.json": "e2bcec216f4b90d92c8e53a73ae202d265f2def411a4a744469c42a22164e3cd",
+    "next/tests/runtime_grants/ratified_matrix_v1.json": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
+    "next/tests/runtime_grants/run_l1.py": "03c59107cb96978e93427cce9e85b74f2f0f72d24a4545b7c1a8b50252760a3b",
+    "next/tests/runtime_grants/support.py": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+    "next/tests/runtime_grants/test_c04.py": "49dafd5c7306dff273e73e41d349220bc902dac03f5201a2f0b49b5c178cdb68",
+    "next/tests/runtime_grants/test_connect.py": "2a088ccbd8034081d9718d5025b6dfffbbd6e044e886c6848e015a6f11810e5c",
+    "next/tests/runtime_grants/test_grants.py": "8751bebed4881d0f3c4d4e8e84eb8858bebc7b1539e339fcd259808e0174d89e",
+    "next/tests/runtime_grants/test_lifecycle.py": "0f3bace941c689f20dfaf695e251352f49f0b91db0b11467c14adc2edc5deff8",
+    "next/tests/runtime_grants/test_ports.py": "8ceb187d567098b02ca6b573ce9639c825d8a6bfcb55de0e63cc6c7d4c6bd3da",
+    "next/tests/runtime_grants/test_repair.py": "8903a7fcb6c561e1a4cb165c325584e92b997dec7a1df852918e30540bc8858f",
+    "next/tests/runtime_grants/test_upgrade.py": "6ae1ca50a9d5162ab868a194211a832085790c723b9c73c5c5a954f436f64c9b",
+    "next/tests/runtime_grants/worker.py": "a36f49608a9b59f51432e41db29387c59cd2ecf7feb99f15a6764f6279941f07"
+  },
+  "sha256_of_sorted_file_map": "cff64f8f49b5989c8f9efdd40792b4f4cc0ad39f18aedab8eb0b68ee6dd19980",
+  "native_pg_runs": 0
+}

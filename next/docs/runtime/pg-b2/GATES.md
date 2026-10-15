@@ -1,0 +1,7 @@
+- [ ] G1 Composition conflict-free; exact original20+4 oracle file hashes preserved. CHECK: git merge and source identity audit. EXPECT: clean composition; no frozen byte changes.
+- [ ] G2 Tests-first frozen/draft baseline recorded before implementation. CHECK: admitted oracle runner. EXPECT: exact measured node identities and genuine BODY gaps, no environment errors credited.
+- [ ] G3 Finite prepare/bind/ACL-validation/activate/close/drain/restore joins actual private history and exact retained originals. CHECK: frozen/additive causal gates. EXPECT: required positives, negatives, same-operation reentry and original bytes.
+- [ ] G4 Original19+manifest unchanged, draft unmanifested, no draft GREEN credit on original181. CHECK: Git/hash/node audits. EXPECT: preserved boundaries.
+- [ ] G5 One lab session only on kos-lab-l1, actual tuple recorded, causal SQL controls restored exactly. CHECK: raw remote receipts. EXPECT: measured regression and no foreign effects.
+- [ ] G6 Lab deallocated idle, own resources removed, receipt retained. CHECK: lab-host stop/status and cleanup. EXPECT: deallocated and own-resource absence.
+- [ ] G7 Exact branch pushed/readback, source reviewed, sealed return + work product + same-row ACK. CHECK: origin hashes and artifact index/courier. EXPECT: returned true.
