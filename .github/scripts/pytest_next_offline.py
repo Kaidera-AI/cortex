@@ -19,9 +19,10 @@ import shutil
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / '.github/next-offline-suites.json'
 ACCEPTED_BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
-# Named initial-integration bases predate the inventory; both use unchanged policy.
+# Named initial-integration bases predate the inventory; all use unchanged policy.
 BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
-                   '5627f7fb496a2660f96f654fbfd3fabad2e13859')
+                   '5627f7fb496a2660f96f654fbfd3fabad2e13859',
+                   'abfc68eab20ae486243ee8886f6314d962f22885')
 # Kai ruling359622c6: immutable five-row policy, retained in this branch's history.
 UNBUILT_POLICY = '741c43e41f46ba2e818d3bde8581fff9b27abc9c'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
