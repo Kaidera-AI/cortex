@@ -45,13 +45,13 @@ class RootReader:
         reader=cls.__new__(cls)
         reader.root=Path(root);reader._aggregate_root_spec=os.fspath(root)
         reader.limit=limit;reader.fd=None;reader._aggregate_files={}
-        reader._aggregate_dirs={};reader._aggregate_links=[]
+        reader._aggregate_dirs={};reader._aggregate_links=[];reader._aggregate_path_links={}
         return reader
 
     def aggregate_release(self):
         for item in getattr(self,'_aggregate_files',{}).values():os.close(item[0])
         for fd in getattr(self,'_aggregate_dirs',{}).values():os.close(fd)
-        self._aggregate_files={};self._aggregate_dirs={};self._aggregate_links=[]
+        self._aggregate_files={};self._aggregate_dirs={};self._aggregate_links=[];self._aggregate_path_links={}
 
     @staticmethod
     def _aggregate_path(path):
@@ -74,11 +74,13 @@ class RootReader:
 
     @staticmethod
     def _aggregate_exact_name(fd,name):
-        if name not in {entry.name for entry in os.scandir(fd)}:
-            try:os.stat(name,dir_fd=fd,follow_symlinks=False)
-            except FileNotFoundError:
-                raise Refusal('required_binding_gap') from None
-            raise Refusal('member_path_alias')
+        with os.scandir(fd) as entries:
+            for entry in entries:
+                if entry.name==name:return
+        try:os.stat(name,dir_fd=fd,follow_symlinks=False)
+        except FileNotFoundError:
+            raise Refusal('required_binding_gap') from None
+        raise Refusal('member_path_alias')
 
     def _aggregate_directory(self,parent,name,key):
         self._aggregate_exact_name(parent,name)
@@ -157,7 +159,19 @@ class RootReader:
     def _aggregate_check(self,path=None):
         self._aggregate_time()
         try:
-            for parent,name,fd,dev,ino in self._aggregate_links:
+            # Each original read needs its own held ancestry. Complete all-link
+            # custody is still checked by aggregate_finish and terminal inventory.
+            # Avoid multiplying unrelated tree branches into every file read.
+            # Derived held-path topology only; every OS observation stays fresh.
+            links=self._aggregate_links
+            if path is not None:
+                if path not in self._aggregate_path_links:
+                    selected={fd for key,fd in self._aggregate_dirs.items()
+                              if not key.startswith('relative:') or path.startswith(key[len('relative:'):])}
+                    selected.add(self.fd)
+                    self._aggregate_path_links[path]=tuple(link for link in links if link[2] in selected)
+                links=self._aggregate_path_links[path]
+            for parent,name,fd,dev,ino in links:
                 self._aggregate_time()
                 named=os.stat(name,dir_fd=parent,follow_symlinks=False);held=os.fstat(fd)
                 if (not stat.S_ISDIR(named.st_mode) or (named.st_dev,named.st_ino)!=(dev,ino)

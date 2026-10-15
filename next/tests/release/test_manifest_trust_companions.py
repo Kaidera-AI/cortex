@@ -14,6 +14,7 @@ NEXT=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(NEXT/'src'),str(NEXT/'tests/release')]
 from cortex_core.runtime.signed_member import Refusal
 from r01u3_support import factory
+from r01u3_support.workspace import workspace_output
 
 
 def trust():return importlib.import_module('cortex_core.release.trust')
@@ -27,6 +28,47 @@ class Companions(unittest.TestCase):
   self.assertIsInstance(result,Refusal,'BODY: expected typed refusal instead of return/raw dependency exception')
   self.assertEqual(result.reason,reason,'BODY: exact stage reason')
   return result
+
+ def test_repeated_shape_data_avoids_decode_but_rechecks_crypto(self):
+  module=trust();auth=factory.test_authority();signature=auth.signed();ctx=auth.context(module)
+  with patch.object(module,'decode_json',wraps=module.decode_json) as decode,patch.object(module,'verify_ed25519',wraps=module.verify_ed25519) as crypto:
+   first=module._verify_original(auth.raw,signature,ctx);second=module._verify_original(auth.raw,signature,ctx)
+  self.assertEqual(first.manifest,second.manifest)
+  self.assertEqual(decode.call_count,1,'BODY: same immutable shape decoded repeatedly')
+  self.assertEqual(crypto.call_count,4,'BODY: a shape memo must never cache signature acceptance')
+  with self.assertRaises(TypeError):first.manifest['sequence']=9999
+
+ def test_warm_shape_keeps_owner_time_and_bad_signature_live(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  auth.now=9999;self.refused('aggregate_replay',lambda:auth.verify(module));auth.now=1500
+  lines=auth.signed().split(b'\n');raw=bytearray(base64.b64decode(lines[3]));raw[0]^=1;lines[3]=base64.b64encode(raw)
+  with patch.object(module,'verify_ed25519',wraps=module.verify_ed25519) as crypto:
+   self.refused('aggregate_signature_invalid',lambda:auth.verify(module,signature=b'\n'.join(lines)))
+  self.assertEqual(crypto.call_count,2)
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
+ def test_warm_shape_obeys_tighter_owner_depth_and_changed_raw(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  auth.policy['limits']['depth']=1;self.refused('raw_limit',lambda:auth.verify(module))
+  auth.policy['limits']['depth']=32
+  value=json.loads(auth.raw);value['extra']=True;bad=factory.canonical(value)
+  self.refused('aggregate_shape',lambda:auth.verify(module,raw=bad,signature=auth.signed(raw=bad)))
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
+ def test_warm_shape_does_not_hide_replaced_validator(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  class Reject:
+   def iter_errors(self,value):return iter([object()])
+  with patch.object(module,'_MANIFEST_VALIDATOR',Reject()):
+   self.refused('aggregate_shape',lambda:auth.verify(module))
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
+ def test_warm_shape_does_not_hide_changed_schema(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  sequence=module._MANIFEST_VALIDATOR.schema['properties']['sequence']
+  with patch.dict(sequence,{'minimum':auth.value['sequence']+1}):
+   self.refused('aggregate_shape',lambda:auth.verify(module))
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
 
  def test_owner_provider_fault_is_sanitized(self):
   module=trust()
@@ -99,7 +141,7 @@ class Companions(unittest.TestCase):
   checked=kos.verify_minisign(auth.raw,signature.decode(),auth.root_material.decode())
   self.assertTrue(checked['prehashed']);self.assertEqual(checked['key_id'],auth.key_id[::-1].hex().upper())
   with self.assertRaises(kos.Refusal):kos.verify_minisign(auth.raw+b'x',signature.decode(),auth.root_material.decode())
-  with tempfile.TemporaryDirectory(prefix='r01u3-kos-scope-',dir='/Users/amadmalik/DevVault/helix/output/KOS/ren-kos-r01u3b-test-env-20261014') as path:
+  with tempfile.TemporaryDirectory(prefix='r01u3-kos-scope-',dir=workspace_output()) as path:
    root=Path(path);(root/'release.json').write_bytes(auth.raw);(root/'release.json.minisig').write_bytes(signature)
    with self.assertRaises(kos.Refusal) as caught:
     kos.verify_package(root,public_key=auth.root_material.decode(),platform='macos-arm64',image_platform='linux/arm64')

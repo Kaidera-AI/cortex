@@ -5,6 +5,7 @@ Deadline probes advance only a controlled clock; native latency/custody NOT_RUN.
 """
 import os
 from pathlib import Path
+from r01u3_support.workspace import workspace_output, renamed_directory_observation
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -13,8 +14,9 @@ from aggregate_fixture import materials, write, context, encode
 from cortex_core.release import aggregate, assembly, custody
 from cortex_core.runtime.signed_member import Refusal
 
-MAIN = Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3c-rework-fixtures-20261014')
 
+
+MAIN=workspace_output()
 
 class CustodyRework(unittest.TestCase):
     def setUp(self):
@@ -37,16 +39,22 @@ class CustodyRework(unittest.TestCase):
         self.assertFalse(self.reader._aggregate_dirs)
 
     def test_U3C_CUST_01_case_only_root_rename_after_pair_validation(self):
-        real = assembly._check_pairs; observed = {}
+        real=assembly._check_pairs;observed={};events=[]
+        finish=self.reader.aggregate_finish
         def after(*args):
-            real(*args); before = os.stat(self.root)
-            self.root.rename(self.root.with_name('Rootcase'))
-            after = os.stat(self.root)
-            observed.update(same_inode=before.st_ino==after.st_ino,
-                            lower_resolves=self.root.exists(),
-                            exact_present=self.root.name in {e.name for e in os.scandir(self.root.parent)})
-        with patch.object(assembly,'_check_pairs',after): self.refusal('member_path_alias')
-        self.assertEqual(observed,dict(same_inode=True,lower_resolves=True,exact_present=False))
+            real(*args);before=self.root.stat();renamed=self.root.with_name('Rootcase')
+            self.root.rename(renamed)
+            observed.update(renamed_directory_observation(self.root,renamed,before))
+            events.append('hook completed')
+        def terminal():events.append('terminal check');return finish()
+        with patch.object(assembly,'_check_pairs',after),patch.object(self.reader,'aggregate_finish',terminal):
+            with self.assertRaises(Refusal) as caught:self.run_assembly()
+        self.assertEqual(caught.exception.reason,observed['reason'])
+        self.assertEqual(events,['hook completed','terminal check'])
+        self.refusal_cleanup()
+
+    def refusal_cleanup(self):
+        self.assertIsNone(self.reader.fd);self.assertFalse(self.reader._aggregate_files);self.assertFalse(self.reader._aggregate_dirs)
 
     def test_U3C_CUST_02_deadline_crossed_in_final_actual_fstat(self):
         real_bytes = self.reader.aggregate_bytes; real_fstat = custody.os.fstat
@@ -85,12 +93,19 @@ class CustodyRework(unittest.TestCase):
         self.assertFalse(self.reader._aggregate_dirs)
 
     def test_case_only_absolute_ancestor_rename_after_pair_validation(self):
-        path = self.root.parent; real = assembly._check_pairs; observed = []
+        path=self.root.parent;renamed=path.with_name(path.name[0].upper()+path.name[1:])
+        real=assembly._check_pairs;observed={};events=[];finish=self.reader.aggregate_finish
         def after(*args):
-            real(*args); before=os.stat(path); path.rename(path.with_name(path.name[0].upper()+path.name[1:]))
-            observed.append(os.stat(path).st_ino==before.st_ino)
-        with patch.object(assembly,'_check_pairs',after): self.refusal('member_path_alias')
-        self.assertEqual(observed,[True])
+            real(*args);before=path.stat();path.rename(renamed)
+            observed.update(renamed_directory_observation(path,renamed,before));events.append('hook completed')
+        def terminal():events.append('terminal check');return finish()
+        try:
+            with patch.object(assembly,'_check_pairs',after),patch.object(self.reader,'aggregate_finish',terminal):
+                with self.assertRaises(Refusal) as caught:self.run_assembly()
+            self.assertEqual(caught.exception.reason,observed['reason'])
+            self.assertEqual(events,['hook completed','terminal check']);self.refusal_cleanup()
+        finally:
+            if renamed.name in {e.name for e in renamed.parent.iterdir()}:renamed.rename(path)
 
     def test_missing_admitted_root_keeps_custody_changed_reason(self):
         real=assembly._check_pairs

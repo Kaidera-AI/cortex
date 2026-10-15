@@ -246,7 +246,7 @@ class StartupBoundary(StartupFixture, unittest.TestCase):
 
     def test_actual_isolated_source_originals_through_public_port(self):
         self.init_boundary();result=isolated_original_control(self)
-        self.assertEqual(result['status'],'original-data')
+        self.assertEqual(result['status'],'original-data',result)
         self.assertEqual(result['raw'],result['expected_original'])
         self.assertEqual(result['type'],'OriginalMember')
         self.assertEqual(result['counts']['transport'],2)
@@ -256,6 +256,27 @@ class StartupBoundary(StartupFixture, unittest.TestCase):
         self.assertFalse(result['effect_attribute']);self.assertFalse(result['native_attribute'])
         self.assertFalse(result['test_support_loaded']);self.assertFalse(result['physical_install_qualified'])
         self.assertTrue(result['actual_observation']);self.assertEqual(result['bootstrap_provenance'],'SOURCE_FIXTURE_ONLY')
+
+    def test_actual_isolated_omitted_idna_closure_refuses_before_transport(self):
+        self.init_boundary();result=isolated_original_control(self,fault='omit-idna')
+        self.assertEqual(result['status'],'refused',result)
+        self.assertEqual(result['reason'],'member_authority_unavailable')
+        self.assertEqual(result['counts']['transport'],0);self.assertEqual(result['forbidden'],[])
+        self.assertTrue(any(name=='idna' or name.startswith('idna.') for name in result['unadmitted_files']))
+        self.assertEqual(result['measurement_errors'],[])
+
+    def test_inert_source_writable_private_parent_refuses(self):
+        self.init_boundary()
+        (self.install/'stdlib').chmod(0o770)
+        self.refusal('member_custody_changed',self.check)
+        self.assertEqual(self.transports,[])
+
+    def test_actual_isolated_writable_copied_parent_refuses_before_transport(self):
+        self.init_boundary();result=isolated_original_control(self,fault='copied-parent')
+        self.assertEqual(result['status'],'refused',result)
+        self.assertEqual(result['reason'],'member_custody_changed')
+        self.assertEqual(result['counts']['transport'],0);self.assertEqual(result['forbidden'],[])
+        self.assertTrue(any(row['reason']=='inspector_closure_parent' for row in result['measurement_errors']))
 
     def test_actual_isolated_unadmitted_origin_refuses_before_original_transport(self):
         self.init_boundary();result=isolated_original_control(self,fault='origin')

@@ -11,6 +11,7 @@ import binascii
 from collections.abc import Mapping
 from dataclasses import dataclass,field
 import hashlib
+from functools import lru_cache
 import json
 from pathlib import Path
 import re
@@ -32,6 +33,10 @@ _KEY_ID=re.compile(r'[0-9A-F]{16}\Z')
 # Fixed, inherited contract subjects only; candidate paths/URLs are never read.
 _SCHEMA_HOME=Path(__file__).resolve().parents[3]/'contracts/release'
 _MANIFEST_VALIDATOR=WireValidator(json.loads((_SCHEMA_HOME/'aggregate.schema.json').read_bytes()))
+_SHAPE_VALIDATOR=_MANIFEST_VALIDATOR
+_SHAPE_TYPE_CHECKER=_MANIFEST_VALIDATOR.TYPE_CHECKER
+_SHAPE_FORMAT_CHECKER=_MANIFEST_VALIDATOR.format_checker
+_SHAPE_RESOLVER=_MANIFEST_VALIDATOR._resolver
 _POLICY_SCHEMA=json.loads((_SCHEMA_HOME/'aggregate-policy.schema.json').read_bytes())
 _POLICY_VALIDATOR=WireValidator(_POLICY_SCHEMA)
 _BASELINE_VALIDATOR=WireValidator(_POLICY_SCHEMA['properties']['installed_baseline'])
@@ -195,6 +200,42 @@ def _current(policy,value,context):
     _require(value['release']==policy['release'] and value['source']==policy['source'],'aggregate_identity_mismatch')
 
 
+def _parse_manifest_shape(raw,depth,validator):
+    try:value=decode_json(raw,MAX_MANIFEST)
+    except (ValueError,RecursionError,OverflowError):
+        raise Refusal('aggregate_shape') from None
+    _depth(value,depth)
+    _require(next(validator.iter_errors(value),None) is None,'aggregate_shape')
+    return value
+
+
+def _function_state(function):
+    function=getattr(function,'__func__',function)
+    return function,getattr(function,'__code__',None)
+
+
+@lru_cache(maxsize=1)
+def _memo_manifest_shape(raw,depth,validation_state):
+    # Only successful immutable SHAPE DATA is retained. No owner, signature,
+    # current/replay, budget or physical-custody result enters this memo.
+    return freeze(_parse_manifest_shape(raw,depth,_MANIFEST_VALIDATOR))
+
+
+def _manifest_shape(raw,depth):
+    validator=_MANIFEST_VALIDATOR
+    if (validator is not _SHAPE_VALIDATOR or type(validator) is not WireValidator
+            or validator.TYPE_CHECKER is not _SHAPE_TYPE_CHECKER
+            or validator.format_checker is not _SHAPE_FORMAT_CHECKER
+            or validator._resolver is not _SHAPE_RESOLVER):
+        return _parse_manifest_shape(raw,depth,validator)
+    state=(json.dumps(validator.schema,sort_keys=True,separators=(',',':')),
+           _function_state(validator.iter_errors),_function_state(decode_json),
+           _function_state(_depth),_function_state(_require),_function_state(_parse_manifest_shape),
+           tuple((name,_function_state(function)) for name,function in validator.VALIDATORS.items()))
+    # Return an independent mutable working view, never the stored frozen graph.
+    return thaw(_memo_manifest_shape(raw,depth,state))
+
+
 def _verify_original(raw,signature,context):
     """Private algorithm over immutable originals and independent owner context.
 
@@ -215,12 +256,7 @@ def _verify_original(raw,signature,context):
         first,trusted,second=_envelope(signature,key_id)
         _require(verify_ed25519(key,hashlib.blake2b(raw,digest_size=64).digest(),first),'aggregate_signature_invalid')
         _require(verify_ed25519(key,first+trusted,second),'aggregate_signature_invalid')
-        try:
-            value=decode_json(raw,MAX_MANIFEST)
-        except (ValueError,RecursionError,OverflowError):
-            raise Refusal('aggregate_shape') from None
-        _depth(value,min(32,limits['depth']))
-        _require(next(_MANIFEST_VALIDATOR.iter_errors(value),None) is None,'aggregate_shape')
+        value=_manifest_shape(raw,min(32,limits['depth']))
         _require(trusted==_comment(raw,value),'aggregate_scope_mismatch')
         _current(policy,value,context)
         _require(sha256(raw)==policy['expected_aggregate_sha256'],'aggregate_identity_mismatch')

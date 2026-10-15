@@ -4,6 +4,7 @@ from dataclasses import replace
 import importlib
 import json
 from pathlib import Path
+from r01u3_support.workspace import workspace_output
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -14,10 +15,11 @@ from cortex_core.runtime import signed_member as port
 from cortex_core.release.custody import RootReader
 
 NEXT = Path(__file__).resolve().parents[2]
-MAIN = Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3d-fixtures-20261014')
 MISSING = 'R01 unit 3: signed Core/API aggregate and member admission'
 MEMBER = 'runtime.lock.json'
 
+
+MAIN=workspace_output()
 
 class Fixture:
     def api(self):
