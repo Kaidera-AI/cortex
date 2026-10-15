@@ -795,6 +795,33 @@ class RecoveryJoinOracle(unittest.TestCase):
             s=JoinedSubject(root); s.truth(); s.expire_on_measure=True
             self.hold(s,detail='reservation_expired')
 
+    def test_P2B02_truth_publication_advances_the_current_revision_floor(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth();before=s.history.current_revision()
+            try:result=s.run()
+            except owner.OwnerRefusal:result=None
+            self.assertEqual(s.history.current_revision(),before+1,'recovery reused an old revision floor')
+            self.assertIsNotNone(result,'checked durable truth did not reach the source consumer')
+
+    def test_P2B03_child_uses_its_own_deadline_after_original_expiry(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s);s.child(parent)
+            h,d=s.helper,s.data;delta=100
+            h.context(d,lambda c:c['host_lease'].update(expires_at=c['host_lease']['expires_at']+delta))
+            for key in ('peer_ref','consent_ref'):
+                h.edit_record(d,key,lambda r:r.update(not_before=r['not_before']+delta,expires_at=r['expires_at']+delta))
+            h.edit_record(d,'policy_ref',lambda r:r['validity'].update(
+                not_before=r['validity']['not_before']+delta,expires_at=r['validity']['expires_at']+delta))
+            h.clock_receipt(d,lambda r:r.update(monotonic_deadlines={k:v+delta*1000000000 for k,v in r['monotonic_deadlines'].items()}))
+            h.edit_record(d,'clock_ref',lambda r:r.update(now_utc=r['now_utc']+delta,monotonic_ns=r['monotonic_ns']+delta*1000000000))
+            h.clock(d,lambda r:r.update(now_utc=r['now_utc']+delta,monotonic_ns=r['monotonic_ns']+delta*1000000000))
+            child=self.run_ok(s);_,obs=lifecycle._load_entry(s.history,child)
+            attempt=json.loads(s.history.read(obs['attempt_ref']))
+            reservation=json.loads(s.history.read(attempt['reservation_ref']))
+            self.assertEqual(reservation['state'],'consumed')
+            self.assertGreater(reservation['expires_at'],1700000005)
+            self.assertEqual(s.marker.read_bytes(),b'install\n')
+
     def test_P2B02_other_attempt_history_survives_original_result_publication(self):
         with tempfile.TemporaryDirectory() as root:
             s=JoinedSubject(root);raw=s.truth();data=copy.deepcopy(s.old)
