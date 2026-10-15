@@ -10,7 +10,7 @@ P2a owns actual reserve/intent/consume/result and all durable history/preimages.
 from dataclasses import dataclass, field
 import re
 
-from cortex_core.release.codec import decode_json, sha256
+from cortex_core.release.codec import decode_json
 from cortex_core.release.contracts import freeze, thaw
 from cortex_core.runtime import signed_member
 from cortex_core.runtime.config import RUNTIME_LOCK_MEMBER
@@ -160,8 +160,10 @@ def _window(context, start, now, receipt, consent, policy, peer, private):
     expires_mono = min([start['monotonic_ns'] + 30_000_000_000] + list(mono.values()))
     _integer(expires, _UTC_MAX, 'time_unavailable')
     _integer(expires_mono, _INT_MAX, 'time_unavailable')
-    lower = max(consent['not_before'], policy['validity']['not_before'], peer['not_before'])
-    _integer(lower, _UTC_MAX, 'time_unavailable')
+    not_before = (consent['not_before'], policy['validity']['not_before'], peer['not_before'])
+    for bound in not_before:
+        _integer(bound, _UTC_MAX, 'time_unavailable')
+    lower = max(not_before)
     for clock in (start, now):
         _require(clock['now_utc'] - clock['uncertainty_seconds'] >= lower, 'time_unavailable')
         _require(clock['now_utc'] + clock['uncertainty_seconds'] < expires, 'reservation_expired')
