@@ -1,6 +1,6 @@
 """BL literal SOURCE contract oracle; no kernel, protected-V or effect credit.
 
-Every graph and expectation is frozen in gate-b-linux.json before linux.py.
+For the original 86-method oracle, 83 methods preceded linux.py, three regressions were added later with staged RED receipts, and all 86 have separate source-absence BODY RED on both interpreters.
 The only supplier substituted here is private and test-local. No signer, actual
 collector, native namespace, host path, account, process or service is used.
 """
@@ -230,6 +230,9 @@ class LinuxObserverOracle(unittest.TestCase):
     def test_literal_object_identity(self):
         self.check_case('object_identity')
 
+    def test_literal_held_mount_id(self):
+        self.check_case('held_mount_id')
+
     def test_literal_policy_digest(self):
         self.check_case('policy_digest')
 
@@ -340,6 +343,9 @@ class LinuxObserverOracle(unittest.TestCase):
 
     def test_literal_named_inode(self):
         self.check_case('named_inode')
+
+    def test_literal_named_mount_id(self):
+        self.check_case('named_mount_id')
 
     def test_literal_parent_write(self):
         self.check_case('parent_write')
