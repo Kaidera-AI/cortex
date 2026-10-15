@@ -830,8 +830,18 @@ class ConsolidationOracle(Subject, unittest.TestCase):
         for file in sorted((root/'next/tests/install').glob('test_*.py')):
             path=str(file.relative_to(root));self.assertIn(path,manifest['run'],'install file outside RUN: '+path)
             nodes.extend(gate.named_nodes(path,ast.parse(file.read_text())))
-        self.assertEqual(len(nodes),47);self.assertEqual(len(set(nodes)),47)
-        self.assertFalse(any(row['nodeid'] in nodes for row in manifest['method_exclusions']))
+        self.assertEqual(len(nodes),len(set(nodes)),'duplicate current install IDs')
+        original=set(self.ORIGINAL_P1_IDS)
+        self.assertEqual(len(self.ORIGINAL_P1_IDS),47)
+        self.assertEqual(len(original),47,'duplicate original P1 IDs')
+        self.assertFalse(original-set(nodes),'original P1 nodes missing: '+repr(sorted(original-set(nodes))))
+        excluded={row['nodeid'] for row in manifest['method_exclusions']}
+        for node in nodes:
+            self.assertNotIn(node,excluded,'current install method excluded: '+node)
+        original_files={node.split('::')[0] for node in original}
+        for binding in manifest.get('retirements',[]):
+            self.assertFalse(original_files.intersection(binding['files']),
+                             'original P1 file bound for retirement')
 
     def test_absorbed_p1_is_all_47_actual_methods(self):
         manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
