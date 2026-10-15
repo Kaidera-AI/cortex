@@ -439,3 +439,63 @@ class Hold1InterfaceOracle(unittest.TestCase):
                 raw=s.result();ref=p1._record_result(s.history,s.consumed,raw)
                 self.assertEqual(s.history.read(s.entry(ref)[0]['result_ref']),raw)
                 self.refused(lambda:p1._record_result(s.history,s.consumed,raw))
+
+    def test_H4_stalled_qualified_clock_still_bounds_both_lock_waits(self):
+        for name in ('.operation.lock','.journal.lock'):
+            with self.subTest(lock=name),tempfile.TemporaryDirectory() as root:
+                s=Subject(root);out=[]
+                with s.installed():
+                    s.start();head=s.history.head()[0];event,_,_=s.entry()
+                    candidate={**event,'sequence':event['sequence']+1,'previous_event_ref':head}
+                    s.helper.clock(s.data,lambda c:c.update(monotonic_ns=104999000000))
+                    fd=os.open(s.root/name,os.O_RDWR);fcntl.flock(fd,fcntl.LOCK_EX)
+                    def waiting():
+                        try:
+                            if name=='.operation.lock':
+                                with call(s.history.operation,deadline=s.deadline):out.append('entered')
+                            else:call(s.history.append,candidate,expected_ref=head,deadline=s.deadline);out.append('entered')
+                        except owner.OwnerRefusal as error:out.append(error.detail)
+                    worker=threading.Thread(target=waiting);worker.start();worker.join(.3)
+                    bounded=not worker.is_alive();fcntl.flock(fd,fcntl.LOCK_UN);os.close(fd);worker.join(2)
+                    self.assertFalse(worker.is_alive());self.assertTrue(bounded,'stalled clock extended admitted budget')
+                    self.assertEqual(out,['reservation_expired']);self.assertEqual(s.history.head()[0],head)
+
+    def test_H5_measurement_manager_cannot_suppress_unknown_recovery_refusal(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=Subject(root)
+            with s.installed():s.start();s.checkpoint('xid');s.checkpoint('postimage');s.recovery()
+            slot=s.primitive(recovering=True)
+            class Suppressing:
+                def __enter__(self):return ('UNKNOWN',None)
+                def __exit__(self,*error):return True
+            slot.measure=lambda effect:Suppressing()
+            with s.installed(slot):
+                before=s.tree();self.refused(lambda:p1.execute_effect(s.data['request_raw'].encode()))
+                self.assertEqual(s.tree(),before);self.assertEqual(s.effects,0)
+
+    def test_H5_owner_continuity_after_durable_terminal_precedes_source_ack(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=Subject(root);slot=s.primitive();publish=s.history._publish
+            def superseded(folder,name,raw):
+                publish(folder,name,raw)
+                if folder=='events' and json.loads(raw)['result_ref'] is not None:
+                    s.helper.context(s.data,lambda c:c.update(nonce='superseded-after-publication'))
+            with s.installed(slot),patch.object(s.history,'_publish',superseded):
+                self.refused(lambda:p1.execute_effect(s.data['request_raw'].encode()))
+            self.assertIsNotNone(s.history.head()[1]['result_ref']);self.assertEqual(s.effects,1)
+
+    def test_H2_checkpoint_referenced_bytes_must_exist_before_ack_or_terminal(self):
+        for forged in (False,True):
+            with self.subTest(forged=forged),tempfile.TemporaryDirectory() as root:
+                s=Subject(root)
+                with s.installed():
+                    s.start();s.checkpoint('xid');head=s.history.head()[0]
+                    def missing(event,obs,parts,fact):
+                        fact['observed']['snapshot_ref']=p1._ref('absent-snapshot',b'not retained')
+                        parts['attempt']['sql_postimage_ref']=s.history.retain(canonical_bytes(fact))
+                    if forged:
+                        s.checkpoint('postimage',edit=missing,forged=True);before=s.tree()
+                        self.refused(s.terminal);self.assertEqual(s.tree(),before)
+                    else:
+                        self.refused(lambda:s.checkpoint('postimage',edit=missing))
+                        self.assertEqual(s.history.head()[0],head)
