@@ -46,10 +46,21 @@ jobs:
           "${{ runner.temp }}/next-offline-venv/bin/python" -B .github/scripts/tests/test_next_offline_gate.py
       - name: every admitted next suite without IP networking or native services
         run: |
+          # Frozen U3 tests name author output paths; map fresh owned storage there.
+          fixture_root="${{ runner.temp }}/next-offline-u3-fixtures"
+          test ! -e "$fixture_root"
+          mkdir -m 700 "$fixture_root"
+          trap 'rm -rf -- "$fixture_root"; test ! -e "$fixture_root" && printf "U3_FIXTURE_ROOT_REMOVED\n" > "${{ runner.temp }}/next-offline-receipts/fixture-cleanup.txt"' EXIT
+          mkdir -m 700 -p "$fixture_root/kos/ren-kos-u3c-fixtures-20261014" \
+            "$fixture_root/kos/ren-kos-u3c-rework-fixtures-20261014" \
+            "$fixture_root/kos/ren-kos-u3d-fixtures-20261014" \
+            "$fixture_root/KOS/ren-kos-r01u3b-test-env-20261014"
           sudo systemd-run --wait --pipe --collect \
             -p User="$(id -un)" -p Group="$(id -gn)" \
             -p WorkingDirectory="$GITHUB_WORKSPACE" \
             -p PrivateNetwork=yes -p RestrictAddressFamilies=AF_UNIX -p NoNewPrivileges=yes \
+            -p TemporaryFileSystem=/Users:rw \
+            -p "BindPaths=$fixture_root:/Users/amadmalik/DevVault/helix/output" \
             -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             /usr/bin/env PATH="${{ runner.temp }}/next-offline-venv/bin:/usr/bin:/bin" \
             "${{ runner.temp }}/next-offline-venv/bin/python" -B \
