@@ -9,6 +9,10 @@ Python records, provenance labels and hashes cannot establish that admission.
 The existing B1 observer may delegate here in a later accepted composition.
 It is not installed or rebound on import. P2a still consumes only B1's existing
 propose_effect(original_request) -> OwnerProposal PRECONSUME_DATA interface.
+The original peer record binds macos_profile_ref and macos_observation_ref using
+the existing RecordRef grammar. B1's unchanged peer_ref comparison therefore
+also binds these native DATA subjects across audit; no context field is added.
+The reference graph is acyclic: these native subjects do not refer to the peer.
 """
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -238,6 +242,7 @@ def _installed_owner_inputs():
         peer = owner._original(inputs, context.get('peer_ref'))
         owner._original(inputs, profile['host_identity_ref'])
         owner._require(_binding_valid(profile, observed, context, peer), 'peer_denied')  # BM binding
+        owner._require(_same(peer.get('macos_profile_ref'), packet.profile_ref) and _same(peer.get('macos_observation_ref'), packet.observation_ref), 'peer_denied')  # BM native_refs
         owner._require(_launch_valid(profile, observed['launch']), 'peer_denied')  # BM launch
         owner._require(_peer_valid(profile, observed, peer), 'peer_denied')  # BM peer
         expected_code = owner._original(inputs, profile['code_ref'])
