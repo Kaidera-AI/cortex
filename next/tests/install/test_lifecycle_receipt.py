@@ -63,6 +63,24 @@ class LifecycleReceiptOracle(unittest.TestCase):
             'request_ref': thaw(proposal.context)['request_ref'],
             'state': 'applied_verified', 'observed': {'test_owned_marker': 'measured-after'}})
 
+    def another_attempt(self, helper, data, revision, *, nonce):
+        fresh = copy.deepcopy(data)
+        request = json.loads(fresh['request_raw'])
+        request['identity']['attempt_id'] = 'test-attempt-2'
+        raw = proposals.encode(request)
+        context = json.loads(fresh['context_raw'])
+        ref = context['request_ref']
+        fresh['request_raw'] = raw.decode()
+        fresh['originals'][ref['path']] = raw.decode()
+        import hashlib
+        helper.context(fresh, lambda c: c.update(identity=request['identity'], nonce=nonce,
+            state_revision=revision, request_ref={**ref, 'bytes': len(raw),
+                                                   'sha256': hashlib.sha256(raw).hexdigest()}))
+        helper.edit_record(fresh, 'current_state_ref', lambda s: s.update(revision=revision))
+        helper.scope(fresh, lambda s: s.update(identity=request['identity']))
+        proposal, _ = helper.run_gate(helper.api(), fresh)
+        return proposal, fresh
+
     def test_P2A01_originals_and_preimages_are_retained_before_durable_intent(self):
         api = self.api()
         with tempfile.TemporaryDirectory() as root:
@@ -250,3 +268,45 @@ class LifecycleReceiptOracle(unittest.TestCase):
             with self.assertRaises(owner.OwnerRefusal) as caught:
                 history.read(ref)
             self.assertEqual(caught.exception.detail, 'custody_changed')
+
+    def test_P2A17_consume_retains_new_current_owner_originals_before_publication(self):
+        api = self.api()
+        with tempfile.TemporaryDirectory() as root:
+            history = api._History(Path(root))
+            _, _, _, consumed = self.consume(api, history)
+            _, obs = api._load_entry(history, consumed)
+            context = json.loads(history.read(obs['context_ref']))
+            try:
+                raw = history.read(context['current_state_ref'])
+            except owner.OwnerRefusal as error:
+                self.fail('published current context lost its original state bytes: '+error.detail)
+            self.assertEqual(json.loads(raw)['revision'], context['state_revision'])
+
+    def test_P2A18_another_attempt_cannot_reuse_the_same_owner_nonce(self):
+        api = self.api()
+        with tempfile.TemporaryDirectory() as root:
+            history = api._History(Path(root))
+            helper, data, first, reserved = self.reserve(api, history)
+            current, fresh = self.another_attempt(helper, data, first.observed_state_revision+1,
+                                                  nonce=first.context['nonce'])
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                api._reserve(history, fresh['request_raw'].encode(), current,
+                    {k: v.encode() for k, v in fresh['originals'].items()}, self.preimages(),
+                    clock_raw=fresh['current_clock_raw'].encode())
+            self.assertEqual(caught.exception.detail, 'nonce_replay')
+            self.assertEqual(history.head()[0], reserved)
+
+    def test_P2A19_new_caller_attempt_cannot_erase_consumed_unknown_effect(self):
+        api = self.api()
+        with tempfile.TemporaryDirectory() as root:
+            history = api._History(Path(root))
+            data, first, _, consumed = self.consume(api, history)
+            helper = proposals.OwnerProposalOracle()
+            current, fresh = self.another_attempt(helper, data, first.observed_state_revision+2,
+                                                  nonce='test-new-nonce')
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                api._reserve(history, fresh['request_raw'].encode(), current,
+                    {k: v.encode() for k, v in fresh['originals'].items()}, self.preimages(),
+                    clock_raw=fresh['current_clock_raw'].encode())
+            self.assertEqual(caught.exception.detail, 'attempt_ambiguous')
+            self.assertEqual(history.head()[0], consumed)
