@@ -254,7 +254,7 @@ print(json.dumps(result))
         for name in files:
             path=Path(base)/name
             if path.suffix in {'.py','.so','.dylib','.dll'}:add(path,'loader' if path.suffix!='.py' else 'stdlib')
-    admitted=('jsonschema','jsonschema_specifications','attrs','attr','referencing','rpds','cryptography','cffi','pycparser','typing_extensions','_cffi_backend','asyncpg')
+    admitted=('jsonschema','jsonschema_specifications','attrs','attr','referencing','rpds','cryptography','cffi','pycparser','typing_extensions','_cffi_backend','asyncpg','idna')
     for child in site.iterdir():
         if not any(child.name==name or child.name.startswith(name+'-') or child.name.startswith(name+'.') for name in admitted):continue
         if child.is_file():add(child,'loader' if child.suffix=='.so' else 'source');continue
@@ -265,6 +265,8 @@ print(json.dumps(result))
                 add(path,'crypto' if child.name=='cryptography' else ('loader' if path.suffix in {'.so','.dylib','.dll'} else 'data' if path.suffix!='.py' else 'source'))
     for path in source_root.rglob('*.py'):add(path,'source')
     for path in (next_root/'contracts').rglob('*.json'):add(path,'data')
+    if fault=='omit-idna':
+        paths={name:role for name,role in paths.items() if not Path(name).is_relative_to(site/'idna')}
     # The packet transports TEST owner DATA; it is not an admitted code subject
     # and cannot circularly hash its own file table. Policy/originals are pinned
     # independently in B and the fixed launcher fixture; no production grant.
