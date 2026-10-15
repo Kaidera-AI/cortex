@@ -188,3 +188,30 @@ executed-unavailable nodes. C06 remains mandatory live coverage (currently 43/43
 The existing oracle runs real worker controls for an unbuilt assertion and a
 fake now-passing declaration. The latter has raw pytest exit0 but gate/process
 exit1 and zero PASS credit. Both control packets/logs are uploaded per Python.
+
+Kai's H-D569 ruling, row `e0c98a3f-087a-4317-bb33-0792d2a29158`, additionally
+declares exactly 155 original-corpus cases for the next release's real-machine
+stage: 60 `OwnerAdmissionSurface` IDs and 95 `OwnerSessionSurface` IDs. They are
+one sorted contiguous section in the existing manifest `method_exclusions`
+list, using the same `nodeid`, `reason`, and source-hashed `evidence` shape.
+Each reason names Finn for accepted corpus/installer composition, Kai for
+authority/provider dispatch, and Cox for private-owner SQL originals. The
+declaration-only policy commit `c88f772b` retains the original five E1 rows
+exactly and pins the unchanged `compare_execution` helper. The gate reads this
+immutable approval through its existing policy reader. No test or fixture changes.
+
+These 155 dynamically generated IDs remain selected and actually execute once
+each. They must have passing setup/teardown and their original failed CALL:
+`builtins.AssertionError` with the exact missing-original-corpus message and the
+matching case identity. An arbitrary AssertionError, another exception, changed
+reason/source/ID, passing body, missing/duplicate phase, skip or deselection is
+not an accepted declaration. The same worker and shared receipt validator keep
+the raw pytest exit1 and failed reports, emit `executed:true` and `pass_credit:0`,
+and exclude those failures from live PASS credit. The total approved executed
+declarations is now 160, comprising the unchanged five E1 cases and these 155;
+none supplies native execution, installed acceptance or a passing test.
+
+The measured eight-part boundary option remains separate. Mike owns CI capacity;
+this declaration change keeps the existing bridge-only four-part setting until
+his explicit agreement to the boundary setting is recorded. Full diagnostics
+must report any resulting boundary timeout rather than credit an incomplete file.

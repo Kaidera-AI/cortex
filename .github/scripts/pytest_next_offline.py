@@ -23,8 +23,9 @@ ACCEPTED_BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
 BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
                    '5627f7fb496a2660f96f654fbfd3fabad2e13859',
                    'abfc68eab20ae486243ee8886f6314d962f22885')
-# Kai ruling359622c6: immutable five-row policy, retained in this branch's history.
-UNBUILT_POLICY = '741c43e41f46ba2e818d3bde8581fff9b27abc9c'
+# Kai ruling359622c6 + H-D569: unchanged five E1 rows plus exact155 corpus rows.
+# The declaration-only commit is independent of this gate implementation.
+UNBUILT_POLICY = 'c88f772bef234368d5057c298edc703ecf46ba97'
 # Kai ruling263722e5: exact U3 whole-file rows; no PASS credit.
 UNAVAILABLE_POLICY = '58031a28534aa1a36d20097bb0057dfc29ba383c'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
@@ -172,7 +173,7 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
     if evidence['kind']=='unbuilt_unit':
-        # The same source reader accepts only the five explicitly ratified rows.
+        # The same source reader accepts only the explicitly ratified pinned rows.
         approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
         return any(row['nodeid']==nodeid and row['evidence']==evidence
             and row['evidence'].get('kind')=='unbuilt_unit' for row in approved)
@@ -397,7 +398,11 @@ def inventory(root, manifest, base_manifest=None):
                     invalid.append('coverage: method exclusion path outside RUN: '+node)
                     continue
                 tree,parsed=source_tree(root/path)
-                if not parsed or node not in named_nodes(path,tree) or not fixture_evidence(root,path,row['evidence'],node):
+                # Approved unbuilt IDs may be dynamically generated. The worker
+                # still requires each exact ID once in its actual collection.
+                if (not parsed or (row['evidence'].get('kind')!='unbuilt_unit'
+                        and node not in named_nodes(path,tree))
+                        or not fixture_evidence(root,path,row['evidence'],node)):
                     invalid.append('coverage: method exclusion lacks fixture proof: '+node)
                 nodes.append(node)
             if len(nodes)!=len(set(nodes)) or set(nodes)&{r['nodeid'] for r in retired}:raise ValueError('coverage: duplicate excluded/retired method')
@@ -421,15 +426,34 @@ def inventory(root, manifest, base_manifest=None):
 def declaration_observations(packet, excluded):
     """Executed negative evidence, never a skip/xfail or a passing test."""
     result=[]
+    corpus_reason='H-D569: needs accepted original native execution corpus; next release (real-machine stage)'
+    corpus_approved=[]
+    if any(row.get('reason','').startswith(corpus_reason) for row in excluded):
+        try:
+            corpus_approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
+        except ValueError:
+            pass  # An unavailable independent approval cannot admit a witness.
     for declaration in excluded:
         if declaration.get('evidence',{}).get('kind')!='unbuilt_unit':continue
         node=declaration['nodeid'];rows=[r for r in packet.get('reports',[]) if r['nodeid']==node]
         calls=[r for r in rows if r['when']=='call']
+        call=calls[0] if len(calls)==1 else {}
+        expected_failure=(isinstance(call.get('exception_type'),str)
+            and call['exception_type'].split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
+        if declaration.get('reason','').startswith(corpus_reason):
+            detail=call.get('detail','')
+            lines=detail.splitlines() if isinstance(detail,str) else []
+            final=lines[-1] if lines else ''
+            prefix='E   AssertionError: unexpectedly None : NOT_RUN_MISSING_ORIGINAL_CORPUS ['
+            suffix=']: see missing_R01_cases and missing_composed_positive_material'
+            case=final[len(prefix):-len(suffix)] if final.startswith(prefix) and final.endswith(suffix) else ''
+            expected_failure=(declaration in corpus_approved
+                and call.get('exception_type')=='builtins.AssertionError' and bool(case)
+                and node.split('::')[-1]=='test_'+case.replace('-','_'))
         valid=(Counter(r['when'] for r in rows)==Counter(('setup','call','teardown'))
             and all(not r['wasxfail'] and r['outcome']==('failed' if r['when']=='call' else 'passed') for r in rows)
             and len(calls)==1 and calls[0].get('assertion') is True
-            and isinstance(calls[0].get('exception_type'),str)
-            and calls[0]['exception_type'].split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
+            and expected_failure)
         result.append(dict(nodeid=node,reason=declaration['reason'],executed=bool(calls),
             outcome=calls[0]['outcome'] if len(calls)==1 else 'invalid',
             exception_type=calls[0].get('exception_type','') if len(calls)==1 else '',valid=valid,pass_credit=0))
