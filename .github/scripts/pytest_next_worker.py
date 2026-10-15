@@ -6,6 +6,7 @@ import hashlib
 import functools
 import time
 import faulthandler
+import signal
 import importlib.util
 import json
 import os
@@ -69,7 +70,13 @@ class Gate:
             for name in names:wrap(owner,name)
         print('U3_BRIDGE_SELECTION '+json.dumps(self.packet['selected']),flush=True)
         # Samples the active stack; the parent still enforces the sole180s cap.
-        faulthandler.dump_traceback_later(60,repeat=True)
+        self.bridge_stack_file=self.output.with_suffix('.stacks.txt').open('w')
+        def sample(signum,frame):
+            if not self.bridge_stack_file.closed:
+                self.bridge_stack_file.write('U3_BRIDGE_MAIN_THREAD_STACK_SAMPLE\n');self.bridge_stack_file.flush()
+                faulthandler.dump_traceback(file=self.bridge_stack_file,all_threads=False)
+        signal.signal(signal.SIGALRM,sample)
+        signal.setitimer(signal.ITIMER_REAL,60,60)
 
     def pytest_runtest_logstart(self,nodeid,location):
         if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
@@ -121,7 +128,10 @@ class Gate:
             and isinstance(call.excinfo.value,AssertionError))
 
     def pytest_sessionfinish(self, session, exitstatus):
-        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':faulthandler.cancel_dump_traceback_later()
+        if self.packet.get('suite')=='next/tests/release/test_original_member_bridge.py':
+            signal.setitimer(signal.ITIMER_REAL,0)
+            signal.signal(signal.SIGALRM,signal.SIG_IGN)
+            self.bridge_stack_file.close()
         self.packet['pytest_exit'] = int(exitstatus)
         self.packet['declared_unavailable']=SHARED.declaration_observations(self.packet,self.excluded)
         self.packet['gate_exit']=0
