@@ -179,12 +179,15 @@ class LifecycleAdapterOracle(unittest.TestCase):
 
     def _part1_target_recording(self, target, route):
         from test_recovery_uninstall import AppliedSubject
-        from cortex_core.install import uninstall
         with tempfile.TemporaryDirectory() as root:
             subject = AppliedSubject(root, target=target, route=route, classes=('runtime', 'state'))
-            result = subject.run()
+            try:
+                result = subject.run()
+            except owner.OwnerRefusal as error:
+                self.fail('P2B_TARGET_NOT_IMPLEMENTED: ' + error.detail)
             self.assertFalse(subject.files['owned-0'].exists())
             self.assertTrue(subject.files['owned-1'].exists())
+            from cortex_core.install import uninstall
             projection = uninstall._cleanup_projection(subject.history, result)
             self.assertEqual(projection['cleanup']['remaining_owned_ids'], ['owned-1'])
             self.assertEqual(subject.dispatched, 1)
