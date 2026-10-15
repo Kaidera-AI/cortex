@@ -14,6 +14,9 @@ from psycopg.pq import TransactionStatus
 from test_hold1_producer import SQLSubject
 
 
+CORTEX_TEST_OBSERVATIONS = {}
+
+
 class PublicationScope(unittest.TestCase):
     def foreign_scope(self,s):
         q=json.loads(s.data['request_raw'])
@@ -41,7 +44,7 @@ class PublicationScope(unittest.TestCase):
         head,event=s.history.head()
         values.update(head=head,event=event,events=len(s.history.events()),python=sys.version,
             qualifier='SOURCE DATA: real P1/flock, scripted SQL observations, nonauthoritative native/signed-member inputs')
-        (Path('/Volumes/WD-B-4TB/DevVault/helix/output/Cortex/cox-hold1-producer-20261015')/(name+'_FINAL_'+str(sys.version_info.minor)+'.json')).write_text(json.dumps(values,indent=2)+'\n')
+        CORTEX_TEST_OBSERVATIONS[name] = values
 
     def test_control_current_recovery_scope_publishes_one_terminal(self):
         with tempfile.TemporaryDirectory() as root:
