@@ -33,6 +33,10 @@ _KEY_ID=re.compile(r'[0-9A-F]{16}\Z')
 # Fixed, inherited contract subjects only; candidate paths/URLs are never read.
 _SCHEMA_HOME=Path(__file__).resolve().parents[3]/'contracts/release'
 _MANIFEST_VALIDATOR=WireValidator(json.loads((_SCHEMA_HOME/'aggregate.schema.json').read_bytes()))
+_SHAPE_VALIDATOR=_MANIFEST_VALIDATOR
+_SHAPE_TYPE_CHECKER=_MANIFEST_VALIDATOR.TYPE_CHECKER
+_SHAPE_FORMAT_CHECKER=_MANIFEST_VALIDATOR.format_checker
+_SHAPE_RESOLVER=_MANIFEST_VALIDATOR._resolver
 _POLICY_SCHEMA=json.loads((_SCHEMA_HOME/'aggregate-policy.schema.json').read_bytes())
 _POLICY_VALIDATOR=WireValidator(_POLICY_SCHEMA)
 _BASELINE_VALIDATOR=WireValidator(_POLICY_SCHEMA['properties']['installed_baseline'])
@@ -219,7 +223,10 @@ def _memo_manifest_shape(raw,depth,validation_state):
 
 def _manifest_shape(raw,depth):
     validator=_MANIFEST_VALIDATOR
-    if type(validator) is not WireValidator:
+    if (validator is not _SHAPE_VALIDATOR or type(validator) is not WireValidator
+            or validator.TYPE_CHECKER is not _SHAPE_TYPE_CHECKER
+            or validator.format_checker is not _SHAPE_FORMAT_CHECKER
+            or validator._resolver is not _SHAPE_RESOLVER):
         return _parse_manifest_shape(raw,depth,validator)
     state=(json.dumps(validator.schema,sort_keys=True,separators=(',',':')),
            _function_state(validator.iter_errors),_function_state(decode_json),
