@@ -141,6 +141,41 @@ class Members(unittest.TestCase):
                     schema={'uniqueItems':unique}
                     self.assertEqual(WireValidator(schema).is_valid(values),Draft202012Validator(schema).is_valid(values))
 
+    def test_repeated_original_reads_reuse_only_held_path_structure(self):
+        r=self.reader();self.begin(r);path=self.path();calls=[]
+        class Observed(dict):
+            def items(self):calls.append(None);return super().items()
+        r._aggregate_dirs=Observed(r._aggregate_dirs)
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path])
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path])
+        self.assertLessEqual(len(calls),1,'BODY: repeated reads re-enumerate the entire held directory graph')
+        # Cached structure must never cache the actual named/held observation.
+        original=self.root/path;other=original.with_name(original.name+'.replacement')
+        other.write_bytes(self.bodies[path]);other.replace(original)
+        self.refuse('member_custody_changed',lambda:r.aggregate_bytes(path));r.close()
+
+    def test_rebegin_drops_previous_held_path_structure(self):
+        import shutil
+        r=self.reader();self.begin(r);path=self.path();self.assertTrue(path.startswith('members/'))
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);r.close()
+        old=(self.root/'members').stat().st_ino
+        shutil.rmtree(self.root/'members');write(self.root,self.bodies)
+        self.assertNotEqual((self.root/'members').stat().st_ino,old)
+        self.begin(r);self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);r.aggregate_finish();r.close()
+
+    def test_exact_name_stops_after_actual_entry_and_closes_iterator(self):
+        _,c=self.source();r=self.reader();self.begin(r)
+        with os.scandir(r.fd) as scan:entry=next(e for e in scan if e.name=='members')
+        closed=[]
+        class Scan:
+            def __enter__(self):return self
+            def __exit__(self,*args):closed.append(True)
+            def __iter__(self):
+                yield entry
+                raise AssertionError('BODY: exact entry already observed; scanned unrelated names')
+        with patch.object(c.os,'scandir',return_value=Scan()):c.RootReader._aggregate_exact_name(r.fd,'members')
+        self.assertEqual(closed,[True]);r.aggregate_finish();r.close()
+
     def test_each_original_check_bounds_work_to_its_held_ancestry(self):
         # Capacity regression: unrelated branches must not multiply every byte read.
         _,c=self.source();r=self.reader();self.begin(r)
