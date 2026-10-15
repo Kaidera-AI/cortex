@@ -1,7 +1,7 @@
-"""Read the original P1 lineage; only durable exact APPLIED is handled here.
+"""Read original P1 lineage and measure exact original-owner recovery truth.
 
 No reconciliation provider, snapshot inference or old grant is introduced.
-Consumed/unknown and intersecting attempts stay held for the original owner.
+Unproved outcomes and intersecting attempts stay held for the original owner.
 """
 from cortex_core.release.contracts import thaw
 from . import owner
@@ -206,62 +206,79 @@ def _renewed_child(history, proposal, inputs, parent):
 
 
 def _execute_recovery(history, original_request, current, primitives):
-    """Publish only the existing finite owner's exact linked original truth."""
+    """Measure the original subject, retaining v2 SQL exclusion through P1 ACK."""
     from . import lifecycle as p2
     from cortex_core.release.contracts import freeze
     request = thaw(parse_install_message(original_request,expected_kind='request').document)
-    event, observation = p2._load_entry(history,request['journal_ref'])
+    anchor = request['journal_ref']
+    event, observation = p2._load_entry(history,anchor)
     context = p2._decode(history.read(observation['context_ref']))
     owner._require(request['identity']['parent_attempt_id'] == event['identity']['attempt_id'], 'scope_denied')
     primitive = primitives.get(context['effect']['resource_kind'])
     owner._require(primitive is not None, 'backend_unavailable')
-    original = freeze({'context':context,'journal_ref':request['journal_ref'],
-                       'preimages_ref':observation['preimages_ref']})
+    attempt = p2._decode(history.read(observation['attempt_ref']))
+    mandated = attempt.get('sql_mandate_ref') is not None
+    original = {'context':context,'journal_ref':anchor,'preimages_ref':observation['preimages_ref']}
+    if mandated:original['deadline'] = current.deadline
     head = history.head()[0]
-    answer = primitive.measure(original)
-    owner._require(type(answer) is tuple and len(answer) == 2
-        and answer[0] in ('APPLIED','NOT_APPLIED','UNKNOWN'), 'attempt_ambiguous')
-    state, raw = answer
-    owner._require(state != 'UNKNOWN' and type(raw) is bytes, 'attempt_ambiguous')
-    latest_ref, latest, obs = p2._latest_attempt(history,event['identity'])
-    attempt = p2._decode(history.read(obs['attempt_ref']))
-    reference = (attempt['reconciliation_ref'] if attempt['dispatch_state'] == 'consumed_result_unknown'
-                 else attempt['result_ref'])
-    owner._require(reference is not None and history.read(reference) == raw
-        and latest['result_ref'] == attempt['result_ref'], 'journal_invalid')
-    result = p2._decode(raw)
-    expected_state = 'applied_verified' if state == 'APPLIED' else 'not_applied_verified'
-    owner._require(set(result) == {'identity','effect','request_ref','state','observed'}
-        and result['identity'] == event['identity'] and result['effect'] == event['effect']
-        and result['request_ref'] == event['request_ref'] and result['state'] == expected_state
-        and type(result['observed']) is dict, 'resource_changed')
-    observed_head = history.head()[0]
-    _, final = p2._current_owner(original_request,current.deadline)
-    owner._same_context(current,final)
-    owner._require(observed_head == head, 'generation_changed')
-    if attempt['dispatch_state'] == 'consumed_result_unknown':
-        completed = p2._record_result(history,latest_ref,raw,publication_head=head,
-            publication_revision=final.observed_state_revision)
-    else:
-        owner._require(attempt['dispatch_state'] == expected_state, 'attempt_ambiguous')
-        if state == 'APPLIED' or attempt['reconciliation_ref'] == reference:
-            return freeze(latest_ref)
-        # A checked terminal NOT_APPLIED result uses the existing reconciliation
-        # slot; a later child still needs separate current authority and consume.
-        reservation = p2._decode(history.read(obs['reservation_ref']))
-        old_context = p2._decode(history.read(obs['context_ref']))
-        owner._require(history.current_revision() == final.observed_state_revision,'generation_changed')
-        old_context['state_revision'] = final.observed_state_revision
-        clock = p2._decode(history.read(attempt['consume_clock_ref']))
-        reservation['expected_state_revision'] = final.observed_state_revision
-        attempt['reservation_ref'] = history.retain(p2.canonical_bytes(reservation))
-        attempt['reconciliation_ref'] = reference
-        completed = p2._publish_entry(history,context=old_context,reservation=reservation,
-            attempt=attempt,preimages_ref=obs['preimages_ref'],request_ref=latest['request_ref'],
-            release_ref=latest['release_binding_ref'],expected_ref=head,phase='held',
-            recorded_at=clock['now_utc'],result_ref=reference)
-    # Truth can survive a lost/expired reply. Never redispatch or republish it.
-    _, after = p2._current_owner(original_request,final.deadline)
-    p2._continuity(thaw(final.context),thaw(after.context))
-    owner._require(after.observed_state_revision == final.observed_state_revision+1,'generation_changed')
-    return freeze(completed)
+    if mandated:p2._sql_prefix(history,anchor,head)
+    with p2._measurement(primitive,freeze(original),mandated=mandated) as answer:
+        owner._require(type(answer) is tuple and len(answer) == 2
+            and answer[0] in ('APPLIED','NOT_APPLIED','UNKNOWN'), 'attempt_ambiguous')
+        state, raw = answer
+        owner._require(state != 'UNKNOWN' and type(raw) is bytes, 'attempt_ambiguous')
+        if mandated:
+            prefix = p2._sql_prefix(history,anchor,head)
+            latest_ref,latest,attempt = prefix['ref'],prefix['event'],prefix['attempt']
+            obs = p2._load_entry(history,latest_ref)[1]
+            if attempt['dispatch_state'] != 'consumed_result_unknown':
+                owner._require(history.read(latest['result_ref']) == raw,'resource_changed')
+        else:
+            latest_ref, latest, obs = p2._latest_attempt(history,event['identity'])
+            attempt = p2._decode(history.read(obs['attempt_ref']))
+            reference = (attempt['reconciliation_ref'] if attempt['dispatch_state'] == 'consumed_result_unknown'
+                         else attempt['result_ref'])
+            owner._require(reference is not None and history.read(reference) == raw
+                and latest['result_ref'] == attempt['result_ref'], 'journal_invalid')
+        result = p2._decode(raw)
+        expected_state = 'applied_verified' if state == 'APPLIED' else 'not_applied_verified'
+        owner._require(set(result) == {'identity','effect','request_ref','state','observed'}
+            and result['identity'] == event['identity'] and result['effect'] == event['effect']
+            and result['request_ref'] == event['request_ref'] and result['state'] == expected_state
+            and type(result['observed']) is dict, 'resource_changed')
+        observed_head = history.head()[0]
+        _, final = p2._current_owner(original_request,current.deadline)
+        owner._same_context(current,final)
+        owner._require(observed_head == head, 'generation_changed')
+        if mandated:
+            completed = p2._record_result(history,anchor,raw,publication_head=head,
+                publication_revision=final.observed_state_revision,deadline=final.deadline)
+            published = attempt['dispatch_state'] == 'consumed_result_unknown'
+        elif attempt['dispatch_state'] == 'consumed_result_unknown':
+            completed = p2._record_result(history,latest_ref,raw,publication_head=head,
+                publication_revision=final.observed_state_revision)
+            published = True
+        else:
+            owner._require(attempt['dispatch_state'] == expected_state, 'attempt_ambiguous')
+            if state == 'APPLIED' or attempt['reconciliation_ref'] == reference:
+                return freeze(latest_ref)
+            # Legacy checked NOT_APPLIED still uses its original reconciliation slot.
+            reservation = p2._decode(history.read(obs['reservation_ref']))
+            old_context = p2._decode(history.read(obs['context_ref']))
+            owner._require(history.current_revision() == final.observed_state_revision,'generation_changed')
+            old_context['state_revision'] = final.observed_state_revision
+            clock = p2._decode(history.read(attempt['consume_clock_ref']))
+            reservation['expected_state_revision'] = final.observed_state_revision
+            attempt['reservation_ref'] = history.retain(p2.canonical_bytes(reservation))
+            attempt['reconciliation_ref'] = reference
+            completed = p2._publish_entry(history,context=old_context,reservation=reservation,
+                attempt=attempt,preimages_ref=obs['preimages_ref'],request_ref=latest['request_ref'],
+                release_ref=latest['release_binding_ref'],expected_ref=head,phase='held',
+                recorded_at=clock['now_utc'],result_ref=reference)
+            published = True
+        # Truth may survive an expired/lost reply, but no old effect is redispatched.
+        _, after = p2._current_owner(original_request,final.deadline)
+        p2._continuity(thaw(final.context),thaw(after.context))
+        owner._require(after.observed_state_revision == final.observed_state_revision+int(published),
+                       'generation_changed')
+        return freeze(completed)

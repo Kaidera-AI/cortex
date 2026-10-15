@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import secrets
 import stat
+import time
 
 from cortex_core.release.codec import canonical_bytes, decode_json
 from cortex_core.release.contracts import freeze, thaw
@@ -102,7 +103,7 @@ class _History:
         return fd
 
     @contextmanager
-    def _lock(self, name):
+    def _lock(self, name, *, deadline=None):
         with self._root() as root:
             fd = None
             try:
@@ -110,7 +111,26 @@ class _History:
                 info = os.fstat(fd)
                 _require(stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid()
                          and info.st_nlink == 1 and not info.st_mode & 0o077, 'custody_changed')
-                fcntl.flock(fd, fcntl.LOCK_EX)
+                if deadline is None:
+                    fcntl.flock(fd, fcntl.LOCK_EX)
+                else:
+                    inputs, admitted = _admitted_deadline(deadline)
+                    now = owner._decode(inputs.current_clock_raw,'time_unavailable')
+                    budget = min((deadline.expires_at-now['now_utc']-now['uncertainty_seconds'])*1_000_000_000,
+                                 deadline.expires_monotonic_ns-now['monotonic_ns'])
+                    stop = time.monotonic_ns()+budget
+                    while True:
+                        _, fresh = _admitted_deadline(deadline)
+                        owner._same_context(admitted,fresh)
+                        _require(time.monotonic_ns() < stop,'reservation_expired')
+                        try:
+                            fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                            break
+                        except BlockingIOError:
+                            time.sleep(min(.01,max(0,(stop-time.monotonic_ns())/1_000_000_000)))
+                    _, fresh = _admitted_deadline(deadline)
+                    owner._same_context(admitted,fresh)
+                    _require(time.monotonic_ns() < stop,'reservation_expired')
                 yield
             except OSError:
                 raise owner.OwnerRefusal('atomicity_unavailable') from None
@@ -119,10 +139,10 @@ class _History:
                     fcntl.flock(fd, fcntl.LOCK_UN)
                     os.close(fd)
 
-    def operation(self):
+    def operation(self, *, deadline=None):
         # Stable installation/operation/resource exclusion is distinct from CAS.
         # The fixed owner uses the same root for all operations it serializes.
-        return self._lock('.operation.lock')
+        return self._lock('.operation.lock',**({} if deadline is None else {'deadline':deadline}))
 
     def _read_path(self, folder, name, *, missing_ok=False):
         with self._root() as root:
@@ -230,8 +250,12 @@ class _History:
         events = self.events()
         return events[-1] if events else (None, None)
 
-    def append(self, event, *, expected_ref):
-        with self._lock('.journal.lock'):
+    def append(self, event, *, expected_ref, deadline=None):
+        observation = _decode(self.read(event['observations_ref']))
+        attempt = _decode(self.read(observation['attempt_ref']))
+        if attempt.get('sql_mandate_ref') is not None:
+            _require(type(deadline) is owner.ProposedDeadline,'time_unavailable')
+        with self._lock('.journal.lock',**({} if deadline is None else {'deadline':deadline})):
             current, previous = self.head()
             _require(current == expected_ref, 'generation_changed')
             sequence = 0 if previous is None else previous['sequence']+1
@@ -247,6 +271,7 @@ class _History:
                     self.read(event[key])
             path = f'events/{sequence:020d}.json'
             self._publish('events', path.split('/')[1], raw)
+            if deadline is not None:_admitted_deadline(deadline)
             return _ref(path, raw)
 
     def current_revision(self):
@@ -294,8 +319,156 @@ def _latest_attempt(history, identity):
     raise owner.OwnerRefusal('journal_invalid')
 
 
+def _admitted_deadline(deadline):
+    """Reobserve the one fixed owner; a private timeout is never authority."""
+    _require(type(deadline) is owner.ProposedDeadline, 'time_unavailable')
+    inputs = _owner_inputs()
+    context = owner._decode(inputs.context_raw, 'owner_unavailable')
+    try:
+        request = inputs.originals[context['request_ref']['path']]
+    except (KeyError, TypeError):
+        raise owner.OwnerRefusal('owner_unavailable') from None
+    owner._release_original(request, inputs)
+    proposal = owner._evaluate(request, inputs, previous_deadline=deadline)
+    _require(proposal.deadline == deadline, 'reservation_expired')
+    return inputs, proposal
+
+
+def _sql_mandate(history, raw, context):
+    mandate = _decode(raw)
+    _require(raw == canonical_bytes(mandate) and set(mandate) == {
+        'protocol_version','identity','effect','request_ref','phase',
+        'phase_before_ref','native_binding_ref'} and mandate['protocol_version'] == 2,
+        'journal_invalid')
+    _require(all(mandate[k] == context[k] for k in ('identity','effect','request_ref')),
+             'scope_denied')
+    _require(type(mandate['phase']) is str and re.fullmatch(r'[a-z][a-z0-9_]{0,63}',mandate['phase']),
+             'journal_invalid')
+    before = _decode(history.read(mandate['phase_before_ref']))
+    _require(set(before) == {'originals'} and type(before['originals']) is dict
+        and set(before['originals']) == _PREIMAGES, 'journal_invalid')
+    for reference in before['originals'].values():history.read(reference)
+    history.read(mandate['native_binding_ref'])
+    return mandate
+
+
+def _sql_prefix(history, consumed_ref, publication_head, *, candidate=None):
+    """ONE private rule for ordered descendants of an original consumption.
+
+    SQL outcome/POSTIMAGE meaning is the fixed producer's job. Here, tentative
+    DATA never becomes terminal truth, a stale head is never proof, and every
+    original subject/reservation/preimage remains bound to its consumption.
+    """
+    events = history.events()
+    _require(events and events[-1][0] == publication_head, 'generation_changed')
+    indices = [i for i,(ref,_) in enumerate(events) if ref == consumed_ref]
+    _require(len(indices) == 1, 'journal_invalid')
+    index = indices[0]
+    def loaded(reference, event):
+        _, obs = _load_entry(history,reference)
+        return {'ref':reference,'event':event,'preimages_ref':obs['preimages_ref'],
+            **{k:_decode(history.read(obs[k+'_ref'])) for k in ('context','reservation','attempt')}}
+    root = loaded(*events[index]);a=root['attempt'];r=root['reservation'];e=root['event']
+    _require(index > 0 and a.get('sql_mandate_ref') is not None
+        and a.get('sql_xact_ref') is None and a.get('sql_postimage_ref') is None
+        and a['dispatch_state'] == 'consumed_result_unknown' and r['state'] == 'consumed'
+        and a['consumption_sequence'] == e['sequence']
+        and a['result_ref'] is None and a['reconciliation_ref'] is None, 'journal_invalid')
+    _sql_mandate(history,history.read(a['sql_mandate_ref']),root['context'])
+    _require(root['preimages_ref'] == _retained_preimages(history,e['identity']), 'journal_invalid')
+    previous = loaded(*events[index-1]);prior=previous['attempt'];reserved=previous['reservation']
+    _require(previous['event']['identity'] == e['identity'] and reserved['state'] == 'reserved'
+        and {**reserved,'state':'consumed'} == r and prior['dispatch_state'] == 'not_consumed'
+        and prior['consumption_sequence'] is None and prior['consume_clock_ref'] is None
+        and {**prior,'reservation_ref':a['reservation_ref'],'dispatch_state':'consumed_result_unknown',
+             'consumption_sequence':e['sequence'],'consume_clock_ref':a['consume_clock_ref']} == a
+        and previous['preimages_ref'] == root['preimages_ref'], 'journal_invalid')
+    _continuity(previous['context'],root['context'])
+    _require(all(a[k] == e[k] == root['context'][k] for k in ('identity','effect','request_ref')),
+             'journal_invalid')
+    clock = owner._decode(history.read(a['consume_clock_ref']),'time_unavailable')
+    owner._clock(clock,root['context']['owner_epoch'])
+    _before_deadline(clock,r['expires_at'],r['expires_monotonic_ns'])
+    descendants = [loaded(ref,event) for ref,event in events[index+1:]]
+    if candidate is not None:descendants.append(candidate)
+    previous = root
+    for position,current in enumerate(descendants):
+        event,attempt,reservation,context = (current[k] for k in ('event','attempt','reservation','context'))
+        old = previous['attempt']
+        _require(all(event[k] == e[k] for k in
+            ('identity','effect','request_ref','origin_request_ref','release_binding_ref'))
+            and current['preimages_ref'] == root['preimages_ref'], 'journal_invalid')
+        _continuity(root['context'],context)
+        fixed = {'sql_xact_ref','sql_postimage_ref','dispatch_state','result_ref',
+                 'reconciliation_ref','reservation_ref'}
+        _require({k:v for k,v in attempt.items() if k not in fixed}
+            == {k:v for k,v in a.items() if k not in fixed}, 'journal_invalid')
+        _require(previous['attempt']['dispatch_state'] == 'consumed_result_unknown', 'reservation_used')
+        if attempt['dispatch_state'] == 'consumed_result_unknown':
+            _require(attempt['result_ref'] is None and attempt['reconciliation_ref'] is None
+                and event['result_ref'] is None and reservation == r
+                and attempt['reservation_ref'] == a['reservation_ref']
+                and context == root['context'] and event['phase'] == e['phase'], 'journal_invalid')
+            xid,post = attempt.get('sql_xact_ref'),attempt.get('sql_postimage_ref')
+            if old.get('sql_xact_ref') is None and xid is not None and post is None:
+                stage,reference = 'xid',xid
+            elif old.get('sql_xact_ref') is not None and xid == old['sql_xact_ref'] \
+                    and old.get('sql_postimage_ref') is None and post is not None:
+                stage,reference = 'postimage',post
+            else:raise owner.OwnerRefusal('journal_invalid')
+            raw=history.read(reference);fact=_decode(raw)
+            _require(raw == canonical_bytes(fact) and set(fact) == {
+                'stage','consumed_ref','sql_mandate_ref','sql_xact_ref','observed'}
+                and fact['stage'] == stage and fact['consumed_ref'] == consumed_ref
+                and fact['sql_mandate_ref'] == a['sql_mandate_ref']
+                and fact['sql_xact_ref'] == (xid if stage == 'postimage' else None)
+                and type(fact['observed']) is dict, 'journal_invalid')
+        else:
+            _require(position == len(descendants)-1 and attempt['dispatch_state'] in
+                ('applied_verified','not_applied_verified')
+                and all(attempt.get(k) == old.get(k) for k in ('sql_xact_ref','sql_postimage_ref'))
+                and event['result_ref'] is not None and attempt['result_ref'] == event['result_ref']
+                and attempt['reconciliation_ref'] in (None,event['result_ref']), 'journal_invalid')
+            result=_decode(history.read(event['result_ref']))
+            _require(set(result) == {'identity','effect','request_ref','state','observed'}
+                and all(result[k] == e[k] for k in ('identity','effect','request_ref'))
+                and result['state'] == attempt['dispatch_state'] and type(result['observed']) is dict
+                and result['observed'].get('sql_checkpoint_head') == previous['ref']
+                and (result['state'] != 'applied_verified' or attempt.get('sql_postimage_ref') is not None),
+                'journal_invalid')
+            _require(reservation == {**r,'expected_state_revision':r['expected_state_revision']+1}
+                and context['state_revision'] == reservation['expected_state_revision'], 'generation_changed')
+        previous=current
+    return previous
+
+
+@contextmanager
+def _measurement(primitive, context, *, mandated):
+    # V2 extends the lifetime of the existing measure, never a caller provider.
+    measured = primitive.measure(context)
+    if mandated:
+        _require(hasattr(measured,'__enter__') and hasattr(measured,'__exit__'), 'atomicity_unavailable')
+        with measured as answer:yield answer
+    else:yield measured
+
+
 def _publish_entry(history, *, context, reservation, attempt, preimages_ref, request_ref,
-                   release_ref, expected_ref, phase, recorded_at, result_ref=None):
+                   release_ref, expected_ref, phase, recorded_at, result_ref=None, deadline=None):
+    if attempt.get('sql_mandate_ref') is not None:
+        _admitted_deadline(deadline)
+        _sql_mandate(history,history.read(attempt['sql_mandate_ref']),context)
+        sequence = attempt['consumption_sequence']
+        events = history.events()
+        if sequence is not None and sequence < len(events):
+            candidate = {'ref':None,'event':{'identity':context['identity'],'effect':context['effect'],
+                'request_ref':request_ref,'origin_request_ref':attempt['origin_request_ref'],
+                'release_binding_ref':release_ref,'phase':phase,'result_ref':result_ref},
+                'context':context,'reservation':reservation,'attempt':attempt,'preimages_ref':preimages_ref}
+            _sql_prefix(history,events[sequence][0],expected_ref,candidate=candidate)
+        else:
+            _require(attempt.get('sql_xact_ref') is None and attempt.get('sql_postimage_ref') is None
+                and attempt['result_ref'] is None and attempt['reconciliation_ref'] is None
+                and result_ref is None,'journal_invalid')
     observation = {'context_ref': history.retain(canonical_bytes(context)),
                    'reservation_ref': history.retain(canonical_bytes(reservation)),
                    'attempt_ref': history.retain(canonical_bytes(attempt)),
@@ -309,11 +482,17 @@ def _publish_entry(history, *, context, reservation, attempt, preimages_ref, req
               'effect': context['effect'], 'observations_ref': history.retain(canonical_bytes(observation)),
               'result_ref': result_ref,
               'recorded_at': datetime.fromtimestamp(recorded_at, timezone.utc).isoformat()}
-    return history.append(record, expected_ref=expected_ref)
+    return history.append(record, expected_ref=expected_ref,**({} if deadline is None else {'deadline':deadline}))
 
 
-def _reserve(history, original_request, proposal, originals, preimages, *, clock_raw, inputs=None):
+def _reserve(history, original_request, proposal, originals, preimages, *, clock_raw, inputs=None,
+             sql_mandate_raw=None, deadline=None):
     context = thaw(proposal.context)
+    if sql_mandate_raw is not None:
+        _, admitted = _admitted_deadline(deadline)
+        owner._same_context(proposal,admitted)
+        _require(proposal.deadline == deadline,'reservation_expired')
+        _sql_mandate(history,sql_mandate_raw,context)
     request = parse_install_message(original_request, expected_kind='request')
     operation = thaw(request.document)['operation']
     _require(operation in ('install', 'rollback', 'uninstall', 'purge'), 'scope_denied')
@@ -387,10 +566,12 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
         'effect': context['effect'], 'predecessor_result_refs':
         [] if lineage is None else lineage['predecessor_result_refs'], 'dispatch_state': 'not_consumed',
         'result_ref': None, 'reconciliation_ref': None, 'consumption_sequence': None, 'consume_clock_ref': None}
+    if sql_mandate_raw is not None:
+        attempt.update(sql_mandate_ref=history.retain(sql_mandate_raw),sql_xact_ref=None,sql_postimage_ref=None)
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=preimages_ref, request_ref=context['request_ref'], release_ref=release_ref,
         expected_ref=current_ref, phase=('create_intent' if operation == 'install' else
-            'purge_intent' if operation == 'purge' else 'reverse_intent'), recorded_at=now['now_utc'])
+            'purge_intent' if operation == 'purge' else 'reverse_intent'), recorded_at=now['now_utc'],deadline=deadline)
 
 
 def _before_deadline(now, utc, monotonic):
@@ -423,7 +604,7 @@ def _continuity(original, context):
              'reservation_invalidated')
 
 
-def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=None):
+def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=None, deadline=None):
     event, obs = _load_entry(history, reserved_ref)
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     reservation = _decode(history.read(latest['reservation_ref']))
@@ -433,6 +614,13 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=Non
     _require(current.observed_state_revision < owner._INT_MAX, 'generation_changed')
     original = _decode(history.read(obs['context_ref']))
     context = thaw(current.context)
+    attempt = _decode(history.read(obs['attempt_ref']))
+    if attempt.get('sql_mandate_ref') is not None:
+        _, admitted = _admitted_deadline(deadline)
+        owner._same_context(current,admitted)
+        _require(current.deadline == deadline and deadline.expires_at == reservation['expires_at']
+            and deadline.expires_monotonic_ns == reservation['expires_monotonic_ns'],'reservation_expired')
+        _sql_mandate(history,history.read(attempt['sql_mandate_ref']),context)
     _continuity(original, context)
     now = owner._decode(clock_raw, 'time_unavailable')
     owner._clock(now, original['owner_epoch'])
@@ -453,14 +641,30 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=Non
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=reserved_ref,
-        phase=event['phase'], recorded_at=now['now_utc'])
+        phase=event['phase'], recorded_at=now['now_utc'],deadline=deadline)
 
 
 def _record_result(history, consumed_ref, original_measurement, *, current_context=None,
-                   originals=None, clock_raw=None, result_originals=None, cleanup_plan=None, publication_head=None, publication_revision=None):
+                   originals=None, clock_raw=None, result_originals=None, cleanup_plan=None, publication_head=None, publication_revision=None,
+                   deadline=None):
     event, obs = _load_entry(history, consumed_ref)
+    anchor_attempt = _decode(history.read(obs['attempt_ref']))
+    mandated = anchor_attempt.get('sql_mandate_ref') is not None
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
-    _require(latest_ref == consumed_ref, 'reservation_used')
+    if mandated:
+        _, fresh = _admitted_deadline(deadline)
+        head = consumed_ref if publication_head is None else publication_head
+        prefix = _sql_prefix(history,consumed_ref,head)
+        _require(fresh.observed_state_revision == history.current_revision()
+            and publication_revision in (None,fresh.observed_state_revision),'generation_changed')
+        if prefix['attempt']['dispatch_state'] != 'consumed_result_unknown':
+            _require(history.read(prefix['event']['result_ref']) == original_measurement,'resource_changed')
+            return prefix['ref']
+        _require(prefix['attempt']['dispatch_state'] == 'consumed_result_unknown','reservation_used')
+        obs = _load_entry(history,prefix['ref'])[1]
+        publication_head,publication_revision = head,fresh.observed_state_revision
+    else:
+        _require(latest_ref == consumed_ref, 'reservation_used')
     _require((publication_head is None) == (publication_revision is None),'journal_invalid')
     expected_head = consumed_ref if publication_head is None else publication_head
     if publication_revision is not None:
@@ -476,11 +680,16 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
              and result['request_ref'] == event['request_ref'], 'resource_changed')
     _require(result['state'] in ('applied_verified','not_applied_verified') and type(result['observed']) is dict,
              'attempt_ambiguous')
+    if mandated:
+        _require(result['observed'].get('sql_checkpoint_head') == expected_head
+            and (result['state'] != 'applied_verified' or attempt.get('sql_postimage_ref') is not None),
+            'journal_invalid')
     if publication_revision is not None:
         reservation['expected_state_revision'] = publication_revision
         attempt['reservation_ref'] = history.retain(canonical_bytes(reservation))
     result_ref = history.retain(original_measurement)
     attempt.update(dispatch_state=result['state'], result_ref=result_ref)
+    if mandated and result['state'] == 'not_applied_verified':attempt['reconciliation_ref'] = result_ref
     context = _decode(history.read(obs['context_ref']))
     if publication_revision is not None:
         context['state_revision'] = publication_revision
@@ -506,7 +715,7 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=expected_head,
         phase=('created' if operation == 'install' else 'finished') if result['state'] == 'applied_verified' else 'held',
-        recorded_at=clock['now_utc'], result_ref=result_ref)
+        recorded_at=clock['now_utc'], result_ref=result_ref,deadline=deadline)
 
 
 @dataclass(frozen=True)
@@ -562,7 +771,15 @@ def _execute_bound(original_request, first):
     _require(type(bindings) is _Bindings and type(bindings.history) is _History
              and type(bindings.primitives) is dict, 'backend_unavailable')
     history = bindings.history
-    with history.operation():
+    primitive = bindings.primitives.get(first.context['effect']['resource_kind'])
+    request = thaw(parse_install_message(original_request,expected_kind='request').document)
+    sql_mandate_raw = getattr(primitive,'sql_mandate_raw',None)
+    mandated = sql_mandate_raw is not None
+    if request['operation'] == 'recover':
+        _, subject = _load_entry(history,request['journal_ref'])
+        mandated = _decode(history.read(subject['attempt_ref'])).get('sql_mandate_ref') is not None
+    deadline = first.deadline if mandated else None
+    with history.operation(**({} if deadline is None else {'deadline':deadline})):
         inputs, current = _current_owner(original_request, first.deadline)
         owner._same_context(first, current)
         request = thaw(parse_install_message(original_request,expected_kind='request').document)
@@ -575,10 +792,10 @@ def _execute_bound(original_request, first):
         inputs, refreshed = _current_owner(original_request, current.deadline)
         owner._same_context(current, refreshed)
         reserved = _reserve(history, original_request, refreshed, inputs.originals, preimages,
-                            clock_raw=inputs.current_clock_raw, inputs=inputs)
+                            clock_raw=inputs.current_clock_raw, inputs=inputs,sql_mandate_raw=sql_mandate_raw,deadline=deadline)
         inputs, final = _current_owner(original_request, refreshed.deadline)
         consumed = _consume(history, reserved, final, inputs.current_clock_raw,
-                            originals=inputs.originals, inputs=inputs)
+                            originals=inputs.originals, inputs=inputs,deadline=deadline)
         _, observation = _load_entry(history, consumed)
         # Consume persistence can block. Recheck the common owner at the actual
         # dispatch point; the consumed marker alone cannot authorize dispatch.
@@ -600,20 +817,28 @@ def _execute_bound(original_request, first):
                        'preimages_ref': observation['preimages_ref']}
         if cleanup is not None:
             effect_data['cleanup'] = cleanup
+        if mandated:
+            effect_data['deadline'] = deadline
+            _sql_prefix(history,consumed,consumed)
         effect_context = freeze(effect_data)
         try:
             if cleanup is None or cleanup['targets']:
                 primitive.dispatch(effect_context)
-            measured = primitive.measure(effect_context)
-            # Preserve independently measured original bytes even when a later
-            # collector fails. They remain uncommitted facts; the attempt stays
-            # consumed/unknown until its result can be reconciled and published.
-            history.retain(measured)
-            result_inputs = _owner_inputs()
-            completed = _record_result(history, consumed, measured,
-                current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
-                clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
-                cleanup_plan=cleanup)
+            with _measurement(primitive,effect_context,mandated=mandated) as measured:
+                # The same measure owns v2 SQL exclusion until durable P1 ACK.
+                history.retain(measured)
+                result_inputs = _owner_inputs()
+                publication = {}
+                if mandated:
+                    _, fresh = _current_owner(original_request,deadline)
+                    _continuity(thaw(dispatch_current.context),thaw(fresh.context))
+                    publication = {'publication_head':history.head()[0],
+                        'publication_revision':fresh.observed_state_revision,'deadline':deadline}
+                completed = _record_result(history, consumed, measured,
+                    current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
+                    clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
+                    cleanup_plan=cleanup,**publication)
+                if mandated:_current_owner(original_request,deadline)
         except owner.OwnerRefusal:
             raise
         except Exception:
