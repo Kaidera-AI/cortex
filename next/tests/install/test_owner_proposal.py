@@ -71,6 +71,10 @@ class OwnerProposalOracle(unittest.TestCase):
         ref=c['clock_receipt_ref'];v=json.loads(d['originals'][ref['path']]);change(v)
         raw=encode(v);d['originals'][ref['path']]=raw.decode()
         c['clock_receipt_ref']={**ref,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
+        current=json.loads(d['current_clock_raw'])
+        if current['clock_receipt_ref']==ref:
+            current['clock_receipt_ref']=c['clock_receipt_ref']
+            d['current_clock_raw']=encode(current).decode()
         b=encode(c);d['originals'][context['clock_ref']['path']]=b.decode()
         context['clock_ref']={**context['clock_ref'],'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()}
         d['context_raw']=encode(context).decode()
@@ -186,6 +190,19 @@ class OwnerProposalOracle(unittest.TestCase):
 
     def test_unknown_clock_quality_refuses(self):
         api=self.api();d=self.data();self.clock_receipt(d,lambda r:r.update(quality='unknown'))
+        self.refusal(api,'time_unavailable',lambda:self.run_gate(api,d))
+
+    def test_current_clock_receipt_is_resolved_and_can_only_shorten_monotonic_budget(self):
+        api=self.api();d=self.data();clock=json.loads(d['current_clock_raw'])
+        value=json.loads(d['originals'][clock['clock_receipt_ref']['path']])
+        value['monotonic_deadlines']['host']=103000000000
+        def current_reference(record):
+            raw=encode(record);d['originals']['b1-current-clock-provider.json']=raw.decode()
+            self.clock(d,lambda c:c.update(clock_receipt_ref={'path':'b1-current-clock-provider.json','bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}))
+        current_reference(value)
+        p,_=self.run_gate(api,d)
+        self.assertEqual(p.deadline.expires_monotonic_ns,103000000000)
+        value['quality']='unknown';current_reference(value)
         self.refusal(api,'time_unavailable',lambda:self.run_gate(api,d))
 
     def test_full_uncertainty_upper_endpoint_equal_to_expiry_refuses(self):
