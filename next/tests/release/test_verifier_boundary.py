@@ -639,3 +639,212 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         error = self.owner_refusal('r01_other_refusal', data=data)
         self.assertEqual(error.r01_reason, 'member_digest_mismatch')
         self.assert_closed()
+
+    def test_EB2_effect_joins_real_R01_and_terminal_SQL_barrier(self):
+        from cortex_core.install import lifecycle as p1
+        from cortex_core.release.contracts import thaw
+        from psycopg.pq import TransactionStatus
+        with self.sql_source() as s:
+            published = []
+            original = p1._record_result
+            def record(*args, **kwargs):
+                self.assertEqual(s.reader.info.transaction_status, TransactionStatus.INTRANS,
+                                 'EB2 terminal publication lost the SQL barrier')
+                published.append(original(*args, **kwargs))
+                self.assertEqual(s.reader.info.transaction_status, TransactionStatus.INTRANS)
+                return published[-1]
+            with patch.object(p1, '_record_result', side_effect=record):
+                result = self.sql_execute(s)
+            self.assertEqual(thaw(result), s.history.head()[0])
+            self.assertEqual(published, [thaw(result)])
+            self.assertEqual(s.effect_count, 1)
+            self.assertEqual(len(s.history.events()), 5)
+            event, obs = p1._load_entry(s.history, result)
+            value = json.loads(s.history.read(event['result_ref']))
+            self.assertEqual(value['state'], 'applied_verified')
+            self.assertEqual(value['identity'], event['identity'])
+            self.assertEqual(value['request_ref'], event['request_ref'])
+            self.assertEqual(json.loads(s.history.read(obs['attempt_ref']))['consumption_sequence'], 1)
+            self.assertGreaterEqual(len(self.transports), 4)
+            self.assertEqual(s.reader.info.transaction_status, TransactionStatus.IDLE)
+        self.assert_closed()
+
+    def test_EB2_expiry_after_consumption_never_dispatches(self):
+        from cortex_core.install import owner
+        with self.sql_source() as s:
+            s.start()
+            s.expired = True
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                s.primitive.dispatch(s.effect_context())
+            self.assertEqual(caught.exception.detail, 'reservation_expired')
+            self.assertEqual(s.effect_count, 0)
+            self.assertEqual(len(s.history.events()), 2)
+
+    def test_EB2_nonce_drift_after_consumption_never_dispatches(self):
+        from cortex_core.install import owner
+        with self.sql_source() as s:
+            s.start()
+            effect = s.effect_context()
+            s.helper.context(s.data, lambda c: c.update(nonce='stale-EB2-nonce'))
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                s.primitive.dispatch(effect)
+            self.assertEqual(caught.exception.detail, 'reservation_invalidated')
+            self.assertEqual(s.effect_count, 0)
+            self.assertEqual(len(s.history.events()), 2)
+
+    def test_EB2_checkpoint_must_name_original_consumption(self):
+        from cortex_core.install import lifecycle as p1, owner
+        from cortex_core.release.codec import canonical_bytes
+        with self.sql_source() as s:
+            original = p1._publish_entry
+            def wrong_anchor(*args, **kwargs):
+                attempt = kwargs['attempt']
+                if attempt.get('sql_xact_ref') is not None:
+                    fact = json.loads(s.history.read(attempt['sql_xact_ref']))
+                    fact['consumed_ref'] = s.history.events()[0][0]
+                    attempt['sql_xact_ref'] = s.history.retain(canonical_bytes(fact))
+                return original(*args, **kwargs)
+            with patch.object(p1, '_publish_entry', side_effect=wrong_anchor):
+                with self.assertRaises(owner.OwnerRefusal) as caught:
+                    s.dispatch()
+            self.assertEqual(caught.exception.detail, 'journal_invalid')
+            self.assertEqual(s.effect_count, 0)
+            self.assertNotIn(('writer', 'COMMIT'), s.trace)
+
+    def test_EB2_absent_checkpoint_with_unfenced_writer_remains_UNKNOWN(self):
+        from cortex_core.install import lifecycle as p1, owner
+        with self.sql_source() as s:
+            effect = self.sql_interrupted(s, 1)
+            s.recover(effect)
+            s.private['sql_native']['writers_ended'] = False
+            s.set_private()
+            before = s.tree()
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                p1.execute_effect(s.data['request_raw'].encode())
+            self.assertEqual(caught.exception.detail, 'attempt_ambiguous')
+            self.assertEqual(s.tree(), before)
+            self.assertEqual(s.effect_count, 0)
+
+    def test_EB2_COMMIT_reply_loss_reuses_exact_result_without_redispatch(self):
+        from cortex_core.install import lifecycle as p1
+        from psycopg.pq import TransactionStatus
+        with self.sql_source() as s:
+            effect = self.sql_interrupted(s, 5)
+            s.recover(effect)
+            original = p1._record_result
+            measurements = []
+            def record(*args, **kwargs):
+                self.assertEqual(s.reader.info.transaction_status, TransactionStatus.INTRANS,
+                                 'EB2 recovery publication lost the SQL barrier')
+                measurements.append(args[2])
+                return original(*args, **kwargs)
+            with patch.object(p1, '_record_result', side_effect=record):
+                first = p1.execute_effect(s.data['request_raw'].encode())
+                before = s.tree()
+                s.status = None  # retired status lookup cannot supply a fresh truth
+                second = p1.execute_effect(s.data['request_raw'].encode())
+            self.assertEqual(first, second)
+            self.assertEqual(len(measurements), 2)
+            self.assertEqual(measurements[0], measurements[1])
+            self.assertEqual(s.tree(), before)
+            self.assertEqual(s.effect_count, 1)
+            self.assertEqual(json.loads(measurements[0])['state'], 'applied_verified')
+
+    def test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child(self):
+        from cortex_core.install import lifecycle as p1, owner
+        from cortex_core.release.contracts import thaw
+        with self.sql_source() as s:
+            effect = self.sql_interrupted(s, 2)
+            s.recover(effect)
+            parent = p1.execute_effect(s.data['request_raw'].encode())
+            event, obs = p1._load_entry(s.history, parent)
+            result = json.loads(s.history.read(event['result_ref']))
+            attempt = json.loads(s.history.read(obs['attempt_ref']))
+            self.assertEqual(result['state'], 'not_applied_verified')
+            self.assertEqual(attempt['reconciliation_ref'], event['result_ref'])
+            self.assertEqual(s.effect_count, 0)
+            self.sql_child(s, effect, parent)
+            child = self.sql_execute(s)
+            event2, obs2 = p1._load_entry(s.history, child)
+            attempt2 = json.loads(s.history.read(obs2['attempt_ref']))
+            self.assertEqual(attempt2['origin_request_ref'], thaw(effect['context']['request_ref']))
+            self.assertEqual(attempt2['predecessor_result_refs'], [event['result_ref']])
+            self.assertEqual(attempt2['dispatch_state'], 'applied_verified')
+            self.assertEqual(s.effect_count, 1)
+            self.assertNotEqual(event2['identity']['attempt_id'], event['identity']['attempt_id'])
+            with self.assertRaises(owner.OwnerRefusal):
+                self.sql_execute(s)
+            self.assertEqual(s.effect_count, 1)
+
+    def sql_source(self):
+        """Existing R01 join + delivered SQL producer; scheduled SOURCE DATA only.
+
+        SQLSubject's constructor uses its old nonauthoritative proposal fixture
+        for setup DATA. Every deciding proposal/prime/execute/recovery below is
+        rebound through this class's real R01 composition, never its double.
+        """
+        import copy
+        import tempfile
+        from contextlib import contextmanager
+        from cortex_core.install import lifecycle as p1, owner
+        from cortex_core.release.codec import canonical_bytes
+        from cortex_core.release.contracts import thaw
+        from test_hold1_producer import SQLSubject
+        @contextmanager
+        def joined():
+            self.init_boundary()
+            with tempfile.TemporaryDirectory(prefix='EB2-source-') as root:
+                s = SQLSubject(root)
+                _, release_data = self.owner_data()
+                release = json.loads(release_data['request_raw'])['release']
+                request = json.loads(s.data['request_raw'])
+                request['release'] = release
+                s.data['aggregate_id'] = self.aggregate
+                s.data['request_raw'] = canonical_bytes(request).decode()
+                s.helper.edit_record(s.data, 'request_ref', lambda value: value.update(request))
+                c = json.loads(s.data['context_raw'])
+                consent = json.loads(s.data['originals'][c['consent_ref']['path']])
+                scope = json.loads(s.data['originals'][consent['scope_ref']['path']])
+                ref = scope['release_binding_ref']
+                raw = canonical_bytes(release)
+                s.data['originals'][ref['path']] = raw.decode()
+                s.helper.scope(s.data, lambda value: value.update(release_binding_ref=p1._ref(ref['path'], raw)))
+                with self.composition(), patch.object(owner, '_installed_owner_inputs', s.inputs), \
+                        patch.object(p1, '_installed_lifecycle', lambda: p1._Bindings(
+                            s.history, {'database_role': s.primitive})):
+                    s.proposal = s.current()
+                    s.deadline = s.proposal.deadline
+                    mandate = json.loads(s.mandate)
+                    context = thaw(s.proposal.context)
+                    mandate.update({k: context[k] for k in ('identity', 'effect', 'request_ref')})
+                    s.mandate = canonical_bytes(mandate)
+                    s.eb2_original = copy.deepcopy(s.data)
+                    yield s
+        return joined()
+
+    def sql_execute(self, s):
+        from cortex_core.install import lifecycle as p1
+        s.primitive._prime_sql()
+        return p1.execute_effect(s.data['request_raw'].encode())
+
+    def sql_interrupted(self, s, schedule):
+        # Reuse Cox's existing explicit interruption fixture and actual dispatch;
+        # no replacement producer, cached admission or alternate classifier.
+        return s.dispatch(schedule=schedule)
+
+    def sql_child(self, s, effect, parent):
+        import copy
+        from cortex_core.release.codec import canonical_bytes
+        from cortex_core.release.contracts import thaw
+        s.data = copy.deepcopy(s.eb2_original)
+        s.recover(effect)  # Existing fresh owner/peer/clock/private fence DATA.
+        q = json.loads(s.data['request_raw'])
+        q.update(operation='install', journal_ref=thaw(parent))
+        q['identity'].update(request_id='EB2-child-request', attempt_id='EB2-child-attempt')
+        s.data['request_raw'] = canonical_bytes(q).decode()
+        s.helper.edit_record(s.data, 'request_ref', lambda value: value.update(q))
+        s.helper.context(s.data, lambda c: c.update(identity=q['identity']))
+        s.helper.scope(s.data, lambda scope: scope.update(identity=q['identity'], operation='install'))
+        s.private['sql_native']['writer_attempt_id'] = q['identity']['attempt_id']
+        s.set_private()
+        s.adapter.identity = q['identity']
