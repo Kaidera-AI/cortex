@@ -338,7 +338,8 @@ def _sql_mandate(history, raw, context):
     mandate = _decode(raw)
     _require(raw == canonical_bytes(mandate) and set(mandate) == {
         'protocol_version','identity','effect','request_ref','phase',
-        'phase_before_ref','native_binding_ref'} and mandate['protocol_version'] == 2,
+        'phase_before_ref','native_binding_ref'} and type(mandate['protocol_version']) is int
+        and mandate['protocol_version'] == 2,
         'journal_invalid')
     _require(all(mandate[k] == context[k] for k in ('identity','effect','request_ref')),
              'scope_denied')
@@ -372,12 +373,14 @@ def _sql_prefix(history, consumed_ref, publication_head, *, candidate=None):
     _require(index > 0 and a.get('sql_mandate_ref') is not None
         and a.get('sql_xact_ref') is None and a.get('sql_postimage_ref') is None
         and a['dispatch_state'] == 'consumed_result_unknown' and r['state'] == 'consumed'
-        and a['consumption_sequence'] == e['sequence']
+        and type(a['consumption_sequence']) is int and a['consumption_sequence'] == e['sequence']
         and a['result_ref'] is None and a['reconciliation_ref'] is None, 'journal_invalid')
     _sql_mandate(history,history.read(a['sql_mandate_ref']),root['context'])
     _require(root['preimages_ref'] == _retained_preimages(history,e['identity']), 'journal_invalid')
     previous = loaded(*events[index-1]);prior=previous['attempt'];reserved=previous['reservation']
-    _require(previous['event']['identity'] == e['identity'] and reserved['state'] == 'reserved'
+    _require(all(previous['event'][k] == e[k] for k in
+            ('identity','effect','request_ref','origin_request_ref','release_binding_ref'))
+        and reserved['state'] == 'reserved'
         and {**reserved,'state':'consumed'} == r and prior['dispatch_state'] == 'not_consumed'
         and prior['consumption_sequence'] is None and prior['consume_clock_ref'] is None
         and {**prior,'reservation_ref':a['reservation_ref'],'dispatch_state':'consumed_result_unknown',
@@ -399,6 +402,7 @@ def _sql_prefix(history, consumed_ref, publication_head, *, candidate=None):
             ('identity','effect','request_ref','origin_request_ref','release_binding_ref'))
             and current['preimages_ref'] == root['preimages_ref'], 'journal_invalid')
         _continuity(root['context'],context)
+        _require(type(attempt['consumption_sequence']) is int, 'journal_invalid')
         fixed = {'sql_xact_ref','sql_postimage_ref','dispatch_state','result_ref',
                  'reconciliation_ref','reservation_ref'}
         _require({k:v for k,v in attempt.items() if k not in fixed}
@@ -423,6 +427,8 @@ def _sql_prefix(history, consumed_ref, publication_head, *, candidate=None):
                 and fact['sql_mandate_ref'] == a['sql_mandate_ref']
                 and fact['sql_xact_ref'] == (xid if stage == 'postimage' else None)
                 and type(fact['observed']) is dict, 'journal_invalid')
+            from . import recovery
+            recovery._read_refs(history,fact['observed'])
         else:
             _require(position == len(descendants)-1 and attempt['dispatch_state'] in
                 ('applied_verified','not_applied_verified')
@@ -448,7 +454,14 @@ def _measurement(primitive, context, *, mandated):
     measured = primitive.measure(context)
     if mandated:
         _require(hasattr(measured,'__enter__') and hasattr(measured,'__exit__'), 'atomicity_unavailable')
-        with measured as answer:yield answer
+        failure = None
+        with measured as answer:
+            try:yield answer
+            except BaseException as error:
+                failure = error
+                raise
+        # A fixed producer must never turn a failed publication/HOLD into ACK.
+        if failure is not None:raise failure
     else:yield measured
 
 
@@ -458,6 +471,7 @@ def _publish_entry(history, *, context, reservation, attempt, preimages_ref, req
         _admitted_deadline(deadline)
         _sql_mandate(history,history.read(attempt['sql_mandate_ref']),context)
         sequence = attempt['consumption_sequence']
+        _require(sequence is None or (type(sequence) is int and sequence >= 0),'journal_invalid')
         events = history.events()
         if sequence is not None and sequence < len(events):
             candidate = {'ref':None,'event':{'identity':context['identity'],'effect':context['effect'],
@@ -838,7 +852,10 @@ def _execute_bound(original_request, first):
                     current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
                     clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
                     cleanup_plan=cleanup,**publication)
-                if mandated:_current_owner(original_request,deadline)
+                if mandated:
+                    _, after = _current_owner(original_request,deadline)
+                    _continuity(thaw(fresh.context),thaw(after.context))
+                    _require(after.observed_state_revision == fresh.observed_state_revision+1,'generation_changed')
         except owner.OwnerRefusal:
             raise
         except Exception:
