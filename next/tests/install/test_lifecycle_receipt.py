@@ -143,7 +143,7 @@ class LifecycleReceiptOracle(unittest.TestCase):
         api = self.api()
         with tempfile.TemporaryDirectory() as root:
             history = api._History(Path(root))
-            _, data, proposal, _ = self.reserve(api, history)
+            helper, data, proposal, first_entry = self.reserve(api, history)
             original = api._retained_preimages(history, thaw(proposal.context)['identity'])
             changed = self.preimages(); changed['role'] = b'REPLACEMENT'
             with self.assertRaises(owner.OwnerRefusal):
@@ -152,6 +152,34 @@ class LifecycleReceiptOracle(unittest.TestCase):
                              clock_raw=data['current_clock_raw'].encode())
             self.assertEqual(api._retained_preimages(history, thaw(proposal.context)['identity']), original)
             self.assertEqual(json.loads(history.read(original))['identity'], thaw(proposal.context)['identity'])
+            # Reach preservation through a CURRENT authorized attempt/effect,
+            # rather than letting stale revision/nonce/effect reject first.
+            _, fresh = self.another_attempt(helper, data, history.current_revision(),
+                                             nonce='preimage-preservation-next')
+            helper.context(fresh, lambda c: c['effect'].update(effect_id='preimage-preservation-next'))
+            helper.scope(fresh, lambda s: s['effect'].update(effect_id='preimage-preservation-next'))
+            current, _ = helper.run_gate(helper.api(), fresh)
+            originals = {k: v.encode() for k, v in fresh['originals'].items()}
+            before_bundle = history.read(original)
+            for field in sorted(self.preimages()):
+                with self.subTest(replaced_preimage=field):
+                    changed = self.preimages(); changed[field] = b'REPLACEMENT'
+                    with self.assertRaises(owner.OwnerRefusal) as caught:
+                        api._reserve(history, fresh['request_raw'].encode(), current,
+                                     originals, changed, clock_raw=fresh['current_clock_raw'].encode())
+                    self.assertEqual(caught.exception.detail, 'resource_changed')
+                    self.assertEqual(history.head()[0], first_entry)
+                    self.assertEqual(api._retained_preimages(history, thaw(current.context)['identity']), original)
+                    self.assertEqual(history.read(original), before_bundle)
+                    for name, ref in json.loads(before_bundle)['originals'].items():
+                        self.assertEqual(history.read(ref), self.preimages()[name])
+            # Matched success proves the new attempt reaches this guard and is
+            # otherwise admissible; its originals still use the first bundle.
+            second = api._reserve(history, fresh['request_raw'].encode(), current,
+                                  originals, self.preimages(), clock_raw=fresh['current_clock_raw'].encode())
+            self.assertNotEqual(second, first_entry)
+            self.assertEqual(api._retained_preimages(history, thaw(current.context)['identity']), original)
+            self.assertEqual(history.read(original), before_bundle)
 
     def test_P2A06_consumption_is_durable_and_one_shot(self):
         api = self.api()
