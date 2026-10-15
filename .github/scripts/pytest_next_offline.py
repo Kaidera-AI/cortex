@@ -447,9 +447,11 @@ def declaration_observations(packet, excluded):
             prefix='E   AssertionError: unexpectedly None : NOT_RUN_MISSING_ORIGINAL_CORPUS ['
             suffix=']: see missing_R01_cases and missing_composed_positive_material'
             case=final[len(prefix):-len(suffix)] if final.startswith(prefix) and final.endswith(suffix) else ''
+            # Approved155 suffixes reverse exactly; never normalize a reported ID.
+            canonical=node.split('::')[-1].removeprefix('test_').replace('_','-')
             expected_failure=(declaration in corpus_approved
                 and call.get('exception_type')=='builtins.AssertionError' and bool(case)
-                and node.split('::')[-1]=='test_'+case.replace('-','_'))
+                and case==canonical and Counter(packet.get('collected',[]))[node]==1)
         valid=(Counter(r['when'] for r in rows)==Counter(('setup','call','teardown'))
             and all(not r['wasxfail'] and r['outcome']==('failed' if r['when']=='call' else 'passed') for r in rows)
             and len(calls)==1 and calls[0].get('assertion') is True
