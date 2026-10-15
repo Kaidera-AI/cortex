@@ -1,7 +1,101 @@
-"""Record-local projection evidence; no global cursor or waiting behavior."""
+"""Driver-free search contracts, request guards and record-local projection evidence."""
 from dataclasses import dataclass
+import asyncio
+import hashlib
+import json
+import math
 from typing import Literal
 from uuid import UUID
+
+
+@dataclass(frozen=True)
+class Scope:
+    tenant_id: UUID
+    project_id: UUID
+
+
+@dataclass(frozen=True)
+class EmbeddingIdentity:
+    provider: str
+    model: str
+    version: str
+    dimensions: int
+    preprocessing: str
+
+    @property
+    def key(self) -> str:
+        if self.dimensions != 768 or not all(
+            isinstance(v, str) and v.strip()
+            for v in (self.provider, self.model, self.version, self.preprocessing)
+        ):
+            raise ValueError("Search requires a complete identity with 768 dimensions")
+        return hashlib.sha256(
+            json.dumps(
+                [
+                    self.provider,
+                    self.model,
+                    self.version,
+                    self.dimensions,
+                    self.preprocessing,
+                ],
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+
+
+@dataclass(frozen=True)
+class Freshness:
+    identity: str
+    indexed_records: int
+    pending_records: int
+
+    @property
+    def status(self) -> str:
+        return "lagging" if self.pending_records else "current"
+
+
+@dataclass(frozen=True)
+class Hit:
+    record_id: str
+    kind: str
+    source_revision: int
+    distance: float
+
+
+@dataclass(frozen=True)
+class SearchResult:
+    hits: tuple[Hit, ...]
+    freshness: Freshness
+
+
+class CapabilityUnavailable(RuntimeError):
+    code = "capability_unavailable"
+    capability = "search"
+
+    def __init__(self, reason: str, freshness: Freshness | None = None):
+        super().__init__(reason)
+        self.reason = reason
+        self.freshness = freshness
+
+
+class CoreUnavailable(RuntimeError):
+    code = "core_unavailable"
+
+
+class StaleEmbedding(RuntimeError):
+    code = "stale_embedding"
+
+
+def request_deadline(deadline):
+    now=asyncio.get_running_loop().time()
+    if type(deadline) not in (int,float) or not math.isfinite(deadline):
+        raise CapabilityUnavailable('request_timeout')
+    return min(deadline,now+10)
+
+
+def check_deadline(deadline):
+    if asyncio.get_running_loop().time()>=deadline:
+        raise CapabilityUnavailable('request_timeout')
 
 
 @dataclass(frozen=True)

@@ -7,9 +7,7 @@ import json
 import time
 from uuid import uuid4
 
-import asyncpg
-
-from .pg_search import CapabilityUnavailable, PostgresSearch, Scope, vector_literal
+from .pg_search import CapabilityUnavailable, PostgresSearch, Scope, vector_literal, _driver_errors
 
 
 @dataclass(frozen=True)
@@ -186,7 +184,7 @@ class QueryEmbeddingCache:
                 key, hit, fence = await self._lookup_claim(
                     subject, identity_key, digest, owner
                 )
-            except asyncpg.SerializationError:
+            except _driver_errors('SerializationError'):
                 # Another process won the claim after this transaction's snapshot.
                 # Retry with a fresh current grant/scope snapshot; no provider call.
                 await asyncio.sleep(0.02)
@@ -209,7 +207,7 @@ class QueryEmbeddingCache:
                     if await self._publish(subject, key, owner, fence, vector):
                         self._check_deadline(deadline)
                         return CachedEmbedding(vector, False)
-                except asyncpg.SerializationError:
+                except _driver_errors('SerializationError'):
                     await self._release(subject, key, owner, fence, deadline)
                     # A concurrent winner may already have published a cached result.
                 except TimeoutError:

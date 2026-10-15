@@ -1,10 +1,8 @@
 """Bounded keyword reads over the existing current authorized Core read port."""
-import asyncio
 from dataclasses import dataclass
 import hashlib
-import math
 
-from .pg_search import CapabilityUnavailable
+from .projection_revision import CapabilityUnavailable, request_deadline, check_deadline
 from .text import project_text, UnsupportedText
 
 
@@ -30,18 +28,6 @@ class KeywordResult:
     unsupported: tuple
     scanned_records: int
     source_state: tuple
-
-
-def request_deadline(deadline):
-    now=asyncio.get_running_loop().time()
-    if type(deadline) not in (int,float) or not math.isfinite(deadline):
-        raise CapabilityUnavailable('request_timeout')
-    return min(deadline,now+10)
-
-
-def check_deadline(deadline):
-    if asyncio.get_running_loop().time()>=deadline:
-        raise CapabilityUnavailable('request_timeout')
 
 
 def current_rows(rows, bound):
