@@ -1,4 +1,5 @@
-"""Linux native mechanics for the accepted parts (W4 clock, Q6 fd-3 listener, design3 effective policy).
+"""Linux native mechanics for the accepted parts (W4 clock, Q6 fd-3 listener, design3 effective policy,
+SELinux policy source compile).
 
 Runs on Linux with a C compiler only; on macOS every method is NOT_RUN (skipped),
 never PASS. Same-uid mechanics: no SELinux policy, account split, systemd unit or
@@ -19,6 +20,8 @@ from cortex_core.install.platforms import _clock, _selinux
 
 PLATFORMS = Path(__file__).resolve().parents[3] / 'src/cortex_core/install/platforms'
 HERE = Path(__file__).resolve().parent
+SELINUX_SRC = Path(__file__).resolve().parents[3] / 'release/install/launch/linux/selinux'
+DEVEL = Path('/usr/share/selinux/devel/Makefile')
 CC = shutil.which('cc') or shutil.which('gcc')
 LINUX = sys.platform.startswith('linux') and CC is not None
 NOT_RUN = 'NOT_RUN: needs Linux + C compiler'
@@ -89,6 +92,16 @@ class LinuxNative(unittest.TestCase):
         self.assertEqual(len(member['policy_sha256']), 64)
         self.assertEqual(_selinux.start()['policy_sha256'], member['policy_sha256'])  # stable while unchanged (L-P1)
 
+
+    def test_selinux_policy_source_compiles_against_the_host_policy(self):
+        # Compile only (no semodule -i): load + behaviour are lab receipts, never CI.
+        if not DEVEL.exists() or shutil.which('make') is None:
+            self.skipTest('NOT_RUN: needs selinux-policy-devel + make')
+        for name in ('kaidera_cortex.te', 'kaidera_cortex.fc'):
+            shutil.copy(SELINUX_SRC / name, self.tmp / name)
+        built = run(['make', '-f', str(DEVEL), 'kaidera_cortex.pp'], cwd=self.tmp)
+        self.assertEqual(built.returncode, 0, built.stdout[-2000:] + built.stderr[-2000:])
+        self.assertTrue((self.tmp / 'kaidera_cortex.pp').stat().st_size > 0)
 
 if __name__ == '__main__':
     unittest.main()

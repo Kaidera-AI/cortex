@@ -1,0 +1,6 @@
+/opt/kaidera/cortex/bin/cortex-owner-client	--	gen_context(system_u:object_r:cortex_c_exec_t,s0)
+/opt/kaidera/cortex/runtime(/.*)?		gen_context(system_u:object_r:cortex_runtime_t,s0)
+/opt/kaidera/cortex/runtime/bin/python3\.12	--	gen_context(system_u:object_r:cortex_v_exec_t,s0)
+/var/lib/kaidera-cortex(/.*)?			gen_context(system_u:object_r:cortex_v_state_t,s0)
+/run/kaidera-cortex			-d	gen_context(system_u:object_r:cortex_owner_run_t,s0)
+/run/kaidera-cortex/owner\.sock		-s	gen_context(system_u:object_r:cortex_v_sock_t,s0)

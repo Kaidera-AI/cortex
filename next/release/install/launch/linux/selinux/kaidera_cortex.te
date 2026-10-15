@@ -1,0 +1,100 @@
+policy_module(kaidera_cortex, 1.0.0)
+
+########################################
+# Kaidera Cortex owner endpoint: SELinux policy source (reviewed DATA).
+# design2 sec. 3 (C domain required; shape proven 9/9 on kos-lab-l1, 15 Oct)
+# and design3 sec. 2.3 (V observes the effective policy, Vera accepted).
+#
+# C = the admitted client (cortex-owner-client), entered ONLY by executing a
+#     cortex_c_exec_t file from a confined user (user_t). C is a leaf: it may
+#     execute nothing, and only C may connect to V's endpoint.
+# V = the finite owner (bundled python3.12 -I -S -B cortex-owner.py), started
+#     by systemd from its socket. V gets no capability; it may read the
+#     kernel's loaded policy and the status page.
+# Account mapping (install step, W7): C's Linux account is a confined SELinux
+# user (user_u -> user_t), so other code under C's uid is never unconfined.
+#
+# O's admission queries at install (design3 sec. 2.3; run on the bytes of
+# /sys/fs/selinux/policy, never on this file), each must hold:
+#   1. cortex_c_t is not permissive;
+#   2. only cortex_c_t has unix_stream_socket connectto on cortex_v_t, and
+#      sock_file write on cortex_v_sock_t, among domains user_t can reach;
+#   3. cortex_c_t has entrypoint only on cortex_c_exec_t;
+#   4. no domain user_t can reach has process ptrace or fd use on cortex_c_t,
+#      and none may relabel to or from any cortex_* type.
+# Final paths and account names belong to W7 packaging.
+########################################
+
+require {
+	type init_t;
+	type user_t;
+	role user_r;
+	class security read_policy;
+}
+
+# C: the admitted client
+type cortex_c_t;
+type cortex_c_exec_t;
+domain_type(cortex_c_t)
+domain_entry_file(cortex_c_t, cortex_c_exec_t)
+role user_r types cortex_c_t;
+domain_auto_trans(user_t, cortex_c_exec_t, cortex_c_t)
+
+# V: the finite owner
+type cortex_v_t;
+type cortex_v_exec_t;
+init_daemon_domain(cortex_v_t, cortex_v_exec_t)
+
+# V's endpoint: the directory systemd creates and the socket file in it
+type cortex_owner_run_t;
+files_pid_file(cortex_owner_run_t)
+type cortex_v_sock_t;
+files_type(cortex_v_sock_t)
+
+# V's runtime tree (interpreter libraries, owner code) and state
+type cortex_runtime_t;
+files_type(cortex_runtime_t)
+type cortex_v_state_t;
+files_type(cortex_v_state_t)
+
+########################################
+# C: connect once, write the request, read the reply. Nothing else.
+#
+libs_use_ld_so(cortex_c_t)
+libs_use_shared_libs(cortex_c_t)
+files_read_etc_files(cortex_c_t)
+files_search_pids(cortex_c_t)
+allow cortex_c_t self:unix_stream_socket create_stream_socket_perms;
+allow cortex_c_t cortex_owner_run_t:dir search;
+allow cortex_c_t cortex_v_sock_t:sock_file write;
+allow cortex_c_t cortex_v_t:unix_stream_socket connectto;
+# stdin request / stdout reply from the calling user's pipes or terminal
+allow cortex_c_t user_t:fd use;
+allow cortex_c_t user_t:fifo_file rw_inherited_fifo_file_perms;
+allow cortex_c_t user_t:process sigchld;
+userdom_use_user_terminals(cortex_c_t)
+
+########################################
+# systemd creates the endpoint (labels come from the .fc file)
+#
+allow init_t cortex_owner_run_t:dir { create getattr setattr search add_name remove_name write };
+allow init_t cortex_v_sock_t:sock_file { create getattr setattr unlink };
+
+########################################
+# V: serve one connection, observe the effective policy. No capability.
+#
+allow cortex_v_t self:unix_stream_socket { accept getattr getopt read write shutdown };
+allow cortex_v_t cortex_owner_run_t:dir search;
+allow cortex_v_t cortex_v_sock_t:sock_file getattr;
+allow cortex_v_t cortex_runtime_t:dir list_dir_perms;
+allow cortex_v_t cortex_runtime_t:file { read_file_perms map execute };
+allow cortex_v_t cortex_v_state_t:dir manage_dir_perms;
+allow cortex_v_t cortex_v_state_t:file manage_file_perms;
+libs_use_ld_so(cortex_v_t)
+libs_use_shared_libs(cortex_v_t)
+files_read_etc_files(cortex_v_t)
+kernel_read_system_state(cortex_v_t)
+kernel_read_kernel_sysctls(cortex_v_t)
+selinux_get_fs_mount(cortex_v_t)
+selinux_get_enforce_mode(cortex_v_t)
+selinux_read_policy(cortex_v_t)
