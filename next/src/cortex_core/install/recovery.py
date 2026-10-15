@@ -21,28 +21,36 @@ def _read_refs(history, value):
             _read_refs(history, child)
 
 
-def _settled_applied(history, reference):
+def _settled_applied(history, reference, *, states=('applied_verified',)):
     from . import lifecycle as p2
     reference = thaw(reference)
     owner._require(reference is not None and any(ref == reference for ref, _ in history.events()), 'journal_invalid')
     event, observation = p2._load_entry(history, reference)
     attempt = p2._decode(history.read(observation['attempt_ref']))
     reservation = p2._decode(history.read(observation['reservation_ref']))
-    owner._require(event['result_ref'] is not None and attempt['dispatch_state'] == 'applied_verified'
+    owner._require(event['result_ref'] is not None and attempt['dispatch_state'] in states
         and reservation['state'] == 'consumed' and attempt['result_ref'] == event['result_ref']
         and attempt['consumption_sequence'] is not None and attempt['consume_clock_ref'] is not None,
         'attempt_ambiguous')
     owner._require(p2._latest_attempt(history, event['identity'])[0] == reference, 'attempt_ambiguous')
     result = p2._decode(history.read(event['result_ref']))
     owner._require(set(result) == {'identity', 'effect', 'request_ref', 'state', 'observed'}
-        and result['state'] == 'applied_verified' and result['identity'] == event['identity']
+        and result['state'] == attempt['dispatch_state'] and type(result['observed']) is dict
+        and result['identity'] == event['identity']
         and result['effect'] == event['effect'] and result['request_ref'] == event['request_ref'], 'resource_changed')
     original = history.read(event['request_ref'])
     request = thaw(parse_install_message(original, expected_kind='request').document)
     owner._require(request['identity'] == event['identity'] == attempt['identity']
-        and event['origin_request_ref'] == attempt['origin_request_ref'] == event['request_ref'], 'journal_invalid')
+        and event['origin_request_ref'] == attempt['origin_request_ref'], 'journal_invalid')
+    ancestors = []
+    if event['origin_request_ref'] != event['request_ref']:
+        parent = _retry_parent(history, request)
+        owner._require(parent['event']['origin_request_ref'] == event['origin_request_ref']
+            and parent['event']['effect'] == event['effect']
+            and attempt['predecessor_result_refs'] == [parent['event']['result_ref']], 'journal_invalid')
+        ancestors = [parent] + parent['ancestors']
     return {'ref': reference, 'event': event, 'observation': observation, 'attempt': attempt,
-            'result': result, 'request': request, 'raw_request': original}
+            'result': result, 'request': request, 'raw_request': original, 'ancestors': ancestors}
 
 
 def _applied_lineage(history, request):
@@ -149,3 +157,108 @@ def _renewed_scope(history, request, context, original):
         previous_context = p2._decode(history.read(observation['context_ref']))
         owner._require(not selected.intersection(_scope(history, previous_context)['resource_ids']), 'attempt_ambiguous')
     return scope
+
+
+def _retry_parent(history, request):
+    """Previously checked authoritative NOT_APPLIED, never snapshot inference."""
+    owner._require(request['operation'] == 'install' and request['journal_ref'] is not None,
+                   'attempt_ambiguous')
+    parent = _settled_applied(history, request['journal_ref'], states=('not_applied_verified',))
+    old, identity = parent['request'], request['identity']
+    owner._require(old['operation'] == 'install'
+        and parent['attempt']['reconciliation_ref'] == parent['event']['result_ref'], 'attempt_ambiguous')
+    owner._require(identity['parent_attempt_id'] == old['identity']['attempt_id']
+        and identity['installation_id'] is not None
+        and all(identity[k] == old['identity'][k] for k in
+            ('product','installation_id','operation_id','transaction_id'))
+        and all(identity[k] != old['identity'][k] for k in ('request_id','attempt_id'))
+        and {k:v for k,v in request.items() if k not in ('identity','journal_ref')}
+            == {k:v for k,v in old.items() if k not in ('identity','journal_ref')}, 'scope_denied')
+    parent['predecessor_result_refs'] = [parent['event']['result_ref']]
+    return parent
+
+
+def _renewed_child(history, proposal, inputs, parent):
+    from . import lifecycle as p2
+    context = thaw(proposal.context)
+    owner._require(type(inputs) is owner._Inputs
+        and owner._decode(inputs.context_raw,'owner_unavailable') == context, 'owner_unavailable')
+    old = p2._decode(history.read(parent['observation']['context_ref']))
+    owner._require(context['effect'] == parent['event']['effect']
+        and context['target'] == old['target'], 'scope_denied')
+    owner._require(all(context[k] != old[k] for k in ('owner_epoch','session_id','nonce')),
+                   'reservation_invalidated')
+    owner._require(context['host_lease']['holder'] == old['host_lease']['holder']
+        and context['host_lease']['fence'] > old['host_lease']['fence'], 'fence_changed')
+    consent = owner._original(inputs,context['consent_ref'])
+    scope, prior = owner._original(inputs,consent['scope_ref']), _scope(history,old)
+    owner._require(scope['backend_binding_ref'] == prior['backend_binding_ref']
+        and context['private_binding']['kind'] == old['private_binding']['kind'], 'scope_denied')
+    if old['private_binding']['kind'] == 'private':
+        previous = p2._decode(history.read(old['private_binding']['binding_ref']))
+        current = owner._private(inputs,context)
+        owner._require(all(current[k] == previous[k] for k in
+            ('phase','holder','session_user_oid','session_user_name','installation_id','operation_id'))
+            and current['fence'] > previous['fence'], 'fence_changed')
+
+
+def _execute_recovery(history, original_request, current, primitives):
+    """Publish only the existing finite owner's exact linked original truth."""
+    from . import lifecycle as p2
+    from cortex_core.release.contracts import freeze
+    request = thaw(parse_install_message(original_request,expected_kind='request').document)
+    event, observation = p2._load_entry(history,request['journal_ref'])
+    context = p2._decode(history.read(observation['context_ref']))
+    owner._require(request['identity']['parent_attempt_id'] == event['identity']['attempt_id'], 'scope_denied')
+    primitive = primitives.get(context['effect']['resource_kind'])
+    owner._require(primitive is not None, 'backend_unavailable')
+    original = freeze({'context':context,'journal_ref':request['journal_ref'],
+                       'preimages_ref':observation['preimages_ref']})
+    head = history.head()[0]
+    answer = primitive.measure(original)
+    owner._require(type(answer) is tuple and len(answer) == 2
+        and answer[0] in ('APPLIED','NOT_APPLIED','UNKNOWN'), 'attempt_ambiguous')
+    state, raw = answer
+    owner._require(state != 'UNKNOWN' and type(raw) is bytes, 'attempt_ambiguous')
+    latest_ref, latest, obs = p2._latest_attempt(history,event['identity'])
+    attempt = p2._decode(history.read(obs['attempt_ref']))
+    reference = (attempt['reconciliation_ref'] if attempt['dispatch_state'] == 'consumed_result_unknown'
+                 else attempt['result_ref'])
+    owner._require(reference is not None and history.read(reference) == raw
+        and latest['result_ref'] == attempt['result_ref'], 'journal_invalid')
+    result = p2._decode(raw)
+    expected_state = 'applied_verified' if state == 'APPLIED' else 'not_applied_verified'
+    owner._require(set(result) == {'identity','effect','request_ref','state','observed'}
+        and result['identity'] == event['identity'] and result['effect'] == event['effect']
+        and result['request_ref'] == event['request_ref'] and result['state'] == expected_state
+        and type(result['observed']) is dict, 'resource_changed')
+    observed_head = history.head()[0]
+    _, final = p2._current_owner(original_request,current.deadline)
+    owner._same_context(current,final)
+    owner._require(observed_head == head, 'generation_changed')
+    if attempt['dispatch_state'] == 'consumed_result_unknown':
+        completed = p2._record_result(history,latest_ref,raw,publication_head=head,
+            publication_revision=final.observed_state_revision)
+    else:
+        owner._require(attempt['dispatch_state'] == expected_state, 'attempt_ambiguous')
+        if state == 'APPLIED' or attempt['reconciliation_ref'] == reference:
+            return freeze(latest_ref)
+        # A checked terminal NOT_APPLIED result uses the existing reconciliation
+        # slot; a later child still needs separate current authority and consume.
+        reservation = p2._decode(history.read(obs['reservation_ref']))
+        old_context = p2._decode(history.read(obs['context_ref']))
+        owner._require(history.current_revision() == final.observed_state_revision,'generation_changed')
+        old_context['state_revision'] = final.observed_state_revision
+        clock = p2._decode(history.read(attempt['consume_clock_ref']))
+        reservation['expected_state_revision'] = final.observed_state_revision
+        attempt['reservation_ref'] = history.retain(p2.canonical_bytes(reservation))
+        attempt['reconciliation_ref'] = reference
+        completed = p2._publish_entry(history,context=old_context,reservation=reservation,
+            attempt=attempt,preimages_ref=obs['preimages_ref'],request_ref=latest['request_ref'],
+            release_ref=latest['release_binding_ref'],expected_ref=head,phase='held',
+            recorded_at=clock['now_utc'],result_ref=reference)
+    # Truth can survive a lost/expired reply. Never redispatch or republish it.
+    _, after = p2._current_owner(original_request,final.deadline)
+    p2._continuity(thaw(final.context),thaw(after.context))
+    owner._require(after.observed_state_revision == final.observed_state_revision+1,'generation_changed')
+    return freeze(completed)

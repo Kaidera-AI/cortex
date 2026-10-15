@@ -326,16 +326,29 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     _require(proposal.observed_state_revision < owner._INT_MAX, 'generation_changed')
     _require(type(preimages) is dict and set(preimages) == _PREIMAGES
              and all(type(raw) is bytes and len(raw) <= _RAW_LIMIT for raw in preimages.values()), 'backend_unavailable')
+    lineage = None
+    retry = operation == 'install' and thaw(request.document)['journal_ref'] is not None
+    if retry:
+        from . import recovery
+        lineage = recovery._retry_parent(history,thaw(request.document))
+        recovery._renewed_child(history,proposal,inputs,lineage)
     for reference, event in history.events():
+        if retry:
+            _require(all(context['identity'][k] != event['identity'][k] for k in ('request_id','attempt_id')),
+                     'reservation_used')
         if event['identity'] == context['identity']:
             raise owner.OwnerRefusal('reservation_used')
         _, old_obs = _load_entry(history, reference)
         old_context = _decode(history.read(old_obs['context_ref']))
+        if retry:
+            _require(context['nonce'] != old_context['nonce'],'nonce_replay')
         if tuple(old_context[k] for k in ('owner_epoch','session_id','nonce')) == tuple(
                 context[k] for k in ('owner_epoch','session_id','nonce')):
             raise owner.OwnerRefusal('nonce_replay')
         if (_operation(event['identity']) == _operation(context['identity'])
                 and event['effect']['effect_id'] == context['effect']['effect_id']):
+            if retry and event['identity'] in [p['event']['identity'] for p in [lineage]+lineage['ancestors']]:
+                continue
             _, _, latest_obs = _latest_attempt(history, event['identity'])
             old_attempt = _decode(history.read(latest_obs['attempt_ref']))
             detail = 'attempt_ambiguous' if old_attempt['dispatch_state'] == 'consumed_result_unknown' else 'reservation_used'
@@ -346,7 +359,6 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     # These logical original refs are preserved byte-for-byte in C0 facts.
     history.retain(original_request)
     _retain_originals(history, originals, context)
-    lineage = None
     if operation != 'install':
         _require(type(inputs) is owner._Inputs and inputs.originals == originals
                  and inputs.current_clock_raw == clock_raw, 'owner_unavailable')
@@ -445,10 +457,16 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=Non
 
 
 def _record_result(history, consumed_ref, original_measurement, *, current_context=None,
-                   originals=None, clock_raw=None, result_originals=None, cleanup_plan=None):
+                   originals=None, clock_raw=None, result_originals=None, cleanup_plan=None, publication_head=None, publication_revision=None):
     event, obs = _load_entry(history, consumed_ref)
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     _require(latest_ref == consumed_ref, 'reservation_used')
+    _require((publication_head is None) == (publication_revision is None),'journal_invalid')
+    expected_head = consumed_ref if publication_head is None else publication_head
+    if publication_revision is not None:
+        _require(type(publication_revision) is int and publication_revision < owner._INT_MAX
+            and history.current_revision() == publication_revision,'generation_changed')
+    _require(history.head()[0] == expected_head,'generation_changed')
     reservation = _decode(history.read(obs['reservation_ref']))
     attempt = _decode(history.read(obs['attempt_ref']))
     _require(reservation['state'] == 'consumed' and attempt['dispatch_state'] == 'consumed_result_unknown', 'reservation_used')
@@ -458,9 +476,14 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
              and result['request_ref'] == event['request_ref'], 'resource_changed')
     _require(result['state'] in ('applied_verified','not_applied_verified') and type(result['observed']) is dict,
              'attempt_ambiguous')
+    if publication_revision is not None:
+        reservation['expected_state_revision'] = publication_revision
+        attempt['reservation_ref'] = history.retain(canonical_bytes(reservation))
     result_ref = history.retain(original_measurement)
     attempt.update(dispatch_state=result['state'], result_ref=result_ref)
     context = _decode(history.read(obs['context_ref']))
+    if publication_revision is not None:
+        context['state_revision'] = publication_revision
     if current_context is not None:
         _continuity(context, current_context)
         context = current_context
@@ -481,7 +504,7 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
     context['clock_ref'] = history.retain(clock_raw)
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
-        release_ref=event['release_binding_ref'], expected_ref=consumed_ref,
+        release_ref=event['release_binding_ref'], expected_ref=expected_head,
         phase=('created' if operation == 'install' else 'finished') if result['state'] == 'applied_verified' else 'held',
         recorded_at=clock['now_utc'], result_ref=result_ref)
 
@@ -542,6 +565,10 @@ def _execute_bound(original_request, first):
     with history.operation():
         inputs, current = _current_owner(original_request, first.deadline)
         owner._same_context(first, current)
+        request = thaw(parse_install_message(original_request,expected_kind='request').document)
+        if request['operation'] == 'recover':
+            from . import recovery
+            return recovery._execute_recovery(history,original_request,current,bindings.primitives)
         primitive = bindings.primitives.get(current.context['effect']['resource_kind'])
         _require(primitive is not None, 'backend_unavailable')
         preimages = primitive.snapshot()
