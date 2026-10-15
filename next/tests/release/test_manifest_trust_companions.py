@@ -29,6 +29,47 @@ class Companions(unittest.TestCase):
   self.assertEqual(result.reason,reason,'BODY: exact stage reason')
   return result
 
+ def test_repeated_shape_data_avoids_decode_but_rechecks_crypto(self):
+  module=trust();auth=factory.test_authority();signature=auth.signed();ctx=auth.context(module)
+  with patch.object(module,'decode_json',wraps=module.decode_json) as decode,patch.object(module,'verify_ed25519',wraps=module.verify_ed25519) as crypto:
+   first=module._verify_original(auth.raw,signature,ctx);second=module._verify_original(auth.raw,signature,ctx)
+  self.assertEqual(first.manifest,second.manifest)
+  self.assertEqual(decode.call_count,1,'BODY: same immutable shape decoded repeatedly')
+  self.assertEqual(crypto.call_count,4,'BODY: a shape memo must never cache signature acceptance')
+  with self.assertRaises(TypeError):first.manifest['sequence']=9999
+
+ def test_warm_shape_keeps_owner_time_and_bad_signature_live(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  auth.now=9999;self.refused('aggregate_replay',lambda:auth.verify(module));auth.now=1500
+  lines=auth.signed().split(b'\n');raw=bytearray(base64.b64decode(lines[3]));raw[0]^=1;lines[3]=base64.b64encode(raw)
+  with patch.object(module,'verify_ed25519',wraps=module.verify_ed25519) as crypto:
+   self.refused('aggregate_signature_invalid',lambda:auth.verify(module,signature=b'\n'.join(lines)))
+  self.assertEqual(crypto.call_count,2)
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
+ def test_warm_shape_obeys_tighter_owner_depth_and_changed_raw(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  auth.policy['limits']['depth']=1;self.refused('raw_limit',lambda:auth.verify(module))
+  auth.policy['limits']['depth']=32
+  value=json.loads(auth.raw);value['extra']=True;bad=factory.canonical(value)
+  self.refused('aggregate_shape',lambda:auth.verify(module,raw=bad,signature=auth.signed(raw=bad)))
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
+ def test_warm_shape_does_not_hide_replaced_validator(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  class Reject:
+   def iter_errors(self,value):return iter([object()])
+  with patch.object(module,'_MANIFEST_VALIDATOR',Reject()):
+   self.refused('aggregate_shape',lambda:auth.verify(module))
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
+ def test_warm_shape_does_not_hide_changed_schema(self):
+  module=trust();auth=factory.test_authority();auth.verify(module)
+  sequence=module._MANIFEST_VALIDATOR.schema['properties']['sequence']
+  with patch.dict(sequence,{'minimum':auth.value['sequence']+1}):
+   self.refused('aggregate_shape',lambda:auth.verify(module))
+  self.assertEqual(auth.verify(module).manifest_raw,auth.raw)
+
  def test_owner_provider_fault_is_sanitized(self):
   module=trust()
   with patch.object(module,'_production_context',side_effect=RuntimeError('SENTINEL_OWNER_SECRET_PATH')):
