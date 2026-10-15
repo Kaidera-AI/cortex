@@ -70,9 +70,9 @@ Tests-first commit `f4f1b03b346bf5f23137e42a0b9c0c97e5610810` measured the accep
 
 ## F1: returned original receipt consumption and retained bridge IDs
 
-The existing `Bridge.installer` helper now independently consumes the actual returned original receipt with the same existing `verify_product_receipt` function after the producer's own validation. It binds the consumer to the original canonical request bytes, independently measured request reference and exact returned evidence. The assertions require:
+The existing `Bridge.installer` helper consumes the returned **source receipt projection** through the same existing `verify_product_receipt` function after the producer's own validation. `PlanResult.receipt` is a document, so F1 uses the existing fixture canonical encoder and requires byte-for-byte equality with the actual canonical bytes observed at the producer's verifier call. The second call consumes those same bytes against the separately retained original request and independently measured request reference. This proves a source projection/consumer join; durable receipt storage and protected owner provenance remain later gates. The assertions require:
 
-- Two successful uses of the one verifier: producer validation and consumer readback of exactly the same original bytes/request.
+- Two successful uses of the one verifier: producer validation and consumption of exactly the same canonical source bytes/original request.
 - Exact `request.json` and `attempts.json` bytes/references, with the existing empty forbidden-attempts source ledger.
 - No installed resources, journal, native/effect flag or readiness credit from the read-only plan.
 - No receipt-consumer success for the original bad-signature refusal.
