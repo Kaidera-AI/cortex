@@ -849,5 +849,53 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
         self.assertEqual(packet['collected'],packet['selected']);self.assertTrue(packet['declared_unavailable'][0]['executed'])
 
 
+class ExecutionPartitionOracle(Subject, unittest.TestCase):
+    def test_real_workers_preserve_complete_ids_and_fail_closed_on_lost_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);scripts=root/'.github/scripts';scripts.mkdir(parents=True)
+            for name in ('pytest_next_offline.py','pytest_next_worker.py','pytest_u13_worker.py'):
+                shutil.copyfile(SCRIPT.parent/name,scripts/name)
+            suite='next/tests/test_partition.py';path=root/suite;path.parent.mkdir(parents=True)
+            path.write_text("import unittest\ndef test_factory(): pass\nclass Cases(unittest.TestCase): pass\ndef body(self): self.assertEqual(2+2,4)\nfor i in range(8): setattr(Cases,'test_'+str(i),body)\n")
+            env=dict(os.environ,PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',PYTEST_ADDOPTS='',PYTHONDONTWRITEBYTECODE='1')
+            def run(label,extra):
+                out=root/(label+'.json')
+                result=subprocess.run([sys.executable,'-B',str(scripts/'pytest_next_worker.py'),'--suite',suite,
+                    '--output',str(out),'--temporary',str(root/(label+'-tmp')),*extra],cwd=root,env=env,capture_output=True,text=True,timeout=30)
+                self.assertTrue(out.is_file(),result.stdout+result.stderr)
+                return result.returncode,json.loads(out.read_text())
+            code,baseline=run('baseline',[]);self.assertEqual(code,0)
+            parts=[run('part-'+str(i),['--partition-index',str(i),'--partition-count','4']) for i in range(4)]
+            merge=getattr(self.gate,'merge_partitions',None);self.assertTrue(callable(merge),'BODY RED: complete execution partition reconciliation absent')
+            combined=merge([p for c,p in parts],[c for c,p in parts],4)
+            self.assertEqual(combined['selected'],baseline['selected']);self.assertEqual(len(combined['selected']),9)
+            self.assertTrue(self.gate.receipt_valid(combined,0));self.assertEqual(len(combined['reports']),27)
+            for fault in ('missing-part','duplicate-part','missing-node','missing-phase','changed-collection','changed-source','killed','skip','empty'):
+                packets=copy.deepcopy([p for c,p in parts]);codes=[c for c,p in parts]
+                if fault=='missing-part':packets.pop();codes.pop()
+                elif fault=='duplicate-part':packets[1]=copy.deepcopy(packets[0])
+                elif fault=='missing-node':packets[0]['selected'].pop()
+                elif fault=='missing-phase':packets[0]['reports'].pop()
+                elif fault=='changed-collection':packets[1]['full_collected'].pop()
+                elif fault=='changed-source':packets[1]['source_sha256']='f'*64
+                elif fault=='killed':codes[0]=124
+                elif fault=='skip':packets[0]['reports'][1]['outcome']='skipped'
+                elif fault=='empty':packets=[];codes=[]
+                self.assertIsNone(merge(packets,codes,4),fault)
+
+    def test_manifest_partitions_only_admitted_full_suites(self):
+        root=SCRIPT.parents[2];m=json.loads((root/'.github/next-offline-suites.json').read_text())
+        suite='next/tests/release/test_original_member_bridge.py';m['partitions']={suite:4}
+        self.assertTrue(self.gate.inventory(root,m)['ok'])
+        for value in ({suite:True},{suite:0},{suite:1},{suite:17},{'next/missing.py':4},[],{suite:'4'}):
+            changed=copy.deepcopy(m);changed['partitions']=value
+            self.assertFalse(self.gate.inventory(root,changed)['ok'],repr(value))
+
+    def test_bridge_diagnostics_do_not_start_async_watchdog(self):
+        tree=ast.parse((SCRIPT.parent/'pytest_next_worker.py').read_text())
+        self.assertFalse(any(isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute)
+            and n.func.attr=='dump_traceback_later' for n in ast.walk(tree)))
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

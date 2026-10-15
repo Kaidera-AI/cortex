@@ -661,5 +661,8 @@
         "symbol": "CachePublicationOracle.test_off_blocks_late_cache_publication_and_release_work"
       }
     }
-  ]
+  ],
+  "partitions": {
+    "next/tests/release/test_original_member_bridge.py": 4
+  }
 }

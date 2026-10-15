@@ -36,10 +36,11 @@ def declared_cases(module):
 
 
 class Gate:
-    def __init__(self, output, skip, retired=(), excluded=()):
+    def __init__(self, output, skip, retired=(), excluded=(), partition_index=0, partition_count=1):
         self.output, self.skip = output, skip
         self.retired = list(retired)
         self.excluded = list(excluded)
+        self.partition_index, self.partition_count = partition_index, partition_count
         self.assertions = {}
         self.exceptions = {}
         self.expected = ()
@@ -94,6 +95,13 @@ class Gate:
         self.packet.update(collected=collected, retired=self.retired,excluded_methods=self.excluded)
         fixtures={row['nodeid'] for row in self.excluded if row.get('evidence',{}).get('kind')!='unbuilt_unit'}
         session.items[:] = [item for item in session.items if item.nodeid not in nodes|fixtures]
+        if self.partition_count > 1:
+            if self.retired or self.excluded or len(session.items) < self.partition_count:
+                raise ValueError('partition requires a complete nonempty ordinary suite')
+            self.packet['full_collected'] = collected
+            self.packet['partition'] = dict(index=self.partition_index, count=self.partition_count)
+            session.items[:] = session.items[self.partition_index::self.partition_count]
+            self.packet['collected'] = [item.nodeid for item in session.items]
         self.expected = tuple(item.nodeid for item in session.items)
         self.packet.update(expected=list(self.expected), selected=list(self.expected))
         self.bridge_diagnostics(session)
@@ -149,8 +157,12 @@ def main():
     parser.add_argument('--retired-json', default='[]', help='host-validated exact retirement witnesses')
     parser.add_argument('--excluded-json',default='[]',help='host-validated exact unavailable fixture nodes')
     parser.add_argument('--nodes-json',default='[]',help='named deciding proof nodes; all-suite execution remains separate')
+    parser.add_argument('--partition-index',type=int,default=0)
+    parser.add_argument('--partition-count',type=int,default=1)
     parser.add_argument('--observe-product',help='proof product locus relative to this owned source copy')
     args = parser.parse_args()
+    if not 1 <= args.partition_count <= 16 or not 0 <= args.partition_index < args.partition_count:
+        parser.error('invalid execution partition')
     args.temporary.mkdir(mode=0o700)
     suite = ROOT / args.suite
     # Historical fixture imports are bare names; each file still has a fresh process.
@@ -167,9 +179,12 @@ def main():
     os.chdir(ROOT)
     import pytest
     requested=json.loads(args.nodes_json)
+    if requested and args.partition_count != 1:
+        raise ValueError('partition cannot narrow the complete file collection')
     if not isinstance(requested,list) or any(not isinstance(n,str) or not n.startswith(args.suite+'::') for n in requested) or len(requested)!=len(set(requested)):
         raise ValueError('named_proof_collection')
-    gate = Gate(args.output, args.force_skip, retired=json.loads(args.retired_json),excluded=json.loads(args.excluded_json))
+    gate = Gate(args.output, args.force_skip, retired=json.loads(args.retired_json),excluded=json.loads(args.excluded_json),
+                partition_index=args.partition_index,partition_count=args.partition_count)
     # Wrap the builder: unittest supplies deferred exceptions during report creation.
     Gate.pytest_runtest_makereport=pytest.hookimpl(tryfirst=True,hookwrapper=True)(Gate.pytest_runtest_makereport)
     gate.packet.update(suite=args.suite, source_sha256=hashlib.sha256(suite.read_bytes()).hexdigest(),
