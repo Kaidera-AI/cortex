@@ -23,13 +23,34 @@ mechanism does not change RUN/exclusion policy.
 hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
 This U3 tracking draft adds hash-locked Linux cryptography50.0.0 wheels to the existing supplemental lock; one venv installs the API/tool seed, then the exact U3 provider overlay and pip check. The production API lock is unchanged.
 The existing numpy and psycopg fixture dependencies remain; tool pins are not duplicated. Matrix failures do not cancel the
-other interpreter. The former `p1-install-oracle` job is absorbed here: all five
-install files and all 47 methods run once per interpreter through this same gate. All actions use full commit pins, the
+other interpreter. The former `p1-install-oracle` job is absorbed here. Its original
+47 method identities from five files are frozen in the existing consolidation
+oracle, with provenance at absorption commit `6adde71d`. Every current install
+test file still has to be in RUN, every current method identity must be unique,
+and no current install method may be excluded. Additional install files and
+methods run through this same gate; they do not redefine the original47 cohort.
+The oracle checks a valid exclusion of a newer method independently of the
+historical cohort and requires the same assertion to pass without that exclusion.
+All actions use full commit pins, the
 token has only `contents: read`, and checkout does not persist credentials.
 The suite service uses a separate network namespace, denies IPv4/IPv6 socket
 creation, and verifies those kernel restrictions before running any tests.
 It has a 1 GiB memory ceiling, no swap, two CPUs, and no new privileges.
 Dependency installation occurs before the offline service starts.
+
+The C03 helper-location test retains isolated child imports (`-I`) and passes
+`-B` explicitly because isolation ignores inherited `PYTHONDONTWRITEBYTECODE`.
+Its return-code and shared-helper-location assertions remain unchanged. Cache
+custody is checked against owned empty-cache source/dependency copies, with an
+omitted-`-B` witness and a restored clean run; shared environments are not cleaned.
+
+The imported-fixture proof remains conservative when several same-named modules
+exist. A pinned source is not permission to select it instead of the module that
+the worker imports. The same-class non-PG local-shadow controls refuse in both
+imported-base and module-qualified-delegation forms; their no-shadow twins pass.
+The ten runtime-grants/draft fixture declarations remain inventory RED pending
+the separately reviewed actual-import proof. Their positive inventory controls
+are retained, not waived by the P1 or cache-hygiene repairs.
 
 The complete environment uses all three existing hash locks in the workflow:
 `packages/api/requirements.lock` supplies `httpx` and `idna`,

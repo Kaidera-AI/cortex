@@ -18,7 +18,7 @@ print(pathlib.Path(mutate_schema.receipt_suite.__globals__['__file__']).resolve(
         # Carry dependency locations into -I; no ambient PYTHONPATH or cwd imports.
         dependencies = [path for path in sys.path if path
                         and not Path(path).resolve().is_relative_to(NEXT)]
-        result = subprocess.run([sys.executable, '-I', '-c', source, str(NEXT), *dependencies],
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', source, str(NEXT), *dependencies],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), str((NEXT / 'tests/test_receipts.py').resolve()))
