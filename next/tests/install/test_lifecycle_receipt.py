@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from cortex_core.install import owner
 from cortex_core.release.codec import canonical_bytes
-from cortex_core.release.contracts import freeze, thaw
+from cortex_core.release.contracts import thaw
 import test_owner_proposal as proposals
 
 NEXT = Path(__file__).resolve().parents[2]

@@ -483,9 +483,18 @@ def execute_effect(original_request):
         raise owner.OwnerRefusal('backend_unavailable') from None
 
 
-def _current_owner(original_request, deadline):
+def _owner_inputs():
     try:
-        inputs = owner._installed_owner_inputs()
+        return owner._installed_owner_inputs()
+    except owner.OwnerRefusal:
+        raise
+    except Exception:
+        raise owner.OwnerRefusal('owner_unavailable') from None
+
+
+def _current_owner(original_request, deadline):
+    inputs = _owner_inputs()
+    try:
         return inputs, owner._evaluate(original_request, inputs, previous_deadline=deadline)
     except owner.OwnerRefusal:
         raise
@@ -521,7 +530,11 @@ def _execute_bound(original_request, first):
         try:
             primitive.dispatch(effect_context)
             measured = primitive.measure(effect_context)
-            result_inputs = owner._installed_owner_inputs()
+            # Preserve independently measured original bytes even when a later
+            # collector fails. They remain uncommitted facts; the attempt stays
+            # consumed/unknown until its result can be reconciled and published.
+            history.retain(measured)
+            result_inputs = _owner_inputs()
             completed = _record_result(history, consumed, measured,
                 current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
                 clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals)

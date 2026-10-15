@@ -30,7 +30,10 @@
     "P2A-20-final-dispatch-clock",
     "P2A-21-not-applied-held",
     "P2A-22-P1-byte-limit",
-    "P2A-23-readonly-control"
+    "P2A-23-readonly-control",
+    "P2A-24-snapshot-unavailable",
+    "P2A-25-owner-unavailable",
+    "P2A-26-measured-original-before-later-failure"
   ],
   "originals": {
     "compatibility.json": "{\"fixture_only\":true,\"role\":\"compatibility.json\"}\n"
