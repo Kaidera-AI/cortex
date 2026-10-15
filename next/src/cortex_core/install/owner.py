@@ -7,6 +7,7 @@ Caller bytes never choose that adapter, a root, clock, phase or provider. R01's
 existing fixed RC2 backend remains the sole release admission implementation.
 P2a owns actual reserve/intent/consume/result and all durable history/preimages.
 """
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 import re
 
@@ -58,6 +59,33 @@ class OwnerRefusal(InstallRefusal):
             reason = {'peer_denied': 'unsafe_custody', 'invalid_request': 'bad_shape',
                       'r01_other_refusal': 'wrong_release'}.get(detail, 'external_conflict')
         super().__init__(reason, unit=unit)
+
+
+class _CurrentObservationRefusal(OwnerRefusal):
+    """Private phase composition DATA; never proof of peer/native authority."""
+
+    def __init__(self, inputs, error):
+        self.inputs = inputs
+        super().__init__(error.detail)
+
+
+@contextmanager
+def _current_observation(inputs):
+    # Enter ONLY after fixed binding and actual peer/code/lifetime checks.
+    # Direct observers keep their typed refusal; the common owner orders it.
+    try:
+        yield
+    except OwnerRefusal as error:
+        if error.detail not in ('owner_unavailable', 'custody_changed'):
+            raise
+        raise _CurrentObservationRefusal(inputs, error) from None
+
+
+def _observe_owner_inputs():
+    try:
+        return _installed_owner_inputs(), None
+    except _CurrentObservationRefusal as error:
+        return error.inputs, error
 
 
 def _require(condition, detail):
@@ -209,7 +237,7 @@ def _drift(context, consent, policy, state):
     _require(context['host_lease']['fence'] == state['host_fence'], 'fence_changed')
 
 
-def _evaluate(original_request, inputs, *, check_drift=True, previous_deadline=None):
+def _evaluate(original_request, inputs, *, check_drift=True, previous_deadline=None, current_refusal=None):
     """The common owner policy, read-only over current original observations."""
     _require(type(inputs) is _Inputs and type(inputs.originals) is dict and len(inputs.originals) <= 256, 'owner_unavailable')
     _require(all(type(v) is bytes for v in inputs.originals.values())
@@ -234,6 +262,8 @@ def _evaluate(original_request, inputs, *, check_drift=True, previous_deadline=N
     q = thaw(request.document)
     _require(type(peer.get('owner_uid')) is int and peer['owner_uid'] == q['caller']['owner_uid']
              and peer.get('host_identity_ref') == q['caller']['host_identity_ref'], 'peer_denied')
+    if current_refusal is not None and current_refusal.detail not in _DRIFT:
+        raise OwnerRefusal(current_refusal.detail)
     consent = _original(inputs, context['consent_ref'])
     policy = _original(inputs, context['policy_ref'])
     state = _original(inputs, context['current_state_ref'])
@@ -285,6 +315,8 @@ def _evaluate(original_request, inputs, *, check_drift=True, previous_deadline=N
     deadline = _window(context, start, now, (receipt, current_receipt), consent, policy, peer, private,
                        previous_deadline)
     if check_drift:
+        if current_refusal is not None:
+            raise OwnerRefusal(current_refusal.detail)
         _drift(context, consent, policy, state)
     return OwnerProposal(request.sha256, freeze(context), deadline, context['state_revision'])
 
@@ -324,11 +356,15 @@ def propose_effect(original_request):
     Recalling this function cannot renew an actual historical reservation.
     """
     try:
-        inputs = _installed_owner_inputs()  # mandatory fixed binding BEFORE candidate
-        first = _evaluate(original_request, inputs, check_drift=False)
+        inputs, current_refusal = _observe_owner_inputs()  # fixed binding/peer BEFORE candidate
+        first = _evaluate(original_request, inputs, check_drift=False, current_refusal=current_refusal)
         _release_original(original_request, inputs)
-        fresh = _evaluate(original_request, _installed_owner_inputs(), previous_deadline=first.deadline)
+        fresh_inputs, fresh_refusal = _observe_owner_inputs()
+        fresh = _evaluate(original_request, fresh_inputs, previous_deadline=first.deadline,
+                          current_refusal=fresh_refusal)
         _same_context(first, fresh)
+        if current_refusal is not None:
+            raise OwnerRefusal(current_refusal.detail)
         return fresh
     except OwnerRefusal:
         raise

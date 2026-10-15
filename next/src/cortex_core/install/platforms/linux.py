@@ -265,7 +265,6 @@ def _installed_owner_inputs():
         and privileges['owner_lifetime'] == policy['owner_process']
         and all(v == 'denied' for v in privileges['paths'].values()), 'peer_denied')  # BL-G15
     owner._require(c['code_sha256'] == policy['peer_code_sha256'], 'peer_denied')  # BL-G29
-    owner._original(inputs, context['current_state_ref'])  # bind the observed state file to B1's original
     # P1 already bounds each original to 262144 bytes; do not truncate the closure.
     expected = policy['objects']; observed = receipt['objects']; startup = receipt['startup']
     owner._require(startup['executable_path'] in [x['path'] for x in expected if x['role'] == 'interpreter']
@@ -275,34 +274,36 @@ def _installed_owner_inputs():
         environment=[], pth=[], candidate_imports=[],
         loaded_paths=[x['path'] for x in expected if x['role'] in _CODE],
         native_paths=[x['path'] for x in expected if x['role'] == 'native']), 'custody_changed')  # BL-G16
-    owner._require(_ROLES <= {x['role'] for x in expected} <= _ROLES | {'root','ancestor'}
-        and len({x['path'] for x in expected}) == len(expected)
-        and len({tuple(x['identity']) for x in expected}) == len(expected)
-        and [x['path'] for x in observed] == [x['path'] for x in expected]
-        and [x['path'] for x in expected if x['role'] == 'endpoint'] == [policy['endpoint']], 'custody_changed')  # BL-G17
-    owner._require(all(x['path'].startswith('/') and '\\' not in x['path'] and '\x00' not in x['path']
-        and str(PurePosixPath(x['path'])) == x['path'] and '//' not in x['path']
-        and '..' not in PurePosixPath(x['path']).parts for x in expected), 'custody_changed')  # BL-G18
-    by_path = {x['path']:x for x in observed}
-    owner._require(all(all(str(parent) in by_path and by_path[str(parent)]['kind'] == 'directory'
-        for parent in PurePosixPath(x['path']).parents) for x in expected), 'custody_changed')  # BL-G19
-    owner._require(all(a['kind'] == b['kind'] == ('socket' if a['role'] == 'endpoint'
-        else 'directory' if a['role'] in ('root','ancestor','originals') else 'file')
-        and (b['nlink'] == 1 or a['kind'] == 'directory') for a,b in zip(expected,observed)), 'custody_changed')  # BL-G20
-    owner._require(all(a['identity'] == b['identity'] == b['held_identity'] for a,b in zip(expected,observed)), 'custody_changed')  # BL-G21
-    owner._require(all((a['sha256'] is None and b['sha256'] == context[
-        'policy_ref' if a['role'] == 'policy' else 'current_state_ref']['sha256'])
-        if a['role'] in ('policy','state') else
-        (a['sha256'] == b['sha256'] and (a['sha256'] is not None if a['kind'] == 'file'
-        else a['sha256'] is None)) for a,b in zip(expected,observed)), 'custody_changed')  # BL-G22
-    owner._require(all(x['uid'] in (0,policy['owner_uid']) for x in observed), 'custody_changed')  # BL-G23
-    owner._require(all(x['mode'] & 0o7000 == 0 for x in observed), 'custody_changed')  # BL-G24
-    owner._require(all(_acl_valid(x) for x in observed), 'custody_changed')  # BL-G25
-    owner._require(all(not (_access(x,policy['peer_uid'],c['groups']) & 2)
-        for x in observed if x['path'] != policy['endpoint']), 'custody_changed')  # BL-G26
-    owner._require(all(not x['default_acl'] for x in observed), 'custody_changed')  # BL-G27
-    endpoint = by_path[policy['endpoint']]
-    owner._require(endpoint['kind'] == 'socket' and _access(endpoint,policy['peer_uid'],c['groups']) & 2
-        and all(_access(by_path[str(parent)],policy['peer_uid'],c['groups']) & 1
-                for parent in PurePosixPath(policy['endpoint']).parents), 'custody_changed')  # BL-G28
+    with owner._current_observation(inputs):
+        owner._original(inputs, context['current_state_ref'])  # bind the observed state file to B1's original
+        owner._require(_ROLES <= {x['role'] for x in expected} <= _ROLES | {'root','ancestor'}
+            and len({x['path'] for x in expected}) == len(expected)
+            and len({tuple(x['identity']) for x in expected}) == len(expected)
+            and [x['path'] for x in observed] == [x['path'] for x in expected]
+            and [x['path'] for x in expected if x['role'] == 'endpoint'] == [policy['endpoint']], 'custody_changed')  # BL-G17
+        owner._require(all(x['path'].startswith('/') and '\\' not in x['path'] and '\x00' not in x['path']
+            and str(PurePosixPath(x['path'])) == x['path'] and '//' not in x['path']
+            and '..' not in PurePosixPath(x['path']).parts for x in expected), 'custody_changed')  # BL-G18
+        by_path = {x['path']:x for x in observed}
+        owner._require(all(all(str(parent) in by_path and by_path[str(parent)]['kind'] == 'directory'
+            for parent in PurePosixPath(x['path']).parents) for x in expected), 'custody_changed')  # BL-G19
+        owner._require(all(a['kind'] == b['kind'] == ('socket' if a['role'] == 'endpoint'
+            else 'directory' if a['role'] in ('root','ancestor','originals') else 'file')
+            and (b['nlink'] == 1 or a['kind'] == 'directory') for a,b in zip(expected,observed)), 'custody_changed')  # BL-G20
+        owner._require(all(a['identity'] == b['identity'] == b['held_identity'] for a,b in zip(expected,observed)), 'custody_changed')  # BL-G21
+        owner._require(all((a['sha256'] is None and b['sha256'] == context[
+            'policy_ref' if a['role'] == 'policy' else 'current_state_ref']['sha256'])
+            if a['role'] in ('policy','state') else
+            (a['sha256'] == b['sha256'] and (a['sha256'] is not None if a['kind'] == 'file'
+            else a['sha256'] is None)) for a,b in zip(expected,observed)), 'custody_changed')  # BL-G22
+        owner._require(all(x['uid'] in (0,policy['owner_uid']) for x in observed), 'custody_changed')  # BL-G23
+        owner._require(all(x['mode'] & 0o7000 == 0 for x in observed), 'custody_changed')  # BL-G24
+        owner._require(all(_acl_valid(x) for x in observed), 'custody_changed')  # BL-G25
+        owner._require(all(not (_access(x,policy['peer_uid'],c['groups']) & 2)
+            for x in observed if x['path'] != policy['endpoint']), 'custody_changed')  # BL-G26
+        owner._require(all(not x['default_acl'] for x in observed), 'custody_changed')  # BL-G27
+        endpoint = by_path[policy['endpoint']]
+        owner._require(endpoint['kind'] == 'socket' and _access(endpoint,policy['peer_uid'],c['groups']) & 2
+            and all(_access(by_path[str(parent)],policy['peer_uid'],c['groups']) & 1
+                    for parent in PurePosixPath(policy['endpoint']).parents), 'custody_changed')  # BL-G28
     return inputs

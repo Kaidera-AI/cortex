@@ -248,8 +248,9 @@ def _installed_owner_inputs():
         expected_code = owner._original(inputs, profile['code_ref'])
         peer_requirement = owner._original(inputs, profile['peer_code_ref'])
         owner._require(_code_valid(profile, observed['code'], expected_code, peer_requirement), 'peer_denied')  # BM code
-        expected_custody = owner._original(inputs, profile['custody_ref'])
-        owner._require(_custody_valid(profile, observed['custody_before'], observed['custody_after'], expected_custody), 'custody_changed')  # BM custody
+        with owner._current_observation(inputs):
+            expected_custody = owner._original(inputs, profile['custody_ref'])
+            owner._require(_custody_valid(profile, observed['custody_before'], observed['custody_after'], expected_custody), 'custody_changed')  # BM custody
         return owner._Inputs(inputs.context_raw, dict(inputs.originals), inputs.current_clock_raw, inputs.aggregate_id)
     except owner.OwnerRefusal:
         raise
