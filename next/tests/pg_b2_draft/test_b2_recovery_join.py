@@ -343,3 +343,29 @@ class RecoveryFixture(unittest.TestCase):
             expected=canonical_bytes({'identity':c['identity'],'effect':c['effect'],'request_ref':c['request_ref'],
                 'state':'applied_verified','observed':{'adapter':'finite_pg_roles','originals':bundle['originals']}})
             self.assertIs(type(raw),bytes);self.assertEqual(raw,expected)
+
+    def test_applied_poststate_may_differ_from_original_preimages(self):
+        with tempfile.TemporaryDirectory() as root:
+            _,h,history,old,current,effect,a=self.fixture(root)
+            a.live['hba']=b'# independently accepted after\n';a.live['carrier']=b'{"source":"after"}\n'
+            raw=self.truth(a,effect);data=self.authority(h,current,history,effect)
+            self.assertNotEqual(a.live,self.before)
+            self.assertEqual(self.answer(a,effect,h,data),('APPLIED',raw))
+
+    def test_durable_not_applied_returns_original_result_bytes(self):
+        with tempfile.TemporaryDirectory() as root:
+            _,h,history,old,current,effect,a=self.fixture(root);raw=self.truth(a,effect,state='not_applied_verified')
+            data=self.authority(h,current,history,effect)
+            self.assertEqual(self.answer(a,effect,h,data),('NOT_APPLIED',raw))
+
+    def test_recovery_authority_already_in_p1_history_refuses(self):
+        with tempfile.TemporaryDirectory() as root:
+            _,h,history,old,current,effect,a=self.fixture(root);data=self.authority(h,current,history,effect)
+            c=json.loads(data['context_raw']);event,obs=lifecycle._load_entry(history,effect['journal_ref'])
+            attempt=json.loads(history.read(obs['attempt_ref']));attempt.update(identity=c['identity'],request_ref=c['request_ref'])
+            reservation=json.loads(history.read(obs['reservation_ref']))
+            history.retain(data['request_raw'].encode())
+            lifecycle._publish_entry(history,context=c,reservation=reservation,attempt=attempt,
+                preimages_ref=obs['preimages_ref'],request_ref=c['request_ref'],release_ref=event['release_binding_ref'],
+                expected_ref=history.head()[0],phase='held',recorded_at=1700000001)
+            self.refuse(a,effect,h,data)
