@@ -80,7 +80,7 @@ class AppliedSubject:
                 'installation_id': q['identity']['installation_id'], 'kind': 'file',
                 'role': 'source-owned', 'ownership': 'created_by_this_transaction',
                 'created_by': self.creation_context['request_ref'], 'intent_event_ref': self.reserved,
-                'result_event_ref': None, 'before_witness': prior, 'after_witness': self.witness(p),
+                'result_event_ref': None, 'before_witness': prior, 'after_witness': self.witness(p, content=data_class != 'credential_custody'),
                 'source_installer_ref': q['release']['installer_ref'], 'source_receipt_ref': None,
                 'consumers_ref': consumers, 'data_class': data_class,
                 'removal_policy': (policies or ['remove_if_unchanged_unshared'] * len(classes))[i]})
@@ -133,12 +133,12 @@ class AppliedSubject:
         data['originals'][name] = raw.decode()
         return lifecycle._ref(name, raw)
 
-    def witness(self, p):
+    def witness(self, p, *, content=True):
         st = p.stat()
         return {'kind': 'file', 'canonical_path': str(p), 'backend_id': None,
             'filesystem_identity': {'device': st.st_dev, 'inode': st.st_ino},
             'uid': st.st_uid, 'mode': stat.S_IMODE(st.st_mode),
-            'content_ref': self.history.retain(p.read_bytes()), 'executable_ref': None,
+            'content_ref': self.history.retain(p.read_bytes()) if content else None, 'executable_ref': None,
             'link_target': None, 'backend_witness_ref': None}
 
     def _request(self, data, q):
@@ -207,7 +207,7 @@ class AppliedSubject:
                 resources = copy.deepcopy(subject.current_resources)
                 for r in resources:
                     p = subject.files[r['resource_id']]
-                    r['after_witness'] = subject.witness(p) if p.exists() else None
+                    r['after_witness'] = subject.witness(p, content=r['data_class'] != 'credential_custody') if p.exists() else None
                 c = thaw(effect['context'])
                 return canonical_bytes({'identity': c['identity'], 'effect': c['effect'],
                     'request_ref': c['request_ref'], 'state': 'applied_verified', 'observed': {'resources': resources}})
