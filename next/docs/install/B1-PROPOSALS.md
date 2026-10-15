@@ -40,6 +40,10 @@ the minimum of start+30 billion nanoseconds and all independently known bounds
 in that same epoch. Both clocks must remain before expiry; equality refuses.
 Both the proposal-start and current clock-provider originals are resolved and
 checked for epoch/quality; either can independently shorten the monotonic budget.
+The post-audit recheck retains the first proposal's UTC and monotonic expiry as
+ceilings, intersects them with all newly observed bounds and checks the current
+clock against that cumulative minimum. The first proposal's origin stays fixed;
+a refreshed clock reference cannot renew the window within the same call.
 The entire UTC uncertainty interval must meet lower not-before and strict upper
 expiry bounds. Unknown quality, rollback, missing epoch/bound or malformed exact
 integer data refuses. A private bound remains distinct from the host fence.

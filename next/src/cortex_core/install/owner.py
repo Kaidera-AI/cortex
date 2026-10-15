@@ -138,7 +138,7 @@ def _clock(value, epoch):
         _integer(value[key], limit, 'time_unavailable')
 
 
-def _window(context, start, now, receipts, consent, policy, peer, private):
+def _window(context, start, now, receipts, consent, policy, peer, private, previous_deadline=None):
     """Pure independently observed UTC/monotonic minimum; creates no reservation."""
     epoch = context['owner_epoch']
     _clock(start, epoch)
@@ -161,6 +161,13 @@ def _window(context, start, now, receipts, consent, policy, peer, private):
         _integer(bound, _UTC_MAX, 'time_unavailable')
     expires = min([start['now_utc'] + 30] + utc_bounds)
     expires_mono = min([start['monotonic_ns'] + 30_000_000_000] + mono_bounds)
+    proposed_utc, proposed_mono = start['now_utc'], start['monotonic_ns']
+    if previous_deadline is not None:
+        _require(previous_deadline.owner_epoch == epoch, 'session_stale')
+        expires = min(expires, previous_deadline.expires_at)
+        expires_mono = min(expires_mono, previous_deadline.expires_monotonic_ns)
+        proposed_utc = previous_deadline.proposed_at_utc
+        proposed_mono = previous_deadline.proposed_at_monotonic_ns
     _integer(expires, _UTC_MAX, 'time_unavailable')
     _integer(expires_mono, _INT_MAX, 'time_unavailable')
     not_before = (consent['not_before'], policy['validity']['not_before'], peer['not_before'])
@@ -171,7 +178,7 @@ def _window(context, start, now, receipts, consent, policy, peer, private):
         _require(clock['now_utc'] - clock['uncertainty_seconds'] >= lower, 'time_unavailable')
         _require(clock['now_utc'] + clock['uncertainty_seconds'] < expires, 'reservation_expired')
         _require(clock['monotonic_ns'] < expires_mono, 'reservation_expired')
-    return ProposedDeadline(epoch, start['now_utc'], start['monotonic_ns'], expires, expires_mono)
+    return ProposedDeadline(epoch, proposed_utc, proposed_mono, expires, expires_mono)
 
 
 def _private(inputs, context):
@@ -202,7 +209,7 @@ def _drift(context, consent, policy, state):
     _require(context['host_lease']['fence'] == state['host_fence'], 'fence_changed')
 
 
-def _evaluate(original_request, inputs, *, check_drift=True):
+def _evaluate(original_request, inputs, *, check_drift=True, previous_deadline=None):
     """The common owner policy, read-only over current original observations."""
     _require(type(inputs) is _Inputs and type(inputs.originals) is dict and len(inputs.originals) <= 256, 'owner_unavailable')
     _require(all(type(v) is bytes for v in inputs.originals.values())
@@ -275,7 +282,8 @@ def _evaluate(original_request, inputs, *, check_drift=True):
     _require(now['now_utc'] + now['uncertainty_seconds'] < consent['expires_at'], 'consent_expired')
     _require(now['now_utc'] + now['uncertainty_seconds'] < peer['expires_at'], 'session_stale')
     private = _private(inputs, context)
-    deadline = _window(context, start, now, (receipt, current_receipt), consent, policy, peer, private)
+    deadline = _window(context, start, now, (receipt, current_receipt), consent, policy, peer, private,
+                       previous_deadline)
     if check_drift:
         _drift(context, consent, policy, state)
     return OwnerProposal(request.sha256, freeze(context), deadline, context['state_revision'])
@@ -319,7 +327,7 @@ def propose_effect(original_request):
         inputs = _installed_owner_inputs()  # mandatory fixed binding BEFORE candidate
         first = _evaluate(original_request, inputs, check_drift=False)
         _release_original(original_request, inputs)
-        fresh = _evaluate(original_request, _installed_owner_inputs())
+        fresh = _evaluate(original_request, _installed_owner_inputs(), previous_deadline=first.deadline)
         _same_context(first, fresh)
         return fresh
     except OwnerRefusal:
