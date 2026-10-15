@@ -51,8 +51,9 @@ class FactoryInterfaces:
 
     async def health(self):
         # Reuse the reviewed RC1/C11 composer with closed local unbound ports.
-        return await EnrollmentHealth(_core_unbound,_enrollment_unbound,
-            UUID(self.installation_id),timeout_seconds=.2)()
+        health = EnrollmentHealth(_core_unbound,_enrollment_unbound,
+            UUID(self.installation_id),timeout_seconds=.2)
+        return await health()
 
 
 def describe_factory(member, config_raw, *, aggregate_id, observed_target,
