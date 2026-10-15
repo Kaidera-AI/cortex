@@ -5,6 +5,7 @@ UNBOUND. Private unittest patching supplies DATA, never installed authority.
 """
 import ast
 import copy
+from contextlib import ExitStack
 from dataclasses import FrozenInstanceError
 import hashlib
 import importlib
@@ -43,7 +44,19 @@ class MacOSObserver(unittest.TestCase):
             b['current_clock_raw'].encode(), b['aggregate_id'])
         return api._MacOSInputs(inputs, data['profile_ref'], data['observation_ref'])
 
-    def change(self, data, case):
+    def edit_peer(self, data, change):
+        b = data['owner_inputs']; context = json.loads(b['context_raw'])
+        reference = context['peer_ref']; peer = json.loads(b['originals'][reference['path']])
+        change(peer)
+        raw = encode(peer); b['originals'][reference['path']] = raw.decode()
+        context['peer_ref'] = {**reference, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+        consent_ref = context['consent_ref']; consent = json.loads(b['originals'][consent_ref['path']])
+        consent['subject_ref'] = context['peer_ref']
+        raw = encode(consent); b['originals'][consent_ref['path']] = raw.decode()
+        context['consent_ref'] = {**consent_ref, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+        b['context_raw'] = encode(context).decode()
+
+    def change(self, data, case, *, rebind=True):
         if case['record'] == 'context':
             raw = data['owner_inputs']['context_raw']
         else:
@@ -65,6 +78,9 @@ class MacOSObserver(unittest.TestCase):
             data['owner_inputs']['originals'][reference['path']] = raw.decode()
             data[case['record'] + '_ref'] = {**reference, 'bytes': len(raw),
                 'sha256': hashlib.sha256(raw).hexdigest()}
+            if rebind:
+                self.edit_peer(data, lambda p: p.update(macos_profile_ref=data['profile_ref'],
+                    macos_observation_ref=data['observation_ref']))
 
     def observe(self, api, data, supplied=None):
         supplied = self.carrier(api, data) if supplied is None else supplied
@@ -182,6 +198,43 @@ class MacOSObserver(unittest.TestCase):
         self.integration(api, first)
         self.change(fresh, case)
         self.refusal('peer_denied', lambda: self.integration(api, first, fresh))
+
+    def test_peer_original_must_bind_both_platform_original_refs(self):
+        api = self.api(); self.observe(api, self.data())
+        for field in ('macos_profile_ref', 'macos_observation_ref'):
+            with self.subTest(field=field):
+                data = self.data(); self.edit_peer(data, lambda p: p.pop(field))
+                self.refusal('peer_denied', lambda: self.observe(api, data))
+
+    def test_peer_original_cannot_substitute_platform_ref(self):
+        api = self.api(); self.observe(api, self.data())
+        for field, other in (('macos_profile_ref', 'observation_ref'),
+                ('macos_observation_ref', 'profile_ref')):
+            with self.subTest(field=field):
+                data = self.data(); self.edit_peer(data, lambda p: p.update({field: data[other]}))
+                self.refusal('peer_denied', lambda: self.observe(api, data))
+
+    def test_post_audit_coherent_native_reprofile_cannot_keep_old_peer_subject(self):
+        api = self.api(); first = self.data(); fresh = self.data()
+        self.integration(api, first)
+        self.change(fresh, {'record': 'profile', 'path': ['launch_id'], 'operation': 'set',
+            'value': 'SOURCE_SIMULATION-new-admitted-launch'}, rebind=False)
+        self.change(fresh, {'record': 'observation', 'path': ['launch', 'launch_id'], 'operation': 'set',
+            'value': 'SOURCE_SIMULATION-new-admitted-launch'}, rebind=False)
+        self.refusal('peer_denied', lambda: self.integration(api, first, fresh))
+
+    def test_source_positive_calls_no_native_effect_canary(self):
+        api = self.api(); calls = []
+        def forbidden(*args, **kwargs):
+            calls.append('native-effect-canary')
+            self.fail('source observer attempted a native effect')
+        with ExitStack() as stack:
+            for name in ('socket.socket', 'subprocess.Popen', 'os.system',
+                    'os.mkdir', 'os.chown', 'os.chmod', 'os.posix_spawn'):
+                stack.enter_context(patch(name, forbidden))
+            self.observe(api, self.data())
+            self.integration(api, self.data())
+        self.assertEqual(calls, [])
 
     def test_source_has_no_platform_probe_effect_or_configuration_path(self):
         api = self.api(); tree = ast.parse(SUBJECT.read_text())
