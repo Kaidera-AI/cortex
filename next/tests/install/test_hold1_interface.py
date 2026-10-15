@@ -507,7 +507,7 @@ class Hold1InterfaceOracle(unittest.TestCase):
                 with s.installed():
                     if field=='protocol-version':
                         value=json.loads(s.mandate);value['protocol_version']=2.0
-                        s.mandate=canonical_bytes(value);before=s.tree()
+                        s.mandate=(json.dumps(value,sort_keys=True,separators=(',',':'))+'\n').encode();before=s.tree()
                         self.refused(s.reserve);self.assertEqual(s.tree(),before)
                     else:
                         s.start();s.checkpoint('xid')
