@@ -135,6 +135,29 @@ class PublicationScopeOracle(unittest.TestCase):
                 self.assertEqual(thaw(replay),terminal);self.assertEqual(s.tree(),before)
                 self.assertEqual(s.history.read(s.entry(replay)[0]['result_ref']),raw)
 
+    def test_unrelated_explicit_publication_context_is_not_subject_authority(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=Subject(root)
+            with s.installed():
+                s.start();s.checkpoint('xid');s.checkpoint('postimage');raw=s.result()
+                foreign=self.foreign(s);before=s.history.head()[0]
+                with self.assertRaises(owner.OwnerRefusal):
+                    call(p1._record_result,s.history,s.consumed,raw,
+                        publication_head=before,publication_revision=s.history.current_revision(),
+                        deadline=s.deadline,publication_context=thaw(foreign.context))
+                self.assertEqual(s.history.head()[0],before)
+
+    def test_operation_acquisition_keeps_original_expected_scope(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=Subject(root);primitive=s.primitive();original=s.history._lock;switched=[]
+            @contextmanager
+            def lock(name,**kwargs):
+                if name=='.operation.lock' and not switched:switched.append(self.foreign(s))
+                with original(name,**kwargs) as result:yield result
+            with s.installed(primitive),patch.object(s.history,'_lock',side_effect=lock):
+                with self.assertRaises(owner.OwnerRefusal):p1.execute_effect(s.data['request_raw'].encode())
+                self.assertIsNone(s.history.head()[0]);self.assertEqual(s.effects,0)
+
 
 class PublicationReferenceOracle(unittest.TestCase):
     def test_terminal_attempt_reservation_ref_must_resolve_and_match(self):
@@ -185,3 +208,22 @@ class PublicationReferenceOracle(unittest.TestCase):
                 s.history=p1._History(s.root);before=s.tree()
                 self.assertEqual(s.terminal(raw),terminal)
                 self.assertEqual(before,s.tree())
+
+    def test_readable_duplicate_terminal_reservation_must_match_observation(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=Subject(root)
+            with s.installed():
+                s.start();s.checkpoint('xid');s.checkpoint('postimage')
+                head=s.history.head()[0];event,obs,parts=s.entry();raw=s.result()
+                result_ref=s.history.retain(raw);r=parts['reservation'];r['expected_state_revision']+=1
+                parts['context']['state_revision']=r['expected_state_revision']
+                wrong={**r,'reservation_id':'different-reservation'}
+                wrong_ref=s.history.retain(canonical_bytes(wrong))
+                self.assertEqual(s.history.read(wrong_ref),canonical_bytes(wrong))
+                parts['attempt'].update(dispatch_state='applied_verified',result_ref=result_ref,reservation_ref=wrong_ref)
+                with self.assertRaises(owner.OwnerRefusal):
+                    p1._publish_entry(s.history,context=parts['context'],reservation=r,attempt=parts['attempt'],
+                        preimages_ref=obs['preimages_ref'],request_ref=event['request_ref'],
+                        release_ref=event['release_binding_ref'],expected_ref=head,phase='created',
+                        recorded_at=1700000001,result_ref=result_ref,deadline=s.deadline)
+                self.assertEqual(s.history.head()[0],head)
