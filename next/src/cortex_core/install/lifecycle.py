@@ -5,7 +5,7 @@ real durability in test-owned directories; they confer no native qualification.
 P1 RecordRef/JournalEvent and B1's common policy remain the only wire/gate.
 """
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import errno
 import fcntl
@@ -467,17 +467,6 @@ class _Bindings:
     primitives: dict
 
 
-@dataclass(frozen=True)
-class EffectResult:
-    """Source result projection; not a P1 runtime receipt or authority object."""
-    journal_ref: object
-    result_ref: object
-    preimages_ref: object
-    phase: str = 'enrollment_required'
-    native_credit: bool = field(default=False, init=False)
-    effect_authority: bool = field(default=False, init=False)
-
-
 def _installed_lifecycle():
     # The one planned lifecycle IO/finite-adapter port, not another owner gate.
     raise owner.OwnerRefusal('atomicity_unavailable')
@@ -525,6 +514,6 @@ def execute_effect(original_request):
             raise
         except Exception:
             raise owner.OwnerRefusal('attempt_ambiguous') from None
-        event, observation = _load_entry(history, completed)
-        return EffectResult(freeze(completed), freeze(event['result_ref']), freeze(observation['preimages_ref']),
-                            phase='enrollment_required' if event['phase'] == 'created' else 'held')
+        # Return only the existing immutable P1 event reference. It is neither a
+        # client receipt nor a bearer permit; the owner retains its original facts.
+        return freeze(completed)
