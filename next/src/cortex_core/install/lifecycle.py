@@ -475,30 +475,45 @@ def _installed_lifecycle():
 def execute_effect(original_request):
     """Consume B1's DATA in the fixed owner; no caller root/callback/provider."""
     first = owner.propose_effect(original_request)
+    try:
+        return _execute_bound(original_request, first)
+    except owner.OwnerRefusal:
+        raise
+    except Exception:
+        raise owner.OwnerRefusal('backend_unavailable') from None
+
+
+def _current_owner(original_request, deadline):
+    try:
+        inputs = owner._installed_owner_inputs()
+        return inputs, owner._evaluate(original_request, inputs, previous_deadline=deadline)
+    except owner.OwnerRefusal:
+        raise
+    except Exception:
+        raise owner.OwnerRefusal('owner_unavailable') from None
+
+
+def _execute_bound(original_request, first):
     bindings = _installed_lifecycle()
     _require(type(bindings) is _Bindings and type(bindings.history) is _History
              and type(bindings.primitives) is dict, 'backend_unavailable')
     history = bindings.history
     with history.operation():
-        inputs = owner._installed_owner_inputs()
-        current = owner._evaluate(original_request, inputs, previous_deadline=first.deadline)
+        inputs, current = _current_owner(original_request, first.deadline)
         owner._same_context(first, current)
         primitive = bindings.primitives.get(current.context['effect']['resource_kind'])
         _require(primitive is not None, 'backend_unavailable')
         preimages = primitive.snapshot()
-        inputs = owner._installed_owner_inputs()
-        refreshed = owner._evaluate(original_request, inputs, previous_deadline=current.deadline)
+        inputs, refreshed = _current_owner(original_request, current.deadline)
         owner._same_context(current, refreshed)
         reserved = _reserve(history, original_request, refreshed, inputs.originals, preimages,
                             clock_raw=inputs.current_clock_raw)
-        inputs = owner._installed_owner_inputs()
-        final = owner._evaluate(original_request, inputs, previous_deadline=refreshed.deadline)
+        inputs, final = _current_owner(original_request, refreshed.deadline)
         consumed = _consume(history, reserved, final, inputs.current_clock_raw, originals=inputs.originals)
         _, observation = _load_entry(history, consumed)
         # Consume persistence can block. Recheck the common owner at the actual
         # dispatch point; the consumed marker alone cannot authorize dispatch.
-        dispatch_inputs = owner._installed_owner_inputs()
-        dispatch_current = owner._evaluate(original_request, dispatch_inputs, previous_deadline=final.deadline)
+        dispatch_inputs, dispatch_current = _current_owner(original_request, final.deadline)
         _require(dispatch_current.observed_state_revision == final.observed_state_revision+1, 'generation_changed')
         _continuity(thaw(final.context), thaw(dispatch_current.context))
         effect_context = freeze({'context': thaw(dispatch_current.context), 'journal_ref': consumed,
