@@ -795,6 +795,25 @@ class RecoveryJoinOracle(unittest.TestCase):
             s=JoinedSubject(root); s.truth(); s.expire_on_measure=True
             self.hold(s,detail='reservation_expired')
 
+    def test_P2B02_other_attempt_history_survives_original_result_publication(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);raw=s.truth();data=copy.deepcopy(s.old)
+            s.oracle.rewrite(s.helper,data,lambda q:q['identity'].update(
+                operation_id='55555555-5555-4555-8555-555555555555',
+                transaction_id='other-transaction',request_id='other-request',attempt_id='other-attempt'))
+            revision=s.history.current_revision()
+            s.helper.context(data,lambda c:c.update(nonce='other-nonce',state_revision=revision))
+            s.helper.edit_record(data,'current_state_ref',lambda c:c.update(revision=revision))
+            proposal,_=s.helper.run_gate(owner,data)
+            other=lifecycle._reserve(s.history,data['request_raw'].encode(),proposal,
+                AppliedSubject._bytes(data),s.oracle.before,clock_raw=data['current_clock_raw'].encode())
+            before=s.tree();result=self.run_ok(s)
+            for p,b in before.items():self.assertEqual((s.history.root/p).read_bytes(),b)
+            event,_=lifecycle._load_entry(s.history,result)
+            self.assertEqual(event['previous_event_ref'],other)
+            self.assertEqual(s.history.read(event['result_ref']),raw)
+            self.assertEqual(s.dispatches,0)
+
     def test_P2B03_definitive_not_applied_then_fresh_child_consumes_once(self):
         with tempfile.TemporaryDirectory() as root:
             s=JoinedSubject(root); raw=s.truth('not_applied_verified'); parent=self.run_ok(s)
