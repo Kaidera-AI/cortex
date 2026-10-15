@@ -312,10 +312,11 @@ def _publish_entry(history, *, context, reservation, attempt, preimages_ref, req
     return history.append(record, expected_ref=expected_ref)
 
 
-def _reserve(history, original_request, proposal, originals, preimages, *, clock_raw):
+def _reserve(history, original_request, proposal, originals, preimages, *, clock_raw, inputs=None):
     context = thaw(proposal.context)
     request = parse_install_message(original_request, expected_kind='request')
-    _require(thaw(request.document)['operation'] == 'install', 'scope_denied')
+    operation = thaw(request.document)['operation']
+    _require(operation in ('install', 'rollback', 'uninstall', 'purge'), 'scope_denied')
     measure_original_ref(context['request_ref'], original_request)
     _require(request.sha256 == proposal.request_sha256, 'scope_denied')
     current_ref, _ = history.head()
@@ -345,6 +346,11 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     # These logical original refs are preserved byte-for-byte in C0 facts.
     history.retain(original_request)
     _retain_originals(history, originals, context)
+    lineage = None
+    if operation != 'install':
+        _require(type(inputs) is owner._Inputs and inputs.originals == originals
+                 and inputs.current_clock_raw == clock_raw, 'owner_unavailable')
+        lineage, _ = _part1_plan(history, original_request, proposal, inputs)
     try:
         preimages_ref = _retained_preimages(history, context['identity'])
         existing = _decode(history.read(preimages_ref))
@@ -363,13 +369,16 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
         'expires_at': proposal.deadline.expires_at, 'expires_monotonic_ns': proposal.deadline.expires_monotonic_ns,
         'expected_state_revision': proposal.observed_state_revision+1}
     reservation_ref = history.retain(canonical_bytes(reservation))
-    attempt = {'identity': context['identity'], 'origin_request_ref': context['request_ref'],
+    attempt = {'identity': context['identity'], 'origin_request_ref':
+        context['request_ref'] if lineage is None else lineage['event']['origin_request_ref'],
         'request_ref': context['request_ref'], 'context_ref': first_context_ref, 'reservation_ref': reservation_ref,
-        'effect': context['effect'], 'predecessor_result_refs': [], 'dispatch_state': 'not_consumed',
+        'effect': context['effect'], 'predecessor_result_refs':
+        [] if lineage is None else [lineage['event']['result_ref']], 'dispatch_state': 'not_consumed',
         'result_ref': None, 'reconciliation_ref': None, 'consumption_sequence': None, 'consume_clock_ref': None}
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=preimages_ref, request_ref=context['request_ref'], release_ref=release_ref,
-        expected_ref=current_ref, phase='create_intent', recorded_at=now['now_utc'])
+        expected_ref=current_ref, phase=('create_intent' if operation == 'install' else
+            'purge_intent' if operation == 'purge' else 'reverse_intent'), recorded_at=now['now_utc'])
 
 
 def _before_deadline(now, utc, monotonic):
@@ -402,7 +411,7 @@ def _continuity(original, context):
              'reservation_invalidated')
 
 
-def _consume(history, reserved_ref, current, clock_raw, *, originals):
+def _consume(history, reserved_ref, current, clock_raw, *, originals, inputs=None):
     event, obs = _load_entry(history, reserved_ref)
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     reservation = _decode(history.read(latest['reservation_ref']))
@@ -418,6 +427,11 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals):
     _before_deadline(now, min(reservation['expires_at'], current.deadline.expires_at),
                      min(reservation['expires_monotonic_ns'], current.deadline.expires_monotonic_ns))
     _retain_originals(history, originals, context)
+    request_raw = history.read(event['request_ref'])
+    if thaw(parse_install_message(request_raw, expected_kind='request').document)['operation'] != 'install':
+        _require(type(inputs) is owner._Inputs and inputs.originals == originals
+                 and inputs.current_clock_raw == clock_raw, 'owner_unavailable')
+        _part1_plan(history, request_raw, current, inputs)
     context['clock_ref'] = history.retain(clock_raw)
     attempt = _decode(history.read(obs['attempt_ref']))
     reservation['state'] = 'consumed'
@@ -427,11 +441,11 @@ def _consume(history, reserved_ref, current, clock_raw, *, originals):
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=reserved_ref,
-        phase='create_intent', recorded_at=now['now_utc'])
+        phase=event['phase'], recorded_at=now['now_utc'])
 
 
 def _record_result(history, consumed_ref, original_measurement, *, current_context=None,
-                   originals=None, clock_raw=None, result_originals=None):
+                   originals=None, clock_raw=None, result_originals=None, cleanup_plan=None):
     event, obs = _load_entry(history, consumed_ref)
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     _require(latest_ref == consumed_ref, 'reservation_used')
@@ -456,12 +470,19 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
     owner._clock(clock, context['owner_epoch'])
     if result_originals is not None:
         _retain_originals(history, result_originals, {})
+    operation = thaw(parse_install_message(history.read(event['request_ref']), expected_kind='request').document)['operation']
+    if operation != 'install':
+        from . import recovery, uninstall
+        request = thaw(parse_install_message(history.read(event['request_ref']), expected_kind='request').document)
+        bound_plan = uninstall._plan(history, request, context, recovery._applied_lineage(history, request))
+        _require(cleanup_plan == bound_plan, 'resource_changed')
+        uninstall._verify_result(history, bound_plan, original_measurement)
     history.read(clock['clock_receipt_ref'])
     context['clock_ref'] = history.retain(clock_raw)
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=consumed_ref,
-        phase='created' if result['state'] == 'applied_verified' else 'held',
+        phase=('created' if operation == 'install' else 'finished') if result['state'] == 'applied_verified' else 'held',
         recorded_at=clock['now_utc'], result_ref=result_ref)
 
 
@@ -506,6 +527,13 @@ def _current_owner(original_request, deadline):
         raise owner.OwnerRefusal('owner_unavailable') from None
 
 
+def _part1_plan(history, original_request, current, inputs):
+    from . import recovery, uninstall
+    request = thaw(parse_install_message(original_request, expected_kind='request').document)
+    lineage = recovery._applied_lineage(history, request)
+    return lineage, uninstall._current_plan(history, request, current, inputs, lineage)
+
+
 def _execute_bound(original_request, first):
     bindings = _installed_lifecycle()
     _require(type(bindings) is _Bindings and type(bindings.history) is _History
@@ -520,19 +548,28 @@ def _execute_bound(original_request, first):
         inputs, refreshed = _current_owner(original_request, current.deadline)
         owner._same_context(current, refreshed)
         reserved = _reserve(history, original_request, refreshed, inputs.originals, preimages,
-                            clock_raw=inputs.current_clock_raw)
+                            clock_raw=inputs.current_clock_raw, inputs=inputs)
         inputs, final = _current_owner(original_request, refreshed.deadline)
-        consumed = _consume(history, reserved, final, inputs.current_clock_raw, originals=inputs.originals)
+        consumed = _consume(history, reserved, final, inputs.current_clock_raw,
+                            originals=inputs.originals, inputs=inputs)
         _, observation = _load_entry(history, consumed)
         # Consume persistence can block. Recheck the common owner at the actual
         # dispatch point; the consumed marker alone cannot authorize dispatch.
         dispatch_inputs, dispatch_current = _current_owner(original_request, final.deadline)
         _require(dispatch_current.observed_state_revision == final.observed_state_revision+1, 'generation_changed')
         _continuity(thaw(final.context), thaw(dispatch_current.context))
-        effect_context = freeze({'context': thaw(dispatch_current.context), 'journal_ref': consumed,
-                                 'preimages_ref': observation['preimages_ref']})
+        cleanup = None
+        request = thaw(parse_install_message(original_request, expected_kind='request').document)
+        if request['operation'] != 'install':
+            _, cleanup = _part1_plan(history, original_request, dispatch_current, dispatch_inputs)
+        effect_data = {'context': thaw(dispatch_current.context), 'journal_ref': consumed,
+                       'preimages_ref': observation['preimages_ref']}
+        if cleanup is not None:
+            effect_data['cleanup'] = cleanup
+        effect_context = freeze(effect_data)
         try:
-            primitive.dispatch(effect_context)
+            if cleanup is None or cleanup['targets']:
+                primitive.dispatch(effect_context)
             measured = primitive.measure(effect_context)
             # Preserve independently measured original bytes even when a later
             # collector fails. They remain uncommitted facts; the attempt stays
@@ -541,7 +578,8 @@ def _execute_bound(original_request, first):
             result_inputs = _owner_inputs()
             completed = _record_result(history, consumed, measured,
                 current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
-                clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals)
+                clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
+                cleanup_plan=cleanup)
         except owner.OwnerRefusal:
             raise
         except Exception:
