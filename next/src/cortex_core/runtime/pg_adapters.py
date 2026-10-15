@@ -61,6 +61,7 @@ class _C04Search(PostgresSearch):
         if subject != str(expected.principal_id):
             raise PermissionError('Authenticated principal changed')
         _require_asyncpg()
+        committed = False
         try:
             async with self.pool.acquire(timeout=2) as connection:
                 async with _async_authorized(connection, material.credential,
@@ -69,6 +70,12 @@ class _C04Search(PostgresSearch):
                         raise AuthError('forbidden')
                     await connection.execute("SET LOCAL statement_timeout='2s'")
                     yield connection, CacheScope(scope.tenant_id, scope.project_id, _cache_partition(scope))
+                committed = True
+        except _driver_errors('SerializationError'):
+            # A release failure after known commit is not a rollback/retry receipt.
+            if committed:
+                raise CoreUnavailable('Authoritative Core is unavailable') from None
+            raise
         except AuthError as error:
             if error.code == 'core_unavailable':
                 raise CoreUnavailable('Authoritative Core is unavailable') from None

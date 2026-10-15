@@ -11,7 +11,6 @@ from psycopg.pq import TransactionStatus
 
 _CONTEXT = ('cortex.credential_digest', 'cortex.installation_id', 'cortex.project_id',
             'cortex.action', 'cortex.tenant_id', 'cortex.principal_id', 'cortex.permission_generation')
-_LOCAL_ROLE = 'SET LOCAL ROLE "kaidera-runtime-core-request"'
 _ROLE_QUERY = """SELECT
     pg_has_role(current_user,'kaidera-runtime-core-request','MEMBER')
     AND NOT pg_has_role(session_user,'kaidera-runtime-core-verifier','MEMBER')
@@ -117,7 +116,7 @@ def authorized(connection, credential, installation_id, project_id, action='read
         arguments = _arguments(credential, installation_id, project_id, action)
         digest = arguments[0]
         with connection.transaction():
-            connection.execute(_LOCAL_ROLE)
+            connection.execute('SET LOCAL ROLE "kaidera-runtime-core-request"')
             if not connection.execute(_ROLE_QUERY).fetchone()[0]:
                 raise AuthError('forbidden')
             scope = _resolve(connection, arguments)
@@ -143,7 +142,16 @@ def authorized(connection, credential, installation_id, project_id, action='read
 def _async_errors(*names):
     # The owning adapter imports its driver at acquisition, never at module load.
     driver = sys.modules.get('asyncpg')
-    return tuple(getattr(driver, name) for name in names) if driver is not None else ()
+    if driver is None:
+        return ()
+    errors = []
+    for name in names:
+        match name:
+            case 'InsufficientPrivilegeError': errors.append(driver.InsufficientPrivilegeError)
+            case 'PostgresConnectionError': errors.append(driver.PostgresConnectionError)
+            case 'InterfaceError': errors.append(driver.InterfaceError)
+            case _: raise AttributeError(name)
+    return tuple(errors)
 
 
 async def _async_clear(connection):
@@ -191,7 +199,7 @@ async def _async_authorized(connection, credential, installation_id, project_id,
         await _async_clear(connection)
         arguments = _arguments(credential, installation_id, project_id, action)
         async with connection.transaction(isolation='read_committed'):
-            await connection.execute(_LOCAL_ROLE)
+            await connection.execute('SET LOCAL ROLE "kaidera-runtime-core-request"')
             if not await connection.fetchval(_ROLE_QUERY):
                 raise AuthError('forbidden')
             scope = await _async_resolve(connection, arguments)
