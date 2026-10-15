@@ -65,11 +65,11 @@ class PublicationScope(unittest.TestCase):
                 request=s.data['request_raw'].encode();before=s.history.head()[0]
                 original_lock=s.history._lock;switched=[]
                 @contextmanager
-                def lock(name,*,deadline=None):
+                def lock(name,*,deadline=None,expected_context=None):
                     if name=='.journal.lock' and not switched:
                         self.assertEqual(s.reader.info.transaction_status,TransactionStatus.INTRANS)
                         switched.append(self.foreign_scope(s))
-                    with original_lock(name,deadline=deadline):yield
+                    with original_lock(name,deadline=deadline,expected_context=expected_context):yield
                 refusal=None;refusal_trace=None
                 with patch.object(s.history,'_lock',side_effect=lock):
                     try:p1.execute_effect(request)
