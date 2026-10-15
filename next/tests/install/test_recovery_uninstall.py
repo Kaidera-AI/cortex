@@ -34,7 +34,7 @@ class AppliedSubject:
 
     def __init__(self, root, *, operation='uninstall', classes=('runtime',),
                  policies=None, route='manual', target='linux/amd64', before=None,
-                 retain_receipt=True):
+                 retain_receipt=True, ownerships=None):
         self.root = Path(root)
         self.home = self.root / 'resources'; self.home.mkdir()
         self.history = lifecycle._History(self.root / 'history')
@@ -80,8 +80,9 @@ class AppliedSubject:
             consumers = self.history.retain(canonical_bytes({'resource_id': rid, 'consumers': []}))
             self.resources.append({'resource_id': rid, 'product': 'cortex',
                 'installation_id': q['identity']['installation_id'], 'kind': 'file',
-                'role': 'source-owned', 'ownership': 'created_by_this_transaction',
-                'created_by': self.creation_context['request_ref'], 'intent_event_ref': self.reserved,
+                'role': 'source-owned', 'ownership': (ownerships or ['created_by_this_transaction'] * len(classes))[i],
+                'created_by': None if ownerships and ownerships[i] == 'external_read_only' else self.creation_context['request_ref'],
+                'intent_event_ref': None if ownerships and ownerships[i] == 'external_read_only' else self.reserved,
                 'result_event_ref': None, 'before_witness': prior, 'after_witness': self.witness(p, content=data_class != 'credential_custody'),
                 'source_installer_ref': q['release']['installer_ref'], 'source_receipt_ref': None,
                 'consumers_ref': consumers, 'data_class': data_class,
@@ -93,7 +94,8 @@ class AppliedSubject:
                 'resource_metadata': {r['resource_id']: {k: v for k, v in r.items()
                     if k not in ('after_witness', 'result_event_ref')} for r in self.resources}}})
         self.created = lifecycle._record_result(self.history, consumed, measurement)
-        for r in self.resources: r['result_event_ref'] = self.created
+        for r in self.resources:
+            if r['ownership'] != 'external_read_only': r['result_event_ref'] = self.created
         child = copy.deepcopy(P1['receipt'])
         for key in ('identity', 'caller', 'target', 'release', 'profile', 'roots'):
             child[key] = q[key]
@@ -387,6 +389,31 @@ class RecoveryUninstallOracle(unittest.TestCase):
             self.assertEqual(len(projection['retained_items']), 5)
             self.assertTrue(all(p.exists() for p in s.files.values()))
             self.assertEqual(s.files['owned-0'].read_bytes(), b'USER-MODIFIED')
+
+    def test_P2B05_external_read_only_is_kept_even_under_purge(self):
+        with tempfile.TemporaryDirectory() as root:
+            s = AppliedSubject(root, operation='purge', classes=('authoritative_data',),
+                policies=['retain_external'], ownerships=['external_read_only'])
+            before = s.files['owned-0'].read_bytes(); result = self.run_ok(s)
+            from cortex_core.install import uninstall
+            projected = uninstall._cleanup_projection(s.history, result)
+            self.assertEqual(s.dispatched, 0)
+            self.assertEqual(s.files['owned-0'].read_bytes(), before)
+            self.assertEqual(projected['retained_items'][0]['reason'], 'external_read_only')
+
+    def test_P2B01_unknown_cleanup_of_any_original_creator_stays_held(self):
+        with tempfile.TemporaryDirectory() as root:
+            s = AppliedSubject(root); s.expire_after_consume = True
+            self.refuse(s, 'reservation_expired')
+            s.expire_after_consume = False; s.add_applied_resource()
+            # A fresh request/operation/nonce must not borrow a different phase's
+            # APPLIED result to skip an earlier creator's unresolved inverse.
+            s.helper.context(s.data, lambda c: c.update(nonce='second-cleanup-nonce'))
+            s.change_request(lambda q: q.update(identity={**q['identity'],
+                'request_id': 'second-cleanup-request', 'attempt_id': 'second-cleanup-attempt',
+                'operation_id': '44444444-4444-4444-8444-444444444444',
+                'transaction_id': 'second-cleanup-transaction'}))
+            self.refuse(s, 'attempt_ambiguous')
 
     def test_P2B05_only_unchanged_unshared_owned_subset_is_removed(self):
         with tempfile.TemporaryDirectory() as root:
