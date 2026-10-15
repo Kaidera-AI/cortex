@@ -89,7 +89,9 @@ class AppliedSubject:
         measurement = canonical_bytes({'identity': self.creation_context['identity'],
             'effect': self.creation_context['effect'], 'request_ref': self.creation_context['request_ref'],
             'state': 'applied_verified',
-            'observed': {'resource_witnesses': {r['resource_id']: r['after_witness'] for r in self.resources}}})
+            'observed': {'resource_witnesses': {r['resource_id']: r['after_witness'] for r in self.resources},
+                'resource_metadata': {r['resource_id']: {k: v for k, v in r.items()
+                    if k not in ('after_witness', 'result_event_ref')} for r in self.resources}}})
         self.created = lifecycle._record_result(self.history, consumed, measurement)
         for r in self.resources: r['result_event_ref'] = self.created
         child = copy.deepcopy(P1['receipt'])
@@ -291,6 +293,16 @@ class RecoveryUninstallOracle(unittest.TestCase):
                 if missing: p.unlink()
                 else: p.write_bytes(b'CORRUPT')
                 self.refuse(s, 'journal_invalid')
+
+    def test_P2B01_receipt_cannot_promote_data_to_removable_runtime(self):
+        with tempfile.TemporaryDirectory() as root:
+            s = AppliedSubject(root, classes=('authoritative_data',))
+            forged = copy.deepcopy(s.child)
+            forged['resources'][0]['data_class'] = 'runtime'
+            ref = s.history.retain(canonical_bytes(forged))
+            s.current_resources[0]['data_class'] = 'runtime'
+            s.change_request(lambda q: q.update(previous_receipt_ref=ref))
+            self.refuse(s, 'resource_changed')
 
     def test_P2B01_unknown_original_is_held_for_part2(self):
         with tempfile.TemporaryDirectory() as root:

@@ -176,3 +176,21 @@ class LifecycleAdapterOracle(unittest.TestCase):
 
     def test_P2A26_measured_original_survives_later_owner_clock_unavailability(self):
         self.run_recorder(result_owner_failure=True)
+
+    def _part1_target_recording(self, target, route):
+        from test_recovery_uninstall import AppliedSubject
+        from cortex_core.install import uninstall
+        with tempfile.TemporaryDirectory() as root:
+            subject = AppliedSubject(root, target=target, route=route, classes=('runtime', 'state'))
+            result = subject.run()
+            self.assertFalse(subject.files['owned-0'].exists())
+            self.assertTrue(subject.files['owned-1'].exists())
+            projection = uninstall._cleanup_projection(subject.history, result)
+            self.assertEqual(projection['cleanup']['remaining_owned_ids'], ['owned-1'])
+            self.assertEqual(subject.dispatched, 1)
+
+    def test_P2B_linux_target_contract_recording(self):
+        self._part1_target_recording('linux/amd64', 'manual')
+
+    def test_P2B_macos_target_contract_recording(self):
+        self._part1_target_recording('linux/arm64', 'kos_prerequisite')
