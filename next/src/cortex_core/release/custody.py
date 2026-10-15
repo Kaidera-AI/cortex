@@ -157,7 +157,16 @@ class RootReader:
     def _aggregate_check(self,path=None):
         self._aggregate_time()
         try:
+            # Each original read needs its own held ancestry. Complete all-link
+            # custody is still checked by aggregate_finish and terminal inventory.
+            # Avoid multiplying unrelated tree branches into every file read.
+            selected=None
+            if path is not None:
+                selected={fd for key,fd in self._aggregate_dirs.items()
+                          if not key.startswith('relative:') or path.startswith(key[len('relative:'):])}
+                selected.add(self.fd)
             for parent,name,fd,dev,ino in self._aggregate_links:
+                if selected is not None and fd not in selected:continue
                 self._aggregate_time()
                 named=os.stat(name,dir_fd=parent,follow_symlinks=False);held=os.fstat(fd)
                 if (not stat.S_ISDIR(named.st_mode) or (named.st_dev,named.st_ino)!=(dev,ino)
