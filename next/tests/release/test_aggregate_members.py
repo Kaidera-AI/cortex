@@ -72,6 +72,30 @@ class Members(unittest.TestCase):
             with self.assertRaises(OSError):os.fstat(fd)
         self.assertIsNone(r.fd)
 
+    def test_unique_path_rows_avoid_pairwise_object_comparisons(self):
+        from cortex_core.release.codec import WireValidator
+        import jsonschema._utils as utilities
+        actual=utilities.equal;calls=[]
+        def equal(a,b):calls.append(None);return actual(a,b)
+        rows=[dict(path='members/record-'+str(i),payload={'inert':True}) for i in range(128)]
+        with patch.object(utilities,'equal',equal):
+            self.assertTrue(WireValidator({'uniqueItems':True}).is_valid(rows))
+        self.assertLessEqual(len(calls),len(rows),'BODY: quadratic unique path-row comparisons')
+
+    def test_wire_uniqueness_preserves_general_schema_semantics(self):
+        from cortex_core.release.codec import WireValidator
+        from jsonschema import Draft202012Validator
+        for values in ([],[True,1],[False,0],[1,1.0],[[1],[1.0]],
+                       [{'path':'same','a':1},{'path':'same','a':2}],
+                       [{'path':'same','a':1},{'a':1,'path':'same'}],
+                       [{'path':'a','nested':[1]},{'path':'b','nested':[1]}],
+                       [{'path':['unhashable']},{'path':['unhashable']}],
+                       ['é','e\u0301'],[None,None],['x','x'],[{},{}]):
+            with self.subTest(values=values):
+                for unique in (True,False):
+                    schema={'uniqueItems':unique}
+                    self.assertEqual(WireValidator(schema).is_valid(values),Draft202012Validator(schema).is_valid(values))
+
     def test_each_original_check_bounds_work_to_its_held_ancestry(self):
         # Capacity regression: unrelated branches must not multiply every byte read.
         _,c=self.source();r=self.reader();self.begin(r)
