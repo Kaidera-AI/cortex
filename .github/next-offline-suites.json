@@ -2336,6 +2336,7 @@
     }
   ],
   "partitions": {
-    "next/tests/release/test_original_member_bridge.py": 4
+    "next/tests/release/test_original_member_bridge.py": 4,
+    "next/tests/release/test_verifier_boundary.py": 8
   }
 }
