@@ -39,7 +39,19 @@ def _driver_errors(*names):
     # Exception matching must not import the driver before connection admission.
     # Without a loaded driver none of its exception types can have been raised.
     driver = sys.modules.get('asyncpg')
-    return tuple(getattr(driver, name) for name in names) if driver is not None else ()
+    if driver is None:
+        return ()
+    errors = []
+    for name in names:
+        # These are the existing adapter exception families, never SQL methods.
+        match name:
+            case 'SerializationError': errors.append(driver.SerializationError)
+            case 'UndefinedTableError': errors.append(driver.UndefinedTableError)
+            case 'PostgresConnectionError': errors.append(driver.PostgresConnectionError)
+            case 'InterfaceError': errors.append(driver.InterfaceError)
+            case 'QueryCanceledError': errors.append(driver.QueryCanceledError)
+            case _: raise AttributeError(name)
+    return tuple(errors)
 
 
 Authorize = Callable[["asyncpg.Connection", str], Awaitable[Scope]]
