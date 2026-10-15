@@ -1,4 +1,4 @@
-"""Linux native mechanics for the accepted design2 parts (W4 clock, Q6 fd-3 listener).
+"""Linux native mechanics for the accepted parts (W4 clock, Q6 fd-3 listener, design3 effective policy).
 
 Runs on Linux with a C compiler only; on macOS every method is NOT_RUN (skipped),
 never PASS. Same-uid mechanics: no SELinux policy, account split, systemd unit or
@@ -15,7 +15,7 @@ import time
 import unittest
 
 from cortex_core.install import owner
-from cortex_core.install.platforms import _clock
+from cortex_core.install.platforms import _clock, _selinux
 
 PLATFORMS = Path(__file__).resolve().parents[3] / 'src/cortex_core/install/platforms'
 HERE = Path(__file__).resolve().parent
@@ -80,6 +80,14 @@ class LinuxNative(unittest.TestCase):
         for case, verdict in expected.items():
             with self.subTest(case=case):
                 self.assertEqual(run([str(driver), path, case]).stdout.strip(), verdict)
+
+    def test_effective_policy_observation_reads_the_loaded_kernel_policy(self):
+        if not Path('/sys/fs/selinux/status').exists():
+            self.skipTest('NOT_RUN: SELinux not mounted on this host')
+        member = _selinux.verdict(_selinux.start())
+        self.assertEqual(member['s0'], member['s1'])
+        self.assertEqual(len(member['policy_sha256']), 64)
+        self.assertEqual(_selinux.start()['policy_sha256'], member['policy_sha256'])  # stable while unchanged (L-P1)
 
 
 if __name__ == '__main__':

@@ -6,10 +6,13 @@
  *   gate-single    : one message, V replies through the gate
  *   gate-queued    : client queues a SECOND message right after the first
  *   gate-late      : client sends a second message only after the reply
+ *   gate-publish   : client sends a second message after the close, before the reply
+ * Gate lines: GATE_REFUSED | CLOSED <settle_ms> PUBLISHED GATE_REPLIED, then the client's view.
  */
 #include <dispatch/dispatch.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include "_macos_xpc.h"
 
@@ -80,16 +83,36 @@ static int gate(const char *requirement, const char *mode) {
         return 0;
     }
     usleep(200000);  /* V's owner work on the first request */
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    if (cx_gate_close(g) != 0) {  /* verdict instant: poisoned before it -> nothing published */
+        printf("GATE_REFUSED\n");
+        dispatch_semaphore_wait(answered, dispatch_time(DISPATCH_TIME_NOW, 2000000000LL));
+        printf("%s\n", answer);
+        return 0;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    printf("CLOSED %lld\n", ((t1.tv_sec - t0.tv_sec) * 1000000000LL + (t1.tv_nsec - t0.tv_nsec)) / 1000000);
+    if (!strcmp(mode, "gate-publish")) {
+        xpc_connection_send_message(client, cx_message("after-close"));
+        usleep(200000);  /* the message is dispatched while V publishes */
+    }
+    printf("PUBLISHED\n");  /* the caller's publication, strictly after the close */
     int rc = cx_gate_reply(g, "ok", 2);
     printf("%s\n", rc == 0 ? "GATE_REPLIED" : "GATE_REFUSED");
     dispatch_semaphore_wait(answered, dispatch_time(DISPATCH_TIME_NOW, 2000000000LL));
     printf("%s\n", answer);
+    if (!strcmp(mode, "gate-publish")) {
+        __block int late = 0;
+        dispatch_sync(g->queue, ^{ late = g->late; });
+        printf("%s\n", late ? "LATE_SEEN_NOT_PROCESSED" : "LATE_UNSEEN");
+    }
     if (!strcmp(mode, "gate-late")) {
         xpc_connection_send_message(client, cx_message("late"));
         usleep(200000);
         __block int poisoned = 0;
         dispatch_sync(g->queue, ^{ poisoned = g->poisoned; });
-        printf("%s\n", poisoned ? "LATE_SEEN_NOT_PROCESSED" : "LATE_UNSEEN");
+        printf("%s\n", poisoned ? "LATE_PROCESSED" : "LATE_NOT_PROCESSED");
     }
     return 0;
 }

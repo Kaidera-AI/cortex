@@ -103,20 +103,37 @@ class MacOSNative(unittest.TestCase):
         source = (PLATFORMS / '_macos_xpc.h').read_text()
         self.assertLess(source.index('set_peer_code_signing_requirement'), source.index('xpc_connection_resume'))
 
+    def gate(self, *args):
+        return run([str(self.driver()[0]), *args]).stdout.split()
+
+    def assert_replied(self, out, *tail):
+        self.assertEqual(out[0], 'CLOSED')
+        self.assertGreaterEqual(int(out[1]), 50)  # the settle window S runs before the close
+        self.assertEqual(out[2:], ['PUBLISHED', 'GATE_REPLIED', 'CLIENT_GOT_REPLY', *tail])
+
     def test_mac_gate_refuses_queued_second_message_and_fails_closed(self):
-        # MAC01 fix (Hale 16 Oct): any second message poisons the one-message gate.
-        driver, own = self.driver()
-        self.assertEqual(run([str(driver), own, 'gate-single']).stdout.split(), ['GATE_REPLIED', 'CLIENT_GOT_REPLY'])
-        for _ in range(10):  # the second message is queued before V finishes the first
-            self.assertEqual(run([str(driver), own, 'gate-queued']).stdout.split(),
-                             ['GATE_REFUSED', 'CLIENT_GOT_ERROR'])
-        self.assertEqual(run([str(driver), own, 'gate-late']).stdout.split(),
-                         ['GATE_REPLIED', 'CLIENT_GOT_REPLY', 'LATE_SEEN_NOT_PROCESSED'])
+        # MAC01 (Hale 16 Oct): any second message before the close poisons the one-message gate.
+        own = self.driver()[1]
+        self.assert_replied(self.gate(own, 'gate-single'))
+        for _ in range(10):  # queued before V finishes the first: refused, nothing published
+            self.assertEqual(self.gate(own, 'gate-queued'), ['GATE_REFUSED', 'CLIENT_GOT_ERROR'])
         # requirement mismatch: XPC drops the message and reports an error event, which also poisons the gate
-        self.assertEqual(run([str(driver), 'identifier "ai.kaidera.not.this"', 'gate-single']).stdout.split(),
-                         ['GATE_REFUSED', 'CLIENT_GOT_ERROR'])
+        self.assertEqual(self.gate('identifier "ai.kaidera.not.this"', 'gate-single'), ['GATE_REFUSED', 'CLIENT_GOT_ERROR'])
         source = (PLATFORMS / '_macos_xpc.h').read_text()
         self.assertNotIn('xpc_connection_suspend(', source)  # suspension would defer the detecting handler
+
+    def test_mac_gate_order_close_then_publish_then_reply(self):
+        # design3 sec. 1: close (verdict instant) -> publish -> one reply -> cancel; later events never processed.
+        own = self.driver()[1]
+        self.assert_replied(self.gate(own, 'gate-publish'), 'LATE_SEEN_NOT_PROCESSED')  # during publish
+        self.assert_replied(self.gate(own, 'gate-late'), 'LATE_NOT_PROCESSED')  # after the reply
+        source = (PLATFORMS / '_macos_xpc.h').read_text()
+        close, reply = source.index('cx_gate_close('), source.index('cx_gate_reply(')
+        self.assertLess(close, reply)
+        self.assertIn('!g->closed || g->replied', source[reply:])  # no reply without a clean close
+        # S is a named mitigation only: no pass claim until strict M2-5c on the test MacBook
+        self.assertIn('#define CX_GATE_SETTLE_NS 50000000LL', source)
+        self.assertIn('No pass claim until strict M2-5c', source)
 
     def test_xpc_client_requires_build_inputs_and_links_only_libsystem(self):
         client = self.tmp / 'cortex-owner-client'
