@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+import re
 import unicodedata
 from pathlib import Path
 
@@ -15,19 +16,50 @@ def _byte_length(validator, maximum, value, schema):
         yield ValidationError('UTF-8 byte bound exceeded')
 
 
-WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length})
+def _unique_items(validator, unique, value, schema):
+    # Distinct string paths prove distinct wire objects without an O(n²) walk.
+    # Duplicate/missing/non-string paths retain the upstream general semantics.
+    if unique and validator.is_type(value,'array') and all(
+            type(row) is dict and type(row.get('path')) is str for row in value):
+        paths=[row['path'] for row in value]
+        if len(set(paths))==len(paths):return
+    yield from Draft202012Validator.VALIDATORS['uniqueItems'](validator,unique,value,schema)
+
+
+def _contains(validator, contains, value, schema):
+    # A required string constant rules out other tag values. Validate every
+    # remaining candidate with the existing keyword, including all its bounds.
+    candidates=value
+    if (validator.is_type(value,'array') and type(contains) is dict
+            and type(contains.get('required')) is list
+            and type(contains.get('properties')) is dict):
+        properties=contains['properties']
+        constants=[(key,properties[key]['const']) for key in contains['required']
+                   if key in properties and type(properties[key]) is dict
+                   and type(properties[key].get('const')) is str]
+        if constants and all(type(row) is dict and all(
+                key not in row or type(row[key]) is str for key,_ in constants) for row in value):
+            candidates=[row for row in value if all(row.get(key)==expected for key,expected in constants)]
+    yield from Draft202012Validator.VALIDATORS['contains'](validator,contains,candidates,schema)
+
+
+WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length,'uniqueItems':_unique_items,'contains':_contains})
 
 
 def sha256(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
+# Same Unicode ranges as the original per-character rule, searched in C.
+_FORBIDDEN=re.compile(r'[\x00-\x1f\x7f-\x9f\ud800-\udfff]')
+_FORBIDDEN_PAYLOAD=re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff]')
+
+
 def _strings(value, *, text_payload=False):
     if isinstance(value, str):
         if not text_payload and unicodedata.normalize('NFC', value) != value:
             raise ValueError('unicode_not_nfc')
-        if any((ord(c) < 32 and not (text_payload and c in '\n\r\t'))
-               or 127 <= ord(c) <= 159 or 0xD800 <= ord(c) <= 0xDFFF for c in value):
+        if (_FORBIDDEN_PAYLOAD if text_payload else _FORBIDDEN).search(value):
             raise ValueError('forbidden_unicode')
     elif isinstance(value, dict):
         for key, item in value.items():
@@ -67,7 +99,8 @@ def decode_json(raw, limit, *, canonical=True, text_payload=False):
     try:
         value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs,
                            parse_float=float if text_payload else _number, parse_constant=_number)
-        _strings(value, text_payload=text_payload)
+        # canonical_bytes already enforces the same strict string/type rules.
+        if not canonical or text_payload:_strings(value, text_payload=text_payload)
         if canonical and canonical_bytes(value) != raw:
             raise ValueError('noncanonical_encoding')
         return value

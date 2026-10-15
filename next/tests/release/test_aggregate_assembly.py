@@ -3,6 +3,7 @@ import copy
 import importlib
 import json
 from pathlib import Path
+from r01u3_support.workspace import workspace_output
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,8 +12,9 @@ from aggregate_fixture import materials,context,write,encode,sha256,update,repin
 from cortex_core.runtime.signed_member import Refusal
 
 SRC=Path(__file__).resolve().parents[2]/'src/cortex_core/release'
-MAIN=Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3c-fixtures-20261014')
 
+
+MAIN=workspace_output()
 
 class Assembly(unittest.TestCase):
     def source(self):

@@ -246,7 +246,7 @@ class StartupBoundary(StartupFixture, unittest.TestCase):
 
     def test_actual_isolated_source_originals_through_public_port(self):
         self.init_boundary();result=isolated_original_control(self)
-        self.assertEqual(result['status'],'original-data')
+        self.assertEqual(result['status'],'original-data',result)
         self.assertEqual(result['raw'],result['expected_original'])
         self.assertEqual(result['type'],'OriginalMember')
         self.assertEqual(result['counts']['transport'],2)
@@ -256,6 +256,27 @@ class StartupBoundary(StartupFixture, unittest.TestCase):
         self.assertFalse(result['effect_attribute']);self.assertFalse(result['native_attribute'])
         self.assertFalse(result['test_support_loaded']);self.assertFalse(result['physical_install_qualified'])
         self.assertTrue(result['actual_observation']);self.assertEqual(result['bootstrap_provenance'],'SOURCE_FIXTURE_ONLY')
+
+    def test_actual_isolated_omitted_idna_closure_refuses_before_transport(self):
+        self.init_boundary();result=isolated_original_control(self,fault='omit-idna')
+        self.assertEqual(result['status'],'refused',result)
+        self.assertEqual(result['reason'],'member_authority_unavailable')
+        self.assertEqual(result['counts']['transport'],0);self.assertEqual(result['forbidden'],[])
+        self.assertTrue(any(name=='idna' or name.startswith('idna.') for name in result['unadmitted_files']))
+        self.assertEqual(result['measurement_errors'],[])
+
+    def test_inert_source_writable_private_parent_refuses(self):
+        self.init_boundary()
+        (self.install/'stdlib').chmod(0o770)
+        self.refusal('member_custody_changed',self.check)
+        self.assertEqual(self.transports,[])
+
+    def test_actual_isolated_writable_copied_parent_refuses_before_transport(self):
+        self.init_boundary();result=isolated_original_control(self,fault='copied-parent')
+        self.assertEqual(result['status'],'refused',result)
+        self.assertEqual(result['reason'],'member_custody_changed')
+        self.assertEqual(result['counts']['transport'],0);self.assertEqual(result['forbidden'],[])
+        self.assertTrue(any(row['reason']=='inspector_closure_parent' for row in result['measurement_errors']))
 
     def test_actual_isolated_unadmitted_origin_refuses_before_original_transport(self):
         self.init_boundary();result=isolated_original_control(self,fault='origin')
@@ -399,3 +420,222 @@ class RetainedPathHookIdentity(StartupFixture, unittest.TestCase):
             self.frame = replace(old, path_hooks=new_hooks)
             self.replace_observation(path_hooks=new_hooks)
             self.refusal('aggregate_replay', lambda: delivery.read_original(262144))
+
+
+class OwnerSourceJoin(StartupFixture, unittest.TestCase):
+    """EB1 SOURCE SIMULATION: real R01/RC2 in the existing owner, no effects.
+
+    Bootstrap/owner observations are test-owned DATA. Neither fixture originals
+    nor this read-only proposal qualify protected installation, image or B.
+    """
+    def owner_data(self):
+        import test_owner_proposal as oracle
+        helper = oracle.OwnerProposalOracle()
+        data = helper.data()
+        request = json.loads(data['request_raw'])
+        # Derive test-owned P1 originals from the actual signed R01 fixture.
+        # Never alter the frozen owner corpus or inject a verifier result.
+        release = request['release']
+        release['joint_index_ref'] = dict(release['joint_index_ref'],
+                                         bytes=len(self.raw), sha256=hashlib.sha256(self.raw).hexdigest())
+        for index, record in enumerate(release['artifact_refs']):
+            if record['path'] == MEMBER:
+                original = self.bodies[MEMBER]
+                release['artifact_refs'][index] = dict(record, bytes=len(original),
+                                                       sha256=hashlib.sha256(original).hexdigest())
+        data['aggregate_id'] = self.aggregate
+        data['request_raw'] = oracle.encode(request).decode()
+        helper.edit_record(data, 'request_ref', lambda value: value.update(request))
+        context = json.loads(data['context_raw'])
+        consent = json.loads(data['originals'][context['consent_ref']['path']])
+        scope = json.loads(data['originals'][consent['scope_ref']['path']])
+        reference = scope['release_binding_ref']
+        raw = oracle.encode(release)
+        data['originals'][reference['path']] = raw.decode()
+        helper.scope(data, lambda value: value.update(release_binding_ref=dict(
+            reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())))
+        return helper, data
+
+    def owner_source(self, *, data=None, fresh=None, request=None, entry=None):
+        from cortex_core.install import owner
+        helper, original = self.owner_data()
+        data = original if data is None else data
+        values = [helper.inputs(owner, data), helper.inputs(owner, data if fresh is None else fresh)]
+        calls = []
+        def installed():
+            calls.append('owner-observation')
+            return values[min(len(calls)-1, 1)]
+        raw = data['request_raw'].encode() if request is None else request
+        # Only test-owned startup/current DATA is substituted. The existing
+        # RC2 port, R01 backend and real cryptography remain the deciding path.
+        with self.composition(), patch.object(owner, '_installed_owner_inputs', installed):
+            result = (owner.propose_effect if entry is None else entry)(raw)
+        return result, calls
+
+    def owner_refusal(self, detail, **kwargs):
+        from cortex_core.install import owner
+        with self.assertRaises(owner.OwnerRefusal) as caught:
+            self.owner_source(**kwargs)
+        self.assertEqual(caught.exception.detail, detail)
+        return caught.exception
+
+    def test_EB1_actual_signature_originals_and_owner_DATA_join(self):
+        self.init_boundary()
+        from cortex_core.install import owner
+        from cortex_core.release import trust
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            result, calls = self.owner_source()
+        self.assertGreaterEqual(crypto.call_count, 4)
+        self.assertGreaterEqual(len(self.transports), 2)
+        self.assertEqual(calls, ['owner-observation', 'owner-observation'])
+        self.assertIs(type(result), owner.OwnerProposal)
+        self.assertEqual(result.stage, 'PRECONSUME_DATA')
+        self.assertFalse(result.effect_authority)
+        self.assertFalse(result.native_qualified)
+        self.assertFalse(result.reservation_created)
+        self.assertFalse(result.consumed)
+        self.assertEqual(result.deadline.expires_at, 1700000005)
+        self.assertIs(port._original_authority, port._unbound)
+        self.assert_closed()
+
+    def test_EB1_invalid_signature_refuses_before_lifecycle_binding(self):
+        self.init_boundary()
+        from cortex_core.install import lifecycle
+        lines = self.signature.split(b'\n')
+        signature = bytearray(base64.b64decode(lines[3])); signature[0] ^= 1
+        lines[3] = base64.b64encode(signature); self.signature = b'\n'.join(lines)
+        with patch.object(lifecycle, '_installed_lifecycle',
+                          side_effect=AssertionError('EB1 reached finite backend')) as backend:
+            error = self.owner_refusal('r01_other_refusal', entry=lifecycle.execute_effect)
+        self.assertEqual(error.r01_reason, 'aggregate_signature_invalid')
+        self.assertEqual(backend.call_count, 0)
+        self.assert_closed()
+
+    def test_EB1_unsigned_original_refuses(self):
+        self.init_boundary(); self.signature = None
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_unsigned')
+        self.assert_closed()
+
+    def test_EB1_substituted_root_refuses(self):
+        self.init_boundary()
+        from r01u3_support.factory import test_authority
+        self.authority.root_material = test_authority().root_material
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_root_mismatch')
+        self.assert_closed()
+
+    def test_EB1_corrupt_original_lock_refuses(self):
+        self.init_boundary()
+        raw = self.bodies[MEMBER]
+        (self.root/MEMBER).write_bytes(raw[:-1]+bytes([raw[-1]^1]))
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'member_digest_mismatch')
+        self.assert_closed()
+
+    def test_EB1_nonce_drift_after_real_audit_refuses(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        helper, data = self.owner_data()
+        import copy
+        fresh = copy.deepcopy(data)
+        helper.context(fresh, lambda context: context.update(nonce='different-source-nonce'))
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            self.owner_refusal('nonce_replay', data=data, fresh=fresh)
+        self.assertGreaterEqual(crypto.call_count, 4)
+        self.assert_closed()
+
+    def test_EB1_deadline_after_real_audit_is_not_renewed(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        helper, data = self.owner_data()
+        import copy
+        fresh = copy.deepcopy(data)
+        helper.clock(fresh, lambda clock: clock.update(now_utc=1700000005))
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            self.owner_refusal('reservation_expired', data=data, fresh=fresh)
+        self.assertGreaterEqual(crypto.call_count, 4)
+        self.assert_closed()
+
+    def test_EB1_client_authority_field_refuses_before_R01(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        helper, data = self.owner_data()
+        request = json.loads(data['request_raw']); request['trusted'] = True
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            self.owner_refusal('invalid_request', data=data, request=__import__('test_owner_proposal').encode(request))
+        self.assertEqual(crypto.call_count, 0)
+        self.assertEqual(self.transports, [])
+
+    def test_EB1_peer_mismatch_refuses_before_R01(self):
+        self.init_boundary()
+        helper, data = self.owner_data()
+        helper.edit_record(data, 'peer_ref', lambda peer: peer.update(owner_uid=502))
+        self.owner_refusal('peer_denied', data=data)
+        self.assertEqual(self.transports, [])
+
+    def test_EB1_default_owner_gap_precedes_client_and_R01(self):
+        self.init_boundary()
+        from cortex_core.install import owner
+        class Trap:
+            def __getattribute__(self, name):
+                raise AssertionError('EB1 touched client before owner binding')
+        with self.composition(), self.assertRaises(owner.OwnerRefusal) as caught:
+            owner.propose_effect(Trap())
+        self.assertEqual(caught.exception.detail, 'required_binding_gap')
+        self.assertEqual(self.startup_calls, [])
+        self.assertEqual(self.transports, [])
+
+    def test_EB1_cached_snapshot_is_not_an_owner_request(self):
+        self.init_boundary()
+        with self.composition():
+            member = port.request_member(self.aggregate, MEMBER)
+        count = len(self.transports)
+        self.owner_refusal('invalid_request', request=member)
+        self.assertEqual(len(self.transports), count)
+        self.assertFalse(hasattr(member, 'effect_authority'))
+        self.assert_closed()
+
+    def test_EB1_wrong_first_signer_with_authentic_comment_refuses(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        from r01u3_support.factory import test_authority
+        # Isolate the first guard: the expected key still signs the comment.
+        other = test_authority()
+        message = hashlib.blake2b(self.raw, digest_size=64).digest()
+        first = other._signer.sign(message).signature
+        lines = self.signature.split(b'\n')
+        trusted = lines[2][len(b'trusted comment: '):]
+        second = self.authority._signer.sign(first + trusted).signature
+        self.assertFalse(trust.verify_ed25519(self.authority.public, message, first))
+        self.assertTrue(trust.verify_ed25519(self.authority.public, first + trusted, second))
+        lines[1] = base64.b64encode(b'ED' + self.authority.key_id + first)
+        lines[3] = base64.b64encode(second)
+        self.signature = b'\n'.join(lines)
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_signature_invalid')
+        self.assert_closed()
+
+    def test_EB1_request_digest_must_match_verified_original_lock(self):
+        self.init_boundary()
+        import test_owner_proposal as oracle
+        helper, data = self.owner_data()
+        request = json.loads(data['request_raw'])
+        row = next(r for r in request['release']['artifact_refs'] if r['path'] == MEMBER)
+        row['sha256'] = 'f' * 64
+        self.assertNotEqual(row['sha256'], hashlib.sha256(self.bodies[MEMBER]).hexdigest())
+        # Keep physical/signed originals valid, and coherently rebind the
+        # retained request and consent scope so only the owner measure decides.
+        data['request_raw'] = oracle.encode(request).decode()
+        helper.edit_record(data, 'request_ref', lambda value: value.update(request))
+        context = json.loads(data['context_raw'])
+        consent = json.loads(data['originals'][context['consent_ref']['path']])
+        scope = json.loads(data['originals'][consent['scope_ref']['path']])
+        reference = scope['release_binding_ref']
+        raw = oracle.encode(request['release'])
+        data['originals'][reference['path']] = raw.decode()
+        helper.scope(data, lambda value: value.update(release_binding_ref=dict(
+            reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())))
+        error = self.owner_refusal('r01_other_refusal', data=data)
+        self.assertEqual(error.r01_reason, 'member_digest_mismatch')
+        self.assert_closed()

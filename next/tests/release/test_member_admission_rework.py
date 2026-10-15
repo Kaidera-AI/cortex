@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 from test_original_member_bridge import Fixture, MEMBER, NEXT
 from cortex_core.release.custody import RootReader
+from cortex_core.runtime.signed_member import Refusal
+from r01u3_support.workspace import renamed_directory_observation
 
 
 class DeliveryRework(Fixture, unittest.TestCase):
@@ -18,23 +20,33 @@ class DeliveryRework(Fixture, unittest.TestCase):
         old = self.root
         renamed = old.with_name('B'+old.name[1:])
         before = old.stat()
-        events = []
+        events = [];observed={};terminal=[]
+        check=RootReader._aggregate_inventory_finish
+        def final_check(reader):
+            if events:terminal.append("terminal check")
+            return check(reader)
         def current(context):
             if len(self.contexts) == 6:
                 old.rename(renamed)
-                names = {entry.name for entry in os.scandir(old.parent)}
-                self.assertNotIn(old.name, names)
-                self.assertIn(renamed.name, names)
-                self.assertEqual((old.stat().st_dev, old.stat().st_ino),
-                                 (before.st_dev, before.st_ino))
+                observed.update(renamed_directory_observation(old,renamed,before))
                 events.append('actual case-only rename after final delivery reload')
             return context
         self.current_hook = current
-        self.refusal('member_path_alias', lambda: delivery.read_original(262144))
+        try:
+            with patch.object(RootReader,'_aggregate_inventory_finish',final_check):
+                with self.assertRaises(Refusal) as caught:
+                    delivery.read_original(262144)
+            self.assertEqual(caught.exception.reason,observed['reason'])
+            self.assertEqual(terminal,['terminal check'])
+        finally:
+            if renamed.name in {entry.name for entry in os.scandir(old.parent)}:renamed.rename(old)
         self.assertEqual(len(events), 1)
         self.assertEqual(len(self.contexts), 6)
         self.assertEqual(self.transports, [self.aggregate]*2)
         self.assert_closed()
+        names={entry.name for entry in os.scandir(old.parent)}
+        self.assertIn(old.name,names,'BODY: restore the owned TemporaryDirectory spelling before cleanup')
+        self.assertNotIn(renamed.name,names)
 
     def test_U3C_CUST_02_deadline_crosses_last_delivery_fstat(self):
         import cortex_core.release.member_admission as api

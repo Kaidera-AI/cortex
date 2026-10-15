@@ -12,14 +12,16 @@ import os
 from pathlib import Path
 import stat
 import sys
+from r01u3_support.workspace import workspace_output
 import tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from test_original_member_bridge import Fixture
 
-MAIN=Path('/Users/amadmalik/DevVault/helix/output/kos/ren-kos-u3e-startup-fixtures-20261015')
 
+
+MAIN=workspace_output()
 
 class StartupFixture(Fixture):
     def boundary(self):
@@ -73,6 +75,17 @@ class StartupFixture(Fixture):
                      ('cortex_core',None,machinery.NamespaceLoader,(str(self.install/'src/cortex_core'),)),
                      ('cortex_core.release.member_admission',str(self.install/'src/cortex_core/release/member_admission.py'),machinery.SourceFileLoader,()),
                      ('cryptography',str(self.install/'deps/cryptography/__init__.py'),machinery.SourceFileLoader,(str(self.install/'deps/cryptography'),))))
+        # INERT source-custody simulation: keep the real inspector's checks
+        # inside this private fixture installation, independent of runner ancestry.
+        from cortex_core.release import inspector
+        if not hasattr(self,'_inert_original_reader'):
+            self._inert_original_reader=inspector._read_member
+        original=self._inert_original_reader;installation=self.install
+        def measured(root,row):
+            path=Path(root)/row['path']
+            relative=path.relative_to(installation)
+            return original(installation,dict(row,path=relative.as_posix()))
+        self.enterContext(patch.object(inspector,'_read_member',measured))
         return api
 
     def provider(self):
@@ -175,8 +188,9 @@ def measured(root_path,row):
   # SOURCE SIMULATION of the independent bootstrap's protected file custody.
   # Original bytes are held by the parent BEFORE launch. Do not assert that the
   # shared test-tool interpreter's real ancestors are a qualified installation.
-  copied=dict(row,path=str(Path(d['custody_root'])/row['path'])[1:])
-  return real_measure(Path('/'),copied)
+  # The protected-copy simulation is rooted at its actual private custody root.
+  # Developer/runner ancestors are outside that simulated installation.
+  return real_measure(Path(d['custody_root']),row)
  except Exception as e:
   measurement_errors.append({'path':row['path'],'reason':str(e)})
   raise
@@ -220,6 +234,14 @@ ob=a._startup_observation()
 result['unadmitted_intrinsics']=[name for name,origin,kind,locations in ob.modules if origin in ('built-in','frozen') and name not in frame.intrinsics]
 result['unadmitted_files']=[name for name,origin,kind,locations in ob.modules if isinstance(origin,str) and origin not in ('built-in','frozen') and origin not in {row[1] for row in frame.files}]
 result['no_spec_modules']=[name for name,origin,kind,locations in ob.modules if origin is None and not locations]
+result['modules']=[dict(name=name,origin=origin,loader=kind.__module__+'.'+kind.__qualname__,locations=locations) for name,origin,kind,locations in ob.modules]
+result['originals']=frame.files
+result['module_aliases']=[dict(name=name,object_id=id(value),held_identity=sys.modules.get(name) is value,owner=owner) for name,value,owner in frame.module_aliases]
+result['provider']={'version':__import__('cryptography').__version__,'origin':__import__('cryptography').__file__}
+result['runtime_roots']=dict(executable=d['executable'],entrypoint=d['entrypoint'],roots=d['roots'],cache=d['cache'])
+result['file_table_sha256']=sha256(canonical_bytes(d['files']))
+result['file_table_bytes']=sum(row[2] for row in frame.files)
+result['ancestor_metadata']=[dict(path=str(path),dev=path.stat().st_dev,inode=path.stat().st_ino,mode=path.stat().st_mode,uid=path.stat().st_uid) for path in (Path(d['cache']),*Path(d['cache']).parents)]
 print(json.dumps(result))
 ''')
     paths={}
@@ -232,7 +254,7 @@ print(json.dumps(result))
         for name in files:
             path=Path(base)/name
             if path.suffix in {'.py','.so','.dylib','.dll'}:add(path,'loader' if path.suffix!='.py' else 'stdlib')
-    admitted=('jsonschema','jsonschema_specifications','attrs','attr','referencing','rpds','cryptography','cffi','pycparser','typing_extensions','_cffi_backend','asyncpg')
+    admitted=('jsonschema','jsonschema_specifications','attrs','attr','referencing','rpds','cryptography','cffi','pycparser','typing_extensions','_cffi_backend','asyncpg','idna')
     for child in site.iterdir():
         if not any(child.name==name or child.name.startswith(name+'-') or child.name.startswith(name+'.') for name in admitted):continue
         if child.is_file():add(child,'loader' if child.suffix=='.so' else 'source');continue
@@ -243,6 +265,8 @@ print(json.dumps(result))
                 add(path,'crypto' if child.name=='cryptography' else ('loader' if path.suffix in {'.so','.dylib','.dll'} else 'data' if path.suffix!='.py' else 'source'))
     for path in source_root.rglob('*.py'):add(path,'source')
     for path in (next_root/'contracts').rglob('*.json'):add(path,'data')
+    if fault=='omit-idna':
+        paths={name:role for name,role in paths.items() if not Path(name).is_relative_to(site/'idna')}
     # The packet transports TEST owner DATA; it is not an admitted code subject
     # and cannot circularly hash its own file table. Policy/originals are pinned
     # independently in B and the fixed launcher fixture; no production grant.
@@ -255,7 +279,10 @@ print(json.dumps(result))
         held.parent.mkdir(mode=0o700,parents=True,exist_ok=True);held.write_bytes(raw_file);held.chmod(mode)
         rows.append((role,filename,len(raw_file),hashlib.sha256(raw_file).hexdigest(),mode))
     data['files']=rows;packet.write_text(json.dumps(data))
+    if fault=='copied-parent':
+        (home/'held-originals'/rows[0][1][1:]).parent.chmod(0o770)
     run=subprocess.run([str(executable),'-I','-S','-B','-X','pycache_prefix='+str(cache),str(entry)],env={},capture_output=True,text=True,timeout=180)
     fixture.assertEqual(run.returncode,0,run.stdout+run.stderr)
     result=json.loads(run.stdout);result['expected_original']=base64.b64encode(body).decode();result['independent_file_count']=len(rows)
+    print('U3_STARTUP_DIAGNOSTIC '+json.dumps({key:value for key,value in result.items() if key not in {'raw','expected_original'}},sort_keys=True))
     return result

@@ -318,7 +318,7 @@ def inventory(root, manifest, base_manifest=None):
     for path in (root / 'next').rglob('*'):
         if path.is_symlink():
             invalid.append('symlink under next inventory: ' + str(path.relative_to(root)))
-    if not isinstance(manifest, dict) or not {'run','excluded'}<=set(manifest) or not set(manifest)<= {'run','excluded','retirements','method_exclusions','retirement_checks'}:
+    if not isinstance(manifest, dict) or not {'run','excluded'}<=set(manifest) or not set(manifest)<= {'run','excluded','retirements','method_exclusions','retirement_checks','partitions'}:
         invalid.append('manifest must contain run/excluded and optional retirement source bindings')
         manifest = manifest if isinstance(manifest, dict) else {}
     for key in ('run', 'excluded'):
@@ -405,11 +405,17 @@ def inventory(root, manifest, base_manifest=None):
         except (ValueError,OSError,KeyError,TypeError) as error:
             invalid.append(str(error) if isinstance(error,ValueError) else 'coverage: malformed source evidence')
     oracle = 'next/docs/runtime/rc0/test_oracle.py'
+    partitions = manifest.get('partitions', {})
+    if (not isinstance(partitions, dict) or any(path not in run or type(count) is not int
+            or not 2 <= count <= 16 for path, count in partitions.items())
+            or isinstance(partitions, dict) and any(row['nodeid'].split('::')[0] in partitions
+                for row in [*retired, *method_exclusions])):
+        invalid.append('execution partitions require ordinary admitted RUN suites and counts 2..16')
     return dict(ok=not (invalid or duplicates or missing or stale), found=found,
                 run=run, excluded=excluded, missing=missing, stale=stale,
                 duplicates=duplicates, invalid=invalid, rc0_oracle_present=oracle in found,
                 retired=retired, replacement_nodes=replacements,transitions=transitions,
-                method_exclusions=method_exclusions,retirement_checks=checks)
+                method_exclusions=method_exclusions,retirement_checks=checks,partitions=partitions)
 
 
 def declaration_observations(packet, excluded):
@@ -512,6 +518,66 @@ def write(path, packet):
     path.write_text(json.dumps(packet, indent=2) + '\n')
 
 
+def merge_partitions(packets, codes, count):
+    """Accept only the exact disjoint cover of every worker's complete collection."""
+    try:
+        if len(packets) != count or len(codes) != count or not 2 <= count <= 16:
+            return None
+        first = packets[0]
+        full = first['full_collected']
+        if not full or len(full) != len(set(full)) or len(full) < count:
+            return None
+        for index, (packet, code) in enumerate(zip(packets, codes)):
+            if (not receipt_valid(packet, code) or packet.get('retired') or packet.get('excluded_methods')
+                    or packet['partition'] != dict(index=index, count=count)
+                    or packet['full_collected'] != full
+                    or any(packet[key] != first[key] for key in ('suite','source_sha256','python','uid'))
+                    or packet['collected'] != full[index::count]
+                    or packet['expected'] != full[index::count]
+                    or packet['selected'] != full[index::count]):
+                return None
+        combined = {**first, 'expected':full, 'selected':full, 'collected':full,
+                    'reports':[row for packet in packets for row in packet['reports']],
+                    'bridge_stages':[row for packet in packets for row in packet.get('bridge_stages',[])]}
+        combined.pop('partition')
+        combined.pop('full_collected')
+        return combined if receipt_valid(combined, 0) else None
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def execute_partitioned(command, count, destination, root, environment):
+    packets, codes, logs, records = [], [], [], []
+    for index in range(count):
+        name = destination.stem + '-part-' + str(index)
+        part = destination.with_name(name + '.json')
+        args = list(command)
+        args[args.index('--output') + 1] = str(part)
+        temporary = Path(args[args.index('--temporary') + 1])
+        args[args.index('--temporary') + 1] = str(temporary.with_name(name))
+        args += ['--partition-index', str(index), '--partition-count', str(count)]
+        started = time.monotonic()
+        try:
+            process = subprocess.run(args, cwd=root, env=environment, capture_output=True, text=True, timeout=180)
+            code, log = process.returncode, process.stdout + process.stderr
+        except subprocess.TimeoutExpired as error:
+            code, log = 124, 'SUITE_TIMEOUT\n' + str(error.stdout) + str(error.stderr)
+        destination.with_name(name + '.txt').write_text(log)
+        try:
+            packet = json.loads(part.read_text())
+        except (OSError, ValueError):
+            packet = None
+        packets.append(packet);codes.append(code);logs.append(log)
+        records.append(dict(index=index, receipt=part.name, log=name+'.txt', process_exit=code,
+                            elapsed_seconds=round(time.monotonic()-started,3)))
+    combined = merge_partitions(packets, codes, count)
+    if combined is not None:
+        combined['partition_runs'] = records
+        write(destination, combined)
+    # A partial execution never gets an aggregate successful receipt or PASS credit.
+    return (0 if combined is not None else 1), '\n'.join(logs), records
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -598,10 +664,15 @@ def main():
             if args.force_skip and index == 0:
                 command.append('--force-skip')
             started = time.monotonic()
+            partition_runs = []
             try:
-                process = subprocess.run(command, cwd=ROOT, env=environment,
-                                         capture_output=True, text=True, timeout=180)
-                code, log = process.returncode, process.stdout + process.stderr
+                if suite in checked['partitions']:
+                    code, log, partition_runs = execute_partitioned(command, checked['partitions'][suite],
+                        destination, ROOT, environment)
+                else:
+                    process = subprocess.run(command, cwd=ROOT, env=environment,
+                                             capture_output=True, text=True, timeout=180)
+                    code, log = process.returncode, process.stdout + process.stderr
             except subprocess.TimeoutExpired as error:
                 code, log = 124, 'SUITE_TIMEOUT\n' + str(error.stdout) + str(error.stderr)
             (args.output / (name + '.txt')).write_text(log)
@@ -615,6 +686,7 @@ def main():
                   and outcome.get('suite') == suite and outcome.get('source_sha256') == source_sha
                   and all(node.startswith(suite + '::') for node in outcome['selected']))
             row = dict(suite=suite, source_sha256=source_sha, source_unchanged=source_unchanged,
+                       partition_runs=partition_runs,
                        process_exit=code, receipt=name + '.json', log=name + '.txt',
                        elapsed_seconds=round(time.monotonic() - started, 3), ok=ok,
                        selected=len(outcome.get('selected', [])) if outcome else 0,
