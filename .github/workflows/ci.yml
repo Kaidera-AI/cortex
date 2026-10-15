@@ -107,7 +107,7 @@ jobs:
       - name: locked API and test dependencies
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r packages/api/requirements.lock
-          python -m pip install --only-binary=:all: pytest==8.4.2 pytest-asyncio==1.2.0
+          python -m pip install --only-binary=:all: --require-hashes -r next/requirements-ci-test.lock
       - name: complete P1 install and strict E2 tuple oracles
         env:
           PYTHONPATH: next/src:next/tests/runtime:next/tests/install:next/tests:.github/scripts
