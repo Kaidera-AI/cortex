@@ -414,6 +414,13 @@ def validate_case(case):
             _timeout(case)
         elif kind == 'search_state':
             _search(case)
+        elif kind == 'keyword_search_v1':
+            from cortex_core.api.c11a import KeywordResponse
+            _need(set(case)=={'id','kind','status','body'}
+                  and type(case['status']) is int and isinstance(case['body'],dict),
+                  'keyword_case_malformed')
+            _need(KeywordResponse(case['body']).transport_status()==case['status'],
+                  'keyword_transport_mismatch')
         elif kind == 'route_exchange':
             _route_exchange(case)
         else:

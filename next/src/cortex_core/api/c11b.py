@@ -5,6 +5,8 @@ from datetime import datetime
 import hashlib
 import json
 import re
+import time
+from types import SimpleNamespace
 from uuid import UUID, NAMESPACE_URL, uuid5
 
 from cortex_core.auth import AuthError, authorized
@@ -294,3 +296,52 @@ class C11bRecordPort:
 
     async def read_record(self, principal, scope, record_id):
         return await asyncio.to_thread(self._read_record, principal, scope, record_id)
+
+    def _keyword_current(self, principal, scope, limit, deadline, target=None):
+        """Existing C04 read transaction; never filter away unsupported kinds."""
+        from cortex_core.embeddings.pg_search import CapabilityUnavailable
+        if type(limit) is not int or not 1<=limit<=101:
+            raise RecordError('invalid_input')
+        def remaining():
+            value=deadline-time.monotonic()
+            if value<=0:raise CapabilityUnavailable('request_timeout')
+            return max(1,int(value*1000))
+        remaining()
+        project=self._project(scope)
+        with self.connection_factory() as db:
+            remaining()
+            with authorized(db,_credential(scope),self.installation_id,project,'read') as identity:
+                if (str(identity.principal_id)!=str(principal['principal_id'])
+                        or str(identity.tenant_id)!=str(principal['tenant_id'])
+                        or str(identity.project_id)!=str(principal['project_id'])
+                        or str(identity.permission_generation)!=str(principal['permission_generation'])):
+                    raise AuthError('forbidden')
+                db.execute("SELECT set_config('statement_timeout',%s,true)",(str(remaining())+'ms',))
+                rows=db.execute('''SELECT r.id,r.kind,r.current_revision,p.body,r.tombstone
+                    FROM core.records r JOIN core.record_revisions v
+                    ON (v.tenant_id,v.project_id,v.record_id,v.revision)=
+                       (r.tenant_id,r.project_id,r.id,r.current_revision)
+                    JOIN core.payloads p ON (p.tenant_id,p.project_id,p.id)=
+                       (v.tenant_id,v.project_id,v.payload_ref)
+                    WHERE r.tenant_id=%s AND r.project_id=%s AND (NOT r.tombstone OR %s::uuid IS NOT NULL)
+                      AND (%s::uuid IS NULL OR r.id=%s::uuid)
+                    ORDER BY r.id LIMIT %s''',(identity.tenant_id,identity.project_id,target,target,target,limit)).fetchall()
+                remaining()
+                values=tuple(SimpleNamespace(record_id=str(r[0]),kind=r[1],
+                    source_revision=r[2],payload=bytes(r[3]),tombstone=r[4]) for r in rows)
+        remaining()
+        return values
+
+    async def keyword_current(self, principal, scope, *, limit, deadline):
+        return await asyncio.to_thread(self._keyword_current,principal,scope,limit,deadline)
+
+    def _keyword_target(self, principal, scope, target, deadline):
+        rows=self._keyword_current(principal,scope,1,deadline,target['record_id'])
+        return (SimpleNamespace(revision=rows[0].source_revision,tombstone=rows[0].tombstone)
+                if rows else None)
+
+    async def keyword_target(self, principal, scope, target, *, deadline):
+        await self._current_read(principal,scope)
+        value=await asyncio.to_thread(self._keyword_target,principal,scope,target,deadline)
+        await self._current_read(principal,scope)
+        return value

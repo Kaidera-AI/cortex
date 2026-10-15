@@ -1,0 +1,728 @@
+{
+  "run": [
+    "next/docs/runtime/rc0/test_oracle.py",
+    "next/tests/artifact/test_c03_receipts.py",
+    "next/tests/artifact/test_legacy_map.py",
+    "next/tests/auth/test_auth_mutation_receipts.py",
+    "next/tests/benchmarks/test_b01_product_path.py",
+    "next/tests/benchmarks/test_b02_geometry.py",
+    "next/tests/benchmarks/test_b02_load.py",
+    "next/tests/benchmarks/test_b02_offer_accounting.py",
+    "next/tests/benchmarks/test_b02_offer_positions.py",
+    "next/tests/benchmarks/test_b02_prerequisites.py",
+    "next/tests/benchmarks/test_b02_qdrant.py",
+    "next/tests/benchmarks/test_b02_report.py",
+    "next/tests/benchmarks/test_b02_review_rework.py",
+    "next/tests/benchmarks/test_b02_status_inventory.py",
+    "next/tests/benchmarks/test_postgres_cleanup.py",
+    "next/tests/benchmarks/test_postgres_collision_guard.py",
+    "next/tests/benchmarks/test_postgres_lifecycle.py",
+    "next/tests/benchmarks/test_postgres_lock.py",
+    "next/tests/benchmarks/test_sanitized_row_shape.py",
+    "next/tests/benchmarks/test_vector_baseline.py",
+    "next/tests/benchmarks/test_vector_baseline_failures.py",
+    "next/tests/c11_availability/test_controls.py",
+    "next/tests/c11_availability/test_deadline_cleanup.py",
+    "next/tests/c11_availability/test_privacy.py",
+    "next/tests/c11_availability/test_probe_bound.py",
+    "next/tests/c11_availability/test_shutdown.py",
+    "next/tests/c11a/test_auth_precedence.py",
+    "next/tests/c11a/test_dispatch.py",
+    "next/tests/c11a/test_gateway.py",
+    "next/tests/c11a/test_run_pg.py",
+    "next/tests/c11b2/test_credential.py",
+    "next/tests/contract/test_contracts.py",
+    "next/tests/contract/test_openkai_consumer.py",
+    "next/tests/contract/test_receipt_shape.py",
+    "next/tests/contract/test_review_regressions.py",
+    "next/tests/contract/test_rfc3339.py",
+    "next/tests/contract/test_runner_phases.py",
+    "next/tests/contract/test_schema_index.py",
+    "next/tests/core_upgrade/test_coordinator.py",
+    "next/tests/core_upgrade/test_journal.py",
+    "next/tests/core_upgrade/test_operation_race.py",
+    "next/tests/core_upgrade_head/test_current_coordinator_bridge.py",
+    "next/tests/deployment/test_cortex_prerequisite_v3_contract.py",
+    "next/tests/driver_privacy/test_driver_logs.py",
+    "next/tests/identity_receipts/test_identity_receipts.py",
+    "next/tests/install/test_contracts.py",
+    "next/tests/install/test_planner.py",
+    "next/tests/install/test_read_meter.py",
+    "next/tests/install/test_trust_repair.py",
+    "next/tests/install/test_tuple_revision.py",
+    "next/tests/integration/test_cli_status.py",
+    "next/tests/integration/test_conductor_tools.py",
+    "next/tests/integration/test_dependency_timeout.py",
+    "next/tests/integration/test_health_metrics.py",
+    "next/tests/integration/test_pg_search_tools.py",
+    "next/tests/integration/test_query_cache_float32_roundtrip.py",
+    "next/tests/integration/test_query_cache_tools.py",
+    "next/tests/outbox_caller/test_outbox_caller.py",
+    "next/tests/outbox_inventory/test_outbox_inventory.py",
+    "next/tests/outbox_inventory/test_outbox_manifest.py",
+    "next/tests/outbox_inventory/test_reflected_writers.py",
+    "next/tests/outbox_inventory/test_reflection_aliases.py",
+    "next/tests/outbox_inventory/test_reflection_name_aliases.py",
+    "next/tests/outbox_inventory/test_source_recognition.py",
+    "next/tests/receipt/test_async_fixture_reuse.py",
+    "next/tests/receipt/test_c09_qdrant.py",
+    "next/tests/receipt/test_classifier.py",
+    "next/tests/receipt/test_fixture_subtests.py",
+    "next/tests/receipt/test_shared_location.py",
+    "next/tests/recovery_fixture/test_fixture.py",
+    "next/tests/release/adoption_controls/test_root_admission_identity.py",
+    "next/tests/release/adoption_controls/test_root_artifact_semantics.py",
+    "next/tests/release/test_build_contract_roundtrip.py",
+    "next/tests/release/test_build_input.py",
+    "next/tests/release/test_build_receipt.py",
+    "next/tests/release/test_cli_guards.py",
+    "next/tests/release/test_deciding_controls.py",
+    "next/tests/release/test_functional_whiteout_cmd.py",
+    "next/tests/release/test_functional_whiteout_cmd_extra.py",
+    "next/tests/release/test_input_guards.py",
+    "next/tests/release/test_inspection_boundary.py",
+    "next/tests/release/test_inspector_plan_gate.py",
+    "next/tests/release/test_inspector_trust003.py",
+    "next/tests/release/test_native_hash_companion.py",
+    "next/tests/release/test_native_layer_matrix.py",
+    "next/tests/release/test_native_matrix_guard_companions.py",
+    "next/tests/release/test_native_matrix_guard_companions_v2.py",
+    "next/tests/release/test_native_matrix_helper_protocol.py",
+    "next/tests/release/test_native_matrix_helper_protocol_v2.py",
+    "next/tests/release/test_native_policy_unit2_red.py",
+    "next/tests/release/test_native_policy_unit2_trust_cli_red.py",
+    "next/tests/release/test_native_policy_unit2_trust_red.py",
+    "next/tests/release/test_native_runtime_matrix.py",
+    "next/tests/release/test_semantic_oracle.py",
+    "next/tests/release/test_unit1_red.py",
+    "next/tests/reproducibility/test_attempt_lessons.py",
+    "next/tests/reproducibility/test_bytecode_positive.py",
+    "next/tests/reproducibility/test_engine_controls.py",
+    "next/tests/reproducibility/test_guard_mutations.py",
+    "next/tests/reproducibility/test_layer_audit.py",
+    "next/tests/reproducibility/test_lifecycle.py",
+    "next/tests/reproducibility/test_native_emission_boundary.py",
+    "next/tests/reproducibility/test_oci_export.py",
+    "next/tests/reproducibility/test_product_cli.py",
+    "next/tests/reproducibility/test_profile_prepare_cli.py",
+    "next/tests/reproducibility/test_profile_v1_consumer.py",
+    "next/tests/reproducibility/test_python_startup.py",
+    "next/tests/reproducibility/test_shared_input_consumer.py",
+    "next/tests/reproducibility/test_shared_receipt_consumer.py",
+    "next/tests/reproducibility/test_shared_receipt_consumer_v2.py",
+    "next/tests/reproducibility/test_source_envelope_shapes.py",
+    "next/tests/reproducibility/test_source_envelopes.py",
+    "next/tests/runtime/test_admission.py",
+    "next/tests/runtime_driver_free/test_imports.py",
+    "next/tests/runtime_egress/test_e0.py",
+    "next/tests/runtime_egress/test_e0_cache_fence.py",
+    "next/tests/runtime_egress/test_e0_expiry.py",
+    "next/tests/runtime_egress/test_e0_join.py",
+    "next/tests/runtime_factory/test_factory.py",
+    "next/tests/runtime_identity/test_reader_identity.py",
+    "next/tests/runtime_keyword/test_consumer.py",
+    "next/tests/runtime_keyword/test_core.py",
+    "next/tests/runtime_keyword/test_core_port.py",
+    "next/tests/runtime_keyword/test_deadline_review.py",
+    "next/tests/runtime_keyword/test_gateway.py",
+    "next/tests/runtime_keyword/test_guard_edges.py",
+    "next/tests/runtime_keyword/test_selection.py",
+    "next/tests/runtime_keyword/test_wire.py",
+    "next/tests/schema/test_causal_mutations.py",
+    "next/tests/schema/test_mutation_receipts.py"
+  ],
+  "excluded": [
+    {
+      "path": "next/tests/acceptance_guards/test_acceptance_guards.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/auth/test_authorization.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/auth/test_context_guards.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/auth/test_private_binding.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/auth/test_transaction_binding.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/auth_identity/test_identity.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/auth_identity_guards/test_identity_guards.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/backup_producer/test_manifest.py",
+      "reason": "Needs native age and age-keygen encryption/decryption with fixture keys."
+    },
+    {
+      "path": "next/tests/backup_validation/test_validation.py",
+      "reason": "Needs native age and age-keygen encryption/decryption with fixture keys."
+    },
+    {
+      "path": "next/tests/c05_private/test_c05_private.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c05_review/test_c05_review.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11_availability/test_outage.py",
+      "reason": "Requires the real PostgreSQL interruption fixture through unconditional Core fixture setup.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "ed6338b81d137c7b2d536fb060dcec83566d92565239f13d6a8d34124d6e615c",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "path": "next/tests/c11_ids_scale/test_all_ids.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b/test_d1_generic_record.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b/test_memory_api.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_d2_wait.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_d3_status.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_d4_complete.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_first_capture.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_first_identity_port.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_graph_job_read.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_health_readiness.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_read_api.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_session_api.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11b2/test_session_ids_read.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/coordination/test_coordination.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/core_adapters/test_core_adapters.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/core_upgrade/test_migration_steps.py",
+      "reason": "Needs real PostgreSQL; covered by the unchanged U13 PG CI step (PR155)."
+    },
+    {
+      "path": "next/tests/core_upgrade/test_rehearsal.py",
+      "reason": "Needs real PostgreSQL; covered by the unchanged U13 PG CI step (PR155)."
+    },
+    {
+      "path": "next/tests/core_upgrade/test_signed_pair.py",
+      "reason": "Needs native minisign with generated fixture signing keys; no signing executable in the offline job."
+    },
+    {
+      "path": "next/tests/core_upgrade_head/test_migration_head.py",
+      "reason": "Needs real PostgreSQL; covered by the unchanged U13 PG CI step (PR155)."
+    },
+    {
+      "path": "next/tests/core_upgrade_signed/test_signed_admission.py",
+      "reason": "Needs native minisign with generated fixture signing keys; no signing executable in the offline job."
+    },
+    {
+      "path": "next/tests/identity_binding/test_identity_binding.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/identity_coordination/test_identity_coordination.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/identity_policy_faults/test_identity_policy_faults.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/identity_portability/test_identity_portability.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/identity_transition/test_identity_transition.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_c11a_pg.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_conductor.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_conductor_isolation.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_pg_graph.py",
+      "reason": "Needs real PostgreSQL through SEARCH_TEST_DSN and the asyncpg graph fixture."
+    },
+    {
+      "path": "next/tests/integration/test_pg_search.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_pg_search_kind_filter.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_pg_search_kind_filter_hnsw.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_pg_search_review.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_query_cache.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/integration/test_query_cache_float32_roundtrip_pg.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_apply_checkpoint.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_durable_continuation.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_graph_codec.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_manifest.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_poison.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_retention.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_review_incomplete_receipt.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_review_pagination.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_review_repairs.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/module_consumer/test_scoped_exhaustion.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox/test_outbox.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox_guards/test_outbox_guards.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox_late_publication/test_late_publication.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox_private_namespace/test_outbox_private_namespace.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox_retention/test_outbox_retention.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox_retention/test_project_retention.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/outbox_write_only/test_outbox_write_only.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/projection_revision/test_projection_revision.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/records/test_records.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/schema/test_integrity.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/schema/test_schema.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/schema/test_semantic_probes.py",
+      "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/test_receipts.py",
+      "reason": "Receipt-runner helper library and CLI; defines no pytest tests (consumer tests run elsewhere in this manifest)."
+    },
+    {
+      "path": "next/tests/release/test_aggregate_assembly.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_aggregate_contract.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_aggregate_custody_rework.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_aggregate_members.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_aggregate_replay.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_ed25519_provider.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_ed25519_strict_encoding.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_attestation_shape.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_current_alignment.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_current_companions.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_trust.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_trust_bounds.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_trust_companions.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_trust_guard_order.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_manifest_trust_policy_guards.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_member_admission_rework.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_oracle_plan_corrections.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_original_member_bridge.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_owner_amendments.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_verifier_boundary.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    },
+    {
+      "path": "next/tests/release/test_verifier_boundary_aliases.py",
+      "reason": "U3 Linux portability open; owner ren-kos"
+    }
+  ],
+  "retirements": [
+    {
+      "record": "next/tests/release/run_active.py",
+      "sha256": "2859c48bd4adba8aa2e0e9b0b42d3fb004efcb1f20439e436cfe587965ee5ea4",
+      "files": {
+        "next/tests/release/test_native_matrix_helper_protocol.py": "8715f1890361f72bd548158d2bac893ea45a22b198ccd27df8bbe7829eebefbd",
+        "next/tests/release/test_native_matrix_helper_protocol_v2.py": "a6236cc2c2a50cf95131f0fb1aa0c5ba630dbc1aa5da7c4eba2173e7fe218f4e"
+      }
+    },
+    {
+      "record": "next/tests/reproducibility/run_active.py",
+      "sha256": "91b02aff8ebf42db7003045f8cba7d00c569c6e8816079e41d04e75c39689d53",
+      "files": {
+        "next/tests/reproducibility/test_shared_receipt_consumer.py": "5be94a8052aa80b0468ae30376b794fbfcb9416bcf76f08f2483912438ef91c4",
+        "next/tests/reproducibility/test_shared_receipt_consumer_v2.py": "f024e142228dd6bdbb8a669f7dba951d0b0cb75f7f202714d158c048613c3509"
+      }
+    }
+  ],
+  "retirement_checks": [
+    {
+      "original": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol.py::HelperProtocol::test_real_cli_unsupported_profile_reason_is_not_json_decode",
+        "assertion": "self.assertRaisesRegex(ValueError, '^invalid_release_policy$')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol_v2.py::HelperProtocolV2::test_verified_real_decision_file_transport",
+        "assertion": "self.assertFalse(result['native_qualified'])"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/cli/release.py",
+        "sha256": "4451122c54c8ffd55ab0346d2b4ae9229885b67d54af71f5b22429f42059c2fe",
+        "before": "'native_qualified': verified.native_qualified",
+        "after": "'native_qualified': True"
+      }
+    },
+    {
+      "original": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol.py::HelperProtocol::test_real_cli_unsupported_profile_reason_is_not_json_decode",
+        "assertion": "self.assertRaisesRegex(ValueError, '^invalid_release_policy$')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/release/test_native_matrix_helper_protocol_v2.py::HelperProtocolV2::test_refused_real_decision_file_transport",
+        "assertion": "self.assertRaisesRegex(ValueError, '^accepted_source_origin$')"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/release/artifacts.py",
+        "sha256": "a1051d31f802e5b0567f91aa473ba6f7943744d5d177a955069fe8391b0ecc21",
+        "before": "require(origin in accepted_inputs and accepted_inputs[origin] == body, 'accepted_source_origin')",
+        "after": "pass"
+      }
+    },
+    {
+      "original": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer.py::DecidingSharedGuards::test_rehashed_external_layer_is_rejected_at_oci_inventory_body",
+        "assertion": "self.assertRaisesRegex(ValueError, 'oci_inventory_body')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer_v2.py::LayerTransportV2::test_rehashed_external_layer_refuses_at_owner_inventory_body",
+        "assertion": "self.assertRaisesRegex(ValueError, '^oci_inventory_body$')"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/release/artifacts.py",
+        "sha256": "a1051d31f802e5b0567f91aa473ba6f7943744d5d177a955069fe8391b0ecc21",
+        "before": "require(record['media_type'] == media and output_bytes[record['path']] == body, 'oci_inventory_body')",
+        "after": "pass"
+      }
+    },
+    {
+      "original": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer.py::DecidingSharedGuards::test_changed_actual_argv_is_rejected_at_raw_operation_evidence",
+        "assertion": "self.assertRaisesRegex(ValueError, 'operation_raw_evidence')"
+      },
+      "replacement": {
+        "nodeid": "next/tests/reproducibility/test_shared_receipt_consumer_v2.py::OperationBoundaryV2::test_wrong_argv_refuses_before_affected_operation_record_decode",
+        "assertion": "self.assertRaisesRegex(ValueError, '^operation_recipe_argv$')"
+      },
+      "mutation": {
+        "path": "next/src/cortex_core/release/receipts.py",
+        "sha256": "9b2adb6ad0a4c40a81078cdd4f8c4762910444d775079efef4b16d9fc92a0ad5",
+        "before": "require(op['argv'] == input_value['recipe']['argv_template'], 'operation_recipe_argv')",
+        "after": "pass"
+      }
+    }
+  ],
+  "method_exclusions": [
+    {
+      "nodeid": "next/tests/benchmarks/test_postgres_cleanup.py::NativeCreateFailureTests::test_actual_created_effects_removed_after_six_lost_acknowledgements",
+      "reason": "Explicit disposable Podman/real PostgreSQL fixture requires B01_PODMAN=1.",
+      "evidence": {
+        "kind": "gated_env",
+        "source": "next/tests/benchmarks/test_postgres_cleanup.py",
+        "sha256": "dface32cba63644ae0c6d3bd00ca4a2ed4cb0156fc82b92a33ba11cad2d2d4dd",
+        "symbol": "NativeCreateFailureTests",
+        "keys": [
+          "B01_PODMAN"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/benchmarks/test_vector_baseline.py::PostgresIntegrationTests::test_actual_hnsw_filters_ties_and_cleanup",
+      "reason": "Explicit disposable Podman/real PostgreSQL fixture requires B01_PODMAN=1.",
+      "evidence": {
+        "kind": "gated_env",
+        "source": "next/tests/benchmarks/test_vector_baseline.py",
+        "sha256": "08b5f650cb31c72af4f00eeb3187aa4d0b70262785722bca35baf48752450790",
+        "symbol": "PostgresIntegrationTests",
+        "keys": [
+          "B01_PODMAN"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/artifact/test_legacy_map.py::LegacyMap::test_actual_map_matches_pinned_source",
+      "reason": "Requires two external original legacy capture paths.",
+      "evidence": {
+        "kind": "external_artifact",
+        "source": "next/tests/artifact/test_legacy_map.py",
+        "sha256": "f6f9373f074be991a692bb20315fca24cc79779eede5f743d18b030b482ad5fd",
+        "symbol": "LegacyMap.test_actual_map_matches_pinned_source",
+        "keys": [
+          "LEGACY_SCHEMA_SOURCE",
+          "LEGACY_MAP_DIRECTORY"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_controls.py::IsolatedRoleTests::test_real_healthy_probe_has_no_request_membership_or_tenant_access",
+      "reason": "Requires a real PostgreSQL probe fixture.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "ed6338b81d137c7b2d536fb060dcec83566d92565239f13d6a8d34124d6e615c",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_deadline_cleanup.py::SubsecondAndCloseTests::test_real_factory_connects_with_subsecond_budget",
+      "reason": "Requires a real PostgreSQL probe fixture.",
+      "evidence": {
+        "kind": "postgres_probe_fixture",
+        "source": "next/tests/c11_availability/test_deadline_cleanup.py",
+        "sha256": "4d9817ade1c1ff572bc029ff553afd236e4b80371a3defb72a4f1e4151228ffe",
+        "symbol": "SubsecondAndCloseTests.test_real_factory_connects_with_subsecond_budget",
+        "keys": [
+          "TEST_PROBE_DATABASE_URL"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_probe_bound.py::ProbeBoundTests::test_real_pg_factory_enforces_connect_and_statement_deadlines",
+      "reason": "Requires a real PostgreSQL probe fixture.",
+      "evidence": {
+        "kind": "postgres_probe_fixture",
+        "source": "next/tests/c11_availability/test_probe_bound.py",
+        "sha256": "863b5bf70c63fa9f7db8402de0b792f7cdd28e9af56c87da4107dd721eb2af39",
+        "symbol": "ProbeBoundTests.test_real_pg_factory_enforces_connect_and_statement_deadlines",
+        "keys": [
+          "TEST_PROBE_DATABASE_URL"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_deadline_cleanup.py::SubsecondAndCloseTests::test_psycopg_stalled_handshake_closes_after_probe_deadline",
+      "reason": "Requires an IPv4 loopback server; this offline job denies IP socket creation.",
+      "evidence": {
+        "kind": "loopback_fixture",
+        "source": "next/tests/c11_availability/test_deadline_cleanup.py",
+        "sha256": "4d9817ade1c1ff572bc029ff553afd236e4b80371a3defb72a4f1e4151228ffe",
+        "symbol": "SubsecondAndCloseTests.test_psycopg_stalled_handshake_closes_after_probe_deadline"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ExistingReadOracle::test_cache_surface_accepts_absolute_not_reset_deadline",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ExistingReadOracle.test_cache_surface_accepts_absolute_not_reset_deadline"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ExistingReadOracle::test_runtime_passes_one_absolute_deadline_to_cache",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ExistingReadOracle.test_runtime_passes_one_absolute_deadline_to_cache"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ProviderOracle::test_redirect_cannot_leave_the_one_origin_even_with_permissive_client",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ProviderOracle.test_redirect_cannot_leave_the_one_origin_even_with_permissive_client"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0.py::ProviderOracle::test_unadmitted_model_refuses_before_key_or_http",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0.py",
+        "sha256": "89a79dd85f022bcafb36df96ffd32974bcd929a0597630289397d6814f2f4333",
+        "symbol": "ProviderOracle.test_unadmitted_model_refuses_before_key_or_http"
+      }
+    },
+    {
+      "nodeid": "next/tests/runtime_egress/test_e0_cache_fence.py::CachePublicationOracle::test_off_blocks_late_cache_publication_and_release_work",
+      "reason": "E1 not built; waits RC3b; owner nemo",
+      "evidence": {
+        "kind": "unbuilt_unit",
+        "source": "next/tests/runtime_egress/test_e0_cache_fence.py",
+        "sha256": "596252687e923f18bac96eac3b5f5609befd7c5a03627fa54d74ebd50cb86eaf",
+        "symbol": "CachePublicationOracle.test_off_blocks_late_cache_publication_and_release_work"
+      }
+    }
+  ]
+}

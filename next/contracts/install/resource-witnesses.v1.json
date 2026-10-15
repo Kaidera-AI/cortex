@@ -1,0 +1,6 @@
+{
+  "schema": "kaidera.install-resource-policy.v1",
+  "format_version": 1,
+  "target_policy_ref": null,
+  "entries": []
+}

@@ -1,0 +1,431 @@
+{
+  "schema": "cortex.runtime-operations.v1",
+  "format_version": 1,
+  "contract_state": "author-freeze-awaiting-kai-review",
+  "authority": "sole-r01-original-signed-member-plus-owner-effect-port",
+  "operation_vectors": {
+    "api": {
+      "argv": [
+        "/opt/cortex/python/bin/python3",
+        "-I",
+        "-B",
+        "-m",
+        "cortex_core.runtime",
+        "api",
+        "--config",
+        "/run/cortex/instance.json",
+        "--runtime-lock",
+        "/run/cortex/runtime.lock.json"
+      ],
+      "caller": "owned-api-workload",
+      "effect": "foreground-api-and-private-telemetry",
+      "mode": "api"
+    },
+    "supervisor": {
+      "argv": [
+        "/opt/cortex/python/bin/python3",
+        "-I",
+        "-B",
+        "-m",
+        "cortex_core.runtime",
+        "supervisor",
+        "--config",
+        "/run/cortex/supervisor.json",
+        "--runtime-lock",
+        "/run/cortex/runtime.lock.json"
+      ],
+      "caller": "owned-conductor-workload",
+      "effect": "foreground-pg-only-lease",
+      "mode": "supervisor"
+    },
+    "migrate": {
+      "argv": [
+        "/opt/cortex/python/bin/python3",
+        "-I",
+        "-B",
+        "-m",
+        "cortex_core.runtime",
+        "migrate",
+        "--config",
+        "/run/cortex/migration.json",
+        "--runtime-lock",
+        "/run/cortex/runtime.lock.json",
+        "--operation-id",
+        {
+          "field": "config.operation_id"
+        }
+      ],
+      "caller": "finite-installer-owner-port",
+      "effect": "explicit-migration-only",
+      "mode": "migrate"
+    },
+    "inspect": {
+      "argv": [
+        "/opt/cortex/python/bin/python3",
+        "-I",
+        "-B",
+        "-m",
+        "cortex_core.runtime",
+        "inspect",
+        "--config",
+        "/run/cortex/inspection.json",
+        "--runtime-lock",
+        "/run/cortex/runtime.lock.json",
+        "--request-ref",
+        "/run/cortex/readiness-request.json",
+        "--json"
+      ],
+      "caller": "private-installer-owner-client",
+      "effect": "private-read-only-original-operation",
+      "mode": "inspect"
+    },
+    "status": {
+      "argv": [
+        "/opt/cortex/python/bin/python3",
+        "-I",
+        "-B",
+        "-m",
+        "cortex_core.cli",
+        "status",
+        "--endpoint",
+        "http://127.0.0.1:9309",
+        "--json"
+      ],
+      "caller": "exact-owned-api-namespace",
+      "effect": "read-only-existing-telemetry-status",
+      "mode": null
+    },
+    "core-init": {
+      "argv": [
+        {
+          "field": "target.core.initdb.value.path"
+        },
+        "-D",
+        "/var/lib/cortex/core",
+        "--username",
+        {
+          "field": "config.roles.bootstrap.binding.value.sql_name"
+        },
+        "--encoding=UTF8",
+        "--locale-provider=libc",
+        "--locale=C",
+        "--auth-local=scram-sha-256",
+        "--auth-host=scram-sha-256",
+        "--data-checksums",
+        "--pwfile=/run/cortex/bootstrap/initdb-password",
+        "--no-instructions"
+      ],
+      "caller": "finite-installer-owner-port",
+      "effect": "absent-owned-new-data-only",
+      "mode": "core-init"
+    },
+    "core-server": {
+      "argv": [
+        {
+          "field": "target.core.postgres.value.path"
+        },
+        "-D",
+        "/var/lib/cortex/core",
+        "-c",
+        "config_file=/run/cortex/postgresql.conf",
+        "-c",
+        "hba_file=/run/cortex/pg_hba.conf"
+      ],
+      "caller": "owned-core-workload",
+      "effect": "foreground-private-core-only",
+      "mode": "core-server"
+    }
+  },
+  "layout": {
+    "interpreter": "/opt/cortex/python/bin/python3",
+    "source": "/opt/cortex/next/src",
+    "schema": "/opt/cortex/next/schema",
+    "contracts": "/opt/cortex/next/contracts",
+    "data": "/var/lib/cortex/core",
+    "password_carrier": "/run/cortex/bootstrap/initdb-password",
+    "runtime_lock": "/run/cortex/runtime.lock.json"
+  },
+  "health": {
+    "c11_fields": [
+      "component",
+      "status",
+      "readiness"
+    ],
+    "telemetry_fields": [
+      "component",
+      "status",
+      "core_available",
+      "conductor",
+      "reason"
+    ],
+    "telemetry_host": "127.0.0.1",
+    "telemetry_port": 9309,
+    "telemetry_published": false,
+    "status_namespace": "exact-owned-api",
+    "proxy_headers": false,
+    "forwarded_allow_ips": "",
+    "api_internal_port": 8000,
+    "api_host_publish": "127.0.0.1",
+    "core_port": 5432,
+    "core_published": false
+  },
+  "roles": {
+    "bootstrap": {
+      "login": true,
+      "superuser": true,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "finite-init",
+      "credential_consumers": [
+        "core-init"
+      ],
+      "authority": "installation-private-bootstrap",
+      "createdb": true,
+      "createrole": true,
+      "replication": false,
+      "memberships": []
+    },
+    "migrator": {
+      "login": true,
+      "superuser": true,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "finite-migration",
+      "credential_consumers": [
+        "migrate"
+      ],
+      "authority": "installation-private-migration",
+      "createdb": true,
+      "createrole": true,
+      "replication": false,
+      "memberships": []
+    },
+    "request_group": {
+      "login": false,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "persistent-nologin",
+      "credential_consumers": [],
+      "authority": "existing-c04-request-group",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "verifier_owner": {
+      "login": false,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "persistent-nologin",
+      "credential_consumers": [],
+      "authority": "existing-c04-definer-owner-no-members",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "api_request": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "api",
+        "inspect"
+      ],
+      "authority": "c04-request-only-set-role",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": [
+        "kaidera-runtime-core-request"
+      ]
+    },
+    "probe": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "api",
+        "inspect"
+      ],
+      "authority": "connect-select-one-no-data",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "supervisor": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "supervisor"
+      ],
+      "authority": "installation-bound-private-lease-port",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "observer": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "service",
+      "credential_consumers": [
+        "api",
+        "inspect"
+      ],
+      "authority": "installation-bound-aggregate-read-port",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    },
+    "installer_enrollment": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "lifetime": "private-enrollment",
+      "credential_consumers": [
+        "enrollment-owner-client"
+      ],
+      "authority": "existing-first-identity-only",
+      "createdb": false,
+      "createrole": false,
+      "replication": false,
+      "memberships": []
+    }
+  },
+  "secret_handles_by_mode": {
+    "api": [
+      "api_request",
+      "probe",
+      "observer"
+    ],
+    "supervisor": [
+      "supervisor"
+    ],
+    "migrate": [
+      "migrator"
+    ],
+    "inspect": [
+      "api_request",
+      "probe",
+      "observer"
+    ],
+    "core-init": [
+      "bootstrap"
+    ],
+    "core-server": []
+  },
+  "budgets": {
+    "probe_ms": 200,
+    "telemetry_ms": 750,
+    "status_ms": 2000,
+    "status_bytes": 16384,
+    "shutdown_ms": 15000,
+    "initdb_ms": 120000,
+    "migration_ms": 120000,
+    "connect_ms": 2000,
+    "statement_ms": 2000,
+    "pool_acquire_ms": 2000,
+    "request_ms": 10000,
+    "lease_ms": 10000,
+    "api_pool_max": 8,
+    "observer_pool_max": 2,
+    "supervisor_pool_max": 2,
+    "api_concurrency_max": 32,
+    "api_backlog_max": 64
+  },
+  "server_selection": {
+    "implementation": "uvicorn",
+    "api": "Config+Server",
+    "loop": "asyncio",
+    "http": "h11",
+    "ws": "none",
+    "lifespan": "off",
+    "workers": 1,
+    "reload": false,
+    "proxy_headers": false,
+    "forwarded_allow_ips": "",
+    "access_log": false,
+    "server_header": false,
+    "date_header": false,
+    "owner": "runtime-lifecycle-explicit"
+  },
+  "postgresql_policy": {
+    "supported_major": [
+      17,
+      18
+    ],
+    "locale_provider": "libc",
+    "locale": "C",
+    "encoding": "UTF8",
+    "auth_local": "scram-sha-256",
+    "auth_host": "scram-sha-256",
+    "data_checksums": true,
+    "implicit_init": false,
+    "private_password_carrier_mode": "0600",
+    "password_carrier_cleanup_before_ready": true,
+    "nonroot_same_initdb_server_uid": true,
+    "tls": "verify-full",
+    "hba": "exact-role-private-peer-allowlist-then-reject",
+    "shared_admin_credentials": false
+  },
+  "selection_rules": [
+    "r01_original_external_member_only",
+    "both_native_targets_no_emulation",
+    "exact_config_lock_operations_hashes",
+    "closed_raw_json_and_modes",
+    "all_required_bindings_complete",
+    "exact_literal_argv_no_shell",
+    "distinct_role_and_process_secret_views",
+    "private_addresses_no_wildcard_or_forwarded_peer",
+    "current_schema_full_exact_ledger",
+    "no_implicit_migration_or_enrollment",
+    "original_owner_operation_and_custody",
+    "no_fixture_native_promotion"
+  ],
+  "missing_inputs_are": "typed-GAP-not-a-default-or-execution-grant",
+  "ready_requires": [
+    "schema-and-installation",
+    "private-enrollment-receipt",
+    "current-scoped-round-trip",
+    "live-conductor-lease",
+    "owned-resource-and-original-operation-receipt"
+  ],
+  "anonymous_health_is_install_ready": false,
+  "ai_policy": {
+    "revision": "RC0-E0-001",
+    "config_field": "ai_mode",
+    "default": "hosted",
+    "modes": [
+      "hosted",
+      "off"
+    ],
+    "rerank_default": false,
+    "rerank_binding": "unbound_in_stage_1",
+    "origin": "https://openrouter.ai:443",
+    "embedding_path": "/api/v1/embeddings",
+    "redirects": false,
+    "environment_proxy": false,
+    "hosted_api_handle": "provider",
+    "identity": "exact_existing_embedding_bound_tuple_no_fallback",
+    "selection_revision": "sha256_exact_admitted_config_identity_plus_nonreusable_acceptance_epoch_not_authority",
+    "off": "provider_identity_and_handle_optional_never_used_cancel_inflight_fence_late_results_skip_cache_vector_queue_resolver_http",
+    "request_deadline": "one_absolute_monotonic_deadline_clamped_to_existing_request_ms_budget",
+    "authority": "existing_original_owner_C04_R01_native_and_purpose_scope_gates_unchanged",
+    "off_reads": "bounded_current_authorized_keyword_and_existing_separate_graph_read"
+  }
+}

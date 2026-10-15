@@ -1,0 +1,858 @@
+[
+  {
+    "id": "missing-role",
+    "document": "config",
+    "path": [
+      "roles",
+      "verifier_owner"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "missing-resolver",
+    "document": "config",
+    "path": [
+      "resolver"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "missing-pg-executable",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "core",
+      "initdb"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "missing-target",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/amd64"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "mixed-config-schema",
+    "document": "config",
+    "path": [
+      "schema"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "cortex.prerequisite.v3",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "mixed-lock-schema",
+    "document": "lock",
+    "path": [
+      "schema"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "cortex.release-policy.v1",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "mixed-argv",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "api",
+      "argv",
+      0
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "/usr/bin/python3",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "unknown-flag",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "api",
+      "argv"
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": [
+      "/opt/cortex/python/bin/python3",
+      "-I",
+      "-B",
+      "-m",
+      "cortex_core.runtime",
+      "api",
+      "--config",
+      "/run/cortex/instance.json",
+      "--runtime-lock",
+      "/run/cortex/runtime.lock.json",
+      "--debug"
+    ],
+    "target": "linux/arm64"
+  },
+  {
+    "id": "wildcard-telemetry",
+    "document": "config",
+    "path": [
+      "listeners",
+      "telemetry",
+      "host"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "0.0.0.0",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "published-telemetry",
+    "document": "config",
+    "path": [
+      "listeners",
+      "telemetry",
+      "published"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": true,
+    "target": "linux/arm64"
+  },
+  {
+    "id": "fake-peer-forwarding",
+    "document": "config",
+    "path": [
+      "listeners",
+      "telemetry",
+      "proxy_headers"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": true,
+    "target": "linux/arm64"
+  },
+  {
+    "id": "wildcard-api",
+    "document": "config",
+    "path": [
+      "listeners",
+      "api",
+      "internal_host",
+      "value"
+    ],
+    "operation": "replace",
+    "expected_refusal": "private_address_required",
+    "value": "0.0.0.0",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "protected-host-port",
+    "document": "config",
+    "path": [
+      "listeners",
+      "api",
+      "host_port",
+      "value"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": 8501,
+    "target": "linux/arm64"
+  },
+  {
+    "id": "admin-runtime-role",
+    "document": "config",
+    "path": [
+      "roles",
+      "api_request",
+      "policy",
+      "superuser"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": true,
+    "target": "linux/arm64"
+  },
+  {
+    "id": "shared-admin-binding",
+    "document": "config",
+    "path": [
+      "roles",
+      "api_request",
+      "binding",
+      "value",
+      "sql_name"
+    ],
+    "operation": "replace",
+    "expected_refusal": "role_collision",
+    "value": "fixture-arm64-migrator",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "wrong-install-role",
+    "document": "config",
+    "path": [
+      "roles",
+      "supervisor",
+      "binding",
+      "value",
+      "installation_id"
+    ],
+    "operation": "replace",
+    "expected_refusal": "role_installation_mismatch",
+    "value": "a2a233a8-bfae-5b76-beec-30cb11f272d4",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "cross-target",
+    "document": "config",
+    "path": [
+      "target"
+    ],
+    "operation": "replace",
+    "expected_refusal": "observed_target_mismatch",
+    "value": "linux/amd64",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "mixed-lock-digest",
+    "document": "config",
+    "path": [
+      "runtime_lock_sha256"
+    ],
+    "operation": "replace",
+    "expected_refusal": "lock_mismatch",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "mixed-operation-digest",
+    "document": "config",
+    "path": [
+      "operations_sha256"
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "current-schema-rewrite",
+    "document": "lock",
+    "path": [
+      "current_schema",
+      "migrations",
+      8,
+      "sha256"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "wrong-executable-path",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "api",
+      "interpreter",
+      "value",
+      "path"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "/usr/bin/python3",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "owner-gap-resolver",
+    "document": "lock",
+    "path": [
+      "owner_ports",
+      "secret_resolver"
+    ],
+    "operation": "replace",
+    "expected_refusal": "required_binding_gap",
+    "value": {
+      "state": "GAP",
+      "gap_id": "rc0-secret-resolver",
+      "owner_role": "core-contract-owner",
+      "reason": "original_owner_binding_not_delivered",
+      "blocks": [
+        "execution"
+      ]
+    },
+    "target": "linux/arm64"
+  },
+  {
+    "id": "owner-gap-pg",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "core",
+      "initdb"
+    ],
+    "operation": "replace",
+    "expected_refusal": "required_binding_gap",
+    "value": {
+      "state": "GAP",
+      "gap_id": "material-initdb",
+      "owner_role": "release-material-producer",
+      "reason": "original_owner_binding_not_delivered",
+      "blocks": [
+        "execution"
+      ]
+    },
+    "target": "linux/arm64"
+  },
+  {
+    "id": "ambient-provider-key",
+    "document": "config",
+    "path": [
+      "resolver",
+      "handles"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": {
+      "api_request": "d447bcd4-7c8c-5eaf-9674-502bb46a7b4a",
+      "probe": "96cc4943-ff72-59eb-af29-1cf49e308ff4",
+      "observer": "e5493465-9608-5b9a-96a2-192ecba4619a",
+      "provider": "8a9a8fb3-ffaa-501a-835c-57d18ee2a9df",
+      "OPENROUTER_API_KEY": "secret-sentinel-not-a-real-key"
+    },
+    "target": "linux/arm64"
+  },
+  {
+    "id": "wrong-role-handle",
+    "document": "config",
+    "path": [
+      "resolver",
+      "handles"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": {
+      "api_request": "cff68275-23c3-5a82-a0f3-62324d2d268b",
+      "probe": "cc9bd452-2c07-5add-87b3-a6f82c2d385f",
+      "observer": "32ea8fbe-79ad-522b-8386-407ee0503db1",
+      "migrator": "063fade3-7bf0-52e6-89b2-a113af67a950"
+    },
+    "target": "linux/arm64"
+  },
+  {
+    "id": "unknown-config-key",
+    "document": "config",
+    "path": [
+      "arbitrary_module"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "import.this",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "unsafe-pg-init-auth",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "core-init",
+      "argv",
+      8
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "--auth-local=trust",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "pg-stdin-carrier",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "core-init",
+      "argv",
+      11
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "--pwfile=/dev/stdin",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "image-lock-self-cycle",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "api",
+      "image",
+      "value",
+      "path"
+    ],
+    "operation": "replace",
+    "expected_refusal": "image_lock_cycle",
+    "value": "/run/cortex/runtime.lock.json",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "mixed-native-abi",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/amd64",
+      "api",
+      "interpreter",
+      "value",
+      "abi"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "linux/arm64",
+    "target": "linux/arm64"
+  },
+  {
+    "id": "missing-role",
+    "document": "config",
+    "path": [
+      "roles",
+      "verifier_owner"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "missing-resolver",
+    "document": "config",
+    "path": [
+      "resolver"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "missing-pg-executable",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "core",
+      "initdb"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "missing-target",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/amd64"
+    ],
+    "operation": "delete",
+    "expected_refusal": "bad_shape",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "mixed-config-schema",
+    "document": "config",
+    "path": [
+      "schema"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "cortex.prerequisite.v3",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "mixed-lock-schema",
+    "document": "lock",
+    "path": [
+      "schema"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "cortex.release-policy.v1",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "mixed-argv",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "api",
+      "argv",
+      0
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "/usr/bin/python3",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "unknown-flag",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "api",
+      "argv"
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": [
+      "/opt/cortex/python/bin/python3",
+      "-I",
+      "-B",
+      "-m",
+      "cortex_core.runtime",
+      "api",
+      "--config",
+      "/run/cortex/instance.json",
+      "--runtime-lock",
+      "/run/cortex/runtime.lock.json",
+      "--debug"
+    ],
+    "target": "linux/amd64"
+  },
+  {
+    "id": "wildcard-telemetry",
+    "document": "config",
+    "path": [
+      "listeners",
+      "telemetry",
+      "host"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "0.0.0.0",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "published-telemetry",
+    "document": "config",
+    "path": [
+      "listeners",
+      "telemetry",
+      "published"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": true,
+    "target": "linux/amd64"
+  },
+  {
+    "id": "fake-peer-forwarding",
+    "document": "config",
+    "path": [
+      "listeners",
+      "telemetry",
+      "proxy_headers"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": true,
+    "target": "linux/amd64"
+  },
+  {
+    "id": "wildcard-api",
+    "document": "config",
+    "path": [
+      "listeners",
+      "api",
+      "internal_host",
+      "value"
+    ],
+    "operation": "replace",
+    "expected_refusal": "private_address_required",
+    "value": "0.0.0.0",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "protected-host-port",
+    "document": "config",
+    "path": [
+      "listeners",
+      "api",
+      "host_port",
+      "value"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": 8501,
+    "target": "linux/amd64"
+  },
+  {
+    "id": "admin-runtime-role",
+    "document": "config",
+    "path": [
+      "roles",
+      "api_request",
+      "policy",
+      "superuser"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": true,
+    "target": "linux/amd64"
+  },
+  {
+    "id": "shared-admin-binding",
+    "document": "config",
+    "path": [
+      "roles",
+      "api_request",
+      "binding",
+      "value",
+      "sql_name"
+    ],
+    "operation": "replace",
+    "expected_refusal": "role_collision",
+    "value": "fixture-amd64-migrator",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "wrong-install-role",
+    "document": "config",
+    "path": [
+      "roles",
+      "supervisor",
+      "binding",
+      "value",
+      "installation_id"
+    ],
+    "operation": "replace",
+    "expected_refusal": "role_installation_mismatch",
+    "value": "a2a233a8-bfae-5b76-beec-30cb11f272d4",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "cross-target",
+    "document": "config",
+    "path": [
+      "target"
+    ],
+    "operation": "replace",
+    "expected_refusal": "observed_target_mismatch",
+    "value": "linux/arm64",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "mixed-lock-digest",
+    "document": "config",
+    "path": [
+      "runtime_lock_sha256"
+    ],
+    "operation": "replace",
+    "expected_refusal": "lock_mismatch",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "mixed-operation-digest",
+    "document": "config",
+    "path": [
+      "operations_sha256"
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "current-schema-rewrite",
+    "document": "lock",
+    "path": [
+      "current_schema",
+      "migrations",
+      8,
+      "sha256"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "wrong-executable-path",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "api",
+      "interpreter",
+      "value",
+      "path"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "/usr/bin/python3",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "owner-gap-resolver",
+    "document": "lock",
+    "path": [
+      "owner_ports",
+      "secret_resolver"
+    ],
+    "operation": "replace",
+    "expected_refusal": "required_binding_gap",
+    "value": {
+      "state": "GAP",
+      "gap_id": "rc0-secret-resolver",
+      "owner_role": "core-contract-owner",
+      "reason": "original_owner_binding_not_delivered",
+      "blocks": [
+        "execution"
+      ]
+    },
+    "target": "linux/amd64"
+  },
+  {
+    "id": "owner-gap-pg",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "core",
+      "initdb"
+    ],
+    "operation": "replace",
+    "expected_refusal": "required_binding_gap",
+    "value": {
+      "state": "GAP",
+      "gap_id": "material-initdb",
+      "owner_role": "release-material-producer",
+      "reason": "original_owner_binding_not_delivered",
+      "blocks": [
+        "execution"
+      ]
+    },
+    "target": "linux/amd64"
+  },
+  {
+    "id": "ambient-provider-key",
+    "document": "config",
+    "path": [
+      "resolver",
+      "handles"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": {
+      "api_request": "d447bcd4-7c8c-5eaf-9674-502bb46a7b4a",
+      "probe": "96cc4943-ff72-59eb-af29-1cf49e308ff4",
+      "observer": "e5493465-9608-5b9a-96a2-192ecba4619a",
+      "provider": "8a9a8fb3-ffaa-501a-835c-57d18ee2a9df",
+      "OPENROUTER_API_KEY": "secret-sentinel-not-a-real-key"
+    },
+    "target": "linux/amd64"
+  },
+  {
+    "id": "wrong-role-handle",
+    "document": "config",
+    "path": [
+      "resolver",
+      "handles"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": {
+      "api_request": "cff68275-23c3-5a82-a0f3-62324d2d268b",
+      "probe": "cc9bd452-2c07-5add-87b3-a6f82c2d385f",
+      "observer": "32ea8fbe-79ad-522b-8386-407ee0503db1",
+      "migrator": "063fade3-7bf0-52e6-89b2-a113af67a950"
+    },
+    "target": "linux/amd64"
+  },
+  {
+    "id": "unknown-config-key",
+    "document": "config",
+    "path": [
+      "arbitrary_module"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "import.this",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "unsafe-pg-init-auth",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "core-init",
+      "argv",
+      8
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "--auth-local=trust",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "pg-stdin-carrier",
+    "document": "operations",
+    "path": [
+      "operation_vectors",
+      "core-init",
+      "argv",
+      11
+    ],
+    "operation": "replace",
+    "expected_refusal": "operations_mismatch",
+    "value": "--pwfile=/dev/stdin",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "image-lock-self-cycle",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/arm64",
+      "api",
+      "image",
+      "value",
+      "path"
+    ],
+    "operation": "replace",
+    "expected_refusal": "image_lock_cycle",
+    "value": "/run/cortex/runtime.lock.json",
+    "target": "linux/amd64"
+  },
+  {
+    "id": "mixed-native-abi",
+    "document": "lock",
+    "path": [
+      "targets",
+      "linux/amd64",
+      "api",
+      "interpreter",
+      "value",
+      "abi"
+    ],
+    "operation": "replace",
+    "expected_refusal": "bad_shape",
+    "value": "linux/arm64",
+    "target": "linux/amd64"
+  }
+]

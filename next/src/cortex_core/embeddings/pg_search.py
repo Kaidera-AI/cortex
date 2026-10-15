@@ -7,99 +7,54 @@ Cox must bind separate read/control/writer authorization at the API boundary.
 """
 
 import asyncio
-import hashlib
-import json
 import math
 import struct
+import sys
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from functools import wraps
-from typing import Awaitable, Callable
+from typing import TYPE_CHECKING, Awaitable, Callable
 from uuid import UUID
 
-import asyncpg
-from .projection_revision import ProjectionRevision, finish_observation, validate_target
+from .projection_revision import (
+    Scope, EmbeddingIdentity, Freshness, Hit, SearchResult, CapabilityUnavailable,
+    CoreUnavailable, StaleEmbedding, ProjectionRevision, finish_observation, validate_target,
+)
+
+if TYPE_CHECKING:
+    import asyncpg
 
 
-@dataclass(frozen=True)
-class Scope:
-    tenant_id: UUID
-    project_id: UUID
+def _require_asyncpg():
+    """One driver import, reached only at an existing PG acquisition boundary."""
+    try:
+        import asyncpg
+    except ModuleNotFoundError as error:
+        if error.name != 'asyncpg':
+            raise
+        raise CoreUnavailable('PostgreSQL driver asyncpg is unavailable') from None
+    return asyncpg
 
 
-@dataclass(frozen=True)
-class EmbeddingIdentity:
-    provider: str
-    model: str
-    version: str
-    dimensions: int
-    preprocessing: str
-
-    @property
-    def key(self) -> str:
-        if self.dimensions != 768 or not all(
-            isinstance(v, str) and v.strip()
-            for v in (self.provider, self.model, self.version, self.preprocessing)
-        ):
-            raise ValueError("Search requires a complete identity with 768 dimensions")
-        return hashlib.sha256(
-            json.dumps(
-                [
-                    self.provider,
-                    self.model,
-                    self.version,
-                    self.dimensions,
-                    self.preprocessing,
-                ],
-                separators=(",", ":"),
-            ).encode()
-        ).hexdigest()
+def _driver_errors(*names):
+    # Exception matching must not import the driver before connection admission.
+    # Without a loaded driver none of its exception types can have been raised.
+    driver = sys.modules.get('asyncpg')
+    if driver is None:
+        return ()
+    errors = []
+    for name in names:
+        # These are the existing adapter exception families, never SQL methods.
+        match name:
+            case 'SerializationError': errors.append(driver.SerializationError)
+            case 'UndefinedTableError': errors.append(driver.UndefinedTableError)
+            case 'PostgresConnectionError': errors.append(driver.PostgresConnectionError)
+            case 'InterfaceError': errors.append(driver.InterfaceError)
+            case 'QueryCanceledError': errors.append(driver.QueryCanceledError)
+            case _: raise AttributeError(name)
+    return tuple(errors)
 
 
-@dataclass(frozen=True)
-class Freshness:
-    identity: str
-    indexed_records: int
-    pending_records: int
-
-    @property
-    def status(self) -> str:
-        return "lagging" if self.pending_records else "current"
-
-
-@dataclass(frozen=True)
-class Hit:
-    record_id: str
-    kind: str
-    source_revision: int
-    distance: float
-
-
-@dataclass(frozen=True)
-class SearchResult:
-    hits: tuple[Hit, ...]
-    freshness: Freshness
-
-
-class CapabilityUnavailable(RuntimeError):
-    code = "capability_unavailable"
-    capability = "search"
-
-    def __init__(self, reason: str, freshness: Freshness | None = None):
-        super().__init__(reason)
-        self.reason = reason
-        self.freshness = freshness
-
-
-class CoreUnavailable(RuntimeError):
-    code = "core_unavailable"
-
-
-class StaleEmbedding(RuntimeError):
-    code = "stale_embedding"
-
-
-Authorize = Callable[[asyncpg.Connection, str], Awaitable[Scope]]
+Authorize = Callable[["asyncpg.Connection", str], Awaitable[Scope]]
 
 
 def vector_literal(vector, dimensions: int) -> str:
@@ -140,7 +95,7 @@ def retry_authorized_transaction(operation):
         for attempt in range(3):
             try:
                 return await operation(*args, **kwargs)
-            except asyncpg.SerializationError:
+            except _driver_errors('SerializationError'):
                 if attempt == 2:
                     raise CapabilityUnavailable("concurrent_update") from None
                 await asyncio.sleep(0.005 * (attempt + 1))
@@ -149,7 +104,7 @@ def retry_authorized_transaction(operation):
 
 
 class PostgresSearch:
-    def __init__(self, pool: asyncpg.Pool, authorize: Authorize):
+    def __init__(self, pool: "asyncpg.Pool", authorize: Authorize):
         if not callable(authorize):
             raise TypeError("Current Core authorization is mandatory")
         self.pool = pool
@@ -199,7 +154,7 @@ class PostgresSearch:
                                          '' if visible else 'index_pending')
         except CoreUnavailable:
             return observation('unavailable', reason='core_unavailable')
-        except asyncpg.UndefinedTableError:
+        except _driver_errors('UndefinedTableError'):
             return observation('unavailable', reason='schema_unavailable')
         except CapabilityUnavailable as exc:
             return observation('unavailable', reason=exc.reason)
@@ -209,6 +164,7 @@ class PostgresSearch:
     async def _request(self, subject: str, *, isolation="repeatable_read"):
         if not subject:
             raise PermissionError("Authenticated principal required")
+        _require_asyncpg()
         try:
             async with self.pool.acquire(timeout=2) as conn:
                 async with conn.transaction(isolation=isolation):
@@ -235,14 +191,9 @@ class PostgresSearch:
                     yield conn, scope
         except PermissionError:
             raise
-        except (
-            asyncpg.PostgresConnectionError,
-            asyncpg.InterfaceError,
-            OSError,
-            TimeoutError,
-        ) as exc:
+        except _driver_errors('PostgresConnectionError', 'InterfaceError') + (OSError, TimeoutError) as exc:
             raise CoreUnavailable("Authoritative Core is unavailable") from exc
-        except asyncpg.QueryCanceledError as exc:
+        except _driver_errors('QueryCanceledError') as exc:
             raise CapabilityUnavailable("resource_timeout") from exc
 
     @retry_authorized_transaction

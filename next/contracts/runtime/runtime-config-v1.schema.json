@@ -1,0 +1,2423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "RC0 declaration shape only; BOUND is claimed original metadata, not R01 admission. Consumers separately reject raw duplicate keys/floats/nonfinite/BOM/surrogates/depth/size, cross-bind original bytes and typed owner authority, refuse every required GAP before effects. Synthetic fixtures never grant execution/native/installed authority.",
+  "$id": "urn:kaidera:cortex:runtime-config:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "cortex.runtime.config.v1"
+    },
+    "format_version": {
+      "const": 1
+    },
+    "declaration_scope": {
+      "enum": [
+        "synthetic-fixture",
+        "owner-delivery"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "api",
+        "supervisor",
+        "migrate",
+        "inspect",
+        "core-init",
+        "core-server"
+      ]
+    },
+    "runtime_lock_sha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "operations_sha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "target": {
+      "enum": [
+        "linux/arm64",
+        "linux/amd64"
+      ]
+    },
+    "installation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+    },
+    "ownership_receipt": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+    },
+    "project_routes": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 128,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+      }
+    },
+    "project_repositories": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 128,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bootstrap": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": true,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "finite-init",
+                "credential_consumers": [
+                  "core-init"
+                ],
+                "authority": "installation-private-bootstrap",
+                "createdb": true,
+                "createrole": true,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "migrator": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": true,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "finite-migration",
+                "credential_consumers": [
+                  "migrate"
+                ],
+                "authority": "installation-private-migration",
+                "createdb": true,
+                "createrole": true,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "request_group": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": false,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "persistent-nologin",
+                "credential_consumers": [],
+                "authority": "existing-c04-request-group",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "const": "kaidera-runtime-core-request"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "verifier_owner": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": false,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "persistent-nologin",
+                "credential_consumers": [],
+                "authority": "existing-c04-definer-owner-no-members",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "const": "kaidera-runtime-core-verifier"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "api_request": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "service",
+                "credential_consumers": [
+                  "api",
+                  "inspect"
+                ],
+                "authority": "c04-request-only-set-role",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": [
+                  "kaidera-runtime-core-request"
+                ]
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "service",
+                "credential_consumers": [
+                  "api",
+                  "inspect"
+                ],
+                "authority": "connect-select-one-no-data",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "supervisor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "service",
+                "credential_consumers": [
+                  "supervisor"
+                ],
+                "authority": "installation-bound-private-lease-port",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "observer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "service",
+                "credential_consumers": [
+                  "api",
+                  "inspect"
+                ],
+                "authority": "installation-bound-aggregate-read-port",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 63,
+                          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        },
+        "installer_enrollment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policy": {
+              "const": {
+                "login": true,
+                "superuser": false,
+                "bypassrls": false,
+                "inherit": false,
+                "lifetime": "private-enrollment",
+                "credential_consumers": [
+                  "enrollment-owner-client"
+                ],
+                "authority": "existing-first-identity-only",
+                "createdb": false,
+                "createrole": false,
+                "replication": false,
+                "memberships": []
+              }
+            },
+            "binding": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "sql_name": {
+                          "const": "kaidera-runtime-core-installer"
+                        },
+                        "installation_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "sql_name",
+                        "installation_id"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "policy",
+            "binding"
+          ]
+        }
+      },
+      "required": [
+        "bootstrap",
+        "migrator",
+        "request_group",
+        "verifier_owner",
+        "api_request",
+        "probe",
+        "supervisor",
+        "observer",
+        "installer_enrollment"
+      ]
+    },
+    "resolver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "const": "cortex.runtime.secret-resolver.v1"
+        },
+        "owner_binding_receipt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "handles": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "contract",
+        "owner_binding_receipt",
+        "handles"
+      ]
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "GAP"
+                },
+                "gap_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                },
+                "owner_role": {
+                  "enum": [
+                    "release-material-producer",
+                    "core-contract-owner",
+                    "installer-owner-client",
+                    "runtime-author",
+                    "execution-host-owner",
+                    "release-authority"
+                  ]
+                },
+                "reason": {
+                  "const": "original_owner_binding_not_delivered"
+                },
+                "blocks": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              },
+              "required": [
+                "state",
+                "gap_id",
+                "owner_role",
+                "reason",
+                "blocks"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "BOUND"
+                },
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "original_receipt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36,
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                }
+              },
+              "required": [
+                "state",
+                "value",
+                "original_receipt"
+              ]
+            }
+          ]
+        },
+        "port": {
+          "const": 5432
+        },
+        "database_name": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "GAP"
+                },
+                "gap_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                },
+                "owner_role": {
+                  "enum": [
+                    "release-material-producer",
+                    "core-contract-owner",
+                    "installer-owner-client",
+                    "runtime-author",
+                    "execution-host-owner",
+                    "release-authority"
+                  ]
+                },
+                "reason": {
+                  "const": "original_owner_binding_not_delivered"
+                },
+                "blocks": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              },
+              "required": [
+                "state",
+                "gap_id",
+                "owner_role",
+                "reason",
+                "blocks"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "const": "BOUND"
+                },
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 63,
+                  "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                },
+                "original_receipt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36,
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                }
+              },
+              "required": [
+                "state",
+                "value",
+                "original_receipt"
+              ]
+            }
+          ]
+        },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "const": "verify-full"
+            },
+            "ca_member": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512,
+                          "pattern": "^/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$(?![\\s\\S])"
+                        },
+                        "sha256": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64,
+                          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+                        },
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "mode": {
+                          "enum": [
+                            "0444",
+                            "0555",
+                            "0600"
+                          ]
+                        },
+                        "version": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "abi": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "origin_ref": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36,
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "sha256",
+                        "bytes",
+                        "mode",
+                        "version",
+                        "abi",
+                        "origin_ref"
+                      ]
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            },
+            "server_identity": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "mode",
+            "ca_member",
+            "server_identity"
+          ]
+        },
+        "published": {
+          "const": false
+        }
+      },
+      "required": [
+        "host",
+        "port",
+        "database_name",
+        "tls",
+        "published"
+      ]
+    },
+    "listeners": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "api": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "internal_host": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            },
+            "internal_port": {
+              "const": 8000
+            },
+            "host_publish": {
+              "const": "127.0.0.1"
+            },
+            "host_port": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "GAP"
+                    },
+                    "gap_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "owner_role": {
+                      "enum": [
+                        "release-material-producer",
+                        "core-contract-owner",
+                        "installer-owner-client",
+                        "runtime-author",
+                        "execution-host-owner",
+                        "release-authority"
+                      ]
+                    },
+                    "reason": {
+                      "const": "original_owner_binding_not_delivered"
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "gap_id",
+                    "owner_role",
+                    "reason",
+                    "blocks"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "const": "BOUND"
+                    },
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1024,
+                      "maximum": 65535,
+                      "not": {
+                        "enum": [
+                          5500,
+                          8501
+                        ]
+                      }
+                    },
+                    "original_receipt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36,
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "value",
+                    "original_receipt"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "internal_host",
+            "internal_port",
+            "host_publish",
+            "host_port"
+          ]
+        },
+        "telemetry": {
+          "const": {
+            "host": "127.0.0.1",
+            "port": 9309,
+            "published": false,
+            "status_namespace": "exact-owned-api",
+            "proxy_headers": false,
+            "forwarded_allow_ips": ""
+          }
+        }
+      },
+      "required": [
+        "api",
+        "telemetry"
+      ]
+    },
+    "embedding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "GAP"
+            },
+            "gap_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+            },
+            "owner_role": {
+              "enum": [
+                "release-material-producer",
+                "core-contract-owner",
+                "installer-owner-client",
+                "runtime-author",
+                "execution-host-owner",
+                "release-authority"
+              ]
+            },
+            "reason": {
+              "const": "original_owner_binding_not_delivered"
+            },
+            "blocks": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            }
+          },
+          "required": [
+            "state",
+            "gap_id",
+            "owner_role",
+            "reason",
+            "blocks"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "BOUND"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "provider": {
+                  "const": "openrouter"
+                },
+                "model": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "model_version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "dimensions": {
+                  "const": 768
+                },
+                "preprocessing": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              },
+              "required": [
+                "provider",
+                "model",
+                "model_version",
+                "dimensions",
+                "preprocessing"
+              ]
+            },
+            "original_receipt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "state",
+            "value",
+            "original_receipt"
+          ]
+        }
+      ]
+    },
+    "extractor": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "GAP"
+            },
+            "gap_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+            },
+            "owner_role": {
+              "enum": [
+                "release-material-producer",
+                "core-contract-owner",
+                "installer-owner-client",
+                "runtime-author",
+                "execution-host-owner",
+                "release-authority"
+              ]
+            },
+            "reason": {
+              "const": "original_owner_binding_not_delivered"
+            },
+            "blocks": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            }
+          },
+          "required": [
+            "state",
+            "gap_id",
+            "owner_role",
+            "reason",
+            "blocks"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "BOUND"
+            },
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "name",
+                "version"
+              ]
+            },
+            "original_receipt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "state",
+            "value",
+            "original_receipt"
+          ]
+        }
+      ]
+    },
+    "metrics_labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deployment_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+        },
+        "component": {
+          "const": "cortex"
+        },
+        "release": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^v[0-9][A-Za-z0-9.+-]*$(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "deployment_id",
+        "environment",
+        "component",
+        "release"
+      ]
+    },
+    "ai_mode": {
+      "enum": [
+        "hosted",
+        "off"
+      ],
+      "default": "hosted"
+    }
+  },
+  "required": [
+    "schema",
+    "format_version",
+    "declaration_scope",
+    "mode",
+    "runtime_lock_sha256",
+    "operations_sha256",
+    "target",
+    "installation_id",
+    "operation_id",
+    "ownership_receipt",
+    "project_routes",
+    "project_repositories",
+    "roles",
+    "resolver",
+    "database",
+    "listeners",
+    "extractor",
+    "metrics_labels"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "api"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolver": {
+            "properties": {
+              "handles": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "api_request": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  },
+                  "probe": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  },
+                  "observer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  }
+                },
+                "required": [
+                  "api_request",
+                  "probe",
+                  "observer"
+                ]
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "ai_mode": {
+                  "const": "off"
+                }
+              },
+              "required": [
+                "ai_mode"
+              ]
+            },
+            "then": {},
+            "else": {
+              "properties": {
+                "resolver": {
+                  "properties": {
+                    "handles": {
+                      "required": [
+                        "provider"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "supervisor"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolver": {
+            "properties": {
+              "handles": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "supervisor": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  }
+                },
+                "required": [
+                  "supervisor"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "migrate"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolver": {
+            "properties": {
+              "handles": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "migrator": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  }
+                },
+                "required": [
+                  "migrator"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "inspect"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolver": {
+            "properties": {
+              "handles": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "api_request": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  },
+                  "probe": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  },
+                  "observer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  }
+                },
+                "required": [
+                  "api_request",
+                  "probe",
+                  "observer"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "core-init"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolver": {
+            "properties": {
+              "handles": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "bootstrap": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+                  }
+                },
+                "required": [
+                  "bootstrap"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "core-server"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolver": {
+            "properties": {
+              "handles": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ai_mode": {
+            "const": "off"
+          }
+        },
+        "required": [
+          "ai_mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "embedding": {
+            "properties": {
+              "state": {
+                "const": "BOUND"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "embedding"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$(?![\\s\\S])"
+        },
+        "sha256": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mode": {
+          "enum": [
+            "0444",
+            "0555",
+            "0600"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "abi": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "origin_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "mode",
+        "version",
+        "abi",
+        "origin_ref"
+      ]
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "const": "GAP"
+        },
+        "gap_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$(?![\\s\\S])"
+        },
+        "owner_role": {
+          "enum": [
+            "release-material-producer",
+            "core-contract-owner",
+            "installer-owner-client",
+            "runtime-author",
+            "execution-host-owner",
+            "release-authority"
+          ]
+        },
+        "reason": {
+          "const": "original_owner_binding_not_delivered"
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "required": [
+        "state",
+        "gap_id",
+        "owner_role",
+        "reason",
+        "blocks"
+      ]
+    },
+    "uuid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$(?![\\s\\S])"
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    }
+  }
+}
