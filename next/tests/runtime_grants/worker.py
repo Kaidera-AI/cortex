@@ -10,7 +10,7 @@ HERE=Path(__file__).resolve().parent
 NEXT=HERE.parents[1]
 sys.path[:0]=[str(HERE),str(NEXT/'src'),str(NEXT/'tests')]
 from test_receipts import AssertionResult,MARKER
-from support import OBSERVATIONS
+from runtime_grants_fixture import OBSERVATIONS
 
 def flatten(suite):
     for item in suite:
@@ -43,7 +43,7 @@ value={'tests_run':result.testsRun,'failures':result.assertions,
        'errors':[{'id':case.id(),'traceback':tb} for case,tb in result.errors],
        'skipped':result.skipped}
 for row in value['failures']:
-    row['pgo_category']=('surface_absence' if row['exception_type']=='support.SurfaceAbsent' else 'semantic') if row['phase']=='test' and row['is_assertion'] else 'inconclusive'
+    row['pgo_category']=('surface_absence' if row['exception_type']=='runtime_grants_fixture.SurfaceAbsent' else 'semantic') if row['phase']=='test' and row['is_assertion'] else 'inconclusive'
 print(MARKER+json.dumps(value),flush=True)
 print('CORTEX_EXECUTED='+json.dumps(sorted(executed)),flush=True)
 print('CORTEX_ACL_OBSERVATIONS='+json.dumps(OBSERVATIONS),flush=True)

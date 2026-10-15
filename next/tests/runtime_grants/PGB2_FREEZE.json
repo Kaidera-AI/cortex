@@ -1,7 +1,7 @@
 {
   "classification": "FROZEN_OFFLINE_PG_B2_PRIVATE_CONTRACT_FIXTURE_NO_SQL_OR_NATIVE_CREDIT",
   "accepted_handoff": "6efcef9c-37fd-45c0-b086-bd71bd1c2a03",
-  "composed_base": "1fc0c317b66e6cb96192b24d9a23c14ca39727ac",
+  "composed_base": "d062ebf2178463d4fb9cdcfb92e83516c98c5c29",
   "input_heads": {
     "p2a": "dc0f9b4c04b31b241761f22443dd6d5726a533d6",
     "pg_o": "76f2f05d6f2816e9b38a210870b3d8bacba2470e",
@@ -13,26 +13,26 @@
     "next/tests/runtime_grants/fixtures/pgb2-preimages.json": "f8d6214df3b080dd1eb749d71d33d2c05cc8cf41eba33f3c2f03d6e13dabca15"
   },
   "original_pg_o_files": {
-    "next/tests/runtime_grants/CONNECT_FREEZE.json": "73b54cbbd2165b6a6fe033ba04456214405fe67d04818378d73d0cdaf32f5f01",
+    "next/tests/runtime_grants/CONNECT_FREEZE.json": "0b686c6433cd82b0c1307c91fb4b7f7aef79fda9f0a3c82e0ab9b48acdc06b1e",
     "next/tests/runtime_grants/FROZEN_NODES.json": "6e266f0cbff4c266fcd4f872a4ecce66c29ec35c217b6ee3192d9f821ab0a7a0",
     "next/tests/runtime_grants/ORACLE.json": "cf4a0890ebf51c99c5e38fba1a08c5abf6b65317ae7f833a6c09130f985fe52f",
     "next/tests/runtime_grants/REPAIR_CONTROLS.json": "b2efad879f7417263ac8aca7a9c2d03830314b033063dc232cc11de4f4433527",
-    "next/tests/runtime_grants/REPAIR_FREEZE.json": "3367a84c317443053eee98322810efc5a4cefb21ac572f590317394fcfa2ddec",
+    "next/tests/runtime_grants/REPAIR_FREEZE.json": "8da5e5658b4ed50a13581aad501d5851eb97091565c1a8d3f7d3d1fe3bcde555",
     "next/tests/runtime_grants/REPAIR_TRACE.json": "2e2e13cdf0e7c8604ed0027c3c9ff44fba79fa16077fef3bfe29a8a4fe1f4612",
-    "next/tests/runtime_grants/offline_controls.py": "3848f960a1ab26cde339ee1865100ed0444838dc5c7ea9eb283ca78a13d782dc",
+    "next/tests/runtime_grants/offline_controls.py": "186ed4cf6783ed1cc9cc6c2cfe3b55e54fa2858d09ed7aeb1df7ac2caaf7c2ec",
     "next/tests/runtime_grants/original_manifest.json": "08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef",
     "next/tests/runtime_grants/ratified_matrix.json": "e2bcec216f4b90d92c8e53a73ae202d265f2def411a4a744469c42a22164e3cd",
     "next/tests/runtime_grants/ratified_matrix_v1.json": "0e101ad23039101e95bc2bae2026b53817a1ae84fdd91b6dc1dc25770fe58af2",
     "next/tests/runtime_grants/run_l1.py": "03c59107cb96978e93427cce9e85b74f2f0f72d24a4545b7c1a8b50252760a3b",
-    "next/tests/runtime_grants/support.py": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
-    "next/tests/runtime_grants/test_c04.py": "49dafd5c7306dff273e73e41d349220bc902dac03f5201a2f0b49b5c178cdb68",
-    "next/tests/runtime_grants/test_connect.py": "2a088ccbd8034081d9718d5025b6dfffbbd6e044e886c6848e015a6f11810e5c",
-    "next/tests/runtime_grants/test_grants.py": "8751bebed4881d0f3c4d4e8e84eb8858bebc7b1539e339fcd259808e0174d89e",
-    "next/tests/runtime_grants/test_lifecycle.py": "0f3bace941c689f20dfaf695e251352f49f0b91db0b11467c14adc2edc5deff8",
-    "next/tests/runtime_grants/test_ports.py": "8ceb187d567098b02ca6b573ce9639c825d8a6bfcb55de0e63cc6c7d4c6bd3da",
-    "next/tests/runtime_grants/test_repair.py": "8903a7fcb6c561e1a4cb165c325584e92b997dec7a1df852918e30540bc8858f",
-    "next/tests/runtime_grants/test_upgrade.py": "6ae1ca50a9d5162ab868a194211a832085790c723b9c73c5c5a954f436f64c9b",
-    "next/tests/runtime_grants/worker.py": "a36f49608a9b59f51432e41db29387c59cd2ecf7feb99f15a6764f6279941f07"
+    "next/tests/runtime_grants/runtime_grants_fixture.py": "c8f05383200f26590989723067d90ad715464aa161217542a16362f77b19a4b4",
+    "next/tests/runtime_grants/test_c04.py": "4aec3d65c9666c43ea83ed006e546169443211b1f589812931848a487de4e6cf",
+    "next/tests/runtime_grants/test_connect.py": "8f630bb2d0a2bf8967c897aa5bd7d8a5aeb6420ddee9364d84f1ed9c28524423",
+    "next/tests/runtime_grants/test_grants.py": "72def74b13e28796f95f828f9fbd8ce55dab957af9d86fd45dfbc49f4bd4b636",
+    "next/tests/runtime_grants/test_lifecycle.py": "87a4118779cd5961f72cd61c29484acf6e4586e815bf3185d5fe70cd03191810",
+    "next/tests/runtime_grants/test_ports.py": "185a950f9f1917b1038b25e98493c49dac28705cee4517c5df59d65976ff4c31",
+    "next/tests/runtime_grants/test_repair.py": "de2ecfb76e23fca5ce4a4acdbf71f78d1c4d37066ba9cde9fdacf88b2dc504f5",
+    "next/tests/runtime_grants/test_upgrade.py": "fac17e84001dba4d99dfc2882274bfadc31fed7345cdd2056543671ddfb6c026",
+    "next/tests/runtime_grants/worker.py": "7d52432616545cc0ea93b0d9a6a02dee69327d9e64a54b1967a00093f32a0792"
   },
   "nodes": [
     "test_preimages.Preimages.test_exact_restore_rejects_changed_acl",

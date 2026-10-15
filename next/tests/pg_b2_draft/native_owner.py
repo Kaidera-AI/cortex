@@ -17,7 +17,7 @@ from cortex_core.release.contracts import thaw
 from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberDouble
 import test_owner_proposal as proposals
 import test_lifecycle_receipt as storage
-from support import Fixture,ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid,MATRIX
+from runtime_grants_fixture import Fixture,ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid,MATRIX
 from psycopg import sql
 
 class Materials:

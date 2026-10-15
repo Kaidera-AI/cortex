@@ -12,7 +12,7 @@ sys.path.insert(0,str(NEXT/'tests/runtime_grants_draft'))
 from test_draft import DraftFixture, Draft as PriorDraft
 import test_ports
 import test_repair
-from support import MATRIX,ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid
+from runtime_grants_fixture import MATRIX,ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid
 
 class PgBDraftFixture(DraftFixture):
     def candidate_if_present(self):

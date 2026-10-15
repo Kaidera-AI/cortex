@@ -1,6 +1,6 @@
 """Retain original C04 body oracles; amend only now-forbidden B-login reuse."""
 import hashlib
-from support import Fixture,auth_fixture,READ_A,WRITE_A,uid
+from runtime_grants_fixture import Fixture,auth_fixture,READ_A,WRITE_A,uid
 from cortex_core.auth import AuthError
 
 

@@ -9,9 +9,9 @@ from psycopg import sql
 
 import test_ports as ports
 import test_upgrade as upgrade
-import test_lifecycle as lifecycle
+import runtime_grants.test_lifecycle as lifecycle
 from cortex_core.migrations import apply_migrations, MigrationError
-from support import Fixture, ROLE_NAMES, MATRIX, OPERATION, STEP, uid
+from runtime_grants_fixture import Fixture, ROLE_NAMES, MATRIX, OPERATION, STEP, uid
 
 
 class Repair(Fixture):

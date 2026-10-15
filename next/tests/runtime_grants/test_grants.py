@@ -7,7 +7,7 @@ from uuid import UUID
 import psycopg
 from psycopg import sql
 
-from support import (Fixture,MATRIX,ROLE_NAMES,APP_SCHEMAS,TABLE_PRIVS,expected,
+from runtime_grants_fixture import (Fixture,MATRIX,ROLE_NAMES,APP_SCHEMAS,TABLE_PRIVS,expected,
                      uid,READ_A,WRITE_A,READ_B,REQUEST,OPERATION,EMBEDDING_KIND,SurfaceAbsent)
 
 
