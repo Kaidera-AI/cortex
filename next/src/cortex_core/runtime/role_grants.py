@@ -300,9 +300,9 @@ class _RoleAdapter:
         _require(proof.get('native_binding_ref')==binding_ref,'resource_changed')
         return binding,proof,current['private_binding']['binding_ref']
 
-    def _sql_window(self, context):
+    def _sql_window(self, context, *, expected_context):
         deadline=context.get('deadline')
-        inputs,_=lifecycle._admitted_deadline(deadline)
+        inputs,_=lifecycle._admitted_deadline(deadline,expected_context=expected_context)
         now=owner._decode(inputs.current_clock_raw,'time_unavailable')
         budget=min((deadline.expires_at-now['now_utc']-now['uncertainty_seconds'])*1_000_000_000,
                    deadline.expires_monotonic_ns-now['monotonic_ns'])
@@ -310,9 +310,12 @@ class _RoleAdapter:
         return time.monotonic_ns()+budget
 
     def _sql_barrier(self, conn, context, *, recovery=None):
-        stop=self._sql_window(context)
+        # Carry the already checked admission, keeping fresh recovery authority
+        # separate from its historical SQL subject. Neither context is a permit.
+        expected=thaw(recovery.context) if recovery is not None else thaw(context['context'])
+        stop=self._sql_window(context,expected_context=expected)
         while True:
-            lifecycle._admitted_deadline(context['deadline'])
+            lifecycle._admitted_deadline(context['deadline'],expected_context=expected)
             remaining=stop-time.monotonic_ns()
             _require(remaining>0,'reservation_expired')
             conn.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true)",
@@ -351,7 +354,8 @@ class _RoleAdapter:
         return lifecycle._publish_entry(self.history,context=prefix['context'],reservation=prefix['reservation'],
             attempt=attempt,preimages_ref=prefix['preimages_ref'],request_ref=event['request_ref'],
             release_ref=event['release_binding_ref'],expected_ref=head,phase=event['phase'],
-            recorded_at=clock['now_utc'],deadline=context['deadline'])
+            recorded_at=clock['now_utc'],deadline=context['deadline'],
+            expected_context=thaw(context['context']))
 
     def _sql_postconditions(self, conn, raw, phase, *, before, activate=None):
         _require(phase in ('prepare','bind'),'atomicity_unavailable')
