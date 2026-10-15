@@ -331,6 +331,11 @@ class Bridge(Fixture, unittest.TestCase):
                 receipt, 'verify_product_receipt', observed):
             result = plan(encode(q), aggregate_id=self.aggregate, observed_target=target, owner_uid=501,
                           host_identity_ref=q['caller']['host_identity_ref'], environ={}, config_reader=config)
+            if result.result == 'PASS':
+                original_request = encode(q)
+                receipt.verify_product_receipt(encode(result.receipt), original_request,
+                    request_ref=dict(path='request.json', bytes=len(original_request),
+                                     sha256=sha256(original_request)))
         if result.result == 'PASS':
             # Require both the producer's check and independent consumption of
             # the returned ORIGINAL receipt through the same existing verifier.

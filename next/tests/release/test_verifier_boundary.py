@@ -431,16 +431,46 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
     def owner_data(self):
         import test_owner_proposal as oracle
         helper = oracle.OwnerProposalOracle()
-        return helper, helper.data()
+        data = helper.data()
+        request = json.loads(data['request_raw'])
+        # Derive test-owned P1 originals from the actual signed R01 fixture.
+        # Never alter the frozen owner corpus or inject a verifier result.
+        release = request['release']
+        release['joint_index_ref'] = dict(release['joint_index_ref'],
+                                         bytes=len(self.raw), sha256=hashlib.sha256(self.raw).hexdigest())
+        for index, record in enumerate(release['artifact_refs']):
+            if record['path'] == MEMBER:
+                original = self.bodies[MEMBER]
+                release['artifact_refs'][index] = dict(record, bytes=len(original),
+                                                       sha256=hashlib.sha256(original).hexdigest())
+        data['aggregate_id'] = self.aggregate
+        data['request_raw'] = oracle.encode(request).decode()
+        helper.edit_record(data, 'request_ref', lambda value: value.update(request))
+        context = json.loads(data['context_raw'])
+        consent = json.loads(data['originals'][context['consent_ref']['path']])
+        scope = json.loads(data['originals'][consent['scope_ref']['path']])
+        reference = scope['release_binding_ref']
+        raw = oracle.encode(release)
+        data['originals'][reference['path']] = raw.decode()
+        helper.scope(data, lambda value: value.update(release_binding_ref=dict(
+            reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())))
+        return helper, data
 
     def owner_source(self, *, data=None, fresh=None, request=None, entry=None):
         from cortex_core.install import owner
         helper, original = self.owner_data()
-        # Tests-first baseline: the accepted owner oracle uses its RC2 double.
-        # New deciding assertions require actual R01 verification and originals.
-        with self.composition():
-            return helper.run_gate(owner, original if data is None else data,
-                                   fresh=fresh, request=request)
+        data = original if data is None else data
+        values = [helper.inputs(owner, data), helper.inputs(owner, data if fresh is None else fresh)]
+        calls = []
+        def installed():
+            calls.append('owner-observation')
+            return values[min(len(calls)-1, 1)]
+        raw = data['request_raw'].encode() if request is None else request
+        # Only test-owned startup/current DATA is substituted. The existing
+        # RC2 port, R01 backend and real cryptography remain the deciding path.
+        with self.composition(), patch.object(owner, '_installed_owner_inputs', installed):
+            result = (owner.propose_effect if entry is None else entry)(raw)
+        return result, calls
 
     def owner_refusal(self, detail, **kwargs):
         from cortex_core.install import owner
