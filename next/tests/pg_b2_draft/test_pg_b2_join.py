@@ -22,10 +22,12 @@ class CandidateJoin(unittest.TestCase):
 
     def test_default_binding_refuses_before_connection_access(self):
         api=self.api()
+        calls=[]
         class Unavailable:
-            def __getattr__(self,key):raise AssertionError('connection accessed before fixed owner')
+            def __getattr__(self,key):calls.append(key);raise AssertionError('connection accessed before fixed owner')
         with self.assertRaises(owner.OwnerRefusal):
             api.prepare_runtime_roles(Unavailable(),role_names={},operation_id='foreign')
+        self.assertEqual(calls,[])
 
     def test_candidate_loads_exact_originals_after_live_bytes_change_and_reload(self):
         api=self.api()
