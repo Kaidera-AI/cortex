@@ -38,6 +38,8 @@ and monotonic expiry. UTC expiry is the minimum of start+30 seconds and all know
 consent/policy/session/host/applicable-private UTC bounds. Monotonic expiry is
 the minimum of start+30 billion nanoseconds and all independently known bounds
 in that same epoch. Both clocks must remain before expiry; equality refuses.
+Both the proposal-start and current clock-provider originals are resolved and
+checked for epoch/quality; either can independently shorten the monotonic budget.
 The entire UTC uncertainty interval must meet lower not-before and strict upper
 expiry bounds. Unknown quality, rollback, missing epoch/bound or malformed exact
 integer data refuses. A private bound remains distinct from the host fence.

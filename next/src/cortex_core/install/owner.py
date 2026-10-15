@@ -138,26 +138,29 @@ def _clock(value, epoch):
         _integer(value[key], limit, 'time_unavailable')
 
 
-def _window(context, start, now, receipt, consent, policy, peer, private):
+def _window(context, start, now, receipts, consent, policy, peer, private):
     """Pure independently observed UTC/monotonic minimum; creates no reservation."""
     epoch = context['owner_epoch']
     _clock(start, epoch)
     _clock(now, epoch)
-    _require(receipt.get('owner_epoch') == epoch and receipt.get('quality') == 'bounded', 'time_unavailable')
     _require(now['now_utc'] >= start['now_utc'] and now['monotonic_ns'] >= start['monotonic_ns'], 'time_unavailable')
     utc_bounds = [consent['expires_at'], policy['validity']['expires_at'], peer['expires_at'], context['host_lease']['expires_at']]
     names = {'consent', 'policy', 'session', 'host'}
     if private is not None:
         utc_bounds.append(private['expires_at'])
         names.add('private')
-    mono = receipt.get('monotonic_deadlines')
-    _require(type(mono) is dict and set(mono) == names, 'time_unavailable')
+    mono_bounds = []
+    for receipt in receipts:
+        _require(receipt.get('owner_epoch') == epoch and receipt.get('quality') == 'bounded', 'time_unavailable')
+        mono = receipt.get('monotonic_deadlines')
+        _require(type(mono) is dict and set(mono) == names, 'time_unavailable')
+        for bound in mono.values():
+            _integer(bound, _INT_MAX, 'time_unavailable')
+        mono_bounds.extend(mono.values())
     for bound in utc_bounds:
         _integer(bound, _UTC_MAX, 'time_unavailable')
-    for bound in mono.values():
-        _integer(bound, _INT_MAX, 'time_unavailable')
     expires = min([start['now_utc'] + 30] + utc_bounds)
-    expires_mono = min([start['monotonic_ns'] + 30_000_000_000] + list(mono.values()))
+    expires_mono = min([start['monotonic_ns'] + 30_000_000_000] + mono_bounds)
     _integer(expires, _UTC_MAX, 'time_unavailable')
     _integer(expires_mono, _INT_MAX, 'time_unavailable')
     not_before = (consent['not_before'], policy['validity']['not_before'], peer['not_before'])
@@ -230,6 +233,7 @@ def _evaluate(original_request, inputs, *, check_drift=True):
     start = _original(inputs, context['clock_ref'], 'time_unavailable')
     now = _decode(inputs.current_clock_raw, 'time_unavailable')
     receipt = _original(inputs, start.get('clock_receipt_ref'), 'time_unavailable')
+    current_receipt = _original(inputs, now.get('clock_receipt_ref'), 'time_unavailable')
     _clock(now, context['owner_epoch'])
     _require(set(consent) == _CONSENT and type(consent['revoked']) is bool, 'owner_unavailable')
     _require(policy.get('reservation_max_seconds') == 30 and type(policy.get('validity')) is dict
@@ -271,7 +275,7 @@ def _evaluate(original_request, inputs, *, check_drift=True):
     _require(now['now_utc'] + now['uncertainty_seconds'] < consent['expires_at'], 'consent_expired')
     _require(now['now_utc'] + now['uncertainty_seconds'] < peer['expires_at'], 'session_stale')
     private = _private(inputs, context)
-    deadline = _window(context, start, now, receipt, consent, policy, peer, private)
+    deadline = _window(context, start, now, (receipt, current_receipt), consent, policy, peer, private)
     if check_drift:
         _drift(context, consent, policy, state)
     return OwnerProposal(request.sha256, freeze(context), deadline, context['state_revision'])
