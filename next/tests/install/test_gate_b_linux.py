@@ -158,6 +158,12 @@ class LinuxObserverOracle(unittest.TestCase):
     def test_literal_positive(self):
         self.check_case('positive')
 
+    def test_literal_positive_80_object_closure(self):
+        self.check_case('positive_80_object_closure')
+
+    def test_literal_positive_280_object_closure(self):
+        self.check_case('positive_280_object_closure')
+
     def test_literal_shape(self):
         self.check_case('shape')
 
