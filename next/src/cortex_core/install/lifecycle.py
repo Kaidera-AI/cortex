@@ -20,10 +20,11 @@ from cortex_core.release.codec import canonical_bytes, decode_json
 from cortex_core.release.contracts import freeze, thaw
 
 from . import owner
-from .contracts import InstallRefusal, measure_original_ref, parse_install_message
+from .contracts import LIMITS, InstallRefusal, measure_original_ref, parse_install_message
 
 _PREIMAGES = frozenset(('role', 'acl', 'database', 'hba', 'carrier'))
 _LIMIT = 262144
+_RAW_LIMIT = max(LIMITS.values())
 _EVENT_NAME = re.compile(r'^[0-9]{20}\.json$')
 _DIGEST = re.compile(r'^[0-9a-f]{64}$')
 _OBSERVATIONS = frozenset(('context_ref', 'reservation_ref', 'attempt_ref', 'preimages_ref'))
@@ -133,8 +134,8 @@ class _History:
                 _require(stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid()
                          and info.st_nlink == 1 and not info.st_mode & 0o077, 'custody_changed')
                 with os.fdopen(fd, 'rb', closefd=False) as file:
-                    raw = file.read(_LIMIT+1)
-                _require(len(raw) <= _LIMIT, 'journal_invalid')
+                    raw = file.read(_RAW_LIMIT+1)
+                _require(len(raw) <= _RAW_LIMIT, 'journal_invalid')
                 return raw
             except OSError as error:
                 detail = 'custody_changed' if error.errno == errno.ELOOP else 'journal_invalid'
@@ -165,7 +166,7 @@ class _History:
             raise owner.OwnerRefusal('journal_invalid') from None
 
     def _publish(self, folder, name, raw):
-        _require(type(raw) is bytes and len(raw) <= _LIMIT, 'journal_invalid')
+        _require(type(raw) is bytes and len(raw) <= _RAW_LIMIT, 'journal_invalid')
         with self._root() as root:
             directory = self._directory(root, folder)
             temporary = '.pending-'+secrets.token_hex(16)
@@ -194,7 +195,7 @@ class _History:
                 os.close(directory)
 
     def retain(self, raw):
-        _require(type(raw) is bytes and len(raw) <= _LIMIT, 'journal_invalid')
+        _require(type(raw) is bytes and len(raw) <= _RAW_LIMIT, 'journal_invalid')
         path = 'facts/'+hashlib.sha256(raw).hexdigest()+'.json'
         self._publish('facts', path.split('/')[1], raw)
         return _ref(path, raw)
@@ -310,22 +311,34 @@ def _publish_entry(history, *, context, reservation, attempt, preimages_ref, req
 def _reserve(history, original_request, proposal, originals, preimages, *, clock_raw):
     context = thaw(proposal.context)
     request = parse_install_message(original_request, expected_kind='request')
+    _require(thaw(request.document)['operation'] == 'install', 'scope_denied')
     measure_original_ref(context['request_ref'], original_request)
     _require(request.sha256 == proposal.request_sha256, 'scope_denied')
     current_ref, _ = history.head()
     revision = history.current_revision()
     if revision is not None:
         _require(revision == proposal.observed_state_revision, 'generation_changed')
+    _require(proposal.observed_state_revision < owner._INT_MAX, 'generation_changed')
     _require(type(preimages) is dict and set(preimages) == _PREIMAGES
-             and all(type(raw) is bytes and len(raw) <= _LIMIT for raw in preimages.values()), 'backend_unavailable')
-    for _, event in history.events():
+             and all(type(raw) is bytes and len(raw) <= _RAW_LIMIT for raw in preimages.values()), 'backend_unavailable')
+    for reference, event in history.events():
         if event['identity'] == context['identity']:
             raise owner.OwnerRefusal('reservation_used')
+        _, old_obs = _load_entry(history, reference)
+        old_context = _decode(history.read(old_obs['context_ref']))
+        if tuple(old_context[k] for k in ('owner_epoch','session_id','nonce')) == tuple(
+                context[k] for k in ('owner_epoch','session_id','nonce')):
+            raise owner.OwnerRefusal('nonce_replay')
+        if (_operation(event['identity']) == _operation(context['identity'])
+                and event['effect']['effect_id'] == context['effect']['effect_id']):
+            _, _, latest_obs = _latest_attempt(history, event['identity'])
+            old_attempt = _decode(history.read(latest_obs['attempt_ref']))
+            detail = 'attempt_ambiguous' if old_attempt['dispatch_state'] == 'consumed_result_unknown' else 'reservation_used'
+            raise owner.OwnerRefusal(detail)
     now = owner._decode(clock_raw, 'time_unavailable')
     owner._clock(now, context['owner_epoch'])
     _before_deadline(now, proposal.deadline.expires_at, proposal.deadline.expires_monotonic_ns)
-    for raw in originals.values():
-        history.retain(raw)
+    _retain_originals(history, originals, context)
     # These logical original refs are preserved byte-for-byte in C0 facts.
     history.retain(original_request)
     try:
@@ -338,6 +351,8 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
         preimages_ref = history.retain(canonical_bytes({'identity': context['identity'],
             'originals': {k: history.retain(preimages[k]) for k in sorted(_PREIMAGES)}}))
     release_ref = history.retain(canonical_bytes(thaw(request.document)['release']))
+    first_context_ref = history.retain(canonical_bytes(context))
+    context['clock_ref'] = history.retain(clock_raw)
     context_ref = history.retain(canonical_bytes(context))
     reservation = {'reservation_id': secrets.token_hex(16), 'context_ref': context_ref,
         'effect_id': context['effect']['effect_id'], 'state': 'reserved', 'reserved_at': now['now_utc'],
@@ -345,7 +360,7 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
         'expected_state_revision': proposal.observed_state_revision+1}
     reservation_ref = history.retain(canonical_bytes(reservation))
     attempt = {'identity': context['identity'], 'origin_request_ref': context['request_ref'],
-        'request_ref': context['request_ref'], 'context_ref': context_ref, 'reservation_ref': reservation_ref,
+        'request_ref': context['request_ref'], 'context_ref': first_context_ref, 'reservation_ref': reservation_ref,
         'effect': context['effect'], 'predecessor_result_refs': [], 'dispatch_state': 'not_consumed',
         'result_ref': None, 'reconciliation_ref': None, 'consumption_sequence': None, 'consume_clock_ref': None}
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
@@ -358,22 +373,48 @@ def _before_deadline(now, utc, monotonic):
              and now['monotonic_ns'] < monotonic, 'reservation_expired')
 
 
-def _consume(history, reserved_ref, current, clock_raw):
+def _retain_originals(history, originals, context):
+    _require(type(originals) is dict and len(originals) <= 256
+             and all(type(raw) is bytes for raw in originals.values())
+             and sum(map(len, originals.values())) <= 8*1024*1024, 'journal_invalid')
+    for raw in originals.values():
+        history.retain(raw)
+    def held(value):
+        if type(value) is dict:
+            if set(value) == {'path','bytes','sha256'}:
+                history.read(value)
+            else:
+                for child in value.values():
+                    held(child)
+        elif type(value) is list:
+            for child in value:
+                held(child)
+    held(context)
+
+
+def _continuity(original, context):
+    _require({k:v for k,v in context.items() if k not in ('clock_ref','state_revision','current_state_ref')}
+             == {k:v for k,v in original.items() if k not in ('clock_ref','state_revision','current_state_ref')},
+             'reservation_invalidated')
+
+
+def _consume(history, reserved_ref, current, clock_raw, *, originals):
     event, obs = _load_entry(history, reserved_ref)
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     reservation = _decode(history.read(latest['reservation_ref']))
     _require(reservation['state'] == 'reserved', 'reservation_used')
     _require(latest_ref == reserved_ref, 'reservation_invalidated')
     _require(current.observed_state_revision == reservation['expected_state_revision'], 'generation_changed')
+    _require(current.observed_state_revision < owner._INT_MAX, 'generation_changed')
     original = _decode(history.read(obs['context_ref']))
     context = thaw(current.context)
-    _require({k:v for k,v in context.items() if k not in ('clock_ref','state_revision','current_state_ref')}
-             == {k:v for k,v in original.items() if k not in ('clock_ref','state_revision','current_state_ref')},
-             'reservation_invalidated')
+    _continuity(original, context)
     now = owner._decode(clock_raw, 'time_unavailable')
     owner._clock(now, original['owner_epoch'])
     _before_deadline(now, min(reservation['expires_at'], current.deadline.expires_at),
                      min(reservation['expires_monotonic_ns'], current.deadline.expires_monotonic_ns))
+    _retain_originals(history, originals, context)
+    context['clock_ref'] = history.retain(clock_raw)
     attempt = _decode(history.read(obs['attempt_ref']))
     reservation['state'] = 'consumed'
     reservation_ref = history.retain(canonical_bytes(reservation))
@@ -385,7 +426,8 @@ def _consume(history, reserved_ref, current, clock_raw):
         phase='create_intent', recorded_at=now['now_utc'])
 
 
-def _record_result(history, consumed_ref, original_measurement):
+def _record_result(history, consumed_ref, original_measurement, *, current_context=None,
+                   originals=None, clock_raw=None, result_originals=None):
     event, obs = _load_entry(history, consumed_ref)
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
     _require(latest_ref == consumed_ref, 'reservation_used')
@@ -401,7 +443,17 @@ def _record_result(history, consumed_ref, original_measurement):
     result_ref = history.retain(original_measurement)
     attempt.update(dispatch_state=result['state'], result_ref=result_ref)
     context = _decode(history.read(obs['context_ref']))
-    clock = _decode(history.read(attempt['consume_clock_ref']))
+    if current_context is not None:
+        _continuity(context, current_context)
+        context = current_context
+        _retain_originals(history, originals, context)
+    clock_raw = history.read(attempt['consume_clock_ref']) if clock_raw is None else clock_raw
+    clock = owner._decode(clock_raw, 'time_unavailable')
+    owner._clock(clock, context['owner_epoch'])
+    if result_originals is not None:
+        _retain_originals(history, result_originals, {})
+    history.read(clock['clock_receipt_ref'])
+    context['clock_ref'] = history.retain(clock_raw)
     return _publish_entry(history, context=context, reservation=reservation, attempt=attempt,
         preimages_ref=obs['preimages_ref'], request_ref=event['request_ref'],
         release_ref=event['release_binding_ref'], expected_ref=consumed_ref,
@@ -421,7 +473,7 @@ class EffectResult:
     journal_ref: object
     result_ref: object
     preimages_ref: object
-    phase: str = field(default='enrollment_required', init=False)
+    phase: str = 'enrollment_required'
     native_credit: bool = field(default=False, init=False)
     effect_authority: bool = field(default=False, init=False)
 
@@ -435,7 +487,8 @@ def execute_effect(original_request):
     """Consume B1's DATA in the fixed owner; no caller root/callback/provider."""
     first = owner.propose_effect(original_request)
     bindings = _installed_lifecycle()
-    _require(type(bindings) is _Bindings, 'backend_unavailable')
+    _require(type(bindings) is _Bindings and type(bindings.history) is _History
+             and type(bindings.primitives) is dict, 'backend_unavailable')
     history = bindings.history
     with history.operation():
         inputs = owner._installed_owner_inputs()
@@ -451,17 +504,27 @@ def execute_effect(original_request):
                             clock_raw=inputs.current_clock_raw)
         inputs = owner._installed_owner_inputs()
         final = owner._evaluate(original_request, inputs, previous_deadline=refreshed.deadline)
-        consumed = _consume(history, reserved, final, inputs.current_clock_raw)
+        consumed = _consume(history, reserved, final, inputs.current_clock_raw, originals=inputs.originals)
         _, observation = _load_entry(history, consumed)
-        effect_context = freeze({'context': thaw(final.context), 'journal_ref': consumed,
+        # Consume persistence can block. Recheck the common owner at the actual
+        # dispatch point; the consumed marker alone cannot authorize dispatch.
+        dispatch_inputs = owner._installed_owner_inputs()
+        dispatch_current = owner._evaluate(original_request, dispatch_inputs, previous_deadline=final.deadline)
+        _require(dispatch_current.observed_state_revision == final.observed_state_revision+1, 'generation_changed')
+        _continuity(thaw(final.context), thaw(dispatch_current.context))
+        effect_context = freeze({'context': thaw(dispatch_current.context), 'journal_ref': consumed,
                                  'preimages_ref': observation['preimages_ref']})
         try:
             primitive.dispatch(effect_context)
             measured = primitive.measure(effect_context)
-            completed = _record_result(history, consumed, measured)
+            result_inputs = owner._installed_owner_inputs()
+            completed = _record_result(history, consumed, measured,
+                current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
+                clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals)
         except owner.OwnerRefusal:
             raise
         except Exception:
             raise owner.OwnerRefusal('attempt_ambiguous') from None
         event, observation = _load_entry(history, completed)
-        return EffectResult(freeze(completed), freeze(event['result_ref']), freeze(observation['preimages_ref']))
+        return EffectResult(freeze(completed), freeze(event['result_ref']), freeze(observation['preimages_ref']),
+                            phase='enrollment_required' if event['phase'] == 'created' else 'held')
