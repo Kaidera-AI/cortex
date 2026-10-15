@@ -72,6 +72,36 @@ class Members(unittest.TestCase):
             with self.assertRaises(OSError):os.fstat(fd)
         self.assertIsNone(r.fd)
 
+    def test_contains_required_tag_bounds_candidate_validation_work(self):
+        from cortex_core.release.codec import WireValidator
+        schema={'contains':{'properties':{'role':{'const':'required'}},'required':['role']}}
+        rows=[{'role':'other'} for _ in range(511)]+[{'role':'required'}]
+        actual=WireValidator.is_valid;calls=[]
+        def valid(validator,*a,**k):calls.append(None);return actual(validator,*a,**k)
+        with patch.object(WireValidator,'is_valid',valid):
+            self.assertTrue(WireValidator(schema).is_valid(rows))
+        self.assertLessEqual(len(calls),10,'BODY: impossible contains candidates revalidated')
+
+    def test_contains_prefilter_preserves_general_schema_semantics(self):
+        from cortex_core.release.codec import WireValidator
+        from jsonschema import Draft202012Validator
+        import itertools
+        values=[{'role':'required'},{'kind':'record','role':'required'},
+                {'role':'other'},{},{'role':None},'nonobject',None,True,0,['array']]
+        clauses=[{'properties':{'role':{'const':'required'}},'required':['role']},
+                 {'properties':{'role':{'const':'required'},'kind':{'const':'record'}},'required':['kind','role']},
+                 {'properties':{'role':{'const':'required'}}},
+                 {'properties':{'role':{'const':1}},'required':['role']}]
+        arrays=[[],*[[v] for v in values],*[list(pair) for pair in itertools.product(values,repeat=2)]]
+        for clause in clauses:
+            for minimum,maximum in [(1,None),(0,0),(2,2),(0,1)]:
+                schema={'contains':clause,'minContains':minimum}
+                if maximum is not None:schema['maxContains']=maximum
+                for array in arrays:
+                    expected=Draft202012Validator(schema).is_valid(array)
+                    actual=WireValidator(schema).is_valid(array)
+                    if actual!=expected:self.fail(f'contains semantic mismatch: {schema} {array}')
+
     def test_wire_character_rules_match_original_for_every_unicode_codepoint(self):
         import unicodedata
         from cortex_core.release.codec import _strings
