@@ -595,3 +595,47 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         self.assertEqual(len(self.transports), count)
         self.assertFalse(hasattr(member, 'effect_authority'))
         self.assert_closed()
+
+    def test_EB1_wrong_first_signer_with_authentic_comment_refuses(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        from r01u3_support.factory import test_authority
+        # Isolate the first guard: the expected key still signs the comment.
+        other = test_authority()
+        message = hashlib.blake2b(self.raw, digest_size=64).digest()
+        first = other._signer.sign(message).signature
+        lines = self.signature.split(b'\n')
+        trusted = lines[2][len(b'trusted comment: '):]
+        second = self.authority._signer.sign(first + trusted).signature
+        self.assertFalse(trust.verify_ed25519(self.authority.public, message, first))
+        self.assertTrue(trust.verify_ed25519(self.authority.public, first + trusted, second))
+        lines[1] = base64.b64encode(b'ED' + self.authority.key_id + first)
+        lines[3] = base64.b64encode(second)
+        self.signature = b'\n'.join(lines)
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_signature_invalid')
+        self.assert_closed()
+
+    def test_EB1_request_digest_must_match_verified_original_lock(self):
+        self.init_boundary()
+        import test_owner_proposal as oracle
+        helper, data = self.owner_data()
+        request = json.loads(data['request_raw'])
+        row = next(r for r in request['release']['artifact_refs'] if r['path'] == MEMBER)
+        row['sha256'] = 'f' * 64
+        self.assertNotEqual(row['sha256'], hashlib.sha256(self.bodies[MEMBER]).hexdigest())
+        # Keep physical/signed originals valid, and coherently rebind the
+        # retained request and consent scope so only the owner measure decides.
+        data['request_raw'] = oracle.encode(request).decode()
+        helper.edit_record(data, 'request_ref', lambda value: value.update(request))
+        context = json.loads(data['context_raw'])
+        consent = json.loads(data['originals'][context['consent_ref']['path']])
+        scope = json.loads(data['originals'][consent['scope_ref']['path']])
+        reference = scope['release_binding_ref']
+        raw = oracle.encode(request['release'])
+        data['originals'][reference['path']] = raw.decode()
+        helper.scope(data, lambda value: value.update(release_binding_ref=dict(
+            reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())))
+        error = self.owner_refusal('r01_other_refusal', data=data)
+        self.assertEqual(error.r01_reason, 'member_digest_mismatch')
+        self.assert_closed()
