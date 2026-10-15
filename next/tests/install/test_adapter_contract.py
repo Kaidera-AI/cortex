@@ -2,6 +2,7 @@
 import copy
 from collections.abc import Mapping
 import inspect
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -37,7 +38,7 @@ class LifecycleAdapterOracle(unittest.TestCase):
         gate.assert_called_once_with(b'candidate')
 
     def run_recorder(self, *, lose_result=False, expire_after_consume=False, not_applied=False,
-                     snapshot_failure=False, owner_failure_after_reserve=False):
+                     snapshot_failure=False, owner_failure_after_reserve=False, result_owner_failure=False):
         api = self.api()
         check = storage.LifecycleReceiptOracle()
         helper, data, proposal = check.setup_data()
@@ -49,6 +50,8 @@ class LifecycleAdapterOracle(unittest.TestCase):
                 revision = history.current_revision()
                 if owner_failure_after_reserve and revision is not None:
                     raise RuntimeError('TEST_SECRET_OWNER_ERROR')
+                if result_owner_failure and counts['measurements']:
+                    raise RuntimeError('TEST_SECRET_RESULT_CLOCK_ERROR')
                 fresh = copy.deepcopy(data)
                 if revision is not None:
                     helper.context(fresh, lambda c: c.update(state_revision=revision))
@@ -84,7 +87,23 @@ class LifecycleAdapterOracle(unittest.TestCase):
                 aggregate_id=data['aggregate_id'], member_name='runtime.lock.json')
             with patch.object(owner, '_installed_owner_inputs', inputs), double.installed(signed_member), \
                     patch.object(api, '_installed_lifecycle', return_value=bindings):
-                if snapshot_failure or owner_failure_after_reserve:
+                if result_owner_failure:
+                    with self.assertRaises(owner.OwnerRefusal) as caught:
+                        api.execute_effect(data['request_raw'].encode())
+                    original = check.measurement(data, proposal)
+                    ref = {'path':'original-measured-result.json','bytes':len(original),
+                           'sha256':hashlib.sha256(original).hexdigest()}
+                    try:
+                        kept = history.read(ref)
+                    except owner.OwnerRefusal as error:
+                        self.fail('measured original was lost on later collector failure: '+error.detail)
+                    self.assertEqual(kept, original)
+                    self.assertEqual(caught.exception.detail, 'owner_unavailable')
+                    _, obs = api._load_entry(history, history.head()[0])
+                    attempt = json.loads(history.read(obs['attempt_ref']))
+                    self.assertEqual(attempt['dispatch_state'], 'consumed_result_unknown')
+                    self.assertIsNone(attempt['result_ref'])
+                elif snapshot_failure or owner_failure_after_reserve:
                     try:
                         api.execute_effect(data['request_raw'].encode())
                     except owner.OwnerRefusal as caught:
@@ -154,3 +173,6 @@ class LifecycleAdapterOracle(unittest.TestCase):
 
     def test_P2A25_owner_unavailable_retains_reserved_intent_without_dispatch(self):
         self.run_recorder(owner_failure_after_reserve=True)
+
+    def test_P2A26_measured_original_survives_later_owner_clock_unavailability(self):
+        self.run_recorder(result_owner_failure=True)
