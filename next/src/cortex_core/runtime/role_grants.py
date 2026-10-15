@@ -261,7 +261,7 @@ class _RoleAdapter:
         return driver
 
     def _mandated(self, context=None):
-        context=self.context if context is None else context
+        context=getattr(self,'context',None) if context is None else context
         if context is None:return False
         _,obs=lifecycle._load_entry(self.history,context['journal_ref'])
         return lifecycle._decode(self.history.read(obs['attempt_ref'])).get('sql_mandate_ref') is not None
