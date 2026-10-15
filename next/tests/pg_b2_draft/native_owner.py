@@ -39,6 +39,28 @@ class NativeOwner:
         self.history=lifecycle._History(Path(self.temp.name)/'history')
         self.materials=Materials(self.temp.name);self.sequence=0
         self.original=None;self.last_adapter=None
+        if test._testMethodName in ('test_exact_five_originals_after_changed_live_state_and_history_reload',
+                                    'test_exact_restore_after_finite_self_close'):
+            test.addCleanup(self.preserve_original_witness)
+    def preserve_original_witness(self):
+        # Evidence export only: preserve the deciding existing P1 journal before
+        # the disposable fixture directory is removed. No product store/path.
+        if self.last_adapter is None:return
+        import shutil
+        target=self.test.control_root/('proof-'+self.test._testMethodName)
+        target.mkdir()
+        shutil.copytree(self.history.root,target/'history')
+        live=self.last_adapter.snapshot()
+        ref=lifecycle._retained_preimages(self.history,self.last_adapter.identity)
+        bundle=json.loads(self.history.read(ref));original={k:self.history.read(v) for k,v in bundle['originals'].items()}
+        for field in original:
+            (target/(field+'-original.bin')).write_bytes(original[field])
+            (target/(field+'-live.bin')).write_bytes(live[field])
+        (target/'witness.json').write_text(json.dumps({'classification':'SYNTHETIC_OWNER_REAL_PG_INERT_MATERIALS',
+            'test_id':self.test.id(),'preimages_ref':ref,'history_head':self.history.head()[0],
+            'original_sha256':{k:hashlib.sha256(v).hexdigest() for k,v in original.items()},
+            'live_sha256':{k:hashlib.sha256(v).hexdigest() for k,v in live.items()},
+            'all_five_exact':live==original},indent=2))
     def data(self):
         self.sequence+=1;d=self.helper.data();d['originals'].update(storage.FIXTURE['originals'])
         q=json.loads(d['request_raw']);identity={**q['identity'],'operation_id':str(OPERATION),
