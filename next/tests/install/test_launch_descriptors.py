@@ -98,7 +98,9 @@ class LaunchDescriptors(unittest.TestCase):
         forbidden = {'execute', 'execute_no_trans', 'execmem', 'execstack', 'execheap', 'ptrace', 'transition',
                      'dyntransition', 'setexec', 'setcurrent', 'relabelfrom', 'relabelto'}
         self.assertFalse([r for r in rules if r[0] == 'cortex_c_t' and r[3] & forbidden])
-        self.assertFalse([r for r in rules if r[1] == 'cortex_c_t' and r[0] != 'cortex_c_t'])  # no fd use / ptrace of C
+        # others reach C only to stop it: the calling user may signal its own client (lab 16 Oct), nothing else
+        self.assertEqual([r for r in rules if r[1] == 'cortex_c_t' and r[0] != 'cortex_c_t'],
+                         [('user_t', 'cortex_c_t', 'process', {'sigchld', 'sigkill', 'sigstop', 'signull', 'signal'})])
         self.assertFalse([r for r in rules if r[3] & {'ptrace', 'relabelfrom', 'relabelto'}])
         self.assertFalse([r for r in rules if r[2] in ('capability', 'capability2', 'cap_userns', 'cap2_userns')])
         self.assertEqual(sorted(n for n, a in calls if 'cortex_c_t' in a and n not in ('domain_type', 'domain_entry_file',
@@ -113,6 +115,10 @@ class LaunchDescriptors(unittest.TestCase):
         self.assertLessEqual({'selinux_read_policy', 'selinux_get_enforce_mode', 'selinux_get_fs_mount'}, v)
         self.assertEqual([a for n, a in calls if n == 'init_daemon_domain'], [['cortex_v_t', 'cortex_v_exec_t']])
         self.assertIn('class security read_policy;', text)
+        # NoNewPrivileges=yes on V's unit: without nnp_transition the exec stays in init_t (lab 16 Oct)
+        svc = unit(LAUNCH / 'linux/kaidera-cortex-owner.service')['Service']
+        self.assertEqual(svc['NoNewPrivileges'], ['yes'])
+        self.assertIn(('init_t', 'cortex_v_t', 'process2', {'nnp_transition', 'nosuid_transition'}), rules)
         self.assertFalse([r for r in rules if r[0] == 'cortex_v_t' and r[3] & {'execute_no_trans', 'transition', 'ptrace'}])
 
     def test_selinux_file_contexts_match_the_descriptors(self):

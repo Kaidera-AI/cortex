@@ -30,6 +30,7 @@ require {
 	type user_t;
 	role user_r;
 	class security read_policy;
+	class process2 { nnp_transition nosuid_transition };
 }
 
 # C: the admitted client
@@ -73,12 +74,17 @@ allow cortex_c_t user_t:fd use;
 allow cortex_c_t user_t:fifo_file rw_inherited_fifo_file_perms;
 allow cortex_c_t user_t:process sigchld;
 userdom_use_user_terminals(cortex_c_t)
+# the calling user may stop its own client (lab 16 Oct: timeout/Ctrl-C were denied);
+# signals only: no ptrace, no fd use, no process attribute access
+allow user_t cortex_c_t:process { sigchld sigkill sigstop signull signal };
 
 ########################################
 # systemd creates the endpoint (labels come from the .fc file)
 #
 allow init_t cortex_owner_run_t:dir { create getattr setattr search add_name remove_name write };
 allow init_t cortex_v_sock_t:sock_file { create getattr setattr unlink };
+# V runs with NoNewPrivileges=yes: without this the exec stays in init_t (lab 16 Oct)
+allow init_t cortex_v_t:process2 { nnp_transition nosuid_transition };
 
 ########################################
 # V: serve one connection, observe the effective policy. No capability.
