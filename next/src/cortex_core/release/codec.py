@@ -26,7 +26,24 @@ def _unique_items(validator, unique, value, schema):
     yield from Draft202012Validator.VALIDATORS['uniqueItems'](validator,unique,value,schema)
 
 
-WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length,'uniqueItems':_unique_items})
+def _contains(validator, contains, value, schema):
+    # A required string constant rules out other tag values. Validate every
+    # remaining candidate with the existing keyword, including all its bounds.
+    candidates=value
+    if (validator.is_type(value,'array') and type(contains) is dict
+            and type(contains.get('required')) is list
+            and type(contains.get('properties')) is dict):
+        properties=contains['properties']
+        constants=[(key,properties[key]['const']) for key in contains['required']
+                   if key in properties and type(properties[key]) is dict
+                   and type(properties[key].get('const')) is str]
+        if constants and all(type(row) is dict and all(
+                key not in row or type(row[key]) is str for key,_ in constants) for row in value):
+            candidates=[row for row in value if all(row.get(key)==expected for key,expected in constants)]
+    yield from Draft202012Validator.VALIDATORS['contains'](validator,contains,candidates,schema)
+
+
+WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length,'uniqueItems':_unique_items,'contains':_contains})
 
 
 def sha256(raw):
