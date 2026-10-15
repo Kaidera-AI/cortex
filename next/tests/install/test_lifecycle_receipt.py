@@ -162,17 +162,16 @@ class LifecycleReceiptOracle(unittest.TestCase):
             originals = {k: v.encode() for k, v in fresh['originals'].items()}
             before_bundle = history.read(original)
             for field in sorted(self.preimages()):
-                with self.subTest(replaced_preimage=field):
-                    changed = self.preimages(); changed[field] = b'REPLACEMENT'
-                    with self.assertRaises(owner.OwnerRefusal) as caught:
-                        api._reserve(history, fresh['request_raw'].encode(), current,
-                                     originals, changed, clock_raw=fresh['current_clock_raw'].encode())
-                    self.assertEqual(caught.exception.detail, 'resource_changed')
-                    self.assertEqual(history.head()[0], first_entry)
-                    self.assertEqual(api._retained_preimages(history, thaw(current.context)['identity']), original)
-                    self.assertEqual(history.read(original), before_bundle)
-                    for name, ref in json.loads(before_bundle)['originals'].items():
-                        self.assertEqual(history.read(ref), self.preimages()[name])
+                changed = self.preimages(); changed[field] = b'REPLACEMENT'
+                with self.assertRaises(owner.OwnerRefusal, msg='replacement '+field) as caught:
+                    api._reserve(history, fresh['request_raw'].encode(), current,
+                                 originals, changed, clock_raw=fresh['current_clock_raw'].encode())
+                self.assertEqual(caught.exception.detail, 'resource_changed')
+                self.assertEqual(history.head()[0], first_entry)
+                self.assertEqual(api._retained_preimages(history, thaw(current.context)['identity']), original)
+                self.assertEqual(history.read(original), before_bundle)
+                for name, ref in json.loads(before_bundle)['originals'].items():
+                    self.assertEqual(history.read(ref), self.preimages()[name])
             # Matched success proves the new attempt reaches this guard and is
             # otherwise admissible; its originals still use the first bundle.
             second = api._reserve(history, fresh['request_raw'].encode(), current,
