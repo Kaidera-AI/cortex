@@ -140,6 +140,9 @@ def _renewed_scope(history, request, context, original):
             for k in ('product', 'resource_kind', 'reversal_contract_ref', 'data_policy_ref')), 'scope_denied')
     anchors = [original['event']['request_ref']] + [
         creator['event']['request_ref'] for creator in original['creators'].values()]
+    anchors += [subject['event']['origin_request_ref']
+        for subject in [original, *original['creators'].values()]
+        if subject['event']['origin_request_ref'] != subject['event']['request_ref']]
     for reference, event in history.events():
         if event['identity'] == context['identity']:
             continue
