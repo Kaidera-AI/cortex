@@ -154,6 +154,8 @@ Kai row `4acaf529-dd55-4f8a-9294-355e798bfa6d` authorizes the accepted EB2/F2 te
 
 The original EB1 file prefix is byte-for-byte preserved. Before EB2, this file selects 75 methods (62 original plus 13 EB1); after EB2 it selects 82. All other 20 U3 files and the original bridge's 41 IDs/four partitions remain unchanged. Thus the final U3 inventory is **21 files / 666 selected cases per Python**, a collection count rather than a claimed execution receipt. F2 adds this reconciliation without another bridge mechanism or test ID.
 
+Only the new EB2 fixture originals use the existing worker-owned `TMPDIR`, so the orchestrator can remove them after a hard process cap. This changes test storage, while preserving the actual file-reader, verifier, owner, producer, deadline and history paths and all deciding assertions. Original EB1 fixture setup/location and bridge methods remain unchanged.
+
 The canonical task return `docs/handoffs/2026-10-15_ren-kos_kai_gateb-eb2f2.md` binds the exact child head/tree, final commands and results. Its evidence directory `output/KOS/ren-kos-gateb-eb2f2-20261015` retains original/final IDs and source/fixture hashes, per-phase receipts, complete environment versions, actual loaded-code observations, one-locus omission/restore controls, full U3 and next-offline diagnostics. A timeout, interrupted cohort, import/setup error or profiling crash earns no BODY-failure or complete-suite credit. The unchanged 180-second per-file cap and four bridge partitions still apply. Per-node source observations cannot substitute for a complete file receipt or hosted Linux isolation.
 
 ### The 155 original execution controls remain explicit

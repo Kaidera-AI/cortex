@@ -792,7 +792,8 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         from test_hold1_producer import SQLSubject
         @contextmanager
         def joined():
-            self.init_boundary()
+            with patch('r01u3_support.startup.MAIN', Path(self.eb2_files.name)):
+                self.init_boundary()
             with tempfile.TemporaryDirectory(prefix='EB2-source-') as root:
                 s = SQLSubject(root)
                 _, release_data = self.owner_data()
@@ -848,3 +849,15 @@ class OwnerSourceJoin(StartupFixture, unittest.TestCase):
         s.private['sql_native']['writer_attempt_id'] = q['identity']['attempt_id']
         s.set_private()
         s.adapter.identity = q['identity']
+
+    def setUp(self):
+        # Keep only the new finite schedules under the existing worker-owned
+        # TMPDIR. The runner can then remove their originals after a hard cap;
+        # all original EB1 fixtures retain their original setup and location.
+        if not self._testMethodName.startswith('test_EB2_'):
+            return super().setUp()
+        import tempfile
+        self.eb2_files = tempfile.TemporaryDirectory(prefix='EB2-originals-')
+        self.addCleanup(self.eb2_files.cleanup)
+        with patch('test_original_member_bridge.MAIN', Path(self.eb2_files.name)):
+            super().setUp()
