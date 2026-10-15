@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+import re
 import unicodedata
 from pathlib import Path
 
@@ -32,12 +33,16 @@ def sha256(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
+# Same Unicode ranges as the original per-character rule, searched in C.
+_FORBIDDEN=re.compile(r'[\x00-\x1f\x7f-\x9f\ud800-\udfff]')
+_FORBIDDEN_PAYLOAD=re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff]')
+
+
 def _strings(value, *, text_payload=False):
     if isinstance(value, str):
         if not text_payload and unicodedata.normalize('NFC', value) != value:
             raise ValueError('unicode_not_nfc')
-        if any((ord(c) < 32 and not (text_payload and c in '\n\r\t'))
-               or 127 <= ord(c) <= 159 or 0xD800 <= ord(c) <= 0xDFFF for c in value):
+        if (_FORBIDDEN_PAYLOAD if text_payload else _FORBIDDEN).search(value):
             raise ValueError('forbidden_unicode')
     elif isinstance(value, dict):
         for key, item in value.items():
@@ -77,7 +82,8 @@ def decode_json(raw, limit, *, canonical=True, text_payload=False):
     try:
         value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs,
                            parse_float=float if text_payload else _number, parse_constant=_number)
-        _strings(value, text_payload=text_payload)
+        # canonical_bytes already enforces the same strict string/type rules.
+        if not canonical or text_payload:_strings(value, text_payload=text_payload)
         if canonical and canonical_bytes(value) != raw:
             raise ValueError('noncanonical_encoding')
         return value

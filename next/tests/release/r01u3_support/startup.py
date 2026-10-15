@@ -75,6 +75,17 @@ class StartupFixture(Fixture):
                      ('cortex_core',None,machinery.NamespaceLoader,(str(self.install/'src/cortex_core'),)),
                      ('cortex_core.release.member_admission',str(self.install/'src/cortex_core/release/member_admission.py'),machinery.SourceFileLoader,()),
                      ('cryptography',str(self.install/'deps/cryptography/__init__.py'),machinery.SourceFileLoader,(str(self.install/'deps/cryptography'),))))
+        # INERT source-custody simulation: keep the real inspector's checks
+        # inside this private fixture installation, independent of runner ancestry.
+        from cortex_core.release import inspector
+        if not hasattr(self,'_inert_original_reader'):
+            self._inert_original_reader=inspector._read_member
+        original=self._inert_original_reader;installation=self.install
+        def measured(root,row):
+            path=Path(root)/row['path']
+            relative=path.relative_to(installation)
+            return original(installation,dict(row,path=relative.as_posix()))
+        self.enterContext(patch.object(inspector,'_read_member',measured))
         return api
 
     def provider(self):
