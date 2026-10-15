@@ -44,3 +44,17 @@ class LogicalOriginalPaths(unittest.TestCase):
 
     def test_journal_shaped_logical_name_keeps_original(self):
         self.reserve_at('events/00000000000000000000.json')
+
+    def test_invalid_held_original_cannot_fall_back_to_a_valid_journal(self):
+        check = original.LifecycleReceiptOracle()
+        with tempfile.TemporaryDirectory() as root:
+            history = api._History(Path(root))
+            *_, entry = check.reserve(api, history)
+            raw = history.read(entry)
+            held = history.retain(raw)
+            (Path(root)/held['path']).write_bytes(b'X'*(api._RAW_LIMIT+1))
+            self.assertEqual(history.head()[0], entry)
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                history.read(entry)
+            self.assertEqual(caught.exception.detail, 'journal_invalid')
+            self.assertEqual((Path(root)/entry['path']).read_bytes(), raw)
