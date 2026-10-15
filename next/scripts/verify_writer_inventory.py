@@ -48,6 +48,69 @@ EXEMPT_SYMBOL_FILES = {
 }
 
 
+# Closed classifications for the composed PG-B/P2 inventory. These are retained
+# scanner rows, not skip rules. Whole source bytes pin callers/authority as well
+# as the complete site identity. Any source or site drift requires new review.
+REVIEWED_WRITER_SOURCE_SHA256 = {
+    "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
+    "schema/auth/007-runtime-grants.sql": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607",
+    "src/cortex_core/install/lifecycle.py": "cfb9c7585cca903600988498888f3a0f9826fbfd903ffd80b36a305c71689ec3",
+    "src/cortex_core/install/owner.py": "68c3b039e84b8f5d61868cc39855c38c6ec4364627de7fe5da2b312e8c704fc8",
+    "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
+    "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7"
+}
+
+
+REVIEWED_WRITER_CLASSES = {
+    ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.credentials', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
+    ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.first_identity_receipts', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
+    ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.principals', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
+    ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.project_grants', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
+    ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'core.payloads', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
+    ('schema/auth/007-runtime-grants.sql', 'coordination.runtime_lease_acquire', 'INSERT', 'coordination.supervisor_leases', 0, '3e9e8dc095d6b2eade27160fe22bd62888fdd67485d72f297211aa4054ae8ae8'): 'held_PG_B_supervisor_lease; fixed_login_OID/map; caller_SQL_transaction/row_locks; noncanonical',
+    ('schema/auth/007-runtime-grants.sql', 'coordination.runtime_lease_acquire', 'UPDATE', 'coordination.supervisor_leases', 0, '3e9e8dc095d6b2eade27160fe22bd62888fdd67485d72f297211aa4054ae8ae8'): 'held_PG_B_supervisor_lease; fixed_login_OID/map; caller_SQL_transaction/row_locks; noncanonical',
+    ('schema/auth/007-runtime-grants.sql', 'coordination.runtime_lease_release', 'UPDATE', 'coordination.supervisor_leases', 0, '5304fb47e8aad61a71837095056ebe3f205a895b473839bf989c54293dc54087'): 'held_PG_B_supervisor_lease; fixed_login_OID/map; caller_SQL_transaction/row_locks; noncanonical',
+    ('schema/auth/007-runtime-grants.sql', 'coordination.runtime_lease_renew', 'UPDATE', 'coordination.supervisor_leases', 0, 'f87135599af7603c960899b7da962a360f18d1de0f4b45b481be3d45f50cad7a'): 'held_PG_B_supervisor_lease; fixed_login_OID/map; caller_SQL_transaction/row_locks; noncanonical',
+    ('src/cortex_core/install/owner.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'af68350c39c6e3a24c3ab604502687e5a81f5183993100f7fc1a2b2ab1319b50'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/install/recovery.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/role_grants.py', '<module>', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 0, '6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae'): 'closed_privilege_name_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/role_grants.py', '<module>', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 1, '6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae'): 'closed_privilege_name_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._apply_grants', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '281bfbdf994b6f26294e7d203219e975c3c2f14c6b02fe48cbfb7cda6c17d799'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._apply_grants', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'c680eabd0ecde4a4e70103c60041b478fa0a475a79a3a557a23356db81144452'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._privileges', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._restore_acl', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'f6eda71b9c6bc63f21bb91e1b44e620d4ea624b5dbb44082cafc14c609289319'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._restore_acl', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'c85719eb75e314124b89ab953f03474fbaa03a9160faf861c974012e9a3862bb'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._restore_acl', 'DYNAMIC', '<dynamic_or_unsupported>', 2, 'bb1ea693ae8a3c10fdd9972e47e3a2783356cd621ccb85b08c2d684df1ca7d5e'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._restore_defaults', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'f886339502dee686cd2338837c497bd3fa64784481bb987bcb953542da80ec5b'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._restore_defaults', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '23712552e36d7ef0e227ce87f25eeb22779108aa77154b2e8a5e9979cf98bc4f'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.bind', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'a07dc8eb5407d355b3e2a5ae2ae7904523098d781f477fca5422f37396170cc5'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.bind', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'fc5406b031a27e5d5080b230ded62a011c77ecf5f79acb0211910b117a05397f'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.bind', 'DYNAMIC', '<dynamic_or_unsupported>', 2, '6fa11c19cb176c9f2c014967bd5935b4f3b62fa8cf037a3e080328d511277968'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.bind', 'INSERT', 'auth.runtime_login_bindings', 0, 'bca3931b7626f04cb4c6970149a4bfcd4776693a6fc1ddfb78fb34e5037ee75b'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.bind', 'UPDATE', 'auth.runtime_login_bindings', 0, '5a33d5f7cc7e4b722821bd1c47784d4eb10a9b97498ae727ed1813bb11ff11f8'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.close', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.close', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.close', 'DYNAMIC', '<dynamic_or_unsupported>', 2, '1399eb3ef146e097748d7f288531035b01535d5ed015761bdb589aaa02841041'): 'fixed_P2_finite_close; TXN-001_owned_top_level_SQL; compound_backend_effects_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.close', 'DYNAMIC', '<dynamic_or_unsupported>', 3, 'bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.close', 'DYNAMIC', '<dynamic_or_unsupported>', 4, 'bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.prepare', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '47ddff420420252758a88b44521618e6c580bca5681f0a0ffa6d94346e6cdc3b'): 'fixed_P2_finite_prepare_bind; TXN-001_owned_top_level_SQL; HOLD1_v2_if_mandated; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DELETE', 'auth.runtime_login_bindings', 0, '79f48db751f3cb5107167be6ade2b607ef2a4b0c446647706e7a873271485e9e'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'ec0f4c01e5a8e0c50f182b56ec3b39538cad464c7430818cfd402dc713db5033'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '28d3eb35be007141e93386db64865987bea065ca6990efb934cb07b0ac2a4010'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 2, 'b6b7e8ccea0b67952297e41407e23e3df7ff0a0e53addb42ce992dd866d5ba0f'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 3, '3d6c64228dc78ce46aa66ef1808cc1117bf6fc4910e849a95b6abe0e487c4beb'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 4, '1a74122bdedbe3d86e1647ed5d0f41d543c89176df2349445bb552043e016fb2'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 5, '43759d47d3c949ad91d9a11cc3e8bb25992598dcff4a1799b3999f055b190129'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 6, '61b41d3b8dc7f7e6df6e14e59fa06358f26b06154a012780da07a7d8ca16f451'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 7, '809d48f45a1cb310d8418cec76e8fcfca8b007072ac3f0bdb8a12283e9b294e8'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'DYNAMIC', '<dynamic_or_unsupported>', 8, 'b03989d6afc2d40a9504d2c80aa2dc787c41890a98abc02dd166ecdd36d42f4f'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.restore', 'INSERT', 'auth.runtime_login_bindings', 0, '2c511492c2582bdcb002d85452783e9b2057a82a3b82b56830ec88fdb6584729'): 'fixed_P2_finite_restore; TXN-001_owned_top_level_SQL; compound_material_IO_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.validate_acl', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '83ee99940a41ec174538b74a80a9982e50a169ce3c647bd967d58fc26873f93e'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/role_grants.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
+}
+
+
 def normalized_function_digest(function):
     # 3.13 changed ast.dump's default to hide empty fields; keep the 3.12 form.
     options={'show_empty':True} if sys.version_info >= (3,13) else {}
@@ -366,12 +429,23 @@ def scan_source(file,source):
 
 
 def scan(root,overrides=None):
-    root=Path(root);overrides=overrides or {};rows=[]
+    root=Path(root);overrides=overrides or {};rows=[];source_hashes={}
     paths=sorted(list((root/'src/cortex_core').rglob('*.py'))+list((root/'schema').rglob('*.sql')))
     for path in paths:
-        name=str(path.relative_to(root));rows.extend(scan_source(name,overrides.get(name,path.read_text())))
+        name=str(path.relative_to(root));source=overrides.get(name,path.read_text())
+        source_hashes[name]=hashlib.sha256(source.encode()).hexdigest()
+        rows.extend(scan_source(name,source))
     for path in sorted((root/'src').rglob('*.py')):
         name=str(path.relative_to(root));rows.extend(source_reference_flags(name,overrides.get(name,path.read_text())))
+    required_sources={key[0] for key in REVIEWED_WRITER_CLASSES} | {
+        'schema/auth/005-first-identity.sql','src/cortex_core/install/lifecycle.py'}
+    reviewed_sources=(set(REVIEWED_WRITER_SOURCE_SHA256)==required_sources
+        and all(source_hashes.get(name)==digest
+                for name,digest in REVIEWED_WRITER_SOURCE_SHA256.items()))
+    for row in rows:
+        if row['classification'] is None and reviewed_sources:
+            key=tuple(row[k] for k in ('file','owner','verb','table','ordinal','statement_sha256'))
+            row['classification']=REVIEWED_WRITER_CLASSES.get(key)
     return sorted(rows,key=lambda r:(r['file'],r['owner'],r['verb'],r['table'],r['ordinal']))
 
 
