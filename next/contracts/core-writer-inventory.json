@@ -162,6 +162,96 @@
       "classification": "fixed_identity_authority; captured_by_additive_identity_finish"
     },
     {
+      "file": "schema/auth/004-first-identity-capture.sql",
+      "owner": "coordination.c06_capture_revision",
+      "verb": "INSERT",
+      "table": "coordination.outbox",
+      "ordinal": 0,
+      "statement_sha256": "5b2b0f01d9c62260b9830e6827d9009cc6e5f9bdbda4911d12476b5621eb0399",
+      "classification": "private_C06_c06_capture_revision"
+    },
+    {
+      "file": "schema/auth/004-first-identity-capture.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "INSERT",
+      "table": "core.record_aliases",
+      "ordinal": 0,
+      "statement_sha256": "790fe291f9038f62f8520748ace4efb4887f607d3775f945fcdecf047f6fc429",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/auth/004-first-identity-capture.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "INSERT",
+      "table": "core.record_revisions",
+      "ordinal": 0,
+      "statement_sha256": "790fe291f9038f62f8520748ace4efb4887f607d3775f945fcdecf047f6fc429",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/auth/004-first-identity-capture.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "INSERT",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "790fe291f9038f62f8520748ace4efb4887f607d3775f945fcdecf047f6fc429",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/auth/004-first-identity-capture.sql",
+      "owner": "coordination.c06_fact",
+      "verb": "UPDATE",
+      "table": "core.records",
+      "ordinal": 0,
+      "statement_sha256": "790fe291f9038f62f8520748ace4efb4887f607d3775f945fcdecf047f6fc429",
+      "classification": "private_C06_c06_fact"
+    },
+    {
+      "file": "schema/auth/005-first-identity.sql",
+      "owner": "auth.first_identity",
+      "verb": "INSERT",
+      "table": "auth.credentials",
+      "ordinal": 0,
+      "statement_sha256": "221dd1ade9a4e2b4509762c2627faf12a239a1761c520f33a772fb0a26cd792e",
+      "classification": "explicit_installer_only; never runtime mutation"
+    },
+    {
+      "file": "schema/auth/005-first-identity.sql",
+      "owner": "auth.first_identity",
+      "verb": "INSERT",
+      "table": "auth.first_identity_receipts",
+      "ordinal": 0,
+      "statement_sha256": "221dd1ade9a4e2b4509762c2627faf12a239a1761c520f33a772fb0a26cd792e",
+      "classification": "explicit_installer_only; never runtime mutation"
+    },
+    {
+      "file": "schema/auth/005-first-identity.sql",
+      "owner": "auth.first_identity",
+      "verb": "INSERT",
+      "table": "auth.principals",
+      "ordinal": 0,
+      "statement_sha256": "221dd1ade9a4e2b4509762c2627faf12a239a1761c520f33a772fb0a26cd792e",
+      "classification": "explicit_installer_only; never runtime mutation"
+    },
+    {
+      "file": "schema/auth/005-first-identity.sql",
+      "owner": "auth.first_identity",
+      "verb": "INSERT",
+      "table": "auth.project_grants",
+      "ordinal": 0,
+      "statement_sha256": "221dd1ade9a4e2b4509762c2627faf12a239a1761c520f33a772fb0a26cd792e",
+      "classification": "explicit_installer_only; never runtime mutation"
+    },
+    {
+      "file": "schema/auth/005-first-identity.sql",
+      "owner": "auth.first_identity",
+      "verb": "INSERT",
+      "table": "core.payloads",
+      "ordinal": 0,
+      "statement_sha256": "221dd1ade9a4e2b4509762c2627faf12a239a1761c520f33a772fb0a26cd792e",
+      "classification": "explicit_installer_only; never runtime mutation"
+    },
+    {
       "file": "schema/coordination/002-outbox.sql",
       "owner": "auth.identity_finish",
       "verb": "INSERT",
@@ -457,6 +547,15 @@
       "ordinal": 0,
       "statement_sha256": "0335aa989ef927c79f0e12516af3b7b477e8ee405ed7f6577c843211dba96f73",
       "classification": "private_C07_scoped_durable_outcome_after_target_receipt"
+    },
+    {
+      "file": "schema/coordination/005-session-source.sql",
+      "owner": "coordination.c11b3_session_claim",
+      "verb": "INSERT",
+      "table": "coordination.session_sources",
+      "ordinal": 0,
+      "statement_sha256": "9a68f903cead0d33a7f266f7b6daba574b8ac823ceb55d3a100e863b0397a49c",
+      "classification": "private_transaction_binding_housekeeping"
     },
     {
       "file": "src/cortex_core/conductor/supervisor.py",
