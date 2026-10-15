@@ -1036,6 +1036,60 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
         p=self.packet();p['reports'][4].update(outcome='failed',assertion=True,exception_type='builtins.AssertionError')
         self.assertFalse(self.admitted(p))
 
+    def corpus_packet(self, node, canonical):
+        manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        row=next(row for row in manifest['method_exclusions'] if row['nodeid']==node)
+        packet=self.packet(live=False)
+        packet.update(expected=[node],selected=[node],collected=[node],excluded_methods=[row])
+        for report in packet['reports']:report['nodeid']=node
+        packet['reports'][1].update(exception_type='builtins.AssertionError',
+            detail='E   AssertionError: unexpectedly None : NOT_RUN_MISSING_ORIGINAL_CORPUS ['
+                +canonical+']: see missing_R01_cases and missing_composed_positive_material')
+        packet['declared_unavailable']=self.gate.declaration_observations(packet,[row])
+        return packet,row
+
+    CORPUS_TWINS=(
+        ('next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_01_current_P','C0-01-current-P'),
+        ('next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_06_concurrent_N','C0-06-concurrent-N'))
+
+    def test_h_d569_nonexistent_case_aliases_are_refused(self):
+        gate=self.gate
+        for node,canonical in self.CORPUS_TWINS:
+            original,row=self.corpus_packet(node,canonical)
+            for alias in (canonical.replace('-','_'),canonical.replace('-','_',1)):
+                with self.subTest(node=node,alias=alias):
+                    packet=copy.deepcopy(original)
+                    packet['reports'][1]['detail']=packet['reports'][1]['detail'].replace('['+canonical+']','['+alias+']')
+                    packet['declared_unavailable']=gate.declaration_observations(packet,[row])
+                    self.assertFalse(packet['declared_unavailable'][0]['valid'])
+                    self.assertFalse(gate.receipt_valid(packet,0,excluded=[row]))
+
+    def test_h_d569_genuine_and_restored_twins_keep_zero_credit(self):
+        gate=self.gate
+        for node,canonical in self.CORPUS_TWINS:
+            with self.subTest(node=node):
+                original,row=self.corpus_packet(node,canonical)
+                restored=copy.deepcopy(original)
+                restored['reports'][1]['detail']=restored['reports'][1]['detail'].replace('['+canonical+']','[unrelated-case]')
+                restored['reports'][1]['detail']=original['reports'][1]['detail']
+                for packet in (original,restored):
+                    self.assertTrue(gate.receipt_valid(packet,0,excluded=[row]))
+                    self.assertEqual(packet['collected'].count(node),1)
+                    witness=packet['declared_unavailable'][0]
+                    self.assertTrue(witness['valid']);self.assertTrue(witness['executed'])
+                    self.assertEqual(witness['pass_credit'],0)
+
+    def test_h_d569_requires_one_exact_collected_case(self):
+        gate=self.gate
+        for node,canonical in self.CORPUS_TWINS:
+            original,row=self.corpus_packet(node,canonical)
+            for collected in ([],[node,node],[node+'_near_miss']):
+                with self.subTest(node=node,collected=collected):
+                    packet=copy.deepcopy(original);packet['collected']=collected
+                    packet['declared_unavailable']=gate.declaration_observations(packet,[row])
+                    self.assertFalse(packet['declared_unavailable'][0]['valid'])
+                    self.assertFalse(gate.receipt_valid(packet,0,excluded=[row]))
+
     def test_only_five_ruling_rows_are_approved_and_removal_is_allowed(self):
         g=self.gate;m=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
         rows=[x for x in m['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit']
