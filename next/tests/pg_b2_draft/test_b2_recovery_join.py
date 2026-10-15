@@ -112,9 +112,9 @@ class RecoveryFixture(unittest.TestCase):
         c=thaw(effect['context'])
         result={'identity':c['identity'],'effect':c['effect'],'request_ref':c['request_ref'],
                 'state':state,'observed':{'adapter':'finite_pg_roles','originals':{k:a.history.retain(v) for k,v in live.items()}}}
-        if edit:edit(result)
         # Existing P1 canonical result is returned with all opaque observations intact.
         result['observed']['acceptance_note']='original-owner-test-observation'
+        if edit:edit(result)
         raw=canonical_bytes(result)
         if reconciliation:
             event,obs=lifecycle._load_entry(a.history,effect['journal_ref'])
@@ -369,3 +369,12 @@ class RecoveryFixture(unittest.TestCase):
                 preimages_ref=obs['preimages_ref'],request_ref=c['request_ref'],release_ref=event['release_binding_ref'],
                 expected_ref=history.head()[0],phase='held',recorded_at=1700000001)
             self.refuse(a,effect,h,data)
+
+    def test_null_acceptance_observed_is_unknown(self):
+        with tempfile.TemporaryDirectory() as root:
+            _,h,history,old,current,effect,a=self.fixture(root)
+            self.truth(a,effect,reconciliation=True,edit=lambda r:r.update(observed=None))
+            data=self.authority(h,current,history,effect)
+            try:answer=self.answer(a,effect,h,data)
+            except AttributeError:self.fail('B2_NULL_ACCEPTANCE_ESCAPED_UNKNOWN')
+            self.assertEqual(answer,('UNKNOWN',None))
