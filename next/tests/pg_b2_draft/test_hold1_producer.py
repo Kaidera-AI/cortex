@@ -344,7 +344,7 @@ class Hold1Producer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             s=SQLSubject(root)
             def drift(s,stage):
-                if stage=='postimage':s.writer_view['carrier']+=b' changed after seal'
+                if stage=='postimage':s.live['carrier']+=b' changed after seal'
             s.publication_observer=drift
             with s.installed():
                 with self.assertRaises(owner.OwnerRefusal):s.dispatch()
@@ -377,3 +377,122 @@ class Hold1Producer(unittest.TestCase):
             with s.installed():
                 with self.assertRaises(owner.OwnerRefusal):s.primitive._prime_sql()
             self.assertEqual(s.writer.calls+s.reader.calls,[],'HOLD1_UNADMITTED_MANDATE_SQL_READ')
+
+    def test_owner_expiry_during_checkpoint_ACK_stops_effect_or_COMMIT(self):
+        for stage in ('xid','postimage'):
+            with self.subTest(stage=stage),tempfile.TemporaryDirectory() as root:
+                s=SQLSubject(root)
+                def expire(s,current):
+                    if current==stage:s.expired=True
+                s.publication_observer=expire
+                with s.installed():
+                    with self.assertRaises(owner.OwnerRefusal):s.dispatch()
+                self.assertEqual(s.effect_count,0 if stage=='xid' else 1)
+                self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_EXPIRED_CHECKPOINT_COMMITTED')
+
+    def test_SQL_state_mutation_after_POSTIMAGE_stops_COMMIT(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            def drift(s,stage):
+                if stage=='postimage':
+                    v=json.loads(s.writer_view['role']);v['roles'][-1][0]=901;s.writer_view['role']=canonical_bytes(v)
+            s.publication_observer=drift
+            with s.installed():
+                with self.assertRaises(owner.OwnerRefusal):s.dispatch()
+            self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_POST_SEAL_SQL_MUTATION_COMMITTED')
+
+    def test_SQL_lock_acquisition_has_physical_ceiling_under_stalled_clock(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                effect=s.dispatch(schedule=5);effect=s.recover(effect);s.lock_available=False
+                ticks=iter([0,1_000_000_000,2_000_000_000,9_000_000_000])
+                with patch.object(api.time,'monotonic_ns',side_effect=lambda:next(ticks,9_000_000_000)):
+                    with self.assertRaises(owner.OwnerRefusal) as caught:
+                        with s.answer(effect):self.fail('HOLD1_UNBOUNDED_SQL_LOCK_ADMITTED')
+                self.assertEqual(caught.exception.detail,'reservation_expired')
+            self.assertEqual(s.reader.info.transaction_status,TransactionStatus.IDLE)
+
+    def test_denied_status_privilege_stays_held_in_real_lifecycle(self):
+        from psycopg.errors import InsufficientPrivilege
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed(s.primitive):
+                effect=s.dispatch(schedule=5);s.recover(effect);head=s.history.head()[0]
+                execute=s.reader.execute
+                def denied(statement,parameters=None):
+                    if isinstance(statement,str) and statement.startswith('SELECT pg_catalog.pg_xact_status'):
+                        raise InsufficientPrivilege('source-only denied EXECUTE')
+                    return execute(statement,parameters)
+                with patch.object(s.reader,'execute',side_effect=denied):
+                    with self.assertRaises(owner.OwnerRefusal):p1.execute_effect(s.data['request_raw'].encode())
+                self.assertEqual(s.history.head()[0],head,'HOLD1_DENIED_STATUS_PUBLISHED_TRUTH')
+            self.assertEqual(s.reader.info.transaction_status,TransactionStatus.IDLE)
+
+    def test_normal_public_owner_path_primes_mandate_and_publishes_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed(s.primitive):
+                receipt=api.prepare_runtime_roles(s.writer,role_names=s.roles,operation_id=s.adapter.identity['operation_id'])
+                self.assertEqual(receipt['operation_id'],s.adapter.identity['operation_id'])
+                _,_,parts=s.entry()
+                self.assertEqual(parts['attempt']['dispatch_state'],'applied_verified')
+                self.assertIsNotNone(parts['attempt']['sql_mandate_ref'])
+                self.assertIsNotNone(parts['attempt']['sql_xact_ref'])
+                self.assertIsNotNone(parts['attempt']['sql_postimage_ref'])
+                self.assertEqual(s.effect_count,1)
+
+    def test_writer_uses_READ_COMMITTED_before_any_snapshot_statement(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():s.dispatch()
+            statements=[q for side,q in s.trace if side=='writer']
+            start=statements.index('BEGIN')
+            self.assertEqual(statements[start+1],'SET TRANSACTION ISOLATION LEVEL READ COMMITTED',
+                             'HOLD1_WRITER_CAN_CAPTURE_A_PRELOCK_REPEATABLE_SNAPSHOT')
+
+    def test_mandated_phase_must_match_compiled_action_before_SQL(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed():
+                s.start();effect=s.effect_context();s.primitive.action='close'
+                s.primitive.parameters={'owned_backend_pids':[]};s.writer.calls.clear();s.reader.calls.clear()
+                with self.assertRaises(owner.OwnerRefusal):s.primitive.dispatch(effect)
+                self.assertEqual(s.writer.calls+s.reader.calls,[],'HOLD1_WRONG_MANDATED_PHASE_REACHED_SQL')
+
+    def test_lost_native_no_deferred_work_proof_after_seal_stops_COMMIT(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            def changed(s,stage):
+                if stage=='postimage':
+                    s.private['sql_native']['no_post_seal_work']=False;s.set_private()
+            s.publication_observer=changed
+            with s.installed():
+                with self.assertRaises(owner.OwnerRefusal):s.dispatch()
+            self.assertNotIn(('writer','COMMIT'),s.trace,'HOLD1_LOST_DEFERRED_WORK_QUALIFICATION_COMMITTED')
+
+    def test_later_phase_before_keeps_FIRST_rollback_originals(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=SQLSubject(root)
+            with s.installed(s.primitive):
+                api.prepare_runtime_roles(s.writer,role_names=s.roles,operation_id=s.adapter.identity['operation_id'])
+                first=p1._retained_preimages(s.history,s.adapter.identity)
+                q=json.loads(s.data['request_raw']);q['identity'].update(request_id='hold1-phase2-request',attempt_id='hold1-phase2-attempt')
+                raw=canonical_bytes(q);c=json.loads(s.data['context_raw']);path=c['request_ref']['path']
+                s.data['request_raw']=raw.decode();s.data['originals'][path]=raw.decode()
+                s.helper.context(s.data,lambda c:c.update(identity=q['identity'],request_ref=p1._ref(path,raw),nonce='hold1-phase2-nonce'))
+                s.helper.context(s.data,lambda c:c['effect'].update(effect_id='hold1-phase2-effect'))
+                effect=json.loads(s.data['context_raw'])['effect']
+                s.helper.scope(s.data,lambda scope:scope.update(identity=q['identity'],effect=effect))
+                s.private['sql_native']['writer_attempt_id']=q['identity']['attempt_id'];s.set_private()
+                s.adapter.identity=q['identity']
+                api.prepare_runtime_roles(s.writer,role_names=s.roles,operation_id=s.adapter.identity['operation_id'])
+                _,_,entry=s.entry();mandate=json.loads(s.history.read(entry['attempt']['sql_mandate_ref']))
+                phase=json.loads(s.history.read(mandate['phase_before_ref']))
+                first_bytes=json.loads(s.history.read(first))['originals']['role']
+                phase_roles=json.loads(s.history.read(phase['originals']['role']))['roles']
+                original_roles=json.loads(s.history.read(first_bytes))['roles']
+                self.assertIn([900,s.roles['probe']],[r[:2] for r in phase_roles])
+                self.assertNotIn(s.roles['probe'],[r[1] for r in original_roles])
+                self.assertEqual(p1._retained_preimages(s.history,s.adapter.identity),first)
+                self.assertEqual(s.effect_count,1,'HOLD1_IDEMPOTENT_LATER_PHASE_REDISPATCHED_CREATE')
