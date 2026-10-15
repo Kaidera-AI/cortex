@@ -197,6 +197,9 @@ class LinuxObserverOracle(unittest.TestCase):
     def test_literal_privilege_paths(self):
         self.check_case('privilege_paths')
 
+    def test_literal_owner_code(self):
+        self.check_case('owner_code')
+
     def test_literal_startup(self):
         self.check_case('startup')
 
@@ -209,11 +212,23 @@ class LinuxObserverOracle(unittest.TestCase):
     def test_literal_ancestors(self):
         self.check_case('ancestors')
 
+    def test_literal_role_kind(self):
+        self.check_case('role_kind')
+
+    def test_literal_unknown_role(self):
+        self.check_case('unknown_role')
+
     def test_literal_object_kind(self):
         self.check_case('object_kind')
 
     def test_literal_object_identity(self):
         self.check_case('object_identity')
+
+    def test_literal_policy_digest(self):
+        self.check_case('policy_digest')
+
+    def test_literal_state_digest(self):
+        self.check_case('state_digest')
 
     def test_literal_object_digest(self):
         self.check_case('object_digest')
@@ -343,6 +358,15 @@ class LinuxObserverOracle(unittest.TestCase):
 
     def test_literal_peer_before_custody(self):
         self.check_case('peer_before_custody')
+
+    def test_literal_linux_target(self):
+        self.check_case('linux_target')
+
+    def test_literal_boot_binding(self):
+        self.check_case('boot_binding')
+
+    def test_literal_launch_write(self):
+        self.check_case('launch_write')
 
     def test_literal_carrier_bounds(self):
         self.check_case('carrier_bounds')
