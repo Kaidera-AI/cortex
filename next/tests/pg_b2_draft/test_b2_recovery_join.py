@@ -327,3 +327,19 @@ class RecoveryFixture(unittest.TestCase):
             _,h,history,old,current,effect,a=self.fixture(root)
             self.truth(a,effect,reconciliation=True,edit=lambda r:r['observed']['originals'].update(role=None))
             data=self.authority(h,current,history,effect);self.assertEqual(self.answer(a,effect,h,data),('UNKNOWN',None))
+
+    def test_missing_original_role_even_matching_truth_is_unknown(self):
+        with tempfile.TemporaryDirectory() as root:
+            _,h,history,old,current,effect,a=self.fixture(root)
+            roles=json.loads(a.live['role']);roles['roles'].pop();a.live['role']=canonical_bytes(roles)
+            self.truth(a,effect);data=self.authority(h,current,history,effect)
+            self.assertEqual(self.answer(a,effect,h,data),('UNKNOWN',None))
+
+    def test_normal_measurement_keeps_existing_result_contract(self):
+        with tempfile.TemporaryDirectory() as root:
+            _,h,history,old,current,effect,a=self.fixture(root)
+            with self.bound(h,current):raw=role_grants._Primitive(a,'prepare',a.connection,{}).measure(effect)
+            c=thaw(effect['context']);bundle=json.loads(history.read(effect['preimages_ref']))
+            expected=canonical_bytes({'identity':c['identity'],'effect':c['effect'],'request_ref':c['request_ref'],
+                'state':'applied_verified','observed':{'adapter':'finite_pg_roles','originals':bundle['originals']}})
+            self.assertIs(type(raw),bytes);self.assertEqual(raw,expected)
