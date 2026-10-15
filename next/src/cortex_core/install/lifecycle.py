@@ -124,7 +124,7 @@ class _History:
         # The fixed owner uses the same root for all operations it serializes.
         return self._lock('.operation.lock')
 
-    def _read_path(self, folder, name):
+    def _read_path(self, folder, name, *, missing_ok=False):
         with self._root() as root:
             directory = self._directory(root, folder)
             fd = None
@@ -137,6 +137,10 @@ class _History:
                     raw = file.read(_RAW_LIMIT+1)
                 _require(len(raw) <= _RAW_LIMIT, 'journal_invalid')
                 return raw
+            except FileNotFoundError:
+                if missing_ok:
+                    return None
+                raise owner.OwnerRefusal('journal_invalid') from None
             except OSError as error:
                 detail = 'custody_changed' if error.errno == errno.ELOOP else 'journal_invalid'
                 raise owner.OwnerRefusal(detail) from None
@@ -151,13 +155,10 @@ class _History:
         digest = reference['sha256']
         _require(type(digest) is str and _DIGEST.fullmatch(digest), 'journal_invalid')
         _require(type(reference['path']) is str, 'journal_invalid')
-        try:
-            # Logical originals never select a physical journal path, including
-            # valid P1 names that happen to start with events/.
-            raw = self._read_path('facts', digest+'.json')
-        except owner.OwnerRefusal as error:
-            if error.detail != 'journal_invalid':
-                raise
+        # Logical originals never select a physical journal path, including
+        # valid P1 names that happen to start with events/.
+        raw = self._read_path('facts', digest+'.json', missing_ok=True)
+        if raw is None:
             journal_ref = next((ref for ref, _ in self.events() if ref == reference), None)
             _require(journal_ref is not None, 'journal_invalid')
             # Only a complete reference from the verified chain selects an
