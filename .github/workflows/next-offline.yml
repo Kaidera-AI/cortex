@@ -46,27 +46,26 @@ jobs:
           "${{ runner.temp }}/next-offline-venv/bin/python" -B .github/scripts/tests/test_next_offline_gate.py
       - name: every admitted next suite without IP networking or native services
         run: |
-          # TEMPORARY tracker-only mapping for frozen author paths.
-          # Owner ren-kos must remove hardcoded paths; this is not a permanent fix.
-          fixture_root="${{ runner.temp }}/next-offline-u3-fixtures"
-          test ! -e "$fixture_root"
-          mkdir -m 700 "$fixture_root"
-          trap 'rm -rf -- "$fixture_root"; test ! -e "$fixture_root" && printf "U3_FIXTURE_ROOT_REMOVED\n" > "${{ runner.temp }}/next-offline-receipts/fixture-cleanup.txt"' EXIT
-          mkdir -m 700 -p "$fixture_root/kos/ren-kos-u3c-fixtures-20261014" \
-            "$fixture_root/kos/ren-kos-u3c-rework-fixtures-20261014" \
-            "$fixture_root/kos/ren-kos-u3d-fixtures-20261014" \
-            "$fixture_root/KOS/ren-kos-r01u3b-test-env-20261014"
           sudo systemd-run --wait --pipe --collect \
             -p User="$(id -un)" -p Group="$(id -gn)" \
             -p WorkingDirectory="$GITHUB_WORKSPACE" \
             -p PrivateNetwork=yes -p RestrictAddressFamilies=AF_UNIX -p NoNewPrivileges=yes \
-            -p TemporaryFileSystem=/Users:rw \
-            -p "BindPaths=$fixture_root:/Users/amadmalik/DevVault/helix/output" \
             -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             /usr/bin/env PATH="${{ runner.temp }}/next-offline-venv/bin:/usr/bin:/bin" \
             "${{ runner.temp }}/next-offline-venv/bin/python" -B \
             .github/scripts/pytest_next_offline.py --base-ref "${{ github.event.pull_request.base.sha || github.event.before }}" \
             --output "${{ runner.temp }}/next-offline-receipts"
+      - name: portable source fixture cleanup receipt
+        if: always()
+        run: |
+          "${{ runner.temp }}/next-offline-venv/bin/python" - <<'PY'
+          import pathlib, stat
+          root=pathlib.Path('output/r01u3-fixtures')
+          assert root.is_dir(), 'portable fixture root absent'
+          assert stat.S_IMODE(root.stat().st_mode)==0o700
+          assert not list(root.iterdir()), 'source fixture cleanup incomplete'
+          pathlib.Path('${{ runner.temp }}/next-offline-receipts/fixture-cleanup.txt').write_text('U3_PORTABLE_FIXTURE_ROOT_EMPTY_MODE_0700\nNO_USERS_MAPPING\n')
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

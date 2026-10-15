@@ -63,7 +63,7 @@ class Gate:
 
     def pytest_runtest_logreport(self, report):
         self.packet['reports'].append(dict(nodeid=report.nodeid, when=report.when,
-            outcome=report.outcome, wasxfail=hasattr(report, 'wasxfail'),
+            outcome=report.outcome, duration_seconds=report.duration, wasxfail=hasattr(report, 'wasxfail'),
             assertion=self.assertions.get((report.nodeid,report.when),False),
             exception_type=self.exceptions.get((report.nodeid,report.when),''),
             detail=str(report.longrepr) if report.failed or report.skipped else ''))
