@@ -7,6 +7,8 @@ Nothing here changes the migration manifest or U13's journal.
 """
 from contextlib import contextmanager
 import json
+import re
+import time
 from uuid import UUID
 
 from cortex_core.install import lifecycle, owner
@@ -46,7 +48,11 @@ def _originals(history, context, *, expected_identity, reconciling=False):
     _require(lifecycle._operation(c['identity']) == lifecycle._operation(expected_identity), 'scope_denied')
     event, observations = lifecycle._load_entry(history, context['journal_ref'])
     if not reconciling:
-        _require(history.head()[0] == thaw(context['journal_ref']), 'reservation_used')
+        attempt = lifecycle._decode(history.read(observations['attempt_ref']))
+        if attempt.get('sql_mandate_ref') is not None:
+            prefix = lifecycle._sql_prefix(history,thaw(context['journal_ref']),history.head()[0])
+            _require(prefix['attempt']['dispatch_state']=='consumed_result_unknown','reservation_used')
+        else:_require(history.head()[0] == thaw(context['journal_ref']), 'reservation_used')
     _require(event['identity'] == c['identity'] and event['effect'] == c['effect']
              and event['request_ref'] == c['request_ref'], 'scope_denied')
     attempt = lifecycle._decode(history.read(observations['attempt_ref']))
@@ -86,6 +92,7 @@ def _run_bound(action, conn, names, operation, parameters):
     ref = context['request_ref']
     _require(ref['path'] in inputs.originals, 'journal_invalid')
     request = inputs.originals[ref['path']]
+    primitive._prime_sql()
     lifecycle.execute_effect(request)
     return adapter.receipt()
 
@@ -120,6 +127,36 @@ class _Primitive:
         _require(connection is (client.recovery if action=='restore' else client.connection), 'scope_denied')
         self.client, self.action, self.connection = client, action, connection
         self.parameters = dict(parameters)
+        self.sql_mandate_raw = None
+
+    def _prime_sql(self):
+        """Private fixed composition DATA, ready before lifecycle takes its lock.
+
+        Native observations use the EXISTING backend/private owner originals.
+        None preserves the legacy source contract, never v2 qualification.
+        """
+        a=self.client;inputs=lifecycle._owner_inputs()
+        c=owner._decode(inputs.context_raw,'owner_unavailable')
+        consent=owner._original(inputs,c['consent_ref'])
+        scope=owner._original(inputs,consent['scope_ref'])
+        binding=owner._original(inputs,scope['backend_binding_ref'],'backend_unavailable')
+        if binding.get('kind')!='pg_b2_hold1':
+            _require(binding.get('protocol_version') is None,'backend_unavailable')
+            self.sql_mandate_raw=None
+            return
+        _require(self.action in ('prepare','bind') and c['identity']==a.identity,'scope_denied')
+        ref=c['request_ref']
+        _require(ref['path'] in inputs.originals,'journal_invalid')
+        admitted=owner.propose_effect(inputs.originals[ref['path']])
+        lifecycle._continuity(c,thaw(admitted.context))
+        a._native(c,scope['backend_binding_ref'])
+        live=a.snapshot()
+        for raw in inputs.originals.values():a.history.retain(raw)
+        before=a.history.retain(canonical_bytes({'originals':{
+            k:a.history.retain(live[k]) for k in sorted(_FIELDS)}}))
+        self.sql_mandate_raw=canonical_bytes({'protocol_version':2,'identity':c['identity'],
+            'effect':c['effect'],'request_ref':c['request_ref'],'phase':self.action,
+            'phase_before_ref':before,'native_binding_ref':scope['backend_binding_ref']})
 
     def snapshot(self):
         live = self.client.snapshot()
@@ -136,6 +173,10 @@ class _Primitive:
         a = self.client
         _require(a.context is None,'reservation_used')
         _originals(a.history,context,expected_identity=a.identity)
+        if a._mandated(context):
+            prefix=lifecycle._sql_prefix(a.history,thaw(context['journal_ref']),a.history.head()[0])
+            mandate=lifecycle._decode(a.history.read(prefix['attempt']['sql_mandate_ref']))
+            _require(self.action in ('prepare','bind') and mandate['phase']==self.action,'scope_denied')
         a.context = context
         try:
             a.admit(self.connection)
@@ -218,6 +259,269 @@ class _RoleAdapter:
             else:
                 _require(status == driver.pq.TransactionStatus.IDLE, 'atomicity_unavailable')
         return driver
+
+    def _mandated(self, context=None):
+        context=self.context if context is None else context
+        if context is None:return False
+        _,obs=lifecycle._load_entry(self.history,context['journal_ref'])
+        return lifecycle._decode(self.history.read(obs['attempt_ref'])).get('sql_mandate_ref') is not None
+
+    @staticmethod
+    def _native_proof(binding, private, identity):
+        # Only the protected fixed observer may supply these native assertions.
+        # This is conditional source validation, not an attestation issuer. The
+        # installed observer is still unbound; SQL IDs alone never set a flag.
+        proof=private.get('sql_native') if type(private) is dict else None
+        _require(type(proof) is dict and binding.get('kind')=='pg_b2_hold1'
+            and type(binding.get('protocol_version')) is int and binding['protocol_version']==2
+            and all(type(binding.get(k)) is str and binding[k] for k in ('pg_lineage','p1_lineage')),
+            'atomicity_unavailable')
+        database=binding.get('database')
+        _require(type(database) is list and len(database)==2 and type(database[0]) is int
+            and database[0]>0 and type(database[1]) is str and database[1]
+            and type(binding.get('system_identifier')) is str and binding['system_identifier']
+            and type(binding.get('timeline_id')) is int and binding['timeline_id']>0,
+            'resource_changed')
+        _require(proof.get('continuous_pg') is True and proof.get('continuous_p1') is True
+            and all(proof.get(k)==binding[k] for k in ('pg_lineage','p1_lineage')),
+            'custody_changed')
+        _require(all(proof.get(k) is True for k in ('durability_qualified','no_two_phase','no_post_seal_work'))
+            and proof.get('writer_attempt_id')==identity['attempt_id'], 'atomicity_unavailable')
+        return proof
+
+    def _native(self, historical, binding_ref):
+        inputs=lifecycle._owner_inputs();current=owner._decode(inputs.context_raw,'owner_unavailable')
+        consent=owner._original(inputs,current['consent_ref'])
+        scope=owner._original(inputs,consent['scope_ref'])
+        _require(scope['backend_binding_ref']==binding_ref,'resource_changed')
+        binding=owner._original(inputs,binding_ref,'backend_unavailable')
+        private=owner._private(inputs,current)
+        proof=self._native_proof(binding,private,historical['identity'])
+        _require(proof.get('native_binding_ref')==binding_ref,'resource_changed')
+        return binding,proof,current['private_binding']['binding_ref']
+
+    def _sql_window(self, context):
+        deadline=context.get('deadline')
+        inputs,_=lifecycle._admitted_deadline(deadline)
+        now=owner._decode(inputs.current_clock_raw,'time_unavailable')
+        budget=min((deadline.expires_at-now['now_utc']-now['uncertainty_seconds'])*1_000_000_000,
+                   deadline.expires_monotonic_ns-now['monotonic_ns'])
+        _require(budget>0,'reservation_expired')
+        return time.monotonic_ns()+budget
+
+    def _sql_barrier(self, conn, context, *, recovery=None):
+        stop=self._sql_window(context)
+        while True:
+            lifecycle._admitted_deadline(context['deadline'])
+            remaining=stop-time.monotonic_ns()
+            _require(remaining>0,'reservation_expired')
+            conn.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true)",
+                         (str(max(1,remaining//1_000_000)),))
+            if conn.execute('SELECT pg_catalog.pg_try_advisory_xact_lock(%s)',(self.database[0],)).fetchone()==(True,):break
+            time.sleep(min(.01,remaining/1_000_000_000))
+        self._current(context,recovery=recovery)
+        _require(time.monotonic_ns()<stop,'reservation_expired')
+
+    def _sql_origin(self, conn):
+        self._sql_capability(conn)
+        xid=conn.execute('SELECT pg_catalog.pg_current_xact_id()::text').fetchone()[0]
+        _require(type(xid) is str and re.fullmatch(r'[1-9][0-9]{0,19}',xid)
+            and 3<=int(xid)<2**64,'attempt_ambiguous')
+        cluster=conn.execute('SELECT c.system_identifier::text,p.timeline_id,pg_catalog.pg_is_in_recovery() '
+            'FROM pg_catalog.pg_control_system() c CROSS JOIN pg_catalog.pg_control_checkpoint() p').fetchone()
+        durability=conn.execute("SELECT current_setting('synchronous_commit'),current_setting('fsync'),"
+                               "current_setting('full_page_writes')").fetchone()
+        _require(cluster and len(cluster)==3 and cluster[2] is False
+            and type(cluster[0]) is str and type(cluster[1]) is int and cluster[1]>0,'resource_changed')
+        _require(tuple(durability)==('on','on','on'),'atomicity_unavailable')
+        return {'xid':xid,'cluster':list(cluster),'database':list(self._database(conn)[:2]),
+                'backend_pid':conn.info.backend_pid,'durability':list(durability)}
+
+    def _checkpoint(self, stage, observed):
+        context=self.context;head=self.history.head()[0]
+        prefix=lifecycle._sql_prefix(self.history,thaw(context['journal_ref']),head)
+        attempt=dict(prefix['attempt'])
+        fact={'stage':stage,'consumed_ref':thaw(context['journal_ref']),
+              'sql_mandate_ref':attempt['sql_mandate_ref'],
+              'sql_xact_ref':attempt['sql_xact_ref'] if stage=='postimage' else None,
+              'observed':observed}
+        attempt['sql_xact_ref' if stage=='xid' else 'sql_postimage_ref']=self.history.retain(canonical_bytes(fact))
+        inputs=lifecycle._owner_inputs();clock=owner._decode(inputs.current_clock_raw,'time_unavailable')
+        event=prefix['event']
+        return lifecycle._publish_entry(self.history,context=prefix['context'],reservation=prefix['reservation'],
+            attempt=attempt,preimages_ref=prefix['preimages_ref'],request_ref=event['request_ref'],
+            release_ref=event['release_binding_ref'],expected_ref=head,phase=event['phase'],
+            recorded_at=clock['now_utc'],deadline=context['deadline'])
+
+    def _sql_postconditions(self, conn, raw, phase, *, before, activate=None):
+        _require(phase in ('prepare','bind'),'atomicity_unavailable')
+        roles=lifecycle._decode(raw['role'])['roles']
+        _require(len(roles)==len(self.roles) and {r[1] for r in roles}==set(self.roles.values())
+            and all(type(r[0]) is int and r[0]>0 for r in roles),'resource_changed')
+        for r in roles:
+            logical=next(k for k,v in self.roles.items() if v==r[1])
+            if logical not in ('bootstrap','migrator'):
+                _require(not any(r[n] for n in (3,4,5,6,7,8)),'resource_changed')
+                if logical in ('request_group','verifier_owner'):_require(not r[2],'resource_changed')
+        if conn is self.connection:
+            known=self._known_oids()
+            _require(all(known.get(r[1])==r[0] for r in roles),'resource_changed')
+        original=lifecycle._decode(before['role'])
+        prior={r[1]:r for r in original['roles']}
+        if phase=='prepare':
+            _require(all(raw[k]==before[k] for k in _FIELDS-{'role'})
+                and lifecycle._decode(raw['role'])['memberships']==original['memberships'],'resource_changed')
+            for row in roles:
+                if row[1] in prior:_require(row==prior[row[1]],'resource_changed')
+                else:_require(len(row)==12 and all(v is False for v in row[2:9])
+                    and row[9:]==[-1,None,None],'resource_changed')
+        else:
+            _require(type(activate) is bool,'journal_invalid')
+            self.validate_acl(conn)
+            for row in roles:
+                old=prior.get(row[1]);_require(old is not None,'resource_changed')
+                wanted=list(old)
+                if activate and row[1] in {self.roles[k] for k in _SERVICES}:wanted[2]=True
+                _require(row==wanted,'resource_changed')
+            db=lifecycle._decode(raw['database']);old_db=lifecycle._decode(before['database'])
+            _require(db['database']==old_db['database'] and type(db['bindings']) is list
+                and len(db['bindings'])==len(_SERVICES) and type(old_db['bindings']) is list,'resource_changed')
+            _require(all(type(r) is list and len(r)==10 for r in db['bindings']+old_db['bindings']),'resource_changed')
+            old={r[2]:r for r in old_db['bindings']};oids={r[1]:r[0] for r in roles}
+            _require({r[2] for r in db['bindings']}==set(_SERVICES),'resource_changed')
+            for row in db['bindings']:
+                logical=row[2];previous=old.get(logical)
+                was_active=False if previous is None else previous[4]
+                revision=1 if previous is None else previous[5]
+                expected=[oids[self.roles[logical]],self.roles[logical],logical,str(self.installation_id),
+                    True if activate else was_active,revision+int(activate and not was_active),
+                    self.identity['operation_id'],self.database[0],self.database[2],
+                    self.embedding_kind if logical=='observer' else None]
+                _require(type(row[4]) is bool and type(row[5]) is int and 1<=row[5]<=owner._INT_MAX
+                    and row==expected,'resource_changed')
+            acl=lifecycle._decode(raw['acl']);old_acl=lifecycle._decode(before['acl'])
+            _require(acl['defaults']==old_acl['defaults'] and
+                [r[:3]+r[4:] for r in acl['objects']]==[r[:3]+r[4:] for r in old_acl['objects']],
+                'resource_changed')
+
+    @contextmanager
+    def _sql_transactional(self, conn, transaction, *, activate=None):
+        context=self.context
+        prefix=lifecycle._sql_prefix(self.history,thaw(context['journal_ref']),self.history.head()[0])
+        mandate=lifecycle._decode(self.history.read(prefix['attempt']['sql_mandate_ref']))
+        _require(mandate['phase'] in ('prepare','bind'),'atomicity_unavailable')
+        conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
+        binding,_,proof_ref=self._native(thaw(context['context']),mandate['native_binding_ref'])
+        self._sql_barrier(conn,context)
+        self.admit(conn)
+        # Configuration/assignment precedes managed role effects. The original
+        # transaction must keep this exact durability through COMMIT.
+        conn.execute('SET LOCAL synchronous_commit=on')
+        origin=self._sql_origin(conn)
+        _require(origin['database']==binding['database'] and origin['cluster'][:2]
+            ==[binding['system_identifier'],binding['timeline_id']],'resource_changed')
+        before=lifecycle._decode(self.history.read(mandate['phase_before_ref']))
+        before={k:self.history.read(v) for k,v in before['originals'].items()}
+        _require(self._snapshot(conn)==before,'resource_changed')
+        self._checkpoint('xid',{**origin,'native_binding_ref':mandate['native_binding_ref'],
+                                'native_proof_ref':proof_ref})
+        self._current()
+        yield
+        _require(self._sql_transaction is not None and self._sql_transaction[0] is conn
+            and self._sql_transaction[1] is transaction,'atomicity_unavailable')
+        conn.execute('SET CONSTRAINTS ALL IMMEDIATE')
+        self._current();self._native(thaw(context['context']),mandate['native_binding_ref'])
+        _require(self._sql_origin(conn)==origin,'atomicity_unavailable')
+        raw=self._snapshot(conn);self._sql_postconditions(conn,raw,mandate['phase'],before=before,activate=activate)
+        _require(all(raw[k]==before[k] for k in ('hba','carrier')),'resource_changed')
+        self._checkpoint('postimage',{'origin':origin,'activate':activate,'originals':{
+            k:self.history.retain(raw[k]) for k in sorted(_FIELDS)}})
+        self._current()
+        self._native(thaw(context['context']),mandate['native_binding_ref'])
+        _require(self._sql_transaction is not None and self._sql_transaction[0] is conn
+            and self._sql_transaction[1] is transaction and self._sql_origin(conn)==origin
+            and self._snapshot(conn)==raw,'atomicity_unavailable')
+
+    @contextmanager
+    def _measure_sql(self, context, *, recovery=None):
+        historical=thaw(context['context']);head=self.history.head()[0]
+        self._current(context,recovery=recovery)
+        prefix=lifecycle._sql_prefix(self.history,thaw(context['journal_ref']),head)
+        attempt=prefix['attempt'];mandate=lifecycle._decode(self.history.read(attempt['sql_mandate_ref']))
+        try:binding,proof,_=self._native(historical,mandate['native_binding_ref'])
+        except owner.OwnerRefusal:
+            if recovery is None:raise
+            yield ('UNKNOWN',None)
+            return
+        if recovery is not None and proof.get('writers_ended') is not True:
+            # An absent checkpoint is usable only after permanent old-writer
+            # fencing. Committed observations also cannot release a live writer.
+            yield ('UNKNOWN',None)
+            return
+        conn=self.recovery
+        _require(conn is not self.connection and self._sql_transaction is None,'atomicity_unavailable')
+        self._sql_capability(conn)
+        with conn.transaction() as transaction:
+            _require(transaction.savepoint_name is None,'atomicity_unavailable')
+            self._sql_transaction=(conn,transaction)
+            try:
+                conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY')
+                self._sql_barrier(conn,context,recovery=recovery)
+                # All status/current-state reads occur AFTER the lock statement.
+                raw=self._snapshot(conn)
+                answer=('UNKNOWN',None)
+                if attempt['dispatch_state']!='consumed_result_unknown':
+                    saved=self.history.read(prefix['event']['result_ref']);result=lifecycle._decode(saved)
+                    refs=result['observed'].get('originals')
+                    if (result['observed'].get('adapter')=='finite_pg_roles' and type(refs) is dict
+                            and set(refs)==_FIELDS and raw=={k:self.history.read(v) for k,v in refs.items()}):
+                        answer=('APPLIED' if result['state']=='applied_verified' else 'NOT_APPLIED',saved)
+                else:
+                    state=None;xid_ref=attempt.get('sql_xact_ref');post_ref=attempt.get('sql_postimage_ref')
+                    before=lifecycle._decode(self.history.read(mandate['phase_before_ref']))
+                    before={k:self.history.read(v) for k,v in before['originals'].items()}
+                    if xid_ref is None:
+                        if recovery is not None and raw==before:
+                            state='not_applied_verified'
+                    else:
+                        xid=lifecycle._decode(self.history.read(xid_ref))['observed']
+                        original_private=lifecycle._decode(self.history.read(xid['native_proof_ref']))
+                        original_proof=self._native_proof(binding,original_private,historical['identity'])
+                        _require(original_proof.get('native_binding_ref')==mandate['native_binding_ref']
+                            and xid['native_binding_ref']==mandate['native_binding_ref']
+                            and xid['database']==binding['database'] and xid['cluster']
+                                ==[binding['system_identifier'],binding['timeline_id'],False]
+                            and xid['durability']==['on','on','on'] and type(xid['xid']) is str
+                            and re.fullmatch(r'[1-9][0-9]{0,19}',xid['xid'])
+                            and 3<=int(xid['xid'])<2**64,'attempt_ambiguous')
+                        cluster=conn.execute('SELECT c.system_identifier::text,p.timeline_id,pg_catalog.pg_is_in_recovery() '
+                            'FROM pg_catalog.pg_control_system() c CROSS JOIN pg_catalog.pg_control_checkpoint() p').fetchone()
+                        _require(list(cluster)==xid['cluster'],'resource_changed')
+                        status=conn.execute('SELECT pg_catalog.pg_xact_status(%s::xid8)',(xid['xid'],)).fetchone()[0]
+                        if status=='aborted' and raw==before:
+                            state='not_applied_verified'
+                        elif status=='committed' and post_ref is not None:
+                            post=lifecycle._decode(self.history.read(post_ref))['observed']
+                            expected={k:self.history.read(v) for k,v in post['originals'].items()}
+                            if (set(expected)==_FIELDS and raw==expected and post['origin']=={
+                                    k:xid[k] for k in ('xid','cluster','database','backend_pid','durability')}):
+                                self._sql_postconditions(conn,raw,mandate['phase'],before=before,
+                                                         activate=post.get('activate'))
+                                state='applied_verified'
+                    if state is not None:
+                        result=canonical_bytes({'identity':historical['identity'],'effect':historical['effect'],
+                            'request_ref':historical['request_ref'],'state':state,'observed':{
+                                'adapter':'finite_pg_roles','originals':{k:self.history.retain(v) for k,v in raw.items()},
+                                'sql_checkpoint_head':head}})
+                        answer=('APPLIED' if state=='applied_verified' else 'NOT_APPLIED',result)
+                self._current(context,recovery=recovery)
+                _require(self.history.head()[0]==head,'generation_changed')
+                if recovery is None:
+                    _require(answer[0]=='APPLIED','attempt_ambiguous')
+                    yield answer[1]
+                else:yield answer
+            finally:self._sql_transaction=None
+        self._sql_capability(conn)
 
     def _database(self, conn):
         self._sql_capability(conn)
@@ -372,7 +676,7 @@ class _RoleAdapter:
             _require(login[2] == self.roles['bootstrap'], 'scope_denied')
 
     @contextmanager
-    def _transaction(self, conn):
+    def _transaction(self, conn, *, activate=None):
         _require(getattr(self, '_sql_transaction', None) is None, 'atomicity_unavailable')
         self._sql_capability(conn)  # idle/autocommit: never borrow an outer transaction
         self.admit(conn)
@@ -381,10 +685,13 @@ class _RoleAdapter:
             self._sql_transaction = (conn, transaction)
             try:
                 self._sql_capability(conn)
-                conn.execute('SELECT pg_catalog.pg_advisory_xact_lock(%s)', (self.database[0],))
-                self.admit(conn)
-                yield
-                self._current()  # refuse drift before transactional SQL publication
+                if self._mandated():
+                    with self._sql_transactional(conn,transaction,activate=activate):yield
+                else:
+                    conn.execute('SELECT pg_catalog.pg_advisory_xact_lock(%s)', (self.database[0],))
+                    self.admit(conn)
+                    yield
+                    self._current()  # refuse drift before transactional SQL publication
             finally:
                 self._sql_transaction = None
         # The driver's top-level context has COMMITted before any independent
@@ -540,7 +847,7 @@ class _RoleAdapter:
     def bind(self, conn, activate):
         sql = self._sql_capability(conn).sql
         known = self._known_oids()
-        with self._transaction(conn):
+        with self._transaction(conn,activate=activate):
             roles = {r[1]:r[0] for r in self._roles(conn)['roles']}
             _require(all(name in roles and known.get(name)==roles[name] for name in self.roles.values()))
             for row in self._roles(conn)['roles']:
@@ -771,6 +1078,7 @@ class _RoleAdapter:
         # The existing measure port follows only the fixed current owner's
         # admitted recovery operation. No caller field/provider selects a mode.
         recovery=owner.propose_effect(request) if q['operation']=='recover' else None
+        if self._mandated(context):return self._measure_sql(context,recovery=recovery)
         if recovery is not None:
             head=self.history.head()[0]
             originals=self._current(context,recovery=recovery)
