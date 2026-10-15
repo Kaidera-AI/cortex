@@ -1,0 +1,1435 @@
+{
+  "trace_granularity": "40 explicitly enumerated behavioral review rows from ratified Q1/Q2/Q3; not a claimed official plan-item count. Owner/cost/sequence governance remains a non-test gate.",
+  "coverage_meaning": "DECIDING means named bodies decide listed bounded obligation, not proven candidate GREEN. PARTIAL lists missing components despite related nodes. DEFERRED is an explicit later-unit/original-input obligation, not an orphan silently dropped.",
+  "plan_rows": 40,
+  "plan_coverage_counts": {
+    "DECIDING": 36,
+    "DEFERRED": 4
+  },
+  "plan_rows_with_related_nodes": 37,
+  "plan_rows_with_no_node": [
+    "T05",
+    "T34",
+    "T40"
+  ],
+  "node_reverse_count": 175,
+  "node_orphans": [],
+  "rows": [
+    {
+      "id": "T01",
+      "ratified_plan": "Q1 flags",
+      "obligation": "All nine catalogue role flags; finite SUPERUSER exception and persistent NOLOGIN owners",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_role__api_request",
+        "test_grants.Grants.test_role__bootstrap",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_role__migrator",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_role__request_group",
+        "test_grants.Grants.test_role__supervisor",
+        "test_grants.Grants.test_role__verifier_owner"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T02",
+      "ratified_plan": "Q1 admission/phase sequence",
+      "obligation": "Client prepare rejects every unsafe foreign role before adoption; precreates disabled identities",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage",
+        "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name",
+        "test_repair.Repair.test_close_unknown_finite_session_holds_and_preserves_sentinel",
+        "test_repair.Repair.test_close_unknown_role_state_holds",
+        "test_repair.Repair.test_close_wrong_operation_holds",
+        "test_repair.Repair.test_prepare_all_nine_phase_flags_come_from_client_effects",
+        "test_repair.Repair.test_unsafe_prepare__api_request__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createdb",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createrole",
+        "test_repair.Repair.test_unsafe_prepare__api_request__inherit",
+        "test_repair.Repair.test_unsafe_prepare__api_request__replication",
+        "test_repair.Repair.test_unsafe_prepare__api_request__superuser",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createdb",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createrole",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__inherit",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__replication",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__superuser",
+        "test_repair.Repair.test_unsafe_prepare__observer__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__observer__createdb",
+        "test_repair.Repair.test_unsafe_prepare__observer__createrole",
+        "test_repair.Repair.test_unsafe_prepare__observer__inherit",
+        "test_repair.Repair.test_unsafe_prepare__observer__replication",
+        "test_repair.Repair.test_unsafe_prepare__observer__superuser",
+        "test_repair.Repair.test_unsafe_prepare__probe__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__probe__createdb",
+        "test_repair.Repair.test_unsafe_prepare__probe__createrole",
+        "test_repair.Repair.test_unsafe_prepare__probe__inherit",
+        "test_repair.Repair.test_unsafe_prepare__probe__replication",
+        "test_repair.Repair.test_unsafe_prepare__probe__superuser",
+        "test_repair.Repair.test_unsafe_prepare__request_group__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createdb",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createrole",
+        "test_repair.Repair.test_unsafe_prepare__request_group__inherit",
+        "test_repair.Repair.test_unsafe_prepare__request_group__login",
+        "test_repair.Repair.test_unsafe_prepare__request_group__replication",
+        "test_repair.Repair.test_unsafe_prepare__request_group__superuser",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createdb",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createrole",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__inherit",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__replication",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__superuser",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createdb",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createrole",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__inherit",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__login",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__replication",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F08"
+    },
+    {
+      "id": "T03",
+      "ratified_plan": "Q1 role graph",
+      "obligation": "Sole api\u2192request SET TRUE/INHERIT FALSE/ADMIN FALSE; no owner assumption or verifier membership",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner",
+        "test_grants.Grants.test_role__api_request",
+        "test_grants.Grants.test_role__bootstrap",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_role__migrator",
+        "test_grants.Grants.test_role__observer",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_role__request_group",
+        "test_grants.Grants.test_role__supervisor",
+        "test_grants.Grants.test_role__verifier_owner"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T04",
+      "ratified_plan": "Q1 finite closure",
+      "obligation": "Disable finite flags, drain recorded owned sessions, leave unrecorded/foreign sessions alone; unknown state HOLD",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions",
+        "test_repair.Repair.test_close_unknown_finite_session_holds_and_preserves_sentinel",
+        "test_repair.Repair.test_close_unknown_role_state_holds",
+        "test_repair.Repair.test_close_wrong_operation_holds",
+        "test_repair.Repair.test_prepare_all_nine_phase_flags_come_from_client_effects",
+        "test_repair.Repair.test_unsafe_prepare__api_request__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createdb",
+        "test_repair.Repair.test_unsafe_prepare__api_request__createrole",
+        "test_repair.Repair.test_unsafe_prepare__api_request__inherit",
+        "test_repair.Repair.test_unsafe_prepare__api_request__replication",
+        "test_repair.Repair.test_unsafe_prepare__api_request__superuser",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createdb",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createrole",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__inherit",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__replication",
+        "test_repair.Repair.test_unsafe_prepare__installer_enrollment__superuser",
+        "test_repair.Repair.test_unsafe_prepare__observer__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__observer__createdb",
+        "test_repair.Repair.test_unsafe_prepare__observer__createrole",
+        "test_repair.Repair.test_unsafe_prepare__observer__inherit",
+        "test_repair.Repair.test_unsafe_prepare__observer__replication",
+        "test_repair.Repair.test_unsafe_prepare__observer__superuser",
+        "test_repair.Repair.test_unsafe_prepare__probe__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__probe__createdb",
+        "test_repair.Repair.test_unsafe_prepare__probe__createrole",
+        "test_repair.Repair.test_unsafe_prepare__probe__inherit",
+        "test_repair.Repair.test_unsafe_prepare__probe__replication",
+        "test_repair.Repair.test_unsafe_prepare__probe__superuser",
+        "test_repair.Repair.test_unsafe_prepare__request_group__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createdb",
+        "test_repair.Repair.test_unsafe_prepare__request_group__createrole",
+        "test_repair.Repair.test_unsafe_prepare__request_group__inherit",
+        "test_repair.Repair.test_unsafe_prepare__request_group__login",
+        "test_repair.Repair.test_unsafe_prepare__request_group__replication",
+        "test_repair.Repair.test_unsafe_prepare__request_group__superuser",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createdb",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__createrole",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__inherit",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__replication",
+        "test_repair.Repair.test_unsafe_prepare__supervisor__superuser",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__bypassrls",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createdb",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__createrole",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__inherit",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__login",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__replication",
+        "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F08"
+    },
+    {
+      "id": "T05",
+      "ratified_plan": "Q1 original authority/Q2 R01",
+      "obligation": "Original installer identities/OIDs, HBA, carriers, custody, resolver/R01 and production operation preimages",
+      "coverage": "DEFERRED",
+      "exact_nodes": [],
+      "missing_control_or_owner_input": "Explicit synthetic-fixture limit; original owner/material inputs required. No PG-O node attests production custody.",
+      "finding": "",
+      "owner": "original installer/R01/material/custody owner"
+    },
+    {
+      "id": "T06",
+      "ratified_plan": "Q3 protected map",
+      "obligation": "Owner-only map, FORCE RLS, protected shape and no service raw map privileges",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations",
+        "test_grants.Grants.test_tables__api_request",
+        "test_grants.Grants.test_tables__bootstrap",
+        "test_grants.Grants.test_tables__installer_enrollment",
+        "test_grants.Grants.test_tables__migrator",
+        "test_grants.Grants.test_tables__observer",
+        "test_grants.Grants.test_tables__probe",
+        "test_grants.Grants.test_tables__request_group",
+        "test_grants.Grants.test_tables__supervisor",
+        "test_grants.Grants.test_tables__verifier_owner"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T07",
+      "ratified_plan": "Q3 OID cardinality",
+      "obligation": "One actual role OID binds at most one installation",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations",
+        "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T08",
+      "ratified_plan": "Q3 OID/name identity",
+      "obligation": "Drop/recreate same name cannot adopt stale role OID",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T09",
+      "ratified_plan": "Q3 session authority",
+      "obligation": "Actual session_user, logical kind/active/install; GUC and definer current_user not authority",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user",
+        "test_grants.Grants.test_wrong_logical_kind_and_revoked_map_refuse",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_repair.Repair.test_supervisor_own_session_admits_positive_lease"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T10",
+      "ratified_plan": "Q3 fresh identity revision",
+      "obligation": "Final admission checks captured revision even if active is again true (revision-only/ABA)",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation",
+        "test_repair.Repair.test_health_final_revision_only_barrier",
+        "test_repair.Repair.test_health_revoked_map_refuses_at_entry",
+        "test_repair.Repair.test_observer_final_revision_only_barrier",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__serializable",
+        "test_repair.Repair.test_snapshot__runtime_observe__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_observe__serializable"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F03"
+    },
+    {
+      "id": "T11",
+      "ratified_plan": "Q3 operation reentry",
+      "obligation": "Same operation keeps OID/revision; other operation/installation cannot adopt",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses",
+        "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T12",
+      "ratified_plan": "Q1/Q2 census and ownership",
+      "obligation": "Exact44 business tables/73 signatures, catalogue ownership and every-table FORCE RLS",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_exact_object_owners_and_forced_private_table_policies",
+        "test_grants.Grants.test_tables__api_request",
+        "test_grants.Grants.test_tables__bootstrap",
+        "test_grants.Grants.test_tables__installer_enrollment",
+        "test_grants.Grants.test_tables__migrator",
+        "test_grants.Grants.test_tables__observer",
+        "test_grants.Grants.test_tables__probe",
+        "test_grants.Grants.test_tables__request_group",
+        "test_grants.Grants.test_tables__supervisor",
+        "test_grants.Grants.test_tables__verifier_owner",
+        "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T13",
+      "ratified_plan": "Q1 existing ACLs",
+      "obligation": "Existing and new per-function/per-table effective rights and grant options; no raw service data",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_functions__api_request",
+        "test_grants.Grants.test_functions__bootstrap",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_functions__migrator",
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_functions__request_group",
+        "test_grants.Grants.test_functions__supervisor",
+        "test_grants.Grants.test_functions__verifier_owner",
+        "test_grants.Grants.test_tables__api_request",
+        "test_grants.Grants.test_tables__bootstrap",
+        "test_grants.Grants.test_tables__installer_enrollment",
+        "test_grants.Grants.test_tables__migrator",
+        "test_grants.Grants.test_tables__observer",
+        "test_grants.Grants.test_tables__probe",
+        "test_grants.Grants.test_tables__request_group",
+        "test_grants.Grants.test_tables__supervisor",
+        "test_grants.Grants.test_tables__verifier_owner"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T14",
+      "ratified_plan": "Q1 creator default ACLs",
+      "obligation": "Every creator closes future function/type/table permissions for every unauthorized recipient",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F01"
+    },
+    {
+      "id": "T15",
+      "ratified_plan": "Q1 non-table ACL matrix",
+      "obligation": "Schema CREATE/USAGE, DB CONNECT/TEMP/CREATE, view, sequence, type and migration-ledger restrictions",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_other_objects__api_request",
+        "test_grants.Grants.test_other_objects__bootstrap",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_other_objects__migrator",
+        "test_grants.Grants.test_other_objects__observer",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_other_objects__request_group",
+        "test_grants.Grants.test_other_objects__supervisor",
+        "test_grants.Grants.test_other_objects__verifier_owner"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T16",
+      "ratified_plan": "Q3 retain C04",
+      "obligation": "Credential/principal/project/action/generation guards, scoped read/write/control, transactions and response revalidation",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_c04.C04.test_auth_owns_transaction_and_refuses_ambient_transaction",
+        "test_c04.C04.test_authorized_write_preserves_atomic_record_history",
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_c04.C04.test_changed_action_cannot_commit_outside_accepted_context",
+        "test_c04.C04.test_closed_core_is_typed_unavailable_without_key_leak",
+        "test_c04.C04.test_control_requires_scoped_owner_or_admin_without_fallback",
+        "test_c04.C04.test_cross_tenant_reads_and_insert_update_are_denied",
+        "test_c04.C04.test_expiry_before_response_refuses_and_rolls_back",
+        "test_c04.C04.test_forged_tenant_and_principal_context_cannot_expand_scope",
+        "test_c04.C04.test_idempotency_receipts_are_principal_scoped",
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_c04.C04.test_missing_unknown_expired_revoked_disabled_credentials_refused",
+        "test_c04.C04.test_other_project_in_same_tenant_is_not_visible_or_writable",
+        "test_c04.C04.test_owner_force_rls_does_not_depend_on_api_role_guard",
+        "test_c04.C04.test_permission_generation_changes_cache_partition_and_revocation",
+        "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal",
+        "test_c04.C04.test_principal_disable_invalidates_permission_generation",
+        "test_c04.C04.test_privileged_or_owning_runtime_connection_refused",
+        "test_c04.C04.test_read_context_cannot_write_or_control",
+        "test_c04.C04.test_request_role_is_nonowner_nonbypass_and_cannot_elevate",
+        "test_c04.C04.test_revocation_linearizes_with_accepted_request",
+        "test_c04.C04.test_scope_is_derived_from_credential_and_registry",
+        "test_c04.C04.test_session_scope_written_inside_request_is_cleared",
+        "test_c04.C04.test_shared_negative_conformance_cases_are_refused",
+        "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused",
+        "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "test_grants.Grants.test_original_C04_fixture_has_real_API_session_and_valid_scope",
+        "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user",
+        "test_repair.Repair.test_restrictive_request_policy_remains_restrictive"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T17",
+      "ratified_plan": "Q3 API login install binding",
+      "obligation": "Valid B credential is denied on installation-A API session; valid own-A positive",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority",
+        "test_grants.Grants.test_original_C04_fixture_has_real_API_session_and_valid_scope"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T18",
+      "ratified_plan": "Q3 PG-D C04 hook",
+      "obligation": "Fixed SET LOCAL before _ROLE_QUERY, checkout/reset/discard, second borrower after success/error/cancel",
+      "coverage": "DEFERRED",
+      "exact_nodes": [
+        "test_c04.C04.test_auth_owns_transaction_and_refuses_ambient_transaction",
+        "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal"
+      ],
+      "missing_control_or_owner_input": "PG-O deliberately uses fixture SET ROLE. Retained context tests do not decide production PG-D placement/default-role reset/cancellation.",
+      "finding": "",
+      "owner": "PG-D connection adapter owner (Cox/Nemo when separately dispatched)"
+    },
+    {
+      "id": "T19",
+      "ratified_plan": "Q1 read exceptions",
+      "obligation": "Read-mode search_state row lock without actual writes, query cache SIDU, nextval without setval; finite_vector positive",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure",
+        "test_grants.Grants.test_request_read_lock_and_cache_write_exception_and_sequence"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T20",
+      "ratified_plan": "Q1 probe",
+      "obligation": "Actual probe CONNECT/SELECT1 succeeds and application data/role/object access stays denied",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_other_objects__probe",
+        "test_grants.Grants.test_probe_is_real_connect_select1_and_has_no_tenant_read",
+        "test_grants.Grants.test_role__probe",
+        "test_grants.Grants.test_tables__probe"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T21",
+      "ratified_plan": "Q3 installer",
+      "obligation": "Own first identity once/exact replay; altered replay and valid foreign installation denied",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_installer_first_identity_is_scoped_once_and_exact_replay",
+        "test_grants.Grants.test_installer_other_installation_is_not_admitted_by_name_only",
+        "test_grants.Grants.test_other_objects__installer_enrollment",
+        "test_grants.Grants.test_role__installer_enrollment",
+        "test_grants.Grants.test_tables__installer_enrollment"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T22",
+      "ratified_plan": "Q1 definer definition",
+      "obligation": "Nine SECURITY DEFINER owner/results, safe trusted search_path and required fresh volatility",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_signature__auth__runtime_bound_installation",
+        "test_grants.Grants.test_signature__auth__runtime_request_installation",
+        "test_grants.Grants.test_signature__auth__runtime_tenant_installation",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_acquire",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_assert_live",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_health",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_release",
+        "test_grants.Grants.test_signature__coordination__runtime_lease_renew",
+        "test_grants.Grants.test_signature__coordination__runtime_observe"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F02"
+    },
+    {
+      "id": "T23",
+      "ratified_plan": "Q3 private EXECUTE boundary",
+      "obligation": "Each of nine signatures has correct role recipients and no hidden-helper/service grant options",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_functions__api_request",
+        "test_grants.Grants.test_functions__bootstrap",
+        "test_grants.Grants.test_functions__installer_enrollment",
+        "test_grants.Grants.test_functions__migrator",
+        "test_grants.Grants.test_functions__observer",
+        "test_grants.Grants.test_functions__probe",
+        "test_grants.Grants.test_functions__request_group",
+        "test_grants.Grants.test_functions__supervisor",
+        "test_grants.Grants.test_functions__verifier_owner"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T24",
+      "ratified_plan": "Q3 acquire",
+      "obligation": "TTL1..10000, one simultaneous winner, no live takeover/cross-installation",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation",
+        "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write",
+        "test_repair.Repair.test_expired_matching_holder_release_has_no_effect",
+        "test_repair.Repair.test_map_before_lease__acquire",
+        "test_repair.Repair.test_map_before_lease__assert_live",
+        "test_repair.Repair.test_map_before_lease__release",
+        "test_repair.Repair.test_map_before_lease__renew",
+        "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health",
+        "test_repair.Repair.test_queued_expiry__assert_live",
+        "test_repair.Repair.test_queued_expiry__release"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F04"
+    },
+    {
+      "id": "T25",
+      "ratified_plan": "Q3 retained fence/reused trigger",
+      "obligation": "Release retains row/fence, next acquire increases; actual generic trigger and positive-regression refusal",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T26",
+      "ratified_plan": "Q3 holder/fence",
+      "obligation": "Wrong holder and stale fence on renew/release refuse without changing lease",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T27",
+      "ratified_plan": "Q3 post-lock expiry",
+      "obligation": "Renew/release/assert-live check DB-clock expiry after waiting for row lock",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write",
+        "test_repair.Repair.test_expired_matching_holder_release_has_no_effect",
+        "test_repair.Repair.test_map_before_lease__acquire",
+        "test_repair.Repair.test_map_before_lease__assert_live",
+        "test_repair.Repair.test_map_before_lease__release",
+        "test_repair.Repair.test_map_before_lease__renew",
+        "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health",
+        "test_repair.Repair.test_queued_expiry__assert_live",
+        "test_repair.Repair.test_queued_expiry__release"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F04"
+    },
+    {
+      "id": "T28",
+      "ratified_plan": "Q3 writable lock order",
+      "obligation": "Every writable private port locks map/revision before lease",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_writable_port_locks_map_before_lease",
+        "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write",
+        "test_repair.Repair.test_expired_matching_holder_release_has_no_effect",
+        "test_repair.Repair.test_map_before_lease__acquire",
+        "test_repair.Repair.test_map_before_lease__assert_live",
+        "test_repair.Repair.test_map_before_lease__release",
+        "test_repair.Repair.test_map_before_lease__renew",
+        "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health",
+        "test_repair.Repair.test_queued_expiry__assert_live",
+        "test_repair.Repair.test_queued_expiry__release"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F04"
+    },
+    {
+      "id": "T29",
+      "ratified_plan": "Q3 transaction guard",
+      "obligation": "assert-live itself holds lease row lock in caller transaction; final expiry rolls back bounded PG work",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait",
+        "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action",
+        "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write",
+        "test_repair.Repair.test_expired_matching_holder_release_has_no_effect",
+        "test_repair.Repair.test_map_before_lease__acquire",
+        "test_repair.Repair.test_map_before_lease__assert_live",
+        "test_repair.Repair.test_map_before_lease__release",
+        "test_repair.Repair.test_map_before_lease__renew",
+        "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health",
+        "test_repair.Repair.test_queued_expiry__assert_live",
+        "test_repair.Repair.test_queued_expiry__release"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F04"
+    },
+    {
+      "id": "T30",
+      "ratified_plan": "Q3 read-only health",
+      "obligation": "Absent/live/expired, independent of jobs, VOLATILE fresh entry/final revision, unsupported snapshots denied",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_grants.Grants.test_signature__coordination__runtime_lease_health",
+        "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample",
+        "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence",
+        "test_repair.Repair.test_health_final_revision_only_barrier",
+        "test_repair.Repair.test_health_revoked_map_refuses_at_entry",
+        "test_repair.Repair.test_observer_final_revision_only_barrier",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_lease_health__serializable",
+        "test_repair.Repair.test_snapshot__runtime_observe__repeatable_read",
+        "test_repair.Repair.test_snapshot__runtime_observe__serializable"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F03"
+    },
+    {
+      "id": "T31",
+      "ratified_plan": "Q3 pending predicates",
+      "obligation": "Scoped total pending and actual-kind embedding pending exclude foreign/running/terminal rows",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F09"
+    },
+    {
+      "id": "T32",
+      "ratified_plan": "Q3 typed unavailable",
+      "obligation": "Valid bound observer runtime query error/timeout is unavailable, never successful zero",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero",
+        "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero",
+        "test_repair.Repair.test_valid_bound_observer_timeout_never_success_zero"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F05"
+    },
+    {
+      "id": "T33",
+      "ratified_plan": "Q3 read-only observer",
+      "obligation": "READ COMMITTED aggregate returns current owned DB bytes, no raw rows; map revocation is nonblocking and stale active=false refuses",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign",
+        "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T34",
+      "ratified_plan": "Q3 producer predicate original input",
+      "obligation": "Actual original embedding producer kind and existing metric consumer binding",
+      "coverage": "DEFERRED",
+      "exact_nodes": [],
+      "missing_control_or_owner_input": "pgo.fixture.embedding is explicit synthetic input. Original owner/source kind is still UNBOUND and must bind before PG-D/RC3 sample admission; cannot invent it.",
+      "finding": "",
+      "owner": "Cox and actual embedding producer owner"
+    },
+    {
+      "id": "T35",
+      "ratified_plan": "Q2 single expansion/custody",
+      "obligation": "Original19 hashes/42 tables/64 functions; ONE20/44/73 suffix, exact reentry/known-higher-through behavior",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
+        "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T36",
+      "ratified_plan": "Q2 amended M19 ledger",
+      "obligation": "Fresh19 through19 cannot acquire20; unknown/holey/changed applied ledgers refuse",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_repair.Repair.test_changed_applied_checksum_refuses_unchanged",
+        "test_repair.Repair.test_unknown_applied_ledger_row_refuses_unchanged",
+        "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry",
+        "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix"
+      ],
+      "missing_control_or_owner_input": "Added named frozen assertions; candidate PG renewal remains unexecuted.",
+      "finding": "F07"
+    },
+    {
+      "id": "T37",
+      "ratified_plan": "Q2 DDL crash",
+      "obligation": "Crash inside combined DDL before COMMIT rolls back every new object and ledger",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T38",
+      "ratified_plan": "Q2 commit reconciliation",
+      "obligation": "Real commit-before-journal reconciles exactly once; durable acceptance forbids rollback",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T39",
+      "ratified_plan": "Q2 preaccept recovery",
+      "obligation": "Real database dump/restore; separately reconcile cluster role flags/OIDs",
+      "coverage": "DECIDING",
+      "exact_nodes": [
+        "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database",
+        "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles"
+      ],
+      "missing_control_or_owner_input": "",
+      "finding": ""
+    },
+    {
+      "id": "T40",
+      "ratified_plan": "Q2 compatibility/owners/tuple",
+      "obligation": "Final reviewed contract/descriptor/RC2 pins, integrated consumers, target material/native/CI qualification",
+      "coverage": "DEFERRED",
+      "exact_nodes": [],
+      "missing_control_or_owner_input": "Explicit PG-C/D/E/F and original-material gates; old tuple105 RED receipt cannot attest final source or both target images.",
+      "finding": "",
+      "owner": "PG-C/D/E/F + R01/native/CI owners"
+    }
+  ],
+  "node_to_plan": {
+    "test_c04.C04.test_auth_owns_transaction_and_refuses_ambient_transaction": [
+      "T16",
+      "T18"
+    ],
+    "test_c04.C04.test_authorized_write_preserves_atomic_record_history": [
+      "T16"
+    ],
+    "test_c04.C04.test_canonical_embedding_check_helper_survives_public_closure": [
+      "T16",
+      "T19"
+    ],
+    "test_c04.C04.test_changed_action_cannot_commit_outside_accepted_context": [
+      "T16"
+    ],
+    "test_c04.C04.test_closed_core_is_typed_unavailable_without_key_leak": [
+      "T16"
+    ],
+    "test_c04.C04.test_control_requires_scoped_owner_or_admin_without_fallback": [
+      "T16"
+    ],
+    "test_c04.C04.test_cross_tenant_reads_and_insert_update_are_denied": [
+      "T16"
+    ],
+    "test_c04.C04.test_expiry_before_response_refuses_and_rolls_back": [
+      "T16"
+    ],
+    "test_c04.C04.test_forged_tenant_and_principal_context_cannot_expand_scope": [
+      "T16"
+    ],
+    "test_c04.C04.test_idempotency_receipts_are_principal_scoped": [
+      "T16"
+    ],
+    "test_c04.C04.test_installer_ledger_and_global_feed_are_not_request_resources": [
+      "T16",
+      "T21"
+    ],
+    "test_c04.C04.test_missing_unknown_expired_revoked_disabled_credentials_refused": [
+      "T16"
+    ],
+    "test_c04.C04.test_other_project_in_same_tenant_is_not_visible_or_writable": [
+      "T16"
+    ],
+    "test_c04.C04.test_owner_force_rls_does_not_depend_on_api_role_guard": [
+      "T16"
+    ],
+    "test_c04.C04.test_permission_generation_changes_cache_partition_and_revocation": [
+      "T16"
+    ],
+    "test_c04.C04.test_pool_reuse_clears_scope_after_success_exception_and_refusal": [
+      "T16",
+      "T18"
+    ],
+    "test_c04.C04.test_principal_disable_invalidates_permission_generation": [
+      "T16"
+    ],
+    "test_c04.C04.test_privileged_or_owning_runtime_connection_refused": [
+      "T16"
+    ],
+    "test_c04.C04.test_read_context_cannot_write_or_control": [
+      "T16"
+    ],
+    "test_c04.C04.test_request_role_is_nonowner_nonbypass_and_cannot_elevate": [
+      "T16"
+    ],
+    "test_c04.C04.test_revocation_linearizes_with_accepted_request": [
+      "T16"
+    ],
+    "test_c04.C04.test_scope_is_derived_from_credential_and_registry": [
+      "T16"
+    ],
+    "test_c04.C04.test_session_scope_written_inside_request_is_cleared": [
+      "T16"
+    ],
+    "test_c04.C04.test_shared_negative_conformance_cases_are_refused": [
+      "T16"
+    ],
+    "test_c04.C04.test_wrong_installation_project_and_unknown_action_refused": [
+      "T16"
+    ],
+    "test_grants.Grants.test_cross_installation_valid_credential_is_not_session_authority": [
+      "T09",
+      "T16",
+      "T17"
+    ],
+    "test_grants.Grants.test_exact_object_owners_and_forced_private_table_policies": [
+      "T12"
+    ],
+    "test_grants.Grants.test_functions__api_request": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__bootstrap": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__installer_enrollment": [
+      "T13",
+      "T21",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__migrator": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__observer": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__probe": [
+      "T13",
+      "T20",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__request_group": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__supervisor": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_functions__verifier_owner": [
+      "T13",
+      "T23"
+    ],
+    "test_grants.Grants.test_installer_first_identity_is_scoped_once_and_exact_replay": [
+      "T21"
+    ],
+    "test_grants.Grants.test_installer_other_installation_is_not_admitted_by_name_only": [
+      "T21"
+    ],
+    "test_grants.Grants.test_map_is_forced_private_and_one_oid_cannot_bind_two_installations": [
+      "T06",
+      "T07"
+    ],
+    "test_grants.Grants.test_no_service_can_assume_private_or_finite_owner": [
+      "T03"
+    ],
+    "test_grants.Grants.test_original_C04_fixture_has_real_API_session_and_valid_scope": [
+      "T16",
+      "T17"
+    ],
+    "test_grants.Grants.test_other_objects__api_request": [
+      "T15"
+    ],
+    "test_grants.Grants.test_other_objects__bootstrap": [
+      "T15"
+    ],
+    "test_grants.Grants.test_other_objects__installer_enrollment": [
+      "T15",
+      "T21"
+    ],
+    "test_grants.Grants.test_other_objects__migrator": [
+      "T15"
+    ],
+    "test_grants.Grants.test_other_objects__observer": [
+      "T15"
+    ],
+    "test_grants.Grants.test_other_objects__probe": [
+      "T15",
+      "T20"
+    ],
+    "test_grants.Grants.test_other_objects__request_group": [
+      "T15"
+    ],
+    "test_grants.Grants.test_other_objects__supervisor": [
+      "T15"
+    ],
+    "test_grants.Grants.test_other_objects__verifier_owner": [
+      "T15"
+    ],
+    "test_grants.Grants.test_probe_is_real_connect_select1_and_has_no_tenant_read": [
+      "T20"
+    ],
+    "test_grants.Grants.test_public_function_and_type_defaults_closed_for_both_creators": [
+      "T14"
+    ],
+    "test_grants.Grants.test_request_read_lock_and_cache_write_exception_and_sequence": [
+      "T19"
+    ],
+    "test_grants.Grants.test_role__api_request": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_role__bootstrap": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_role__installer_enrollment": [
+      "T01",
+      "T03",
+      "T21"
+    ],
+    "test_grants.Grants.test_role__migrator": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_role__observer": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_role__probe": [
+      "T01",
+      "T03",
+      "T20"
+    ],
+    "test_grants.Grants.test_role__request_group": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_role__supervisor": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_role__verifier_owner": [
+      "T01",
+      "T03"
+    ],
+    "test_grants.Grants.test_session_map_ignores_forged_GUC_and_definer_current_user": [
+      "T09",
+      "T16"
+    ],
+    "test_grants.Grants.test_signature__auth__runtime_bound_installation": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__auth__runtime_request_installation": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__auth__runtime_tenant_installation": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__coordination__runtime_lease_acquire": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__coordination__runtime_lease_assert_live": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__coordination__runtime_lease_health": [
+      "T22",
+      "T30"
+    ],
+    "test_grants.Grants.test_signature__coordination__runtime_lease_release": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__coordination__runtime_lease_renew": [
+      "T22"
+    ],
+    "test_grants.Grants.test_signature__coordination__runtime_observe": [
+      "T22"
+    ],
+    "test_grants.Grants.test_stale_oid_name_recreation_does_not_adopt_old_map": [
+      "T07",
+      "T08"
+    ],
+    "test_grants.Grants.test_tables__api_request": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_tables__bootstrap": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_tables__installer_enrollment": [
+      "T06",
+      "T12",
+      "T13",
+      "T21"
+    ],
+    "test_grants.Grants.test_tables__migrator": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_tables__observer": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_tables__probe": [
+      "T06",
+      "T12",
+      "T13",
+      "T20"
+    ],
+    "test_grants.Grants.test_tables__request_group": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_tables__supervisor": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_tables__verifier_owner": [
+      "T06",
+      "T12",
+      "T13"
+    ],
+    "test_grants.Grants.test_wrong_logical_kind_and_revoked_map_refuse": [
+      "T09"
+    ],
+    "test_lifecycle.Lifecycle.test_bind_same_operation_preserves_oid_revision_and_other_operation_refuses": [
+      "T10",
+      "T11"
+    ],
+    "test_lifecycle.Lifecycle.test_close_disables_both_finite_roles_and_drains_real_sessions": [
+      "T04"
+    ],
+    "test_lifecycle.Lifecycle.test_prepare_reentry_preserves_actual_role_oid_and_preimage": [
+      "T02",
+      "T11"
+    ],
+    "test_lifecycle.Lifecycle.test_prepare_rejects_foreign_privileged_service_instead_of_adopting_name": [
+      "T02"
+    ],
+    "test_lifecycle.Lifecycle.test_restore_reconciles_cluster_role_preimage_separately_from_database": [
+      "T39"
+    ],
+    "test_ports.Ports.test_expiry_is_rechecked_after_real_lease_lock_wait": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_ports.Ports.test_final_assert_live_expires_and_aborts_bounded_PG_action": [
+      "T27",
+      "T29"
+    ],
+    "test_ports.Ports.test_generic_fence_trigger_is_attached_and_rejects_positive_regression": [
+      "T25"
+    ],
+    "test_ports.Ports.test_lease_health_is_closed_read_only_and_independent_of_job_sample": [
+      "T30"
+    ],
+    "test_ports.Ports.test_lease_rejects_live_takeover_and_cross_installation": [
+      "T09",
+      "T24"
+    ],
+    "test_ports.Ports.test_observer_missing_kind_or_fault_is_unavailable_never_zero": [
+      "T32"
+    ],
+    "test_ports.Ports.test_observer_pending_embedding_jobs_is_not_total_jobs_or_foreign": [
+      "T30",
+      "T31",
+      "T33"
+    ],
+    "test_ports.Ports.test_observer_read_only_final_revision_recheck_after_concurrent_revocation": [
+      "T10",
+      "T33"
+    ],
+    "test_ports.Ports.test_release_retains_row_and_next_acquire_increases_fence": [
+      "T25",
+      "T30",
+      "T31"
+    ],
+    "test_ports.Ports.test_renew_and_release_reject_wrong_holder_and_stale_fence": [
+      "T26"
+    ],
+    "test_ports.Ports.test_writable_port_locks_map_before_lease": [
+      "T28"
+    ],
+    "test_repair.Repair.test_assert_live_itself_holds_row_before_any_later_write": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_changed_applied_checksum_refuses_unchanged": [
+      "T36"
+    ],
+    "test_repair.Repair.test_close_unknown_finite_session_holds_and_preserves_sentinel": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_close_unknown_role_state_holds": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_close_wrong_operation_holds": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_expired_matching_holder_release_has_no_effect": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_health_final_revision_only_barrier": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_health_revoked_map_refuses_at_entry": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_map_before_lease__acquire": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_map_before_lease__assert_live": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_map_before_lease__release": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_map_before_lease__renew": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_observer_final_revision_only_barrier": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_one_ms_acquire_is_valid_without_sleep_dependent_health": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_prepare_all_nine_phase_flags_come_from_client_effects": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_queued_expiry__assert_live": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_queued_expiry__release": [
+      "T24",
+      "T27",
+      "T28",
+      "T29"
+    ],
+    "test_repair.Repair.test_restrictive_request_policy_remains_restrictive": [
+      "T16"
+    ],
+    "test_repair.Repair.test_snapshot__runtime_lease_health__repeatable_read": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_snapshot__runtime_lease_health__serializable": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_snapshot__runtime_observe__repeatable_read": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_snapshot__runtime_observe__serializable": [
+      "T10",
+      "T30"
+    ],
+    "test_repair.Repair.test_supervisor_own_session_admits_positive_lease": [
+      "T09"
+    ],
+    "test_repair.Repair.test_unknown_applied_ledger_row_refuses_unchanged": [
+      "T36"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__api_request__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__api_request__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__api_request__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__api_request__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__api_request__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__api_request__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__installer_enrollment__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__installer_enrollment__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__installer_enrollment__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__installer_enrollment__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__installer_enrollment__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__observer__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__observer__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__observer__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__observer__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__observer__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__observer__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__probe__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__probe__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__probe__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__probe__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__probe__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__probe__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__login": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__request_group__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__supervisor__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__supervisor__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__supervisor__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__supervisor__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__supervisor__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__supervisor__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__bypassrls": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__createdb": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__createrole": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__inherit": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__login": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__replication": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_unsafe_prepare__verifier_owner__superuser": [
+      "T02",
+      "T04"
+    ],
+    "test_repair.Repair.test_valid_bound_observer_aggregate_error_never_success_zero": [
+      "T32"
+    ],
+    "test_repair.Repair.test_valid_bound_observer_timeout_never_success_zero": [
+      "T32"
+    ],
+    "test_upgrade.Upgrade.test_commit_before_journal_reconciles_once_and_accept_is_fix_forward": [
+      "T38"
+    ],
+    "test_upgrade.Upgrade.test_crash_inside_combined_DDL_rolls_back_all_new_objects_and_ledger": [
+      "T37"
+    ],
+    "test_upgrade.Upgrade.test_original_19_checksums_real_42_tables_64_functions_and_named_reentry": [
+      "T35",
+      "T36"
+    ],
+    "test_upgrade.Upgrade.test_preaccept_database_restore_is_real_and_does_not_restore_cluster_roles": [
+      "T39"
+    ],
+    "test_upgrade.Upgrade.test_single_final_suffix_exact_20_44_73_and_reentry": [
+      "T12",
+      "T35"
+    ],
+    "test_upgrade.Upgrade.test_unknown_and_holey_ledger_refuse_before_new_suffix": [
+      "T36"
+    ]
+  },
+  "governance_exclusions": [
+    "Owner allocations and27/23 author-hour reconciliation",
+    "Kai dispatch ordering/ceilings and shared receipt cost credits",
+    "Projection-writer/G_OLD/event numbering remains separate; no tenth role/extra signature or migration authorized"
+  ],
+  "review_baseline_counts": {
+    "DECIDING": 23,
+    "PARTIAL": 13,
+    "DEFERRED": 4
+  },
+  "repair_note": "13 partial rows closed as frozen deciding assertions, not native qualification. Four original owner/later-unit gates remain explicitly deferred."
+}
