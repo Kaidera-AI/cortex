@@ -17,8 +17,9 @@ from urllib.parse import parse_qs
 from uuid import UUID
 
 from cortex_core.driver_logging import private_driver_logs
-from cortex_core.embeddings.keyword import request_deadline, check_deadline
-from cortex_core.embeddings.pg_search import CapabilityUnavailable
+from cortex_core.embeddings.projection_revision import (
+    request_deadline, check_deadline, CapabilityUnavailable,
+)
 
 
 class GatewayError(ValueError):

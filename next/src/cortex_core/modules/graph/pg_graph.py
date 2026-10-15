@@ -11,9 +11,8 @@ import json
 from functools import wraps
 from uuid import UUID, uuid4, uuid5
 
-import asyncpg
 from cortex_core.embeddings.pg_search import CapabilityUnavailable, PostgresSearch, Scope
-from cortex_core.embeddings.pg_search import CoreUnavailable
+from cortex_core.embeddings.pg_search import CoreUnavailable, _driver_errors
 from cortex_core.embeddings.projection_revision import ProjectionRevision, finish_observation, validate_target
 
 HIGH = ("concept", "epic", "service", "project", "product", "work_product")
@@ -121,7 +120,7 @@ def retry(operation):
         for attempt in range(3):
             try:
                 return await operation(*args, **kwargs)
-            except asyncpg.SerializationError:
+            except _driver_errors('SerializationError'):
                 if attempt == 2:
                     raise GraphUnavailable("concurrent_update") from None
                 await asyncio.sleep(0.005 * (attempt + 1))
@@ -217,7 +216,7 @@ class PostgresGraph:
             raise GraphUnavailable("resource_timeout") from None
         except CapabilityUnavailable:
             raise GraphUnavailable("resource_timeout") from None
-        except asyncpg.UndefinedTableError:
+        except _driver_errors('UndefinedTableError'):
             raise GraphUnavailable("schema_unavailable") from None
 
     async def _state(self, conn, scope, *, lock=False):
@@ -423,7 +422,7 @@ class PostgresGraph:
             references = tuple(SourceRef(r["id"], r["current_revision"], r["kind"]) for r in rows)
             try:
                 sources = await self.source_reader(conn, scope, references)
-            except (PermissionError, asyncpg.SerializationError):
+            except (PermissionError, *_driver_errors('SerializationError')):
                 raise
             except Exception:
                 raise GraphUnavailable("source_reader_unavailable") from None
@@ -473,7 +472,7 @@ class PostgresGraph:
             if fact_id is None:
                 try:
                     fact_id = await self.fact_sink(conn, scope, source, facts)
-                except (PermissionError, asyncpg.SerializationError):
+                except (PermissionError, *_driver_errors('SerializationError')):
                     raise
                 except Exception:
                     raise GraphUnavailable("canonical_fact_port_unavailable") from None
@@ -623,7 +622,7 @@ class PostgresGraph:
                     raise GraphUnavailable("durable_job_port_unavailable")
                 try:
                     jid = await self.enqueue_job(conn, scope, {**options, "repo": scope.repo, "generation": str(generation), "extractor_identity": self.identity})
-                except (PermissionError, asyncpg.SerializationError):
+                except (PermissionError, *_driver_errors('SerializationError')):
                     raise
                 except Exception:
                     raise GraphUnavailable("durable_job_port_unavailable") from None
@@ -706,7 +705,7 @@ class PostgresGraph:
         async with self._tx(subject, project=project) as (conn, scope):
             try:
                 receipt = await self.read_job(conn, scope, jid)
-            except (PermissionError, asyncpg.SerializationError):
+            except (PermissionError, *_driver_errors('SerializationError')):
                 raise
             except Exception:
                 raise GraphUnavailable("durable_job_port_unavailable") from None

@@ -11,7 +11,7 @@ from cortex_core.release.codec import sha256
 from .contracts import MAX_CONFIG_BYTES, MAX_LOCK_BYTES, RC0_SHA256, decode, load_contracts
 from .signed_member import OriginalMember, Refusal, read_member
 from .selection import AiSelection
-from cortex_core.embeddings.pg_search import EmbeddingIdentity
+from cortex_core.embeddings.projection_revision import EmbeddingIdentity
 
 RUNTIME_LOCK_MEMBER = 'runtime.lock.json'
 
