@@ -1,5 +1,6 @@
 """Fixed lifecycle seam source recorder; all storage belongs to the test."""
 import copy
+from collections.abc import Mapping
 import inspect
 import json
 from pathlib import Path
@@ -98,11 +99,13 @@ class LifecycleAdapterOracle(unittest.TestCase):
                         api.execute_effect(data['request_raw'].encode())
                 else:
                     result = api.execute_effect(data['request_raw'].encode())
-                    self.assertEqual(result.journal_ref, history.head()[0])
-                    self.assertFalse(result.native_credit)
-                    self.assertFalse(result.effect_authority)
-                    self.assertEqual(result.phase, 'held' if not_applied else 'enrollment_required')
-                    event, _ = api._load_entry(history, result.journal_ref)
+                    self.assertIsInstance(result, Mapping, 'return the existing P1 RecordRef, not another result record')
+                    self.assertEqual(set(result), {'path','bytes','sha256'})
+                    self.assertEqual(result, history.head()[0])
+                    with self.assertRaises(TypeError):
+                        result['path'] = 'forged'
+                    event, _ = api._load_entry(history, result)
+                    self.assertEqual(event['phase'], 'held' if not_applied else 'created')
                     result_bytes = history.read(event['result_ref'])
                     if not_applied:
                         self.assertEqual(json.loads(result_bytes)['state'], 'not_applied_verified')
