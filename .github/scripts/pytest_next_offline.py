@@ -416,7 +416,8 @@ def declaration_observations(packet, excluded):
         valid=(Counter(r['when'] for r in rows)==Counter(('setup','call','teardown'))
             and all(not r['wasxfail'] and r['outcome']==('failed' if r['when']=='call' else 'passed') for r in rows)
             and len(calls)==1 and calls[0].get('assertion') is True
-            and calls[0].get('exception_type','').split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
+            and isinstance(calls[0].get('exception_type'),str)
+            and calls[0]['exception_type'].split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
         result.append(dict(nodeid=node,reason=declaration['reason'],executed=bool(calls),
             outcome=calls[0]['outcome'] if len(calls)==1 else 'invalid',
             exception_type=calls[0].get('exception_type','') if len(calls)==1 else '',valid=valid,pass_credit=0))
@@ -430,7 +431,9 @@ def receipt_valid(packet, process_exit, retired=(), replacements=(), excluded=()
         fixtures=[row for row in excluded if row not in unbuilt]
         unavailable={row['nodeid'] for row in unbuilt}
         witnesses=declaration_observations(packet,excluded)
-        if (packet.get('declared_unavailable',[])!=witnesses or not all(w['valid'] for w in witnesses)
+        if (len(packet['expected'])!=len(set(packet['expected']))
+            or Counter(packet['selected'])!=Counter(packet['expected'])
+            or packet.get('declared_unavailable',[])!=witnesses or not all(w['valid'] for w in witnesses)
             or len(unavailable)!=len(unbuilt) or not unavailable<=set(packet['expected'])):return False
         expected=[n for n in packet['expected'] if n not in unavailable]
         # Keep raw records intact; validate ordinary live phases using the existing U13 contract.
