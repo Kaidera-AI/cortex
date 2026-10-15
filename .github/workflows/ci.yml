@@ -88,52 +88,6 @@ jobs:
             ${{ runner.temp }}/cortex-pytest-offline/*.json
             ${{ runner.temp }}/cortex-pytest-offline/*.txt
           if-no-files-found: warn
-  p1-install-oracle:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        python: ['3.13.7', '3.14.0']
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: ${{ matrix.python }}
-      - name: locked API and test dependencies
-        run: |
-          python -m pip install --only-binary=:all: --require-hashes -r packages/api/requirements.lock
-          python -m pip install --only-binary=:all: --require-hashes -r next/requirements-ci-test.lock
-      - name: complete P1 install and strict E2 tuple oracles
-        env:
-          PYTHONPATH: next/src:next/tests/runtime:next/tests/install:next/tests:.github/scripts
-          PYTHONDONTWRITEBYTECODE: '1'
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
-          PYTEST_ADDOPTS: ''
-        run: |
-          python -B - <<'PY'
-          import os
-          from pathlib import Path
-          import pytest
-          from pytest_offline import CompleteGate
-          output = Path(os.environ['RUNNER_TEMP']) / 'cortex-p1-install'
-          output.mkdir(parents=True, exist_ok=True)
-          gate = CompleteGate(output / 'summary.json')
-          raise SystemExit(pytest.main(['-q', '--tb=short', '--strict-markers',
-              '-o', 'cache_dir=' + str(output / 'cache'),
-              '--basetemp=' + str(output / 'tmp'), 'next/tests/install'], plugins=[gate]))
-          PY
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p1-install-receipts-${{ matrix.python }}
-          path: ${{ runner.temp }}/cortex-p1-install/summary.json
-          if-no-files-found: error
-          retention-days: 7
   launcher-contract:
     # One launcher behind every channel means one behavioural contract, proven under both
     # runtimes on every change. The runner is NOT a compliant Cortex host, so the gate

@@ -1,7 +1,11 @@
 # Hosted offline v2 source contracts
 
-`next-offline.yml` runs Python 3.14.7 with the unchanged API dependency hash lock
-and the additional test-only hash lock. All actions use full commit pins, the
+`next-offline.yml` runs Python 3.13.7 and 3.14.0 with the unchanged API dependency
+hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
+The supplemental offline lock retains only the existing numpy and psycopg fixture
+dependencies; it does not duplicate tool pins. Matrix failures do not cancel the
+other interpreter. The former `p1-install-oracle` job is absorbed here: all five
+install files and all 47 methods run once per interpreter through this same gate. All actions use full commit pins, the
 token has only `contents: read`, and checkout does not persist credentials.
 The suite service uses a separate network namespace, denies IPv4/IPv6 socket
 creation, and verifies those kernel restrictions before running any tests.
@@ -14,17 +18,23 @@ An unlisted file, a stale or duplicated entry, a symlink, an empty RUN list,
 or an exclusion without a one-line reason fails before test execution.
 The workflow supplies the independent PR base SHA and checks out its history.
 The standalone `--base-ref` default is the accepted a47a152b checkpoint.
-An unavailable or malformed base refuses; the manifest cannot supply its own
-approval. Every accepted-base RUN entry that leaves RUN is listed in the
+The exact initial main `66cba6a1f8a2a3787844e168ab5415cb96738a0d` predates
+this manifest. Only for that existing, exact commit with the file absent, the
+comparison uses the pinned a47a152b policy; `base_ref` and `policy_base_ref` both
+appear in the receipt. Unknown/missing commits, malformed manifests, and any
+other base without an inventory refuse. Once this PR lands, the normal PR base
+manifest supplies the comparison. The manifest cannot supply its own approval. Every accepted-base RUN entry that leaves RUN is listed in the
 `transitions` receipt and fails unless its exclusion has checkable fixture proof.
 The RC0 oracle at `next/docs/runtime/rc0/test_oracle.py` is covered by this rule
-when it is added; that file is absent from the original PR155 base.
+and now runs alongside every current runtime/identity/factory/keyword/driver-free
+and driver-privacy source suite. U3-only files absent from main are not added.
 
 To add a suite, review its fixture effects and add the file to `run`. A new or
 changed whole-file exclusion must include `{kind, source, sha256, symbol}`
 evidence. The existing AST reader verifies the exact source digest, a PostgreSQL
 connect call in the named fixture's setup, and that every removed method's class
-requires that fixture through an unconditional, resolved setup/inheritance chain.
+requires that fixture through an unconditional, resolved setup/inheritance chain,
+including the existing module-qualified Core setup delegation.
 An unused import, a dead/unrelated setup call or a mixed plain method is not
 proof. Unknown Python fixture composition refuses and needs review; this is a
 conservative source proof, not an execution or qualification of PostgreSQL.
@@ -38,6 +48,16 @@ files run (27 benchmark and five synthetic legacy methods). The worker collects
 the whole file first, requires each declared unavailable node exactly once, then
 removes only those nodes. Excluded methods receive no PASS credit; arbitrary
 pytest deselection and skips still fail. Imported offline helpers remain usable.
+The C11 availability files also stay mixed: three methods require real PostgreSQL
+and one requires an actual IPv4 loopback server. Their exact named nodes carry
+hashed fixture evidence in the same manifest. The dedicated outage file requires
+the existing real-PG fixture throughout and has a whole-file exclusion. The
+existing AST reader checks setup delegation, or the actual probe factory plus
+server-side statement-timeout query, or the explicit loopback start_server call.
+The mocked-connect deadline method receives an inert loopback DSN only to construct
+its existing factory; its driver connect is replaced by the original test body.
+The offline service still denies every actual IP socket. No real database is
+started or inferred from these controls.
 
 Retirement record/original/v2 identities must agree with the independent base;
 repinning edited reasons or bodies in the manifest does not approve them. Each
@@ -71,7 +91,12 @@ deselections, collection/setup/body/teardown errors, and nonzero raw pytest exit
 fail. The parent additionally checks the actual child exit, the matching suite
 and source hash, and that no selected node comes from another file. No per-file
 test count is hardcoded: adding test methods to an admitted file runs them through
-normal discovery. The summary and per-suite JSON/logs are uploaded for seven days.
+normal discovery. The summary and per-suite JSON/logs, including retirement baseline/mutation
+receipts, are uploaded under distinct interpreter artifact names for seven days.
+Every live collection must equal its passed methods; exact unavailable nodes and
+retirements are separate NOT_RUN witnesses and receive no PASS credit. Frozen E1
+expectations remain mandatory even when current product behavior is RED; no
+waiver or xfail turns an unimplemented expectation into a green job.
 
 The inventory/outcome oracle can run without test dependencies:
 

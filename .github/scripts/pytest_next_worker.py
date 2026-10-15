@@ -100,6 +100,8 @@ def main():
                       'next/tests/release/adoption_controls/test_root_artifact_semantics.py'):
         # These standalone review controls accept source/output roots positionally.
         sys.argv += [str(ROOT), str(args.temporary)]
+    if args.suite=='next/tests/c11_availability/test_deadline_cleanup.py':
+        os.environ['TEST_PROBE_DATABASE_URL']='postgresql://offline@127.0.0.1:1/offline'
     os.chdir(ROOT)
     import pytest
     requested=json.loads(args.nodes_json)

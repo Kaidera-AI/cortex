@@ -1,5 +1,6 @@
 {
   "run": [
+    "next/docs/runtime/rc0/test_oracle.py",
     "next/tests/artifact/test_c03_receipts.py",
     "next/tests/artifact/test_legacy_map.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
@@ -20,6 +21,11 @@
     "next/tests/benchmarks/test_sanitized_row_shape.py",
     "next/tests/benchmarks/test_vector_baseline.py",
     "next/tests/benchmarks/test_vector_baseline_failures.py",
+    "next/tests/c11_availability/test_controls.py",
+    "next/tests/c11_availability/test_deadline_cleanup.py",
+    "next/tests/c11_availability/test_privacy.py",
+    "next/tests/c11_availability/test_probe_bound.py",
+    "next/tests/c11_availability/test_shutdown.py",
     "next/tests/c11a/test_auth_precedence.py",
     "next/tests/c11a/test_dispatch.py",
     "next/tests/c11a/test_gateway.py",
@@ -37,7 +43,13 @@
     "next/tests/core_upgrade/test_operation_race.py",
     "next/tests/core_upgrade_head/test_current_coordinator_bridge.py",
     "next/tests/deployment/test_cortex_prerequisite_v3_contract.py",
+    "next/tests/driver_privacy/test_driver_logs.py",
     "next/tests/identity_receipts/test_identity_receipts.py",
+    "next/tests/install/test_contracts.py",
+    "next/tests/install/test_planner.py",
+    "next/tests/install/test_read_meter.py",
+    "next/tests/install/test_trust_repair.py",
+    "next/tests/install/test_tuple_revision.py",
     "next/tests/integration/test_cli_status.py",
     "next/tests/integration/test_conductor_tools.py",
     "next/tests/integration/test_dependency_timeout.py",
@@ -96,6 +108,22 @@
     "next/tests/reproducibility/test_shared_receipt_consumer_v2.py",
     "next/tests/reproducibility/test_source_envelope_shapes.py",
     "next/tests/reproducibility/test_source_envelopes.py",
+    "next/tests/runtime/test_admission.py",
+    "next/tests/runtime_driver_free/test_imports.py",
+    "next/tests/runtime_egress/test_e0.py",
+    "next/tests/runtime_egress/test_e0_cache_fence.py",
+    "next/tests/runtime_egress/test_e0_expiry.py",
+    "next/tests/runtime_egress/test_e0_join.py",
+    "next/tests/runtime_factory/test_factory.py",
+    "next/tests/runtime_identity/test_reader_identity.py",
+    "next/tests/runtime_keyword/test_consumer.py",
+    "next/tests/runtime_keyword/test_core.py",
+    "next/tests/runtime_keyword/test_core_port.py",
+    "next/tests/runtime_keyword/test_deadline_review.py",
+    "next/tests/runtime_keyword/test_gateway.py",
+    "next/tests/runtime_keyword/test_guard_edges.py",
+    "next/tests/runtime_keyword/test_selection.py",
+    "next/tests/runtime_keyword/test_wire.py",
     "next/tests/schema/test_causal_mutations.py",
     "next/tests/schema/test_mutation_receipts.py"
   ],
@@ -143,6 +171,16 @@
     {
       "path": "next/tests/c05_review/test_c05_review.py",
       "reason": "Needs real PostgreSQL through the direct or inherited database fixture."
+    },
+    {
+      "path": "next/tests/c11_availability/test_outage.py",
+      "reason": "Requires the real PostgreSQL interruption fixture through unconditional Core fixture setup.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "ed6338b81d137c7b2d536fb060dcec83566d92565239f13d6a8d34124d6e615c",
+        "symbol": "AuthorizationTests.setUp"
+      }
     },
     {
       "path": "next/tests/c11_ids_scale/test_all_ids.py",
@@ -500,6 +538,52 @@
           "LEGACY_SCHEMA_SOURCE",
           "LEGACY_MAP_DIRECTORY"
         ]
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_controls.py::IsolatedRoleTests::test_real_healthy_probe_has_no_request_membership_or_tenant_access",
+      "reason": "Requires a real PostgreSQL probe fixture.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "ed6338b81d137c7b2d536fb060dcec83566d92565239f13d6a8d34124d6e615c",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_deadline_cleanup.py::SubsecondAndCloseTests::test_real_factory_connects_with_subsecond_budget",
+      "reason": "Requires a real PostgreSQL probe fixture.",
+      "evidence": {
+        "kind": "postgres_probe_fixture",
+        "source": "next/tests/c11_availability/test_deadline_cleanup.py",
+        "sha256": "4d9817ade1c1ff572bc029ff553afd236e4b80371a3defb72a4f1e4151228ffe",
+        "symbol": "SubsecondAndCloseTests.test_real_factory_connects_with_subsecond_budget",
+        "keys": [
+          "TEST_PROBE_DATABASE_URL"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_probe_bound.py::ProbeBoundTests::test_real_pg_factory_enforces_connect_and_statement_deadlines",
+      "reason": "Requires a real PostgreSQL probe fixture.",
+      "evidence": {
+        "kind": "postgres_probe_fixture",
+        "source": "next/tests/c11_availability/test_probe_bound.py",
+        "sha256": "863b5bf70c63fa9f7db8402de0b792f7cdd28e9af56c87da4107dd721eb2af39",
+        "symbol": "ProbeBoundTests.test_real_pg_factory_enforces_connect_and_statement_deadlines",
+        "keys": [
+          "TEST_PROBE_DATABASE_URL"
+        ]
+      }
+    },
+    {
+      "nodeid": "next/tests/c11_availability/test_deadline_cleanup.py::SubsecondAndCloseTests::test_psycopg_stalled_handshake_closes_after_probe_deadline",
+      "reason": "Requires an IPv4 loopback server; this offline job denies IP socket creation.",
+      "evidence": {
+        "kind": "loopback_fixture",
+        "source": "next/tests/c11_availability/test_deadline_cleanup.py",
+        "sha256": "4d9817ade1c1ff572bc029ff553afd236e4b80371a3defb72a4f1e4151228ffe",
+        "symbol": "SubsecondAndCloseTests.test_psycopg_stalled_handshake_closes_after_probe_deadline"
       }
     }
   ]

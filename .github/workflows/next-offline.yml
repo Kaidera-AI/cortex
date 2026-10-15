@@ -10,6 +10,10 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13.7', '3.14.0']
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -18,14 +22,14 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.14.7'
+          python-version: ${{ matrix.python }}
       - name: hashed API and offline-test dependencies
         run: |
           python -m venv "${{ runner.temp }}/next-offline-venv"
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             "${{ runner.temp }}/next-offline-venv/bin/python" -m pip install \
             --only-binary=:all: --require-hashes -r packages/api/requirements.lock \
-            -r .github/next-offline-requirements.lock
+            -r next/requirements-ci-test.lock -r .github/next-offline-requirements.lock
       - name: frozen inventory and outcome oracles
         run: |
           "${{ runner.temp }}/next-offline-venv/bin/python" -B .github/scripts/tests/test_next_offline_gate.py
@@ -43,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: next-offline-receipts
+          name: next-offline-receipts-${{ matrix.python }}
           path: ${{ runner.temp }}/next-offline-receipts/*
           if-no-files-found: error
           retention-days: 7

@@ -19,6 +19,8 @@ import shutil
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / '.github/next-offline-suites.json'
 ACCEPTED_BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
+# One-time initial integration: this exact main predates the inventory file.
+BOOTSTRAP_MAIN = '66cba6a1f8a2a3787844e168ab5415cb96738a0d'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
                                             Path(__file__).with_name('pytest_u13_worker.py'))
 U13 = importlib.util.module_from_spec(SPEC)
@@ -115,7 +117,13 @@ def base_manifest_at(root, ref):
     if not isinstance(ref,str) or len(ref)!=40 or any(c not in '0123456789abcdef' for c in ref):
         raise ValueError('coverage: invalid independent base SHA')
     try:
-        return json.loads(subprocess.check_output(['git','show',ref+':.github/next-offline-suites.json'],
+        subprocess.check_output(['git','cat-file','-e',ref+'^{commit}'],cwd=root,stderr=subprocess.DEVNULL)
+        policy_ref=ref
+        if ref==BOOTSTRAP_MAIN and not subprocess.check_output(
+                ['git','ls-tree','--name-only',ref,'--','.github/next-offline-suites.json'],cwd=root):
+            # Do not bootstrap unknown refs, missing commits, or malformed manifests.
+            policy_ref=ACCEPTED_BASE
+        return json.loads(subprocess.check_output(['git','show',policy_ref+':.github/next-offline-suites.json'],
                                                  cwd=root,stderr=subprocess.DEVNULL))
     except (OSError,ValueError,subprocess.CalledProcessError):
         raise ValueError('coverage: independent base unavailable') from None
@@ -157,6 +165,27 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     if not parsed or anchor is None:return False
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
+    if evidence['kind'] in ('postgres_probe_fixture','loopback_fixture'):
+        if name!=suite or not nodeid or evidence['symbol']!='.'.join(nodeid.split('::')[1:]):return False
+        if not isinstance(anchor,(ast.FunctionDef,ast.AsyncFunctionDef)) or not anchor.name.startswith('test_'):return False
+        calls=[item for item in ast.walk(anchor) if isinstance(item,ast.Call)]
+        if evidence['kind']=='loopback_fixture':
+            return set(evidence)=={'kind','source','sha256','symbol'} and any(
+                ast.unparse(call.func)=='asyncio.start_server' and len(call.args)>=3
+                and isinstance(call.args[1],ast.Constant) and call.args[1].value=='127.0.0.1'
+                and isinstance(call.args[2],ast.Constant) and call.args[2].value==0 for call in calls)
+        reads={item.slice.value for item in ast.walk(anchor) if isinstance(item,ast.Subscript)
+            and ast.unparse(item.value)=='os.environ' and isinstance(item.slice,ast.Constant)}
+        # Actual named factory plus server-side query, not an unused DSN/import or a mocked connect.
+        factory=any(isinstance(item,ast.Assign) and len(item.targets)==1
+            and isinstance(item.targets[0],ast.Name) and item.targets[0].id=='factory'
+            and isinstance(item.value,ast.Call) and ast.unparse(item.value.func)=='PostgresProbeFactory'
+            and len(item.value.args)==1 and ast.unparse(item.value.args[0])=="os.environ['TEST_PROBE_DATABASE_URL']"
+            for item in ast.walk(anchor))
+        return (evidence.get('keys')==['TEST_PROBE_DATABASE_URL'] and reads=={'TEST_PROBE_DATABASE_URL'}
+            and factory and any(ast.unparse(call.func)=='factory.connect' for call in calls)
+            and any(ast.unparse(call.func)=='connection.execute' and call.args
+                and isinstance(call.args[0],ast.Constant) and call.args[0].value=='SHOW statement_timeout' for call in calls))
     if evidence['kind'] in ('gated_env','external_artifact'):
         if name!=suite or not nodeid:return False
         selected=symbol(candidate,'.'.join(nodeid.split('::')[1:]))
@@ -194,11 +223,22 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
             if isinstance(n,ast.Expr) and isinstance(n.value,ast.Call)
             and isinstance(n.value.func,ast.Attribute) and n.value.func.attr=='setUp']
         current,_=source_tree(root/file)
+        # Existing Fixture delegates an unconditional setup to a module-qualified class.
+        for call in delegated:
+            if not isinstance(call,ast.Attribute) or not isinstance(call.value,ast.Name):continue
+            for item in current.body:
+                if not isinstance(item,ast.Import):continue
+                for alias in item.names:
+                    if (alias.asname or alias.name)!=call.value.id:continue
+                    matches=list((root/'next').rglob(alias.name.split('.')[-1]+'.py'))
+                    if len(matches)!=1:continue
+                    target=str(matches[0].relative_to(root));imported,_=source_tree(matches[0]);other=symbol(imported,call.attr)
+                    if isinstance(other,ast.ClassDef) and inherits(target,other,seen):return True
         for base in cls.bases:
             if not isinstance(base,ast.Name):continue
             if setup is not None and not any(
                 isinstance(call,ast.Name) and call.id==base.id or
-                len(cls.bases)==1 and isinstance(call,ast.Call) and isinstance(call.func,ast.Name)
+                cls.bases[0] is base and isinstance(call,ast.Call) and isinstance(call.func,ast.Name)
                 and call.func.id=='super' and not call.args and not call.keywords for call in delegated):continue
             local=symbol(current,base.id)
             if isinstance(local,ast.ClassDef) and inherits(file,local,seen):return True
@@ -211,10 +251,15 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
                     target=str(matches[0].relative_to(root));imported,_=source_tree(matches[0]);other=symbol(imported,alias.name)
                     if isinstance(other,ast.ClassDef) and inherits(target,other,seen):return True
         return False
-    if any(isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name.startswith('test_') for n in candidate.body):return False
-    classes=[n for n in candidate.body if isinstance(n,ast.ClassDef) and
-             (any(isinstance(m,ast.FunctionDef) and m.name.startswith('test_') for m in n.body)
-              or any(isinstance(b,ast.Name) and b.id not in ('object','TestCase') for b in n.bases))]
+    if nodeid:
+        parts=nodeid.split('::')
+        if len(parts)!=3 or parts[0]!=suite or nodeid not in named_nodes(suite,candidate):return False
+        classes=[n for n in candidate.body if isinstance(n,ast.ClassDef) and n.name==parts[1]]
+    else:
+        if any(isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name.startswith('test_') for n in candidate.body):return False
+        classes=[n for n in candidate.body if isinstance(n,ast.ClassDef) and
+                 (any(isinstance(m,(ast.FunctionDef,ast.AsyncFunctionDef)) and m.name.startswith('test_') for m in n.body)
+                  or any(isinstance(b,ast.Name) and b.id not in ('object','TestCase') for b in n.bases))]
     return bool(classes) and all(inherits(suite,cls,set()) for cls in classes)
 
 
@@ -437,6 +482,7 @@ def main():
                   python=sys.version, qualification='HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY',
                   native_qualified=False, installed_qualified=False, old_installation='G_OLD_UNRESOLVED',
                   base_ref=args.base_ref,
+                  policy_base_ref=ACCEPTED_BASE if args.base_ref==BOOTSTRAP_MAIN else args.base_ref,
                   control='forced-skip' if args.force_skip else 'normal')
     result = args.output / 'summary.json'
     write(result, packet)
