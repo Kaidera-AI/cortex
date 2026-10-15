@@ -566,3 +566,342 @@ class RecoveryUninstallOracle(unittest.TestCase):
         with self.assertRaises(owner.OwnerRefusal) as caught: api(Trap(), Trap())
         self.assertEqual(caught.exception.detail, 'required_binding_gap')
         self.assertEqual(list(inspect.signature(api).parameters), ['original_request', 'original_child'])
+
+
+class JoinedSubject:
+    """Real Cox recovery measurement; subsequent effects are source recorders.
+
+    Explicit P1 truth setup is NOT a producer for a real crash. Catalog rows and
+    connection handles remain nonauthoritative; the marker is an owned file.
+    """
+    def __init__(self, root):
+        from test_b2_recovery_join import RecoveryFixture
+        from cortex_core.runtime import role_grants
+        from cortex_core.release.contracts import freeze
+        class AbsentProbe(RecoveryFixture):
+            def original(inner, root):
+                rows = json.loads(inner.before['role'])
+                inner.probe = next(r for r in rows['roles'] if r[1].endswith('_probe'))
+                rows['roles'].remove(inner.probe)
+                inner.before['role'] = canonical_bytes(rows)
+                return super().original(root)
+        self.oracle = AbsentProbe(); self.root = Path(root)
+        _, self.helper, self.history, self.old, self.current, self.effect, self.adapter = self.oracle.fixture(root)
+        self.role_grants = role_grants; self.freeze = freeze
+        self.old['originals'].update(P1['members']); self.current['originals'].update(P1['members'])
+        for raw in P1['members'].values(): self.history.retain(raw.encode())
+        self.marker = self.root / 'finite-effects'
+        self.dispatches = 0; self.snapshots = 0; self.recovery_reads = 0
+        self.expire_on_measure = False; self.lose_after_publication = False
+        self.resources = []; self.measured_raw = None; self.mode = 'recover'
+        self.data = self.authority()
+
+    def authority(self, prefix='recover'):
+        data = self.oracle.authority(self.helper, self.current, self.history, self.effect)
+        self.oracle.rewrite(self.helper, data, lambda q: q['identity'].update(
+            request_id=prefix+'-request', attempt_id=prefix+'-attempt'))
+        self.helper.context(data, lambda c: c.update(nonce=prefix+'-nonce'))
+        return data
+
+    def tree(self):
+        return {p.relative_to(self.history.root).as_posix(): p.read_bytes()
+                for p in self.history.root.rglob('*') if p.is_file()}
+
+    def context(self): return json.loads(self.data['context_raw'])
+
+    def inputs(self):
+        data = copy.deepcopy(self.data); revision = self.history.current_revision()
+        self.helper.context(data, lambda c: c.update(state_revision=revision))
+        self.helper.edit_record(data, 'current_state_ref', lambda s: s.update(revision=revision))
+        if getattr(self, 'expired', False):
+            self.helper.clock(data, lambda c: c.update(now_utc=1700000005))
+        return self.helper.inputs(owner, data)
+
+    def witness(self):
+        rows = json.loads(self.adapter.live['role'])['roles']
+        row = next((r for r in rows if r[1] == self.oracle.probe[1]), None)
+        if row is None: return None
+        return {'kind': 'database_role', 'canonical_path': None,
+            'backend_id': str(row[0])+':'+row[1], 'filesystem_identity': None,
+            'uid': None, 'mode': None, 'content_ref': None, 'executable_ref': None,
+            'link_target': None, 'backend_witness_ref': self.history.retain(canonical_bytes(row))}
+
+    def created_resource(self, context, reserved):
+        return {'resource_id': 'owned-probe', 'product': 'cortex',
+            'installation_id': context['identity']['installation_id'], 'kind': 'database_role',
+            'role': 'source-owned', 'ownership': 'created_by_this_transaction',
+            'created_by': context['request_ref'], 'intent_event_ref': reserved, 'result_event_ref': None,
+            'before_witness': {'kind': 'absent',
+                'locator_ref': self.history.retain(canonical_bytes({'role': self.oracle.probe[1]})),
+                'parent_witness_ref': self.history.retain(canonical_bytes({'database': 55})),
+                'observed_at': '2023-11-14T22:13:20Z'},
+            'after_witness': self.witness(),
+            'source_installer_ref': json.loads(self.old['request_raw'])['release']['installer_ref'],
+            'source_receipt_ref': None,
+            'consumers_ref': self.history.retain(canonical_bytes({'resource_id': 'owned-probe', 'consumers': []})),
+            'data_class': 'runtime', 'removal_policy': 'remove_if_unchanged_unshared'}
+
+    def create_role(self):
+        rows = json.loads(self.adapter.live['role'])
+        if not any(r[1] == self.oracle.probe[1] for r in rows['roles']):
+            rows['roles'].append(copy.deepcopy(self.oracle.probe))
+        self.adapter.live['role'] = canonical_bytes(rows)
+        self.adapter.created[self.oracle.probe[1]] = self.oracle.probe[0]
+
+    def truth(self, state='applied_verified', *, reconciliation=True):
+        if state == 'applied_verified':
+            self.create_role()
+            event, _ = lifecycle._load_entry(self.history, thaw(self.effect['journal_ref']))
+            self.resources = [self.created_resource(thaw(self.effect['context']), event['previous_event_ref'])]
+        def extra(result):
+            if self.resources:
+                result['observed']['resource_witnesses'] = {r['resource_id']: r['after_witness'] for r in self.resources}
+                result['observed']['resource_metadata'] = {r['resource_id']: {k: v for k, v in r.items()
+                    if k not in ('after_witness', 'result_event_ref')} for r in self.resources}
+        raw = self.oracle.truth(self.adapter, self.effect, state=state,
+                               reconciliation=reconciliation, edit=extra)
+        self.data = self.authority()
+        return raw
+
+    def child(self, parent):
+        self.mode = 'install'; self.data = self.authority('child')
+        self.oracle.rewrite(self.helper, self.data, lambda q: q.update(operation='install', journal_ref=thaw(parent)))
+
+    def cleanup(self, completed, *, shared=False):
+        event, observation = lifecycle._load_entry(self.history, thaw(completed))
+        raw_request = self.history.read(event['request_ref']); q = json.loads(raw_request)
+        context = json.loads(self.history.read(observation['context_ref']))
+        if not self.resources:
+            raise AssertionError('fixture lacks original resource proof')
+        self.resources[0]['result_event_ref'] = thaw(completed)
+        child = copy.deepcopy(P1['receipt'])
+        for key in ('identity','caller','target','release','profile','roots'): child[key] = q[key]
+        child.update(request_ref=event['request_ref'], journal_ref=thaw(completed), resources=self.resources,
+            phase='enrollment_required', reason_code='enrollment_required', disposition='created_by_this_transaction')
+        for key in ('entrypoint_ref','argv','cwd_root','environment_policy_ref'):
+            child['invocation_result'][key] = q['invocation'][key]
+        ref = self.history.retain(canonical_bytes(child))
+        self.mode = 'uninstall'; self.data = self.authority('cleanup')
+        self.oracle.rewrite(self.helper, self.data, lambda request: request.update(
+            operation='uninstall', journal_ref=thaw(completed), previous_receipt_ref=ref,
+            identity={**q['identity'], 'operation_id': F['removal_operation_id'],
+                'transaction_id':'joined-cleanup', 'request_id':'joined-cleanup-request',
+                'attempt_id':'joined-cleanup-attempt','parent_attempt_id':q['identity']['attempt_id']}))
+        self.current_resources = copy.deepcopy(self.resources)
+        if shared:
+            self.current_resources[0]['consumers_ref'] = self.history.retain(canonical_bytes(
+                {'resource_id':'owned-probe','consumers':['another-product']}))
+        for path in self.history.root.joinpath('facts').iterdir():
+            self.data['originals'][path.name] = path.read_text()
+        # Only the current resources/restriction facts need provider-original names.
+        def fact(name, value):
+            raw=canonical_bytes(value); self.data['originals'][name]=raw.decode()
+            return lifecycle._ref(name,raw)
+        before = fact('joined-current-resources.json', {'resources': self.current_resources})
+        restrictions = fact('joined-cleanup-bounds.json', {'expires_at':F['cleanup_expires_at'],
+            'expires_monotonic_ns':F['cleanup_expires_monotonic_ns'],'purge_selection':None})
+        self.helper.context(self.data, lambda c: c['effect'].update(effect_id='joined-uninstall', expected_before_ref=before))
+        self.helper.scope(self.data, lambda s: s.update(resource_ids=['owned-probe'],
+            effect=self.context()['effect'], cleanup_restrictions_ref=restrictions))
+        self.oracle.rewrite(self.helper, self.data, lambda request: request.update(authority_ref=self.context()['consent_ref']))
+        # Rewriting changes only request/identity, leaving the scope byte identity stable.
+
+    def run(self):
+        subject = self
+        class Slot:
+            def snapshot(inner):
+                subject.snapshots += 1
+                return dict(subject.adapter.live)
+            def dispatch(inner, effect):
+                subject.dispatches += 1
+                _, obs = lifecycle._load_entry(subject.history, effect['journal_ref'])
+                attempt = json.loads(subject.history.read(obs['attempt_ref']))
+                if attempt['dispatch_state'] != 'consumed_result_unknown':
+                    raise AssertionError('child effect before durable consumption')
+                if subject.mode == 'install': subject.create_role()
+                else:
+                    rows = json.loads(subject.adapter.live['role'])
+                    if 'owned-probe' in effect['cleanup']['targets']:
+                        rows['roles'] = [r for r in rows['roles'] if r[1] != subject.oracle.probe[1]]
+                    subject.adapter.live['role'] = canonical_bytes(rows)
+                with subject.marker.open('ab') as out: out.write((subject.mode+'\n').encode())
+            def measure(inner, effect):
+                if subject.mode == 'recover':
+                    subject.recovery_reads += 1
+                    result = subject.role_grants._Primitive(subject.adapter,'prepare',subject.adapter.connection,{}).measure(effect)
+                    if subject.expire_on_measure: subject.expired = True
+                    return result
+                context = thaw(effect['context'])
+                _, observation = lifecycle._load_entry(subject.history, effect['journal_ref'])
+                event, _ = lifecycle._load_entry(subject.history, effect['journal_ref'])
+                if subject.mode == 'install':
+                    subject.resources = [subject.created_resource(context,event['previous_event_ref'])]
+                    observed = {'adapter':'finite_pg_roles',
+                        'originals':{k:subject.history.retain(v) for k,v in subject.adapter.live.items()},
+                        'resource_witnesses':{r['resource_id']:r['after_witness'] for r in subject.resources},
+                        'resource_metadata':{r['resource_id']:{k:v for k,v in r.items()
+                            if k not in ('after_witness','result_event_ref')} for r in subject.resources}}
+                else:
+                    measured = copy.deepcopy(subject.current_resources)
+                    measured[0]['after_witness'] = subject.witness()
+                    observed = {'resources': measured}
+                raw = canonical_bytes({'identity':context['identity'],'effect':context['effect'],
+                    'request_ref':context['request_ref'],'state':'applied_verified','observed':observed})
+                subject.measured_raw = raw
+                return raw
+        double = NonAuthoritativeSignedMemberDouble(self.data['runtime_lock_raw'].encode(),
+            aggregate_id=self.data['aggregate_id'],member_name='runtime.lock.json')
+        with patch.object(owner,'_installed_owner_inputs',self.inputs), double.installed(signed_member), \
+                patch.object(lifecycle,'_installed_lifecycle',return_value=lifecycle._Bindings(self.history,{'database_role':Slot()})):
+            return lifecycle.execute_effect(self.data['request_raw'].encode())
+
+
+class RecoveryJoinOracle(unittest.TestCase):
+    def run_ok(self, subject):
+        try: return subject.run()
+        except owner.OwnerRefusal as error: self.fail('P2B_JOIN_NOT_IMPLEMENTED:'+error.detail)
+
+    def hold(self, subject, *, detail='attempt_ambiguous'):
+        before=subject.tree(); calls=subject.dispatches
+        with patch.object(subject.history,'retain',side_effect=AssertionError('HOLD_WROTE_FACT')), \
+                patch.object(subject.history,'append',side_effect=AssertionError('HOLD_WROTE_EVENT')):
+            with self.assertRaises(owner.OwnerRefusal) as caught: subject.run()
+        self.assertEqual(caught.exception.detail,detail)
+        self.assertEqual(subject.tree(),before); self.assertEqual(subject.dispatches,calls)
+
+    def test_P2B02_durable_applied_reply_loss_returns_original_without_publication(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root); raw=s.truth(reconciliation=False); before=s.tree()
+            completed=self.run_ok(s); event,_=lifecycle._load_entry(s.history,completed)
+            self.assertEqual(s.history.read(event['result_ref']),raw)
+            self.assertEqual(s.tree(),before); self.assertEqual(s.dispatches,0); self.assertEqual(s.snapshots,0)
+            self.assertEqual(s.recovery_reads,1)
+
+    def test_P2B02_reconciled_applied_is_published_once_with_exact_bytes(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root); raw=s.truth(); count=len(s.history.events())
+            first=self.run_ok(s); again=self.run_ok(s)
+            self.assertEqual(first,again); self.assertEqual(len(s.history.events()),count+1)
+            event,obs=lifecycle._load_entry(s.history,first)
+            self.assertEqual(s.history.read(event['result_ref']),raw)
+            self.assertEqual(json.loads(s.history.read(obs['attempt_ref']))['reconciliation_ref'],event['result_ref'])
+            self.assertEqual(s.dispatches,0); self.assertEqual(s.snapshots,0)
+
+    def test_P2B02_expiry_after_owner_answer_prevents_publication(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root); s.truth(); s.expire_on_measure=True
+            self.hold(s,detail='reservation_expired')
+
+    def test_P2B03_definitive_not_applied_then_fresh_child_consumes_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root); raw=s.truth('not_applied_verified'); parent=self.run_ok(s)
+            preserved=s.tree(); s.child(parent); child=self.run_ok(s)
+            for p,b in preserved.items(): self.assertEqual((s.history.root/p).read_bytes(),b)
+            event,obs=lifecycle._load_entry(s.history,child); attempt=json.loads(s.history.read(obs['attempt_ref']))
+            self.assertEqual(attempt['origin_request_ref'],thaw(s.effect['context']['request_ref']))
+            self.assertEqual(attempt['predecessor_result_refs'],[lifecycle._load_entry(s.history,parent)[0]['result_ref']])
+            self.assertEqual(attempt['dispatch_state'],'applied_verified'); self.assertEqual(s.dispatches,1)
+            self.assertEqual(s.marker.read_bytes(),b'install\n')
+            self.assertEqual(s.history.read(attempt['predecessor_result_refs'][0]),raw)
+            with self.assertRaises(owner.OwnerRefusal): s.run()
+            self.assertEqual(s.dispatches,1)
+
+    def test_P2B03_retry_preserves_all_first_preimages(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root); s.truth('not_applied_verified'); parent=self.run_ok(s)
+            original=thaw(s.effect['preimages_ref']); s.child(parent); child=self.run_ok(s)
+            _,obs=lifecycle._load_entry(s.history,child)
+            self.assertEqual(obs['preimages_ref'],original)
+
+    def test_P2B03_reused_ids_and_nonce_cannot_replace_old_attempt(self):
+        for field in ('request_id','attempt_id','nonce'):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root); s.truth('not_applied_verified'); parent=self.run_ok(s); s.child(parent)
+                if field=='nonce': s.helper.context(s.data,lambda c:c.update(nonce=s.effect['context']['nonce']))
+                else:s.oracle.rewrite(s.helper,s.data,lambda q:q['identity'].update({field:s.effect['context']['identity'][field]}))
+                before=s.tree()
+                with self.assertRaises(owner.OwnerRefusal):s.run()
+                self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_stale_authority_does_not_renew_the_parent(self):
+        for field in ('owner_epoch','session_id','fence'):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root); s.truth('not_applied_verified'); parent=self.run_ok(s); s.child(parent)
+                if field=='fence':
+                    fence=s.effect['context']['host_lease']['fence']
+                    s.helper.context(s.data,lambda c:c['host_lease'].update(fence=fence))
+                    s.helper.edit_record(s.data,'current_state_ref',lambda r:r.update(host_fence=fence))
+                elif field=='session_id':
+                    value=s.effect['context'][field];s.helper.context(s.data,lambda c:c.update(session_id=value))
+                    s.helper.edit_record(s.data,'peer_ref',lambda r:r.update(session_id=value))
+                else:
+                    value=s.effect['context'][field];s.helper.context(s.data,lambda c:c.update(owner_epoch=value))
+                    s.helper.edit_record(s.data,'peer_ref',lambda r:r.update(owner_epoch=value))
+                    s.helper.clock_receipt(s.data,lambda r:r.update(owner_epoch=value))
+                    s.helper.edit_record(s.data,'clock_ref',lambda r:r.update(owner_epoch=value))
+                    s.helper.clock(s.data,lambda r:r.update(owner_epoch=value))
+                before=s.tree()
+                with self.assertRaises(owner.OwnerRefusal):s.run()
+                self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
+    def test_P2B03_wrong_parent_or_effect_cannot_start_child(self):
+        for field in ('parent','effect'):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s);s.child(parent)
+                if field=='parent':s.oracle.rewrite(s.helper,s.data,lambda q:q['identity'].update(parent_attempt_id='foreign'))
+                else:
+                    s.helper.context(s.data,lambda c:c['effect'].update(effect_id='foreign'))
+                    s.helper.scope(s.data,lambda r:r.update(effect=s.context()['effect']))
+                before=s.tree()
+                with self.assertRaises(owner.OwnerRefusal):s.run()
+                self.assertEqual(s.tree(),before);self.assertEqual(s.dispatches,0)
+
+    def test_P2B04_common_crash_points_without_linked_truth_stay_hold(self):
+        for point in ('before-dispatch','after-dispatch','orphan-result'):
+            with self.subTest(point=point), tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root)
+                if point=='after-dispatch':s.create_role()
+                elif point=='orphan-result':
+                    c=thaw(s.effect['context']);s.history.retain(canonical_bytes({'identity':c['identity'],
+                        'effect':c['effect'],'request_ref':c['request_ref'],'state':'applied_verified',
+                        'observed':{'adapter':'finite_pg_roles','originals':{k:s.history.retain(v) for k,v in s.adapter.live.items()}}}))
+                self.hold(s)
+
+    def test_P2B04_null_or_changed_live_identity_stays_hold(self):
+        for drift in ('null','oid','hba'):
+            with self.subTest(drift=drift), tempfile.TemporaryDirectory() as root:
+                s=JoinedSubject(root);s.truth()
+                if drift=='hba':s.adapter.live['hba']+=b'changed'
+                else:
+                    rows=json.loads(s.adapter.live['role']);rows['roles'][0][0]=None if drift=='null' else 900001
+                    s.adapter.live['role']=canonical_bytes(rows)
+                self.hold(s)
+
+    def test_P2B04_absence_is_not_definitive_not_applied(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root)
+            self.assertIsNone(s.witness());self.hold(s)
+
+    def test_P2B05_reconciled_applied_creation_can_be_removed_from_exact_proof(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth();completed=self.run_ok(s);s.cleanup(completed)
+            result=self.run_ok(s)
+            from cortex_core.install import uninstall
+            self.assertIsNone(s.witness());self.assertEqual(s.dispatches,1)
+            self.assertEqual(uninstall._cleanup_projection(s.history,result)['cleanup']['actions'][0]['outcome'],'removed')
+
+    def test_P2B05_retry_child_creation_keeps_root_lineage_for_removal(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth('not_applied_verified');parent=self.run_ok(s);s.child(parent)
+            child=self.run_ok(s);s.cleanup(child);result=self.run_ok(s)
+            event,_=lifecycle._load_entry(s.history,result)
+            self.assertEqual(event['origin_request_ref'],thaw(s.effect['context']['request_ref']))
+            self.assertIsNone(s.witness());self.assertEqual(s.marker.read_bytes(),b'install\nuninstall\n')
+
+    def test_P2B05_reconciled_shared_creation_is_kept(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=JoinedSubject(root);s.truth();completed=self.run_ok(s);s.cleanup(completed,shared=True)
+            result=self.run_ok(s)
+            from cortex_core.install import uninstall
+            self.assertIsNotNone(s.witness());self.assertEqual(s.dispatches,0)
+            self.assertEqual(uninstall._cleanup_projection(s.history,result)['retained_items'][0]['reason'],'shared_consumer')
