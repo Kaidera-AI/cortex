@@ -792,7 +792,7 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
 
     def test_wrong_exception_phase_skip_or_deselection_is_red(self):
         original=self.packet()
-        for kind in ('setup','teardown','skip','wrong_type','missing','duplicate','deselected','witness'):
+        for kind in ('setup','teardown','skip','wrong_type','missing','duplicate','deselected','selected-missing','duplicate-expected','null-type','witness'):
             p=copy.deepcopy(original)
             if kind in ('setup','teardown'):p['reports'][0 if kind=='setup' else 2]['outcome']='failed'
             elif kind=='skip':p['reports'][1]['outcome']='skipped'
@@ -800,6 +800,9 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
             elif kind=='missing':p['reports'].pop(1)
             elif kind=='duplicate':p['reports'].append(p['reports'][1])
             elif kind=='deselected':p['deselected']=[self.NODE]
+            elif kind=='selected-missing':p['selected'].remove(self.NODE)
+            elif kind=='duplicate-expected':p['expected'].append(self.NODE);p['selected'].append(self.NODE);p['collected'].append(self.NODE)
+            elif kind=='null-type':p['reports'][1]['exception_type']=None
             p['declared_unavailable']=self.gate.declaration_observations(p,[self.declaration()])
             if kind=='witness':p['declared_unavailable'][0]['pass_credit']=1
             self.assertFalse(self.admitted(p),kind)
