@@ -49,7 +49,9 @@ class Members(unittest.TestCase):
                              "BODY: portable fixture storage helper absent")
         from r01u3_support.workspace import workspace_output, temporary_directory
         base=workspace_output()
-        self.assertEqual(base,Path(__file__).resolve().parents[3]/'output/r01u3-fixtures')
+        checkout=Path(__file__).resolve().parents[3]
+        project=checkout.parent.parent if checkout.parent.name=='.worktrees' else checkout
+        self.assertEqual(base,project/'output/r01u3-fixtures')
         self.assertTrue(base.is_absolute());self.assertEqual(base,base.resolve(strict=True))
         self.assertEqual(stat.S_IMODE(base.stat().st_mode),0o700)
         with temporary_directory('portable-') as a, temporary_directory('portable-') as b:
@@ -69,6 +71,27 @@ class Members(unittest.TestCase):
         for fd in held:
             with self.assertRaises(OSError):os.fstat(fd)
         self.assertIsNone(r.fd)
+
+    def test_each_original_check_bounds_work_to_its_held_ancestry(self):
+        # Capacity regression: unrelated branches must not multiply every byte read.
+        _,c=self.source();r=self.reader();self.begin(r)
+        path=self.path();names=[];real=c.RootReader._aggregate_exact_name
+        def checked(parent,name):names.append((parent,name));return real(parent,name)
+        with patch.object(c.RootReader,'_aggregate_exact_name',staticmethod(checked)):
+            self.assertEqual(r.aggregate_bytes(path),self.bodies[path])
+        absolute=len(Path(str(self.root)).parts)-1
+        self.assertLessEqual(len(names),2*(absolute+len(Path(path).parts)-1))
+        r.aggregate_finish();r.close();self.assertIsNone(r.fd)
+
+    def test_unrelated_held_ancestor_drift_still_refuses_at_terminal_check(self):
+        _,c=self.source();r=self.reader();self.begin(r)
+        path=self.path();selected=Path(path).parts
+        other=next(key.removeprefix('relative:').rstrip('/') for key in r._aggregate_dirs
+                   if key.startswith('relative:') and not path.startswith(key.removeprefix('relative:')))
+        old=self.root/other;moved=old.with_name(old.name+'-moved')
+        self.assertEqual(r.aggregate_bytes(path),self.bodies[path]);old.rename(moved)
+        self.refuse('member_custody_changed',r.aggregate_finish)
+        r.close();self.assertIsNone(r.fd);self.assertFalse(r._aggregate_files);self.assertFalse(r._aggregate_dirs)
 
     def test_T03_same_length_changed_body_refuses_digest(self):
         a,_=self.source();p=self.path();raw=self.bodies[p]

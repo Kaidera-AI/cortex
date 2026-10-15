@@ -4,7 +4,10 @@ import tempfile
 
 
 def workspace_output():
-    root=Path(__file__).resolve().parents[4]/'output/r01u3-fixtures'
+    workspace=Path(__file__).resolve().parents[4]
+    # Helix keeps task checkouts under its one project root. CI is a checkout.
+    if workspace.parent.name=='.worktrees':workspace=workspace.parent.parent
+    root=workspace/'output/r01u3-fixtures'
     root.mkdir(mode=0o700,parents=True,exist_ok=True)
     return root.resolve(strict=True)
 

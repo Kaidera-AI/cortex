@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from test_original_member_bridge import Fixture, MEMBER, NEXT
 from cortex_core.release.custody import RootReader
+from cortex_core.runtime.signed_member import Refusal
 from r01u3_support.workspace import renamed_directory_observation
 
 
@@ -32,7 +33,7 @@ class DeliveryRework(Fixture, unittest.TestCase):
             return context
         self.current_hook = current
         with patch.object(RootReader,'_aggregate_inventory_finish',final_check):
-            with self.assertRaises(__import__('cortex_core.runtime.signed_member',fromlist=['Refusal']).Refusal) as caught:
+            with self.assertRaises(Refusal) as caught:
                 delivery.read_original(262144)
         self.assertEqual(caught.exception.reason,observed['reason'])
         self.assertEqual(terminal,['terminal check'])

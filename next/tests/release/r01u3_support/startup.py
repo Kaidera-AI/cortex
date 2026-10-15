@@ -177,8 +177,9 @@ def measured(root_path,row):
   # SOURCE SIMULATION of the independent bootstrap's protected file custody.
   # Original bytes are held by the parent BEFORE launch. Do not assert that the
   # shared test-tool interpreter's real ancestors are a qualified installation.
-  copied=dict(row,path=str(Path(d['custody_root'])/row['path'])[1:])
-  return real_measure(Path('/'),copied)
+  # The protected-copy simulation is rooted at its actual private custody root.
+  # Developer/runner ancestors are outside that simulated installation.
+  return real_measure(Path(d['custody_root']),row)
  except Exception as e:
   measurement_errors.append({'path':row['path'],'reason':str(e)})
   raise
@@ -265,6 +266,8 @@ print(json.dumps(result))
         held.parent.mkdir(mode=0o700,parents=True,exist_ok=True);held.write_bytes(raw_file);held.chmod(mode)
         rows.append((role,filename,len(raw_file),hashlib.sha256(raw_file).hexdigest(),mode))
     data['files']=rows;packet.write_text(json.dumps(data))
+    if fault=='copied-parent':
+        (home/'held-originals'/rows[0][1][1:]).parent.chmod(0o770)
     run=subprocess.run([str(executable),'-I','-S','-B','-X','pycache_prefix='+str(cache),str(entry)],env={},capture_output=True,text=True,timeout=180)
     fixture.assertEqual(run.returncode,0,run.stdout+run.stderr)
     result=json.loads(run.stdout);result['expected_original']=base64.b64encode(body).decode();result['independent_file_count']=len(rows)
