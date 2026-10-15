@@ -83,18 +83,40 @@ class MacOSNative(unittest.TestCase):
             self.assertEqual(refusal.detail, 'time_unavailable')
             self.assertFalse(bounded, s)
 
+    def driver(self):
+        """Build the test-only XPC driver once; return (path, matching cdhash requirement)."""
+        if not hasattr(self, '_driver'):
+            driver = self.tmp / 'xpc_arm_driver'
+            built = run(['clang', *CFLAGS, '-I' + str(PLATFORMS), str(HERE / 'xpc_arm_driver.c'), '-o', str(driver)])
+            self.assertEqual(built.returncode, 0, built.stderr)
+            cdhash = [l.split('=', 1)[1] for l in run(['codesign', '-dvvv', str(driver)]).stderr.splitlines()
+                      if l.startswith('CDHash=')]
+            self.assertEqual(len(cdhash), 1)
+            type(self)._driver = (driver, f'cdhash H"{cdhash[0]}"')
+        return self._driver
+
     def test_mac_native_requirement_set_before_resume_and_checked(self):
-        driver = self.tmp / 'xpc_arm_driver'
-        built = run(['clang', *CFLAGS, '-I' + str(PLATFORMS), str(HERE / 'xpc_arm_driver.c'), '-o', str(driver)])
-        self.assertEqual(built.returncode, 0, built.stderr)
-        cdhash = [l.split('=', 1)[1] for l in run(['codesign', '-dvvv', str(driver)]).stderr.splitlines()
-                  if l.startswith('CDHash=')]
-        self.assertEqual(len(cdhash), 1)
-        self.assertEqual(run([str(driver), f'cdhash H"{cdhash[0]}"']).stdout.split(), ['ARMED', 'REPLY'])
+        driver, own = self.driver()
+        self.assertEqual(run([str(driver), own]).stdout.split(), ['ARMED', 'REPLY'])
         self.assertEqual(run([str(driver), 'identifier "ai.kaidera.not.this"']).stdout.split(), ['ARMED', 'NO_REPLY'])
         self.assertEqual(run([str(driver), 'not a requirement']).stdout.split(), ['ARM_REFUSED', 'NO_REPLY'])
         source = (PLATFORMS / '_macos_xpc.h').read_text()
         self.assertLess(source.index('set_peer_code_signing_requirement'), source.index('xpc_connection_resume'))
+
+    def test_mac_gate_refuses_queued_second_message_and_fails_closed(self):
+        # MAC01 fix (Hale 16 Oct): any second message poisons the one-message gate.
+        driver, own = self.driver()
+        self.assertEqual(run([str(driver), own, 'gate-single']).stdout.split(), ['GATE_REPLIED', 'CLIENT_GOT_REPLY'])
+        for _ in range(10):  # the second message is queued before V finishes the first
+            self.assertEqual(run([str(driver), own, 'gate-queued']).stdout.split(),
+                             ['GATE_REFUSED', 'CLIENT_GOT_ERROR'])
+        self.assertEqual(run([str(driver), own, 'gate-late']).stdout.split(),
+                         ['GATE_REPLIED', 'CLIENT_GOT_REPLY', 'LATE_SEEN_NOT_PROCESSED'])
+        # requirement mismatch: XPC drops the message and reports an error event, which also poisons the gate
+        self.assertEqual(run([str(driver), 'identifier "ai.kaidera.not.this"', 'gate-single']).stdout.split(),
+                         ['GATE_REFUSED', 'CLIENT_GOT_ERROR'])
+        source = (PLATFORMS / '_macos_xpc.h').read_text()
+        self.assertNotIn('xpc_connection_suspend(', source)  # suspension would defer the detecting handler
 
     def test_xpc_client_requires_build_inputs_and_links_only_libsystem(self):
         client = self.tmp / 'cortex-owner-client'
