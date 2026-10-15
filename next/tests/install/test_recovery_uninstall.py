@@ -759,6 +759,87 @@ class JoinedSubject:
             return lifecycle.execute_effect(self.data['request_raw'].encode())
 
 
+class ContinuationOverlapOracle(unittest.TestCase):
+    def continuation(self, subject):
+        s=subject; data=copy.deepcopy(s.old); q=json.loads(data['request_raw'])
+        q['identity'].update(request_id='continuation-request',attempt_id='continuation-attempt',
+                             parent_attempt_id=q['identity']['attempt_id'])
+        s._request(data,q)
+        s.helper.context(data,lambda c:c.update(nonce='continuation-nonce',state_revision=s.history.current_revision()))
+        s.helper.context(data,lambda c:c['effect'].update(effect_id='continuation-effect'))
+        s.helper.scope(data,lambda scope:scope.update(resource_ids=s.ids,effect=json.loads(data['context_raw'])['effect']))
+        s.helper.edit_record(data,'current_state_ref',lambda state:state.update(revision=s.history.current_revision()))
+        proposal,_=s.helper.run_gate(owner,data)
+        with patch.object(s.check,'setup_data',return_value=(s.helper,data,proposal)):
+            data,proposal,reserved,consumed=s.check.consume(lifecycle,s.history)
+        c=thaw(proposal.context)
+        raw=canonical_bytes({'identity':c['identity'],'effect':c['effect'],'request_ref':c['request_ref'],
+            'state':'applied_verified','observed':{
+                'resource_witnesses':{r['resource_id']:r['after_witness'] for r in s.resources},
+                'resource_metadata':{r['resource_id']:{k:v for k,v in r.items()
+                    if k not in ('after_witness','result_event_ref')} for r in s.resources}}})
+        completed=lifecycle._record_result(s.history,consumed,raw)
+        child=copy.deepcopy(s.child)
+        child.update(identity=q['identity'],request_ref=c['request_ref'],journal_ref=completed,
+                     disposition='verified_owned_continuation')
+        s.old=data;s.creation_context=c;s.created=completed;s.reserved=reserved
+        s.child=child;s.child_raw=canonical_bytes(child);s.child_ref=s.history.retain(s.child_raw)
+        receipt.verify_product_receipt(s.child_raw,s.old['request_raw'].encode(),request_ref=c['request_ref'])
+        s.change_request(lambda request:request.update(journal_ref=completed,previous_receipt_ref=s.child_ref,
+            identity={**request['identity'],'parent_attempt_id':q['identity']['attempt_id']}))
+        s.base_revision=s.history.current_revision()
+
+    def unresolved(self, s):
+        s.expire_after_consume=True
+        with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+        self.assertEqual(caught.exception.detail,'reservation_expired');self.assertEqual(s.dispatched,0)
+        ref=s.history.head()[0];_,obs=lifecycle._load_entry(s.history,ref)
+        attempt=json.loads(s.history.read(obs['attempt_ref']))
+        self.assertEqual(attempt['dispatch_state'],'consumed_result_unknown')
+        s.expire_after_consume=False
+        return ref,attempt
+
+    def fresh_inverse(self, s, prefix):
+        s.helper.context(s.data,lambda c:c.update(nonce=prefix+'-nonce'))
+        s.change_request(lambda q:q.update(identity={**q['identity'],
+            'request_id':prefix+'-request','attempt_id':prefix+'-attempt',
+            'operation_id':'66666666-6666-4666-8666-666666666666','transaction_id':prefix+'-transaction'}))
+
+    def held(self,s,prior,attempt):
+        before={k:p.read_bytes() for k,p in s.files.items()}
+        with self.assertRaises(owner.OwnerRefusal) as caught:s.run()
+        self.assertEqual(caught.exception.detail,'attempt_ambiguous')
+        self.assertEqual(s.dispatched,0)
+        self.assertEqual({k:p.read_bytes() for k,p in s.files.items()},before)
+        _,obs=lifecycle._load_entry(s.history,prior)
+        self.assertEqual(json.loads(s.history.read(obs['attempt_ref'])),attempt)
+
+    def test_P2B01_owned_continuation_retains_original_overlap_anchor(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=AppliedSubject(root);self.continuation(s)
+            self.assertNotEqual(s.creation_context['request_ref'],s.resources[0]['created_by'])
+            prior,attempt=self.unresolved(s);self.fresh_inverse(s,'continuation-cleanup')
+            self.held(s,prior,attempt)
+
+    def test_P2B01_older_receipt_cannot_backtrack_past_overlapping_unknown(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=AppliedSubject(root)
+            initial=copy.deepcopy((s.created,s.child_ref,s.creation_context['identity']['attempt_id'],s.current_resources))
+            s.add_applied_resource();prior,attempt=self.unresolved(s)
+            s.current_resources=initial[3];self.fresh_inverse(s,'backtrack-cleanup')
+            s.change_request(lambda q:q.update(journal_ref=initial[0],previous_receipt_ref=initial[1],
+                identity={**q['identity'],'parent_attempt_id':initial[2]}))
+            self.held(s,prior,attempt)
+
+    def test_P2B01_owned_continuation_without_prior_inverse_remains_admitted(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=AppliedSubject(root);self.continuation(s)
+            try:result=s.run()
+            except owner.OwnerRefusal as error:self.fail('healthy continuation refused:'+error.detail)
+            self.assertEqual(lifecycle._load_entry(s.history,result)[0]['phase'],'finished')
+            self.assertEqual(s.dispatched,1);self.assertFalse(s.files['owned-0'].exists())
+
+
 class RecoveryJoinOracle(unittest.TestCase):
     def run_ok(self, subject):
         try: return subject.run()
