@@ -149,10 +149,10 @@ def _shape(policy, receipt):
                 and _text(startup['executable_path'],4096)
                 and all(_text(startup[k]) for k in ('python','crypto'))
                 and all(type(startup[k]) is bool for k in ('isolated','no_site'))
-                and all(type(startup[k]) is list and len(startup[k]) <= 256
+                and all(type(startup[k]) is list
                         and all(_text(v,4096) for v in startup[k]) for k in
                         ('dependencies','environment','pth','candidate_imports','loaded_paths','native_paths'))
-                and all(type(v['objects']) is list and 0 < len(v['objects']) <= 64 for v in (policy,receipt))
+                and all(type(v['objects']) is list and 0 < len(v['objects']) for v in (policy,receipt))
                 and all(_object_shape(v,observed=False) for v in policy['objects'])
                 and all(_object_shape(v,observed=True) for v in receipt['objects']))
     except (KeyError, TypeError, ValueError, UnicodeError):
@@ -266,6 +266,7 @@ def _installed_owner_inputs():
         and all(v == 'denied' for v in privileges['paths'].values()), 'peer_denied')  # BL-G15
     owner._require(c['code_sha256'] == policy['peer_code_sha256'], 'peer_denied')  # BL-G29
     owner._original(inputs, context['current_state_ref'])  # bind the observed state file to B1's original
+    # P1 already bounds each original to 262144 bytes; do not truncate the closure.
     expected = policy['objects']; observed = receipt['objects']; startup = receipt['startup']
     owner._require(startup['executable_path'] in [x['path'] for x in expected if x['role'] == 'interpreter']
         and [x['sha256'] for x in expected if x['role'] == 'interpreter'] == [v['code_sha256']]
