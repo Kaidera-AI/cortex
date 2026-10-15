@@ -43,6 +43,8 @@ class Members(unittest.TestCase):
     def test_workspace_storage_is_private_canonical_unique_and_cleaned(self):
         # BODY regression: storage belongs to this checkout, never a developer home.
         import stat
+        self.assertIsNotNone(importlib.util.find_spec("r01u3_support.workspace"),
+                             "BODY: portable fixture storage helper absent")
         from r01u3_support.workspace import workspace_output, temporary_directory
         base=workspace_output()
         self.assertEqual(base,Path(__file__).resolve().parents[3]/'output/r01u3-fixtures')
