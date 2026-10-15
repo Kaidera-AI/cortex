@@ -15,7 +15,17 @@ def _byte_length(validator, maximum, value, schema):
         yield ValidationError('UTF-8 byte bound exceeded')
 
 
-WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length})
+def _unique_items(validator, unique, value, schema):
+    # Distinct string paths prove distinct wire objects without an O(n²) walk.
+    # Duplicate/missing/non-string paths retain the upstream general semantics.
+    if unique and validator.is_type(value,'array') and all(
+            type(row) is dict and type(row.get('path')) is str for row in value):
+        paths=[row['path'] for row in value]
+        if len(set(paths))==len(paths):return
+    yield from Draft202012Validator.VALIDATORS['uniqueItems'](validator,unique,value,schema)
+
+
+WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length,'uniqueItems':_unique_items})
 
 
 def sha256(raw):
