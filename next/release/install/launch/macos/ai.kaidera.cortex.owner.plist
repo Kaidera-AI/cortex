@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Fixed on-demand system daemon for the finite Cortex owner V (design2 Q6/Q2).
+     Root-owned 0644 under /Library/LaunchDaemons; launchd selects the nonroot V
+     account. Paths under the proposed W7 root; W7 packaging owns the final layout. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>ai.kaidera.cortex.owner</string>
+	<key>MachServices</key>
+	<dict>
+		<key>ai.kaidera.cortex.owner</key>
+		<true/>
+	</dict>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Library/Application Support/Kaidera/Cortex/runtime/bin/python3.12</string>
+		<string>-I</string>
+		<string>-S</string>
+		<string>-B</string>
+		<string>/Library/Application Support/Kaidera/Cortex/runtime/libexec/cortex-owner.py</string>
+	</array>
+	<key>UserName</key>
+	<string>_kaideracortex</string>
+	<key>GroupName</key>
+	<string>_kaideracortex</string>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>ProcessType</key>
+	<string>Background</string>
+</dict>
+</plist>

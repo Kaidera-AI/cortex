@@ -1,0 +1,17 @@
+# Fixed endpoint for the finite Cortex owner V (design2 Q6). Root-owned 0644 in
+# /etc/systemd/system. Only the caller group may write the socket; V's own
+# group is never the caller group. Proposed W7 names; W7 owns the final layout.
+[Unit]
+Description=Kaidera Cortex owner endpoint
+
+[Socket]
+ListenStream=/run/kaidera-cortex/owner.sock
+Accept=no
+SocketUser=kaidera-cortex-v
+SocketGroup=kaidera-cortex-callers
+SocketMode=0660
+DirectoryMode=0711
+RemoveOnStop=no
+
+[Install]
+WantedBy=sockets.target

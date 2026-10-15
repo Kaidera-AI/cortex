@@ -1,0 +1,23 @@
+# Finite nonroot owner V, started only by its socket (Accept=no: V receives the
+# listener as fd 3, verifies it, serves one request and exits; never unlinks it).
+# Capabilities: none. ProtectProc is deliberately NOT set: V reads /proc/<C>.
+[Unit]
+Description=Kaidera Cortex owner
+Requires=kaidera-cortex-owner.socket
+
+[Service]
+Type=simple
+User=kaidera-cortex-v
+Group=kaidera-cortex-v
+ExecStart=/opt/kaidera/cortex/runtime/bin/python3.12 -I -S -B /opt/kaidera/cortex/runtime/libexec/cortex-owner.py
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kaidera-cortex
+PrivateTmp=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+UMask=0077
