@@ -1,7 +1,7 @@
 """Version 2 CONNECT expectations; original 175 test bodies remain unchanged."""
 import psycopg
 from psycopg import sql
-from support import Fixture, ROLE_NAMES
+from runtime_grants_fixture import Fixture, ROLE_NAMES
 
 
 class Connect(Fixture):

@@ -13,7 +13,7 @@ from psycopg.conninfo import make_conninfo
 
 from cortex_core.migrations import apply_migrations,MigrationError
 from cortex_core.upgrade import Admission,AtomicUpgradeJournal,UpgradeCoordinator
-from support import Fixture,ORIGINAL,SCHEMA,STEP,ROLE_NAMES,APP_SCHEMAS
+from runtime_grants_fixture import Fixture,ORIGINAL,SCHEMA,STEP,ROLE_NAMES,APP_SCHEMAS
 
 
 class Upgrade(Fixture):

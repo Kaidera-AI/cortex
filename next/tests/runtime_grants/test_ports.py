@@ -5,7 +5,7 @@ from uuid import UUID
 
 import psycopg
 
-from support import Fixture,ROLE_NAMES,uid,EMBEDDING_KIND
+from runtime_grants_fixture import Fixture,ROLE_NAMES,uid,EMBEDDING_KIND
 
 
 class Ports(Fixture):

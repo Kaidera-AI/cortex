@@ -5,8 +5,8 @@ These supplemental nodes do not earn frozen181 candidate or owner/native credit.
 from uuid import UUID
 from psycopg import sql
 from native_owner import NativeFixture
-from support import ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid
-import test_lifecycle
+from runtime_grants_fixture import ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid
+import runtime_grants.test_lifecycle as test_lifecycle
 import test_ports
 from cortex_core.install.owner import OwnerRefusal
 

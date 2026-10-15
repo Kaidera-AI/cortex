@@ -4,7 +4,7 @@ from uuid import UUID
 import psycopg
 from psycopg import sql
 
-from support import Fixture,ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid
+from runtime_grants_fixture import Fixture,ROLE_NAMES,OPERATION,EMBEDDING_KIND,uid
 
 
 class Lifecycle(Fixture):

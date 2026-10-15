@@ -8,7 +8,7 @@ from uuid import UUID
 
 import psycopg
 from psycopg import sql
-from support import Fixture, SurfaceAbsent, ROLE_NAMES, OPERATION, uid, READ_B, MATRIX
+from runtime_grants_fixture import Fixture, SurfaceAbsent, ROLE_NAMES, OPERATION, uid, READ_B, MATRIX
 import test_c04 as c04_oracle
 import test_grants as grant_oracle
 

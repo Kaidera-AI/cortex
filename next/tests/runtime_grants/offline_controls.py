@@ -19,10 +19,10 @@ sys.path[:0]=[str(HERE),str(NEXT/'src'),str(NEXT/'tests')]
 import psycopg
 from cortex_core.auth import AuthError
 from cortex_core.migrations import MigrationError
-from support import MATRIX,ROLE_NAMES,APP_SCHEMAS,TABLE_PRIVS,REQUEST,OPERATION,Fixture,expected,uid
+from runtime_grants_fixture import MATRIX,ROLE_NAMES,APP_SCHEMAS,TABLE_PRIVS,REQUEST,OPERATION,Fixture,expected,uid
 import test_grants as grants
 import test_ports as ports
-import test_lifecycle as lifecycle
+import runtime_grants.test_lifecycle as lifecycle
 import test_repair as repair
 import test_connect as connect
 import test_receipts as receipts
