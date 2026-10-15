@@ -40,12 +40,13 @@ def _sql_driver():
     return psycopg
 
 
-def _originals(history, context, *, expected_identity):
+def _originals(history, context, *, expected_identity, reconciling=False):
     """Resolve all original bytes before any write; never snapshot changed state."""
     c = thaw(context['context'])
     _require(lifecycle._operation(c['identity']) == lifecycle._operation(expected_identity), 'scope_denied')
     event, observations = lifecycle._load_entry(history, context['journal_ref'])
-    _require(history.head()[0] == thaw(context['journal_ref']), 'reservation_used')
+    if not reconciling:
+        _require(history.head()[0] == thaw(context['journal_ref']), 'reservation_used')
     _require(event['identity'] == c['identity'] and event['effect'] == c['effect']
              and event['request_ref'] == c['request_ref'], 'scope_denied')
     attempt = lifecycle._decode(history.read(observations['attempt_ref']))
@@ -280,13 +281,68 @@ class _RoleAdapter:
                 'database':canonical_bytes({'database':db,'bindings':None if bindings is None else [list(r) for r in bindings]}),
                 **material}
 
-    def _current(self, context=None):
+    def _current(self, context=None, *, recovery=None):
         context=self.context if context is None else context
         _require(context is not None, 'scope_denied')
-        raw = _originals(self.history, context, expected_identity=self.identity)
+        raw = _originals(self.history, context, expected_identity=self.identity,
+                         reconciling=recovery is not None)
         event, observation = lifecycle._load_entry(self.history, context['journal_ref'])
         inputs = lifecycle._owner_inputs()
         request = self.history.read(event['request_ref'])
+        if recovery is not None:
+            # Only measure supplies this freshly admitted common-owner proposal.
+            # Dispatch/admit retain the historical continuity/deadline below.
+            _require(type(recovery) is owner.OwnerProposal, 'scope_denied')
+            original = lifecycle._decode(self.history.read(observation['context_ref']))
+            c = thaw(context['context'])
+            lifecycle._continuity(original, c)
+            _require(c['identity'] == self.identity and c['effect']['resource_kind']=='database_role', 'scope_denied')
+            ref = recovery.context['request_ref']
+            _require(ref['path'] in inputs.originals, 'journal_invalid')
+            fresh_request = inputs.originals[ref['path']]
+            current = owner._evaluate(fresh_request, inputs, previous_deadline=recovery.deadline)
+            owner._same_context(recovery, current)
+            fresh = thaw(current.context)
+            q = thaw(lifecycle.parse_install_message(fresh_request, expected_kind='request').document)
+            old = thaw(lifecycle.parse_install_message(request, expected_kind='request').document)
+            _require(q['operation']=='recover' and q['journal_ref']==thaw(context['journal_ref'])
+                     and q['identity']['parent_attempt_id']==c['identity']['attempt_id'], 'scope_denied')
+            _require(all(q['identity'][k]==c['identity'][k] for k in
+                         ('product','installation_id','operation_id','transaction_id'))
+                     and all(q['identity'][k]!=c['identity'][k] for k in ('request_id','attempt_id')),
+                     'scope_denied')
+            _require({k:v for k,v in q.items() if k not in ('identity','operation','journal_ref')}
+                     == {k:v for k,v in old.items() if k not in ('identity','operation','journal_ref')}
+                     and fresh['effect']==c['effect'] and fresh['target']==c['target'], 'scope_denied')
+            _require(all(fresh[k]!=original[k] for k in ('owner_epoch','session_id')),
+                     'reservation_invalidated')
+            _require(fresh['host_lease']['holder']==original['host_lease']['holder']
+                     and fresh['host_lease']['fence']>original['host_lease']['fence'], 'fence_changed')
+            _require(all(fresh[k]>=c[k] for k in ('policy_generation','freshness_generation','state_revision'))
+                     and fresh['state_revision']==self.history.current_revision(), 'generation_changed')
+            _require(fresh['private_binding']['kind']==original['private_binding']['kind'], 'scope_denied')
+            if original['private_binding']['kind']=='private':
+                old_private=lifecycle._decode(self.history.read(original['private_binding']['binding_ref']))
+                private=owner._private(inputs,fresh)
+                _require(all(private[k]==old_private[k] for k in
+                             ('phase','holder','session_user_oid','session_user_name','installation_id','operation_id'))
+                         and private['fence']>old_private['fence'], 'fence_changed')
+            for reference, previous in self.history.events():
+                _, obs = lifecycle._load_entry(self.history,reference)
+                held = lifecycle._decode(self.history.read(obs['context_ref']))
+                _require(all(fresh['identity'][k]!=previous['identity'][k] for k in ('request_id','attempt_id')),
+                         'reservation_used')
+                _require(fresh['nonce']!=held['nonce'], 'nonce_replay')
+            _, latest, obs = lifecycle._latest_attempt(self.history,c['identity'])
+            attempt=lifecycle._decode(self.history.read(obs['attempt_ref']))
+            reservation=lifecycle._decode(self.history.read(obs['reservation_ref']))
+            _require(attempt['identity']==c['identity'] and attempt['effect']==c['effect']
+                     and attempt['request_ref']==c['request_ref'] and latest['request_ref']==c['request_ref']
+                     and obs['preimages_ref']==thaw(context['preimages_ref'])
+                     and reservation['state']=='consumed'
+                     and attempt['dispatch_state'] in ('consumed_result_unknown','applied_verified','not_applied_verified'),
+                     'journal_invalid')
+            return raw
         current = owner._evaluate(request, inputs)
         c = thaw(context['context'])
         lifecycle._continuity(c, thaw(current.context))
@@ -339,9 +395,11 @@ class _RoleAdapter:
         return {'operation_id':self.identity['operation_id'],
                 'preimage':lifecycle._retained_preimages(self.history,self.identity)}
 
-    def _known_oids(self, context=None):
+    def _known_oids(self, context=None, *, originals=None):
         context=self.context if context is None else context
-        original = lifecycle._decode(_originals(self.history,context,expected_identity=self.identity)['role'])
+        originals = (_originals(self.history,context,expected_identity=self.identity)
+                     if originals is None else originals)
+        original = lifecycle._decode(originals['role'])
         known = {r[1]:r[0] for r in original['roles']}
         # Actual created OIDs are independently measured in the same P1 result;
         # a name-only current catalogue lookup cannot adopt a foreign role.
@@ -701,7 +759,64 @@ class _RoleAdapter:
     def measure(self, context, *, restoring=False):
         # P2's dispatcher independently rereads after the compiled finite work.
         c = thaw(context['context'])
-        raw = self.snapshot()
+        inputs=lifecycle._owner_inputs()
+        fixed=owner._decode(inputs.context_raw,'owner_unavailable')
+        ref=fixed['request_ref']
+        _require(ref['path'] in inputs.originals,'journal_invalid')
+        request=inputs.originals[ref['path']]
+        try:
+            q=thaw(lifecycle.parse_install_message(request,expected_kind='request').document)
+        except lifecycle.InstallRefusal:
+            raise owner.OwnerRefusal('invalid_request') from None
+        # The existing measure port follows only the fixed current owner's
+        # admitted recovery operation. No caller field/provider selects a mode.
+        recovery=owner.propose_effect(request) if q['operation']=='recover' else None
+        if recovery is not None:
+            head=self.history.head()[0]
+            originals=self._current(context,recovery=recovery)
+            self._sql_capability(self.recovery)
+        try:
+            raw=self.snapshot()
+        except owner.OwnerRefusal as error:
+            if recovery is None or error.detail not in owner._DRIFT:raise
+            raw=None
+        if recovery is not None:
+            answer=('UNKNOWN',None)
+            _, event, obs=lifecycle._latest_attempt(self.history,c['identity'])
+            attempt=lifecycle._decode(self.history.read(obs['attempt_ref']))
+            state=attempt['dispatch_state']
+            truth_ref=(attempt['reconciliation_ref'] if state=='consumed_result_unknown'
+                       else attempt['result_ref'])
+            _require(event['result_ref']==attempt['result_ref'],'journal_invalid')
+            if truth_ref is not None and raw is not None:
+                truth_raw=self.history.read(truth_ref)
+                truth=lifecycle._decode(truth_raw)
+                observed=truth.get('observed')
+                refs=observed.get('originals') if type(observed) is dict else None
+                if (set(truth)=={'identity','effect','request_ref','state','observed'}
+                        and truth['identity']==c['identity'] and truth['effect']==c['effect']
+                        and truth['request_ref']==c['request_ref']
+                        and truth['state'] in ('applied_verified','not_applied_verified')
+                        and (state=='consumed_result_unknown' or state==truth['state'])
+                        and type(observed) is dict and observed.get('adapter')=='finite_pg_roles'
+                        and type(refs) is dict and set(refs)==_FIELDS
+                        and all(type(v) is dict and set(v)=={'path','bytes','sha256'} for v in refs.values())):
+                    accepted={k:self.history.read(refs[k]) for k in sorted(_FIELDS)}
+                    known=self._known_oids(context,originals=originals)
+                    roles=lifecycle._decode(raw['role'])['roles']
+                    original_roles=lifecycle._decode(originals['role'])['roles']
+                    database=lifecycle._decode(raw['database'])['database']
+                    identities=(all(type(row[0]) is int and row[0]>0 and type(row[1]) is str
+                                    and known.get(row[1],row[0])==row[0] for row in roles)
+                                and all(any(row[:2]==old[:2] for row in roles) for old in original_roles)
+                                and type(database[0]) is int and database[0]>0
+                                and type(database[2]) is int and database[2]>0)
+                    if identities and raw==accepted:
+                        if truth['state']=='applied_verified':answer=('APPLIED',truth_raw)
+                        elif raw==originals:answer=('NOT_APPLIED',truth_raw)
+            self._current(context,recovery=recovery)  # same fresh deadline, never the old consumed one
+            _require(self.history.head()[0]==head,'generation_changed')
+            return answer
         originals=_originals(self.history,context,expected_identity=self.identity)
         known=self._known_oids(context)
         _require(all(known.get(row[1])==row[0] for row in lifecycle._decode(raw['role'])['roles']))
