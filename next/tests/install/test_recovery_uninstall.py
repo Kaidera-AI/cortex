@@ -237,6 +237,48 @@ class AppliedSubject:
                 double.installed(signed_member):
             return api(self.old['request_raw'].encode(), self.child_raw)
 
+    def add_applied_resource(self):
+        """A later finite install phase; the product receipt retains both creators."""
+        data = copy.deepcopy(self.old); q = json.loads(data['request_raw'])
+        q['identity'].update(request_id='second-creation-request', attempt_id='second-creation-attempt',
+                             parent_attempt_id=q['identity']['attempt_id'])
+        self._request(data, q)
+        self.helper.context(data, lambda c: c.update(nonce='second-creation-nonce',
+                                                     state_revision=self.history.current_revision()))
+        self.helper.context(data, lambda c: c['effect'].update(effect_id='second-creation-effect'))
+        self.helper.scope(data, lambda scope: scope.update(resource_ids=['owned-extra'],
+            effect=json.loads(data['context_raw'])['effect']))
+        self.helper.edit_record(data, 'current_state_ref', lambda state: state.update(revision=self.history.current_revision()))
+        proposal, _ = self.helper.run_gate(owner, data)
+        with patch.object(self.check, 'setup_data', return_value=(self.helper, data, proposal)):
+            data, proposal, reserved, consumed = self.check.consume(lifecycle, self.history)
+        context = thaw(proposal.context); rid = 'owned-extra'; p = self.home / rid
+        p.write_bytes(b'APPLIED-extra'); self.files[rid] = p
+        resource = copy.deepcopy(self.resources[0])
+        resource.update(resource_id=rid, created_by=context['request_ref'], intent_event_ref=reserved,
+            result_event_ref=None, after_witness=self.witness(p),
+            before_witness={'kind': 'absent', 'locator_ref': self.history.retain(canonical_bytes({'resource': rid})),
+                'parent_witness_ref': self.history.retain(canonical_bytes({'parent': str(self.home)})),
+                'observed_at': '2023-11-14T22:13:20Z'},
+            consumers_ref=self.history.retain(canonical_bytes({'resource_id': rid, 'consumers': []})))
+        raw = canonical_bytes({'identity': context['identity'], 'effect': context['effect'],
+            'request_ref': context['request_ref'], 'state': 'applied_verified', 'observed': {
+                'resource_witnesses': {rid: resource['after_witness']},
+                'resource_metadata': {rid: {k: v for k, v in resource.items()
+                    if k not in ('after_witness', 'result_event_ref')}}}})
+        completed = lifecycle._record_result(self.history, consumed, raw)
+        resource['result_event_ref'] = completed; self.resources.append(resource)
+        child = copy.deepcopy(self.child)
+        child.update(identity=q['identity'], request_ref=context['request_ref'], journal_ref=completed,
+                     resources=self.resources)
+        self.old = data; self.creation_context = context; self.created = completed; self.reserved = reserved
+        self.child = child; self.child_raw = canonical_bytes(child)
+        self.child_ref = self.history.retain(self.child_raw)
+        self.current_resources = copy.deepcopy(self.resources); self.ids.append(rid)
+        self.change_request(lambda request: request.update(journal_ref=completed, previous_receipt_ref=self.child_ref,
+            identity={**request['identity'], 'parent_attempt_id': q['identity']['attempt_id']}))
+        self.base_revision = self.history.current_revision()
+
 
 class RecoveryUninstallOracle(unittest.TestCase):
     def run_ok(self, subject):
@@ -303,6 +345,17 @@ class RecoveryUninstallOracle(unittest.TestCase):
             s.current_resources[0]['data_class'] = 'runtime'
             s.change_request(lambda q: q.update(previous_receipt_ref=ref))
             self.refuse(s, 'resource_changed')
+
+    def test_P2B01_product_receipt_joins_each_original_applied_creator(self):
+        with tempfile.TemporaryDirectory() as root:
+            s = AppliedSubject(root); first = s.created; s.add_applied_resource()
+            second = s.created; result = self.run_ok(s)
+            event, observation = lifecycle._load_entry(s.history, result)
+            attempt = json.loads(s.history.read(observation['attempt_ref']))
+            expected = [lifecycle._load_entry(s.history, ref)[0]['result_ref'] for ref in (second, first)]
+            self.assertEqual(attempt['predecessor_result_refs'], expected)
+            self.assertTrue(all(not path.exists() for path in s.files.values()))
+            self.assertEqual(event['phase'], 'finished')
 
     def test_P2B01_unknown_original_is_held_for_part2(self):
         with tempfile.TemporaryDirectory() as root:
