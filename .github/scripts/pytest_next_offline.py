@@ -19,8 +19,9 @@ import shutil
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / '.github/next-offline-suites.json'
 ACCEPTED_BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
-# One-time initial integration: this exact main predates the inventory file.
-BOOTSTRAP_MAIN = '66cba6a1f8a2a3787844e168ab5415cb96738a0d'
+# Named initial-integration bases predate the inventory; both use unchanged policy.
+BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
+                   '5627f7fb496a2660f96f654fbfd3fabad2e13859')
 # Kai ruling359622c6: immutable five-row policy, retained in this branch's history.
 UNBUILT_POLICY = '741c43e41f46ba2e818d3bde8581fff9b27abc9c'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
@@ -121,7 +122,7 @@ def base_manifest_at(root, ref):
     try:
         subprocess.check_output(['git','cat-file','-e',ref+'^{commit}'],cwd=root,stderr=subprocess.DEVNULL)
         policy_ref=ref
-        if ref==BOOTSTRAP_MAIN and not subprocess.check_output(
+        if ref in BOOTSTRAP_MAINS and not subprocess.check_output(
                 ['git','ls-tree','--name-only',ref,'--','.github/next-offline-suites.json'],cwd=root):
             # Do not bootstrap unknown refs, missing commits, or malformed manifests.
             policy_ref=ACCEPTED_BASE
@@ -524,7 +525,7 @@ def main():
                   python=sys.version, qualification='HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY',
                   native_qualified=False, installed_qualified=False, old_installation='G_OLD_UNRESOLVED',
                   base_ref=args.base_ref,
-                  policy_base_ref=ACCEPTED_BASE if args.base_ref==BOOTSTRAP_MAIN else args.base_ref,
+                  policy_base_ref=ACCEPTED_BASE if args.base_ref in BOOTSTRAP_MAINS else args.base_ref,
                   control='forced-skip' if args.force_skip else 'normal')
     result = args.output / 'summary.json'
     write(result, packet)
