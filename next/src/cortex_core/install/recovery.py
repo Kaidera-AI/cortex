@@ -130,8 +130,9 @@ def _renewed_scope(history, request, context, original):
             and scope['backend_binding_ref'] == prior_scope['backend_binding_ref'], 'scope_denied')
         owner._require(all(context['effect'][k] == creator['event']['effect'][k]
             for k in ('product', 'resource_kind', 'reversal_contract_ref', 'data_policy_ref')), 'scope_denied')
+    creator_refs = [creator['event']['request_ref'] for creator in original['creators'].values()]
     for reference, event in history.events():
-        if event['identity'] == context['identity'] or event['origin_request_ref'] != original['event']['request_ref']:
+        if event['identity'] == context['identity'] or event['origin_request_ref'] not in creator_refs:
             continue
         q = thaw(parse_install_message(history.read(event['request_ref']), expected_kind='request').document)
         if q['operation'] not in ('rollback', 'uninstall', 'purge'):
