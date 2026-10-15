@@ -56,7 +56,7 @@ class OwnerRefusal(InstallRefusal):
         else:
             self.result = 'FAIL'
             reason = {'peer_denied': 'unsafe_custody', 'invalid_request': 'bad_shape',
-                      'r01_refusal': 'wrong_release'}.get(detail, 'external_conflict')
+                      'r01_other_refusal': 'wrong_release'}.get(detail, 'external_conflict')
         super().__init__(reason, unit=unit)
 
 
@@ -326,7 +326,7 @@ def propose_effect(original_request):
         raise
     except signed_member.Refusal as error:
         reason = error.reason if type(error.reason) is str and error.reason in _R01_REASONS else 'member_authority_unavailable'
-        detail = 'r01_required_binding_gap' if reason == 'required_binding_gap' else 'r01_refusal'
+        detail = 'r01_required_binding_gap' if reason == 'required_binding_gap' else 'r01_other_refusal'
         raise OwnerRefusal(detail, r01_reason=reason) from None
     except Exception:
         raise OwnerRefusal('owner_unavailable') from None
