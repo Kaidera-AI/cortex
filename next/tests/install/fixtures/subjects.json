@@ -2,8 +2,9 @@
   "scope": "TEST_ONLY_NONAUTHORITATIVE_NO_NATIVE_OR_INSTALL_CREDIT",
   "P1": {
     "path": "p1-subjects.json",
-    "bytes": 87287,
-    "sha256": "25962b3efc0f0d43cfdb706707af46e0464dfe59ffe00ac2ceba8cf16e00ca58"
+    "bytes": 87342,
+    "sha256": "698303043bdaf3550e543b096dcd5fa75fb36e32c9eca5b742ebd3075e263883",
+    "revision": "e2-runtime-tuple-v1"
   },
   "case_groups": [
     "P1-01",
@@ -14,5 +15,10 @@
     "P1-06",
     "P1-07",
     "P1-08"
-  ]
+  ],
+  "historical_P1": {
+    "path": "p1-subjects-pre-e2.json",
+    "bytes": 87287,
+    "sha256": "25962b3efc0f0d43cfdb706707af46e0464dfe59ffe00ac2ceba8cf16e00ca58"
+  }
 }
