@@ -231,7 +231,6 @@ def _installed_owner_inputs():
     owner._require(set(context) == owner._CONTEXT, 'owner_unavailable')  # BL-G02
     peer = owner._original(inputs, context['peer_ref'])
     policy_original = owner._original(inputs, context['policy_ref'])
-    owner._original(inputs, context['current_state_ref'])  # bind the observed state file to B1's original
     receipt = owner._original(inputs, peer.get('linux_ref'))
     policy = policy_original.get('linux')
     owner._require(_shape(policy, receipt), 'owner_unavailable')  # BL-G03
@@ -266,6 +265,7 @@ def _installed_owner_inputs():
         and privileges['owner_lifetime'] == policy['owner_process']
         and all(v == 'denied' for v in privileges['paths'].values()), 'peer_denied')  # BL-G15
     owner._require(c['code_sha256'] == policy['peer_code_sha256'], 'peer_denied')  # BL-G29
+    owner._original(inputs, context['current_state_ref'])  # bind the observed state file to B1's original
     expected = policy['objects']; observed = receipt['objects']; startup = receipt['startup']
     owner._require(startup['executable_path'] in [x['path'] for x in expected if x['role'] == 'interpreter']
         and [x['sha256'] for x in expected if x['role'] == 'interpreter'] == [v['code_sha256']]
