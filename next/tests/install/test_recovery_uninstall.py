@@ -588,6 +588,9 @@ class JoinedSubject:
         self.oracle = AbsentProbe(); self.root = Path(root)
         _, self.helper, self.history, self.old, self.current, self.effect, self.adapter = self.oracle.fixture(root)
         self.role_grants = role_grants; self.freeze = freeze
+        # Initialize the existing exclusion file during fixture setup. HOLD
+        # checks freeze all history bytes after the owner root is prepared.
+        with self.history.operation(): pass
         self.old['originals'].update(P1['members']); self.current['originals'].update(P1['members'])
         for raw in P1['members'].values(): self.history.retain(raw.encode())
         self.marker = self.root / 'finite-effects'
