@@ -71,19 +71,16 @@ class PublicationScopeOracle(unittest.TestCase):
             def lock(name,**kwargs):
                 if name=='.journal.lock' and not switched:
                     switched.append(True)
-                    def advance(subject):
-                        # Valid fixed owner sees an advanced cursor; immutable P1 has not moved.
-                        subject.helper.context(subject.data,lambda c:c.update(state_revision=77))
-                    old_inputs=s.inputs
-                    def inputs():
-                        d=old_inputs();ctx=owner._decode(d.context_raw,'owner_unavailable')
-                        # Reuse fixture construction so both context and current state agree.
-                        data=copy.deepcopy(s.data)
-                        s.helper.context(data,lambda c:c.update(state_revision=77))
-                        s.helper.edit_record(data,'current_state_ref',lambda state:state.update(revision=77))
-                        return s.helper.inputs(owner,data)
-                    s.inputs=inputs
-                with original(name,**kwargs) as result:yield result
+                    current=s.inputs();data=copy.deepcopy(s.data)
+                    s.helper.context(data,lambda c:c.update(state_revision=77))
+                    s.helper.edit_record(data,'current_state_ref',lambda state:state.update(revision=77))
+                    replacement=s.helper.inputs(owner,data)
+                    self.assertEqual(owner._evaluate(s.data['request_raw'].encode(),replacement,
+                        previous_deadline=s.deadline).observed_state_revision,77)
+                    with patch.object(owner,'_installed_owner_inputs',return_value=replacement):
+                        with original(name,**kwargs) as result:yield result
+                else:
+                    with original(name,**kwargs) as result:yield result
             with s.installed(primitive):
                 before=s.history.head()[0]
                 with patch.object(s.history,'_lock',side_effect=lock):
