@@ -5,3 +5,7 @@
 - [ ] G5 One lab session only on kos-lab-l1, actual tuple recorded, causal SQL controls restored exactly. CHECK: raw remote receipts. EXPECT: measured regression and no foreign effects.
 - [ ] G6 Lab deallocated idle, own resources removed, receipt retained. CHECK: lab-host stop/status and cleanup. EXPECT: deallocated and own-resource absence.
 - [ ] G7 Exact branch pushed/readback, source reviewed, sealed return + work product + same-row ACK. CHECK: origin hashes and artifact index/courier. EXPECT: returned true.
+- [ ] R1 TXN: constructor/read/admit/snapshot/phase and reuse require fixed autocommit/IDLE handles; only current owned top-level driver context allows INTRANS; no borrowed commit; independent measure follows actual context COMMIT.
+- [ ] R2 LEDGER: explicit matrix zero-rights plans for five services/request_group/verifier_owner, including grant options; unexpected revocable grants removed, ownership remainder refused; PUBLIC closure retained.
+- [ ] R3 IMPORT: module/_originals/default owner refusal driver-free; missing psycopg typed at SQL boundary before connection access; transitive ImportError preserved.
+- [ ] R4 VERIFY: Hale witness BODY RED->GREEN both Pythons; original17+new tests and exact missing-driver43 pass; frozen25/24 paths and lifecycle/schema unchanged; no native qualification in this source-only row.
