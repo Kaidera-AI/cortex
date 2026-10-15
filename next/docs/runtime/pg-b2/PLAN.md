@@ -38,3 +38,35 @@ Depth tree (solo): immutable inputs and current authority -> Finn two BODY requi
 Files: next/src/cortex_core/runtime/role_grants.py; new next/tests/pg_b2_draft/test_b2_recovery_join.py (Finn original/renewed fixture helpers copied with provenance); next/docs/runtime/pg-b2/PLAN.md and GATES.md plus RECOVERY.md. lifecycle.py, owner.py, parser/schema, original candidate/reviewer/frozen tests and matrices remain byte-exact. No parallel reader or measurement implementation.
 Order: preserve source/evidence inputs; add immutable requirements and prove the two original diagnostics as actual BODY assertion failures on both Pythons; commit tests+plan; implement only existing finite owner's _current/measure with a parameterized _originals/_known_oids path as needed; never change frozen deciding assertions. Add supplemental tests first if review reveals a new gap. Apply exact source mutants and restores, run original81 plus all new and exact missing-driver43 on both; verify protected bytes and driver/transaction controls unchanged; serial author review; normal descendant feature push; immutable packet and same-row return.
 Risks: generic source DATA subjects and catalog recorders do not prove native ownership/acceptance. Existing P1 acceptance slots are authoritative only through protected custody; no record fabricated from matching resources. Durable exact results remain historical byte originals; current identity/NULL drift cannot become an applied answer. Finn still owns persistence/public recovery/removal flow, Hale independent review, PG-F native binding/tuple and PG-C final manifest. Existing TXN guard is called before recovery snapshot and never replaced.
+
+Recovery implementation result: the fixed current owner operation selects the
+fresh common proposal only inside the existing measure method. _current is
+parameterized by that internal proposal; its normal continuity/deadline tail is
+AST-exact. _originals retains the original consumed event/five-byte reader while
+allowing historical-head resolution only for that checked recovery join.
+_known_oids accepts the already checked originals, and the same snapshot call
+serves both measurements. The original primitive and four public functions are
+AST-exact; there are no new functions, classes or adapter methods. One nonce
+check scans the existing P1 history and also enforces renewal relative to the
+original. Missing original roles are UNKNOWN even if a result would otherwise
+match. P1 canonical result bytes and all opaque observations are returned exact.
+
+Additional requirements were committed before corresponding fixes: missing
+original role even with matching truth (one intended BODY failure each Python),
+normal measurement byte compatibility, changed APPLIED poststate, durable
+NOT_APPLIED and P1-recorded authority replay. Initial source group29 had24 failing
+methods /26 BODY assertions and0 errors on both before implementation; fixture
+setup/canonical-reference mistakes were corrected and retained without credit.
+All34 new plus original81 pass115/115 on both in the first complete restored
+run. Final committed-head repeats, source controls and source custody are bound
+in the separate immutable return packet; native/installed/material/tuple,
+Finn's later persistence/child flow and PG-C gates remain held with their owners.
+
+Final NULL review correction: an unknown attempt may retain a reconciliation
+record with observed=NULL. A supplemental committed unchanged requirement has
+one intended BODY failure on each Python before the dict check. The same
+measurement now returns UNKNOWN for that incomplete acceptance. Initial eight
+controls remain historical source evidence; all nine final omission controls
+are rebound to the corrected source, with exact restores. Final gate selection
+is116 methods (original81 +35 new) plus exact Hale MISSING_DRIVER43 on each
+Python. No original test assertion or source input was weakened.

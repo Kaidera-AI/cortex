@@ -18,3 +18,11 @@ G3 answers: exact durable finite-owner APPLIED result byte-identical; authoritat
 G4 regression/custody: original81 and all new GREEN plus exact MISSING_DRIVER43 on both; frozen24paths25methods/lifecycle/owner/schema unchanged; inherited TXN controls green. CHECK: final packets and source/origin hashes.
 G5 causality: exact new guard mutants BODY fail on each Python; same-node exact-restores pass; no errors/skips/effects. CHECK: control receipts.
 G6 publication: serial review, descendant normal feature push, fetched origin exact source, no PR; sealed return with contract in first12; work-product and same-row returned:true outside seal; END after one inbox read. CHECK: origin/seal/courier/inbox receipts.
+
+Recovery source gate results (this implementation; final head bound by return):
+- G1 PASS: initial29 has24 failing methods /26 intended BODY assertion events and0errors per Python; Finn two requirements each BODY1→PASS1. Supplemental missing-original-role BODY1→PASS1 each. Deciding assertions remain unchanged.
+- G2 PASS SOURCE: parent/full tuple/renewed current authority/deadline checks and history-replay negatives; old normal continuity/deadline AST exact. Private/native bindings remain unqualified.
+- G3 PASS SOURCE: exact durable APPLIED/NOT_APPLIED and unknown-slot acceptance, five-byte live comparisons, missing/NULL/OID/material/database/acceptance UNKNOWN; no SQL or P1 mutations by recovery.
+- G4 PASS SOURCE FIRST RESTORE:115/115 each Python (original81 +34new); final committed-head116 (35 new) and exact MISSING_DRIVER43 repeats required in return;64 protected paths and prior429/47/164 packets unchanged.
+- G5 source omission/restore receipts: exact parent, nonce, final deadline, carrier bytes, original-role presence, missing acceptance, original APPLIED bytes, old-deadline isolation and NULL acceptance; final control counts in return.
+- G6 source review and origin feature readback, immutable return/work-product/same-row courier are required before return. No PR/CI/native acceptance claimed. Hale independent review, Finn integration, PG-F native and PG-C integration remain HOLD.

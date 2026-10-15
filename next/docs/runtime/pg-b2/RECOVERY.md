@@ -32,3 +32,34 @@ in the existing P1 history and any later fresh child reserve/consume flow. This
 input neither fabricates that truth from a snapshot nor supplies an installed
 owner. Hale reviews the source contract; PG-F owns native/material/tuple
 qualification, and PG-C owns final manifest/integration accounting.
+
+Inside the eventual fixed lifecycle composition, under its existing operation
+exclusion, the consuming flow is:
+
+```python
+answer, original_result_raw = primitive.measure(original_effect_context)
+```
+
+The primitive is the existing bound finite owner for the original attempt. Its
+public shape is unchanged. `original_effect_context` holds the original consumed
+journal reference and preimages reference; it is not renewed authority. Current
+protected inputs supply the fresh recover request. The complete original request
+body stays exact except identity, operation and journal_ref; installation,
+operation, transaction, caller, roots, target, release and effect/idempotency
+subject remain bound. The incoming parent must be the original attempt.
+
+For APPLIED, consume the returned original bytes and their existing P1 reference
+without re-dispatch or a duplicate result. For NOT_APPLIED, Finn's normal renewed
+child path may later reserve/consume once under its own authorized context;
+measurement creates no such permit. For UNKNOWN, HOLD without a new create or
+inverse. A repeated read-only observation is not a consumed authority replay;
+any request/attempt or nonce already represented in P1 history is rejected.
+
+Source verification includes the two Finn refusal diagnostics promoted to BODY
+requirements, preserved original-path refusals, durable APPLIED and NOT_APPLIED,
+consumed/unknown reconciliation refs, absent truth, NULL/OID/missing-role/material
+and database drift, foreign/stale/reused authority, new-vs-old deadlines, history
+advance during IO, original normal-result bytes and TXN-001 compatibility. Actual
+P1 test-owned durability and original byte refs are used; SQL/catalog/material
+recorders and the nonauthoritative signed-member fixture do not qualify native
+authority. Final counts and exact published SHA are in the named handoff return.
