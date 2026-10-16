@@ -140,13 +140,13 @@ class X11JoinTests(unittest.TestCase):
         subject={k:c[k] for k in ('identity','effect','request_ref')}
         if kind=='file':
             inputs=file_fixtures.Inputs(Path(root))
-            inputs.plan.update(subject=subject,deadline_ns=103000000000+deadline_extra)
+            inputs.plan.update(subject=subject,deadline_ns=s.proposal.deadline.expires_monotonic_ns+deadline_extra)
             inputs.now=101000000000
             with patch.object(files,'_installed_files',return_value=inputs),files._open() as primitive:
                 yield s,self.join(primitive,s.history),inputs
         else:
             engine=podman_fixtures.Engine(kind)
-            engine.plan.update(subject=subject,deadline_ns=103000000000+deadline_extra)
+            engine.plan.update(subject=subject,deadline_ns=s.proposal.deadline.expires_monotonic_ns+deadline_extra)
             engine.now=101000000000
             with patch.object(podman,'_installed_engine',return_value=engine),podman._open() as primitive:
                 yield s,self.join(primitive,s.history),engine
