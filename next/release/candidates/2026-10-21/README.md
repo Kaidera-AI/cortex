@@ -1,11 +1,14 @@
-# Cortex v2 candidate identity proposal — 21 October 2026
+# Cortex v2 candidate metadata draft — 21 October 2026
 
-Status: **DRAFT FOR KAI RULING**, under handoff
-`112e51f7-3dcd-4267-a2c5-753747d6baee`, 16 October 2026.
-Finn proposes the following literal NEW identities for the Wednesday 21 October
-pre-release candidate. Kai owns acceptance and the subsequent Cox C1 direction.
+Status: **IDENTITIES RULED; AGGREGATE INCOMPLETE**, 16 October 2026.
+Kai accepted these four NEW identities in the 05:00 ruling and Cox C1 handoff
+`ac100097-846a-4421-b6e9-ef512e5ec27b`, binding the original identity record
+`192c9cba7601e7f50c2557dda511f7e33b3b2dcf`. This child, under cut-plan handoff
+`ccbca3df-47d2-4816-994c-5a40210324f2`, adds only the existing R01 constants
+`schema=cortex.release-aggregate.v1` and `format_version=1`. It grants no
+signing, original-material, installed or publication acceptance.
 
-| R01 JSON pointer | Proposed literal | Convention and choice |
+| R01 JSON pointer | Ruled literal | Convention and choice |
 | --- | --- | --- |
 | `/release/release_id` | `v0.2.001` | Cortex's published v2 TEST tags use the numeric stem `v0.2.001` with `-test.<date>.<run>` suffixes. The earlier `v0.1.001` and `v0.1.002` tags use the same three-digit patch style. Select the existing v2 stem as this candidate's NEW identity. The existing U13 `_version` accepts numeric `vX.Y.Z` and rejects suffixed labels, so candidate date/channel stay in this proposal rather than a release-ID suffix. |
 | `/release/api_contract` | `cortex.core-api.v1` | **New default; no adopted R01 release API-contract literal was delivered.** Reuse the `cortex` prefix and `.v1` namespace style of `cortex.release-aggregate.v1`, plus R01's existing `cortex/core-api/production` scope. This names the first proposed Core/API release contract. It does not adopt the document-only OpenAPI draft version or establish compatibility acceptance. |
@@ -54,17 +57,41 @@ The draft records the measured source baseline, Cortex main
 this proposal. The later release cut must bind its actual final F commit/tree
 after the remaining source composition and verification.
 
-This file is a canonical R01 **release/source fragment**. Its release object uses
-the existing closed release grammar. A complete aggregate still requires the
-existing schema, format, purpose, sequence, validity, compatibility and measured
-member fields. No sequence, timestamp, signature, material digest, owner policy
+This file is a canonical, incomplete R01 **metadata fragment**. Its release object
+uses the existing closed release grammar. The schema and format constants are
+now present. A complete aggregate
+still requires `purpose`, `sequence`, `not_before`, `expires_at`, `compatibility`
+and measured `members`. No sequence, timestamp, signature, material digest,
+owner policy
 or historical OLD tuple is synthesized here. The full aggregate validator must
 continue to reject this incomplete planning fragment.
 
-Kai's ruling on these literal values precedes Cox's resumption. The eventual cut
+Cox C1 resumes against the ruled original identity record. The eventual cut
 must preserve the accepted `/release` values consistently in its independent
 policy, runtime lock, compatibility original and Core/API build/descriptor
 originals. It retains the existing R01 admission and signing gates.
+
+## Remaining owner deliveries
+
+| Absent top-level field | Delivery required before assembly/signing |
+| --- | --- |
+| `purpose` | Cox/Kai release policy selects the existing TEST or production scope; CTO grants the exact signing purpose. Pre-release status alone does not select one. |
+| `sequence` | Release owner records the current floor and next non-replayed sequence. |
+| `not_before`, `expires_at` | Release owner supplies the actual cut validity window, checked against independent policy/current time; existing seven-day maximum and tighter caps remain. |
+| `compatibility` | Cox supplies accepted descriptor/schema/event/migration/operations originals and their exact member references; R01 and PG-C epoch domains stay separate. |
+| `members` | Ren-KOS supplies the four actual Core/API ×linux/amd64+linux/arm64 archives, external runtime lock and required record closures; R01 measures original paths/lengths/digests and per-image receipt joins. |
+
+The final source commit/tree is rebound only after source composition and review.
+No placeholder, empty list, fixture hash or guessed owner context fills these gaps.
+Public `assemble_aggregate` remains UNBOUND at the inspected main baseline; its
+independent producer/owner composition must be delivered through the existing R01
+path before a real signed aggregate can be claimed. This draft adds no binder.
+
+H-D569 places AG native helpers, PG-F, physical B-N1..9 and installed F01 proof
+first in the next release, openly declared and with zero PASS credit. It does not
+make absent archive/manifest bytes exist. H-D428 still requires paired distribution
+from one source/version/manifest; H-D464 requires the release-bound guides. No
+native installation or upgrade support is asserted by this metadata fragment.
 
 LEAN: reused R01 fields, version style, canonical codec and validators; did NOT
 add a parser, schema, runtime configuration or metadata consumer; could delete or
