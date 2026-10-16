@@ -6,6 +6,9 @@ COPY requirements.txt /requirements.txt
 RUN python3 -m pip --isolated --disable-pip-version-check --no-cache-dir install \
     --no-index --find-links=/wheels --require-hashes --no-compile \
     --target=/material/python -r /requirements.txt
+# Compile against the installed material path, with the pinned image interpreter.
+RUN PYTHONHASHSEED=0 python3 -m compileall --invalidation-mode checked-hash \
+    -o 0 -q -f -s /material/python -p /opt/cortex/python /material/python
 
 FROM ${API_BASE} AS material
 COPY --from=install /material/python/ /opt/cortex/python/

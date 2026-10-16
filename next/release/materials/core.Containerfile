@@ -1,9 +1,12 @@
 # R1 upstream dependency preparation only. Cortex runtime/final-F joins are R2.
 ARG CORE_BASE
-FROM ${CORE_BASE} AS compile
+FROM ${CORE_BASE} AS sdk
 COPY debs/ /debs/
 RUN apt-get install -y --no-install-recommends /debs/*.deb \
     && rm -rf /debs /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+# Export this target separately to retain the measured compiler/header closure.
+FROM sdk AS compile
 COPY pgvector/ /build/pgvector/
 ARG SOURCE_DATE_EPOCH
 ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} LC_ALL=C TZ=UTC

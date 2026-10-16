@@ -49,7 +49,24 @@ The compile stage preserves upstream pgvector optimization flags while disabling
 The API stage registers the copied library directory with ldconfig so pure
 Python psycopg can discover libpq without adding a compiler or objdump. It removes
 ldconfig's auxiliary cache, and uses pip's existing hash checking and offline resolver, with no
-source distributions, new resolver, bytecode generation or package cache.
+source distributions, a new resolver or package cache. The pinned image interpreter
+then compiles every dependency source at optimization 0 with standard compileall,
+checked-hash invalidation and PYTHONHASHSEED=0. The compile step strips the staging
+prefix and prepends /opt/cortex/python, so code objects name their installed material
+paths. The final stage copies these caches with the exact sources.
+
+Core has a separately exportable `--target sdk` stage containing that same local
+compiler/header installation; the normal final target still excludes the toolchain.
+Retain the SDK image, package originals and measured gcc/cc1/linker/header/library
+identities as R1 inputs. Check the compiler against the actual upstream pgvector
+source. This SDK is an input, not a shipped Core image or a native qualification.
+
+For API cache evidence, use the existing R02 build.audit.audit_all_caches under
+the same CPython 3.14.8 image. Inventory every .py and .pyc, require exact source
+coverage, validate magic/flags/source-hash/recursive code body/final filename and
+reject changed flags, source, body, filename, trailing data and empty inventory.
+These caches cover dependency preparation only. Final Cortex source caches and
+any final owner path change require regeneration and independent R01 admission.
 
 The output images are dependency preparation images. Core retains upstream
 PostgreSQL's entrypoint for the extension smoke; API retains the upstream Python
