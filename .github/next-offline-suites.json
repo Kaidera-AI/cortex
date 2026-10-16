@@ -2336,7 +2336,13 @@
     }
   ],
   "partitions": {
+    "next/tests/pg_b2_draft/test_hold1_producer.py": 4,
     "next/tests/release/test_original_member_bridge.py": 4,
-    "next/tests/release/test_verifier_boundary.py": 8
+    "next/tests/release/test_verifier_boundary.py": {
+      "count": 9,
+      "isolated": [
+        "next/tests/release/test_verifier_boundary.py::OwnerSourceJoin::test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child"
+      ]
+    }
   }
 }
