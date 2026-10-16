@@ -41,11 +41,29 @@ jobs:
             python -m pip install --only-binary=:all: --no-deps psycopg==3.2.9 \
             --target "${{ runner.temp }}/cortex-pg-site"
           python -B .github/scripts/tests/test_u13_gate.py
-      - name: U13 isolated current-v2 PostgreSQL (eight exact methods)
+      - name: U13 isolated current-v2 PostgreSQL (eleven exact methods)
         run: |
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             python .github/scripts/pytest_u13_pg.py --output "${{ runner.temp }}/cortex-u13-pg" \
             --site "${{ runner.temp }}/cortex-pg-site"
+          for control in missing skip mutant; do
+            if systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+              python .github/scripts/pytest_u13_pg.py --output "${{ runner.temp }}/cortex-u13-pg/$control" \
+              --site "${{ runner.temp }}/cortex-pg-site" --control "$control"; then
+              echo "U13 $control control unexpectedly passed"
+              exit 1
+            fi
+            python - "${{ runner.temp }}/cortex-u13-pg/$control/provisioner.json" "$control" <<'PYCONTROL'
+          import json, sys
+          from pathlib import Path
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt['control'] == sys.argv[2]
+          assert receipt['status'] == 'FAIL' and receipt['worker_exit'] != 0
+          assert receipt['worker_admission'] == {'ok': False, 'code': 'worker_nonzero'}
+          assert receipt['cleanup'] == dict(ok=True, errors=[], inventory=dict(containers=[], pods=[], volumes=[], secrets=[]))
+          print('U13 expected rejection and cleanup:', sys.argv[2])
+          PYCONTROL
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

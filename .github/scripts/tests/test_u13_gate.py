@@ -13,6 +13,12 @@ class ExactU13Gate(unittest.TestCase):
         spec.loader.exec_module(module)
         return module.valid
 
+    def test_worker_selects_original_eight_and_three_exact_pg_c_methods(self):
+        spec = importlib.util.spec_from_file_location('u13_inventory_oracle', SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.TARGETS, HostReceiptAdmission.NODES)
+
     def packet(self):
         nodes = ['fixture::test_' + str(i) for i in range(8)]
         return nodes, {'selected': nodes[:], 'deselected': [], 'reports': [
@@ -74,6 +80,9 @@ class HostReceiptAdmission(unittest.TestCase):
         'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_current_four_steps_reconnect_reenter_and_preserve_seed',
         'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_unknown_target_refuses_before_any_later_sql',
         'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_nonprefix_drift_and_future_ledger_refuse_before_sql',
+        'next/tests/core_upgrade/test_migration_steps.py::MigrationSteps::test_caller_begin_refuses_before_any_managed_ddl',
+        'next/tests/core_upgrade/test_migration_steps.py::MigrationSteps::test_idle_top_level_commit_visible_before_return',
+        'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_selected20_target_reentry_and_preservation',
     )
 
     def setUp(self):
@@ -103,7 +112,7 @@ class HostReceiptAdmission(unittest.TestCase):
             expected=nodes, selected=nodes[:], deselected=[], passed=nodes[:],
             reports=[dict(nodeid=node, when=phase, outcome='passed', wasxfail=False, detail='')
                      for node in nodes for phase in ('setup','call','teardown')],
-            counts=dict(selected=8, passed=8, phases=24, deselected=0),
+            counts=dict(selected=11, passed=11, phases=33, deselected=0),
             source_files={node:digest(node.split('::')[0]) for node in nodes},
             mutation=None, driver=dict(psycopg='3.2.9', pq_impl='python', libpq_version=170006),
             case_root=dict(uid=10001, mode='0o700'), pytest_exit=0, gate_exit=0, control='normal',
@@ -187,11 +196,11 @@ class HostReceiptAdmission(unittest.TestCase):
     def test_extra_node_is_typed_host_failure(self):
         self.refused(lambda p:p['selected'].append('foreign::extra'))
     def test_missing_phase_is_typed_host_failure(self): self.refused(lambda p:p['reports'].pop())
-    def test_duplicate_phase_with_24_rows_is_typed_host_failure(self):
+    def test_duplicate_phase_with_33_rows_is_typed_host_failure(self):
         self.refused(lambda p:p['reports'].__setitem__(0,p['reports'][3].copy()))
     def test_schema_valid_failing_phase_is_typed_host_failure(self):
         self.refused(lambda p:p['reports'][0].update(outcome='failed',detail='synthetic failing setup'))
-    def test_wrong_counts_is_typed_host_failure(self): self.refused(lambda p:p['counts'].update(phases=25))
+    def test_wrong_counts_is_typed_host_failure(self): self.refused(lambda p:p['counts'].update(phases=34))
     def test_missing_session_finish_is_typed_host_failure(self): self.refused(lambda p:p.update(session_finished=False))
     def test_nonzero_worker_even_with_valid_receipt_is_typed_host_failure(self): self.refused(worker_exit=9)
     def test_nonzero_recorded_exit_is_typed_host_failure(self): self.refused(lambda p:p.update(pytest_exit=1))
@@ -211,5 +220,35 @@ class HostReceiptAdmission(unittest.TestCase):
         code,fixture=self.execute()
         self.assertEqual(code,0)
         self.assertEqual(fixture.receipt['worker_exit'],0)
+
+    def test_host_independently_requires_all_eleven_exact_methods(self):
+        expected=self.host.expected_receipt(self.source, 'frozen-inventory', 'normal')
+        self.assertEqual(tuple(expected['source_files']),self.NODES)
+        self.assertEqual(expected['counts'],dict(selected=11,passed=11,phases=33,deselected=0))
+
+    def omit_added_node(self, node):
+        def remove(packet):
+            for key in ('expected','selected','passed'):
+                packet[key].remove(node)
+            packet['reports']=[r for r in packet['reports'] if r['nodeid']!=node]
+            packet['source_files'].pop(node)
+            packet['counts']=dict(selected=10,passed=10,phases=30,deselected=0)
+        code,fixture=self.execute(remove)
+        self.assertNotEqual(code,0)
+        self.assertEqual(fixture.receipt['worker_admission']['code'],'receipt_inventory')
+
+    def omit_added_call(self, node):
+        def remove(packet):
+            packet['reports']=[r for r in packet['reports'] if (r['nodeid'],r['when'])!=(node,'call')]
+        code,fixture=self.execute(remove)
+        self.assertNotEqual(code,0)
+        self.assertEqual(fixture.receipt['worker_admission']['code'],'receipt_phases')
+
+    def test_caller_begin_selector_cannot_be_omitted(self): self.omit_added_node(self.NODES[-3])
+    def test_idle_commit_selector_cannot_be_omitted(self): self.omit_added_node(self.NODES[-2])
+    def test_selected20_selector_cannot_be_omitted(self): self.omit_added_node(self.NODES[-1])
+    def test_caller_begin_call_phase_is_required(self): self.omit_added_call(self.NODES[-3])
+    def test_idle_commit_call_phase_is_required(self): self.omit_added_call(self.NODES[-2])
+    def test_selected20_call_phase_is_required(self): self.omit_added_call(self.NODES[-1])
 
 if __name__ == '__main__': unittest.main()
