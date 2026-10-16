@@ -416,8 +416,11 @@ class _Children:
                        stdout=None,stderr=None,journal=None)
             self.records.append(row)
             raise
-        code,stdout,files=(*result,None)[:3]
-        row.update(exit=code,finished_at_unix_ns=time.time_ns())
+        # (exit, stdout[, files[, error]]): a failed adapter run (R6-FU-1) hands back its
+        # REAL journal/streams with the error; they are kept, then the error is raised
+        code,stdout,files,failure=(*result,None,None)[:4]
+        row.update(exit=None if failure is not None else code,finished_at_unix_ns=time.time_ns())
+        if failure is not None:row['error']=type(failure).__name__
         for key in ('stdout','stderr','journal'):
             source=(files or {}).get(key)
             if source is not None and self.evidence_dir is not None:
@@ -430,6 +433,7 @@ class _Children:
             else:
                 row[key]=None
         self.records.append(row)
+        if failure is not None:raise failure
         return code,stdout
 
 
@@ -440,10 +444,14 @@ def _engine(argv,environment,session,timeout,output_limit):
     stem=session/('op-'+secrets.token_hex(8))
     # output_limit is a per-call byte cap, or a lane's shared OutputAccount (R4 nesting)
     budget={'account':output_limit} if isinstance(output_limit,OutputAccount) else {'output_limit':output_limit}
-    result=run_operation(argv,session,dict(environment),timeout,Path(str(stem)+'.out'),Path(str(stem)+'.err'),
-                         kill_seconds=KILL_SECONDS,**budget)
-    return result['exit'],Path(str(stem)+'.out').read_bytes(),{
-        'stdout':Path(str(stem)+'.out'),'stderr':Path(str(stem)+'.err'),'journal':Path(result['journal'])}
+    out,err,journal=Path(str(stem)+'.out'),Path(str(stem)+'.err'),Path(str(stem)+'.out.operation.jsonl')
+    try:
+        result=run_operation(argv,session,dict(environment),timeout,out,err,kill_seconds=KILL_SECONDS,**budget)
+    except Exception as error:
+        # the adapter wrote its failed journal before raising: hand it to the collector
+        if not (out.is_file() and err.is_file() and journal.is_file()):raise
+        return None,out.read_bytes(),{'stdout':out,'stderr':err,'journal':journal},error
+    return result['exit'],out.read_bytes(),{'stdout':out,'stderr':err,'journal':Path(result['journal'])}
 
 
 def _same_root(roots,session):
