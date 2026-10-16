@@ -131,6 +131,7 @@ class Outcomes(Base):
         bad = {'early EAGAIN below the cap': dict(authentic, pids_current_at_denial=cap - 3),
                'unattributed EAGAIN (no pids.events max)': dict(authentic, pids_events_max_delta=0),
                'other cap than the plan': dict(authentic, pids_max=cap + 16, pids_current_at_denial=cap + 16),
+               'more than the one denied fork (events +2, kai ruling: exactly +1)': dict(authentic, pids_events_max_delta=2),
                'no denial': dict(authentic, errno='NO_DENIAL', pids_current_at_denial=None),
                'children not reaped': dict(authentic, reaped=False)}
         for name, value in bad.items():
@@ -255,6 +256,45 @@ class Originals(Base):
             with self.subTest(case=name):
                 self.refuses(row, lane, kind, files=tampered, rows=rows)
                 self.assertTrue(row(lane, kind, files=files, rows=rows)[0])
+
+    def journals(self, files, rows, kind, edit):
+        """Rewrite EVERY present journal of one row, refreshing its stream byte/hash refs
+        (Vera R6T1-R1: hashed bytes alone are not execution meaning)."""
+        files = dict(files)
+        children = json.loads(files[rows[kind]['children']])
+        for child in children:
+            raw = edit(child, files[child['journal']['path']])
+            files[child['journal']['path']] = raw
+            child['journal'].update(bytes=len(raw), sha256=r4.sha(raw))
+        files[rows[kind]['children']] = codec.canonical_bytes(children)
+        return files
+
+    def test_every_cited_journal_must_parse_and_join_its_child(self):
+        lane = Lane(self)
+        files, rows = originals(lane)
+
+        def other_command(child, raw):
+            first, last = [json.loads(line) for line in raw.splitlines()]
+            first['argv'] = first['argv'][:8] + ['run', '--privileged', 'sha256:' + 'f' * 64]
+            return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+
+        def other_outcome(child, raw):
+            first, last = [json.loads(line) for line in raw.splitlines()]
+            last.update(status='failed', exit=7)
+            return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+
+        def other_timeout(child, raw):
+            first, last = [json.loads(line) for line in raw.splitlines()]
+            first['timeout_ns'] += 10 ** 9
+            return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+        edits = {'non-JSON failure text': lambda child, raw: b'not-json: different-command, wrong-image, failed-exit=7\n',
+                 'one row only': lambda child, raw: raw.splitlines(keepends=True)[0],
+                 'another command': other_command, 'another outcome': other_outcome, 'another timeout': other_timeout}
+        for kind in ('positive', 'negative', 'network', 'time'):
+            for name, edit in edits.items():
+                with self.subTest(kind=kind, case=name):
+                    self.refuses(row, lane, kind, files=self.journals(files, rows, kind, edit), rows=rows)
+            self.assertTrue(row(lane, kind, files=files, rows=rows)[0])  # authentic bytes restore the row
 
     def test_probe_evidence_can_never_fill_an_inspector_row(self):
         lane = Lane(self)

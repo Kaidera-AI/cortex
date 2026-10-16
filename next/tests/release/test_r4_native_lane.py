@@ -421,6 +421,15 @@ def observations(lane):
                            'environment': list(ALLOWLIST['environment'])}}
 
 
+def adapter_journal(argv, environment, timeout, started, finished, code, error=None, skew=0):
+    """The adapter's (engine.run_operation) real two-row journal for one child."""
+    rows = [{'status': 'started', 'argv': list(argv), 'environment_names': sorted(environment),
+             'started_at_unix_ns': started, 'timeout_ns': int(timeout * 10 ** 9)},
+            {'status': 'finished' if code == 0 and error is None else 'failed', 'exit': code, 'error': error,
+             'finished_at_unix_ns': finished, 'elapsed_ns': finished - started + skew}]
+    return b''.join(json.dumps(row, sort_keys=True, separators=(',', ':')).encode() + b'\n' for row in rows)
+
+
 class Wall:
     """time.time_ns plus an offset the fake engine advances (a run held to its deadline)."""
 
@@ -447,18 +456,16 @@ class QEngine:
         verb = argv[8]
         self.calls.append(verb)
         started = self.wall()
-        error, journal = None, b'{"fixture":true}\n'
+        error = None
         try:
             code, out = self.respond(verb, argv, timeout)
+            journal = adapter_journal(argv, environment, timeout, started, self.wall(), code)
         except r3.subprocess.TimeoutExpired as expired:
-            # the adapter's real shape: a two-row journal ending failed/TimeoutExpired,
-            # handed to the collector with the error (the R6-FU-1 seam), never dropped
+            # the adapter's real shape ends failed/TimeoutExpired and reaches the collector
+            # with the error (the R6-FU-1 seam), never dropped
             error, code, out = expired, None, b''
-            rows = [{'status': 'started', 'argv': list(argv), 'environment_names': sorted(environment),
-                     'started_at_unix_ns': started, 'timeout_ns': int(timeout * 10 ** 9)},
-                    {'status': 'failed', 'exit': -9, 'error': 'TimeoutExpired', 'finished_at_unix_ns': self.wall(),
-                     'elapsed_ns': self.wall() - started + self.journal_skew}]
-            journal = b''.join(json.dumps(row, sort_keys=True).encode() + b'\n' for row in rows)
+            journal = adapter_journal(argv, environment, timeout, started, self.wall(), -9, 'TimeoutExpired',
+                                      self.journal_skew)
         files = {}
         for key, raw in (('stdout', out), ('stderr', b''), ('journal', journal)):
             path = Path(session) / ('fixture-' + str(len(self.calls)) + '.' + key)
@@ -927,9 +934,11 @@ class AuditBinding(unittest.TestCase):
         fake = r3.FakeEngine(lane.fx)
 
         def engine(argv, environment, session, timeout, limit):
+            started = time.time_ns()
             code, out = fake(argv, environment, session, timeout, limit)
+            journal = adapter_journal(argv, environment, timeout, started, time.time_ns(), code)
             files = {}
-            for key, raw in (('stdout', out), ('stderr', b''), ('journal', b'{"fixture":true}\n')):
+            for key, raw in (('stdout', out), ('stderr', b''), ('journal', journal)):
                 path = Path(session) / ('fixture-' + str(len(fake.calls)) + '.' + key)
                 path.write_bytes(raw)
                 files[key] = path
