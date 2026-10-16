@@ -915,3 +915,67 @@ class S3Tests(unittest.IsolatedAsyncioTestCase):
             except Exception as error:caught=error
             self.assertIsInstance(caught,module.ProtocolFailure)
             self.assertEqual(server.calls,[])
+
+class S3CoreTests(unittest.TestCase):
+    def consumer(self, binding, sink):
+        from cortex_core.modules.consumer import ModuleConsumer
+        port = ModuleConsumer(None,b'synthetic',binding.installation_id,binding.project_id,
+            binding.module_id,sink,manifest=dict(module_id=binding.module_id,protocol_version=2,
+                schema_version=1,aggregate_kinds=['memory'],sink='qdrant'),external_binding=binding)
+        self.records=[]
+        port._call=lambda *a:False
+        port._record=lambda state,event,outcome,error=None,receipt=None:self.records.append((outcome,error,receipt))
+        return port
+
+    def test_s3_core_v2_receipt_required_before_success_and_exact_generations(self):
+        self.assertIsNotNone(s3)
+        from cortex_core.modules.consumer import ConsumerError
+        x=S3Tests();binding=x.binding();event=x.event()
+        point=s3.build_point(binding,event,x.vector())
+        receipt=s3.make_receipt(binding,event,point,point,7)
+        sink=SimpleNamespace(apply=lambda *a:receipt)
+        caught=None
+        try:port=self.consumer(binding,sink)
+        except Exception as error:caught=error
+        self.assertIsNone(caught,'C07 v2 binding absent')
+        self.assertTrue(port._apply_event({'generation':1},event))
+        self.assertEqual(self.records,[('applied',None,receipt)])
+        for bad in [dict(receipt,generation=2),dict(receipt,proof='acknowledged'),
+                    {k:receipt[k] for k in ('event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale')}]:
+            sink.apply=lambda *a:bad
+            self.records=[]
+            with self.assertRaises(ConsumerError):port._apply_event({'generation':1},event)
+            self.assertEqual(self.records,[])
+        sink.apply=lambda *a:receipt
+        self.records=[]
+        with self.assertRaises(ConsumerError):port._apply_event({'generation':2},event)
+        self.assertEqual(self.records,[])
+
+    def test_s3_core_ambiguous_effect_never_records_and_scrubs_exception_chain(self):
+        self.assertIsNotNone(s3)
+        from cortex_core.modules.consumer import ConsumerError
+        x=S3Tests();binding=x.binding()
+        def fail(*a):raise RuntimeError('SYNTHETIC-PRIVATE')
+        caught=None
+        try:port=self.consumer(binding,SimpleNamespace(apply=fail))
+        except Exception as error:caught=error
+        self.assertIsNone(caught,'C07 v2 binding absent')
+        with self.assertRaises(ConsumerError) as raised:port._apply_event({'generation':1},x.event())
+        self.assertEqual(raised.exception.code,'capability_unavailable')
+        self.assertTrue(raised.exception.__suppress_context__)
+        self.assertEqual(self.records,[])
+
+    def test_s3_v1_manifest_and_receipt_remain_closed_and_v2_needs_binding(self):
+        from cortex_core.modules.protocol import ModuleManifest
+        from cortex_core.modules.consumer import ModuleConsumer,ConsumerError
+        manifest=dict(module_id='qdrant',protocol_version=2,schema_version=1,aggregate_kinds=['memory'],sink='qdrant')
+        caught=None
+        try:parsed=ModuleManifest.parse(manifest)
+        except Exception as error:caught=error
+        self.assertIsNone(caught,'closed v2 manifest absent')
+        self.assertEqual(parsed.protocol_version,2)
+        with self.assertRaises(ConsumerError):
+            ModuleConsumer(None,b'synthetic',UUID(int=1),UUID(int=3),'qdrant',None,manifest=manifest)
+        for version,sink in [(1,'qdrant'),(2,'postgres'),(True,'postgres'),(3,'qdrant')]:
+            with self.assertRaises(ValueError):ModuleManifest.parse(dict(manifest,protocol_version=version,sink=sink))
+        self.assertEqual(ModuleManifest.parse(dict(manifest,protocol_version=1,sink='postgres')).protocol_version,1)
