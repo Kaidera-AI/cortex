@@ -15,6 +15,7 @@ from functools import lru_cache
 import json
 from pathlib import Path
 import re
+from threading import Lock
 
 from cortex_core.runtime.signed_member import Refusal
 from .codec import WireValidator,canonical_bytes,decode_json,sha256
@@ -187,19 +188,20 @@ def _current_owner_reader():
         c=observed.context
         return (c.policy_raw,c.policy_sha256,c.public_root,c.generation,c.fence,c.placement,
                 canonical_bytes(thaw(c.current_state)),observed.sequence_floor,observed.restart_epoch)
-    previous=_read_current_owner();stamp=identity(previous);failed=False
+    previous=_read_current_owner();stamp=identity(previous);failed=False;lock=Lock()
     def current():
         nonlocal previous,failed
-        _require(not failed,'aggregate_replay')
-        try:
-            fresh=_read_current_owner()
-            _require(identity(fresh)==stamp,'aggregate_replay')
-            _require(fresh.context.now>=previous.context.now,'aggregate_replay')
-        except BaseException:
-            failed=True
-            raise
-        previous=fresh
-        return fresh
+        with lock:
+            _require(not failed,'aggregate_replay')
+            try:
+                fresh=_read_current_owner()
+                _require(identity(fresh)==stamp,'aggregate_replay')
+                _require(fresh.context.now>=previous.context.now,'aggregate_replay')
+            except BaseException:
+                failed=True
+                raise
+            previous=fresh
+            return fresh
     return current
 
 
