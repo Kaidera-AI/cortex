@@ -482,6 +482,9 @@ class C11b2ReadPort:
                     raise asyncio.CancelledError
             await self._current(principal)
             current()
+            if getattr(search,'external_projection',False):
+                await search.recheck_result(principal['principal_id'],result)
+                current()
             response = {'query': query, 'results': [{'id': hit.record_id, 'kind': hit.kind,
                      'revision': hit.source_revision, 'distance': hit.distance}
                      for hit in result.hits], 'degraded': degraded, 'reranked': False,
