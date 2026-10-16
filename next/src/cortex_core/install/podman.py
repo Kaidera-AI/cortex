@@ -171,36 +171,40 @@ def _vector(operations, mode, binding):
     return result
 
 
-def _generated(kind):
-    # Only kernel/engine-generated identities may be unspecified in a NEW
-    # resource's post-contract. Never wildcard an existing object's preimage.
+def _generated(kind, *, starting=False):
+    # Only a new resource or activation has an unobserved generated identity.
+    # Existing preimages always remain exact.
+    if starting:
+        return {('process',)}
     return ({('id',)} if kind in ('container', 'network') else
             {('created_at',), ('mountpoint', 'dev'), ('mountpoint', 'ino')} if kind == 'volume' else set())
 
 
-def _expectation(kind, value, binding, *, creating):
+def _expectation(kind, value, binding, *, creating, starting=False):
     candidate = thaw(_copy(value))
-    if creating:
-        for path in _generated(kind):
+    if creating or starting:
+        for path in _generated(kind, starting=starting):
             parent = candidate
             for key in path[:-1]:
                 parent = parent[key]
             if parent[path[-1]] is None:
-                parent[path[-1]] = ('0'*64 if path == ('id',) else
+                parent[path[-1]] = ({'boot': binding['boot'], 'pid': 1, 'start': 1,
+                                     'uid': binding['owner_uid']} if path == ('process',) else
+                                    '0'*64 if path == ('id',) else
                                     'unobserved' if path == ('created_at',) else 1)
     _resource(kind, candidate, binding)
 
 
-def _matches(kind, actual, expected, *, creating):
+def _matches(kind, actual, expected, *, creating, starting=False):
     a = thaw(actual); e = thaw(expected)
     if a is None or e is None:
         return a is e
-    if creating:
-        for path in _generated(kind):
+    if creating or starting:
+        for path in _generated(kind, starting=starting):
             ap = a; ep = e
             for key in path[:-1]:
                 ap = ap[key]; ep = ep[key]
-            if ep[path[-1]] is None:
+            if starting or ep[path[-1]] is None:
                 ep[path[-1]] = ap[path[-1]]
     return canonical_bytes(a) == canonical_bytes(e)
 
@@ -262,7 +266,8 @@ def _plan(p, b):
     for which in ('before', 'after'):
         r = p.get(which)
         if r is not None:
-            _expectation(p['kind'], r, b, creating=which == 'after' and p.get('before') is None)
+            _expectation(p['kind'], r, b, creating=which == 'after' and p.get('before') is None,
+                         starting=which == 'after' and p['kind'] == 'container' and p['action'] == 'start')
     _need(p.get('before') is not None or p.get('after') is not None)
     if p['action'] in ('create', 'load'):
         _need(p['before'] is None and p['after'] is not None, 'resource_changed')
@@ -554,12 +559,19 @@ class _Primitive:
             actual = self._observe()
             witness = thaw(freeze(self.engine.witnesses()))
             cleanup = self._cleanup(witness)
-            related = self._related(thaw(actual), after=True)
-            images = self._images(actual, after=True)
-            self._current()
             p = thaw(self.plan)
+            # Every verified outcome must join cleanup to the original attempt.
+            _need(self.attempted and witness.get('execution') == {
+                'argv': list(_argv(p, thaw(self.binding))), 'subject': p['subject'],
+                'lifetime': cleanup['lifetime'], 'deadline_ns': p['deadline_ns']}, 'attempt_ambiguous')
+            post_matches = _matches(p['kind'], actual, self.plan['after'], creating=p['before'] is None,
+                                    starting=p['kind'] == 'container' and p['action'] == 'start')
+            # Complete unchanged graphs prove NOT_APPLIED; mixed graphs do not.
+            related = self._related(thaw(actual), after=post_matches)
+            images = self._images(actual, after=post_matches)
+            self._current()
             state = None
-            if _matches(p['kind'], actual, self.plan['after'], creating=p['before'] is None):
+            if post_matches:
                 creation = witness['creation']
                 if p['before'] is None:
                     _need(creation == {'before_absent': True, 'subject': p['subject'],
@@ -568,9 +580,6 @@ class _Primitive:
                 if self.plan['before'] != self.plan['after']:
                     state = 'APPLIED'
                 elif self.attempted and p['action'] == 'helper' and cleanup['returncode'] == 0:
-                    _need(witness.get('execution') == {'argv': list(_argv(p, thaw(self.binding))),
-                        'subject': p['subject'], 'lifetime': cleanup['lifetime'],
-                        'deadline_ns': p['deadline_ns']}, 'attempt_ambiguous')
                     state = 'APPLIED'
             if state is None and actual == self.preimage and self.plan['before'] != self.plan['after']:
                 state = 'NOT_APPLIED'
@@ -595,8 +604,9 @@ class _Primitive:
         if answer[0] != 'UNKNOWN':
             self._current()  # Held exclusion survives durable verified publication.
             _need(self._observe() == actual, 'resource_changed')
-            self._related(thaw(actual), after=True)
-            self._images(actual, after=True)
+            self._related(thaw(actual), after=state == 'APPLIED')
+            self._images(actual, after=state == 'APPLIED')
             current_witness = self.engine.witnesses()
             self._cleanup(current_witness)
             _need(current_witness == witness, 'attempt_ambiguous')
+            self._current()  # Final collector IO may expire the original bound or revoke custody.

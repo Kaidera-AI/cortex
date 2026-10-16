@@ -702,8 +702,8 @@ class BoundaryPositiveControls(unittest.TestCase):
 
 
 # X11C-M1/M2/M3: retain mechanics review cases using the same engine fixture.
-import sys
-f = sys.modules[__name__]
+from types import SimpleNamespace
+f = SimpleNamespace(Engine=Engine, resource=resource, ID=ID, OTHER=OTHER)
 from cortex_core.install import podman as api
 
 class ReviewCases(unittest.TestCase):
