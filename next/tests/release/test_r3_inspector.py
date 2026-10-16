@@ -710,13 +710,17 @@ class Budget(Base):
         closure = self.fx.admit()
         plan = inspector.prepare_plan(closure, self.fx.profile, codec.canonical_bytes({'rows': []}))
         roots = engine.OwnedRoots([plan.session]).create()  # recorded identity, so the namespace removal is reached
+        inner = {}
         for name in ('store', 'run', 'tmp'):
             (plan.session / name).mkdir(mode=0o700)
+        for name in ('store', 'run'):
+            held = (plan.session / name).stat()
+            inner[name] = (held.st_dev, held.st_ino)
         clock = Clock()
         fake = TimedEngine(self.fx, clock, {'rm': 9, 'ps': 9, 'unshare': 1000})
         with patch.object(time, 'monotonic', clock), patch.object(inspector, '_engine', fake):
             self.refuses('inspector_run_incomplete', inspector._cleanup, plan, dict(plan.environment), plan.session,
-                         roots=roots)
+                         roots=roots, inner=inner)
         self.assertEqual(fake.calls, ['rm', 'ps', 'unshare'])
         self.assertLessEqual(clock.now, inspector.CLEANUP_SECONDS)
         self.assertTrue((plan.session / 'store').is_dir())  # failed namespace removal preserves the roots

@@ -70,30 +70,20 @@ class InspectorPlan:
             raise ReceiptRefusal('inspector_image_member_unbound')
 
 
-class _Budget:
-    """One work deadline and one cleanup reserve for a whole session (Hale H2).
+def _now():
+    import time
+    return time.monotonic()
 
-    Every operation timeout and its TERM/KILL allowance is drawn from these two
-    absolute instants; nothing restarts per batch, operation or pyc. The hard
-    ceiling is limits.seconds + CLEANUP_SECONDS from the session's start.
-    """
 
-    def __init__(self,seconds):
-        import time
-        now=time.monotonic()
-        self.work=now+seconds
-        self.total=now+seconds+CLEANUP_SECONDS
+def _budget(seconds):
+    """One work deadline + one cleanup reserve (Hale H2), as the shared engine Deadline."""
+    from .build.engine import Deadline
+    return Deadline(seconds+CLEANUP_SECONDS,clock=_now,reserve=CLEANUP_SECONDS)
 
-    def work_timeout(self):
-        # A work operation's own TERM/KILL wait falls inside the reserve that follows self.work.
-        import time
-        left=self.work-time.monotonic()
-        require(left>0,'inspector_run_incomplete')
-        return left
 
-    def cleanup_timeout(self):
-        import time
-        return self.total-time.monotonic()-KILL_SECONDS
+def _work_timeout(deadline):
+    try:return deadline.child_timeout()
+    except TimeoutError:raise ReceiptRefusal('inspector_run_incomplete') from None
 
 
 @dataclass(frozen=True)
@@ -106,22 +96,49 @@ class InspectionSession:
 
     def check(self,rows):
         require(self._admission is _ADMITTED and isinstance(self.capability,InspectorClosure),'inspector_capability_untrusted')
-        profile=thaw(self.profile);spec=profile['inspector']
-        record=thaw(self.capability.descriptor);python=record['descriptor']['python']
-        order=[row['cache'] for row in rows]
-        require(bool(order) and order==sorted(set(order)) and all(row['optimization']==spec['optimization'] for row in rows),
-                'inspector_run_incomplete')
-        import base64
-        from . import _pyc_check
-        request=canonical_bytes({'schema':_pyc_check.REQUEST_SCHEMA,'policy_sha256':self.capability.policy_sha256,
-            'closure_sha256':self.capability.closure_sha256,'abi':{'version':python['version'],'magic':python['magic']},
-            'optimization':spec['optimization'],
-            'rows':[{'cache':row['cache'],'source':row['source'],'final_filename':row['final_filename'],
-                     'cache_b64':base64.b64encode(row['cache_bytes']).decode('ascii'),
-                     'source_b64':base64.b64encode(row['source_bytes']).decode('ascii')} for row in rows]})
-        plan=prepare_plan(self.capability,profile,request)
-        verdicts=_reply_verdicts(run_inspection(self.capability,plan,request,budget=self.budget),request,record['descriptor'],order,spec['limits'])
+        profile=thaw(self.profile)
+        verdicts=_inspect(self.capability,profile,rows,self.budget)[1]
         require(all(equal is True for equal in verdicts),'python_compilation_policy')
+
+
+def _request(capability,profile,rows):
+    """The one canonical request for a set of controller-checked cache rows."""
+    import base64
+    from . import _pyc_check
+    spec=profile['inspector'];python=thaw(capability.descriptor)['descriptor']['python']
+    order=[row['cache'] for row in rows]
+    require(bool(order) and order==sorted(set(order)) and all(row['optimization']==spec['optimization'] for row in rows),
+            'inspector_run_incomplete')
+    request=canonical_bytes({'schema':_pyc_check.REQUEST_SCHEMA,'policy_sha256':capability.policy_sha256,
+        'closure_sha256':capability.closure_sha256,'abi':{'version':python['version'],'magic':python['magic']},
+        'optimization':spec['optimization'],
+        'rows':[{'cache':row['cache'],'source':row['source'],'final_filename':row['final_filename'],
+                 'cache_b64':base64.b64encode(row['cache_bytes']).decode('ascii'),
+                 'source_b64':base64.b64encode(row['source_bytes']).decode('ascii')} for row in rows]})
+    return request,order
+
+
+def _inspect(capability,profile,rows,budget,account=None):
+    """Request -> plan -> contained run -> request-bound verdicts (the one transport)."""
+    request,order=_request(capability,profile,rows)
+    plan=prepare_plan(capability,profile,request)
+    reply=run_inspection(capability,plan,request,budget=budget,account=account)
+    verdicts=_reply_verdicts(reply,request,thaw(capability.descriptor)['descriptor'],order,profile['inspector']['limits'])
+    return {'closure_sha256':capability.closure_sha256,'request_sha256':sha256(request),'reply_sha256':sha256(reply),
+            'argv':list(plan.argv),'verdicts':[{'cache':cache,'equal':equal} for cache,equal in zip(order,verdicts)]},verdicts
+
+
+def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=None):
+    """EVIDENCE-ONLY producer call (Vera R4-T1): the same transport and core as the
+    session, under an admitted closure, returning measured unqualified evidence.
+
+    It never calls admit_inspection or _session, never takes or returns an
+    InspectionSession, and marks nothing qualified. An unequal cache is a finding
+    in the returned record, not an exception that could read like success.
+    """
+    require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and capability._admission is _ADMITTED,
+            'inspector_capability_untrusted')
+    return _inspect(capability,profile,rows,deadline or _budget(profile['inspector']['limits']['seconds']),account)[0]
 
 
 def _private_root(root,candidate_roots):
@@ -326,10 +343,12 @@ def prepare_plan(capability,profile,request_bytes):
 def _engine(argv,environment,session,timeout,output_limit):
     """One engine operation through the one adapter; returns (exit, stdout)."""
     import secrets
-    from .build.engine import run_operation
+    from .build.engine import OutputAccount,run_operation
     stem=session/('op-'+secrets.token_hex(8))
+    # output_limit is a per-call byte cap, or a lane's shared OutputAccount (R4 nesting)
+    budget={'account':output_limit} if isinstance(output_limit,OutputAccount) else {'output_limit':output_limit}
     result=run_operation(argv,session,dict(environment),timeout,Path(str(stem)+'.out'),Path(str(stem)+'.err'),
-                         output_limit=output_limit,kill_seconds=KILL_SECONDS)
+                         kill_seconds=KILL_SECONDS,**budget)
     return result['exit'],Path(str(stem)+'.out').read_bytes()
 
 
@@ -362,32 +381,34 @@ def _loaded(raw,record,capability):
             type(value[0].get('RootFS')) is dict and value[0]['RootFS'].get('Layers')==record['diff_ids'],'inspector_run_incomplete')
 
 
-def run_inspection(capability,plan,request_bytes,*,budget=None):
+def run_inspection(capability,plan,request_bytes,*,budget=None,account=None):
     """Fresh owned store, load the custody copy, inspect, run, always clean up."""
     from .build.engine import OwnedRoots
     require(isinstance(plan,InspectorPlan) and plan._admission is _ADMITTED and type(request_bytes) is bytes and
             sha256(request_bytes)==plan.request_sha256 and plan.session.parent==capability.root,'inspector_capability_untrusted')
     record=thaw(capability.descriptor);descriptor=record['descriptor']
     environment=dict(plan.environment);session=plan.session
-    budget=budget or _Budget(plan.cumulative_seconds)
-    remaining=budget.work_timeout
-    roots=None
+    budget=budget or _budget(plan.cumulative_seconds)
+    remaining=lambda:_work_timeout(budget)
+    roots=None;inner={}
     try:
         try:
             remaining()
             roots=OwnedRoots([session]).create()
             for name in ('store','run','tmp','home','xdg','request'):os.mkdir(session/name,0o700)
+            for name in ('store','run'):
+                held=(session/name).stat(follow_symlinks=False);inner[name]=(held.st_dev,held.st_ino)
             os.chmod(session/'request',0o755)
             _write_owned(session/'request'/'request.json',request_bytes,0o444)
             _,archive=_read_member(capability.root,dict(descriptor['archive'],role='image'),keep=True)
             _write_owned(session/'image.tar',archive,0o444)
             for row in [descriptor['engine'],*descriptor['engine_config'].values()]:_host_file(row,'engine',())
-            code,_=_engine(plan.prefix+('load','--input',str(session/'image.tar')),environment,session,remaining(),64*1024)
+            code,_=_engine(plan.prefix+('load','--input',str(session/'image.tar')),environment,session,remaining(),account or 64*1024)
             require(code==0,'inspector_run_incomplete')
             code,raw=_engine(plan.prefix+('image','inspect','--format','json',capability.image_digest),
-                             environment,session,remaining(),1024*1024)
+                             environment,session,remaining(),account or 1024*1024)
             require(code==0,'inspector_run_incomplete');_loaded(raw,record,capability)
-            code,reply=_engine(plan.argv,environment,session,remaining(),plan.output_byte_limit)
+            code,reply=_engine(plan.argv,environment,session,remaining(),account or plan.output_byte_limit)
             require(code==0,'inspector_run_incomplete')
             _read_member(session/'request',dict(role='image',path='request.json',bytes=len(request_bytes),
                                                  sha256=plan.request_sha256,mode=0o444))
@@ -395,20 +416,20 @@ def run_inspection(capability,plan,request_bytes,*,budget=None):
         except ReceiptRefusal:raise
         except Exception:raise ReceiptRefusal('inspector_run_incomplete') from None
     finally:
-        if roots is not None:_cleanup(plan,environment,session,budget=budget,roots=roots)
+        if roots is not None:_cleanup(plan,environment,session,budget=budget,roots=roots,inner=inner,account=account)
 
 
-def _cleanup(plan,environment,session,*,budget=None,roots=None):
+def _cleanup(plan,environment,session,*,budget=None,roots=None,inner=None,account=None):
     """Remove the owned container by name and prove it absent; only then the owned roots.
 
     Unproven absence or a replaced session directory preserves every root for
     accountable recovery. All waits come from the one cleanup reserve.
     """
-    budget=budget or _Budget(0)
+    budget=budget or _budget(0)
     def operation(argv):
-        timeout=budget.cleanup_timeout()
+        timeout=budget.cleanup_timeout(KILL_SECONDS)
         if timeout<=0:raise TimeoutError('cleanup reserve spent')
-        return _engine(argv,environment,session,timeout,64*1024)
+        return _engine(argv,environment,session,timeout,account or 64*1024)
     try:
         code,_=operation(plan.prefix+('rm','--force','--time','0','--ignore',plan.name))
         absent=code==0
@@ -420,10 +441,15 @@ def _cleanup(plan,environment,session,*,budget=None,roots=None):
             absent=absent and len(value)==64 and all(c in b'0123456789abcdef' for c in value)
     except Exception:
         absent=False
-    require(absent and roots is not None and _same_root(roots,session),'inspector_run_incomplete')
+    require(absent and roots is not None and _same_root(roots,session) and
+            type(inner) is dict and set(inner)=={'store','run'},'inspector_run_incomplete')
     try:
-        # Rootless store files belong to mapped ids: remove them inside the namespace.
-        code,_=operation(plan.prefix+('unshare','rm','-rf','--',str(session/'store'),str(session/'run')))
+        # Rootless store files belong to mapped ids: the one descriptor-safe removal runs
+        # inside the namespace and checks each recorded identity in the deleting process.
+        import sys
+        from .build import _owned_remove
+        targets=[str(part) for name in ('store','run') for part in (session/name,*inner[name])]
+        code,_=operation(plan.prefix+('unshare',sys.executable,'-I','-S','-B',_owned_remove.__file__,*targets))
         removed=code==0
     except Exception:
         removed=False
@@ -454,10 +480,20 @@ def _reply_verdicts(reply,request,descriptor,order,limits):
 def _session(capability,profile):
     """Mint the cache-judging session for an admitted closure (R6 gates its use)."""
     require(isinstance(capability,InspectorClosure) and capability._admission is _ADMITTED,'trusted_inspector_capability_unavailable')
-    return InspectionSession(capability,freeze(profile),_ADMITTED,_Budget(profile['inspector']['limits']['seconds']))
+    return InspectionSession(capability,freeze(profile),_ADMITTED,_budget(profile['inspector']['limits']['seconds']))
 
 
-def admit_inspection(verified_input,acceptance):
+@dataclass(frozen=True)
+class _Pending:
+    """Eligibility only (closure, ABI, host): no session, no cache judging."""
+    capability:InspectorClosure
+    profile:object
+    host:object
+    _admission:object=field(default=None,compare=False,repr=False)
+
+
+def preflight(verified_input,acceptance):
+    """Before any candidate reader: admitted closure, its ABI vs the toolchain, R8 host."""
     profile=thaw(verified_input.metadata)['release_policy']
     require(profile.get('schema')=='cortex.release-policy.v1','inspector_profile_unqualified')
     capability=acceptance.get('inspector_capability')
@@ -470,8 +506,23 @@ def admit_inspection(verified_input,acceptance):
     require(descriptor['python']['version'].rsplit('.',1)[0]==version and
             descriptor['platform']==value['target']['oci_platform'],'inspector_abi_mismatch')
     from .build.policy import verify_native
-    try:verify_native(acceptance.get('inspector_host') or {},descriptor['platform'])
+    host=acceptance.get('inspector_host') or {}
+    try:verify_native(host,descriptor['platform'])
     except ValueError:raise ReceiptRefusal('native_inspector_execution_unqualified') from None
-    # R3-T2: R8 host eligibility plus a sealed closure are prerequisites only. No
-    # admitted R6 qualification evidence exists yet, so execution stays unqualified.
+    return _Pending(capability,freeze(profile),freeze(host),_ADMITTED)
+
+
+def admit_session(pending,matched):
+    """The ONE native session, only after R01 matched the measured R6 qualification records."""
+    from .receipts import MatchedQualification
+    from .contracts import _SEAL as R01_SEAL
+    require(isinstance(pending,_Pending) and pending._admission is _ADMITTED,'trusted_inspector_capability_unavailable')
+    require(isinstance(matched,MatchedQualification) and matched._seal is R01_SEAL and
+            matched.closure_sha256==pending.capability.closure_sha256,'native_inspector_execution_unqualified')
+    return _session(pending.capability,thaw(pending.profile))
+
+
+def admit_inspection(verified_input,acceptance):
+    """Legacy single entry (CLI): eligibility, then still unqualified without matched R6 records."""
+    preflight(verified_input,acceptance)
     raise ReceiptRefusal('native_inspector_execution_unqualified')
