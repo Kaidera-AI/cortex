@@ -390,4 +390,18 @@ class X3(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(carrier.descriptor,descriptor,'original reservation must not be rewritten')
 
 
+    async def test_x302_operation_budget_does_not_reissue_or_shorten_owner_expiry(self):
+        api,inputs,resolver,_,_=self.fixture();original=inputs.observe
+        expiry=self.deadline(2);owner=self.deadline(.15)
+        async def fixed(*args): return replace(await original(*args),expires=expiry)
+        inputs.observe=fixed
+        try:h=await self.handle(resolver,deadline=owner)
+        except api.SecretRefusal:self.fail('X3_OWNER_EXPIRY_NOT_CLAMPED')
+        await resolver.check(h,self.deadline(.01))
+        await asyncio.sleep(.02)
+        await resolver.check(h,owner)
+        await asyncio.sleep(.15)
+        await self.denied(resolver.check(h,self.deadline(1)),'deadline_expired')
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
