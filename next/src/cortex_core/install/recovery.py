@@ -214,6 +214,10 @@ def _execute_recovery(history, original_request, current, primitives):
     event, observation = p2._load_entry(history,anchor)
     context = p2._decode(history.read(observation['context_ref']))
     owner._require(request['identity']['parent_attempt_id'] == event['identity']['attempt_id'], 'scope_denied')
+    owner._require(thaw(current.context['effect']) == context['effect']
+        and thaw(current.context['target']) == context['target']
+        and all(current.context['identity'][k] == event['identity'][k] for k in
+            ('product','installation_id','operation_id','transaction_id')), 'scope_denied')
     primitive = primitives.get(context['effect']['resource_kind'])
     owner._require(primitive is not None, 'backend_unavailable')
     attempt = p2._decode(history.read(observation['attempt_ref']))
