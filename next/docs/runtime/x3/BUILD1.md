@@ -150,3 +150,23 @@ on cancellation. Unknown pending effects cannot be turned into an absence receip
 cleanup stays HOLD while owned child work survives. No new authority store or
 transport. Add pending late-effect/cleanup controls if needed; preserve all earlier
 tests and bind all counts to their actual discovery.
+
+Control-runner amendment: declare existing next/docs/runtime/x3/run_controls.py.
+Its privacy anchor moves to the task's private logging scope; the late-result
+control targets the new event-loop-stall oracle, since independent timeout now
+prevents the former swallow-late test from reaching that post-result guard.
+Keep all 15 guard capabilities, add live-handle/supplier/expiry and independent
+wait/cancellation mutants. One original mechanism per concern, tests unchanged
+after RED commits. Current suite discovers 50 cases: original 34, four Vera
+cases, five Hale residuals, two Hale controls, two related live-fence races,
+two pending-ownership/coroutine cases, one late-completion control. Baseline
+has exactly 13 body assertions (4 Vera + 5 Hale + 4 added) on both Pythons.
+
+Final self-review amendment: independent task scheduling must not introduce
+a new close-before-dispatch gap. Existing `_bounded` accepts a private handle
+argument for material read/create/driver dispatch; its task checks that same
+live registry/supplier/expiry before starting the effect. The original connect
+result remains captured; connecting becomes true only after that local fence.
+A queued-close ordering regression was committed before repair of the draft
+(RED on both Pythons, exact draft blobs retained). It adds one case/control:
+final suite 51, controls 21. All prior 50 case bytes/methods stay unchanged.

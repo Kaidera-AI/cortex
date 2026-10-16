@@ -45,13 +45,18 @@ CONTROLS = [
      'test_x310_failed_retirement_fences_password_callback'),
     ('late-cleanup', 'secret_resolver.py',
      '        _deadline(deadline)  # a supplier may swallow cancellation; late success is never current\n',
-     '', 'test_x310_cleanup_that_swallows_cancel_cannot_publish_late_success'),
+     '', 'test_x310_completed_supplier_after_event_loop_stall_is_late'),
     ('owner-bound', 'secret_resolver.py',
      'min(grant.expires,deadline)', 'grant.expires',
      'test_x302_operation_budget_does_not_reissue_or_shorten_owner_expiry'),
     ('supplier-log-privacy', 'secret_resolver.py',
-     '        with private_driver_logs():\n            async with asyncio.timeout_at(deadline):\n                result = await awaitable',
-     '        async with asyncio.timeout_at(deadline):\n            result = await awaitable',
+     "    with private_driver_logs():\n        # Task scheduling is itself a wait: fence material/effect dispatch here.\n"
+     "        if handle is not None:\n            record = _handle(handle)\n"
+     "            _require(_inputs() is record[0], 'authority_changed')\n"
+     "            _deadline(min(deadline,record[2]))\n        return await awaitable",
+     "    if handle is not None:\n        record = _handle(handle)\n"
+     "        _require(_inputs() is record[0], 'authority_changed')\n"
+     "        _deadline(min(deadline,record[2]))\n    return await awaitable",
      'test_x305_supplier_read_policy_and_retire_logs_are_private'),
     ('reservation-fence', 'connections.py',
      '                await resolver.check(handle,deadline)\n', '',
@@ -68,6 +73,30 @@ CONTROLS = [
     ('carrier-reservation', 'secret_resolver.py',
      '        carrier._valid(state,present=False)\n', '',
      'test_x304_invalid_original_reservation_dispatches_no_material_or_cleanup'),
+    ('live-handle-fence', 'secret_resolver.py',
+     "        _require(_handle(handle) is record, 'invalid_handle')\n", '',
+     'test_x3close001_waiting_check_refuses_closed_handle'),
+    ('live-supplier-fence', 'secret_resolver.py',
+     "        _require(_handle(handle) is record, 'invalid_handle')\n"
+     "        _require(_inputs() is inputs, 'authority_changed')\n",
+     "        _require(_handle(handle) is record, 'invalid_handle')\n",
+     'test_x3close001_waiting_observation_rechecks_fixed_supplier'),
+    ('live-expiry-fence', 'secret_resolver.py',
+     '        record[2] = min(record[2],current.expires)\n',
+     '        record[2] = min(expiry,current.expires)\n',
+     'test_x3close001_waiting_observation_preserves_tighter_live_expiry'),
+    ('independent-wait', 'secret_resolver.py',
+     "        if not done:\n            task.cancel()\n",
+     "        if not done:\n            task.cancel()\n            await asyncio.wait({task})\n",
+     'Residual.test_swallowed_timeout_must_return_before_supplier_release'),
+    ('caller-cancellation', 'secret_resolver.py',
+     '        await asyncio.sleep(0)\n        raise\n',
+     '        await asyncio.sleep(0)\n        return task.result() if task.done() else None\n',
+     'Residual.test_external_connect_cancellation_must_not_publish_session'),
+    ('scheduled-dispatch-fence', 'connections.py',
+     'await secrets._bounded(owned_connect(),deadline,handle=handle)',
+     'await secrets._bounded(owned_connect(),deadline)',
+     'test_x3close001_queued_close_precedes_no_driver_dispatch'),
 ]
 
 HARNESS = """
@@ -77,7 +106,7 @@ from test_receipts import AssertionResult,MARKER
 import test_x3_secret_resolver
 names=sys.argv[1:]
 suite=(unittest.defaultTestLoader.loadTestsFromNames(
-    ['test_x3_secret_resolver.X3.'+name for name in names]) if names else
+    ['test_x3_secret_resolver.'+(name if '.' in name else 'X3.'+name) for name in names]) if names else
     unittest.defaultTestLoader.loadTestsFromModule(test_x3_secret_resolver))
 r=unittest.TextTestRunner(verbosity=2,resultclass=AssertionResult).run(suite)
 print(MARKER+json.dumps(dict(tests_run=r.testsRun,failures=r.assertions,
@@ -114,7 +143,7 @@ def main():
                 text=True,capture_output=True,timeout=10,
                 env={**os.environ,'PYTHONPATH':str(ROOT/'next/src')})
             (out/(name+'.txt')).write_text(result.stdout+result.stderr)
-            status = classify(result,{'test_x3_secret_resolver.X3.'+test})
+            status = classify(result,{'test_x3_secret_resolver.'+(test if '.' in test else 'X3.'+test)})
             value = report(result)
             packet['controls'].append(dict(name=name,test=test,status=status,
                 path=SRC+filename,before_sha256=digest(originals[path]),
