@@ -428,4 +428,38 @@ class X3(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(record.exc_info is None for record in captured.records))
 
 
+    async def test_x308_revocation_during_reservation_dispatches_no_driver(self):
+        api,inputs,resolver,_,_=self.fixture();original=inputs.reserve_connect
+        async def reserve(*args):
+            ticket=await original(*args);inputs.active=False;return ticket
+        inputs.reserve_connect=reserve
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100))
+        self.assertNotIn('connect',inputs.events,'X3_REVOKED_RESERVATION_DISPATCHED')
+
+    async def test_x307_current_role_binding_change_withholds_and_retires(self):
+        api,inputs,resolver,_,_=self.fixture();original=inputs.sql_policy
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+        inputs.sql_policy=lambda grant:replace(original(grant),binding_revision=8)
+        await self.denied(adapter.check(conn,deadline=self.deadline()),'authority_changed')
+        self.assertTrue(conn.closed)
+
+    async def test_x303_insecure_asyncpg_context_never_dispatches(self):
+        api,inputs,resolver,_,_=self.fixture();inputs.driver='asyncpg';original=inputs.sql_policy
+        from cortex_core.runtime.connections import ResolverConnection
+        for common_name,no_verification in [(True,False),(False,True)]:
+            context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.hostname_checks_common_name=common_name
+            if no_verification:
+                context.check_hostname=False;context.verify_mode=ssl.CERT_NONE
+            inputs.sql_policy=lambda grant:replace(original(grant),ssl_context=context)
+            adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+            await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100),
+                              'invalid_connection_policy')
+        self.assertNotIn('connect',inputs.events)
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
