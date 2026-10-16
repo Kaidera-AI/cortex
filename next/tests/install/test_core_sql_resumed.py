@@ -149,3 +149,22 @@ class Baseline(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             s=self.fixture(root);s.history._identity=(s.history._identity[0],s.history._identity[1]+1)
             with s.installed(),self.assertRaises(owner.OwnerRefusal):self.read(s)
+
+class RecoveryAdmission(unittest.TestCase):
+    def test_measure_infers_fresh_recovery_and_does_not_reuse_expired_stop(self):
+        helper=phases.CoreSQL()
+        with tempfile.TemporaryDirectory() as root:
+            s=helper.fixture(root);p=helper.primitive(s,'init')
+            with s.installed():
+                s.reserve(mandate=False);s.consume()
+                event,obs=lifecycle._load_entry(s.history,s.consumed)
+                context={'context':json.loads(s.history.read(obs['context_ref'])),
+                    'journal_ref':s.consumed,'preimages_ref':obs['preimages_ref']}
+                s.recovery();called=[]
+                class Inner:
+                    def measure(self,ctx):called.append(ctx);return ('UNKNOWN',None)
+                p.primitive=Inner();p._stop=1;p._budget_subject=('expired-subject',)
+                with patch.object(lifecycle.time,'monotonic_ns',return_value=101_000_000_000):
+                    try:answer=p.measure(context)
+                    except (owner.OwnerRefusal,TypeError,ValueError):self.fail('X4_FRESH_RECOVERY_NOT_INFERRED_OR_OLD_STOP_REUSED')
+                self.assertEqual(answer,('UNKNOWN',None));self.assertEqual(called,[context]);self.assertEqual(s.effects,0)
