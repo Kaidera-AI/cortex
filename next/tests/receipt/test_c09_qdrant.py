@@ -1197,6 +1197,25 @@ class S3WorkerOwnership(unittest.TestCase):
 class S3ReviewTests(S3QueryTests):
     # Explicit load_tests below selects ONLY these new methods, preserving all
     # prior test method bodies and fixtures without duplicating their counts.
+    async def test_s3_query_empty_cannot_credit_core_growth_during_engine_wait(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();core=self.core(binding);server=QueryProjectionServer()
+        server.on_query=lambda:self.core_state.update(indexed_records=1)
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            with self.assertRaises(CapabilityUnavailable):
+                await query.search(str(UUID(int=50)),binding.identity,self.vector())
+
+    async def test_s3_final_core_counts_cannot_reuse_an_earlier_freshness(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector())
+        core=self.core(binding,[point]);server=QueryProjectionServer();server.points[point['id']]=point
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            result=await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            self.core_state['indexed_records']=2
+            with self.assertRaises(CapabilityUnavailable):await query.recheck_result(str(UUID(int=50)),result)
+
     async def test_s3_core_binding_boolean_generation_is_not_integer_authority(self):
         from cortex_core.embeddings.projection_revision import CapabilityUnavailable
         binding=self.binding();server=QueryProjectionServer();core=self.core(binding)
