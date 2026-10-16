@@ -1,13 +1,19 @@
 # Cortex Core image: pinned upstream PostgreSQL 18.4 + pgvector 0.8.3 + the schema payload.
 # Built by the R02 lane inside the materialized build-input clone (paths are clone-relative):
 #   podman build --network=none --pull=never --no-cache --timestamp <epoch> --iidfile image.iid \
+#     --build-arg BASE_IMAGE=sha256:<base config digest> \
 #     -f next/release/recipes/core/Containerfile .
 # Offline: every byte comes from the base digest or the per-target pin file
 # build-assets.linux-<arch>.sha256 (apk set + pgvector source), checked before use.
 # The final stage is FROM scratch so the image carries NO inherited VOLUME
 # (/var/lib/postgresql), ENTRYPOINT (docker-entrypoint.sh/gosu), PGDATA or POSTGRES_* config;
 # the runtime contract passes absolute binaries and -D /var/lib/cortex/core.
-FROM docker.io/library/postgres@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15 AS upstream
+# BASE_IMAGE = the loaded base (podman load of the archived original-blob oci-archive, R02
+# phase_input checks its config digest). Pinned base: docker.io/library/postgres@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+#   linux/amd64 config sha256:bd1890816ae0b8ad4644f05728570d4be774e1f1490d7232f5084b52ea335183
+#   linux/arm64 config sha256:db676a0ed906c00f55020fb8999e4fb30c598bf5c3b5c188630aef2812d3f11d
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS upstream
 
 FROM upstream AS pgvector
 ARG TARGETARCH

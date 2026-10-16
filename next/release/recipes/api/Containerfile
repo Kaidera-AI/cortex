@@ -3,11 +3,17 @@
 #   /opt/cortex/python/bin/python3, /opt/cortex/next/{src,schema,contracts}.
 # Built by the R02 lane inside the materialized build-input clone (paths are clone-relative):
 #   podman build --network=none --pull=never --no-cache --timestamp <epoch> --iidfile image.iid \
+#     --build-arg BASE_IMAGE=sha256:<base config digest> \
 #     -f next/release/recipes/api/Containerfile .
 # Offline: apk files pinned by apk-assets.linux-<arch>.sha256, wheels by
 # requirements.linux-<arch>.lock (pip --require-hashes, no index). Assets are bind-mounted,
 # never copied into a layer. Bytecode = checked-hash .pyc at the final paths; pip is removed.
-FROM docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+# BASE_IMAGE = the loaded base (podman load of the archived original-blob oci-archive, R02
+# phase_input checks its config digest). Pinned base: docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+#   linux/amd64 config sha256:d529dd0c6e5597ac7e4a3e2dea65c3fcc6173f4cae713c409265c1dd9914a11b
+#   linux/arm64 config sha256:1991bd789d7184290c3cce84fd6af068b8b745e9bddf178661ce7f5ecf68135c
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 ARG TARGETARCH
 COPY next/src/ /opt/cortex/next/src/
 COPY next/schema/ /opt/cortex/next/schema/
