@@ -48,10 +48,10 @@ _ROLES = frozenset(('endpoint', 'interpreter', 'source', 'import', 'native', 'sc
                     'policy', 'state', 'journal', 'lock', 'originals', 'launch'))
 _CODE = frozenset(('interpreter', 'source', 'import', 'native'))
 _LINUX_BINDING = None  # The protected owner originals and connected peer FD are not supplied.
-# Kai's 2026-10-16 group-A ruling: one E02a compatibility profile. This
-# observation is not owner, startup, backend-denial or effect authority.
-_HOST_PROFILE = dict(os='linux', distribution='rocky', version='10.2',
-    architecture='x86_64', kernel='6.12.0-211.16.1.el10_2', selinux='enforcing')
+# Kai's corrected 2026-10-16 group-A ruling: capabilities and version floors.
+# Raw strings remain observations, not owner/startup/backend/effect authority.
+_HOST_FIELDS = frozenset(('os','distribution','version','architecture','kernel',
+                          'selinux','cgroups','init'))
 _SO_PEERPIDFD = getattr(socket, 'SO_PEERPIDFD', 77)
 _ACL_TAGS = {0x01: ('owner', False), 0x02: ('user', True), 0x04: ('group', False),
              0x08: ('named_group', True), 0x10: ('mask', False), 0x20: ('other', False)}
@@ -66,14 +66,27 @@ def _installed_linux_inputs():
         raise owner.OwnerRefusal('required_binding_gap')  # BL-G00
     try:
         observed = _LINUX_SYSCALLS['host_snapshot']()
-        owner._require(type(observed) is dict and set(observed) == set(_HOST_PROFILE)
-            and all(type(key) is str and type(value) is str for key, value in observed.items())
-            and observed == _HOST_PROFILE, 'required_binding_gap')
+        owner._require(_host_supported(observed), 'required_binding_gap')
     except owner.OwnerRefusal:
         raise
     except (OSError, KeyError, TypeError, ValueError):
         raise owner.OwnerRefusal('required_binding_gap') from None
-    return _collect_linux_inputs(binding['inputs'], binding['peer_fd'])
+    return _collect_linux_inputs(binding['inputs'], binding['peer_fd'], observed)
+
+
+def _host_supported(observed):
+    if (type(observed) is not dict or set(observed) != _HOST_FIELDS
+            or not all(type(key) is str and _text(value,256)
+                       for key,value in observed.items())):
+        return False
+    kernel = re.fullmatch(r'([0-9]+)\.([0-9]+)\.([0-9]+)-[0-9][A-Za-z0-9_.+-]*'
+                          r'\.el10(?:_[0-9]+)?(?:\.[A-Za-z0-9_+-]+)*',observed['kernel'])
+    return (observed['os'] == 'linux' and observed['distribution'] == 'rocky'
+        and re.fullmatch(r'10(?:\.[0-9]+)*',observed['version']) is not None
+        and observed['architecture'] == 'x86_64' and kernel is not None
+        and tuple(int(v) for v in kernel.groups()) >= (6,12,0)
+        and observed['selinux'] == 'enforcing' and observed['cgroups'] == 'v2'
+        and observed['init'] == 'systemd')
 
 
 def _host_snapshot():
@@ -87,14 +100,20 @@ def _host_snapshot():
     try:
         release = platform.freedesktop_os_release()
         kernel = os.uname()
-        fd = os.open('/sys/fs/selinux/enforce', os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
-        try:
-            enforce = _read_fd(fd, 2)
-        finally:
-            os.close(fd)
-        owner._require(enforce in (b'1', b'1\n'), 'required_binding_gap')
+        measured = {}
+        for path,limit in (('/sys/fs/selinux/enforce',2),
+                           ('/sys/fs/cgroup/cgroup.controllers',4096),('/proc/1/comm',64)):
+            fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+            try:
+                measured[path] = _read_fd(fd, limit)
+            finally:
+                os.close(fd)
+            if path == '/sys/fs/selinux/enforce':
+                owner._require(measured[path] in (b'1',b'1\n'), 'required_binding_gap')
+        owner._require(measured['/proc/1/comm'] in (b'systemd',b'systemd\n'), 'required_binding_gap')
         return dict(os='linux', distribution=release['ID'], version=release['VERSION_ID'],
-                    architecture=kernel.machine, kernel=kernel.release, selinux='enforcing')
+                    architecture=kernel.machine, kernel=kernel.release, selinux='enforcing',
+                    cgroups='v2',init='systemd')
     except owner.OwnerRefusal:
         raise
     except (OSError, KeyError, TypeError, ValueError):
@@ -496,13 +515,14 @@ def _original_ref(path, raw):
     return {'path': path, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
 
 
-def _collect_linux_inputs(inputs, peer_fd):
+def _collect_linux_inputs(inputs, peer_fd, host):
     try:
         context = owner._decode(inputs.context_raw, 'owner_unavailable')
         peer = owner._original(inputs, context['peer_ref'])
         policy = owner._original(inputs, context['policy_ref']).get('linux')
         receipt = owner._original(inputs, peer.get('linux_ref'))
         collected = _collect_linux_receipt(policy, receipt, peer_fd)
+        collected['host'] = host
         originals = dict(inputs.originals)
         receipt_raw = _encode_original(collected)
         receipt_ref = _original_ref(peer['linux_ref']['path'], receipt_raw)
@@ -737,7 +757,9 @@ def _object_shape(value, *, observed):
 def _shape(policy, receipt):
     """Closed bounded source records; all failures use the existing C0 detail."""
     try:
-        if not (_closed(policy, _POLICY) and _closed(receipt, _RECEIPT)):
+        if not (_closed(policy, _POLICY) and (
+                _closed(receipt, _RECEIPT) or _closed(receipt, _RECEIPT | {'host'}))
+                and ('host' not in receipt or _host_supported(receipt['host']))):
             return False
         if not (_number(policy['version'], 1, 1) and _number(receipt['version'], 1, 1)
                 and all(_number(policy[k], _UID_MAX) for k in ('peer_uid','peer_gid','owner_uid','owner_gid'))
