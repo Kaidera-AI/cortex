@@ -75,6 +75,9 @@ class Asset(Base):
                                                        candidate_roots=[lane.fx.candidate], script=script)
         self.refuses(admit, b'# another probe\n', reason='inspector_image_member_unbound')
         self.refuses(admit, r3.SCRIPT, reason='inspector_image_member_unbound')
+        real = lane.fx.raw()  # the product inspector's own descriptor + its own script bytes
+        self.refuses(inspector.admit_closure, real, r4.sha(real), lane.fx.profile, lane.fx.root,
+                     candidate_roots=[lane.fx.candidate], script=r3.SCRIPT, reason='inspector_image_member_unbound')
         self.assertEqual(contracts.thaw(admit(Path(product('_probe').__file__).read_bytes()).descriptor)['purpose'], 'probe')
 
     def test_probe_closure_never_reaches_a_session_or_an_inspector_row(self):
@@ -101,6 +104,14 @@ class Asset(Base):
         full = inspector.preflight(checked, dict(base, probe_capability=probe, containment_allowlist=ALLOWLIST))
         self.assertIs(full.probe, probe)
         self.assertEqual(contracts.thaw(full.allowlist), ALLOWLIST)
+        other = lane.fx.host / 'podman-other'
+        lane.fx.write(other, b'#!another fixture engine\n', 0o755)
+        descriptor = contracts.thaw(probe.descriptor)['descriptor']
+        descriptor['engine'] = lane.fx.row(other, other.read_bytes(), 0o755)
+        raw = codec.canonical_bytes(descriptor)
+        foreign = inspector.admit_closure(raw, r4.sha(raw), lane.fx.profile, lane.fx.top / 'probe-owned',
+                                          candidate_roots=[lane.fx.candidate], script=Path(product('_probe').__file__).read_bytes())
+        self.assertIsNone(inspector.preflight(checked, dict(base, probe_capability=foreign, containment_allowlist=ALLOWLIST)).probe)
         for change in ({'probe_capability': lane.closure}, {'containment_allowlist': {'mounts': ['/']}}, {}):
             with self.subTest(change=sorted(change)):
                 got = inspector.preflight(checked, dict(base, **change))
@@ -209,6 +220,13 @@ class Originals(Base):
         files[rows[kind]['children']] = codec.canonical_bytes(children)
         return files
 
+    def survivor(self, files, rows, kind):
+        def edit(child, files):
+            survivor = b'f' * 64 + b'\n'
+            files[child['stdout']['path']] = survivor
+            child['stdout'].update(bytes=len(survivor), sha256=r4.sha(survivor))
+        return self.change(files, rows, kind, 4, edit)
+
     def test_tampered_originals_refuse_and_the_authentic_ones_restore(self):
         lane = Lane(self)
         files, rows = originals(lane)
@@ -224,7 +242,8 @@ class Originals(Base):
                 'argv', [lane.probe.image_digest if t == lane.closure.image_digest else t for t in c['argv']]))),
             'other limits': ('memory', self.change(files, rows, 'memory', 2, lambda c, f: c.__setitem__(
                 'argv', [str(1 << 30) if t == str(1 << 28) else t for t in c['argv']]))),
-            'other engine': ('tmpfs', self.change(files, rows, 'tmpfs', 1, lambda c, f: c['argv'].__setitem__(0, '/usr/bin/other')))}
+            'other engine': ('tmpfs', self.change(files, rows, 'tmpfs', 1, lambda c, f: c['argv'].__setitem__(0, '/usr/bin/other'))),
+            'survivor in the cleanup listing': ('mounts_env', self.survivor(files, rows, 'mounts_env'))}
         for name, (kind, tampered) in cases.items():
             with self.subTest(case=name):
                 self.refuses(row, lane, kind, files=tampered, rows=rows)
@@ -446,7 +465,8 @@ class Packages(Base):
                  'baseline package changed (upgrade)': dict(after=['bash-0:5.2.26-5.el10.x86_64', BASELINE[1]] + OURS,
                                                             history=[{'id': 42, 'actions': [['upgrade', 'bash-0:5.2.26-5.el10.x86_64']] +
                                                                       [['install', n] for n in OURS]}]),
-                 'nothing new': dict(history=[], after=list(BASELINE))}
+                 'nothing new': dict(history=[], after=list(BASELINE)),
+                 'intervening reinstall, newest first': dict(history=[{'id': 43, 'actions': [['reinstall', BASELINE[0]]]}, ours])}
         for name, change in cases.items():
             with self.subTest(case=name):
                 self.refuses(self.receipt, reason='package_ownership_hold', **change)
