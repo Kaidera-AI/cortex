@@ -13,7 +13,7 @@ digest, an idempotency key and a resolver handle, never a secret.
 import re
 from uuid import UUID
 
-from cortex_core.install.contracts import InstallRefusal, measure_original_ref
+from cortex_core.install.contracts import InstallRefusal, measure_original_ref, parse_install_message
 from cortex_core.release.codec import canonical_bytes, decode_json, sha256
 from cortex_core.release.contracts import freeze, thaw
 from .signed_member import Refusal
@@ -22,6 +22,7 @@ REQUEST_SCHEMA = 'cortex.enrollment-request.v1'
 RECEIPT_SCHEMA = 'cortex.enrollment-receipt.v1'
 EFFECT_ID = 'cortex.enrollment.first-identity'
 MISSING_UNIT = 'P2a consumed dispatch for the enrollment effect family'
+ADMISSION_UNIT = 'X12-c owner delivery of the accepted P1 enrollment original'
 FIRST_IDENTITY_SQL = 'SELECT auth.first_identity(%s,%s,%s,%s,%s,%s,%s)'
 READINESS_SQL = 'SELECT auth.enrollment_readiness(%s)::text'
 SCOPE_SQL = ("SELECT installation_id::text,tenant_id::text,project_id::text,principal_id::text "
@@ -181,17 +182,56 @@ async def scope_sql(connection, digest, installation_id, project_id):
     return [dict(zip(names, row)) for row in rows]
 
 
-def enrollment_state_reader(readiness, resolve_scope, receipt_raw):
+def _no_accepted_enrollment():
+    raise Refusal('required_binding_gap', unit=ADMISSION_UNIT)
+
+
+# The fixed install owner delivers the ACCEPTED original from its protected P1
+# history (X12-c binds it); never a caller parameter. It returns None only when
+# the owner attests that no enrollment was recorded, else a mapping with the P1
+# receipt bytes, the stored enrollment receipt bytes and the consumed request ref.
+_accepted_enrollment = _no_accepted_enrollment
+
+
+def _admitted_receipt():
+    """The receipt only if it IS the accepted original (X12-001); None = no enrollment.
+
+    The P1 receipt (sole P1 parser) must be ready for this enrollment with a
+    checks_ref; the stored receipt's exact bytes must measure to that checks_ref;
+    and the receipt must name the recorded request digest and the P1 installation.
+    """
+    delivered = _accepted_enrollment()
+    if delivered is None:
+        return None
+    reason = 'enrollment_receipt_invalid'
+    try:
+        _require(type(delivered) is dict and set(delivered) == {'p1_receipt', 'enrollment_receipt', 'request_ref'}, reason)
+        p1 = thaw(parse_install_message(delivered['p1_receipt'], expected_kind='receipt').document)
+        _require(p1['identity']['product'] == 'cortex' and p1['readiness']['state'] == 'ready', reason)
+        raw = delivered['enrollment_receipt']
+        measure_original_ref(p1['readiness']['checks_ref'], raw)
+        receipt = thaw(parse_receipt(raw))
+        request_ref = delivered['request_ref']
+        _require(_ref(request_ref) and receipt['request_sha256'] == request_ref['sha256']
+                 and receipt['installation_id'] == p1['identity']['installation_id'], reason)
+    except (InstallRefusal, KeyError, TypeError):
+        raise Refusal(reason) from None
+    return receipt
+
+
+def enrollment_state_reader(readiness, resolve_scope):
     """D3: the existing EnrollmentHealth enum port, `ready` only on BOTH truths.
 
-    (a) 006 says ready for THIS installation and (b) the X12 receipt for it still
-    resolves to exactly its (installation, tenant, default project, principal)
-    through auth.resolve_scope. No receipt: 006's enrollment_required passes
-    through, anything else is unavailable. Errors are unavailable; the caller's
+    (a) 006 says ready for THIS installation and (b) the ACCEPTED X12 receipt
+    (owner-delivered, measured against the P1 checks_ref) still resolves to
+    exactly its (installation, tenant, default project, principal) through
+    auth.resolve_scope. Owner-attested no enrollment: 006's enrollment_required
+    passes through, anything else is unavailable. Unbound owner delivery or any
+    admission failure: always unavailable. Errors are unavailable; the caller's
     EnrollmentHealth timeout bounds both reads (X5's remaining budget, no new SLA).
     """
     try:
-        receipt = None if receipt_raw is None else thaw(parse_receipt(receipt_raw))
+        receipt = _admitted_receipt()
         broken = False
     except Refusal:
         receipt, broken = None, True

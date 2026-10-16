@@ -62,7 +62,7 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
     "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
     "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",
     "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496",
-    "src/cortex_core/runtime/enrollment.py": "9f4bd86f2f95e5ae125b97dde6f8b5e27e133e6d9eae8a067ccbd528fd2c856d"
+    "src/cortex_core/runtime/enrollment.py": "a4e820ffcd55cff8a436111ed4accb41b6499080f9574b378f853611dc83c595"
 }
 
 

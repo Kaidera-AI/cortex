@@ -111,10 +111,8 @@ def accepted_original(accepted, delivered, request_raw=None):
 
 def owner_reader(m, readiness, scope, delivered, accepted='same'):
     """Build the D3 reader the way production does: the receipt comes ONLY from the
-    owner delivery. (Pre-fix fallback: the old candidate-bytes API, RED evidence.)"""
+    owner delivery (P1 checks_ref names `accepted`; the stored bytes are `delivered`)."""
     accepted = delivered if accepted == 'same' else accepted
-    if not hasattr(m, '_accepted_enrollment'):
-        return m.enrollment_state_reader(readiness, scope, delivered)
     with patch.object(m, '_accepted_enrollment', return_value=accepted_original(accepted, delivered)):
         return m.enrollment_state_reader(readiness, scope)
 
@@ -406,28 +404,45 @@ class X12(unittest.TestCase):
         async def ready(_): return 'ready'
         async def rows(*_): return self.row()
         self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')  # UNBOUND
+        async def fresh(_): return 'enrollment_required'
+        # UNBOUND is not 'no enrollment': even a fresh DB stays unavailable...
+        self.assertEqual(asyncio.run(m.enrollment_state_reader(fresh, rows)(UUID(INST))), 'unavailable')
+        # ...only the owner's explicit 'no enrollment recorded' passes 006's state through.
+        with patch.object(m, '_accepted_enrollment', return_value=None):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(fresh, rows)(UUID(INST))), 'enrollment_required')
 
     def test_V7_receipt_bound_to_recorded_request_and_installation(self):
         m = module(); receipt = self.receipt(m)
         async def ready(_): return 'ready'
         async def rows(*_): return self.row()
-        if hasattr(m, '_accepted_enrollment'):
-            other_request = canonical(request_doc(idempotency_key='enroll-other'))
-            record = accepted_original(receipt, receipt, other_request)
-            with patch.object(m, '_accepted_enrollment', return_value=record):
-                self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
-            record = accepted_original(receipt, receipt)
-            p1 = json.loads(record['p1_receipt']); p1['identity']['installation_id'] = TEN
-            record['p1_receipt'] = canonical(p1)
-            with patch.object(m, '_accepted_enrollment', return_value=record):
-                self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
-            p1['identity']['installation_id'] = INST; p1['readiness']['state'] = 'not_checked'
-            for k in ('descriptor_ref', 'connection_custody_ref', 'checks_ref'): p1['readiness'][k] = None
-            record['p1_receipt'] = canonical(p1)
-            with patch.object(m, '_accepted_enrollment', return_value=record):
-                self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
-        else:
-            self.fail('BODY_RED: receipt not bound to the recorded request/installation')
+        other_request = canonical(request_doc(idempotency_key='enroll-other'))
+        record = accepted_original(receipt, receipt, other_request)
+        with patch.object(m, '_accepted_enrollment', return_value=record):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        record = accepted_original(receipt, receipt)
+        p1 = json.loads(record['p1_receipt']); p1['identity']['installation_id'] = TEN
+        record['p1_receipt'] = canonical(p1)
+        with patch.object(m, '_accepted_enrollment', return_value=record):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        p1['identity']['installation_id'] = INST; p1['identity']['product'] = 'kos'
+        record['p1_receipt'] = canonical(p1)
+        with patch.object(m, '_accepted_enrollment', return_value=record):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        p1['identity']['product'] = 'cortex'; p1['readiness']['state'] = 'enrollment_required'  # refs kept
+        record['p1_receipt'] = canonical(p1)
+        with patch.object(m, '_accepted_enrollment', return_value=record):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        record = dict(accepted_original(receipt, receipt), extra=b'x')
+        with patch.object(m, '_accepted_enrollment', return_value=record):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        record = accepted_original(receipt, receipt); p1 = json.loads(record['p1_receipt'])
+        p1['readiness']['state'] = 'not_checked'
+        for k in ('descriptor_ref', 'connection_custody_ref', 'checks_ref'): p1['readiness'][k] = None
+        record['p1_receipt'] = canonical(p1)
+        with patch.object(m, '_accepted_enrollment', return_value=record):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        with patch.object(m, '_accepted_enrollment', return_value=accepted_original(receipt, receipt)):
+            self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'ready')  # matched positive
 
     # ---- receipt -----------------------------------------------------------------
     def test_R1_receipt_is_canonical_value_free_and_binds_request_and_roundtrip(self):
