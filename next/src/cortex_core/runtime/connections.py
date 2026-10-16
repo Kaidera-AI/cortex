@@ -145,7 +145,8 @@ class ResolverConnection:
         try:
             inputs,grant,bound = await resolver._current(handle,deadline)
             deadline = min(bound,asyncio.get_running_loop().time()+connect_timeout_seconds)
-            try: policy = inputs.sql_policy(grant)
+            try:
+                with private_driver_logs(): policy = inputs.sql_policy(grant)
             except Exception: raise secrets.SecretRefusal('resolver_unavailable') from None
             secrets._require(type(policy) is secrets._SQLPolicy and type(policy.driver) is str and policy.driver in ('psycopg','asyncpg'),
                              'invalid_connection_policy')
@@ -185,8 +186,7 @@ class ResolverConnection:
                     and all(secrets._atom(x) for x in (attempt.operation,attempt.attempt,attempt.resource))
                     and attempt.process == grant.process, 'authority_changed')
                 connecting = True
-                with private_driver_logs():
-                    connection = await secrets._bounded(inputs.connect(policy,kwargs,deadline,attempt),deadline)
+                connection = await secrets._bounded(inputs.connect(policy,kwargs,deadline,attempt),deadline)
                 kwargs = None
                 observation = await secrets._bounded(
                     inputs.observe_session(connection,grant,policy,deadline),deadline)

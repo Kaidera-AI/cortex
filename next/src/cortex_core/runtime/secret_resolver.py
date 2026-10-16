@@ -14,6 +14,7 @@ from uuid import UUID
 from weakref import WeakKeyDictionary
 
 from .signed_member import Refusal
+from cortex_core.driver_logging import private_driver_logs
 
 PORT = 'cortex.runtime.secret-resolver.v1'
 MISSING_UNIT = 'X3 protected resolver/custodian and native material supplier'
@@ -132,8 +133,9 @@ async def _bounded(awaitable, deadline):
         if hasattr(awaitable, 'close'): awaitable.close()
         raise
     try:
-        async with asyncio.timeout_at(deadline):
-            result = await awaitable
+        with private_driver_logs():
+            async with asyncio.timeout_at(deadline):
+                result = await awaitable
         _deadline(deadline)  # a supplier may swallow cancellation; late success is never current
         return result
     except TimeoutError:
