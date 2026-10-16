@@ -107,7 +107,7 @@ class FactoryOracle(unittest.IsolatedAsyncioTestCase):
 
     def test_wrong_schema_refuses(self):
         self.refused('schema_mismatch',lambda:self.describe(snapshot_change=lambda s:
-            s['schema'].update(migration_count=20)))
+            s['schema'].update(migration_count=19)))
 
     def test_wrong_installation_refuses(self):
         self.refused('installation_mismatch',lambda:self.describe(snapshot_change=lambda s:
