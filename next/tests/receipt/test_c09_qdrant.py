@@ -1222,6 +1222,12 @@ class S3ReviewTests(S3QueryTests):
 
 
 class S3SchemaTests(unittest.TestCase):
+    def test_s3_binding_rejects_coerced_model_dimensions(self):
+        from dataclasses import replace
+        binding=S3Tests().binding()
+        with self.assertRaises(ValueError):
+            replace(binding,identity=replace(binding.identity,dimensions=768.0))
+
     def test_s3_v2_schema_closed_and_v1_contract_preserved(self):
         import hashlib
         import jsonschema
