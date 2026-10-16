@@ -1,0 +1,27 @@
+# Cortex Core image: pinned upstream PostgreSQL 18.4 + pgvector 0.8.3 + the schema payload.
+# Built by the R02 lane inside the materialized build-input clone (paths are clone-relative):
+#   podman build --network=none --pull=never --no-cache --timestamp <epoch> --iidfile image.iid \
+#     -f next/release/recipes/core/Containerfile .
+# Offline: every byte comes from the base digest or the per-target pin file
+# build-assets.linux-<arch>.sha256 (apk set + pgvector source), checked before use.
+# The final stage is FROM scratch so the image carries NO inherited VOLUME
+# (/var/lib/postgresql), ENTRYPOINT (docker-entrypoint.sh/gosu), PGDATA or POSTGRES_* config;
+# the runtime contract passes absolute binaries and -D /var/lib/cortex/core.
+FROM docker.io/library/postgres@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15 AS upstream
+
+FROM upstream AS pgvector
+ARG TARGETARCH
+RUN --mount=type=bind,source=.,target=/in,ro \
+    cd /in && sha256sum -c next/release/recipes/core/build-assets.linux-${TARGETARCH}.sha256 \
+ && apk add --no-network --repositories-file=/dev/null --no-cache --no-logfile $(sed -n 's|^[0-9a-f]\{64\}  \(assets/apk/.*\.apk\)$|/in/\1|p' next/release/recipes/core/build-assets.linux-${TARGETARCH}.sha256) \
+ && mkdir /build && tar -xzf /in/assets/pgvector-0.8.3.tar.gz -C /build \
+ && make -C /build/pgvector-0.8.3 with_llvm=no OPTFLAGS="" \
+ && make -C /build/pgvector-0.8.3 with_llvm=no OPTFLAGS="" install DESTDIR=/out
+
+FROM scratch
+COPY --from=upstream / /
+COPY --from=pgvector /out/usr/local/ /usr/local/
+COPY next/schema/ /opt/cortex/next/schema/
+ENV PATH=/usr/local/bin:/usr/bin:/bin
+USER 70:70
+STOPSIGNAL SIGINT
