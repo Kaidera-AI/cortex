@@ -487,6 +487,22 @@ class Core(unittest.TestCase):
                     self.check(raw)
                 self.assertEqual(str(caught.exception), reason)
 
+    def test_deep_code_constant_chain_keeps_the_original_shape_refusal(self):
+        # cox R01-MOVE-001: the parent's recursive filename walk refused a 997-level
+        # chain of nested code constants as python_bytecode_shape (RecursionError).
+        source = b'x = 1\n'
+        code = compile(source, '/app/module.py', 'exec', dont_inherit=True, optimize=0)
+        chain = code
+        for _ in range(997):
+            chain = code.replace(co_consts=(chain,))
+        import marshal
+        raw = pyc(source, '/app/module.py')[:16] + marshal.dumps(chain)
+        for check in (lambda: core.check(raw, source, '/app/module.py', 0),
+                      lambda: artifacts._check_pyc('app/__pycache__/module.%s.pyc' % TAG, raw, {'app/module.py': source}, cache_value())):
+            with self.assertRaises(ValueError) as caught:
+                check()
+            self.assertEqual(str(caught.exception), 'python_bytecode_shape')
+
     def test_fixture_path_delegates_to_the_same_core(self):
         source = b'x = 1\n'
         raw = pyc(source, '/app/m.py', body=pyc(b'x = 2\n', '/app/m.py')[16:])
