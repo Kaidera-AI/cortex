@@ -109,6 +109,8 @@ class _FakeLinuxSyscalls:
             self.events.append(('pidfd_close', fd))
 
         return {
+            'host_snapshot': lambda: dict(os='linux', distribution='rocky', version='10.2',
+                architecture='x86_64', kernel='6.12.0-211.16.1.el10_2', selinux='enforcing'),
             'peer_transport': peer_transport,
             'peer_credentials': peer_credentials,
             'peer_pidfd': peer_pidfd,

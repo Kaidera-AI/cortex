@@ -17,11 +17,13 @@ import errno
 import hashlib
 import json
 import os
+import platform
 import select
 import socket
 import re
 import stat
 import struct
+import sys
 from pathlib import PurePosixPath
 
 from .. import owner
@@ -46,6 +48,10 @@ _ROLES = frozenset(('endpoint', 'interpreter', 'source', 'import', 'native', 'sc
                     'policy', 'state', 'journal', 'lock', 'originals', 'launch'))
 _CODE = frozenset(('interpreter', 'source', 'import', 'native'))
 _LINUX_BINDING = None  # The protected owner originals and connected peer FD are not supplied.
+# Kai's 2026-10-16 group-A ruling: one E02a compatibility profile. This
+# observation is not owner, startup, backend-denial or effect authority.
+_HOST_PROFILE = dict(os='linux', distribution='rocky', version='10.2',
+    architecture='x86_64', kernel='6.12.0-211.16.1.el10_2', selinux='enforcing')
 _SO_PEERPIDFD = getattr(socket, 'SO_PEERPIDFD', 77)
 _ACL_TAGS = {0x01: ('owner', False), 0x02: ('user', True), 0x04: ('group', False),
              0x08: ('named_group', True), 0x10: ('mask', False), 0x20: ('other', False)}
@@ -58,7 +64,41 @@ def _installed_linux_inputs():
             or type(binding['inputs']) is not owner._Inputs
             or type(binding['peer_fd']) is not int or binding['peer_fd'] < 0):
         raise owner.OwnerRefusal('required_binding_gap')  # BL-G00
+    try:
+        observed = _LINUX_SYSCALLS['host_snapshot']()
+        owner._require(type(observed) is dict and set(observed) == set(_HOST_PROFILE)
+            and all(type(key) is str and type(value) is str for key, value in observed.items())
+            and observed == _HOST_PROFILE, 'required_binding_gap')
+    except owner.OwnerRefusal:
+        raise
+    except (OSError, KeyError, TypeError, ValueError):
+        raise owner.OwnerRefusal('required_binding_gap') from None
     return _collect_linux_inputs(binding['inputs'], binding['peer_fd'])
+
+
+def _host_snapshot():
+    """Read compatibility data only; actual peer pidfd admission remains below.
+
+    No subprocess, engine operation, privilege change or active denial probe.
+    The fixed binding is checked before this collector is reachable. The full
+    startup/LSM policy originals and engine inventory remain separate inputs.
+    """
+    owner._require(sys.platform == 'linux', 'required_binding_gap')
+    try:
+        release = platform.freedesktop_os_release()
+        kernel = os.uname()
+        fd = os.open('/sys/fs/selinux/enforce', os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        try:
+            enforce = _read_fd(fd, 2)
+        finally:
+            os.close(fd)
+        owner._require(enforce in (b'1', b'1\n'), 'required_binding_gap')
+        return dict(os='linux', distribution=release['ID'], version=release['VERSION_ID'],
+                    architecture=kernel.machine, kernel=kernel.release, selinux='enforcing')
+    except owner.OwnerRefusal:
+        raise
+    except (OSError, KeyError, TypeError, ValueError):
+        raise owner.OwnerRefusal('required_binding_gap') from None
 
 
 def _read_fd(fd, limit):
@@ -430,6 +470,7 @@ def _backend_denials(pid, pidfd):
 
 
 _LINUX_SYSCALLS = {
+    'host_snapshot': _host_snapshot,
     'peer_transport': _peer_transport,
     'peer_credentials': _peer_credentials,
     'peer_pidfd': _peer_pidfd,
