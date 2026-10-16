@@ -36,6 +36,11 @@ class Chain:
 
     def subject(self,label,*,epoch=None):
         self.counter+=1;s=Subject(self.root);s.history=self.history
+        # Independently admit this full-chain fixture's original 30s B1 cap.
+        # Existing short-E controls stay unchanged; no proposal is renewed.
+        s.helper.context(s.data,lambda c:c['host_lease'].update(expires_at=1700000030))
+        s.helper.clock_receipt(s.data,lambda r:r['monotonic_deadlines'].update(
+            {name:130000000000 for name in r['monotonic_deadlines']}))
         c=json.loads(s.data['context_raw']);q=json.loads(s.data['request_raw'])
         if self.operation:q['identity']['operation_id']=self.operation
         q['identity'].update(request_id='request-'+str(self.counter),attempt_id='attempt-'+str(self.counter))
@@ -107,7 +112,9 @@ class Barriers(unittest.TestCase):
                 self.assertEqual(result['observed']['stage'],name)
                 self.assertEqual(result['identity'],event['identity'])
                 self.assertEqual(result['effect'],event['effect']);self.assertEqual(result['request_ref'],event['request_ref'])
-                self.assertEqual(p1._decode(c.history.read(obs['reservation_ref']))['state'],'consumed')
+                reservation=p1._decode(c.history.read(obs['reservation_ref']))
+                self.assertEqual(reservation['state'],'consumed')
+                self.assertEqual(reservation['expires_monotonic_ns'],130000000000)
 
     def _mech(self,case,bad,fact,next_stage):
         with tempfile.TemporaryDirectory() as root:
@@ -185,7 +192,7 @@ class Barriers(unittest.TestCase):
     def stop_before(self,c):
         c.operation='stop-operation'
         s=c.subject('stop-dependents');d=s.deadline
-        c.before=canonical_bytes({'t0_ns':101000000000,'deadline_ns':105000000000,
+        c.before=canonical_bytes({'t0_ns':101000000000,'deadline_ns':116000000000,
             'expires_monotonic_ns':d.expires_monotonic_ns,'owner_epoch':d.owner_epoch,
             'installation_id':s.proposal.context['identity']['installation_id'],
             'operation_id':s.proposal.context['identity']['operation_id'],'inventory':['api','lease','core']})
@@ -193,12 +200,12 @@ class Barriers(unittest.TestCase):
         return s
 
     def stop_observed(self,phase,**change):
-        # T=4s, rational cutoffs rounded DOWN: never gain time.
-        value={'phase':phase,'t0_ns':101000000000,'deadline_ns':105000000000,
-            'c1_ns':102333333333,'c2_ns':103666666666,'c3_ns':104333333333,
-            'dependents_absent_at_ns':103000000000,'lease_fenced':True,
+        # T=15s, rational cutoffs rounded DOWN: never gain time.
+        value={'phase':phase,'t0_ns':101000000000,'deadline_ns':116000000000,
+            'c1_ns':106000000000,'c2_ns':111000000000,'c3_ns':113500000000,
+            'dependents_absent_at_ns':110000000000,'lease_fenced':True,
             'core_term_at_ns':None,'core_force_at_ns':None,'core_absent_at_ns':None,'remaining':[]}
-        if phase=='core':value.update(core_term_at_ns=104000000000,core_force_at_ns=104500000000,core_absent_at_ns=104900000000)
+        if phase=='core':value.update(core_term_at_ns=112000000000,core_force_at_ns=114000000000,core_absent_at_ns=115000000000)
         value.update(change);return {'stop':value}
 
     def stop_pair(self,c):
@@ -210,7 +217,7 @@ class Barriers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             c=Chain(root);s=self.stop_before(c)
             changes={'STOP01':{'dependents_absent_at_ns':None,'remaining':['api']},
-                     'STOP02':{'dependents_absent_at_ns':103666666667},
+                     'STOP02':{'dependents_absent_at_ns':111000000001},
                      'STOP03':{'lease_fenced':False}}
             o=self.stop_observed('dependents',**changes[case])
             with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('dependents'),o)
@@ -230,8 +237,8 @@ class Barriers(unittest.TestCase):
 
 
     def test_STOP04_Core_last_force_cutoff_and_final_absence_are_required(self):
-        for change in ({'core_term_at_ns':102900000000},{'core_force_at_ns':104000000000},
-                       {'core_absent_at_ns':105000000001},{'core_absent_at_ns':None,'remaining':['core']}):
+        for change in ({'core_term_at_ns':109000000000},{'core_force_at_ns':113000000000},
+                       {'core_absent_at_ns':116000000001},{'core_absent_at_ns':None,'remaining':['core']}):
             with self.subTest(change=change),tempfile.TemporaryDirectory() as root:
                 c=Chain(root);s=self.stop_before(c)
                 dep=c.run(s,self.stop('dependents'),self.stop_observed('dependents'));s=c.subject('stop-core')
@@ -254,7 +261,7 @@ class Barriers(unittest.TestCase):
                 self.assertEqual(c.history.head()[0],before)
             self.assertEqual(c.calls,['stop-dependents','stop-core'])
             # A different original D/preimage cannot replace the retained stop.
-            c.before=canonical_bytes(json.loads(c.before)|{'deadline_ns':106000000000})
+            c.before=canonical_bytes(json.loads(c.before)|{'deadline_ns':117000000000})
             s=c.subject('stop-core-escalated')
             with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('core',dep),self.stop_observed('core'))
             self.assertEqual(c.calls,['stop-dependents','stop-core'])
@@ -330,4 +337,14 @@ class Barriers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             c=Chain(root);s=c.subject('S01')
             with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage('S01'),self.observed('S01'),after_snapshot=lambda:setattr(s,'revoked',True))
+            self.assertEqual(c.calls,[]);self.assertEqual(c.history.events(),[])
+
+    def test_original_30s_source_grant_expires_without_renewal(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=Chain(root);s=c.subject('S01')
+            self.assertEqual(s.deadline.expires_monotonic_ns,130000000000)
+            def expire():
+                s.helper.clock(s.data,lambda clock:clock.update(now_utc=1700000030,monotonic_ns=130000000000))
+            with self.assertRaises(owner.OwnerRefusal):
+                c.run(s,self.stage('S01'),self.observed('S01'),after_snapshot=expire)
             self.assertEqual(c.calls,[]);self.assertEqual(c.history.events(),[])
