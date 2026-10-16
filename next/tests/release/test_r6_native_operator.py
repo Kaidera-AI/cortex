@@ -296,6 +296,24 @@ class Originals(Base):
                     self.refuses(row, lane, kind, files=self.journals(files, rows, kind, edit), rows=rows)
             self.assertTrue(row(lane, kind, files=files, rows=rows)[0])  # authentic bytes restore the row
 
+    def test_complete_inventory_with_malformed_journals_never_matches(self):
+        lane = Lane(self)
+        files, rows = originals(lane)
+        order = r4.Order()
+
+        def match(files):
+            inventory = [{'role': 'native.qualification.original', 'path': p, 'media_type': 'application/octet-stream',
+                          'bytes': len(raw), 'sha256': r4.sha(raw)} for p, raw in files.items()]
+            doc = qualification(lane, files={})
+            return receipts._match_qualification(doc, pending(lane), lane.value, order.builds(lane), dict(files), inventory,
+                                                 'd' * 64, 'e' * 64)
+        bad = files
+        for kind in rows:
+            bad = self.journals(bad, rows, kind, lambda child, raw: b'not-json: failed-exit=7\n')
+        self.refuses(match, bad)
+        matched, found = match(files)  # authentic restore: one context-bound match, every original consumed
+        self.assertEqual(set(found), set(files))
+
     def test_probe_evidence_can_never_fill_an_inspector_row(self):
         lane = Lane(self)
         files, rows = originals(lane)
