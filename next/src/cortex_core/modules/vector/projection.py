@@ -172,3 +172,9 @@ def validate_receipt(receipt, binding, event):
     elif any(observed[k] != receipt[k] for k in observed):
         raise ValueError('invalid_external_receipt')
     return 'stale' if receipt['stale'] else 'applied'
+
+
+def binding_contract(binding):
+    key = point_key(binding, UUID(int=1))
+    del key['aggregate_id']
+    return key
