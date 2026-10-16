@@ -71,19 +71,21 @@ def check(raw, source, filename, optimization):
         code = marshal.load(stream)
         if stream.read(1) or not isinstance(code, CodeType):
             raise Refused('python_bytecode_shape')
-        pending = [code]
-        while pending:
-            current = pending.pop()
+
+        def filenames(current):
             if current.co_filename != filename:
                 raise Refused('python_final_filename_policy')
-            pending.extend(c for c in current.co_consts if isinstance(c, CodeType))
+            for constant in current.co_consts:
+                if isinstance(constant, CodeType):
+                    filenames(constant)
+        filenames(code)
         expected = compile(source, filename, 'exec', dont_inherit=True, optimize=optimization)
+        if not _compiled_fields_equal(code, expected):
+            raise Refused('python_compilation_policy')
     except Refused:
         raise
     except (EOFError, ValueError, TypeError, SyntaxError, RecursionError) as error:
         raise Refused('python_bytecode_shape') from error
-    if not _compiled_fields_equal(code, expected):
-        raise Refused('python_compilation_policy')
 
 
 def respond(request):
