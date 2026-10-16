@@ -1,6 +1,6 @@
 # X3 slice 1 accepted build plan
 
-Parent c4fd7358-62c3-45da-9839-98c989e84534, nemo@helix. Kai BUILD GO 2026-10-16; accepted design SHA256 8daa24af5494d9d533fff3f4ac8cfbfb785ebf1b024a10881292ae59c6f91cae. Source base origin/main 69e4dd762c729df9ce3fe9def576bf0ebbfc4837. Fixture-only; <=6 h. No DB, host, credentials, native IO, real drivers, network provider, rotation/recovery implementation, PR or merge.
+Parent c4fd7358-62c3-45da-9839-98c989e84534, nemo@helix. Kai BUILD GO 2026-10-16; accepted design SHA256 8daa24af5494d9d533fff3f4ac8cfbfb785ebf1b024a10881292ae59c6f91cae. Source base origin/main 69e4dd762c729df9ce3fe9def576bf0ebbfc4837. Fixture-only; <=6 h. No DB, host, credentials, native IO, real drivers, network provider, rotation/recovery implementation, PR, protected-branch merge or deployment.
 
 Depth tree (solo):
 1. Resolver policy/opaque handle: new runtime/secret_resolver.py, reuse signed_member opaque registry/refusal pattern and original six-view inventory. Fixed installed input supplier refuses by default; tests replace only this private seam. Current owner grant checked before/after waits, per-use and publication; reference/secret revision/process lifetime/purpose/install/mode/epoch/deadline; no bearer/serialization/export.
@@ -100,3 +100,11 @@ three log-producing activities by logger identity, rather than exactly three
 messages, because mandatory current-policy rechecks legitimately add policy
 observations. Leak and exception assertions remain unchanged; the original 20
 case bodies remain identical to the first RED commit.
+
+
+Current-main integration: incorporated origin/main 12b2c01a25047719f5842ffd4732976dcc047793
+into this task branch only (d13825c4), preserving the accepted R4 changes and their
+CI inventory pins. No protected branch changed. The X3 delta against that main
+is exactly six declared files; CI change is one additional RUN test admission.
+The privacy failure assertion now reports a boolean leak result and its marker,
+so a newly detected public synthetic fixture value is not copied into diagnostics.
