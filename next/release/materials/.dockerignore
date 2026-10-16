@@ -1,0 +1,11 @@
+*
+!debs/
+!debs/**
+!pgvector/
+!pgvector/**
+!wheels/
+!wheels/**
+!libpq/
+!libpq/**
+!requirements.txt
+!*.Containerfile
