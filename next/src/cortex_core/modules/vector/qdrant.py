@@ -43,6 +43,8 @@ def admit_descriptor(value, platform):
 
 def private_config(address, *, writer_key_ref='qdrant/admin', reader_key_ref='qdrant/read',
                    published_ports=(), host_network=False, uid=10001):
+    if type(address) is not str or '%' in address:
+        raise ValueError('private_interface_required')
     try:
         ip = ipaddress.ip_address(address)
     except ValueError:
@@ -64,6 +66,20 @@ def private_config(address, *, writer_key_ref='qdrant/admin', reader_key_ref='qd
             'secret_refs': {'writer': writer_key_ref, 'reader': reader_key_ref}}
 
 
+def admit_private_config(config):
+    """One exact C09 delivery admission, shared by inert and S2 transports."""
+    try:
+        expected = private_config(config['service']['host'],
+            writer_key_ref=config['secret_refs']['writer'], reader_key_ref=config['secret_refs']['reader'],
+            published_ports=config['delivery']['published_ports'], host_network=config['delivery']['host_network'],
+            uid=config['delivery']['uid'])
+        if type(config) is not dict or json.dumps(config, sort_keys=True) != json.dumps(expected, sort_keys=True):
+            raise ValueError('private_configuration_refused')
+    except (KeyError, TypeError, ValueError, RecursionError):
+        raise ValueError('private_configuration_refused') from None
+    return copy.deepcopy(expected)
+
+
 class FakeProtocol:
     """Caller supplies an in-memory handler; this profile supplies no network adapter."""
     def __init__(self, handler):
@@ -80,17 +96,7 @@ class InertPort:
         self.descriptor = admit_descriptor(descriptor, platform)
         if type(transport) is not FakeProtocol:
             raise ValueError('injected_fake_protocol_required')
-        try:
-            expected = private_config(config['service']['host'],
-                writer_key_ref=config['secret_refs']['writer'], reader_key_ref=config['secret_refs']['reader'],
-                published_ports=config['delivery']['published_ports'], host_network=config['delivery']['host_network'],
-                uid=config['delivery']['uid'])
-        except (KeyError, TypeError, ValueError):
-            raise ValueError('private_configuration_refused') from None
-        if (type(config) is not dict
-                or json.dumps(config, sort_keys=True) != json.dumps(expected, sort_keys=True)):
-            raise ValueError('private_configuration_refused')
-        self.config, self.transport = copy.deepcopy(config), transport
+        self.config, self.transport = admit_private_config(config), transport
 
     def status(self):
         return {'state': 'unbound', 'module_ready': False, 'core_auth_bound': False,
