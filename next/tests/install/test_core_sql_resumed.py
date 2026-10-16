@@ -164,7 +164,8 @@ class RecoveryAdmission(unittest.TestCase):
                 class Inner:
                     def measure(self,ctx):called.append(ctx);return ('UNKNOWN',None)
                 p.primitive=Inner();p._stop=1;p._budget_subject=('expired-subject',)
-                with patch.object(lifecycle.time,'monotonic_ns',return_value=101_000_000_000):
+                with patch.object(lifecycle.time,'monotonic_ns',return_value=101_000_000_000), \
+                     s.history.operation(deadline=s.deadline,expected_context=thaw(s.current().context)):
                     try:answer=p.measure(context)
                     except (owner.OwnerRefusal,TypeError,ValueError):self.fail('X4_FRESH_RECOVERY_NOT_INFERRED_OR_OLD_STOP_REUSED')
                 self.assertEqual(answer,('UNKNOWN',None));self.assertEqual(called,[context]);self.assertEqual(s.effects,0)
