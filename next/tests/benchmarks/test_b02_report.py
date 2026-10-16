@@ -204,3 +204,279 @@ class ReportTests(unittest.TestCase):
             self.assertTrue(module.source_custody(rows, {"load.py": "hash"}, alias))
             self.assertFalse(module.source_custody(rows, {"load.py": "different"}, alias))
             self.assertFalse(module.source_custody(rows, {"load.py": "hash"}, root / "foreign"))
+
+
+class S4bProductAccountingTests(unittest.IsolatedAsyncioTestCase):
+    """Reuse S4a's actual C11/C04/S2/S3 fixture, not another product port."""
+    async def asyncSetUp(self):
+        from test_b01_product_path import S4ProductPathTests
+        await S4ProductPathTests.asyncSetUp(self)
+
+    async def authorize(self, subject):
+        from test_b01_product_path import ProductPathTests
+        return await ProductPathTests.authorize(self, subject)
+
+    def make_client(self, **options):
+        from test_b01_product_path import S4ProductPathTests
+        return S4ProductPathTests.make_client(self, **options)
+
+    def surface(self, name):
+        from vector_baseline import benchmark
+        value = getattr(benchmark, name, None)
+        self.assertTrue(callable(value), "S4b offline/accounting seam missing: " + name)
+        return value
+
+    async def retained(self):
+        client = self.make_client()
+        await client.open()
+        response = await client.request(self.spec["queries"][0])
+        await client.aclose()
+        value = fixture()
+        for row in value["records"]:
+            row["query_id"] = "q1"
+            row["response"] = copy.deepcopy(response)
+            row.pop("measurement")
+        return value, client.frozen
+
+    def diagnostic(self, value):
+        from vector_baseline import report
+        return report.summarize(value, latency_budget_ms=100,
+                                bindings={"heldout_query_ids": ["q1"]})["diagnostic"]
+
+    def poison(self, row):
+        import hashlib, json
+        body = json.loads(row["response"]["body"])
+        body["results"][0]["id"] = "foreign"
+        row["response"]["body"] = json.dumps(body)
+        row["response"]["response_sha256"] = hashlib.sha256(row["response"]["body"].encode()).hexdigest()
+
+    async def test_each_retained_response_is_compared_offline_and_refusal_is_charged_without_retiming(self):
+        attach = self.surface("attach_product_truth")
+        value, frozen = await self.retained()
+        self.poison(value["records"][-1])
+        before = copy.deepcopy(value)
+        attach(value, frozen)
+        bad = value["records"][-1]
+        self.assertEqual((len(value["records"]), bad["status"]), (40, "ERROR"))
+        self.assertEqual(bad["error_class"], "OfflineComparisonRefusal")
+        self.assertNotIn("measurement", bad)
+        self.assertEqual(bad["response_elapsed_seconds"], .001)
+        self.assertEqual(bad["latency_seconds"], 10)
+        for old, row in zip(before["records"], value["records"]):
+            for key in ("offer_id", "client", "query_id", "phase", "scheduled_at", "scheduled_offset_seconds",
+                        "dispatched_at", "dispatcher_lag_seconds", "started_at", "completed_at", "queue_seconds", "response"):
+                self.assertEqual(row[key], old[key], key)
+        good = value["records"][0]
+        self.assertEqual(good["measurement"]["tie_recall"], 1.)
+        self.assertEqual(good["measurement_binding"], {key: good["response"][key]
+            for key in ("query_id", "input_sha256", "truth_sha256", "response_sha256")})
+        result = self.diagnostic(value)
+        self.assertEqual((result["offered"], result["successful_responses"], result["errors_or_missed"]), (40, 39, 1))
+        self.assertEqual(result["verdict"], "FAIL")
+
+    async def test_original_error_timeout_and_missed_rows_are_never_erased_or_recompared(self):
+        attach = self.surface("attach_product_truth")
+        from unittest.mock import patch
+        value, frozen = await self.retained()
+        for row, status in zip(value["records"], ("ERROR", "TIMEOUT", "MISSED")):
+            row.update(status=status, error_class="OriginalFailure", latency_seconds=10)
+        before = copy.deepcopy(value["records"][:3])
+        with patch.object(frozen, "compare", wraps=frozen.compare) as compare:
+            attach(value, frozen)
+        self.assertEqual(value["records"][:3], before)
+        self.assertEqual(compare.call_count, 37)
+        self.assertEqual(len(value["records"]), 40)
+
+    async def test_warmup_comparison_failure_and_earlier_error_both_survive(self):
+        attach = self.surface("attach_product_truth")
+        value, frozen = await self.retained()
+        value["config"]["warmup_seconds"] = 1
+        value["warmup_records"] = copy.deepcopy(value["records"])
+        for row in value["warmup_records"]:
+            row["phase"] = "warmup"
+        self.poison(value["warmup_records"][0])
+        value["warmup_records"][1].update(status="ERROR", error_class="OriginalFailure", latency_seconds=10)
+        original = copy.deepcopy(value["warmup_records"][1])
+        attach(value, frozen)
+        self.assertEqual(value["warmup_records"][0]["status"], "ERROR")
+        self.assertEqual(value["warmup_records"][1], original)
+        self.assertEqual(self.diagnostic(value)["warmup_errors"], 2)
+        self.assertEqual(self.diagnostic(value)["verdict"], "FAIL")
+
+    async def test_legacy_diagnostic_response_cannot_supply_s4_recall_credit(self):
+        attach = self.surface("attach_product_truth")
+        value, frozen = await self.retained()
+        for row in value["records"]:
+            row["response"] = {"ids": ["r1", "r2"], "measurement": {"safe": True, "tie_recall": 1.}}
+            row["measurement"] = {"safe": True, "tie_recall": 1., "strict_recall": 1.}
+        attach(value, frozen)
+        self.assertTrue(all(row["status"] == "ERROR" and "measurement" not in row for row in value["records"]))
+        self.assertEqual(self.diagnostic(value)["successful_responses"], 0)
+
+    async def test_each_response_query_input_truth_and_bytes_binding_is_enforced(self):
+        attach = self.surface("attach_product_truth")
+        value, frozen = await self.retained()
+        for row, key in zip(value["records"], ("query_id", "input_sha256", "truth_sha256", "response_sha256")):
+            row["response"][key] = "changed"
+        attach(value, frozen)
+        self.assertEqual([row["status"] for row in value["records"][:4]], ["ERROR"] * 4)
+        self.assertEqual(self.diagnostic(value)["p95_ms"], 10000)
+        self.assertEqual(self.diagnostic(value)["successful_rps"], 36)
+
+    async def test_unsafe_comparison_mapping_cannot_be_promoted_to_success(self):
+        attach = self.surface("attach_product_truth")
+        from unittest.mock import patch
+        value, frozen = await self.retained()
+        with patch.object(frozen, "compare", return_value={"safe": False, "tie_recall": 1., "strict_recall": 1.}):
+            attach(value, frozen)
+        self.assertEqual(sum(r["status"] == "ERROR" for r in value["records"]), 40)
+        self.assertFalse(any("measurement" in r for r in value["records"]))
+
+    async def test_empty_under_k_and_tied_truth_keep_the_existing_oracle_meaning(self):
+        attach = self.surface("attach_product_truth")
+        import hashlib, json
+        from vector_baseline import product_path
+        self.spec["queries"][0]["limit"] = 10
+        self.expected = hashlib.sha256(product_path.canonical(self.spec)).hexdigest()
+        value, frozen = await self.retained()
+        row = copy.deepcopy(value["records"][0])
+        body = json.loads(row["response"]["body"])
+        body.update(query="empty-basis", results=[], state="ready_empty")
+        row["query_id"] = row["response"]["query_id"] = "empty"
+        row["response"]["body"] = json.dumps(body)
+        row["response"]["response_sha256"] = hashlib.sha256(row["response"]["body"].encode()).hexdigest()
+        value["records"][1] = row
+        attach(value, frozen)
+        self.assertEqual(value["records"][0]["measurement"]["expected_count"], 3)
+        self.assertEqual(value["records"][0]["measurement"]["tie_recall"], 1.)
+        empty = value["records"][1]["measurement"]
+        self.assertTrue(empty["safe"])
+        self.assertIsNone(empty["tie_recall"])
+        self.assertEqual(empty["expected_count"], 0)
+
+    async def test_offline_join_never_repairs_missing_or_duplicate_offer_inventories(self):
+        attach = self.surface("attach_product_truth")
+        value, frozen = await self.retained()
+        for kind in ("missing", "duplicate"):
+            with self.subTest(kind=kind):
+                broken = copy.deepcopy(value)
+                if kind == "missing": broken["records"].pop()
+                else: broken["records"][-1]["offer_id"] = 0
+                attach(broken, frozen)
+                self.assertEqual(self.diagnostic(broken)["verdict"], "INVALID_HARNESS")
+
+    async def run_source(self, **options):
+        run = self.surface("run_product")
+        import hashlib
+        from vector_baseline import product_path, load
+        self.spec["splits"] = {"tuning": ["empty"], "held_out": ["q1"]}
+        self.expected = hashlib.sha256(product_path.canonical(self.spec)).hexdigest()
+        async def observe(): return {"scope": "SOURCE_FIXTURE_ONLY"}
+        return await run(self.root, self.spec, self.expected,
+            source_root=Path(__file__).resolve().parents[2], read_port=self.read,
+            scope_for=lambda q: dict(type="http", path="/search", headers=[(b"authorization", b"Bearer synthetic")]),
+            config=options.pop("config", load.RunConfig(duration_seconds=.05, warmup_seconds=.025)),
+            latency_budget_ms=100, observer=observe, **options)
+
+    async def test_source_driver_freezes_once_before_open_and_compares_only_after_all_clients_close(self):
+        self.surface("run_product")
+        from unittest.mock import patch
+        from vector_baseline import product_path, oracle, corpus
+        events, clients = [], []
+        original_prepare, original_client = product_path.prepare_input, product_path.client
+        original_compare, original_rank = product_path.PreparedInput.compare, oracle.rank
+        def prepare(*args, **kwargs):
+            events.append("prepare")
+            return original_prepare(*args, **kwargs)
+        def factory(*args, **kwargs):
+            events.append("construct")
+            c = original_client(*args, **kwargs); clients.append(c); return c
+        def rank(*args, **kwargs):
+            self.assertFalse(clients, "truth must precede even the first client")
+            return original_rank(*args, **kwargs)
+        def compare(frozen, qid, response):
+            self.assertEqual(len(clients), 8)
+            self.assertTrue(all(c._prepared is None for c in clients), "offline join follows cleanup")
+            events.append("compare")
+            return original_compare(frozen, qid, response)
+        with patch.object(product_path, "prepare_input", prepare), patch.object(product_path, "client", factory), \
+             patch.object(product_path.PreparedInput, "compare", compare), patch.object(oracle, "rank", rank):
+            result = await self.run_source()
+        self.assertEqual(events.count("prepare"), 1)
+        self.assertEqual(events[:2], ["prepare", "construct"])
+        self.assertEqual(events.count("compare"), 3)
+        self.assertEqual(len({id(c.frozen) for c in clients}), 1)
+        self.assertEqual(result["qualification"], "C11_SOURCE_FIXTURE_DIAGNOSTIC")
+        self.assertFalse(result["api_qualified"])
+        self.assertFalse(result["native_qualified"])
+        self.assertFalse(result["gtm_qualified"])
+        self.assertEqual(result["engine_decision"], "UNDECIDED")
+        self.assertEqual(result["sustained_all_miss"], "NOT_RUN")
+        self.assertEqual({(c["os_cache"], c["query_cache"], c["status"]) for c in result["cells"]},
+                         {(os, query, "NOT_RUN") for os in ("warm", "cold") for query in ("prefilled", "empty")})
+        preparation = result["run"]["preparation"]
+        self.assertEqual(len(preparation), 8)
+        self.assertTrue(all(p["status"] == "NOT_RUN" for p in preparation))
+        self.assertTrue(all(r["measurement"]["safe"] for r in result["run"]["records"]))
+        self.assertEqual([r["response"]["cache_hit"] for r in result["run"]["records"]], [True, True])
+        self.assertEqual(self.provider_calls, 1)
+        self.assertNotIn("measurement", result["run"]["records"][0]["response"])
+        self.assertEqual(result["provider_embed_calls_are_http_calls"], False)
+
+    async def test_source_driver_keeps_warmup_failures_and_refusal_bound_to_that_inventory(self):
+        self.surface("run_product")
+        self.revoked = True
+        result = await self.run_source()
+        self.assertEqual(result["diagnostic"]["warmup_errors"], 1)
+        self.assertTrue(all(p["warmup_errors"] == 1 for p in result["run"]["preparation"]))
+        self.assertEqual(result["diagnostic"]["errors_or_missed"], 2)
+        self.assertEqual(result["diagnostic"]["verdict"], "FAIL")
+        self.assertEqual(self.provider_calls, 0)
+        self.assertNotIn("synthetic-private-auth", str(result))
+
+    async def test_invalid_input_and_config_refuse_before_client_or_provider_effects(self):
+        run = self.surface("run_product")
+        from vector_baseline import load, product_path
+        from unittest.mock import patch
+        kwargs = dict(source_root=Path(__file__).resolve().parents[2], read_port=self.read, scope_for=lambda q: {})
+        with patch.object(product_path, "client", side_effect=AssertionError("must not create client")):
+            with self.assertRaises(product_path.Refusal):
+                await run(self.root, self.spec, "0" * 64, **kwargs)
+            with patch.object(product_path, "prepare_input", side_effect=AssertionError("invalid config precedes input")):
+                with self.assertRaises(ValueError):
+                    await run(self.root, self.spec, self.expected, config=load.RunConfig(duration_seconds=0), **kwargs)
+                with self.assertRaises(ValueError):
+                    await run(self.root, self.spec, self.expected, latency_budget_ms=float("nan"), **kwargs)
+        self.assertEqual(self.provider_calls, 0)
+
+    async def test_ready_boolean_cannot_promote_the_unavailable_s4a_preparation(self):
+        self.surface("run_product")
+        from vector_baseline import load, product_path
+        from unittest.mock import patch
+        closed = []
+        actual = product_path.ProductClient.aclose
+        async def close(client):
+            await actual(client); closed.append(client)
+        async def forged(*args): return {"status": "READY", "native_qualified": True}
+        with patch.object(product_path.ProductClient, "prepare_measured", forged), \
+             patch.object(product_path.ProductClient, "aclose", close):
+            with self.assertRaises(product_path.Refusal):
+                await self.run_source(config=load.RunConfig(duration_seconds=.025, warmup_seconds=0))
+        self.assertEqual(len(closed), 8)
+        self.assertEqual(self.provider_calls, 0)
+
+    async def test_preparation_digest_binds_current_input_truth_config_and_exact_warmup(self):
+        self.surface("run_product")
+        from vector_baseline import load, product_path
+        from unittest.mock import patch
+        actual = product_path.ProductClient.prepare_measured
+        for key in ("input_sha256", "truth_sha256", "preparation_sha256", "warmup_errors"):
+            with self.subTest(key=key):
+                async def changed(client, warmup, config):
+                    value = await actual(client, warmup, config)
+                    value[key] = "changed"
+                    return value
+                with patch.object(product_path.ProductClient, "prepare_measured", changed):
+                    with self.assertRaises(product_path.Refusal):
+                        await self.run_source(config=load.RunConfig(duration_seconds=.025, warmup_seconds=0))
+        self.assertEqual(self.provider_calls, 0)

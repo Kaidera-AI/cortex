@@ -1,5 +1,6 @@
 """Fixed offered load over eight persistent, cooperatively cancellable clients."""
 import asyncio
+import copy
 from dataclasses import asdict, dataclass
 import math
 import time
@@ -31,11 +32,14 @@ class Clock:
     sleep = staticmethod(asyncio.sleep)
 
 
-async def run(queries, factory, config, *, clock=None, observer=None):
+async def run(queries, factory, config, *, clock=None, observer=None, before_measured=None):
     """Factory constructs without I/O; each tracked client exposes open/request/aclose.
 
     Queue deadlines use scheduled arrival, and the scheduler never awaits a request.
     Indefinitely blocking or cancellation-suppressing ports are outside this contract.
+    Optional preparation runs after warmup drains, before measured t0, with all
+    clients open and idle. It receives a private warmup copy; failure propagates
+    through the same cleanup. Its return value is evidence, not admission.
     """
     config.validate()
     if (not queries or any(not isinstance(q, dict) or not isinstance(q.get("id"), str) or not q["id"]
@@ -138,10 +142,15 @@ async def run(queries, factory, config, *, clock=None, observer=None):
         if observer is not None:
             collector = asyncio.create_task(collect())
         warmup, _, _ = await phase(config.warmup_seconds, "warmup")
+        preparation = None
+        if before_measured is not None:
+            preparation = await before_measured(tuple(clients), copy.deepcopy(warmup), config)
         measured, start, end = await phase(config.duration_seconds, "measured")
         await observe()
         result = {"config": asdict(config), "records": measured, "warmup_records": warmup,
                   "measured_start": start, "measured_end": end}
+        if before_measured is not None:
+            result["preparation"] = preparation
     finally:
         if collector is not None:
             collector.cancel()

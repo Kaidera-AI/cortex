@@ -481,5 +481,380 @@ class PreparedMemoryAdmissionTests(unittest.TestCase):
         self.assertEqual(self.commands, [["create", "--pull=never", "--name", "fixture"]])
 
 
+class S4ProductPathTests(unittest.IsolatedAsyncioTestCase):
+    """Actual C11/C04/cache/S3 components over explicit memory/HTTP boundaries.
+
+    SQL observations below are canned source-fixture values, never database proof.
+    Existing S2/S3 transport and C07 fixtures are reused rather than reimplemented.
+    """
+    authorize = ProductPathTests.authorize
+
+    async def asyncSetUp(self):
+        await ProductPathTests.asyncSetUp(self)
+        import importlib.util
+        from contextlib import asynccontextmanager
+        from dataclasses import asdict
+        from unittest.mock import patch
+        from cortex_core.api.c11b2 import C11b2ReadPort
+        from cortex_core.auth import Scope
+        from cortex_core.modules.vector.search import QdrantProjection
+        path = NEXT / 'tests/receipt/test_c09_qdrant.py'
+        loader = importlib.util.spec_from_file_location('s4_owned_s3_fixtures', path)
+        self.fx = importlib.util.module_from_spec(loader); loader.loader.exec_module(self.fx)
+        self.binding = self.fx.S3Tests().binding(identity=IDENTITY)
+        self.server = self.fx.QueryProjectionServer()
+        self.target_rows = []
+        self.pending = 0; self.revoked = False; self.generation = 1; self.indexed = 3
+        self.sql_calls = []; self.boundary = []; self.cache_rows = {}; self.recorded = []
+        self.spec['record_map'] = {sid: str(UUID(int=10+i)) for i, sid in enumerate(('r1','r2','r3'))}
+        self.expected = hashlib.sha256(canonical(self.spec)).hexdigest()
+        self.network_deny = patch('socket.socket.connect', side_effect=AssertionError('IP forbidden'))
+        self.network_deny.start(); self.addCleanup(self.network_deny.stop)
+        test = self
+        self.private = self.fx.S2Tests().client(self.server)
+        await self.private.__aenter__(); self.addAsyncCleanup(self.private.__aexit__, None, None, None)
+        # Projection uses the real C07 state machine, sink, S2 client and v2 receipt.
+        from cortex_core.modules.vector.consumer_adapter import QdrantSink
+        self.sink_clients = []
+        def factory():
+            client = test.fx.S2Tests().client(test.server); test.sink_clients.append(client); return client
+        async def embed(identity, payload):
+            test.boundary.append('projection-provider')
+            return test.corpus.vectors[len(test.recorded)].tolist()
+        self.sink = QdrantSink(self.binding, factory, embed)
+        self.addCleanup(self.sink.close)
+        # Reuse the existing C07 transaction-boundary fixture, not a stubbed
+        # _record: original validated v2 JSON reaches the real _record/_call.
+        import sys
+        sys.path.insert(0,str(NEXT/'tests/receipt'))
+        try: from test_c09_qdrant_s3b import CoreBoundaryTests
+        finally: sys.path.pop(0)
+        consumer_fixture = CoreBoundaryTests()
+        self.addCleanup(consumer_fixture.doCleanups)
+        def checkpoint():
+            receipt=json.loads(consumer_fixture.record_attempts[-1][-1])
+            test.fx.s3.validate_receipt(receipt,test.binding,test.event)
+            test.recorded.append(receipt);test.boundary.append('core-checkpoint')
+        self.consumer = consumer_fixture.port(after_checkpoint=checkpoint)
+        self.consumer.sink = self.sink
+        self.consumer.external_binding = self.binding
+        self.core_fixture = consumer_fixture
+        for i in range(3):
+            event = self.fx.S3Tests().event(aggregate_id=str(UUID(int=10+i)), event_id=str(UUID(int=100+i)))
+            self.event=event
+            await asyncio.to_thread(self.consumer._apply_event, {'generation':1}, event)
+        for point in self.server.points.values():
+            p = point['payload']
+            self.target_rows.append(dict(record_id=p['aggregate_id'],kind=p['aggregate_kind'],revision=p['revision'],
+                tombstone=p['tombstone'],indexed_revision=p['revision'],event_id=p['event_id'],
+                payload_sha256=p['payload_sha256'],effect_sha256=p['effect_sha256'],point_id=point['id'],indexed=True))
+        class Connection:
+            def is_closed(self): return False
+            def is_in_transaction(self): return False
+            @asynccontextmanager
+            async def transaction(self, **options):
+                test.boundary.append('c04-enter')
+                yield
+                test.boundary.append('c04-exit')
+            async def execute(self, sql, *args):
+                test.sql_calls.append(sql)
+                if sql.startswith('DELETE FROM retrieval.query_embeddings') and 'embedding IS NULL' in sql:
+                    test.cache_rows.pop(args[:5], None)
+            async def fetchrow(self, sql, *args):
+                test.sql_calls.append(sql)
+                if 'auth.resolve_scope' in sql:
+                    if test.revoked: return None
+                    return asdict(Scope(test.binding.installation_id,TA,PA,UUID(int=50),test.generation,'read'))
+                if 'current_setting' in sql:
+                    return (hashlib.sha256(b'synthetic').hexdigest(), str(test.binding.installation_id), str(PA), 'read')
+                if 'retrieval.query_embeddings' in sql:
+                    row = test.cache_rows.get(args[:5])
+                    return None if row is None else dict(vector=row, fresh=True)
+                raise AssertionError('unrecognized canned fetchrow')
+            async def fetchval(self, sql, *args):
+                test.sql_calls.append(sql)
+                if 'coordination.c09_state' in sql:
+                    return dict(binding=test.fx.s3.binding_contract(test.binding),indexed_records=test.indexed,
+                                pending_records=test.pending,targets=[copy.deepcopy(r) for r in test.target_rows
+                                    if UUID(r['record_id']) in args[1]])
+                if 'SELECT count(*) FROM retrieval.query_embeddings' in sql: return len(test.cache_rows)
+                if 'SELECT count(*) FROM core.records' in sql: return 0
+                if sql.lstrip().startswith('INSERT INTO retrieval.query_embeddings'):
+                    test.cache_rows[args[:5]] = None; return 1
+                if sql.lstrip().startswith('UPDATE retrieval.query_embeddings'):
+                    test.cache_rows[args[:5]] = args[7]; return 1
+                if 'auth.bind_scope' in sql or 'current_user' in sql: return True
+                raise AssertionError('unrecognized canned fetchval: '+sql)
+        class Pool:
+            @asynccontextmanager
+            async def acquire(self, **options): yield Connection()
+        class Records:
+            installation_id = test.binding.installation_id
+            projects = {'owned': PA}
+            def _project(self, scope): return PA
+            async def principal(self, scope):
+                test.boundary.append('c11-current')
+                if test.revoked: raise PermissionError('synthetic-private-auth')
+                return dict(principal_id=str(UUID(int=50)), tenant_id=str(TA), project_id=str(PA),
+                            permission_generation=test.generation)
+        self.read = C11b2ReadPort(Records(),Pool(),IDENTITY,self.provider,'synthetic',{},
+                                 vector_projection=QdrantProjection(self.binding,self.private))
+
+    def make_client(self, **options):
+        def scope_for(query):
+            return dict(type='http',method='POST',path='/search',headers=[(b'authorization',b'Bearer synthetic')])
+        return surface().client(self.root,self.spec,self.expected,self.cache,self.search,self.authorize,
+                                source_root=NEXT,read_port=self.read,scope_for=scope_for,**options)
+
+    async def response(self, client=None, query=None):
+        client = client or self.make_client()
+        if client._prepared is None: await client.open()
+        caught = None; response = None
+        try: response = await client.request(query or self.spec['queries'][0])
+        except Exception as error: caught = error
+        self.assertIsNone(caught, 'actual C11 SOURCE_FIXTURE request must complete: '+str(type(caught)))
+        return client, response
+
+    async def test_s4_actual_c11_cache_qdrant_response_and_offline_truth(self):
+        client, cold = await self.response()
+        _, warm = await self.response(client)
+        self.assertEqual((cold['cache_hit'],warm['cache_hit']), (False,True))
+        self.assertEqual((cold['provider_embed_calls'],warm['provider_embed_calls']), (1,0))
+        self.assertEqual(self.provider_calls,1, 'count actual MockTransport requests, not misses')
+        self.assertTrue(any('auth.resolve_scope' in q for q in self.sql_calls))
+        self.assertTrue(any('/points/query' in call[1] for call in self.server.calls))
+        self.assertEqual(len(self.search.calls),0, 'diagnostic direct-search port must not run')
+        self.assertEqual(client.compare('q1',cold)['tie_recall'],1.)
+        self.assertNotIn('measurement',cold, 'offline comparison belongs after load')
+        self.assertFalse(cold['api_qualified'])
+
+    async def test_s4_no_truth_or_corpus_scan_inside_request(self):
+        from unittest.mock import patch
+        client = self.make_client(); await client.open()
+        with patch.object(oracle,'rank',side_effect=AssertionError('timed oracle forbidden')), \
+             patch.object(corpus,'load',side_effect=AssertionError('timed corpus read forbidden')):
+            _, response = await self.response(client)
+        self.assertEqual(client.compare('q1',response)['strict_recall'],1.)
+
+    async def test_s4_serialization_completes_before_return(self):
+        from unittest.mock import patch
+        from cortex_core.api import c11a
+        actual = c11a._respond; events=[]
+        async def observed(send,status,body):
+            events.append('serialization-start'); await actual(send,status,body); events.append('body-sent')
+        with patch.object(c11a,'_respond',observed):
+            client, response = await self.response()
+            events.append('request-return')
+        self.assertEqual(events,['serialization-start','body-sent','request-return'])
+        body = json.loads(response['body'])
+        self.assertEqual(body['results'][0]['id'],self.spec['record_map']['r1'])
+        self.assertEqual(hashlib.sha256(response['body'].encode()).hexdigest(),response['response_sha256'])
+
+    async def test_s4_frozen_input_and_lookup_survive_caller_mutation(self):
+        client = self.make_client(); await client.open()
+        query = copy.deepcopy(self.spec['queries'][0])
+        self.spec['record_map']['r1']='foreign'
+        self.spec['queries'][0]['text']='changed'
+        _, response = await self.response(client, query)
+        self.assertEqual(client.compare('q1',response)['tie_recall'],1.)
+        self.assertEqual(json.loads(response['body'])['query'],'basis-a')
+
+    async def test_s4_changed_offer_cannot_substitute_frozen_query(self):
+        client = self.make_client(); await client.open()
+        changed = {**self.spec['queries'][0], 'text':'different'}
+        caught=None
+        try: await client.request(changed)
+        except Exception as error: caught=error
+        self.assertIsInstance(caught,surface().UnfulfilledResult)
+        self.assertEqual(self.provider_calls,0)
+        self.assertFalse(any('/points/query' in c[1] for c in self.server.calls))
+
+    async def test_s4_fresh_cache_still_obeys_current_core_and_no_engine_on_revoke(self):
+        client, _ = await self.response()
+        before = len(self.server.calls); self.revoked=True
+        with self.assertRaises(surface().UnfulfilledResult): await client.request(self.spec['queries'][0])
+        self.assertEqual(len(self.server.calls),before)
+        self.assertEqual(self.provider_calls,1)
+
+    async def test_s4_lag_and_changed_permission_are_charged_unfulfilled(self):
+        client = self.make_client(); await client.open(); self.pending=1
+        with self.assertRaises(surface().UnfulfilledResult): await client.request(self.spec['queries'][0])
+        self.pending=0
+        self.server.on_query=lambda: setattr(self,'generation',2)
+        with self.assertRaises(surface().UnfulfilledResult): await client.request(self.spec['queries'][0])
+        self.assertEqual(self.provider_calls,1)
+
+    async def test_s4_unbound_provider_vector_has_no_c11_result_credit(self):
+        self.provider_vector=[0.,1.]+[0.]*766
+        client=self.make_client(); await client.open()
+        with self.assertRaises(surface().UnfulfilledResult): await client.request(self.spec['queries'][0])
+        self.assertEqual(self.provider_calls,1)
+        self.assertFalse(any('/points/query' in c[1] for c in self.server.calls))
+
+    async def test_s4_offline_unknown_foreign_duplicate_kind_revision_and_identity_refuse(self):
+        client, response=await self.response()
+        for field,value in [('id','unknown'),('kind','foreign'),('revision',2),('distance',float('nan'))]:
+            with self.subTest(field=field):
+                altered=copy.deepcopy(response);body=json.loads(altered['body']);body['results'][0][field]=value
+                altered['body']=json.dumps(body);altered['response_sha256']=hashlib.sha256(altered['body'].encode()).hexdigest()
+                with self.assertRaises(surface().Refusal):client.compare('q1',altered)
+        body=json.loads(response['body']);body['results'][1]=copy.deepcopy(body['results'][0])
+        altered={**response,'body':json.dumps(body)};altered['response_sha256']=hashlib.sha256(altered['body'].encode()).hexdigest()
+        with self.assertRaises(surface().Refusal):client.compare('q1',altered)
+        body=json.loads(response['body']);body['freshness']['identity']='foreign'
+        altered={**response,'body':json.dumps(body)};altered['response_sha256']=hashlib.sha256(altered['body'].encode()).hexdigest()
+        with self.assertRaises(surface().Refusal):client.compare('q1',altered)
+
+    async def test_s4_response_input_truth_and_bytes_are_bound(self):
+        client,response=await self.response()
+        for key in ('input_sha256','truth_sha256','response_sha256','query_id'):
+            with self.subTest(key=key),self.assertRaises(surface().Refusal):client.compare('q1',{**response,key:'changed'})
+
+    async def test_s4_shared_frozen_truth_precedes_client_open_and_survives_close(self):
+        prepare=getattr(surface(),'prepare_input',None)
+        self.assertTrue(callable(prepare),'one shared admitted-input seam required')
+        frozen=prepare(self.root,self.spec,self.expected,source_root=NEXT)
+        from unittest.mock import patch
+        with patch.object(oracle,'rank',side_effect=AssertionError('truth already frozen')):
+            client=self.make_client(prepared=frozen);await client.open()
+            _,response=await self.response(client)
+        await client.aclose()
+        self.assertEqual(client.compare('q1',response)['tie_recall'],1.)
+
+    async def test_s4_prepare_refuses_unbound_native_state_and_miss_budget(self):
+        client=self.make_client();await client.open()
+        prepare=getattr(client,'prepare_measured',None)
+        self.assertTrue(callable(prepare),'phase seam must refuse rather than invent native/cache evidence')
+        config=load.RunConfig(warmup_seconds=0)
+        refusal=await prepare([],config)
+        self.assertEqual((refusal['status'],refusal['capability'],refusal['sustained_all_miss']),
+                         ('NOT_RUN','UNAVAILABLE','NOT_RUN'))
+        self.assertEqual(refusal['input_sha256'],self.expected)
+        self.assertEqual(len(refusal['preparation_sha256']),64)
+        self.assertNotIn('native_qualified',refusal)
+
+    async def test_s4_preparation_is_bound_to_each_config_and_warmup_inventory(self):
+        client=self.make_client();await client.open()
+        prepare=getattr(client,'prepare_measured',None);self.assertTrue(callable(prepare))
+        a=await prepare([],load.RunConfig(warmup_seconds=0))
+        b=await prepare([{'offer_id':0,'status':'ERROR'}],load.RunConfig(warmup_seconds=.025))
+        self.assertNotEqual(a['preparation_sha256'],b['preparation_sha256'])
+        self.assertEqual(b['warmup_errors'],1, 'warmup failures must remain charged')
+        self.assertEqual(b['status'],'NOT_RUN')
+
+    async def test_s4_capability_stays_unavailable_and_projection_custody_closes(self):
+        client,response=await self.response()
+        scope=dict(method='GET',headers=[(b'authorization',b'Bearer synthetic')])
+        principal=await self.read.principal(scope)
+        self.assertEqual((await self.read.capability_source('pg_search',principal))['state'],'unavailable')
+        self.assertEqual(len(self.recorded),3)
+        self.assertTrue(all(r['version']==2 for r in self.recorded))
+        self.assertEqual(len(self.core_fixture.record_attempts),3)
+        self.assertEqual(len(self.core_fixture.transaction_exits),6)
+        self.assertEqual([json.loads(args[-1]) for args in self.core_fixture.record_attempts],self.recorded)
+        self.assertEqual(self.boundary[:6],['projection-provider','core-checkpoint']*3)
+        self.assertTrue(all(c._http.is_closed and c.status()['pending_operations']==0 for c in self.sink_clients))
+        self.assertFalse(self.private.status()['module_ready'])
+        await client.aclose();self.assertIsNone(client._prepared)
+
+    async def test_s4_engine_failure_load_keeps_every_offer_and_scrubs_secrets(self):
+        self.server.fault='query_failure'
+        run=await load.run([self.spec['queries'][0]],lambda n:self.make_client(),
+                           load.RunConfig(duration_seconds=.2,warmup_seconds=0,deadline_seconds=.1))
+        self.assertEqual(len(run['records']),8)
+        self.assertTrue(all(r['status']=='ERROR' for r in run['records']))
+        self.assertEqual((run['clients_opened'],run['clients_closed']),(8,8))
+        self.assertNotIn('SYNTHETIC-PRIVATE',str(run))
+        self.assertEqual(len(self.search.calls),0)
+
+    async def test_s4_public_gateway_preserves_unavailable_admission(self):
+        from cortex_core.api.c11a import ConsumerGateway
+        async def probe(): return True
+        async def health(): return {'component':'cortex','status':'unavailable'}
+        gateway=ConsumerGateway(core_probe=probe,principal_resolver=self.read.principal,
+            permission_recheck=self.read.permission_recheck,capability_source=self.read.capability_source,
+            health=health,handlers=self.read.handlers,parse_search_body=True,
+            search_admission=self.read.search_admission)
+        messages=[]
+        async def receive(): return {'type':'http.request','body':b'{"query":"basis-a","top_k":2}'}
+        async def send(message): messages.append(message)
+        await gateway.app(dict(type='http',method='POST',path='/search',
+            headers=[(b'authorization',b'Bearer synthetic')]),receive,send)
+        self.assertEqual(messages[0]['status'],503)
+        self.assertEqual(json.loads(messages[1]['body'])['error']['code'],'capability_unavailable')
+        self.assertEqual(self.provider_calls,0)
+        self.assertFalse(any('/points/query' in c[1] for c in self.server.calls))
+
+    async def test_s4_empty_and_under_k_use_offline_frozen_truth(self):
+        self.spec['queries'][0]['limit']=10
+        self.expected=hashlib.sha256(canonical(self.spec)).hexdigest()
+        client,response=await self.response()
+        self.assertEqual(client.compare('q1',response)['expected_count'],3)
+        self.assertEqual(client.compare('q1',response)['tie_recall'],1.)
+        # A different admitted corpus with no records in the requested scope.
+        self.root=self.root.parent/'empty-corpus'
+        c=corpus.write_corpus(self.root,self.corpus.vectors,
+            [{'id':sid,'tenant':'ta','project':'empty'} for sid in ('r1','r2','r3')],self.corpus.identity)
+        self.spec['corpus_manifest_sha256']=corpus.digest(self.root/'manifest.json')
+        self.expected=hashlib.sha256(canonical(self.spec)).hexdigest()
+        self.indexed=0;self.target_rows=[];self.server.points.clear()
+        client,response=await self.response()
+        measurement=client.compare('q1',response)
+        self.assertTrue(measurement['empty_exact']);self.assertIsNone(measurement['tie_recall'])
+
+    async def test_s4_serialization_over_deadline_is_unfulfilled(self):
+        from unittest.mock import patch
+        from cortex_core.api import c11a
+        actual=c11a._respond
+        async def delayed(*args): await asyncio.sleep(.6); await actual(*args)
+        client=self.make_client();await client.open()
+        client.options['scope_for']=lambda q:dict(headers=[(b'authorization',b'Bearer synthetic')],
+            _cortex_deadline=asyncio.get_running_loop().time()+.5)
+        with patch.object(c11a,'_respond',delayed),self.assertRaises(surface().UnfulfilledResult):
+            await client.request(self.spec['queries'][0])
+
+    async def test_s4_closed_client_refuses_without_dependency_exception(self):
+        client=self.make_client();await client.open();await client.aclose()
+        caught=None
+        try:await client.request(self.spec['queries'][0])
+        except Exception as error:caught=error
+        self.assertIsInstance(caught,surface().UnfulfilledResult)
+
+    async def test_s4_provider_refusal_is_not_counted_as_actual_http_call(self):
+        async def unavailable(provider):raise RuntimeError('synthetic-private-credential')
+        self.provider.resolve_key=unavailable
+        client=self.make_client();await client.open()
+        with self.assertRaises(surface().UnfulfilledResult):await client.request(self.spec['queries'][0])
+        self.assertEqual(self.provider_calls,0)
+        self.assertEqual(client._observed['provider_embed_calls'],1)
+        self.assertFalse(any('/points/query' in c[1] for c in self.server.calls))
+
+    async def test_s4_pg_c11_control_keeps_credentialed_cache_without_qdrant(self):
+        from unittest.mock import patch
+        from cortex_core.runtime.pg_adapters import _C04Search
+        self.read.vector_projection=None
+        async def search(port,subject,identity,vector,**options):
+            # This is an explicit PG result fixture; no SQL or native PG credit.
+            self.assertIsInstance(port,_C04Search)
+            return SearchResult(tuple(Hit(self.spec['record_map'][sid],'memory',1,0.) for sid in ('r1','r2')),
+                                Freshness(identity.key,3,0))
+        with patch.object(_C04Search,'search',search):client,response=await self.response()
+        self.assertEqual(client.compare('q1',response)['tie_recall'],1.)
+        self.assertEqual(self.provider_calls,1)
+        self.assertTrue(any('auth.resolve_scope' in q for q in self.sql_calls))
+        self.assertFalse(any('/points/query' in c[1] for c in self.server.calls))
+
+
+    async def test_s4_empty_held_out_set_is_fixed_admission_refusal(self):
+        self.spec['splits']={'tuning':['q1','empty'],'held_out':[]}
+        self.expected=hashlib.sha256(canonical(self.spec)).hexdigest()
+        client=self.make_client();caught=None
+        try:await client.open()
+        except Exception as error:caught=error
+        self.assertIsInstance(caught,surface().UnfulfilledResult)
+        self.assertEqual(self.provider_calls,0)
+        self.assertFalse(any('/points/query' in c[1] for c in self.server.calls))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
