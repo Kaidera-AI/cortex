@@ -1277,6 +1277,9 @@ def _execute_bound(original_request, first):
             history._check_publication(consumed)
             if cleanup is None or cleanup['targets']:
                 _barrier_before(history,bindings.barrier,thaw(dispatch_current.context),preimages,request['release'])
+                if bindings.barrier is not None:
+                    # Barrier history reads can wait after the earlier check.
+                    history._check_publication(consumed)
                 with _enrollment_dispatch(history,effect_context):
                     primitive.dispatch(effect_context)
             with _measurement(primitive,effect_context,mandated=mandated) as measured:
