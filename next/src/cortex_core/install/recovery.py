@@ -233,6 +233,17 @@ def _execute_recovery(history, original_request, current, primitives):
     if mandated:p2._sql_prefix(history,anchor,head)
     latest_ref, latest, obs = p2._latest_attempt(history,event['identity'])
     latest_attempt = p2._decode(history.read(obs['attempt_ref']))
+    if not mandated:
+        latest_reservation = p2._decode(history.read(obs['reservation_ref']))
+        owner._require(all(latest[k] == event[k] for k in
+                ('identity','effect','request_ref','origin_request_ref','release_binding_ref'))
+            and obs['preimages_ref'] == observation['preimages_ref']
+            and all(latest_attempt[k] == attempt[k] for k in
+                ('identity','effect','request_ref','origin_request_ref','context_ref',
+                 'consumption_sequence','consume_clock_ref','predecessor_result_refs'))
+            and latest_reservation['state'] == 'consumed'
+            and all(latest_reservation[k] == reservation[k] for k in
+                ('expires_at','expires_monotonic_ns','reservation_id')), 'journal_invalid')
     first_result = (latest_attempt['dispatch_state'] == 'consumed_result_unknown'
         and latest_attempt['result_ref'] is None and latest_attempt['reconciliation_ref'] is None)
     with p2._measurement(primitive,freeze(original),mandated=mandated or first_result,recovery=True) as answer:
