@@ -1,4 +1,4 @@
-"""C09 admitted-Core oracle; S3c authorizes the isolated pytest-pg Podman copy.
+"""C09 admitted-Core oracle; S3c rebase authorizes isolated pytest-pg PostgreSQL qualification.
 
 The destination receipt is synthetic: these tests can prove Core durability, never
 Qdrant atomicity. Reuse C04/C07 fixtures; no direct execution of an unadmitted SQL
@@ -25,7 +25,7 @@ from core_db_fixture import Fixture, OWNER_A, READ_A, REQUEST, API, uid
 from common import ConsumerFixture
 
 NEXT = Path(__file__).resolve().parents[2]
-C09 = 'coordination/c09-external-v2.sql'
+C09 = 'coordination/008-c09-external-v2.sql'
 
 
 def admitted_entry():
@@ -50,6 +50,12 @@ class AdmissionTests(unittest.TestCase):
         rows=admitted_entry()
         self.assertEqual(len(rows),1,'C09 remains unadmitted: no durable-chain credit')
         self.assertEqual(rows[0]['sha256'],hashlib.sha256((NEXT/'schema'/C09).read_bytes()).hexdigest())
+        entries=json.loads((NEXT/'schema/manifest.json').read_text())['migrations']
+        self.assertEqual(len(entries),21)
+        self.assertEqual(entries[19]['id'],'runtime-grants-0001')
+        self.assertEqual(entries[19]['file'],'auth/007-runtime-grants.sql')
+        self.assertEqual(entries[20],dict(id='c09-external-v2-0008',file=C09,
+            sha256=hashlib.sha256((NEXT/'schema'/C09).read_bytes()).hexdigest()))
 
 
 class IsolationTests(unittest.TestCase):
