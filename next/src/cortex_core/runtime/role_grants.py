@@ -123,10 +123,12 @@ class _Primitive:
     state. No later snapshot can replace an operation's original preimages.
     """
     def __init__(self, client, action, connection, parameters):
-        _require(type(client) is _RoleAdapter and action in ('prepare','bind','close','restore'), 'backend_unavailable')
+        _require(type(client) is _RoleAdapter and action in ('prepare','bind','migrate','close','restore'), 'backend_unavailable')
         _require(connection is (client.recovery if action=='restore' else client.connection), 'scope_denied')
         self.client, self.action, self.connection = client, action, connection
         self.parameters = dict(parameters)
+        if action == 'migrate':
+            client._migration_selection = dict(parameters)
         self.sql_mandate_raw = None
 
     def _prime_sql(self):
@@ -144,7 +146,7 @@ class _Primitive:
             _require(binding.get('protocol_version') is None,'backend_unavailable')
             self.sql_mandate_raw=None
             return
-        _require(self.action in ('prepare','bind') and c['identity']==a.identity,'scope_denied')
+        _require(self.action in ('prepare','bind','migrate') and c['identity']==a.identity,'scope_denied')
         ref=c['request_ref']
         _require(ref['path'] in inputs.originals,'journal_invalid')
         admitted=owner.propose_effect(inputs.originals[ref['path']])
@@ -176,7 +178,7 @@ class _Primitive:
         if a._mandated(context):
             prefix=lifecycle._sql_prefix(a.history,thaw(context['journal_ref']),a.history.head()[0])
             mandate=lifecycle._decode(a.history.read(prefix['attempt']['sql_mandate_ref']))
-            _require(self.action in ('prepare','bind') and mandate['phase']==self.action,'scope_denied')
+            _require(self.action in ('prepare','bind','migrate') and mandate['phase']==self.action,'scope_denied')
         a.context = context
         try:
             a.admit(self.connection)
@@ -186,6 +188,8 @@ class _Primitive:
                          and p['installation_id']==a.installation_id and p['embedding_job_kind']==a.embedding_kind
                          and type(a.embedding_kind) is str and 0<len(a.embedding_kind)<=256,'scope_denied')
                 a.bind(self.connection,p['activate'])
+            elif self.action == 'migrate':
+                a.migrate(self.connection, **self.parameters)
             elif self.action == 'close':
                 pids = self.parameters['owned_backend_pids']
                 _require(type(pids) in (tuple,list) and len(set(pids))==len(pids)
@@ -254,7 +258,7 @@ class _RoleAdapter:
             _require(candidate.autocommit is True and type(status) is driver.pq.TransactionStatus,
                      'atomicity_unavailable')
             if active is not None and candidate is active[0]:
-                _require(active[1].savepoint_name is None and status == driver.pq.TransactionStatus.INTRANS,
+                _require(active[1].savepoint_name in (None, '') and status == driver.pq.TransactionStatus.INTRANS,
                          'atomicity_unavailable')
             else:
                 _require(status == driver.pq.TransactionStatus.IDLE, 'atomicity_unavailable')
@@ -319,7 +323,7 @@ class _RoleAdapter:
             remaining=stop-time.monotonic_ns()
             _require(remaining>0,'reservation_expired')
             conn.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true)",
-                         (str(max(1,remaining//1_000_000)),))
+                         (str(min(2000,max(1,remaining//1_000_000))),))
             if conn.execute('SELECT pg_catalog.pg_try_advisory_xact_lock(%s)',(self.database[0],)).fetchone()==(True,):break
             time.sleep(min(.01,remaining/1_000_000_000))
         self._current(context,recovery=recovery)
@@ -358,7 +362,7 @@ class _RoleAdapter:
             expected_context=thaw(context['context']))
 
     def _sql_postconditions(self, conn, raw, phase, *, before, activate=None):
-        _require(phase in ('prepare','bind'),'atomicity_unavailable')
+        _require(phase in ('prepare','bind','migrate'),'atomicity_unavailable')
         roles=lifecycle._decode(raw['role'])['roles']
         _require(len(roles)==len(self.roles) and {r[1] for r in roles}==set(self.roles.values())
             and all(type(r[0]) is int and r[0]>0 for r in roles),'resource_changed')
@@ -372,7 +376,14 @@ class _RoleAdapter:
             _require(all(known.get(r[1])==r[0] for r in roles),'resource_changed')
         original=lifecycle._decode(before['role'])
         prior={r[1]:r for r in original['roles']}
-        if phase=='prepare':
+        if phase=='migrate':
+            selected = self._migration_selection
+            database = lifecycle._decode(raw['database'])
+            original_db = lifecycle._decode(before['database'])
+            _require(database['ledger'] == sorted(selected['ledger'])
+                and all(database[k] == original_db[k] for k in ('database','bindings'))
+                and all(raw[k] == before[k] for k in ('role','hba','carrier')), 'resource_changed')
+        elif phase=='prepare':
             _require(all(raw[k]==before[k] for k in _FIELDS-{'role'})
                 and lifecycle._decode(raw['role'])['memberships']==original['memberships'],'resource_changed')
             for row in roles:
@@ -413,7 +424,7 @@ class _RoleAdapter:
         context=self.context
         prefix=lifecycle._sql_prefix(self.history,thaw(context['journal_ref']),self.history.head()[0])
         mandate=lifecycle._decode(self.history.read(prefix['attempt']['sql_mandate_ref']))
-        _require(mandate['phase'] in ('prepare','bind'),'atomicity_unavailable')
+        _require(mandate['phase'] in ('prepare','bind','migrate'),'atomicity_unavailable')
         conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
         binding,_,proof_ref=self._native(thaw(context['context']),mandate['native_binding_ref'])
         self._sql_barrier(conn,context)
@@ -466,7 +477,7 @@ class _RoleAdapter:
         _require(conn is not self.connection and self._sql_transaction is None,'atomicity_unavailable')
         self._sql_capability(conn)
         with conn.transaction() as transaction:
-            _require(transaction.savepoint_name is None,'atomicity_unavailable')
+            _require(transaction.savepoint_name in (None, ''),'atomicity_unavailable')
             self._sql_transaction=(conn,transaction)
             try:
                 conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY')
@@ -585,9 +596,13 @@ class _RoleAdapter:
         bindings = conn.execute('SELECT role_oid,role_name::text,logical_role,installation_id::text,active,revision,'
                                 'operation_id::text,database_oid,database_owner_oid,embedding_job_kind '
                                 'FROM auth.runtime_login_bindings ORDER BY role_oid').fetchall() if present else None
+        database = {'database':db,'bindings':None if bindings is None else [list(r) for r in bindings]}
+        if getattr(self, '_migration_selection', None) is not None:
+            present = conn.execute("SELECT to_regclass('core.schema_migrations') IS NOT NULL").fetchone()[0]
+            ledger = conn.execute('SELECT migration_id,sha256 FROM core.schema_migrations').fetchall() if present else []
+            database['ledger'] = sorted([list(row) for row in ledger])
         return {'role':canonical_bytes(self._roles(conn)), 'acl':canonical_bytes(self._acl(conn)),
-                'database':canonical_bytes({'database':db,'bindings':None if bindings is None else [list(r) for r in bindings]}),
-                **material}
+                'database':canonical_bytes(database), **material}
 
     def _current(self, context=None, *, recovery=None):
         context=self.context if context is None else context
@@ -677,7 +692,14 @@ class _RoleAdapter:
                              'ON r.rolname=session_user WHERE a.pid=pg_backend_pid()').fetchone()
         _require(login and login[0] == login[1] and login[2] == login[3], 'scope_denied')
         if conn is self.connection:
-            _require(login[2] == self.roles['bootstrap'], 'scope_denied')
+            # The fixed owner supplied this exact finite phase, not SET ROLE or
+            # a runtime credential whose name happens to match an admin.
+            private = owner._private(lifecycle._owner_inputs(), thaw(self.context['context']))
+            phase = 'bootstrap' if private is None else private['phase']
+            _require(phase in ('bootstrap', 'migrator') and login[2] == self.roles[phase], 'scope_denied')
+            if private is not None:
+                _require(login[1] == private['session_user_oid'] and login[2] == private['session_user_name'],
+                         'scope_denied')
 
     @contextmanager
     def _transaction(self, conn, *, activate=None):
@@ -685,7 +707,7 @@ class _RoleAdapter:
         self._sql_capability(conn)  # idle/autocommit: never borrow an outer transaction
         self.admit(conn)
         with conn.transaction() as transaction:
-            _require(transaction.savepoint_name is None, 'atomicity_unavailable')
+            _require(transaction.savepoint_name in (None, ''), 'atomicity_unavailable')
             self._sql_transaction = (conn, transaction)
             try:
                 self._sql_capability(conn)
@@ -898,6 +920,62 @@ class _RoleAdapter:
                              'WHERE operation_id=%s AND NOT active', (UUID(self.identity['operation_id']),))
         return self.receipt()
 
+    def _demote_sql(self, conn):
+        sql = self._sql_capability(conn).sql
+        for logical in ('migrator', 'bootstrap'):
+            self._current()
+            conn.execute(sql.SQL('ALTER ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
+                                'NOINHERIT NOREPLICATION NOBYPASSRLS').format(sql.Identifier(self.roles[logical])))
+            self._current()
+
+    def demote(self, conn):
+        """Finite SQL postimage first; independent owner closes ALL sockets later.
+
+        This method cannot itself prove final absence or release S05. It adds no
+        privileged recovery connection and does not query through a killed one.
+        """
+        with self._transaction(conn):
+            self._demote_sql(conn)
+        self._current()
+        return self.receipt()
+
+    def migrate(self, conn, *, directory, through, manifest_sha256, ledger):
+        """Reuse the sole migration engine and existing P1 SQL checkpoints."""
+        from pathlib import Path
+        import hashlib
+        from cortex_core.migrations import apply_migrations
+
+        selected = {'directory':directory, 'through':through, 'manifest_sha256':manifest_sha256, 'ledger':ledger}
+        _require(getattr(self, '_migration_selection', None) == selected and type(ledger) is list
+            and ledger and through == ledger[-1][0], 'scope_denied')
+        path = Path(directory)/'manifest.json'
+
+        def boundary(stage, connection):
+            _require(connection is conn, 'scope_denied')
+            self._current()
+            _require(hashlib.sha256(path.read_bytes()).hexdigest() == manifest_sha256, 'resource_changed')
+            self._current()
+
+        @contextmanager
+        def transaction_scope(connection, transaction):
+            _require(self._sql_transaction is None and transaction.savepoint_name in (None, ''),
+                     'atomicity_unavailable')
+            self._sql_transaction = (connection, transaction)
+            try:
+                if self._mandated():
+                    with self._sql_transactional(connection, transaction):
+                        yield
+                else:
+                    self.admit(connection)
+                    yield
+                    self._current()
+            finally:
+                self._sql_transaction = None
+
+        boundary('before_prepare', conn)
+        return apply_migrations(conn, directory, through=through, _boundary=boundary,
+                                _transaction_scope=transaction_scope)
+
     def close(self, conn):
         driver = self._sql_capability(conn)
         sql = driver.sql
@@ -919,9 +997,7 @@ class _RoleAdapter:
                                      'FROM pg_catalog.pg_stat_activity WHERE pid=%s AND usesysid=%s '
                                      'AND backend_start::text=%s AND datid=%s',(pid,*lifetime)).fetchone()
                     _require(row and row[0])
-            for logical in ('migrator','bootstrap'):
-                conn.execute(sql.SQL('ALTER ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
-                                     'NOINHERIT NOREPLICATION NOBYPASSRLS').format(sql.Identifier(self.roles[logical])))
+            self._demote_sql(conn)
         # The original finite caller closes LAST. Independent recovery IO, not
         # a lost socket, decides whether all exact owned backend lifetimes drain.
         self._sql_capability(conn)
