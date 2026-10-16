@@ -17,7 +17,7 @@ FROM ${BASE_IMAGE} AS upstream
 
 FROM upstream AS pgvector
 ARG TARGETARCH
-RUN --mount=type=bind,source=.,target=/in,ro \
+RUN --mount=type=bind,source=.,target=/in,ro,relabel=shared \
     cd /in && sha256sum -c next/release/recipes/core/build-assets.linux-${TARGETARCH}.sha256 \
  && apk add --no-network --repositories-file=/dev/null --no-cache --no-logfile $(sed -n 's|^[0-9a-f]\{64\}  \(assets/apk/.*\.apk\)$|/in/\1|p' next/release/recipes/core/build-assets.linux-${TARGETARCH}.sha256) \
  && mkdir /build && tar -xzf /in/assets/pgvector-0.8.3.tar.gz -C /build \

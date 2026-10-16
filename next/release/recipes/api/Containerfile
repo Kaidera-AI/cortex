@@ -18,7 +18,7 @@ ARG TARGETARCH
 COPY next/src/ /opt/cortex/next/src/
 COPY next/schema/ /opt/cortex/next/schema/
 COPY next/contracts/ /opt/cortex/next/contracts/
-RUN --mount=type=bind,source=.,target=/in,ro \
+RUN --mount=type=bind,source=.,target=/in,ro,relabel=shared \
     cd /in && sha256sum -c next/release/recipes/api/apk-assets.linux-${TARGETARCH}.sha256 \
  && apk add --no-network --repositories-file=/dev/null --no-cache --no-logfile $(sed -n 's|^[0-9a-f]\{64\}  \(assets/apk/.*\.apk\)$|/in/\1|p' next/release/recipes/api/apk-assets.linux-${TARGETARCH}.sha256) \
  && python3 -m venv /opt/cortex/python \
