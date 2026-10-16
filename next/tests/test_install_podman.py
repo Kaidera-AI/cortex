@@ -598,7 +598,8 @@ class PodmanPrimitives(unittest.TestCase):
 
     def test_image_load_preserves_complete_shared_inventory_and_tags(self):
         e = Engine('image', 'load')
-        old = dict(resource('image'), id='f'*64, config='sha256:'+'f'*64, tags=['shared:tag'])
+        old = dict(resource('image'), id='f'*64, config='sha256:'+'f'*64, tags=['shared:tag'],
+                   arch='amd64', source='older-source', version='older-version')
         e.plan['image_inventory'] = [copy.deepcopy(old)];e.images = [copy.deepcopy(old)]
         self.assertEqual(self.execute(e)[0], 'APPLIED')
         for fault in [lambda e: e.images[0].update(tags=['overwritten:tag']),
