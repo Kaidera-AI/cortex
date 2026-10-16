@@ -202,7 +202,7 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
     from . import _owned_remove, export
     from .engine import Deadline, OutputAccount, OwnedRoots
     from .inputs import require_verified
-    from .policy import native_build_template, verify_native
+    from .policy import native_base_config, native_build_template, verify_native
 
     require_verified(verified)
     value = thaw(verified.document)
@@ -211,6 +211,10 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
     # Hale R4-TEMPLATE-001: refuse before any root, load, info or build.
     if value["recipe"]["argv_template"] != native_build_template(value):
         raise ValueError("native_recipe_uncontained")
+    # GA-C-R02-001: the base archive the input phase loads (and checks by Id) must be
+    # the admitted base the template names; otherwise refuse before any root/engine op.
+    if type(base) is not dict or base.get("config_sha256") != native_base_config(value):
+        raise ValueError("native_base_identity")
     verify_native(host, value["target"]["oci_platform"])
     resources = value["resources"]
     caps = resources["phase_timeouts_sec"]
