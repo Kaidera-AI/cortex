@@ -29,7 +29,7 @@ def sha(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
-def lane_value(fx, *, cpu=500, memory=1 << 28, disk=1 << 20, absolute=600, caps=None):
+def lane_value(fx, *, cpu=500, memory=1 << 28, disk=1 << 20, absolute=600, caps=None, base_config='0' * 64):
     value = {'target': {'module_id': 'api', 'module_version': '0.2.001', 'oci_platform': 'linux/amd64'},
              'determinism': {'epoch': 0, 'environment': {'names': ['PYTHONHASHSEED']}},
              'resources': {'absolute_timeout_sec': absolute, 'cpu_millicores': cpu, 'memory_bytes': memory,
@@ -40,7 +40,8 @@ def lane_value(fx, *, cpu=500, memory=1 << 28, disk=1 << 20, absolute=600, caps=
                                       'sha256': sha((fx.host / 'podman').read_bytes())},
                                       'toolchain': {'compiler_id': 'cpython', 'version': r3.VERSION, 'sha256': '1' * 64}},
              'admission_policy': {'policy_id': 'fixture', 'policy_sha256': 'e' * 64, 'qualification_scope': 'native'},
-             'source': {'inventory': []}, 'dependencies': {}, 'recipe': {}}
+             'source': {'inventory': []}, 'dependencies': {'base_images': [{'config_digest': base_config}]},
+             'recipe': {}}
     value['recipe'] = {'argv_template': policy.native_build_template(value)}
     return value
 
@@ -154,8 +155,8 @@ class Lane:
         self.fx = r3.Fixture()
         case.addCleanup(self.fx.close)
         self.closure = self.fx.admit()
-        self.value = lane_value(self.fx, **value_options)
         base_archive, _, self.base_config, _ = r3.image()
+        self.value = lane_value(self.fx, base_config=self.base_config, **value_options)
         self.fx.write(self.fx.root / 'base.tar', base_archive, 0o444)
         self.base = {'root': self.fx.root, 'row': {'path': 'base.tar', 'bytes': len(base_archive),
                                                    'sha256': sha(base_archive), 'mode': 0o444},
@@ -330,15 +331,17 @@ class Budget(unittest.TestCase):
 
     def test_children_of_one_phase_share_its_window_and_cleanup_stays_in_the_reserve(self):
         clock = Clock()
-        caps = {'input': 10, 'parser': 60, 'build': 120, 'export': 60, 'audit': 60, 'cleanup': 30}
+        caps = {'input': 30, 'parser': 60, 'build': 120, 'export': 60, 'audit': 60, 'cleanup': 30}
         lane = Lane(self, absolute=400, caps=caps)
         fake = Engine(lane, clock=clock, costs={'load': 9, 'inspect': 100, 'ps': 9, 'unshare': 1000})
         with patch.object(time, 'monotonic', clock):
             record = lane.run(fake, clock=clock)
         timeouts = dict(fake.timeouts[:2])
-        self.assertAlmostEqual(timeouts['inspect'], 1)  # only the rest of the 10 s input window
+        # the rest of the 30 s input window minus the inspect child's own 10 s kill wait
+        self.assertAlmostEqual(timeouts['inspect'], 11)
         self.assertEqual(record['result'], 'RED')
         self.assertLessEqual(clock.now, 400)
+        self.assertEqual([c['exit'] for c in record['phases']['input']['children']], [0, None])
 
 
 class Audit(unittest.TestCase):
@@ -357,7 +360,7 @@ class Audit(unittest.TestCase):
     def test_evidence_judge_uses_only_the_evidence_call(self):
         lane = Lane(self)
         record = {'closure_sha256': lane.closure.closure_sha256, 'request_sha256': '1' * 64, 'reply_sha256': '2' * 64,
-                  'argv': ['x'], 'verdicts': [{'cache': 'a', 'equal': True}]}
+                  'argv': ['x'], 'children': [{'argv': ['nested']}], 'verdicts': [{'cache': 'a', 'equal': True}]}
         judge = runner._EvidenceInspection(lane.closure, lane.fx.profile, None, None)
         with patch.object(inspector, 'collect_inspection_evidence', return_value=record) as collect, \
                 patch.object(inspector, '_session', side_effect=AssertionError('session path')), \
@@ -365,6 +368,8 @@ class Audit(unittest.TestCase):
                 patch.object(inspector, 'admit_inspection', side_effect=AssertionError('session path')):
             judge.check([{'cache': 'a'}])
             self.assertEqual(collect.call_count, 1)
+            self.assertEqual([c['argv'] for c in judge.children], [['x'], ['nested']])  # call record, then real nested
+            self.assertTrue({'started_at_unix_ns', 'finished_at_unix_ns', 'stdout', 'stderr', 'journal'} <= set(judge.children[0]))
             unequal = dict(record, verdicts=[{'cache': 'a', 'equal': False}])
             collect.return_value = unequal
             with self.assertRaises(ValueError) as caught:
@@ -379,27 +384,89 @@ class Audit(unittest.TestCase):
         self.assertNotEqual(record['result'], 'PASS')
 
 
-def qualification(lane, **change):
+SESSION = '/fixture/owned/session-' + 'a' * 32
+NAME = 'cortex-inspector-' + 'b' * 32
+PROBE_IMAGE = 'sha256:' + 'c' * 64
+
+
+def journal(lane, image, *, exit=0, status='finished', error=None, environment=None, argv=None):
+    limits = lane.fx.profile['inspector']['limits']
+    argv = argv or list(inspector.plan_argv(str(lane.closure.engine), image, limits, SESSION, NAME))
+    first = {'status': 'started', 'argv': argv, 'environment_names': environment or sorted(inspector.ENGINE_ENVIRONMENT),
+             'started_at_unix_ns': 1, 'timeout_ns': 1}
+    last = {'status': status, 'exit': exit, 'error': error, 'finished_at_unix_ns': 2, 'elapsed_ns': 1}
+    return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+
+
+def originals(lane, *, positive_equal=True, negative_same=False, probe_exit=None, probe_denied=True,
+              flags=None, environment=None):
+    core = product('_pyc_check')
+    rows = [{'cache': 'app/__pycache__/m.%s.pyc' % r3.TAG, 'source': 'app/m.py', 'final_filename': '/app/m.py',
+             'cache_b64': 'AAAA', 'source_b64': 'eCA9IDEK'},
+            {'cache': 'app/__pycache__/n.%s.pyc' % r3.TAG, 'source': 'app/n.py', 'final_filename': '/app/n.py',
+             'cache_b64': 'BBBB', 'source_b64': 'eSA9IDIK'}]
+    def request(rows):
+        return codec.canonical_bytes({'schema': core.REQUEST_SCHEMA, 'policy_sha256': lane.closure.policy_sha256,
+                                      'closure_sha256': lane.closure.closure_sha256,
+                                      'abi': {'version': r3.VERSION, 'magic': r3.MAGIC}, 'optimization': 0, 'rows': rows})
+    def reply(raw, equals):
+        return codec.canonical_bytes({'schema': core.RESPONSE_SCHEMA, 'request_sha256': sha(raw),
+                                      'abi': {'version': r3.VERSION, 'magic': r3.MAGIC, 'machine': 'x86_64'},
+                                      'verdicts': [{'cache': r['cache'], 'equal': e} for r, e in zip(rows, equals)]})
+    files = {}
+    positive = request(rows)
+    negative = positive if negative_same else request([dict(rows[0], cache_b64='AAAB'), rows[1]])
+    argv = None
+    if flags:
+        argv = [t if t != '--network=none' else flags for t in inspector.plan_argv(
+            str(lane.closure.engine), lane.closure.image_digest, lane.fx.profile['inspector']['limits'], SESSION, NAME)]
+    files['q/positive.request'] = positive
+    files['q/positive.reply'] = reply(positive, [positive_equal, True])
+    files['q/positive.journal'] = journal(lane, lane.closure.image_digest, environment=environment, argv=argv)
+    files['q/negative.request'] = negative
+    files['q/negative.reply'] = reply(negative, [False, True])
+    files['q/negative.journal'] = journal(lane, lane.closure.image_digest)
+    containment = {}
+    for name in receipts.PROBES:
+        if name == 'memory':
+            files['q/memory.journal'] = journal(lane, PROBE_IMAGE, exit=probe_exit or 137, status='failed')
+            containment[name] = {'journal': 'q/memory.journal', 'observation': None}
+        elif name == 'time':
+            files['q/time.journal'] = journal(lane, PROBE_IMAGE, exit=None, status='failed', error='TimeoutExpired')
+            containment[name] = {'journal': 'q/time.journal', 'observation': None}
+        else:
+            files['q/' + name + '.journal'] = journal(lane, PROBE_IMAGE, exit=probe_exit or 0)
+            files['q/' + name + '.observation'] = codec.canonical_bytes({'probe': name, 'denied': probe_denied})
+            containment[name] = {'journal': 'q/' + name + '.journal', 'observation': 'q/' + name + '.observation'}
+    return files, containment
+
+
+def qualification(lane, *, files=None, **change):
     descriptor = contracts.thaw(lane.closure.descriptor)['descriptor']
+    built, containment = originals(lane)
     doc = {'schema': receipts.QUALIFICATION_SCHEMA, 'architecture': 'amd64', 'platform': 'linux/amd64',
            'host': dict(HOST), 'engine': dict(lane.value['builder_requirements']['engine']),
            'engine_path': str(lane.closure.engine),
-           'engine_environment': sorted(['CONTAINERS_CONF', 'CONTAINERS_STORAGE_CONF', 'HOME', 'PATH', 'TMPDIR',
-                                         'XDG_RUNTIME_DIR']),
            'engine_config': {name: descriptor['engine_config'][name]['sha256'] for name in ('containers_conf', 'storage_conf')},
            'inspector': {'closure_sha256': lane.closure.closure_sha256,
-                         'positive': {'status': 'pass', 'request_sha256': '1' * 64, 'reply_sha256': '2' * 64},
-                         'negative': {'status': 'pass', 'request_sha256': '3' * 64, 'reply_sha256': '4' * 64}},
-           'containment': {name: {'status': 'pass'} for name in receipts.PROBES}}
+                         'positive': {'request': 'q/positive.request', 'reply': 'q/positive.reply', 'journal': 'q/positive.journal'},
+                         'negative': {'request': 'q/negative.request', 'reply': 'q/negative.reply', 'journal': 'q/negative.journal'}},
+           'probe_image': PROBE_IMAGE, 'containment': containment}
     doc.update(change)
+    # the R6 operator places the cited originals in the evidence root
+    for name, raw in (built if files is None else files).items():
+        target = lane.evidence / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
     return doc
 
 
 class Emission(unittest.TestCase):
     """Vera Q3: conditional RAW emission replaces the unconditional refusal."""
 
-    def complete_lanes(self, doc):
+    def complete_lanes(self, make):
         lane = Lane(self)
+        doc = make(lane)
         inventory = [{'path': 'app/module.py', 'bytes': 5, 'sha256': '0' * 64, 'mode': 420, 'uid': 1001, 'gid': 1001, 'mtime': 0}]
         with patch.object(product('artifacts'), 'inspect_oci', return_value=((), inventory)), \
                 patch.object(runner, '_runtime_smoke', return_value=('pass', 'fixture contract')), \
@@ -411,8 +478,7 @@ class Emission(unittest.TestCase):
         return lane, result
 
     def test_complete_lanes_and_records_give_raw_bytes_only(self):
-        lane = Lane(self)
-        lane, result = self.complete_lanes(qualification(lane))
+        lane, result = self.complete_lanes(qualification)
         self.assertEqual(result['result'], 'RAW')
         self.assertIsNone(result['verified'])
         value = json.loads(result['receipt'])
@@ -422,16 +488,51 @@ class Emission(unittest.TestCase):
                             value['builds']['B']['observed_builder']['store_id'])
 
     def test_missing_failed_or_mismatched_records_keep_the_emission_refusal(self):
-        lane = Lane(self)
-        bad = {'failed probe': qualification(lane, containment={**qualification(lane)['containment'], 'pids': {'status': 'fail'}}),
-               'other arch': qualification(lane, architecture='arm64', platform='linux/arm64'),
-               'other engine': qualification(lane, engine={**lane.value['builder_requirements']['engine'], 'sha256': 'f' * 64}),
-               'probe only': qualification(lane, inspector={**qualification(lane)['inspector'],
-                                                            'positive': {'status': 'missing', 'request_sha256': '1' * 64, 'reply_sha256': '2' * 64}})}
-        for name, doc in bad.items():
+        def missing(lane):
+            files = dict(originals(lane)[0])
+            del files['q/positive.reply']
+            return qualification(lane, files=files)
+        bad = {'missing original': missing,
+               'other arch': lambda lane: qualification(lane, architecture='arm64', platform='linux/arm64'),
+               'other engine': lambda lane: qualification(lane, engine={**lane.value['builder_requirements']['engine'], 'sha256': 'f' * 64}),
+               'probe observation missing': lambda lane: qualification(lane, containment={
+                   **originals(lane)[1], 'pids': {'journal': 'q/pids.journal', 'observation': None}})}
+        for name, make in bad.items():
             with self.subTest(case=name):
                 with self.assertRaises(ValueError) as caught:
-                    self.complete_lanes(doc)
+                    self.complete_lanes(make)
+                self.assertEqual(str(caught.exception), 'r02_native_emission_unqualified')
+
+    def emit_value(self, change):
+        lane, result = self.complete_lanes(qualification)
+        value = json.loads(result['receipt'])
+        change(value)
+        return lambda: build_receipts.emit(verified(lane.fx, lane.value), value['builds'], value['audit'], value['evidence'],
+                                           value['custody'], value['cleanup'], lambda path: (lane.outputs / path).read_bytes(),
+                                           lambda path: (lane.evidence / path).read_bytes(), None)
+
+    def test_shortened_required_class_set_refuses_even_when_consistent(self):
+        def change(value):
+            value['audit']['required_classes'] = [c for c in value['audit']['required_classes'] if c != 'runtime']
+            for slot in ('A', 'B'):
+                del value['audit']['reports'][slot]['runtime']
+        with self.assertRaises(ValueError) as caught:
+            self.emit_value(change)()
+        self.assertEqual(str(caught.exception), 'r02_native_emission_unqualified')
+
+    def test_required_class_list_must_be_the_full_set_even_with_full_reports(self):
+        def change(value):
+            value['audit']['required_classes'] = [c for c in value['audit']['required_classes'] if c != 'runtime']
+        with self.assertRaises(ValueError) as caught:
+            self.emit_value(change)()
+        self.assertEqual(str(caught.exception), 'r02_native_emission_unqualified')
+
+    def test_incomplete_top_level_cleanup_alone_refuses(self):
+        for name, change in {'flag': lambda v: v['cleanup'].__setitem__('complete', False),
+                             'remaining': lambda v: v['cleanup'].__setitem__('remaining_owned_resources', ['x'])}.items():
+            with self.subTest(case=name):
+                with self.assertRaises(ValueError) as caught:
+                    self.emit_value(change)()
                 self.assertEqual(str(caught.exception), 'r02_native_emission_unqualified')
 
     def test_runtime_missing_never_reaches_emission(self):
@@ -445,7 +546,8 @@ class Emission(unittest.TestCase):
 
 
 class Order(unittest.TestCase):
-    """Vera Q2: one session, only after the measured records match (R01 commit)."""
+    """Vera Q2 + Cox R4-R01-001/002: results re-derived from originals, inside the
+    verifier only, bound to this verification; one session."""
 
     def pending(self, lane):
         return inspector._Pending(lane.closure, contracts.freeze(lane.fx.profile), contracts.freeze(HOST), inspector._ADMITTED)
@@ -453,38 +555,133 @@ class Order(unittest.TestCase):
     def builds(self, lane):
         return {slot: {'observed_builder': {'engine': lane.value['builder_requirements']['engine']}} for slot in ('A', 'B')}
 
-    def test_matched_records_mint_exactly_one_session(self):
-        lane = Lane(self)
-        matched = receipts.match_qualification(qualification(lane), self.pending(lane), lane.value, self.builds(lane))
-        session = inspector.admit_session(self.pending(lane), matched)
-        self.assertIsInstance(session, inspector.InspectionSession)
+    def match(self, lane, pending=None, files=None, **change):
+        files = originals(lane)[0] if files is None else files
+        doc = qualification(lane, files=files, **change)
+        inventory = [{'role': 'native.qualification.original', 'path': p, 'media_type': 'application/octet-stream',
+                      'bytes': len(raw), 'sha256': sha(raw)} for p, raw in files.items()]
+        return receipts._match_qualification(doc, pending or self.pending(lane), lane.value, self.builds(lane),
+                                             dict(files), inventory, 'd' * 64, 'e' * 64)
 
-    def test_wrong_or_missing_records_cannot_create_a_session(self):
+    def refuses(self, fn, *args, **kw):
+        with patch.object(inspector, '_session', side_effect=AssertionError('session')) as session:
+            with self.assertRaises(ValueError) as caught:
+                fn(*args, **kw)
+        self.assertEqual(session.call_count, 0)
+        return str(caught.exception)
+
+    def test_matched_originals_mint_exactly_one_session(self):
+        lane = Lane(self)
+        pending = self.pending(lane)
+        matched, found = self.match(lane, pending)
+        self.assertEqual(len(found), len(receipts.qualification_paths(qualification(lane))))
+        self.assertIsInstance(inspector.admit_session(pending, matched), inspector.InspectionSession)
+
+    def test_results_are_rederived_from_the_originals(self):
+        lane = Lane(self)
+        cases = {'positive not equal': originals(lane, positive_equal=False)[0],
+                 'negative unchanged': originals(lane, negative_same=True)[0],
+                 'probe allowed': originals(lane, probe_denied=False)[0],
+                 'probe exit': originals(lane, probe_exit=3)[0],
+                 'wrong flags': originals(lane, flags='--network=host')[0],
+                 'wrong environment': originals(lane, environment=['HOME', 'PATH'])[0]}
+        swapped = dict(originals(lane)[0])
+        swapped['q/positive.reply'], swapped['q/negative.reply'] = swapped['q/negative.reply'], swapped['q/positive.reply']
+        cases['swapped replies'] = swapped
+        missing = dict(originals(lane)[0])
+        del missing['q/tmpfs.observation']
+        cases['missing original'] = missing
+        for name, files in cases.items():
+            with self.subTest(case=name):
+                self.assertEqual(self.refuses(self.match, lane, files=files), 'native_inspector_execution_unqualified')
+
+    def test_context_identity_mismatches_refuse(self):
         lane = Lane(self)
         for change in ({'engine_path': '/usr/bin/other'}, {'inspector': {**qualification(lane)['inspector'], 'closure_sha256': '9' * 64}},
-                       {'host': {**HOST, 'uid': 2000}}, {'engine_config': {'containers_conf': '8' * 64, 'storage_conf': '7' * 64}}):
+                       {'host': {**HOST, 'uid': 2000}}, {'engine_config': {'containers_conf': '8' * 64, 'storage_conf': '7' * 64}},
+                       {'probe_image': lane.closure.image_digest}):
             with self.subTest(change=sorted(change)):
-                with self.assertRaises(ValueError) as caught:
-                    receipts.match_qualification(qualification(lane, **change), self.pending(lane), lane.value, self.builds(lane))
-                self.assertEqual(str(caught.exception), 'native_inspector_execution_unqualified')
-        forged = receipts.MatchedQualification(lane.closure.closure_sha256, 'amd64', object())
+                self.assertEqual(self.refuses(self.match, lane, **change), 'native_inspector_execution_unqualified')
+
+    def test_a_match_cannot_be_reused_for_another_verification(self):
+        lane = Lane(self)
+        matched, _ = self.match(lane)
+        other = self.pending(lane)
+        self.refuses(inspector.admit_session, other, matched)
+        forged = receipts.MatchedQualification(other, 'd' * 64, 'e' * 64, lane.closure.closure_sha256, object())
         for bad in (None, forged, {'closure_sha256': lane.closure.closure_sha256}):
-            with self.assertRaises(ValueError):
-                inspector.admit_session(self.pending(lane), bad)
+            self.refuses(inspector.admit_session, other, bad)
+
+    def test_fixture_scope_input_never_reaches_a_session(self):
+        lane = Lane(self)
+        value = dict(lane.value, admission_policy={**lane.value['admission_policy'], 'qualification_scope': 'fixture'})
+        fixture = contracts.VerifiedBuildInput('0' * 64, contracts.freeze(value['target']), (), contracts.freeze({}),
+                                               contracts.freeze(value), False,
+                                               contracts.freeze({'release_policy': lane.fx.profile, 'accepted_inputs': {}}),
+                                               contracts._SEAL)
+        host = dict(HOST)
+        self.assertEqual(self.refuses(inspector.preflight, fixture, {'inspector_capability': lane.closure, 'inspector_host': host}),
+                         'native_inspector_execution_unqualified')
+        self.assertFalse(hasattr(receipts, 'match_qualification'))
 
     def test_raw_bytes_or_evidence_are_never_sessions(self):
         lane = Lane(self)
         for bad in (b'{"schema":"cortex.build-receipt.v1"}', qualification(lane), {'verdicts': []}):
-            with self.assertRaises(ValueError):
-                inspector.admit_session(bad, None)
+            self.refuses(inspector.admit_session, bad, None)
 
     def test_native_byte_entry_has_no_early_session_and_verify_uses_preflight_once(self):
         source = Path(receipts.__file__).read_text()
-        entry = source[source.index('def verify_native_receipt_bytes'):]
-        self.assertNotIn('admit_inspection', entry)
         self.assertNotIn('admit_inspection', source)
         self.assertEqual(source.count('pending = preflight(verified_input, policy)'), 1)
         self.assertEqual(source.count('inspection = admit_session(pending, matched)'), 1)
+
+
+class ChildBinding(unittest.TestCase):
+    """Hale R4-MAP-001(c) + v3 tamper controls on the owner helper."""
+
+    def receipt(self):
+        lane = Lane(self)
+        inventory = [{'path': 'app/module.py', 'bytes': 5, 'sha256': '0' * 64, 'mode': 420, 'uid': 1001, 'gid': 1001, 'mtime': 0}]
+        with patch.object(product('artifacts'), 'inspect_oci', return_value=((), inventory)), \
+                patch.object(runner, '_runtime_smoke', return_value=('pass', 'fixture contract')), \
+                patch.object(runner, '_child', Engine(lane, ps=[[], [], [], []])):
+            result = runner.native_lanes(verified(lane.fx, lane.value), lane.materialize, lane.base, lane.closure, HOST,
+                                         lane.parent, lane.outputs, lane.evidence, codec.canonical_bytes(qualification(lane)))
+        value = json.loads(result['receipt'])
+        measured = {row['path']: (lane.evidence / row['path']).read_bytes() for row in value['evidence']['inventory']}
+        doc = json.loads(measured['qualification.json'])
+        return lane, value, measured, doc
+
+    def tamper(self, lane, value, measured, phase, change):
+        build = value['builds']['A']
+        op = next(op for op in build['operations'] if op['phase'] == phase)
+        path = op['evidence']['path'][:-5] + '.children.json'
+        children = json.loads(measured[path])
+        change(children)
+        raw = codec.canonical_bytes(children)
+        measured = dict(measured, **{path: raw})
+        inventory = [dict(row, bytes=len(raw), sha256=sha(raw)) if row['path'] == path else row
+                     for row in value['evidence']['inventory']]
+        return build, measured, inventory
+
+    def test_unmodified_children_bind_and_tampering_refuses(self):
+        lane, value, measured, doc = self.receipt()
+        receipts._native_children(value['builds']['A'], measured, value['evidence']['inventory'], doc, lane.value)
+        cases = {'root': ('build', lambda c: c[0]['argv'].__setitem__(3, '/elsewhere-store')),
+                 'cwd': ('build', lambda c: c[0].__setitem__('cwd', '/elsewhere')),
+                 'environment': ('input', lambda c: c[0].__setitem__('environment_names', ['HOME'])),
+                 'result': ('parser', lambda c: c[0].__setitem__('exit', 1)),
+                 'tmpdir': ('input', lambda c: c[0]['argv'].__setitem__(7, '/foreign-tmp')),
+                 'empty input': ('input', lambda c: c.clear()),
+                 'reordered input': ('input', lambda c: c.reverse()),
+                 'stream digest': ('export', lambda c: c[0]['stdout'].__setitem__('sha256', '0' * 64)),
+                 'missing metadata': ('export', lambda c: c[0].pop('journal'))}
+        for name, (phase, change) in cases.items():
+            with self.subTest(case=name):
+                build, tampered, inventory = self.tamper(lane, value, measured, phase, change)
+                with self.assertRaises(ValueError) as caught:
+                    receipts._native_children(build, tampered, inventory, doc, lane.value)
+                self.assertEqual(str(caught.exception), 'native_child_evidence')
 
 
 if __name__ == '__main__':

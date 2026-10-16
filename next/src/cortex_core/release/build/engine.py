@@ -35,6 +35,7 @@ class Deadline:
         self.expires = clock() + absolute_timeout
         self.work_expires = self.expires - reserve
         self.phase_expires = self.work_expires
+        self.cleanup_expires = None
 
     def phase_timeout(self, declared_timeout):
         cap = _positive_timeout(declared_timeout)
@@ -50,14 +51,20 @@ class Deadline:
             raise TimeoutError("work deadline expired")
         self.phase_expires = min(now + cap, self.work_expires)
 
-    def child_timeout(self):
-        left = min(self.phase_expires, self.work_expires) - self.clock()
+    def child_timeout(self, kill_seconds=0):
+        """What is left of the fixed phase window, minus the child's own TERM/KILL wait."""
+        left = min(self.phase_expires, self.work_expires) - self.clock() - kill_seconds
         if left <= 0:
             raise TimeoutError("phase window spent")
         return left
 
+    def enter_cleanup(self, declared_timeout):
+        """Fix cleanup's own window once, at its entry, inside the absolute deadline."""
+        self.cleanup_expires = min(self.clock() + _positive_timeout(declared_timeout), self.expires)
+
     def cleanup_timeout(self, kill_seconds):
-        return self.expires - self.clock() - kill_seconds
+        limit = self.expires if self.cleanup_expires is None else self.cleanup_expires
+        return limit - self.clock() - kill_seconds
 
 
 class OutputAccount:

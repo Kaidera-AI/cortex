@@ -24,6 +24,8 @@ STARTUP=('/opt/cortex-inspector/bin/python','-I','-S','-B','/opt/cortex-inspecto
 CLOSED_CONFIG={'User':'65534:65534','WorkingDir':'/'}
 CLEANUP_SECONDS=30
 KILL_SECONDS=CLEANUP_SECONDS/3
+# The one fixed engine process environment (names); R01 binds every child to it.
+ENGINE_ENVIRONMENT=('CONTAINERS_CONF','CONTAINERS_STORAGE_CONF','HOME','PATH','TMPDIR','XDG_RUNTIME_DIR')
 ARCH={'linux/amd64':('amd64','x86_64'),'linux/arm64':('arm64','aarch64')}
 DESCRIPTOR_KEYS={'schema','id','platform','python','archive','manifest_sha256','config_sha256',
                  'symlinks','members','engine','engine_config'}
@@ -82,7 +84,8 @@ def _budget(seconds):
 
 
 def _work_timeout(deadline):
-    try:return deadline.child_timeout()
+    # the child's own TERM/KILL wait must fit inside the same window (Hale R4-BUDGET-001)
+    try:return deadline.child_timeout(KILL_SECONDS)
     except TimeoutError:raise ReceiptRefusal('inspector_run_incomplete') from None
 
 
@@ -118,17 +121,19 @@ def _request(capability,profile,rows):
     return request,order
 
 
-def _inspect(capability,profile,rows,budget,account=None):
+def _inspect(capability,profile,rows,budget,account=None,children=None):
     """Request -> plan -> contained run -> request-bound verdicts (the one transport)."""
     request,order=_request(capability,profile,rows)
     plan=prepare_plan(capability,profile,request)
-    reply=run_inspection(capability,plan,request,budget=budget,account=account)
+    children=children if children is not None else _Children(dict(plan.environment))
+    reply=run_inspection(capability,plan,request,budget=budget,account=account,children=children)
     verdicts=_reply_verdicts(reply,request,thaw(capability.descriptor)['descriptor'],order,profile['inspector']['limits'])
     return {'closure_sha256':capability.closure_sha256,'request_sha256':sha256(request),'reply_sha256':sha256(reply),
-            'argv':list(plan.argv),'verdicts':[{'cache':cache,'equal':equal} for cache,equal in zip(order,verdicts)]},verdicts
+            'argv':list(plan.argv),'children':children.records,
+            'verdicts':[{'cache':cache,'equal':equal} for cache,equal in zip(order,verdicts)]},verdicts
 
 
-def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=None):
+def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=None,evidence_dir=None):
     """EVIDENCE-ONLY producer call (Vera R4-T1): the same transport and core as the
     session, under an admitted closure, returning measured unqualified evidence.
 
@@ -138,7 +143,16 @@ def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=
     """
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and capability._admission is _ADMITTED,
             'inspector_capability_untrusted')
-    return _inspect(capability,profile,rows,deadline or _budget(profile['inspector']['limits']['seconds']),account)[0]
+    nested=deadline is not None
+    budget=deadline or _budget(profile['inspector']['limits']['seconds'])
+    request,order=_request(capability,profile,rows)
+    plan=prepare_plan(capability,profile,request)
+    children=_Children(dict(plan.environment),evidence_dir,nested)
+    reply=run_inspection(capability,plan,request,budget=budget,account=account,children=children)
+    verdicts=_reply_verdicts(reply,request,thaw(capability.descriptor)['descriptor'],order,profile['inspector']['limits'])
+    return {'closure_sha256':capability.closure_sha256,'request_sha256':sha256(request),'reply_sha256':sha256(reply),
+            'request':request,'reply':reply,'argv':list(plan.argv),'children':children.records,
+            'verdicts':[{'cache':cache,'equal':equal} for cache,equal in zip(order,verdicts)]}
 
 
 def _private_root(root,candidate_roots):
@@ -323,15 +337,8 @@ def prepare_plan(capability,profile,request_bytes):
     session=capability.root/('session-'+secrets.token_hex(16))
     require(not any(c in str(session) for c in ',=\n\r\x00'),'inspector_root_untrusted')
     name='cortex-inspector-'+secrets.token_hex(16)
-    prefix=(str(capability.engine),'--remote=false','--root',str(session/'store'),'--runroot',str(session/'run'),
-            '--tmpdir',str(session/'tmp'))
-    argv=prefix+('run','--name',name,'--cidfile',str(session/'cid'),'--pull=never','--rm','--read-only',
-                 '--read-only-tmpfs=false','--image-volume=ignore','--no-healthcheck','--log-driver=none','--network=none',
-                 '--cap-drop=ALL','--security-opt=no-new-privileges','--user',CLOSED_CONFIG['User'],'--workdir=/',
-                 '--unsetenv-all','--pids-limit',str(limits['pids']),
-                 *cpu_memory_argv(limits['cpu_millicores'],limits['memory_bytes']),'--memory-swap',str(limits['memory_bytes']),
-                 '--mount','type=bind,src='+str(session/'request'/'request.json')+',dst='+_pyc_check.REQUEST_PATH+',ro=true,relabel=private',
-                 '--entrypoint',STARTUP[0],capability.image_digest,*STARTUP[1:])
+    argv=plan_argv(str(capability.engine),capability.image_digest,limits,session,name)
+    prefix=argv[:8]
     environment=(('CONTAINERS_CONF',record['engine_config']['containers_conf']['path']),
                  ('CONTAINERS_STORAGE_CONF',record['engine_config']['storage_conf']['path']),
                  ('HOME',str(session/'home')),('PATH','/usr/bin:/bin'),('TMPDIR',str(session/'tmp')),
@@ -340,8 +347,58 @@ def prepare_plan(capability,profile,request_bytes):
                          limits['memory_bytes'],limits['pids'],False,session,name,prefix,sha256(request_bytes),_ADMITTED)
 
 
+def plan_argv(engine,image,limits,session,name):
+    """The ONE contained-run argv (R3 H1). R01 rebuilds it from a journal's session and
+    name to bind qualification evidence to the actual plan, flags and limits."""
+    from .build.engine import cpu_memory_argv
+    from . import _pyc_check
+    session=Path(session)
+    return (engine,'--remote=false','--root',str(session/'store'),'--runroot',str(session/'run'),
+            '--tmpdir',str(session/'tmp'),'run','--name',name,'--cidfile',str(session/'cid'),'--pull=never','--rm',
+            '--read-only','--read-only-tmpfs=false','--image-volume=ignore','--no-healthcheck','--log-driver=none',
+            '--network=none','--cap-drop=ALL','--security-opt=no-new-privileges','--user',CLOSED_CONFIG['User'],
+            '--workdir=/','--unsetenv-all','--pids-limit',str(limits['pids']),
+            *cpu_memory_argv(limits['cpu_millicores'],limits['memory_bytes']),'--memory-swap',str(limits['memory_bytes']),
+            '--mount','type=bind,src='+str(session/'request'/'request.json')+',dst='+_pyc_check.REQUEST_PATH+
+            ',ro=true,relabel=private','--entrypoint',STARTUP[0],image,*STARTUP[1:])
+
+
+class _Children:
+    """Records every engine child of one run (failed attempts included) with full
+    metadata; streams are copied into evidence_dir before the session is removed."""
+
+    def __init__(self,environment,evidence_dir=None,nested=False):
+        self.environment,self.evidence_dir,self.nested,self.records=environment,evidence_dir,nested,[]
+
+    def call(self,argv,session,timeout,limit):
+        import shutil,time
+        started=time.time_ns();row={'argv':list(argv),'cwd':str(session),'environment_names':sorted(self.environment),
+                                     'started_at_unix_ns':started}
+        try:result=_engine(argv,self.environment,session,timeout,limit)
+        except BaseException as error:
+            row.update(exit=None,error=type(error).__name__,finished_at_unix_ns=time.time_ns(),
+                       stdout=None,stderr=None,journal=None)
+            self.records.append(row)
+            raise
+        code,stdout,files=(*result,None)[:3]
+        row.update(exit=code,finished_at_unix_ns=time.time_ns())
+        for key in ('stdout','stderr','journal'):
+            source=(files or {}).get(key)
+            if source is not None and self.evidence_dir is not None:
+                target=Path(self.evidence_dir)/('r3-'+str(len(self.records))+'.'+key)
+                shutil.copyfile(source,target)
+                raw=target.read_bytes()
+                row[key]={'path':str(target),'bytes':len(raw),'sha256':sha256(raw)}
+            elif key=='stdout':
+                row[key]={'path':None,'bytes':len(stdout),'sha256':sha256(stdout)}
+            else:
+                row[key]=None
+        self.records.append(row)
+        return code,stdout
+
+
 def _engine(argv,environment,session,timeout,output_limit):
-    """One engine operation through the one adapter; returns (exit, stdout)."""
+    """One engine operation through the one adapter; returns (exit, stdout, files)."""
     import secrets
     from .build.engine import OutputAccount,run_operation
     stem=session/('op-'+secrets.token_hex(8))
@@ -349,7 +406,8 @@ def _engine(argv,environment,session,timeout,output_limit):
     budget={'account':output_limit} if isinstance(output_limit,OutputAccount) else {'output_limit':output_limit}
     result=run_operation(argv,session,dict(environment),timeout,Path(str(stem)+'.out'),Path(str(stem)+'.err'),
                          kill_seconds=KILL_SECONDS,**budget)
-    return result['exit'],Path(str(stem)+'.out').read_bytes()
+    return result['exit'],Path(str(stem)+'.out').read_bytes(),{
+        'stdout':Path(str(stem)+'.out'),'stderr':Path(str(stem)+'.err'),'journal':Path(result['journal'])}
 
 
 def _same_root(roots,session):
@@ -381,7 +439,7 @@ def _loaded(raw,record,capability):
             type(value[0].get('RootFS')) is dict and value[0]['RootFS'].get('Layers')==record['diff_ids'],'inspector_run_incomplete')
 
 
-def run_inspection(capability,plan,request_bytes,*,budget=None,account=None):
+def run_inspection(capability,plan,request_bytes,*,budget=None,account=None,children=None):
     """Fresh owned store, load the custody copy, inspect, run, always clean up."""
     from .build.engine import OwnedRoots
     require(isinstance(plan,InspectorPlan) and plan._admission is _ADMITTED and type(request_bytes) is bytes and
@@ -390,6 +448,7 @@ def run_inspection(capability,plan,request_bytes,*,budget=None,account=None):
     environment=dict(plan.environment);session=plan.session
     budget=budget or _budget(plan.cumulative_seconds)
     remaining=lambda:_work_timeout(budget)
+    children=children if children is not None else _Children(environment)
     roots=None;inner={}
     try:
         try:
@@ -403,12 +462,12 @@ def run_inspection(capability,plan,request_bytes,*,budget=None,account=None):
             _,archive=_read_member(capability.root,dict(descriptor['archive'],role='image'),keep=True)
             _write_owned(session/'image.tar',archive,0o444)
             for row in [descriptor['engine'],*descriptor['engine_config'].values()]:_host_file(row,'engine',())
-            code,_=_engine(plan.prefix+('load','--input',str(session/'image.tar')),environment,session,remaining(),account or 64*1024)
+            code,_=children.call(plan.prefix+('load','--input',str(session/'image.tar')),session,remaining(),account or 64*1024)
             require(code==0,'inspector_run_incomplete')
-            code,raw=_engine(plan.prefix+('image','inspect','--format','json',capability.image_digest),
-                             environment,session,remaining(),account or 1024*1024)
+            code,raw=children.call(plan.prefix+('image','inspect','--format','json',capability.image_digest),
+                                   session,remaining(),account or 1024*1024)
             require(code==0,'inspector_run_incomplete');_loaded(raw,record,capability)
-            code,reply=_engine(plan.argv,environment,session,remaining(),account or plan.output_byte_limit)
+            code,reply=children.call(plan.argv,session,remaining(),account or plan.output_byte_limit)
             require(code==0,'inspector_run_incomplete')
             _read_member(session/'request',dict(role='image',path='request.json',bytes=len(request_bytes),
                                                  sha256=plan.request_sha256,mode=0o444))
@@ -416,20 +475,25 @@ def run_inspection(capability,plan,request_bytes,*,budget=None,account=None):
         except ReceiptRefusal:raise
         except Exception:raise ReceiptRefusal('inspector_run_incomplete') from None
     finally:
-        if roots is not None:_cleanup(plan,environment,session,budget=budget,roots=roots,inner=inner,account=account)
+        if roots is not None:
+            _cleanup(plan,environment,session,budget=budget,roots=roots,inner=inner,account=account,children=children)
 
 
-def _cleanup(plan,environment,session,*,budget=None,roots=None,inner=None,account=None):
+def _cleanup(plan,environment,session,*,budget=None,roots=None,inner=None,account=None,children=None):
     """Remove the owned container by name and prove it absent; only then the owned roots.
 
     Unproven absence or a replaced session directory preserves every root for
     accountable recovery. All waits come from the one cleanup reserve.
     """
     budget=budget or _budget(0)
+    children=children if children is not None else _Children(environment)
     def operation(argv):
-        timeout=budget.cleanup_timeout(KILL_SECONDS)
+        # a nested run (inside a lane phase) cleans up inside that phase window
+        timeout=(budget.child_timeout(KILL_SECONDS) if children.nested else budget.cleanup_timeout(KILL_SECONDS))
         if timeout<=0:raise TimeoutError('cleanup reserve spent')
-        return _engine(argv,environment,session,timeout,account or 64*1024)
+        return children.call(argv,session,timeout,account or 64*1024)
+    # Hale R4-OWN-001 rule, here too: prove the recorded root before any engine command.
+    require(roots is not None and _same_root(roots,session),'inspector_run_incomplete')
     try:
         code,_=operation(plan.prefix+('rm','--force','--time','0','--ignore',plan.name))
         absent=code==0
@@ -509,6 +573,11 @@ def preflight(verified_input,acceptance):
     host=acceptance.get('inspector_host') or {}
     try:verify_native(host,descriptor['platform'])
     except ValueError:raise ReceiptRefusal('native_inspector_execution_unqualified') from None
+    # Cox R4-R01-002: only a native-scope, native-qualified input can ever reach a session.
+    try:qualified=verified_input.native_qualified is True
+    except AttributeError:qualified=False
+    require(qualified and (value.get('admission_policy') or {}).get('qualification_scope')=='native',
+            'native_inspector_execution_unqualified')
     return _Pending(capability,freeze(profile),freeze(host),_ADMITTED)
 
 
@@ -517,7 +586,8 @@ def admit_session(pending,matched):
     from .receipts import MatchedQualification
     from .contracts import _SEAL as R01_SEAL
     require(isinstance(pending,_Pending) and pending._admission is _ADMITTED,'trusted_inspector_capability_unavailable')
-    require(isinstance(matched,MatchedQualification) and matched._seal is R01_SEAL and
+    # the match must belong to THIS verification's pending context, not just its closure
+    require(isinstance(matched,MatchedQualification) and matched._seal is R01_SEAL and matched.pending is pending and
             matched.closure_sha256==pending.capability.closure_sha256,'native_inspector_execution_unqualified')
     return _session(pending.capability,thaw(pending.profile))
 

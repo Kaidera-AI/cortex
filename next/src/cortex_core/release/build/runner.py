@@ -119,17 +119,42 @@ class _EvidenceInspection:
     R4-T1): it calls inspector.collect_inspection_evidence and never
     admit_inspection, _session or any R01 session path."""
 
-    def __init__(self, closure, profile, deadline, account):
+    def __init__(self, closure, profile, deadline, account, evidence_dir=None, children=None):
         self.closure, self.profile = closure, profile
         self.deadline, self.account, self.records = deadline, account, []
+        self.evidence_dir, self.children = evidence_dir, children if children is not None else []
 
     def check(self, rows):
+        import time
+        from pathlib import Path
+        from cortex_core.release.codec import canonical_bytes, sha256
         from cortex_core.release.contracts import ReceiptRefusal
-        from cortex_core.release.inspector import collect_inspection_evidence
+        from cortex_core.release.inspector import ENGINE_ENVIRONMENT, collect_inspection_evidence
 
-        record = collect_inspection_evidence(self.closure, self.profile, rows,
-                                             deadline=self.deadline, account=self.account)
+        started = time.time_ns()
+        record = collect_inspection_evidence(self.closure, self.profile, rows, deadline=self.deadline,
+                                             account=self.account, evidence_dir=self.evidence_dir)
         self.records.append(record)
+        nested = list(record.get("children") or [])
+        # Hale R4-MAP-001(b): the evidence call itself, then its REAL nested children;
+        # nothing is synthesized. Its streams are the request-bound reply and the
+        # nested child list, written as original evidence.
+        call = {"argv": list(record["argv"]), "cwd": str(self.evidence_dir),
+                "environment_names": sorted(ENGINE_ENVIRONMENT),
+                "exit": 0 if nested else None, "started_at_unix_ns": started, "finished_at_unix_ns": time.time_ns()}
+        index = len(self.children)
+        for key, raw in (("stdout", record.get("reply") or canonical_bytes(record["verdicts"])),
+                         ("stderr", b""), ("journal", canonical_bytes(nested))):
+            if self.evidence_dir is None:
+                call[key] = {"path": None, "bytes": len(raw), "sha256": sha256(raw)}
+                continue
+            path = Path(self.evidence_dir) / ("audit-call-" + str(index) + "." + key)
+            path.write_bytes(raw)
+            call[key] = {"path": str(path), "bytes": len(raw), "sha256": sha256(raw)}
+        self.children.append(call)
+        self.children.extend(nested)
+        if not nested:
+            raise ReceiptRefusal("inspector_run_incomplete")
         if not all(row["equal"] is True for row in record["verdicts"]):
             raise ReceiptRefusal("python_compilation_policy")
 
@@ -192,18 +217,33 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
              "engine": None, "oci": None}
 
     def measure(path):
-        raw = Path(path).read_bytes()
-        return {"path": str(Path(path).relative_to(evidence_root)), "bytes": len(raw), "sha256": sha256(raw)}
+        path = Path(path)
+        if not path.is_file():
+            return None
+        raw = path.read_bytes()
+        return {"path": str(path.relative_to(evidence_root)), "bytes": len(raw), "sha256": sha256(raw)}
 
     def run(phase, argv, cwd, timeout=None):
         children = state["phases"][phase]["children"]
-        started = time.time_ns()
-        code, stdout, files = _child(list(argv), cwd, environment,
-                                     deadline.child_timeout() if timeout is None else timeout,
-                                     account, ev_dir / (phase + "-" + str(len(children))))
-        children.append({"argv": list(argv), "cwd": str(cwd), "environment_names": sorted(environment),
-                         "exit": code, "started_at_unix_ns": started, "finished_at_unix_ns": time.time_ns(),
-                         **{key: measure(path) for key, path in files.items()}})
+        stem_path = ev_dir / (phase + "-" + str(len(children)))
+        row = {"argv": list(argv), "cwd": str(cwd), "environment_names": sorted(environment),
+               "started_at_unix_ns": time.time_ns()}
+        try:
+            # Hale R4-BUDGET-001: the child AND its TERM/KILL wait fit the fixed window.
+            code, stdout, files = _child(list(argv), cwd, environment,
+                                         deadline.child_timeout(KILL_SECONDS) if timeout is None else timeout,
+                                         account, stem_path)
+        except BaseException as error:
+            # Hale R4-MAP-001(a): a failed or timed-out attempt stays in the ordered evidence.
+            row.update(exit=None, error=(type(error).__name__ + ": " + str(error))[:512],
+                       finished_at_unix_ns=time.time_ns(),
+                       **{key: measure(Path(str(stem_path) + suffix)) for key, suffix in
+                          (("stdout", ".out"), ("stderr", ".err"), ("journal", ".out.operation.jsonl"))})
+            children.append(row)
+            raise
+        row.update(exit=code, finished_at_unix_ns=time.time_ns(),
+                   **{key: measure(path) for key, path in files.items()})
+        children.append(row)
         if code != 0:
             raise ValueError("operation failed: " + phase)
         return stdout
@@ -274,7 +314,8 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
     def phase_audit():
         classes = {name: ("missing", "not checked") for name in CLASSES}
         classes["input"] = ("pass", "admitted input and clone")
-        judge = _EvidenceInspection(closure, profile, deadline, account)
+        judge = _EvidenceInspection(closure, profile, deadline, account, ev_dir,
+                                    state["phases"]["audit"]["children"])
         try:
             records = list(state["outputs"].values())
             records += [{"role": role, "path": slot + "/" + role + ".json", "media_type": "application/json",
@@ -293,10 +334,11 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
                 classes[name] = ("failed", type(error).__name__ + ": " + str(error))
         classes["runtime"] = _runtime_smoke(state)
         state["inspection"] = judge.records
-        for evidence in judge.records:
-            state["phases"]["audit"]["children"].append(
-                {"argv": evidence["argv"], "cwd": "/", "environment_names": sorted(environment), "exit": 0,
-                 "request_sha256": evidence["request_sha256"], "reply_sha256": evidence["reply_sha256"]})
+        for child in state["phases"]["audit"]["children"]:
+            for key in ("stdout", "stderr", "journal"):
+                stream = child.get(key)
+                if stream and stream.get("path") and Path(stream["path"]).is_absolute():
+                    stream["path"] = str(Path(stream["path"]).relative_to(evidence_root))
         state["classes"] = classes
 
     phases = {"input": phase_input, "parser": phase_parser, "build": phase_build,
@@ -319,6 +361,7 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
 
     def cleanup():
         account.cleanup()
+        deadline.enter_cleanup(caps["cleanup"])
         state["phases"]["cleanup"] = {"started_at_unix_ns": time.time_ns(), "children": []}
         absent = removed = False
         removed_ids = []
@@ -337,16 +380,25 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
                 raise ValueError("container discovery unparsable")
             return sorted({row["Id"] for row in rows})
 
+        def same():
+            try:
+                return all(OwnedRoots.identity(path.stat(follow_symlinks=False)) == namespace.created[path]
+                           for path in namespace.paths)
+            except OSError:
+                return False
+
         try:
-            # Hale R4-OWN-001: discover every container in the proven private store
-            # (including ones the client never journaled), remove by exact ID, prove absence.
+            # Hale R4-OWN-001: prove the recorded store/runroot identities BEFORE any
+            # discovery or removal can target a store; on doubt, no engine command at all.
+            if not same():
+                raise ValueError("owned store identity changed")
+            # discover every container in the proven private store (including ones the
+            # client never journaled), remove by exact ID, prove absence
             removed_ids = listed()
             if removed_ids:
                 op(prefix + ("rm", "--force", "--time", "0", *removed_ids))
             absent = listed() == []
-            same = all(OwnedRoots.identity(path.stat(follow_symlinks=False)) == namespace.created[path]
-                       for path in namespace.paths)
-            if absent and same:
+            if absent and same():
                 targets = [str(part) for path in namespace.paths
                            for part in (path, *namespace.created[path][:2])]
                 op(prefix + ("unshare", sys.executable, "-I", "-S", "-B", _owned_remove.__file__, *targets))
@@ -438,7 +490,13 @@ def _build_record(lane, value, host, evidence_root, output_root):
     children = [{"role": slot + ".children." + phase, "path": slot + "/" + phase + ".children.json",
                  "media_type": "application/json", **_measured(Path(evidence_root) / slot / (phase + ".children.json"))}
                 for phase in ("input", "parser", "build", "export", "audit", "cleanup")]
-    evidence = [op["evidence"] for op in operations] + list(reports.values()) + [custody, cleanup] + children
+    streams = [{"role": slot + ".stream." + phase + "." + str(index) + "." + key, "path": child[key]["path"],
+                "media_type": "application/octet-stream", "bytes": child[key]["bytes"], "sha256": child[key]["sha256"]}
+               for phase in ("input", "parser", "build", "export", "audit", "cleanup")
+               for index, child in enumerate(lane["phases"][phase]["children"])
+               for key in ("stdout", "stderr", "journal")]
+    evidence = ([op["evidence"] for op in operations] + list(reports.values()) + [custody, cleanup] + children +
+                streams)
     return build, reports, evidence
 
 
@@ -468,9 +526,27 @@ def native_lanes(verified, materialize, base, closure, host, parent, output_root
     for slot, lane in lanes.items():
         builds[slot], reports[slot], rows = _build_record(lane, value, host, evidence_root, output_root)
         evidence += rows
-    _write_owned(Path(evidence_root) / "qualification.json", qualification, 0o444)
+    # The R6 record and every original it cites (requests, replies, journals,
+    # observations), which the R6 operator placed in the evidence root, join the
+    # exact-set evidence inventory (Cox R4-R01-001). Missing ones stay absent, so
+    # emit (and later R01) refuse.
+    from cortex_core.release.codec import decode_json
+    from cortex_core.release.receipts import qualification_complete, qualification_paths
+
+    record = qualification
+    _write_owned(Path(evidence_root) / "qualification.json", record, 0o444)
     evidence.append({"role": "native.qualification", "path": "qualification.json", "media_type": "application/json",
-                     "bytes": len(qualification), "sha256": sha256(qualification)})
+                     "bytes": len(record), "sha256": sha256(record)})
+    try:
+        cited = qualification_paths(qualification_complete(decode_json(record, 1024 * 1024)))
+    except ValueError:
+        cited = []
+    for name in sorted(set(cited)):
+        source = Path(evidence_root) / name
+        if source.is_file() and not source.is_symlink():
+            raw = source.read_bytes()
+            evidence.append({"role": "native.qualification.original", "path": name,
+                             "media_type": "application/octet-stream", "bytes": len(raw), "sha256": sha256(raw)})
     outputs = sorted([row for slot in builds for row in builds[slot]["outputs"]], key=lambda row: row["path"])
     def record(role, name, raw):
         _write_owned(Path(evidence_root) / name, raw, 0o444)
