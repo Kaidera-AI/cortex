@@ -41,7 +41,7 @@ def lane_value(fx, *, cpu=500, memory=1 << 28, disk=1 << 20, absolute=600, caps=
                                       'sha256': sha((fx.host / 'podman').read_bytes())},
                                       'toolchain': {'compiler_id': 'cpython', 'version': r3.VERSION, 'sha256': '1' * 64}},
              'admission_policy': {'policy_id': 'fixture', 'policy_sha256': 'e' * 64, 'qualification_scope': 'native'},
-             'source': {'inventory': []}, 'dependencies': {'base_images': [{'config_digest': base_config}]},
+             'source': {'inventory': []}, 'dependencies': {'base_images': [{'config_digest': base_config, 'platform': 'linux/amd64'}]},
              'recipe': {}}
     value['recipe'] = {'argv_template': policy.native_build_template(value)}
     return value

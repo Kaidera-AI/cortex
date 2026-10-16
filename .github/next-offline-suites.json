@@ -112,6 +112,7 @@
     "next/tests/release/test_ed25519_strict_encoding.py",
     "next/tests/release/test_functional_whiteout_cmd.py",
     "next/tests/release/test_functional_whiteout_cmd_extra.py",
+    "next/tests/release/test_gac_base_image.py",
     "next/tests/release/test_input_guards.py",
     "next/tests/release/test_inspection_boundary.py",
     "next/tests/release/test_inspector_plan_gate.py",
