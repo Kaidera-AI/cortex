@@ -19,7 +19,7 @@ from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberD
 
 NEXT=Path(__file__).resolve().parents[2]
 FIX=Path(__file__).parent/'fixtures'
-F=json.loads((FIX/'owner-proposal-subjects.json').read_bytes())
+F=json.loads((FIX/'owner-proposal-subjects-pgc20-v1.json').read_bytes())
 
 
 def encode(value):
@@ -355,8 +355,8 @@ class OwnerProposalOracle(unittest.TestCase):
         self.refusal(api,'backend_unavailable',lambda:self.run_gate(api,d))
 
     def test_fixture_index_and_held_f2_preserve_separate_acceptance(self):
-        self.api();index=json.loads((FIX/'subjects.json').read_bytes());raw=(FIX/'owner-proposal-subjects.json').read_bytes()
-        self.assertEqual(index['B1_proposal'],{'path':'owner-proposal-subjects.json','bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
+        self.api();index=json.loads((FIX/'subjects-pgc20-v1.json').read_bytes());raw=(FIX/'owner-proposal-subjects-pgc20-v1.json').read_bytes()
+        self.assertEqual(index['B1_proposal'],{'path':'owner-proposal-subjects-pgc20-v1.json','bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
         self.assertNotIn('GateB_accepted_execution',index)
         self.assertEqual(index['B1_held_F2']['reason'],'waits for P2a durable reserve/consume/result (C0 §3.4/3.6/3.7)')
         self.assertEqual(len(index['B1_held_F2']['tests']),30)

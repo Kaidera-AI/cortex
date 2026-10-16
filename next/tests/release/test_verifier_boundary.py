@@ -357,7 +357,7 @@ class CurrentJoinAndBudget(StartupFixture, unittest.TestCase):
         self.init_boundary()
         from aggregate_fixture import encode,sha256
         from cortex_core.runtime.config import admit_config
-        cfg=json.loads(json.loads((NEXT/'tests/install/fixtures/p1-subjects.json').read_bytes())['configs']['linux/arm64'])
+        cfg=json.loads(json.loads((NEXT/'tests/install/fixtures/p1-subjects-pgc20-v1.json').read_bytes())['configs']['linux/arm64'])
         cfg['runtime_lock_sha256']=sha256(self.bodies[MEMBER])
         cfg['operations_sha256']=sha256(self.bodies[self.value['compatibility']['operations_member']])
         cfg['metrics_labels']['release']=self.value['release']['release_id']

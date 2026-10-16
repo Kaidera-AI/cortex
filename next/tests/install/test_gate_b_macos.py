@@ -22,7 +22,7 @@ from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberD
 
 NEXT = Path(__file__).resolve().parents[2]
 SUBJECT = NEXT / 'src/cortex_core/install/platforms/macos.py'
-FIXTURE = json.loads((Path(__file__).parent / 'fixtures/gate-b-macos.json').read_bytes())
+FIXTURE = json.loads((Path(__file__).parent / 'fixtures/gate-b-macos-pgc20-v1.json').read_bytes())
 
 
 def encode(value):

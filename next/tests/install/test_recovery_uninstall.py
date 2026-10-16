@@ -26,7 +26,7 @@ import test_owner_proposal as proposals
 
 FIX = Path(__file__).parent / 'fixtures'
 F = json.loads((FIX / 'p2b-subjects.json').read_bytes())
-P1 = json.loads((FIX / 'p1-subjects.json').read_bytes())
+P1 = json.loads((FIX / 'p1-subjects-pgc20-v1.json').read_bytes())
 
 
 class AppliedSubject:

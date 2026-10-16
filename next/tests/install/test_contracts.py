@@ -10,7 +10,7 @@ from cortex_core.release.codec import decode_json, sha256
 
 NEXT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(NEXT / 'tests/runtime'))
-SUBJECTS = json.loads((Path(__file__).parent / 'fixtures/p1-subjects.json').read_bytes())
+SUBJECTS = json.loads((Path(__file__).parent / 'fixtures/p1-subjects-pgc20-v1.json').read_bytes())
 
 
 def encode(value):

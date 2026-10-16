@@ -220,9 +220,10 @@ class TupleRevisionOracle(unittest.TestCase):
                     self.assertEqual(packet['runtime_lock_raw'], SUBJECTS['members']['runtime.lock.json'])
                 originals = {name: raw.encode() for name, raw in packet['originals'].items()}
                 originals.update({name: raw.encode() for name, raw in SUBJECTS['members'].items()})
-                self.assertEqual(packet['request_raw'].encode(), originals['b1-request.json'])
+                request_raw = packet.get('request_raw', linux['request_raw']).encode()
+                self.assertEqual(request_raw, originals['b1-request.json'])
                 context = json.loads(packet['context_raw'])
-                measure_original_ref(context['request_ref'], packet['request_raw'].encode())
+                measure_original_ref(context['request_ref'], request_raw)
                 checked = 0
                 for ref in decoded_references(packet):
                     if ref['path'] in originals:

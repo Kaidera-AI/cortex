@@ -1,0 +1,1239 @@
+{
+  "scope": "SOURCE_SIMULATION_ONLY",
+  "physical": {
+    "uids": "NOT_RUN",
+    "roots": "NOT_RUN",
+    "codesigning": "NOT_RUN",
+    "peer_facilities": "NOT_RUN",
+    "kernel_denials": "NOT_RUN",
+    "GateB": "NOT_ACCEPTED"
+  },
+  "interface": "cortex_core.install.owner.propose_effect(original_request:bytes)->OwnerProposal DATA",
+  "owner_inputs": {
+    "scope": "TEST_ONLY_PRECONSUME_DATA_NO_SIGNATURE_NATIVE_OWNER_OR_EFFECT_CREDIT",
+    "request_raw": "{\"acquisition\":{\"acquisition_policy_ref\":null,\"local_members\":[{\"bytes\":232,\"path\":\"application.custody.json\",\"sha256\":\"e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f\"},{\"bytes\":54,\"path\":\"attempts.json\",\"sha256\":\"a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21\"},{\"bytes\":46,\"path\":\"bootstrap.json\",\"sha256\":\"0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2\"},{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},{\"bytes\":47,\"path\":\"deployment.json\",\"sha256\":\"f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860\"},{\"bytes\":48,\"path\":\"environment.json\",\"sha256\":\"ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051\"},{\"bytes\":237,\"path\":\"evidence.custody.json\",\"sha256\":\"9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739\"},{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},{\"bytes\":42,\"path\":\"index.json\",\"sha256\":\"7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239\"},{\"bytes\":41,\"path\":\"index.sig\",\"sha256\":\"fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126\"},{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},{\"bytes\":44,\"path\":\"product.json\",\"sha256\":\"4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3\"},{\"bytes\":43,\"path\":\"product.sig\",\"sha256\":\"79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac\"},{\"bytes\":19876,\"path\":\"runtime.lock.json\",\"sha256\":\"e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05\"},{\"bytes\":42,\"path\":\"trust.json\",\"sha256\":\"ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c\"},{\"bytes\":42,\"path\":\"tuple.json\",\"sha256\":\"edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a\"}],\"mode\":\"offline\"},\"authority_ref\":null,\"caller\":{\"host_identity_ref\":{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},\"owner_uid\":501,\"parent_product\":null,\"parent_transaction_id\":null,\"route\":\"manual\"},\"format_version\":1,\"identity\":{\"attempt_id\":\"attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"eb562a00-7a37-528b-bfd3-e22b7f941da9\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"request-manual\",\"transaction_id\":\"transaction-manual\"},\"invocation\":{\"argv\":[\"/fixture/cortex/installer\",\"--request-file\",\"/fixture/cortex/request.json\",\"--json\"],\"cwd_root\":\"/fixture/cortex/app\",\"entrypoint_ref\":{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},\"environment_policy_ref\":{\"bytes\":48,\"path\":\"environment.json\",\"sha256\":\"ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051\"},\"executable_path\":\"/fixture/cortex/installer\"},\"journal_ref\":null,\"kind\":\"request\",\"operation\":\"install\",\"previous_receipt_ref\":null,\"profile\":\"fixture\",\"purge_selection\":null,\"release\":{\"artifact_refs\":[{\"bytes\":19876,\"path\":\"runtime.lock.json\",\"sha256\":\"e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05\"}],\"bootstrap_verifier_ref\":{\"bytes\":46,\"path\":\"bootstrap.json\",\"sha256\":\"0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2\"},\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"deployment_policy_ref\":{\"bytes\":47,\"path\":\"deployment.json\",\"sha256\":\"f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860\"},\"installer_ref\":{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},\"joint_index_ref\":{\"bytes\":42,\"path\":\"index.json\",\"sha256\":\"7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239\"},\"joint_signature_ref\":{\"bytes\":41,\"path\":\"index.sig\",\"sha256\":\"fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126\"},\"product_manifest_ref\":{\"bytes\":44,\"path\":\"product.json\",\"sha256\":\"4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3\"},\"product_signature_ref\":{\"bytes\":43,\"path\":\"product.sig\",\"sha256\":\"79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac\"},\"product_tuple_ref\":{\"bytes\":42,\"path\":\"tuple.json\",\"sha256\":\"edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a\"},\"qualification_scope\":\"fixture\",\"trust_policy_ref\":{\"bytes\":42,\"path\":\"trust.json\",\"sha256\":\"ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c\"}},\"roots\":[{\"absolute_path\":\"/fixture/cortex/app\",\"custody_ref\":{\"bytes\":232,\"path\":\"application.custody.json\",\"sha256\":\"e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f\"},\"owner_uid\":501,\"purpose\":\"application\"},{\"absolute_path\":\"/fixture/cortex/evidence\",\"custody_ref\":{\"bytes\":237,\"path\":\"evidence.custody.json\",\"sha256\":\"9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739\"},\"owner_uid\":501,\"purpose\":\"evidence\"}],\"schema\":\"kaidera.install-operation.v1\",\"selection\":{\"install_missing\":false,\"observation_receipt_ref\":null,\"product_state_ref\":null},\"target\":{\"backend_platform\":\"linux/arm64\",\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"host_arch\":\"arm64\",\"host_os\":\"darwin\"}}\n",
+    "context_raw": "{\"clock_ref\":{\"bytes\":245,\"path\":\"b1-clock.json\",\"sha256\":\"d348c994cb31dcbe11248032db72d3b5897eacde97f66c82bdb88084c1e9eb57\"},\"consent_ref\":{\"bytes\":607,\"path\":\"b1-consent.json\",\"sha256\":\"ca74e9ce7b4416ac4ce6d18a6eb1cbb68d760fe39e28de7fb1e28b006660c9df\"},\"current_state_ref\":{\"bytes\":82,\"path\":\"test-current-state.json\",\"sha256\":\"7f6217c3e62977f466955d1eedabb1fb0390d8e6402ee58047e1e0763735880b\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"freshness_generation\":12,\"host_lease\":{\"expires_at\":1700000005,\"fence\":27,\"holder\":\"test-host-holder\"},\"identity\":{\"attempt_id\":\"attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"eb562a00-7a37-528b-bfd3-e22b7f941da9\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"request-manual\",\"transaction_id\":\"transaction-manual\"},\"nonce\":\"test-nonce-1\",\"owner_epoch\":\"test-epoch-1\",\"peer_ref\":{\"bytes\":629,\"path\":\"b1-peer.json\",\"sha256\":\"75184037f51de2173ff5e01300e8c91be8c6786f13cbeb4c6ce4ff0583db8a9d\"},\"policy_generation\":11,\"policy_ref\":{\"bytes\":153,\"path\":\"b1-policy.json\",\"sha256\":\"1db92ab46f803af0f83dd61518137f3e050481890ad38fc44c7a742720033d75\"},\"private_binding\":{\"kind\":\"none\"},\"request_ref\":{\"bytes\":5310,\"path\":\"b1-request.json\",\"sha256\":\"95b4d5dda2b42f5deb66a60f58dd2c7a9d4e779b3134f21455d7fe4809b4123e\"},\"session_id\":\"test-session-1\",\"state_revision\":7,\"target\":{\"backend_platform\":\"linux/arm64\",\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"host_arch\":\"arm64\",\"host_os\":\"darwin\"}}\n",
+    "current_clock_raw": "{\"clock_receipt_ref\":{\"bytes\":200,\"path\":\"b1-clock-receipt.json\",\"sha256\":\"81696f57208cb7a74fe6b25ddea970d0e356e6bbf927d6e47c251bb2dedd980b\"},\"monotonic_ns\":101000000000,\"now_utc\":1700000001,\"owner_epoch\":\"test-epoch-1\",\"uncertainty_seconds\":0}\n",
+    "aggregate_id": "sha256:7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239",
+    "originals": {
+      "b1-clock.json": "{\"clock_receipt_ref\":{\"bytes\":200,\"path\":\"b1-clock-receipt.json\",\"sha256\":\"81696f57208cb7a74fe6b25ddea970d0e356e6bbf927d6e47c251bb2dedd980b\"},\"monotonic_ns\":100000000000,\"now_utc\":1700000000,\"owner_epoch\":\"test-epoch-1\",\"uncertainty_seconds\":0}\n",
+      "b1-clock-receipt.json": "{\"monotonic_deadlines\":{\"consent\":190000000000,\"host\":105000000000,\"policy\":220000000000,\"session\":200000000000},\"owner_epoch\":\"test-epoch-1\",\"quality\":\"bounded\",\"scope\":\"TEST_ONLY_NOT_ACTUAL_CLOCK\"}\n",
+      "b1-consent.json": "{\"expires_at\":1700000090,\"gate_b_acceptance_ref\":{\"bytes\":69,\"path\":\"test-gate-b-scope.json\",\"sha256\":\"610a807f27a5eb05853464e64ccc20bd8e245f032fa6fb86159c262fab0682e4\"},\"generation\":11,\"issuer_ref\":{\"bytes\":47,\"path\":\"test-issuer.json\",\"sha256\":\"9b5bd4ea3f1cb50aaa11178665859e425cd748833d8b309b9d85f9dd641ffcb3\"},\"not_before\":1699999990,\"revoked\":false,\"scope_ref\":{\"bytes\":1794,\"path\":\"b1-scope.json\",\"sha256\":\"6990ca494c12260a914998e53d45c0a3560a0ca06f033fa1477c73257eac855a\"},\"subject_ref\":{\"bytes\":629,\"path\":\"b1-peer.json\",\"sha256\":\"75184037f51de2173ff5e01300e8c91be8c6786f13cbeb4c6ce4ff0583db8a9d\"}}\n",
+      "test-gate-b-scope.json": "{\"purpose\":\"test-install\",\"scope\":\"TEST_ONLY_NOT_GATE_B_ACCEPTANCE\"}\n",
+      "test-issuer.json": "{\"issuer\":\"test-operator\",\"scope\":\"TEST_ONLY\"}\n",
+      "b1-scope.json": "{\"backend_binding_ref\":{\"bytes\":65,\"path\":\"test-backend-binding.json\",\"sha256\":\"062a7d0d6e809a8557ccb1abca1efe26526742bc42525030497b8ecddc797f8c\"},\"cleanup_restrictions_ref\":{\"bytes\":101,\"path\":\"test-cleanup.json\",\"sha256\":\"402f1fecf02b103758910ba0b3c129626c662d51f8fb7f4185a84b84ad0c8d06\"},\"effect\":{\"data_policy_ref\":{\"bytes\":36,\"path\":\"test-data-policy.json\",\"sha256\":\"edb9fea055de68769755b458b359dcb87b1f2408e6ffd48b963ff689b35c8dbe\"},\"effect_id\":\"test-effect-1\",\"expected_after_contract_ref\":{\"bytes\":48,\"path\":\"test-after-contract.json\",\"sha256\":\"7eda705c05f0d795d62214fe3f237f25152731936d8043620cafe62ceb4fa60e\"},\"expected_before_ref\":{\"bytes\":47,\"path\":\"test-before.json\",\"sha256\":\"ccaae20e6f88bf045792658fd24f56d4124940fe86ce25147897dc486b227657\"},\"idempotency_ref\":{\"bytes\":50,\"path\":\"test-idempotency.json\",\"sha256\":\"41897f633c99113e65a6913baa99b5515be1591a14c65c2d59260aa7c8b9d4f1\"},\"product\":\"cortex\",\"resource_kind\":\"directory\",\"reversal_contract_ref\":{\"bytes\":55,\"path\":\"test-reversal.json\",\"sha256\":\"5aaaf2a088f934abd16c68d88644c9d891fa61375f66493450859a35c92fddae\"}},\"identity\":{\"attempt_id\":\"attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"eb562a00-7a37-528b-bfd3-e22b7f941da9\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"request-manual\",\"transaction_id\":\"transaction-manual\"},\"operation\":\"install\",\"purpose\":\"test-install\",\"release_binding_ref\":{\"bytes\":1495,\"path\":\"b1-release-binding.json\",\"sha256\":\"c55b8268405e8a15e1ec5b425f7106ba6eb7d39b5ba698204ba9831ec542c881\"},\"resource_ids\":[\"test-resource-1\"],\"target\":{\"backend_platform\":\"linux/arm64\",\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"host_arch\":\"arm64\",\"host_os\":\"darwin\"}}\n",
+      "test-backend-binding.json": "{\"resource\":\"test-resource-1\",\"scope\":\"TEST_ONLY_NOT_A_BACKEND\"}\n",
+      "test-cleanup.json": "{\"purge_confirmations\":[],\"resources\":[\"test-resource-1\"],\"scope\":\"TEST_ONLY\",\"shared_consumers\":[]}\n",
+      "test-data-policy.json": "{\"data\":\"KEEP\",\"scope\":\"TEST_ONLY\"}\n",
+      "test-after-contract.json": "{\"scope\":\"TEST_ONLY\",\"state\":\"owned-directory\"}\n",
+      "test-before.json": "{\"scope\":\"TEST_ONLY\",\"state\":\"explicit-empty\"}\n",
+      "test-idempotency.json": "{\"effect_id\":\"test-effect-1\",\"scope\":\"TEST_ONLY\"}\n",
+      "test-reversal.json": "{\"operation\":\"remove-exact-owned\",\"scope\":\"TEST_ONLY\"}\n",
+      "b1-release-binding.json": "{\"artifact_refs\":[{\"bytes\":19876,\"path\":\"runtime.lock.json\",\"sha256\":\"e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05\"}],\"bootstrap_verifier_ref\":{\"bytes\":46,\"path\":\"bootstrap.json\",\"sha256\":\"0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2\"},\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"deployment_policy_ref\":{\"bytes\":47,\"path\":\"deployment.json\",\"sha256\":\"f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860\"},\"installer_ref\":{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},\"joint_index_ref\":{\"bytes\":42,\"path\":\"index.json\",\"sha256\":\"7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239\"},\"joint_signature_ref\":{\"bytes\":41,\"path\":\"index.sig\",\"sha256\":\"fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126\"},\"product_manifest_ref\":{\"bytes\":44,\"path\":\"product.json\",\"sha256\":\"4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3\"},\"product_signature_ref\":{\"bytes\":43,\"path\":\"product.sig\",\"sha256\":\"79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac\"},\"product_tuple_ref\":{\"bytes\":42,\"path\":\"tuple.json\",\"sha256\":\"edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a\"},\"qualification_scope\":\"fixture\",\"trust_policy_ref\":{\"bytes\":42,\"path\":\"trust.json\",\"sha256\":\"ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c\"}}\n",
+      "b1-peer.json": "{\"expires_at\":1700000100,\"host_identity_ref\":{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},\"lifetime\":\"test-lifetime-1\",\"macos_observation_ref\":{\"bytes\":23853,\"path\":\"bm-observation.json\",\"sha256\":\"bc225be51daa0852790d8ee2963dcf1778300584ef5ffd274c12ce1c2da597d9\"},\"macos_profile_ref\":{\"bytes\":682,\"path\":\"bm-profile.json\",\"sha256\":\"f3e755e56170376b59a3b62f382c7d293872c811d05332bf0ef3c4be38d1b65c\"},\"not_before\":1699999990,\"owner_epoch\":\"test-epoch-1\",\"owner_uid\":501,\"peer\":\"test-C\",\"scope\":\"TEST_ONLY_CONDITIONAL_KERNEL_OBSERVATION\",\"session_id\":\"test-session-1\"}\n",
+      "test-current-state.json": "{\"freshness\":12,\"generation\":11,\"host_fence\":27,\"revision\":7,\"scope\":\"TEST_ONLY\"}\n",
+      "b1-policy.json": "{\"generation\":11,\"purpose\":\"test-install\",\"reservation_max_seconds\":30,\"scope\":\"TEST_ONLY\",\"validity\":{\"expires_at\":1700000120,\"not_before\":1699999990}}\n",
+      "b1-request.json": "{\"acquisition\":{\"acquisition_policy_ref\":null,\"local_members\":[{\"bytes\":232,\"path\":\"application.custody.json\",\"sha256\":\"e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f\"},{\"bytes\":54,\"path\":\"attempts.json\",\"sha256\":\"a086b941b095f0df56a7f5c8c0d9b7a28f4e5bf209be43670e4ffb421da49d21\"},{\"bytes\":46,\"path\":\"bootstrap.json\",\"sha256\":\"0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2\"},{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},{\"bytes\":47,\"path\":\"deployment.json\",\"sha256\":\"f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860\"},{\"bytes\":48,\"path\":\"environment.json\",\"sha256\":\"ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051\"},{\"bytes\":237,\"path\":\"evidence.custody.json\",\"sha256\":\"9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739\"},{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},{\"bytes\":42,\"path\":\"index.json\",\"sha256\":\"7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239\"},{\"bytes\":41,\"path\":\"index.sig\",\"sha256\":\"fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126\"},{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},{\"bytes\":44,\"path\":\"product.json\",\"sha256\":\"4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3\"},{\"bytes\":43,\"path\":\"product.sig\",\"sha256\":\"79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac\"},{\"bytes\":19876,\"path\":\"runtime.lock.json\",\"sha256\":\"e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05\"},{\"bytes\":42,\"path\":\"trust.json\",\"sha256\":\"ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c\"},{\"bytes\":42,\"path\":\"tuple.json\",\"sha256\":\"edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a\"}],\"mode\":\"offline\"},\"authority_ref\":null,\"caller\":{\"host_identity_ref\":{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},\"owner_uid\":501,\"parent_product\":null,\"parent_transaction_id\":null,\"route\":\"manual\"},\"format_version\":1,\"identity\":{\"attempt_id\":\"attempt-1\",\"installation_id\":\"00000000-0000-4000-8000-000000000022\",\"operation_id\":\"eb562a00-7a37-528b-bfd3-e22b7f941da9\",\"parent_attempt_id\":null,\"product\":\"cortex\",\"request_id\":\"request-manual\",\"transaction_id\":\"transaction-manual\"},\"invocation\":{\"argv\":[\"/fixture/cortex/installer\",\"--request-file\",\"/fixture/cortex/request.json\",\"--json\"],\"cwd_root\":\"/fixture/cortex/app\",\"entrypoint_ref\":{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},\"environment_policy_ref\":{\"bytes\":48,\"path\":\"environment.json\",\"sha256\":\"ba7fa7290480ee1fc7cccbd31533e3efaa3f7ff56e0682cb41d9acd06d6e1051\"},\"executable_path\":\"/fixture/cortex/installer\"},\"journal_ref\":null,\"kind\":\"request\",\"operation\":\"install\",\"previous_receipt_ref\":null,\"profile\":\"fixture\",\"purge_selection\":null,\"release\":{\"artifact_refs\":[{\"bytes\":19876,\"path\":\"runtime.lock.json\",\"sha256\":\"e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05\"}],\"bootstrap_verifier_ref\":{\"bytes\":46,\"path\":\"bootstrap.json\",\"sha256\":\"0b414e3bc8b7a56f0e342925cae7d23f7e92ea4600cb3d6dd2523f3c867ed8f2\"},\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"deployment_policy_ref\":{\"bytes\":47,\"path\":\"deployment.json\",\"sha256\":\"f319533e1b231672d6f55fddccf31c790724ae486f57073383d36603f953d860\"},\"installer_ref\":{\"bytes\":46,\"path\":\"installer.json\",\"sha256\":\"1eee6f851cd7154929b552b55f775beffb4f45ed6d210ec06c102e46bd41edb9\"},\"joint_index_ref\":{\"bytes\":42,\"path\":\"index.json\",\"sha256\":\"7bf2901aa6ad39d3ad24239123c9baba79f2593519d2c50488e2056c28913239\"},\"joint_signature_ref\":{\"bytes\":41,\"path\":\"index.sig\",\"sha256\":\"fae7bb15044b822494d2524c5aea6a1e674c463a894b267fe6e5db427e12c126\"},\"product_manifest_ref\":{\"bytes\":44,\"path\":\"product.json\",\"sha256\":\"4ad08f9dc0986c8f007a9987f1bfd16b3cf173b2865f3b053051ac506c61d5f3\"},\"product_signature_ref\":{\"bytes\":43,\"path\":\"product.sig\",\"sha256\":\"79b91f1646f5da8c8245bc709b0365d4dfeade26c9281e87683fdbe6258ac1ac\"},\"product_tuple_ref\":{\"bytes\":42,\"path\":\"tuple.json\",\"sha256\":\"edae029b1d1c58c4502b3f850f642af65c2a52e3b2c6b2a19b85e29e8557f88a\"},\"qualification_scope\":\"fixture\",\"trust_policy_ref\":{\"bytes\":42,\"path\":\"trust.json\",\"sha256\":\"ec9b5f3f89eb2f14cdb929b7fc1a6a39aef67ca453ec505c23dc331d2a3a879c\"}},\"roots\":[{\"absolute_path\":\"/fixture/cortex/app\",\"custody_ref\":{\"bytes\":232,\"path\":\"application.custody.json\",\"sha256\":\"e31dff9e38ed8c1402183d47506ba8813e932b4ca9fbe7cf967dd237bc76027f\"},\"owner_uid\":501,\"purpose\":\"application\"},{\"absolute_path\":\"/fixture/cortex/evidence\",\"custody_ref\":{\"bytes\":237,\"path\":\"evidence.custody.json\",\"sha256\":\"9a8d9a1fa6ba06e721fbafd1e78fd40c20160d3341eee2cf76926fdde7c13739\"},\"owner_uid\":501,\"purpose\":\"evidence\"}],\"schema\":\"kaidera.install-operation.v1\",\"selection\":{\"install_missing\":false,\"observation_receipt_ref\":null,\"product_state_ref\":null},\"target\":{\"backend_platform\":\"linux/arm64\",\"compatibility_ref\":{\"bytes\":50,\"path\":\"compatibility.json\",\"sha256\":\"2da06f029e9d16a5c89bb180327d02a76549f93945ad4e30de561aa1ee6da41c\"},\"host_arch\":\"arm64\",\"host_os\":\"darwin\"}}\n",
+      "bm-code.json": "{\"components\":[{\"role\":\"executable\",\"sha256\":\"438e64f8afb68029a8fbff96573c94b416f26caf4ee3e8641175244b416c1c8a\"},{\"role\":\"imports\",\"sha256\":\"94169878ea85aaf769c7fef80963a4884ede82e59e013fa40c075be686083732\"},{\"role\":\"native\",\"sha256\":\"780f72368ac0bf7c822b3343bd4e4ccc797a32b09ca51dc8746ea9446fcee7cd\"},{\"role\":\"crypto\",\"sha256\":\"5be25ef53f8c06397a21d87d76dca3587c29f8d0345f530789ba60857ce635c9\"},{\"role\":\"schemas\",\"sha256\":\"f92697c61c7cedf97f04e00138db77806e8438477ef85e2c5f6cc0746783bfcb\"}],\"interpreter\":{\"implementation\":\"CPython\",\"version\":\"3.12.15\"},\"packages\":{\"cffi\":\"2.1.1\",\"cryptography\":\"50.0.0\",\"pycparser\":\"3.0\"}}\n",
+      "bm-peer-code.json": "{\"requirement_id\":\"SOURCE_SIMULATION-peer-code-policy\",\"revision\":1}\n",
+      "bm-custody.json": "{\"chains\":[{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":10,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/launch\",\"sha256\":\"d9fc5e98f027c852954be38c503d0c2263aeac34cad16928c377e8562d62dc9a\",\"symlink\":false,\"uid\":602}],\"role\":\"launch\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":11,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/endpoint_policy\",\"sha256\":\"e6b665a4998e27337368eb8895511a6097a776e6d8d8ffc3d0dad5376673e4b0\",\"symlink\":false,\"uid\":602}],\"role\":\"endpoint_policy\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":12,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/code\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"code\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":13,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/imports\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"imports\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":14,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/native\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"native\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":15,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/crypto\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"crypto\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":16,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/schemas\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"schemas\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":17,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/policy\",\"sha256\":\"3ba2a658e06282c95395b54136d8b08b6e3a8c230e4b7a1b80ac7d546f0f3020\",\"symlink\":false,\"uid\":602}],\"role\":\"policy\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":18,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/state\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"state\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":19,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/journal\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"journal\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":20,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/lock\",\"sha256\":\"9f34456db9fe4669b3de07fa4bb377aebb2a57c8ed4570e48d97c12da651a7c3\",\"symlink\":false,\"uid\":602}],\"role\":\"lock\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":21,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/originals\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"originals\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":22,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/backend_policy\",\"sha256\":\"2e45e02db3aed5a0ca71d13ec5fb3d0bbee640c576003e12ddd6026040e3af8d\",\"symlink\":false,\"uid\":602}],\"role\":\"backend_policy\"}]}\n",
+      "bm-profile.json": "{\"arch\":\"arm64\",\"caller_uid\":501,\"code_ref\":{\"bytes\":626,\"path\":\"bm-code.json\",\"sha256\":\"c7992f1b86309fdfaf7ab0a2ccc2ab1ef3a4501cb54e7d5534e9493c0e316833\"},\"custody_ref\":{\"bytes\":10942,\"path\":\"bm-custody.json\",\"sha256\":\"e1c8a48c262addab128556e06d1ec06e2253ce0b0dc34b0edc1c60d9b53ecee7\"},\"endpoint_id\":\"SOURCE_SIMULATION-protected-endpoint\",\"host_identity_ref\":{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},\"launch_id\":\"SOURCE_SIMULATION-fixed-launch\",\"owner_uid\":602,\"peer_code_ref\":{\"bytes\":69,\"path\":\"bm-peer-code.json\",\"sha256\":\"17f6192bca78842736a3f9cc48f92fca7e9b8b828b56d480f148e78885107495\"},\"platform\":\"darwin\"}\n",
+      "bm-observation.json": "{\"arch\":\"arm64\",\"code\":{\"candidate_imports\":false,\"complete\":true,\"dependency_repair\":false,\"isolated_startup\":true,\"loader_inputs_fixed\":true,\"owner_closure\":{\"components\":[{\"role\":\"executable\",\"sha256\":\"438e64f8afb68029a8fbff96573c94b416f26caf4ee3e8641175244b416c1c8a\"},{\"role\":\"imports\",\"sha256\":\"94169878ea85aaf769c7fef80963a4884ede82e59e013fa40c075be686083732\"},{\"role\":\"native\",\"sha256\":\"780f72368ac0bf7c822b3343bd4e4ccc797a32b09ca51dc8746ea9446fcee7cd\"},{\"role\":\"crypto\",\"sha256\":\"5be25ef53f8c06397a21d87d76dca3587c29f8d0345f530789ba60857ce635c9\"},{\"role\":\"schemas\",\"sha256\":\"f92697c61c7cedf97f04e00138db77806e8438477ef85e2c5f6cc0746783bfcb\"}],\"interpreter\":{\"implementation\":\"CPython\",\"version\":\"3.12.15\"},\"packages\":{\"cffi\":\"2.1.1\",\"cryptography\":\"50.0.0\",\"pycparser\":\"3.0\"}},\"owner_requirement_satisfied\":true,\"peer_requirement_ref\":{\"bytes\":69,\"path\":\"bm-peer-code.json\",\"sha256\":\"17f6192bca78842736a3f9cc48f92fca7e9b8b828b56d480f148e78885107495\"},\"peer_requirement_satisfied\":true,\"site_hooks_disabled\":true},\"custody_after\":{\"chains\":[{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":10,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/launch\",\"sha256\":\"d9fc5e98f027c852954be38c503d0c2263aeac34cad16928c377e8562d62dc9a\",\"symlink\":false,\"uid\":602}],\"role\":\"launch\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":11,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/endpoint_policy\",\"sha256\":\"e6b665a4998e27337368eb8895511a6097a776e6d8d8ffc3d0dad5376673e4b0\",\"symlink\":false,\"uid\":602}],\"role\":\"endpoint_policy\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":12,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/code\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"code\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":13,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/imports\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"imports\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":14,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/native\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"native\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":15,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/crypto\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"crypto\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":16,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/schemas\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"schemas\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":17,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/policy\",\"sha256\":\"3ba2a658e06282c95395b54136d8b08b6e3a8c230e4b7a1b80ac7d546f0f3020\",\"symlink\":false,\"uid\":602}],\"role\":\"policy\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":18,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/state\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"state\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":19,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/journal\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"journal\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":20,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/lock\",\"sha256\":\"9f34456db9fe4669b3de07fa4bb377aebb2a57c8ed4570e48d97c12da651a7c3\",\"symlink\":false,\"uid\":602}],\"role\":\"lock\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":21,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/originals\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"originals\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":22,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/backend_policy\",\"sha256\":\"2e45e02db3aed5a0ca71d13ec5fb3d0bbee640c576003e12ddd6026040e3af8d\",\"symlink\":false,\"uid\":602}],\"role\":\"backend_policy\"}]},\"custody_before\":{\"chains\":[{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":10,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/launch\",\"sha256\":\"d9fc5e98f027c852954be38c503d0c2263aeac34cad16928c377e8562d62dc9a\",\"symlink\":false,\"uid\":602}],\"role\":\"launch\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":11,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/endpoint_policy\",\"sha256\":\"e6b665a4998e27337368eb8895511a6097a776e6d8d8ffc3d0dad5376673e4b0\",\"symlink\":false,\"uid\":602}],\"role\":\"endpoint_policy\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":12,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/code\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"code\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":13,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/imports\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"imports\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":14,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/native\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"native\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":15,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/crypto\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"crypto\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":16,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/schemas\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"schemas\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":17,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/policy\",\"sha256\":\"3ba2a658e06282c95395b54136d8b08b6e3a8c230e4b7a1b80ac7d546f0f3020\",\"symlink\":false,\"uid\":602}],\"role\":\"policy\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":18,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/state\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"state\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":19,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/journal\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"journal\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":20,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/lock\",\"sha256\":\"9f34456db9fe4669b3de07fa4bb377aebb2a57c8ed4570e48d97c12da651a7c3\",\"symlink\":false,\"uid\":602}],\"role\":\"lock\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":21,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/originals\",\"sha256\":null,\"symlink\":false,\"uid\":602}],\"role\":\"originals\"},{\"nodes\":[{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":0,\"inode\":1,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/\",\"sha256\":null,\"symlink\":false,\"uid\":0},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":2,\"kind\":\"directory\",\"links\":1,\"mode\":493,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION\",\"sha256\":null,\"symlink\":false,\"uid\":602},{\"acl_write_gids\":[],\"acl_write_uids\":[],\"caller_can_replace\":false,\"device\":7,\"gid\":602,\"inode\":22,\"kind\":\"file\",\"links\":1,\"mode\":320,\"mount_id\":\"SOURCE_SIMULATION-mount\",\"owners_enabled\":true,\"path\":\"/SOURCE_SIMULATION/backend_policy\",\"sha256\":\"2e45e02db3aed5a0ca71d13ec5fb3d0bbee640c576003e12ddd6026040e3af8d\",\"symlink\":false,\"uid\":602}],\"role\":\"backend_policy\"}]},\"host_identity_ref\":{\"bytes\":41,\"path\":\"host.json\",\"sha256\":\"980e4c6e6507ba111d68ffe10359b5a4a364d2c7429666e62d6da2ed9973482c\"},\"launch\":{\"caller_can_bypass_owner\":false,\"caller_can_debug_owner\":false,\"caller_can_elevate_to_owner\":false,\"caller_controls_launch\":false,\"endpoint_id\":\"SOURCE_SIMULATION-protected-endpoint\",\"fixed_executable_ref\":{\"bytes\":626,\"path\":\"bm-code.json\",\"sha256\":\"c7992f1b86309fdfaf7ab0a2ccc2ab1ef3a4501cb54e7d5534e9493c0e316833\"},\"launch_id\":\"SOURCE_SIMULATION-fixed-launch\",\"owner_uid\":602,\"startup_inputs_fixed\":true,\"system_scope\":true},\"owner_epoch\":\"test-epoch-1\",\"owner_process\":{\"groups\":[602],\"lifetime\":\"SOURCE_SIMULATION-owner-lifetime\",\"pid\":700,\"provenance\":\"protected_launch\",\"uids\":[602,602,602]},\"peer_process\":{\"groups\":[20],\"lifetime\":\"test-lifetime-1\",\"pid\":800,\"provenance\":\"kernel_peer_lifetime\",\"uids\":[501,501,501]},\"platform\":\"darwin\",\"session_id\":\"test-session-1\"}\n",
+      "host.json": "{\"fixture_only\":true,\"role\":\"host.json\"}\n"
+    },
+    "runtime_lock_raw": "{\n  \"schema\": \"cortex.runtime-lock.v1\",\n  \"format_version\": 1,\n  \"declaration_scope\": \"synthetic-fixture\",\n  \"selection_authority\": \"r01-original-external-signed-member\",\n  \"source\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"revision\": \"46e98b05f95edd62818e4420459935cfe05ba8da\",\n      \"tree\": \"3a84dbf8caa6c14e10f6a342c64402cf80c9f032\",\n      \"repository\": \"Kaidera-AI/cortex\"\n    },\n    \"original_receipt\": \"730a04a8-7b67-5f87-9208-131ffde5d940\"\n  },\n  \"release\": {\n    \"state\": \"BOUND\",\n    \"value\": {\n      \"api_contract\": \"cortex.core-api.v1\",\n      \"api_module_version\": \"0.2.001\",\n      \"core_module_version\": \"0.2.001\",\n      \"event_version\": 1,\n      \"release_id\": \"v0.2.001\",\n      \"schema_version\": 1\n    },\n    \"original_receipt\": \"49afc731-ebe1-5ec2-9455-d179fe08e52e\"\n  },\n  \"current_schema\": {\n    \"manifest_path\": \"/opt/cortex/next/schema/manifest.json\",\n    \"manifest_sha256\": \"7c49366dcc51e6bea595db2735b51e1b8e2ea45f4d99fe8fd011f51972cdea83\",\n    \"migration_count\": 20,\n    \"business_table_count\": 44,\n    \"migrations\": [\n      {\n        \"id\": \"core-0001\",\n        \"file\": \"core/001-core.sql\",\n        \"sha256\": \"e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147\"\n      },\n      {\n        \"id\": \"auth-0001\",\n        \"file\": \"auth/001-auth.sql\",\n        \"sha256\": \"97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e\"\n      },\n      {\n        \"id\": \"coordination-0001\",\n        \"file\": \"coordination/001-coordination.sql\",\n        \"sha256\": \"c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1\"\n      },\n      {\n        \"id\": \"retrieval-0000\",\n        \"file\": \"retrieval/000-canonical.sql\",\n        \"sha256\": \"5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2\"\n      },\n      {\n        \"id\": \"auth-0002\",\n        \"file\": \"auth/002-isolation.sql\",\n        \"sha256\": \"dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681\"\n      },\n      {\n        \"id\": \"coordination-0002\",\n        \"file\": \"coordination/002-record-replay.sql\",\n        \"sha256\": \"683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87\"\n      },\n      {\n        \"id\": \"auth-0003\",\n        \"file\": \"auth/003-identity.sql\",\n        \"sha256\": \"678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8\"\n      },\n      {\n        \"id\": \"outbox-0002\",\n        \"file\": \"coordination/002-outbox.sql\",\n        \"sha256\": \"125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e\"\n      },\n      {\n        \"id\": \"module-consumers-0003\",\n        \"file\": \"coordination/003-module-consumers.sql\",\n        \"sha256\": \"bbde558b050a8121fe63e6eba1002058a8ec47731158a1c8375fbf633f33451a\"\n      },\n      {\n        \"id\": \"api-replay-0004\",\n        \"file\": \"coordination/004-api-replay.sql\",\n        \"sha256\": \"b8f7651132e71ac8080b8be2aa6a38c066a25a8afb794f4060c174bae3780771\"\n      },\n      {\n        \"id\": \"retrieval-0001\",\n        \"file\": \"retrieval/001-pg-search.sql\",\n        \"sha256\": \"bf1a5c1b14d57da70013e9ba4c90126797ab1e85533ad1d04db7f7780f113d84\"\n      },\n      {\n        \"id\": \"retrieval-0002\",\n        \"file\": \"retrieval/002-query-cache.sql\",\n        \"sha256\": \"02f5baf51828ae920988e37aac19169f78039e79481e413a6e1b0907fc62d868\"\n      },\n      {\n        \"id\": \"retrieval-0003\",\n        \"file\": \"retrieval/003-pg-graph.sql\",\n        \"sha256\": \"bc12fe454576f666879151425b8752ad0aaa9ffeb241b3fee252e1a9d58e48cb\"\n      },\n      {\n        \"id\": \"session-source-0005\",\n        \"file\": \"coordination/005-session-source.sql\",\n        \"sha256\": \"81e7955f1792852160e384408557c8476abde0830ca72d2863ef51b3f81e8af4\"\n      },\n      {\n        \"id\": \"retrieval-0004\",\n        \"file\": \"retrieval/004-request-authority.sql\",\n        \"sha256\": \"3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e\"\n      },\n      {\n        \"id\": \"auth-0004\",\n        \"file\": \"auth/004-first-identity-capture.sql\",\n        \"sha256\": \"6c2a630667f51af9452b28bd6e559464007ea15162722acdf1fcdd7d15e02705\"\n      },\n      {\n        \"id\": \"auth-0005\",\n        \"file\": \"auth/005-first-identity.sql\",\n        \"sha256\": \"22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d\"\n      },\n      {\n        \"id\": \"auth-0006\",\n        \"file\": \"auth/006-enrollment-readiness.sql\",\n        \"sha256\": \"848840260b90e3cd88dc77d25acad908c63bcf711452eb1669e7ae4e833cee72\"\n      },\n      {\n        \"id\": \"session-ids-read-0007\",\n        \"file\": \"coordination/007-session-ids-read.sql\",\n        \"sha256\": \"449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64\"\n      },\n      {\n        \"id\": \"runtime-grants-0001\",\n        \"file\": \"auth/007-runtime-grants.sql\",\n        \"sha256\": \"fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607\"\n      }\n    ]\n  },\n  \"operations_sha256\": \"51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b\",\n  \"layout\": {\n    \"interpreter\": \"/opt/cortex/python/bin/python3\",\n    \"source\": \"/opt/cortex/next/src\",\n    \"schema\": \"/opt/cortex/next/schema\",\n    \"contracts\": \"/opt/cortex/next/contracts\",\n    \"data\": \"/var/lib/cortex/core\",\n    \"password_carrier\": \"/run/cortex/bootstrap/initdb-password\",\n    \"runtime_lock\": \"/run/cortex/runtime.lock.json\"\n  },\n  \"health\": {\n    \"c11_fields\": [\n      \"component\",\n      \"status\",\n      \"readiness\"\n    ],\n    \"telemetry_fields\": [\n      \"component\",\n      \"status\",\n      \"core_available\",\n      \"conductor\",\n      \"reason\"\n    ],\n    \"telemetry_host\": \"127.0.0.1\",\n    \"telemetry_port\": 9309,\n    \"telemetry_published\": false,\n    \"status_namespace\": \"exact-owned-api\",\n    \"proxy_headers\": false,\n    \"forwarded_allow_ips\": \"\",\n    \"api_internal_port\": 8000,\n    \"api_host_publish\": \"127.0.0.1\",\n    \"core_port\": 5432,\n    \"core_published\": false\n  },\n  \"budgets\": {\n    \"probe_ms\": 200,\n    \"telemetry_ms\": 750,\n    \"status_ms\": 2000,\n    \"status_bytes\": 16384,\n    \"shutdown_ms\": 15000,\n    \"initdb_ms\": 120000,\n    \"migration_ms\": 120000,\n    \"connect_ms\": 2000,\n    \"statement_ms\": 2000,\n    \"pool_acquire_ms\": 2000,\n    \"request_ms\": 10000,\n    \"lease_ms\": 10000,\n    \"api_pool_max\": 8,\n    \"observer_pool_max\": 2,\n    \"supervisor_pool_max\": 2,\n    \"api_concurrency_max\": 32,\n    \"api_backlog_max\": 64\n  },\n  \"server_selection\": {\n    \"implementation\": \"uvicorn\",\n    \"api\": \"Config+Server\",\n    \"loop\": \"asyncio\",\n    \"http\": \"h11\",\n    \"ws\": \"none\",\n    \"lifespan\": \"off\",\n    \"workers\": 1,\n    \"reload\": false,\n    \"proxy_headers\": false,\n    \"forwarded_allow_ips\": \"\",\n    \"access_log\": false,\n    \"server_header\": false,\n    \"date_header\": false,\n    \"owner\": \"runtime-lifecycle-explicit\"\n  },\n  \"targets\": {\n    \"linux/arm64\": {\n      \"host_os\": \"darwin\",\n      \"host_arch\": \"arm64\",\n      \"backend\": \"linux/arm64\",\n      \"core\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/core-arm64.oci\",\n            \"sha256\": \"d24c5fc1d2f607cd0d5d5a1129a5f4fd6bce95b2846daea9941cd0b2c81c077f\",\n            \"bytes\": 41,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"dfaa3fc4-6dd7-5125-b22b-0e33bf8bedd9\"\n          },\n          \"original_receipt\": \"43720319-755a-5c7e-a51d-2aec278c36bf\"\n        },\n        \"initdb\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/initdb\",\n            \"sha256\": \"c4bf5aad16b399816e8ce147cbcbe58847ff1e585fbf773cf962dcbc622a9fa1\",\n            \"bytes\": 37,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"fcc9d224-64e2-5f2f-a785-01d81f294f2b\"\n          },\n          \"original_receipt\": \"bc39f034-52a9-5682-9e70-5d4dcd166691\"\n        },\n        \"postgres\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/postgres\",\n            \"sha256\": \"ab27a722bdf959841a0daa9edb666f8d06aa2ead934a970f0b64f1ec522fc4ad\",\n            \"bytes\": 39,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"cda090d2-551c-5dfb-82e1-42433dd1ce15\"\n          },\n          \"original_receipt\": \"0e595cc2-a29f-5081-96e4-bfae3996af1d\"\n        },\n        \"pg_major\": {\n          \"state\": \"BOUND\",\n          \"value\": 17,\n          \"original_receipt\": \"4745fef4-de93-574a-a13a-83ed4248f4eb\"\n        }\n      },\n      \"api\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/api-arm64.oci\",\n            \"sha256\": \"7d45f02c9c55b8690c7a315865fc352874e4f6fe5fd1f0fae7c3284f19fd7a3d\",\n            \"bytes\": 40,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"4fabdc49-96a6-5bcb-8941-0ecb08603cbc\"\n          },\n          \"original_receipt\": \"fa30427e-e610-504c-91e5-a10e172dc9b1\"\n        },\n        \"interpreter\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/python/bin/python3\",\n            \"sha256\": \"7a31cd2e9c46bd8b263f028dfc13816e5fc604c2ee020c05e5379520403b16cd\",\n            \"bytes\": 42,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"30d9a3fb-6e9e-5f84-9e32-a40abfd5b725\"\n          },\n          \"original_receipt\": \"093e6e5e-f91f-500c-a662-d7bb245a8ab5\"\n        }\n      },\n      \"closure\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"inventory\": {\n            \"path\": \"/fixture/arm64-runtime-inventory.json\",\n            \"sha256\": \"3b1f96de9ba9750a8c5166ec49f4253086bc75ff1fd920b3d2806c9a6f46c9ff\",\n            \"bytes\": 38,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/arm64\",\n            \"origin_ref\": \"1f9fcfd5-9ef1-59b6-8adb-7ae2f0736610\"\n          },\n          \"packages\": [\n            \"postgresql\",\n            \"pgvector\",\n            \"python\",\n            \"libpq\",\n            \"psycopg\",\n            \"asyncpg\",\n            \"starlette\",\n            \"httpx\",\n            \"uvicorn\",\n            \"h11\",\n            \"openssl\",\n            \"ca-certificates\"\n          ],\n          \"native_backend\": \"linux/arm64\",\n          \"offline\": true\n        },\n        \"original_receipt\": \"f0fe47da-7a7c-54cc-997b-771e6422e4a2\"\n      }\n    },\n    \"linux/amd64\": {\n      \"host_os\": \"linux\",\n      \"host_arch\": \"x86_64\",\n      \"backend\": \"linux/amd64\",\n      \"core\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/core-amd64.oci\",\n            \"sha256\": \"2b850a3d54bbcd0bc2e2649c377a15b416b445a03eb3d921cbac6e81a5578e0f\",\n            \"bytes\": 41,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"65b8d059-43dc-556d-86ae-8e6801b13e7c\"\n          },\n          \"original_receipt\": \"c3f83a33-58fb-572e-add5-ffd28a9b5079\"\n        },\n        \"initdb\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/initdb\",\n            \"sha256\": \"3832b95a4f19ba41fc1ce589f9f93344af05003ff418fef78c3e0c6427688f64\",\n            \"bytes\": 37,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"6504f66d-968b-5d28-883a-90d1a8dc2a80\"\n          },\n          \"original_receipt\": \"c2cd5760-c06f-55bb-9de7-d228aaff8c9e\"\n        },\n        \"postgres\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/postgresql/bin/postgres\",\n            \"sha256\": \"d2c8cc81f952ea99fe2dfa1ecc59a84bb7a10928554cf0a08d5dda314eb28a22\",\n            \"bytes\": 39,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"31c48cad-6b1b-5292-84dc-fc9c7ca8c00e\"\n          },\n          \"original_receipt\": \"33a04767-8a1c-532c-adbd-9af8715b6678\"\n        },\n        \"pg_major\": {\n          \"state\": \"BOUND\",\n          \"value\": 17,\n          \"original_receipt\": \"55a43309-4ac1-559c-b0b2-16f14d21afcc\"\n        }\n      },\n      \"api\": {\n        \"image\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/fixture/api-amd64.oci\",\n            \"sha256\": \"21553c529e60760525581e347fa5853199af00b1d0d44fe3c88286df2bc44c1a\",\n            \"bytes\": 40,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"391b743f-4a08-5b8d-831e-efd592965148\"\n          },\n          \"original_receipt\": \"f33d5a6c-33a0-5099-a53a-b76e0b07a629\"\n        },\n        \"interpreter\": {\n          \"state\": \"BOUND\",\n          \"value\": {\n            \"path\": \"/opt/cortex/python/bin/python3\",\n            \"sha256\": \"34b78a2749191d40be46b17783d6218b7222b5ec136b269313901e89929af943\",\n            \"bytes\": 42,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"48eb0746-80bd-5920-a440-374077f3a98b\"\n          },\n          \"original_receipt\": \"32af24e4-9f6a-5e88-9367-8acc463777a5\"\n        }\n      },\n      \"closure\": {\n        \"state\": \"BOUND\",\n        \"value\": {\n          \"inventory\": {\n            \"path\": \"/fixture/amd64-runtime-inventory.json\",\n            \"sha256\": \"b155b0805e25d8ab4101fd0d7288ce3ca8c4ffd725d300a749bfa9886d17d7da\",\n            \"bytes\": 38,\n            \"mode\": \"0555\",\n            \"version\": \"fixture-only\",\n            \"abi\": \"linux/amd64\",\n            \"origin_ref\": \"014f857a-df82-5fbd-a346-619dccdbb7b0\"\n          },\n          \"packages\": [\n            \"postgresql\",\n            \"pgvector\",\n            \"python\",\n            \"libpq\",\n            \"psycopg\",\n            \"asyncpg\",\n            \"starlette\",\n            \"httpx\",\n            \"uvicorn\",\n            \"h11\",\n            \"openssl\",\n            \"ca-certificates\"\n          ],\n          \"native_backend\": \"linux/amd64\",\n          \"offline\": true\n        },\n        \"original_receipt\": \"5d2b9edd-df18-503c-9892-331e956d81c4\"\n      }\n    }\n  },\n  \"owner_ports\": {\n    \"secret_resolver\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.secret-resolver.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/secret_resolver.json\",\n          \"sha256\": \"8697dbe720810b7116b5d7c4eb69687de9fd475b414bf71874b702e5de6b726d\",\n          \"bytes\": 35,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"2e73fa95-afed-5231-a13e-73ea1484648e\"\n        }\n      },\n      \"original_receipt\": \"1dbb6fae-0a21-538c-ac7c-bc908c70f29e\"\n    },\n    \"database_bootstrap\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.database-bootstrap.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/database_bootstrap.json\",\n          \"sha256\": \"defe2cc8e8e6369b834538b5a9a37172f4bde26578c38bc4af90965fa902f230\",\n          \"bytes\": 38,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"1f62848d-9a64-5bfb-806a-c6c54a9340cf\"\n        }\n      },\n      \"original_receipt\": \"071899b0-ac86-5ca1-bae9-dd179163d3c0\"\n    },\n    \"role_grants\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.role-grants.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/role_grants.json\",\n          \"sha256\": \"86d47a11f54a77f7a5edc505df4534a17e498e4adb7f59b8ea36742669abfbd5\",\n          \"bytes\": 31,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"12b217e7-e51b-5386-90b9-254c83da38b7\"\n        }\n      },\n      \"original_receipt\": \"91a5925f-cb61-59d5-86d9-a63b3fc3985e\"\n    },\n    \"enrollment\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.enrollment-owner.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/enrollment.json\",\n          \"sha256\": \"3c532ae3304f91745761be905b6aa767cd833c00b172c8348214ccba0fb51d13\",\n          \"bytes\": 30,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"22206014-1f6b-5e46-b34d-d2f39cfcea73\"\n        }\n      },\n      \"original_receipt\": \"ce628083-a26b-5a0d-8294-094a80e8fe27\"\n    },\n    \"private_inspection\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.private-inspection.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/private_inspection.json\",\n          \"sha256\": \"63cfd270cb9bf69f7dc9cac31b4d00f84744fe797fba2bd839d268f12d550adb\",\n          \"bytes\": 38,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"b1a0faed-e885-5fee-a93a-c9272e2916c3\"\n        }\n      },\n      \"original_receipt\": \"a370e8d9-a767-5689-b715-74a4d664956f\"\n    },\n    \"namespace_transport\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"contract\": \"cortex.runtime.namespace-transport.v1\",\n        \"implementation\": {\n          \"path\": \"/opt/cortex/owner/namespace_transport.json\",\n          \"sha256\": \"b186b254fabe9388d5c566e2ede0b82db0c43bf2889a3774b7b925455f80cfa1\",\n          \"bytes\": 39,\n          \"mode\": \"0555\",\n          \"version\": \"fixture-only\",\n          \"abi\": \"fixture-linux\",\n          \"origin_ref\": \"af7ed387-799b-5b65-8bf9-7d2f312a883e\"\n        }\n      },\n      \"original_receipt\": \"46654273-9665-5af6-a8ac-04f912532209\"\n    }\n  },\n  \"contract_members\": {\n    \"lock_schema\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/contracts/runtime/runtime-lock-v1.schema.json\",\n        \"sha256\": \"d7e705bb4873c1fae2b49310074d1fee5e5d8a3881091347b1c7b041606c9770\",\n        \"bytes\": 131957,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"de73ea34-20e9-559e-8922-0ea760c6af68\"\n      },\n      \"original_receipt\": \"d643a9ae-78c9-5065-b73e-53eeacbe5e00\"\n    },\n    \"config_schema\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/contracts/runtime/runtime-config-v1.schema.json\",\n        \"sha256\": \"5ea3feaca027ad2a9aab6c280ba33194ae7a9e686916bd8056d9b08f0e9f4e7b\",\n        \"bytes\": 75188,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"0e942394-5891-5b19-a271-28d597c0c77b\"\n      },\n      \"original_receipt\": \"b18f0f6c-e3c1-508f-bbb9-ec23b7068aca\"\n    },\n    \"operations\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/contracts/runtime/runtime-operations-v1.json\",\n        \"sha256\": \"51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b\",\n        \"bytes\": 11487,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"993c947e-fdce-50ae-b4c0-16e8e63c7644\"\n      },\n      \"original_receipt\": \"d847736a-cdbe-5b6f-bae1-7e4ad493d5a1\"\n    },\n    \"entrypoint\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/next/src/cortex_core/runtime/__main__.py\",\n        \"sha256\": \"3aa13696bedb0d22f66370edf730b089f246ce59ba4b388eb1bfc1884dbce46d\",\n        \"bytes\": 39,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"5c9122f0-3ccf-563f-ae1e-286155f9bfee\"\n      },\n      \"original_receipt\": \"4761564e-d6d1-5bd1-9a2d-03b78685df9c\"\n    },\n    \"private_pth\": {\n      \"state\": \"BOUND\",\n      \"value\": {\n        \"path\": \"/opt/cortex/python/cortex.pth\",\n        \"sha256\": \"3265855297b0e6d723b9f3086f3a30c565fde3849e694b33a34bfcb52e7caa9f\",\n        \"bytes\": 40,\n        \"mode\": \"0555\",\n        \"version\": \"fixture-only\",\n        \"abi\": \"fixture-linux\",\n        \"origin_ref\": \"0dbd666c-7bcc-58c1-afe8-ea9ca5f60a4d\"\n      },\n      \"original_receipt\": \"ca6a898b-121f-56ec-b707-6b1aa1818aef\"\n    }\n  }\n}\n",
+    "literal_expected": {
+      "host5_utc": 1700000005,
+      "host5_mono": 105000000000,
+      "host7_utc": 1700000007,
+      "default_utc": 1700000030,
+      "default_mono": 130000000000,
+      "earlier_mono": 104000000000
+    }
+  },
+  "profile_ref": {
+    "path": "bm-profile.json",
+    "bytes": 682,
+    "sha256": "f3e755e56170376b59a3b62f382c7d293872c811d05332bf0ef3c4be38d1b65c"
+  },
+  "observation_ref": {
+    "path": "bm-observation.json",
+    "bytes": 23853,
+    "sha256": "bc225be51daa0852790d8ee2963dcf1778300584ef5ffd274c12ce1c2da597d9"
+  },
+  "matched_expected": {
+    "stage": "PRECONSUME_DATA",
+    "effect_authority": false,
+    "native_qualified": false,
+    "reservation_created": false,
+    "consumed": false,
+    "physical": "NOT_RUN"
+  },
+  "cases": [
+    {
+      "id": "profile_extra_field",
+      "guard": "profile",
+      "record": "profile",
+      "path": [
+        "caller_verified"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "profile_wrong_platform",
+      "guard": "profile",
+      "record": "profile",
+      "path": [
+        "platform"
+      ],
+      "operation": "set",
+      "value": "linux",
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "profile_wrong_arch",
+      "guard": "profile",
+      "record": "profile",
+      "path": [
+        "arch"
+      ],
+      "operation": "set",
+      "value": "x86_64",
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "profile_bool_uid",
+      "guard": "profile",
+      "record": "profile",
+      "path": [
+        "owner_uid"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "profile_same_uid",
+      "guard": "profile",
+      "record": "profile",
+      "path": [
+        "owner_uid"
+      ],
+      "operation": "set",
+      "value": 501,
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "observation_extra_field",
+      "guard": "shape",
+      "record": "observation",
+      "path": [
+        "verified"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "observation_missing_field",
+      "guard": "shape",
+      "record": "observation",
+      "path": [
+        "code"
+      ],
+      "operation": "delete",
+      "value": null,
+      "expected_detail": "owner_unavailable",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "B1_wrong_target",
+      "guard": "binding",
+      "record": "context",
+      "path": [
+        "target",
+        "host_os"
+      ],
+      "operation": "set",
+      "value": "linux",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "observation_wrong_host",
+      "guard": "binding",
+      "record": "observation",
+      "path": [
+        "host_identity_ref",
+        "sha256"
+      ],
+      "operation": "set",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "observation_wrong_epoch",
+      "guard": "binding",
+      "record": "observation",
+      "path": [
+        "owner_epoch"
+      ],
+      "operation": "set",
+      "value": "SOURCE_SIMULATION-stale",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "observation_wrong_session",
+      "guard": "binding",
+      "record": "observation",
+      "path": [
+        "session_id"
+      ],
+      "operation": "set",
+      "value": "SOURCE_SIMULATION-other",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_system_scope",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "system_scope"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_caller_controls_launch",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "caller_controls_launch"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_caller_can_debug_owner",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "caller_can_debug_owner"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_caller_can_elevate_to_owner",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "caller_can_elevate_to_owner"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_caller_can_bypass_owner",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "caller_can_bypass_owner"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_startup_inputs_fixed",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "startup_inputs_fixed"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_launch_id",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "launch_id"
+      ],
+      "operation": "set",
+      "value": "SOURCE_SIMULATION-other",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_endpoint_id",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "endpoint_id"
+      ],
+      "operation": "set",
+      "value": "SOURCE_SIMULATION-other",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_owner_uid",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "owner_uid"
+      ],
+      "operation": "set",
+      "value": 501,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "launch_extra_field",
+      "guard": "launch",
+      "record": "observation",
+      "path": [
+        "launch",
+        "fallback"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "owner_process_pid",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "owner_process",
+        "pid"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "owner_process_lifetime",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "owner_process",
+        "lifetime"
+      ],
+      "operation": "set",
+      "value": "",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "owner_process_uids",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "owner_process",
+        "uids"
+      ],
+      "operation": "set",
+      "value": [
+        501,
+        501,
+        501
+      ],
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "owner_process_groups",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "owner_process",
+        "groups"
+      ],
+      "operation": "set",
+      "value": [
+        true
+      ],
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "owner_process_provenance",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "owner_process",
+        "provenance"
+      ],
+      "operation": "set",
+      "value": "caller_payload",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_process_pid",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "pid"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_process_lifetime",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "lifetime"
+      ],
+      "operation": "set",
+      "value": "",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_process_uids",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "uids"
+      ],
+      "operation": "set",
+      "value": [
+        602,
+        602,
+        602
+      ],
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_process_groups",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "groups"
+      ],
+      "operation": "set",
+      "value": [
+        true
+      ],
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_process_provenance",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "provenance"
+      ],
+      "operation": "set",
+      "value": "caller_payload",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_lifetime_substitution",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "lifetime"
+      ],
+      "operation": "set",
+      "value": "SOURCE_SIMULATION-other",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "peer_pid_alias",
+      "guard": "peer",
+      "record": "observation",
+      "path": [
+        "peer_process",
+        "pid"
+      ],
+      "operation": "set",
+      "value": 700,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_owner_requirement_satisfied",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "owner_requirement_satisfied"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_peer_requirement_satisfied",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "peer_requirement_satisfied"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_complete",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "complete"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_isolated_startup",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "isolated_startup"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_site_hooks_disabled",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "site_hooks_disabled"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_loader_inputs_fixed",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "loader_inputs_fixed"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_candidate_imports",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "candidate_imports"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_dependency_repair",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "dependency_repair"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_executable_drift",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "owner_closure",
+        "components",
+        0,
+        "sha256"
+      ],
+      "operation": "set",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_wrong_python",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "owner_closure",
+        "interpreter",
+        "version"
+      ],
+      "operation": "set",
+      "value": "3.14.0",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_extra_package",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "owner_closure",
+        "packages",
+        "PyNaCl"
+      ],
+      "operation": "set",
+      "value": "1.6.2",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "code_peer_requirement_substitution",
+      "guard": "code",
+      "record": "observation",
+      "path": [
+        "code",
+        "peer_requirement_ref",
+        "sha256"
+      ],
+      "operation": "set",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_detail": "peer_denied",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_uid",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "uid"
+      ],
+      "operation": "set",
+      "value": 501,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_mode",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "mode"
+      ],
+      "operation": "set",
+      "value": 511,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_owners_enabled",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "owners_enabled"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_symlink",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "symlink"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_caller_can_replace",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "caller_can_replace"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_acl_write_uids",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "acl_write_uids"
+      ],
+      "operation": "set",
+      "value": [
+        501
+      ],
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_acl_write_gids",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "acl_write_gids"
+      ],
+      "operation": "set",
+      "value": [
+        20
+      ],
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_links",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "links"
+      ],
+      "operation": "set",
+      "value": 2,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_device",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "device"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_inode",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "inode"
+      ],
+      "operation": "set",
+      "value": 0,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_before_path",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "path"
+      ],
+      "operation": "set",
+      "value": "/SOURCE_SIMULATION/../launch",
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_uid",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "uid"
+      ],
+      "operation": "set",
+      "value": 501,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_mode",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "mode"
+      ],
+      "operation": "set",
+      "value": 511,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_owners_enabled",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "owners_enabled"
+      ],
+      "operation": "set",
+      "value": false,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_symlink",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "symlink"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_caller_can_replace",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "caller_can_replace"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_acl_write_uids",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "acl_write_uids"
+      ],
+      "operation": "set",
+      "value": [
+        501
+      ],
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_acl_write_gids",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "acl_write_gids"
+      ],
+      "operation": "set",
+      "value": [
+        20
+      ],
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_links",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "links"
+      ],
+      "operation": "set",
+      "value": 2,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_device",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "device"
+      ],
+      "operation": "set",
+      "value": true,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_inode",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "inode"
+      ],
+      "operation": "set",
+      "value": 0,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_path",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "path"
+      ],
+      "operation": "set",
+      "value": "/SOURCE_SIMULATION/../launch",
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_after_inode_drift",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0,
+        "nodes",
+        2,
+        "inode"
+      ],
+      "operation": "set",
+      "value": 999,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_missing_role",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_after",
+        "chains",
+        0
+      ],
+      "operation": "delete",
+      "value": null,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    },
+    {
+      "id": "custody_missing_ancestor",
+      "guard": "custody",
+      "record": "observation",
+      "path": [
+        "custody_before",
+        "chains",
+        0,
+        "nodes",
+        1
+      ],
+      "operation": "delete",
+      "value": null,
+      "expected_detail": "custody_changed",
+      "candidate_reads": 0,
+      "effect_canary_calls": 0,
+      "physical": "NOT_RUN"
+    }
+  ]
+}

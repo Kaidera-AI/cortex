@@ -250,7 +250,7 @@ class Bridge(Fixture, unittest.TestCase):
     def test_runtime_admit_config_consumes_actual_original_without_effects(self):
         self.api()
         from cortex_core.runtime.config import admit_config
-        cfg = json.loads((NEXT/'tests/install/fixtures/p1-subjects.json').read_bytes())['configs']['linux/arm64']
+        cfg = json.loads((NEXT/'tests/install/fixtures/p1-subjects-pgc20-v1.json').read_bytes())['configs']['linux/arm64']
         cfg = json.loads(cfg)
         cfg['runtime_lock_sha256'] = sha256(self.bodies[MEMBER]); cfg['metrics_labels']['release'] = self.value['release']['release_id']
         member = self.sealed()
@@ -295,7 +295,7 @@ class Bridge(Fixture, unittest.TestCase):
         self.refusal('aggregate_root_mismatch', lambda: delivery.read_original(262144)); self.assert_closed()
 
     def installer_fixture(self, target, route):
-        subjects = json.loads((NEXT/'tests/install/fixtures/p1-subjects.json').read_bytes())
+        subjects = json.loads((NEXT/'tests/install/fixtures/p1-subjects-pgc20-v1.json').read_bytes())
         q = copy.deepcopy(subjects['requests'][target+'/'+route])
         names = {}
         for name, text in subjects['members'].items():
