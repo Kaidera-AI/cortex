@@ -90,3 +90,13 @@ nonsecret descriptor bytes replace only the carrier field under a separately
 admitted material adapter. This slice does not change role_grants.snapshot,
 HBA, SQL, C04, hosted selection, recovery or installed factory wiring. Recovery
 cannot infer password equality from pg_roles or descriptor equality.
+
+
+Reservation race review added a current-handle and current-SQL-policy check
+between reserved ticket and driver dispatch, plus current policy at connect
+publication and both ends of session checks. This does not add an authority
+channel; it reuses the same fixed supplier. The privacy oracle now verifies all
+three log-producing activities by logger identity, rather than exactly three
+messages, because mandatory current-policy rechecks legitimately add policy
+observations. Leak and exception assertions remain unchanged; the original 20
+case bodies remain identical to the first RED commit.

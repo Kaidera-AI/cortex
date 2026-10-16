@@ -128,7 +128,6 @@ class ResolverConnection:
     async def connect(self, *, connect_timeout_seconds, statement_timeout_ms):
         import asyncio
         import math
-        import ssl
         from . import secret_resolver as secrets
         from cortex_core.driver_logging import private_driver_logs
         resolver = secrets.SecretResolver()
@@ -168,10 +167,7 @@ class ResolverConnection:
                         options=f'-c statement_timeout={statement_timeout_ms}')
                 else:
                     context = policy.ssl_context
-                    secrets._require(type(context) is ssl.SSLContext and context.check_hostname
-                        and context.verify_mode == ssl.CERT_REQUIRED
-                        and context.hostname_checks_common_name is False,
-                        'invalid_connection_policy')
+                    _strict_context(context)
                     async def current_password():
                         # The driver may invoke this again; never return cached bytes.
                         async with resolver._material(handle,deadline) as fresh: return fresh
@@ -185,12 +181,15 @@ class ResolverConnection:
                 secrets._require(type(attempt) is secrets._ConnectAttempt
                     and all(secrets._atom(x) for x in (attempt.operation,attempt.attempt,attempt.resource))
                     and attempt.process == grant.process, 'authority_changed')
+                await resolver.check(handle,deadline)
+                _current_sql_policy(inputs,grant,policy)
                 connecting = True
                 connection = await secrets._bounded(inputs.connect(policy,kwargs,deadline,attempt),deadline)
                 kwargs = None
                 observation = await secrets._bounded(
                     inputs.observe_session(connection,grant,policy,deadline),deadline)
                 _session_state(observation,grant,policy)
+            _current_sql_policy(inputs,grant,policy)
             # Registry holds no credential; expiry remains the original owner bound,
             # not the shorter connect-only timeout. Current use rechecks the handle.
             self._sessions[connection] = (inputs,handle,policy,self._request[-1])
@@ -215,9 +214,11 @@ class ResolverConnection:
         inputs,handle,policy,original_deadline = record
         try:
             _,grant,bound = await secrets.SecretResolver()._current(handle,min(deadline,original_deadline))
+            _current_sql_policy(inputs,grant,policy)
             state = await secrets._bounded(inputs.observe_session(connection,grant,policy,bound),bound)
             _session_state(state,grant,policy)
             await secrets.SecretResolver().check(handle,bound)
+            _current_sql_policy(inputs,grant,policy)
         except BaseException:
             await self.retire(connection,deadline=original_deadline)
             raise
@@ -230,6 +231,29 @@ class ResolverConnection:
         handle.close()
         await _retire_resolved(inputs,connection,min(deadline,original_deadline))
         self._sessions.pop(connection,None)
+
+
+def _strict_context(context):
+    import ssl
+    from . import secret_resolver as secrets
+    secrets._require(type(context) is ssl.SSLContext and context.check_hostname
+        and context.verify_mode == ssl.CERT_REQUIRED
+        and context.hostname_checks_common_name is False,'invalid_connection_policy')
+
+
+def _current_sql_policy(inputs, grant, policy):
+    from . import secret_resolver as secrets
+    from cortex_core.driver_logging import private_driver_logs
+    try:
+        with private_driver_logs(): current = inputs.sql_policy(grant)
+    except Exception: raise secrets.SecretRefusal('resolver_unavailable') from None
+    secrets._require(type(current) is secrets._SQLPolicy and all(
+        _same(getattr(current,key),getattr(policy,key)) for key in
+        ('driver','host','port','database','user','ca_path','server_identity',
+         'login_oid','binding_revision')), 'authority_changed')
+    if current.driver == 'asyncpg':
+        _strict_context(current.ssl_context)
+        _strict_context(policy.ssl_context)
 
 
 def _session_state(state, grant, policy):
