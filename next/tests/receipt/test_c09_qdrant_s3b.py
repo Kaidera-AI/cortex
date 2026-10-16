@@ -128,3 +128,22 @@ class CoreBoundaryTests(unittest.TestCase):
         self.assertEqual(caught.exception.code,'after_checkpoint')
         self.assertIsInstance(caught.exception.__cause__,RuntimeError)
         self.assertEqual(len(self.record_attempts),1)
+
+    def test_external_feed_authority_failure_is_scrubbed_and_no_effect_is_started(self):
+        from cortex_core.outbox import OutboxError
+        for error_type in (AuthError,OutboxError):
+            with self.subTest(error_type=error_type.__name__):
+                port=self.port()
+                def fail(**kwargs):raise error_type(PRIVATE)
+                port.feed=SimpleNamespace(page=fail)
+                self.assert_scrubbed(port.cycle)
+                self.assertEqual(self.effects,[])
+                self.assertEqual(self.record_attempts,[])
+                patch.stopall()
+
+    def test_v1_feed_authority_failure_type_is_preserved(self):
+        port=self.port(external=False)
+        def fail(**kwargs):raise AuthError(PRIVATE)
+        port.feed=SimpleNamespace(page=fail)
+        with self.assertRaises(AuthError):port.cycle()
+        self.assertEqual(self.effects,[])
