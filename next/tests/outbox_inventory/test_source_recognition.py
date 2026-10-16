@@ -10,7 +10,7 @@ NEXT = Path(__file__).resolve().parents[2]
 BACKUP = 'src/cortex_core/backup_validation.py'
 MIGRATIONS = 'src/cortex_core/migrations.py'
 REFLECTION = {
-    'src/cortex_core/release/artifacts.py': ('_compiled_fields_equal', 'getattr(actual, field)', "'co_cellvars'"),
+    'src/cortex_core/release/_pyc_check.py': ('_compiled_fields_equal', 'getattr(actual, field)', "'co_cellvars'"),
     'src/cortex_core/release/build/audit.py': ('_code_equal', 'getattr(left, k)', '"co_cellvars"'),
     'src/vector_baseline/product_path.py': ('snapshot_corpus', 'getattr(staged, name)', '"weights"'),
 }
