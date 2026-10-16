@@ -20,5 +20,84 @@
     "path": "p1-subjects-pre-e2.json",
     "bytes": 87287,
     "sha256": "25962b3efc0f0d43cfdb706707af46e0464dfe59ffe00ac2ceba8cf16e00ca58"
+  },
+  "GateB": {
+    "path": "gate-b-subjects.json",
+    "bytes": 2676274,
+    "sha256": "5046c85bda82973bbf0e9b970ebdbff636e2dfdf07186acbea8eb0f88c655063"
+  },
+  "gate_b_case_groups": [
+    "C0-01",
+    "C0-02",
+    "C0-03",
+    "C0-04",
+    "C0-05",
+    "C0-06",
+    "C0-07",
+    "C0-08",
+    "C0-09",
+    "C0-10",
+    "C0-11",
+    "C0-12",
+    "C0-13",
+    "C0-14",
+    "C0-15",
+    "C0-16",
+    "C0-17",
+    "C0-18",
+    "C0-19",
+    "C0-20"
+  ],
+  "B1_proposal": {
+    "path": "owner-proposal-subjects.json",
+    "bytes": 43345,
+    "sha256": "b2f4aee17b91eff5c57b16a4096484944403f33e782b31e8b59fba5b216b73ed"
+  },
+  "B1_held_F2": {
+    "reason": "waits for P2a durable reserve/consume/result (C0 \u00a73.4/3.6/3.7)",
+    "tests": [
+      "test_owner_session.OwnerSessionSurface.test_F2_consent_P",
+      "test_owner_session.OwnerSessionSurface.test_F2_consent_mono_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_consent_mono_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_consent_utc_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_consent_utc_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_host_P",
+      "test_owner_session.OwnerSessionSurface.test_F2_host_mono_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_host_mono_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_host_utc_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_host_utc_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_private_P",
+      "test_owner_session.OwnerSessionSurface.test_F2_private_mono_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_private_mono_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_private_utc_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_private_utc_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_policy_P",
+      "test_owner_session.OwnerSessionSurface.test_F2_policy_mono_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_policy_mono_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_policy_utc_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_policy_utc_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_session_P",
+      "test_owner_session.OwnerSessionSurface.test_F2_session_mono_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_session_mono_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_session_utc_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_session_utc_after_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_monotonic_P",
+      "test_owner_session.OwnerSessionSurface.test_F2_monotonic_mono_equal_N",
+      "test_owner_session.OwnerSessionSurface.test_F2_monotonic_mono_after_N",
+      "test_owner_admission.OwnerAdmissionSurface.test_F2_not_before_P",
+      "test_owner_admission.OwnerAdmissionSurface.test_F2_not_before_N"
+    ]
+  },
+  "P2a_source_data": {
+    "path": "p2a-subjects.json",
+    "bytes": 1517,
+    "sha256": "ec42de009bbc4b2829a7999117fe4985b5a9fc6343876695331310c8ce2166e6",
+    "credit": "DATA-storage-only; original F2 separately gated"
+  },
+  "P2b_part1_source_data": {
+    "path": "p2b-subjects.json",
+    "bytes": 1268,
+    "sha256": "5c185e5880370514c1ca6676673812dc466cf2e6cbf85ca2e4f78c8387351f42",
+    "credit": "SOURCE DATA only; part2/original30F2/native remain HELD"
   }
 }

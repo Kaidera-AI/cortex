@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import inspect
 import json
+import re
 from pathlib import Path
 import tempfile
 import types
@@ -655,6 +656,79 @@ class FixtureEvidenceOracle(Subject, unittest.TestCase):
         self.assertFalse(self.checked(root,manifest,base)['ok'])
 
 
+    def shadow_fixture(self, form):
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        root=Path(temporary.name)
+        real=root/'next/tests/runtime_grants/support.py';real.parent.mkdir(parents=True)
+        real.write_text('import psycopg\nclass Fixture:\n def setUp(self): self.db=psycopg.connect("required-test-db")\n')
+        shadow=root/'next/tests/shadow/support.py';shadow.parent.mkdir(parents=True)
+        shadow.write_text('class Fixture:\n def setUp(self): pass\n')
+        suite='next/tests/shadow/test_shadow.py'
+        body=('from support import Fixture\nclass TestShadow(Fixture):\n def test_offline(self): assert 2+2==4\n'
+              if form=='from' else
+              'import support as chosen\nclass TestShadow:\n def setUp(self): chosen.Fixture.setUp(self)\n def test_offline(self): assert 2+2==4\n')
+        (root/suite).write_text(body)
+        evidence={'kind':'postgres_fixture','source':str(real.relative_to(root)),
+                  'sha256':hashlib.sha256(real.read_bytes()).hexdigest(),'symbol':'Fixture.setUp'}
+        return root,suite,real,shadow,evidence
+
+    def captured_support_origin(self, root, suite):
+        # Execute only the unchanged worker's path setup, never a suite/helper.
+        scripts=root/'.github/scripts';scripts.mkdir(parents=True,exist_ok=True)
+        for name in ('pytest_next_worker.py','pytest_next_offline.py','pytest_u13_worker.py'):
+            shutil.copyfile(SCRIPT.with_name(name),scripts/name)
+        temporary=tempfile.TemporaryDirectory(dir=root);self.addCleanup(temporary.cleanup)
+        source="""import json,os,runpy,sys
+from pathlib import Path
+from importlib.machinery import PathFinder
+worker=Path(sys.argv[1]);suite=sys.argv[2];case=sys.argv[3]
+sys.path[0]=str(worker.parent)
+class Captured(BaseException): pass
+def trace(frame,event,arg):
+ if (event=='line' and frame.f_code.co_filename==str(worker)
+     and frame.f_code.co_name=='main' and 'directories' in frame.f_locals
+     and 'PYTHONPATH' in os.environ):
+  spec=PathFinder.find_spec('support',sys.path)
+  print(json.dumps({'origin':spec.origin if spec else None,'suite_imported':False}))
+  raise Captured()
+ return trace
+sys.argv=[str(worker),'--suite',suite,'--output',case+'.json','--temporary',case]
+sys.settrace(trace)
+try: runpy.run_path(str(worker),run_name='__main__')
+except Captured: pass
+finally: sys.settrace(None)
+"""
+        env={key:os.environ[key] for key in ('PATH','LANG','LC_ALL') if key in os.environ}
+        env['PYTHONDONTWRITEBYTECODE']='1'
+        result=subprocess.run([sys.executable,'-B','-c',source,str(scripts/'pytest_next_worker.py'),
+                               suite,str(Path(temporary.name)/'case')],cwd=root,env=env,
+                              capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stderr)
+        observed=json.loads(result.stdout);self.assertFalse(observed['suite_imported'])
+        return Path(observed['origin']).resolve()
+
+    def test_actual_non_pg_shadow_cannot_be_excluded_by_pinned_pg_anchor(self):
+        for form in ('from','delegation'):
+            with self.subTest(form=form):
+                root,suite,real,shadow,evidence=self.shadow_fixture(form)
+                self.assertEqual(self.captured_support_origin(root,suite),shadow.resolve())
+                self.assertFalse(self.gate.fixture_evidence(root,suite,evidence))
+                # Change actual scope, not file-creation order. R2 still refuses ambiguity.
+                reversal=str(real.parent.relative_to(root)/'test_reversal.py')
+                (root/reversal).write_text((root/suite).read_text())
+                self.assertEqual(self.captured_support_origin(root,reversal),real.resolve())
+                self.assertFalse(self.gate.fixture_evidence(root,reversal,evidence))
+
+    def test_uniquely_named_required_fixture_remains_admissible(self):
+        for form in ('from','delegation'):
+            with self.subTest(form=form):
+                root,suite,real,shadow,evidence=self.shadow_fixture(form)
+                self.assertFalse(self.gate.fixture_evidence(root,suite,evidence))
+                shadow.unlink()  # Only the owned shadow changes; suite/binding stay exact.
+                self.assertEqual(self.captured_support_origin(root,suite),real.resolve())
+                self.assertTrue(self.gate.fixture_evidence(root,suite,evidence))
+
+
 class SemanticOutcomeOracle(Subject,unittest.TestCase):
     def test_product_mutation_kill_requires_body_assertion_and_locus_observation(self):
         subject=self.gate
@@ -680,6 +754,56 @@ class SemanticOutcomeOracle(Subject,unittest.TestCase):
 class ConsolidationOracle(Subject, unittest.TestCase):
     ROOT = SCRIPT.parents[2]
     MAIN = '66cba6a1f8a2a3787844e168ab5415cb96738a0d'
+    # Exact original cohort absorbed at6adde71da4436465a8a09f7d4a6e56701dc66347.
+    ORIGINAL_P1_IDS = (
+        'next/tests/install/test_contracts.py::ContractOracle::test_all_three_complete_kinds_roundtrip',
+        'next/tests/install/test_contracts.py::ContractOracle::test_closed_top_and_nested_fields',
+        'next/tests/install/test_contracts.py::ContractOracle::test_complete_executed_tuple_deciding_signal_and_time_negatives',
+        'next/tests/install/test_contracts.py::ContractOracle::test_journal_sequence_and_original_identity',
+        'next/tests/install/test_contracts.py::ContractOracle::test_non_string_kind_is_a_typed_shape_refusal',
+        'next/tests/install/test_contracts.py::ContractOracle::test_original_ref_digest_size_and_real_build_A_filename',
+        'next/tests/install/test_contracts.py::ContractOracle::test_original_ref_rejects_non_json_digest_equality_objects',
+        'next/tests/install/test_contracts.py::ContractOracle::test_paths_roots_ids_and_manual_parent_rules',
+        'next/tests/install/test_contracts.py::ContractOracle::test_prior_observation_null_journal_requires_exact_evidence',
+        'next/tests/install/test_contracts.py::ContractOracle::test_public_export_gate_and_schema_identity',
+        'next/tests/install/test_contracts.py::ContractOracle::test_raw_noncanonical_duplicate_float_bom_unicode_and_limits',
+        'next/tests/install/test_contracts.py::ContractOracle::test_ready_requires_actual_bound_descriptor_connection_checks_and_state',
+        'next/tests/install/test_contracts.py::ContractOracle::test_receipt_binds_original_request_not_its_self_hash',
+        'next/tests/install/test_contracts.py::ContractOracle::test_receipt_cross_identity_decides_in_body',
+        'next/tests/install/test_contracts.py::ContractOracle::test_request_specific_size_bound_with_otherwise_complete_canonical_shape',
+        'next/tests/install/test_contracts.py::ContractOracle::test_single_schema_unknown_field_decides_in_body',
+        'next/tests/install/test_contracts.py::ContractOracle::test_termination_variants_and_invalid_sentinels',
+        'next/tests/install/test_contracts.py::ContractOracle::test_versions_kinds_boolean_and_string_byte_bounds',
+        'next/tests/install/test_planner.py::PlannerOracle::test_admitted_client_carrier_rejects_bad_argv_before_input_reader',
+        'next/tests/install/test_planner.py::PlannerOracle::test_config_gap_and_opaque_dependency_failure_are_sanitized',
+        'next/tests/install/test_planner.py::PlannerOracle::test_default_module_and_closed_carrier',
+        'next/tests/install/test_planner.py::PlannerOracle::test_empty_or_external_profile_is_never_install_permission',
+        'next/tests/install/test_planner.py::PlannerOracle::test_inherited_environment_and_wrong_operator_prevent_config_read',
+        'next/tests/install/test_planner.py::PlannerOracle::test_mutating_operations_are_never_given_a_reader_or_capability',
+        'next/tests/install/test_planner.py::PlannerOracle::test_no_test_double_or_second_port_imports_in_product',
+        'next/tests/install/test_planner.py::PlannerOracle::test_original_member_reobserved_after_full_plan',
+        'next/tests/install/test_planner.py::PlannerOracle::test_original_refs_and_entrypoint_are_cross_bound',
+        'next/tests/install/test_planner.py::PlannerOracle::test_paired_manual_and_kos_use_same_shared_path_and_bytes',
+        'next/tests/install/test_planner.py::PlannerOracle::test_production_unbound_precedes_request_schema_environment_and_readers',
+        'next/tests/install/test_planner.py::PlannerOracle::test_real_UNBOUND_envelopes_and_GAP_refuse_before_port_or_config_reader',
+        'next/tests/install/test_planner.py::PlannerOracle::test_root_original_reobserved_after_root_witness_measurement',
+        'next/tests/install/test_planner.py::PlannerOracle::test_root_path_uid_mode_link_and_shared_root_drift',
+        'next/tests/install/test_planner.py::PlannerOracle::test_wrong_target_uuid_operation_and_scope_refuse',
+        'next/tests/install/test_read_meter.py::ComposedReadMeter::test_same_sealed_reader_counts_include_rc2_alias_on_all_four_positives',
+        'next/tests/install/test_trust_repair.py::TrustRepairOracle::test_declared_root_alias_refuses_on_all_routes_and_targets',
+        'next/tests/install/test_trust_repair.py::TrustRepairOracle::test_equal_identity_in_other_backend_and_zero_placeholders_remain_readonly',
+        'next/tests/install/test_trust_repair.py::TrustRepairOracle::test_readonly_external_resources_remain_observations',
+        'next/tests/install/test_trust_repair.py::TrustRepairOracle::test_readonly_prior_resource_relabel_refuses_plan_and_verify',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_current_lock_configs_and_three_descriptors_match_fixed_package_bytes',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_current_lock_with_old_config_operations_is_operations_mismatch',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_current_operations_with_stale_descriptors_is_contract_mismatch',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_every_member_and_original_request_receipt_journal_reference_is_closed',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_exact_current_tuple_admits_both_targets_without_effect_authority',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_fixture_index_binds_current_revision_and_original_history',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_historical_fixture_bytes_remain_exact_and_nonauthoritative',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_old_tuple_is_bad_shape_on_both_targets',
+        'next/tests/install/test_tuple_revision.py::TupleRevisionOracle::test_wrong_schema_hash_or_any_member_size_is_contract_mismatch',
+    )
 
     def test_initial_main_without_manifest_uses_exact_prior_policy(self):
         try:actual=self.gate.base_manifest_at(self.ROOT,self.MAIN)
@@ -701,15 +825,116 @@ class ConsolidationOracle(Subject, unittest.TestCase):
             self.assertTrue(found)
             self.assertTrue(found<=set(checked['run']),(prefix,found-set(checked['run'])))
 
-    def test_absorbed_p1_is_all_47_actual_methods(self):
-        gate=self.gate;manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
-        nodes=[]
-        for file in sorted((self.ROOT/'next/tests/install').glob('test_*.py')):
-            path=str(file.relative_to(self.ROOT));self.assertIn(path,manifest['run'])
+    def assert_install_coverage(self, root, manifest):
+        gate=self.gate;nodes=[]
+        for file in sorted((root/'next/tests/install').glob('test_*.py')):
+            path=str(file.relative_to(root));self.assertIn(path,manifest['run'],'install file outside RUN: '+path)
             nodes.extend(gate.named_nodes(path,ast.parse(file.read_text())))
-        self.assertEqual(len(nodes),47);self.assertEqual(len(set(nodes)),47)
-        self.assertFalse(any(row['nodeid'] in nodes for row in manifest['method_exclusions']))
+        self.assertEqual(len(nodes),len(set(nodes)),'duplicate current install IDs')
+        original=set(self.ORIGINAL_P1_IDS)
+        self.assertEqual(len(self.ORIGINAL_P1_IDS),47)
+        self.assertEqual(len(original),47,'duplicate original P1 IDs')
+        self.assertFalse(original-set(nodes),'original P1 nodes missing: '+repr(sorted(original-set(nodes))))
+        excluded={row['nodeid'] for row in manifest['method_exclusions']}
+        for node in nodes:
+            self.assertNotIn(node,excluded,'current install method excluded: '+node)
+        original_files={node.split('::')[0] for node in original}
+        for binding in manifest.get('retirements',[]):
+            self.assertFalse(original_files.intersection(binding['files']),
+                             'original P1 file bound for retirement')
+
+    def test_absorbed_p1_is_all_47_actual_methods(self):
+        manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        self.assert_install_coverage(self.ROOT,manifest)
         self.assertNotIn('  p1-install-oracle:',(self.ROOT/'.github/workflows/ci.yml').read_text())
+
+    def install_fixture(self):
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        root=Path(temporary.name);destination=root/'next/tests/install'
+        destination.parent.mkdir(parents=True)
+        shutil.copytree(self.ROOT/'next/tests/install',destination,
+                        ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
+        manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        return root,manifest
+
+    def nonoriginal_fixture(self):
+        root,manifest=self.install_fixture()
+        path='next/tests/install/test_adapter_contract.py'
+        node=path+'::LifecycleAdapterOracle::test_P2A14_default_binding_gap_precedes_candidate_access'
+        self.assertNotIn(node,self.ORIGINAL_P1_IDS)
+        original_hashes={p:hashlib.sha256((root/p).read_bytes()).hexdigest()
+                         for p in {n.split('::')[0] for n in self.ORIGINAL_P1_IDS}}
+        gate=self.gate
+        before=sorted(n for p in (root/'next/tests/install').glob('test_*.py')
+                      for n in gate.named_nodes(str(p.relative_to(root)),ast.parse(p.read_text())))
+        file=root/path;text=file.read_text();declaration='class LifecycleAdapterOracle(unittest.TestCase):'
+        self.assertIn(declaration,text)
+        text='import os\n'+text.replace(declaration,
+            "@unittest.skipUnless(os.environ.get('P1_NONORIGINAL_FIXTURE') == '1', 'Synthetic control fixture')\n"+declaration,1)
+        file.write_text(text)
+        after=sorted(n for p in (root/'next/tests/install').glob('test_*.py')
+                     for n in gate.named_nodes(str(p.relative_to(root)),ast.parse(p.read_text())))
+        self.assertEqual(before,after)
+        for p,pin in original_hashes.items():self.assertEqual(hashlib.sha256((root/p).read_bytes()).hexdigest(),pin)
+        row={'nodeid':node,'reason':'Synthetic whole-install exclusion control.',
+             'evidence':{'kind':'gated_env','source':path,'sha256':hashlib.sha256(file.read_bytes()).hexdigest(),
+                         'symbol':'LifecycleAdapterOracle','keys':['P1_NONORIGINAL_FIXTURE']}}
+        self.assertTrue(gate.fixture_evidence(root,path,row['evidence'],node),'control needs independently valid evidence')
+        return root,manifest,row
+
+    def test_all_current_install_methods_admitted_without_exclusions(self):
+        root,manifest,row=self.nonoriginal_fixture()
+        self.assert_install_coverage(root,manifest)
+
+    def test_nonoriginal_install_method_exclusion_is_refused(self):
+        root,manifest,row=self.nonoriginal_fixture()
+        self.assert_install_coverage(root,manifest)  # Its positive twin must be independently valid.
+        run=manifest['run'][:];manifest['method_exclusions'].append(row)
+        self.assertEqual(manifest['run'],run)
+        with self.assertRaisesRegex(AssertionError,'current install method excluded: '+re.escape(row['nodeid'])):
+            self.assert_install_coverage(root,manifest)
+        manifest['method_exclusions'].remove(row)
+        self.assert_install_coverage(root,manifest)
+
+    def test_original_identity_cannot_be_replaced_at_same_count(self):
+        root,manifest=self.install_fixture();node=self.ORIGINAL_P1_IDS[0]
+        path,cls,name=node.split('::');file=root/path
+        file.write_text(file.read_text().replace('def '+name+'(', 'def test_same_count_replacement(',1))
+        with self.assertRaisesRegex(AssertionError,'original P1 nodes missing'):
+            self.assert_install_coverage(root,manifest)
+
+    def test_original_install_file_must_stay_in_run(self):
+        root,manifest=self.install_fixture();manifest['run'].remove(self.ORIGINAL_P1_IDS[0].split('::')[0])
+        with self.assertRaisesRegex(AssertionError,'install file outside RUN'):
+            self.assert_install_coverage(root,manifest)
+
+    def test_original_install_method_exclusion_is_refused(self):
+        root,manifest=self.install_fixture();node=self.ORIGINAL_P1_IDS[0]
+        manifest['method_exclusions'].append({'nodeid':node})
+        with self.assertRaisesRegex(AssertionError,'current install method excluded: '+re.escape(node)):
+            self.assert_install_coverage(root,manifest)
+
+    def test_unlisted_install_growth_is_refused(self):
+        root,manifest=self.install_fixture();(root/'next/tests/install/test_extra.py').write_text('def test_extra(): assert True\n')
+        with self.assertRaisesRegex(AssertionError,'install file outside RUN'):
+            self.assert_install_coverage(root,manifest)
+
+    def test_listed_install_growth_preserves_original_cohort(self):
+        root,manifest=self.install_fixture();path='next/tests/install/test_extra.py'
+        (root/path).write_text('def test_extra(): assert True\n');manifest['run'].append(path)
+        self.assert_install_coverage(root,manifest)
+
+    def test_duplicate_current_install_identity_is_refused(self):
+        root,manifest=self.install_fixture();path='next/tests/install/test_extra.py'
+        (root/path).write_text('def test_extra(): assert True\ndef test_extra(): assert True\n');manifest['run'].append(path)
+        with self.assertRaisesRegex(AssertionError,'duplicate current install IDs'):
+            self.assert_install_coverage(root,manifest)
+
+    def test_original_install_retirement_binding_is_refused(self):
+        root,manifest=self.install_fixture();path=self.ORIGINAL_P1_IDS[0].split('::')[0]
+        manifest['retirements'].append({'files':{path:'0'*64}})
+        with self.assertRaisesRegex(AssertionError,'original P1 file bound for retirement'):
+            self.assert_install_coverage(root,manifest)
 
     def test_dual_python_uses_shared_hashed_test_tools(self):
         workflow=(self.ROOT/'.github/workflows/next-offline.yml').read_text()
@@ -811,14 +1036,98 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
         p=self.packet();p['reports'][4].update(outcome='failed',assertion=True,exception_type='builtins.AssertionError')
         self.assertFalse(self.admitted(p))
 
+    def corpus_packet(self, node, canonical):
+        manifest=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
+        row=next(row for row in manifest['method_exclusions'] if row['nodeid']==node)
+        packet=self.packet(live=False)
+        packet.update(expected=[node],selected=[node],collected=[node],excluded_methods=[row])
+        for report in packet['reports']:report['nodeid']=node
+        packet['reports'][1].update(exception_type='builtins.AssertionError',
+            detail='E   AssertionError: unexpectedly None : NOT_RUN_MISSING_ORIGINAL_CORPUS ['
+                +canonical+']: see missing_R01_cases and missing_composed_positive_material')
+        packet['declared_unavailable']=self.gate.declaration_observations(packet,[row])
+        return packet,row
+
+    CORPUS_TWINS=(
+        ('next/tests/install/test_owner_admission.py::OwnerAdmissionSurface::test_C0_01_current_P','C0-01-current-P'),
+        ('next/tests/install/test_owner_session.py::OwnerSessionSurface::test_C0_06_concurrent_N','C0-06-concurrent-N'))
+
+    def test_h_d569_nonexistent_case_aliases_are_refused(self):
+        gate=self.gate
+        for node,canonical in self.CORPUS_TWINS:
+            original,row=self.corpus_packet(node,canonical)
+            for alias in (canonical.replace('-','_'),canonical.replace('-','_',1)):
+                with self.subTest(node=node,alias=alias):
+                    packet=copy.deepcopy(original)
+                    packet['reports'][1]['detail']=packet['reports'][1]['detail'].replace('['+canonical+']','['+alias+']')
+                    packet['declared_unavailable']=gate.declaration_observations(packet,[row])
+                    self.assertFalse(packet['declared_unavailable'][0]['valid'])
+                    self.assertFalse(gate.receipt_valid(packet,0,excluded=[row]))
+
+    def test_h_d569_genuine_and_restored_twins_keep_zero_credit(self):
+        gate=self.gate
+        for node,canonical in self.CORPUS_TWINS:
+            with self.subTest(node=node):
+                original,row=self.corpus_packet(node,canonical)
+                restored=copy.deepcopy(original)
+                restored['reports'][1]['detail']=restored['reports'][1]['detail'].replace('['+canonical+']','[unrelated-case]')
+                restored['reports'][1]['detail']=original['reports'][1]['detail']
+                for packet in (original,restored):
+                    self.assertTrue(gate.receipt_valid(packet,0,excluded=[row]))
+                    self.assertEqual(packet['collected'].count(node),1)
+                    witness=packet['declared_unavailable'][0]
+                    self.assertTrue(witness['valid']);self.assertTrue(witness['executed'])
+                    self.assertEqual(witness['pass_credit'],0)
+
+    def test_h_d569_requires_one_exact_collected_case(self):
+        gate=self.gate
+        for node,canonical in self.CORPUS_TWINS:
+            original,row=self.corpus_packet(node,canonical)
+            for collected in ([],[node,node],[node+'_near_miss']):
+                with self.subTest(node=node,collected=collected):
+                    packet=copy.deepcopy(original);packet['collected']=collected
+                    packet['declared_unavailable']=gate.declaration_observations(packet,[row])
+                    self.assertFalse(packet['declared_unavailable'][0]['valid'])
+                    self.assertFalse(gate.receipt_valid(packet,0,excluded=[row]))
+
     def test_only_five_ruling_rows_are_approved_and_removal_is_allowed(self):
         g=self.gate;m=json.loads((self.ROOT/'.github/next-offline-suites.json').read_text())
         rows=[x for x in m['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit']
-        self.assertEqual(len(rows),5)
-        self.assertTrue(all(x['reason']=='E1 not built; waits RC3b; owner nemo' for x in rows))
+        # Preserve the original five bytes/fields and the independently reviewed
+        # H-D569 table, rather than replacing the obsolete total with another count.
+        original_policy='741c43e41f46ba2e818d3bde8581fff9b27abc9c'
+        corpus_policy='c88f772bef234368d5057c298edc703ecf46ba97'
+        reviewed_head='199c80b28f83ded40f626f72d37bc55d8c122ec8'
+        original=[x for x in g.base_manifest_at(self.ROOT,original_policy)['method_exclusions']
+                  if x['evidence']['kind']=='unbuilt_unit']
+        reviewed=[x for x in g.base_manifest_at(self.ROOT,reviewed_head)['method_exclusions']
+                  if x['evidence']['kind']=='unbuilt_unit']
+        original_ids={x['nodeid'] for x in original}
+        self.assertEqual([x for x in reviewed if x['nodeid'] in original_ids],original)
+        corpus=[x for x in reviewed if x['nodeid'] not in original_ids]
+        self.assertEqual([x['nodeid'] for x in corpus],sorted({x['nodeid'] for x in corpus}))
+        approved=[x for x in g.base_manifest_at(self.ROOT,corpus_policy)['method_exclusions']
+                  if x['evidence']['kind']=='unbuilt_unit']
+        self.assertEqual(approved,original+corpus)
+        self.assertEqual(g.UNBUILT_POLICY,corpus_policy)
+        self.assertEqual(rows,approved,'only the exact original five and reviewed H-D569 rows are approved')
         self.assertTrue(g.inventory(self.ROOT,m)['ok'])
-        changed=copy.deepcopy(m);next(x for x in changed['method_exclusions'] if x['evidence']['kind']=='unbuilt_unit')['reason']='forged'
-        self.assertFalse(g.inventory(self.ROOT,changed)['ok'])
+        for variant in ('extra-row','corpus-reason','corpus-id','original-reason'):
+            with self.subTest(variant=variant):
+                changed=copy.deepcopy(m)
+                if variant=='extra-row':
+                    extra=copy.deepcopy(corpus[0]);extra['nodeid']+='__unapproved_161st'
+                    changed['method_exclusions'].append(extra)
+                else:
+                    target=original[0] if variant=='original-reason' else corpus[0]
+                    row=next(x for x in changed['method_exclusions'] if x['nodeid']==target['nodeid'])
+                    if variant=='corpus-id':row['nodeid']+='__forged'
+                    else:row['reason']='forged'
+                checked=g.inventory(self.ROOT,changed)
+                self.assertFalse(checked['ok'])
+                self.assertTrue(any('unbuilt declaration lacks exact ruling approval' in error
+                                    for error in checked['invalid']),variant)
+        self.assertTrue(g.inventory(self.ROOT,copy.deepcopy(m))['ok'],'unchanged genuine/restored twin')
         changed=copy.deepcopy(m);changed['method_exclusions']=[x for x in changed['method_exclusions'] if x not in rows]
         self.assertTrue(g.inventory(self.ROOT,changed)['ok'],'E1 landing must be able to remove declarations')
 
@@ -851,6 +1160,8 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
 
 class ExecutionPartitionOracle(Subject, unittest.TestCase):
     def test_real_workers_preserve_complete_ids_and_fail_closed_on_lost_evidence(self):
+        plan=getattr(self.gate,'partition_plan',None)
+        self.assertTrue(callable(plan),'BODY RED: shared exact singleton partition selection absent')
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);scripts=root/'.github/scripts';scripts.mkdir(parents=True)
             for name in ('pytest_next_offline.py','pytest_next_worker.py','pytest_u13_worker.py'):
@@ -865,23 +1176,36 @@ class ExecutionPartitionOracle(Subject, unittest.TestCase):
                 self.assertTrue(out.is_file(),result.stdout+result.stderr)
                 return result.returncode,json.loads(out.read_text())
             code,baseline=run('baseline',[]);self.assertEqual(code,0)
-            parts=[run('part-'+str(i),['--partition-index',str(i),'--partition-count','4']) for i in range(4)]
-            merge=getattr(self.gate,'merge_partitions',None);self.assertTrue(callable(merge),'BODY RED: complete execution partition reconciliation absent')
-            combined=merge([p for c,p in parts],[c for c,p in parts],4)
-            self.assertEqual(combined['selected'],baseline['selected']);self.assertEqual(len(combined['selected']),9)
-            self.assertTrue(self.gate.receipt_valid(combined,0));self.assertEqual(len(combined['reports']),27)
-            for fault in ('missing-part','duplicate-part','missing-node','missing-phase','changed-collection','changed-source','killed','skip','empty'):
-                packets=copy.deepcopy([p for c,p in parts]);codes=[c for c,p in parts]
-                if fault=='missing-part':packets.pop();codes.pop()
-                elif fault=='duplicate-part':packets[1]=copy.deepcopy(packets[0])
-                elif fault=='missing-node':packets[0]['selected'].pop()
-                elif fault=='missing-phase':packets[0]['reports'].pop()
-                elif fault=='changed-collection':packets[1]['full_collected'].pop()
-                elif fault=='changed-source':packets[1]['source_sha256']='f'*64
-                elif fault=='killed':codes[0]=124
-                elif fault=='skip':packets[0]['reports'][1]['outcome']='skipped'
-                elif fault=='empty':packets=[];codes=[]
-                self.assertIsNone(merge(packets,codes,4),fault)
+            merge=self.gate.merge_partitions
+            for isolated in ([],[baseline['selected'][0]]):
+                label='single' if isolated else 'ordinary'
+                extra=['--partition-isolated-json',json.dumps(isolated)] if isolated else []
+                parts=[run(label+'-'+str(i),['--partition-index',str(i),'--partition-count','4',*extra]) for i in range(4)]
+                packets=[p for c,p in parts];codes=[c for c,p in parts]
+                combined=merge(packets,codes,4,isolated)
+                self.assertIsNotNone(combined)
+                self.assertEqual(combined['selected'],baseline['selected']);self.assertEqual(len(combined['selected']),9)
+                self.assertTrue(self.gate.receipt_valid(combined,0));self.assertEqual(len(combined['reports']),27)
+                self.assertEqual([p['selected'] for p in packets],plan(baseline['selected'],4,isolated))
+                if isolated:self.assertEqual(packets[0]['selected'],isolated)
+                for fault in ('missing-part','duplicate-part','missing-node','missing-phase','changed-collection','changed-source','killed','skip','empty','changed-isolation'):
+                    bad=copy.deepcopy(packets);bad_codes=list(codes)
+                    if fault=='missing-part':bad.pop();bad_codes.pop()
+                    elif fault=='duplicate-part':bad[1]=copy.deepcopy(bad[0])
+                    elif fault=='missing-node':bad[0]['selected'].pop()
+                    elif fault=='missing-phase':bad[0]['reports'].pop()
+                    elif fault=='changed-collection':bad[1]['full_collected'].pop()
+                    elif fault=='changed-source':bad[1]['source_sha256']='f'*64
+                    elif fault=='killed':bad_codes[0]=124
+                    elif fault=='skip':bad[0]['reports'][1]['outcome']='skipped'
+                    elif fault=='empty':bad=[];bad_codes=[]
+                    elif fault=='changed-isolation':bad[0]['partition']['isolated']=['forged']
+                    self.assertIsNone(merge(bad,bad_codes,4,isolated),label+' '+fault)
+                self.assertIsNotNone(merge(copy.deepcopy(packets),list(codes),4,isolated))
+            full=baseline['selected']
+            for count,isolated in ((4,['missing']),(4,[full[0],full[0]]),(4,full[:4]),(True,[]),(17,[]),(4,[False])):
+                with self.assertRaises(ValueError):plan(full,count,isolated)
+            with self.assertRaises(ValueError):plan(full+[full[0]],4,[])
 
     def test_manifest_partitions_only_admitted_full_suites(self):
         root=SCRIPT.parents[2];m=json.loads((root/'.github/next-offline-suites.json').read_text())
@@ -890,6 +1214,16 @@ class ExecutionPartitionOracle(Subject, unittest.TestCase):
         for value in ({suite:True},{suite:0},{suite:1},{suite:17},{'next/missing.py':4},[],{suite:'4'}):
             changed=copy.deepcopy(m);changed['partitions']=value
             self.assertFalse(self.gate.inventory(root,changed)['ok'],repr(value))
+        boundary='next/tests/release/test_verifier_boundary.py'
+        node=boundary+'::OwnerSourceJoin::test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child'
+        m['partitions']={boundary:{'count':9,'isolated':[node]}}
+        self.assertTrue(self.gate.inventory(root,m)['ok'])
+        for value in ({'count':9,'isolated':[]},{'count':True,'isolated':[node]},
+                      {'count':9,'isolated':[node,node]},{'count':9,'isolated':[False]},
+                      {'count':9,'isolated':[node],'extra':1},{'count':2,'isolated':[node,node+'z']}):
+            with self.assertRaises(ValueError):self.gate.partition_parameters(value)
+        changed=copy.deepcopy(m);changed['partitions']={suite:{'count':9,'isolated':[node]}}
+        self.assertFalse(self.gate.inventory(root,changed)['ok'])
 
     def test_bridge_diagnostics_do_not_start_async_watchdog(self):
         tree=ast.parse((SCRIPT.parent/'pytest_next_worker.py').read_text())

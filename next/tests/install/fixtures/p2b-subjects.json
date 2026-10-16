@@ -1,0 +1,29 @@
+{
+  "scope": "TEST_ONLY_SOURCE_DATA_NO_NATIVE_OWNER_OR_INSTALL_CREDIT",
+  "groups": {
+    "P2B01": "exact original chain and durable APPLIED lineage",
+    "P2B05-part1": "finite inverse of exact APPLIED creator, no unresolved intersecting history",
+    "P2B06": "explicit exact purge and current cleanup bounds",
+    "P2B07": "original child byte binding, existing fact fsync and final gate before parent receipt acknowledgment"
+  },
+  "part2": [
+    "P2B02",
+    "P2B03",
+    "P2B04",
+    "P2B05 consumed/unknown, original-owner reconciliation and retries"
+  ],
+  "removal_operation_id": "00000000-0000-4000-8000-000000000033",
+  "cleanup_expires_at": 1700000003,
+  "cleanup_expires_monotonic_ns": 103000000000,
+  "observation_ref_usage": {
+    "effect.expected_before_ref": "resources: existing P1 ResourceEntry list",
+    "resource.consumers_ref": "resource_id and consumers list; null is unavailable",
+    "scope.cleanup_restrictions_ref": "expires_at, expires_monotonic_ns, purge_selection; no default"
+  },
+  "fixed_B2_contract": [
+    "owned idle autocommit top-level capability before catalog read",
+    "COMMIT before independent measurement",
+    "core.schema_migrations zero service rights",
+    "effect-free helper/default import requires no driver"
+  ]
+}

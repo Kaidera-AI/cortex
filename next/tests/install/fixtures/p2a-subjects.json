@@ -1,0 +1,41 @@
+{
+  "classification": "P2A_TEST_OWNED_STORAGE_DATA_ONLY_NO_SIGNATURE_NATIVE_OR_EFFECT_AUTHORITY",
+  "preimages": {
+    "role": "{\"oid\":16384,\"name\":\"test-owned-role\",\"login\":false,\"member_oids\":[16385]}\n",
+    "acl": "{\"object_oid\":20001,\"owner_oid\":16384,\"entries\":[\"test-owned-role=r\"]}\n",
+    "database": "{\"oid\":20000,\"owner_oid\":16384,\"name\":\"test-owned-db\"}\n",
+    "hba": "# TEST OWNED ORIGINAL BYTES ONLY\nlocal test-owned-db test-owned-role reject\n",
+    "carrier": "{\"scope\":\"test-owned-carrier\",\"present\":false,\"owner_uid\":501}\n"
+  },
+  "cases": [
+    "P2A-01-intent-before-effect",
+    "P2A-02-CAS",
+    "P2A-03-preimages-restart",
+    "P2A-04-operation-binding",
+    "P2A-05-original-preservation",
+    "P2A-06-consume-once",
+    "P2A-07-post-reserve-revision",
+    "P2A-08-strict-clock",
+    "P2A-09-fsync",
+    "P2A-10-result-binding",
+    "P2A-11-result-durability",
+    "P2A-12-unknown-result-hold",
+    "P2A-13-no-readiness-authority",
+    "P2A-14-default-gap",
+    "P2A-15-corrupt-history",
+    "P2A-16-custody",
+    "P2A-17-current-originals",
+    "P2A-18-nonce-replay",
+    "P2A-19-unknown-lineage",
+    "P2A-20-final-dispatch-clock",
+    "P2A-21-not-applied-held",
+    "P2A-22-P1-byte-limit",
+    "P2A-23-readonly-control",
+    "P2A-24-snapshot-unavailable",
+    "P2A-25-owner-unavailable",
+    "P2A-26-measured-original-before-later-failure"
+  ],
+  "originals": {
+    "compatibility.json": "{\"fixture_only\":true,\"role\":\"compatibility.json\"}\n"
+  }
+}

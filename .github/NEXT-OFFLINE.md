@@ -16,20 +16,59 @@ receipt for every partition. It emits the existing full-file aggregate receipt
 only after all four succeed. Individual receipts and timings remain in the
 artifact alongside that full-file receipt. A missing/duplicate partition, changed
 collection/source, skip, missing phase, or nonzero exit fails the gate. Suites with
-retired or unavailable nodes cannot be partitioned. RUN/exclusion policy and the
-151 logical-suite inventory remain unchanged.
+retired or unavailable nodes cannot be partitioned. Every logical suite remains explicitly classified in the manifest; the partition
+mechanism does not change RUN/exclusion policy.
 
 `next-offline.yml` runs Python 3.13.7 and 3.14.0 with the unchanged API dependency
 hash lock and shared `next/requirements-ci-test.lock` for pytest and its tools.
 This U3 tracking draft adds hash-locked Linux cryptography50.0.0 wheels to the existing supplemental lock; one venv installs the API/tool seed, then the exact U3 provider overlay and pip check. The production API lock is unchanged.
 The existing numpy and psycopg fixture dependencies remain; tool pins are not duplicated. Matrix failures do not cancel the
-other interpreter. The former `p1-install-oracle` job is absorbed here: all five
-install files and all 47 methods run once per interpreter through this same gate. All actions use full commit pins, the
+other interpreter. The former `p1-install-oracle` job is absorbed here. Its original
+47 method identities from five files are frozen in the existing consolidation
+oracle, with provenance at absorption commit `6adde71d`. Every current install
+test file still has to be in RUN, every current method identity must be unique,
+and no current install method may be excluded. Additional install files and
+methods run through this same gate; they do not redefine the original47 cohort.
+The oracle checks a valid exclusion of a newer method independently of the
+historical cohort and requires the same assertion to pass without that exclusion.
+All actions use full commit pins, the
 token has only `contents: read`, and checkout does not persist credentials.
 The suite service uses a separate network namespace, denies IPv4/IPv6 socket
 creation, and verifies those kernel restrictions before running any tests.
 It has a 1 GiB memory ceiling, no swap, two CPUs, and no new privileges.
 Dependency installation occurs before the offline service starts.
+
+The C03 helper-location test retains isolated child imports (`-I`) and passes
+`-B` explicitly because isolation ignores inherited `PYTHONDONTWRITEBYTECODE`.
+Its return-code and shared-helper-location assertions remain unchanged. Cache
+custody is checked against owned empty-cache source/dependency copies, with an
+omitted-`-B` witness and a restored clean run; shared environments are not cleaned.
+
+The imported-fixture proof remains conservative when several same-named modules
+exist. A pinned source is not permission to select it instead of the module that
+the worker imports. The same-class non-PG local-shadow controls refuse in both
+imported-base and module-qualified-delegation forms; their no-shadow twins pass.
+The ten runtime-grants/draft fixture declarations remain inventory RED pending
+the separately reviewed actual-import proof. Their positive inventory controls
+are retained, not waived by the P1 or cache-hygiene repairs.
+
+The complete environment uses all three existing hash locks in the workflow:
+`packages/api/requirements.lock` supplies `httpx` and `idna`,
+`next/requirements-ci-test.lock` supplies the test tools, and
+`.github/next-offline-requirements.lock` supplies numpy, psycopg and the exact U3
+cryptography overlay. A partial reused driver environment or a parent-only
+`sys.path` addition does not supply dependencies to reset/isolated child tests.
+The supplemental cryptography hashes target Linux; a macOS diagnostic requires a
+separately recorded native-wheel hash and does not qualify the Linux isolation
+gate. Keep the tracked CI locks and kernel restriction checks unchanged.
+
+The composed Gate B addition classifies 23 source suites as RUN and declares ten
+real-PostgreSQL suites with the required owned-fixture evidence. The existing
+conservative fixture reader currently rejects those ten declarations because
+`from support import Fixture` has two source-path candidates. Their reasons do
+not grant PASS credit or authorize native execution. The inventory remains RED
+until that ambiguity is resolved through the offline-gate owner's separately
+reviewed runner scope; merely listing the files does not accept an exclusion.
 
 `.github/next-offline-suites.json` partitions every `test_*.py` and `*_test.py`
 file recursively under `next/`. Entries are individual paths, not patterns.
@@ -170,3 +209,30 @@ executed-unavailable nodes. C06 remains mandatory live coverage (currently 43/43
 The existing oracle runs real worker controls for an unbuilt assertion and a
 fake now-passing declaration. The latter has raw pytest exit0 but gate/process
 exit1 and zero PASS credit. Both control packets/logs are uploaded per Python.
+
+Kai's H-D569 ruling, row `e0c98a3f-087a-4317-bb33-0792d2a29158`, additionally
+declares exactly 155 original-corpus cases for the next release's real-machine
+stage: 60 `OwnerAdmissionSurface` IDs and 95 `OwnerSessionSurface` IDs. They are
+one sorted contiguous section in the existing manifest `method_exclusions`
+list, using the same `nodeid`, `reason`, and source-hashed `evidence` shape.
+Each reason names Finn for accepted corpus/installer composition, Kai for
+authority/provider dispatch, and Cox for private-owner SQL originals. The
+declaration-only policy commit `c88f772b` retains the original five E1 rows
+exactly and pins the unchanged `compare_execution` helper. The gate reads this
+immutable approval through its existing policy reader. No test or fixture changes.
+
+These 155 dynamically generated IDs remain selected and actually execute once
+each. They must have passing setup/teardown and their original failed CALL:
+`builtins.AssertionError` with the exact missing-original-corpus message and the
+matching case identity. An arbitrary AssertionError, another exception, changed
+reason/source/ID, passing body, missing/duplicate phase, skip or deselection is
+not an accepted declaration. The same worker and shared receipt validator keep
+the raw pytest exit1 and failed reports, emit `executed:true` and `pass_credit:0`,
+and exclude those failures from live PASS credit. The total approved executed
+declarations is now 160, comprising the unchanged five E1 cases and these 155;
+none supplies native execution, installed acceptance or a passing test.
+
+The measured eight-part boundary option remains separate. Mike owns CI capacity;
+this declaration change keeps the existing bridge-only four-part setting until
+his explicit agreement to the boundary setting is recorded. Full diagnostics
+must report any resulting boundary timeout rather than credit an incomplete file.

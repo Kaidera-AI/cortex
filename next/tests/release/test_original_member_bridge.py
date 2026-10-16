@@ -319,11 +319,43 @@ class Bridge(Fixture, unittest.TestCase):
     def installer(self, q, cfg, target):
         self.api()
         from cortex_core.install.planner import plan
-        calls = []
+        from cortex_core.install import receipt
+        calls = []; verified = []
+        original_verifier = receipt.verify_product_receipt
         def config(path, limit): calls.append((path,limit)); return cfg
-        with patch.object(port, '_original_authority', self.backend):
+        def observed(original, request, **kwargs):
+            result = original_verifier(original, request, **kwargs)
+            verified.append((original, request))
+            return result
+        with patch.object(port, '_original_authority', self.backend), patch.object(
+                receipt, 'verify_product_receipt', observed):
             result = plan(encode(q), aggregate_id=self.aggregate, observed_target=target, owner_uid=501,
                           host_identity_ref=q['caller']['host_identity_ref'], environ={}, config_reader=config)
+            if result.result == 'PASS':
+                original_request = encode(q)
+                receipt.verify_product_receipt(encode(result.receipt), original_request,
+                    request_ref=dict(path='request.json', bytes=len(original_request),
+                                     sha256=sha256(original_request)))
+        if result.result == 'PASS':
+            # Require both the producer's check and independent consumption of
+            # the returned ORIGINAL receipt through the same existing verifier.
+            raw = encode(result.receipt); request = encode(q)
+            self.assertEqual(verified, [(raw, request), (raw, request)], 'F1_RETURNED_RECEIPT_NOT_CONSUMED')
+            records = dict(result.evidence_records or {})
+            self.assertEqual(set(records), {'request.json', 'attempts.json'})
+            self.assertEqual(records['request.json'], request)
+            self.assertEqual(result.receipt['request_ref'],
+                             dict(path='request.json', bytes=len(request), sha256=sha256(request)))
+            ledger = records['attempts.json']
+            self.assertEqual(ledger, encode(dict(scope='fixture-read-only', forbidden_attempts=[])))
+            self.assertEqual(result.receipt['invocation_result']['forbidden_attempts_ref'],
+                             dict(path='attempts.json', bytes=len(ledger), sha256=sha256(ledger)))
+            self.assertEqual(result.receipt['resources'], [])
+            self.assertEqual(result.receipt['readiness']['state'], 'not_installed')
+            self.assertIsNone(result.receipt['journal_ref'])
+            self.assertFalse(result.effect_authority); self.assertFalse(result.native_qualified)
+        else:
+            self.assertEqual(verified, [])
         return result, calls
 
     def test_finn_planner_real_bridge_rejects_signature_before_config(self):

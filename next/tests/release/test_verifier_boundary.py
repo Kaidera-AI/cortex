@@ -420,3 +420,453 @@ class RetainedPathHookIdentity(StartupFixture, unittest.TestCase):
             self.frame = replace(old, path_hooks=new_hooks)
             self.replace_observation(path_hooks=new_hooks)
             self.refusal('aggregate_replay', lambda: delivery.read_original(262144))
+
+
+class OwnerSourceJoin(StartupFixture, unittest.TestCase):
+    """EB1 SOURCE SIMULATION: real R01/RC2 in the existing owner, no effects.
+
+    Bootstrap/owner observations are test-owned DATA. Neither fixture originals
+    nor this read-only proposal qualify protected installation, image or B.
+    """
+    def owner_data(self):
+        import test_owner_proposal as oracle
+        helper = oracle.OwnerProposalOracle()
+        data = helper.data()
+        request = json.loads(data['request_raw'])
+        # Derive test-owned P1 originals from the actual signed R01 fixture.
+        # Never alter the frozen owner corpus or inject a verifier result.
+        release = request['release']
+        release['joint_index_ref'] = dict(release['joint_index_ref'],
+                                         bytes=len(self.raw), sha256=hashlib.sha256(self.raw).hexdigest())
+        for index, record in enumerate(release['artifact_refs']):
+            if record['path'] == MEMBER:
+                original = self.bodies[MEMBER]
+                release['artifact_refs'][index] = dict(record, bytes=len(original),
+                                                       sha256=hashlib.sha256(original).hexdigest())
+        data['aggregate_id'] = self.aggregate
+        data['request_raw'] = oracle.encode(request).decode()
+        helper.edit_record(data, 'request_ref', lambda value: value.update(request))
+        context = json.loads(data['context_raw'])
+        consent = json.loads(data['originals'][context['consent_ref']['path']])
+        scope = json.loads(data['originals'][consent['scope_ref']['path']])
+        reference = scope['release_binding_ref']
+        raw = oracle.encode(release)
+        data['originals'][reference['path']] = raw.decode()
+        helper.scope(data, lambda value: value.update(release_binding_ref=dict(
+            reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())))
+        return helper, data
+
+    def owner_source(self, *, data=None, fresh=None, request=None, entry=None):
+        from cortex_core.install import owner
+        helper, original = self.owner_data()
+        data = original if data is None else data
+        values = [helper.inputs(owner, data), helper.inputs(owner, data if fresh is None else fresh)]
+        calls = []
+        def installed():
+            calls.append('owner-observation')
+            return values[min(len(calls)-1, 1)]
+        raw = data['request_raw'].encode() if request is None else request
+        # Only test-owned startup/current DATA is substituted. The existing
+        # RC2 port, R01 backend and real cryptography remain the deciding path.
+        with self.composition(), patch.object(owner, '_installed_owner_inputs', installed):
+            result = (owner.propose_effect if entry is None else entry)(raw)
+        return result, calls
+
+    def owner_refusal(self, detail, **kwargs):
+        from cortex_core.install import owner
+        with self.assertRaises(owner.OwnerRefusal) as caught:
+            self.owner_source(**kwargs)
+        self.assertEqual(caught.exception.detail, detail)
+        return caught.exception
+
+    def test_EB1_actual_signature_originals_and_owner_DATA_join(self):
+        self.init_boundary()
+        from cortex_core.install import owner
+        from cortex_core.release import trust
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            result, calls = self.owner_source()
+        self.assertGreaterEqual(crypto.call_count, 4)
+        self.assertGreaterEqual(len(self.transports), 2)
+        self.assertEqual(calls, ['owner-observation', 'owner-observation'])
+        self.assertIs(type(result), owner.OwnerProposal)
+        self.assertEqual(result.stage, 'PRECONSUME_DATA')
+        self.assertFalse(result.effect_authority)
+        self.assertFalse(result.native_qualified)
+        self.assertFalse(result.reservation_created)
+        self.assertFalse(result.consumed)
+        self.assertEqual(result.deadline.expires_at, 1700000005)
+        self.assertIs(port._original_authority, port._unbound)
+        self.assert_closed()
+
+    def test_EB1_invalid_signature_refuses_before_lifecycle_binding(self):
+        self.init_boundary()
+        from cortex_core.install import lifecycle
+        lines = self.signature.split(b'\n')
+        signature = bytearray(base64.b64decode(lines[3])); signature[0] ^= 1
+        lines[3] = base64.b64encode(signature); self.signature = b'\n'.join(lines)
+        with patch.object(lifecycle, '_installed_lifecycle',
+                          side_effect=AssertionError('EB1 reached finite backend')) as backend:
+            error = self.owner_refusal('r01_other_refusal', entry=lifecycle.execute_effect)
+        self.assertEqual(error.r01_reason, 'aggregate_signature_invalid')
+        self.assertEqual(backend.call_count, 0)
+        self.assert_closed()
+
+    def test_EB1_unsigned_original_refuses(self):
+        self.init_boundary(); self.signature = None
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_unsigned')
+        self.assert_closed()
+
+    def test_EB1_substituted_root_refuses(self):
+        self.init_boundary()
+        from r01u3_support.factory import test_authority
+        self.authority.root_material = test_authority().root_material
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_root_mismatch')
+        self.assert_closed()
+
+    def test_EB1_corrupt_original_lock_refuses(self):
+        self.init_boundary()
+        raw = self.bodies[MEMBER]
+        (self.root/MEMBER).write_bytes(raw[:-1]+bytes([raw[-1]^1]))
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'member_digest_mismatch')
+        self.assert_closed()
+
+    def test_EB1_nonce_drift_after_real_audit_refuses(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        helper, data = self.owner_data()
+        import copy
+        fresh = copy.deepcopy(data)
+        helper.context(fresh, lambda context: context.update(nonce='different-source-nonce'))
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            self.owner_refusal('nonce_replay', data=data, fresh=fresh)
+        self.assertGreaterEqual(crypto.call_count, 4)
+        self.assert_closed()
+
+    def test_EB1_deadline_after_real_audit_is_not_renewed(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        helper, data = self.owner_data()
+        import copy
+        fresh = copy.deepcopy(data)
+        helper.clock(fresh, lambda clock: clock.update(now_utc=1700000005))
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            self.owner_refusal('reservation_expired', data=data, fresh=fresh)
+        self.assertGreaterEqual(crypto.call_count, 4)
+        self.assert_closed()
+
+    def test_EB1_client_authority_field_refuses_before_R01(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        helper, data = self.owner_data()
+        request = json.loads(data['request_raw']); request['trusted'] = True
+        with patch.object(trust, 'verify_ed25519', wraps=trust.verify_ed25519) as crypto:
+            self.owner_refusal('invalid_request', data=data, request=__import__('test_owner_proposal').encode(request))
+        self.assertEqual(crypto.call_count, 0)
+        self.assertEqual(self.transports, [])
+
+    def test_EB1_peer_mismatch_refuses_before_R01(self):
+        self.init_boundary()
+        helper, data = self.owner_data()
+        helper.edit_record(data, 'peer_ref', lambda peer: peer.update(owner_uid=502))
+        self.owner_refusal('peer_denied', data=data)
+        self.assertEqual(self.transports, [])
+
+    def test_EB1_default_owner_gap_precedes_client_and_R01(self):
+        self.init_boundary()
+        from cortex_core.install import owner
+        class Trap:
+            def __getattribute__(self, name):
+                raise AssertionError('EB1 touched client before owner binding')
+        with self.composition(), self.assertRaises(owner.OwnerRefusal) as caught:
+            owner.propose_effect(Trap())
+        self.assertEqual(caught.exception.detail, 'required_binding_gap')
+        self.assertEqual(self.startup_calls, [])
+        self.assertEqual(self.transports, [])
+
+    def test_EB1_cached_snapshot_is_not_an_owner_request(self):
+        self.init_boundary()
+        with self.composition():
+            member = port.request_member(self.aggregate, MEMBER)
+        count = len(self.transports)
+        self.owner_refusal('invalid_request', request=member)
+        self.assertEqual(len(self.transports), count)
+        self.assertFalse(hasattr(member, 'effect_authority'))
+        self.assert_closed()
+
+    def test_EB1_wrong_first_signer_with_authentic_comment_refuses(self):
+        self.init_boundary()
+        from cortex_core.release import trust
+        from r01u3_support.factory import test_authority
+        # Isolate the first guard: the expected key still signs the comment.
+        other = test_authority()
+        message = hashlib.blake2b(self.raw, digest_size=64).digest()
+        first = other._signer.sign(message).signature
+        lines = self.signature.split(b'\n')
+        trusted = lines[2][len(b'trusted comment: '):]
+        second = self.authority._signer.sign(first + trusted).signature
+        self.assertFalse(trust.verify_ed25519(self.authority.public, message, first))
+        self.assertTrue(trust.verify_ed25519(self.authority.public, first + trusted, second))
+        lines[1] = base64.b64encode(b'ED' + self.authority.key_id + first)
+        lines[3] = base64.b64encode(second)
+        self.signature = b'\n'.join(lines)
+        error = self.owner_refusal('r01_other_refusal')
+        self.assertEqual(error.r01_reason, 'aggregate_signature_invalid')
+        self.assert_closed()
+
+    def test_EB1_request_digest_must_match_verified_original_lock(self):
+        self.init_boundary()
+        import test_owner_proposal as oracle
+        helper, data = self.owner_data()
+        request = json.loads(data['request_raw'])
+        row = next(r for r in request['release']['artifact_refs'] if r['path'] == MEMBER)
+        row['sha256'] = 'f' * 64
+        self.assertNotEqual(row['sha256'], hashlib.sha256(self.bodies[MEMBER]).hexdigest())
+        # Keep physical/signed originals valid, and coherently rebind the
+        # retained request and consent scope so only the owner measure decides.
+        data['request_raw'] = oracle.encode(request).decode()
+        helper.edit_record(data, 'request_ref', lambda value: value.update(request))
+        context = json.loads(data['context_raw'])
+        consent = json.loads(data['originals'][context['consent_ref']['path']])
+        scope = json.loads(data['originals'][consent['scope_ref']['path']])
+        reference = scope['release_binding_ref']
+        raw = oracle.encode(request['release'])
+        data['originals'][reference['path']] = raw.decode()
+        helper.scope(data, lambda value: value.update(release_binding_ref=dict(
+            reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())))
+        error = self.owner_refusal('r01_other_refusal', data=data)
+        self.assertEqual(error.r01_reason, 'member_digest_mismatch')
+        self.assert_closed()
+
+    def test_EB2_effect_joins_real_R01_and_terminal_SQL_barrier(self):
+        from cortex_core.install import lifecycle as p1
+        from cortex_core.release.contracts import thaw
+        from psycopg.pq import TransactionStatus
+        with self.sql_source() as s:
+            published = []
+            original = p1._record_result
+            def record(*args, **kwargs):
+                self.assertEqual(s.reader.info.transaction_status, TransactionStatus.INTRANS,
+                                 'EB2 terminal publication lost the SQL barrier')
+                published.append(original(*args, **kwargs))
+                self.assertEqual(s.reader.info.transaction_status, TransactionStatus.INTRANS)
+                return published[-1]
+            with patch.object(p1, '_record_result', side_effect=record):
+                result = self.sql_execute(s)
+            self.assertEqual(thaw(result), s.history.head()[0])
+            self.assertEqual(published, [thaw(result)])
+            self.assertEqual(s.effect_count, 1)
+            self.assertEqual(len(s.history.events()), 5)
+            event, obs = p1._load_entry(s.history, result)
+            value = json.loads(s.history.read(event['result_ref']))
+            self.assertEqual(value['state'], 'applied_verified')
+            self.assertEqual(value['identity'], event['identity'])
+            self.assertEqual(value['request_ref'], event['request_ref'])
+            self.assertEqual(json.loads(s.history.read(obs['attempt_ref']))['consumption_sequence'], 1)
+            self.assertGreaterEqual(len(self.transports), 4)
+            self.assertEqual(s.reader.info.transaction_status, TransactionStatus.IDLE)
+        self.assert_closed()
+
+    def test_EB2_expiry_after_consumption_never_dispatches(self):
+        from cortex_core.install import owner
+        with self.sql_source() as s:
+            s.start()
+            effect = s.effect_context()
+            s.helper.clock(s.data, lambda clock: clock.update(now_utc=s.deadline.expires_at))
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                s.primitive.dispatch(effect)
+            self.assertEqual(caught.exception.detail, 'reservation_expired')
+            self.assertEqual(s.effect_count, 0)
+            self.assertEqual(len(s.history.events()), 2)
+
+    def test_EB2_nonce_drift_after_consumption_never_dispatches(self):
+        from cortex_core.install import owner
+        with self.sql_source() as s:
+            s.start()
+            effect = s.effect_context()
+            s.helper.context(s.data, lambda c: c.update(nonce='stale-EB2-nonce'))
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                s.primitive.dispatch(effect)
+            self.assertEqual(caught.exception.detail, 'reservation_invalidated')
+            self.assertEqual(s.effect_count, 0)
+            self.assertEqual(len(s.history.events()), 2)
+
+    def test_EB2_checkpoint_must_name_original_consumption(self):
+        from cortex_core.install import lifecycle as p1, owner
+        from cortex_core.release.codec import canonical_bytes
+        with self.sql_source() as s:
+            original = p1._publish_entry
+            def wrong_anchor(*args, **kwargs):
+                attempt = kwargs['attempt']
+                if attempt.get('sql_xact_ref') is not None:
+                    fact = json.loads(s.history.read(attempt['sql_xact_ref']))
+                    fact['consumed_ref'] = s.history.events()[0][0]
+                    attempt['sql_xact_ref'] = s.history.retain(canonical_bytes(fact))
+                return original(*args, **kwargs)
+            with patch.object(p1, '_publish_entry', side_effect=wrong_anchor):
+                with self.assertRaises(owner.OwnerRefusal) as caught:
+                    s.dispatch()
+            self.assertEqual(caught.exception.detail, 'journal_invalid')
+            self.assertEqual(s.effect_count, 0)
+            self.assertNotIn(('writer', 'COMMIT'), s.trace)
+
+    def test_EB2_absent_checkpoint_with_unfenced_writer_remains_UNKNOWN(self):
+        from cortex_core.install import lifecycle as p1, owner
+        with self.sql_source() as s:
+            effect = self.sql_interrupted(s, 1)
+            s.recover(effect)
+            s.private['sql_native']['writers_ended'] = False
+            s.set_private()
+            before = s.tree()
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                p1.execute_effect(s.data['request_raw'].encode())
+            self.assertEqual(caught.exception.detail, 'attempt_ambiguous')
+            self.assertEqual(s.tree(), before)
+            self.assertEqual(s.effect_count, 0)
+
+    def test_EB2_COMMIT_reply_loss_reuses_exact_result_without_redispatch(self):
+        from cortex_core.install import lifecycle as p1
+        from psycopg.pq import TransactionStatus
+        with self.sql_source() as s:
+            effect = self.sql_interrupted(s, 5)
+            s.recover(effect)
+            original = p1._record_result
+            measurements = []
+            def record(*args, **kwargs):
+                self.assertEqual(s.reader.info.transaction_status, TransactionStatus.INTRANS,
+                                 'EB2 recovery publication lost the SQL barrier')
+                measurements.append(args[2])
+                return original(*args, **kwargs)
+            with patch.object(p1, '_record_result', side_effect=record):
+                first = p1.execute_effect(s.data['request_raw'].encode())
+                before = s.tree()
+                s.status = None  # retired status lookup cannot supply a fresh truth
+                second = p1.execute_effect(s.data['request_raw'].encode())
+            self.assertEqual(first, second)
+            self.assertEqual(len(measurements), 2)
+            self.assertEqual(measurements[0], measurements[1])
+            self.assertEqual(s.tree(), before)
+            self.assertEqual(s.effect_count, 1)
+            self.assertEqual(json.loads(measurements[0])['state'], 'applied_verified')
+
+    def test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child(self):
+        from cortex_core.install import lifecycle as p1, owner
+        from cortex_core.release.contracts import thaw
+        with self.sql_source() as s:
+            effect = self.sql_interrupted(s, 2)
+            s.recover(effect)
+            parent = p1.execute_effect(s.data['request_raw'].encode())
+            event, obs = p1._load_entry(s.history, parent)
+            result = json.loads(s.history.read(event['result_ref']))
+            attempt = json.loads(s.history.read(obs['attempt_ref']))
+            self.assertEqual(result['state'], 'not_applied_verified')
+            self.assertEqual(attempt['reconciliation_ref'], event['result_ref'])
+            self.assertEqual(s.effect_count, 0)
+            self.sql_child(s, effect, parent)
+            child = self.sql_execute(s)
+            event2, obs2 = p1._load_entry(s.history, child)
+            attempt2 = json.loads(s.history.read(obs2['attempt_ref']))
+            self.assertEqual(attempt2['origin_request_ref'], thaw(effect['context']['request_ref']))
+            self.assertEqual(attempt2['predecessor_result_refs'], [event['result_ref']])
+            self.assertEqual(attempt2['dispatch_state'], 'applied_verified')
+            self.assertEqual(s.effect_count, 1)
+            self.assertNotEqual(event2['identity']['attempt_id'], event['identity']['attempt_id'])
+            with self.assertRaises(owner.OwnerRefusal):
+                self.sql_execute(s)
+            self.assertEqual(s.effect_count, 1)
+
+    def sql_source(self):
+        """Existing R01 join + delivered SQL producer; scheduled SOURCE DATA only.
+
+        SQLSubject's constructor uses its old nonauthoritative proposal fixture
+        for setup DATA. Every deciding proposal/prime/execute/recovery below is
+        rebound through this class's real R01 composition, never its double.
+        """
+        import copy
+        import tempfile
+        from contextlib import contextmanager
+        from cortex_core.install import lifecycle as p1, owner
+        from cortex_core.release.codec import canonical_bytes
+        from cortex_core.release.contracts import thaw
+        from test_hold1_producer import SQLSubject
+        @contextmanager
+        def joined():
+            with patch('r01u3_support.startup.MAIN', Path(self.eb2_files.name).resolve()):
+                self.init_boundary()
+            with tempfile.TemporaryDirectory(prefix='EB2-source-') as root:
+                s = SQLSubject(root)
+                # Initially admit a finite SOURCE lease at the existing 30s
+                # policy ceiling. Real R01 audits must fit before the intended
+                # fault; neither a product guard nor an old deadline is renewed.
+                s.helper.context(s.data, lambda c: c['host_lease'].update(expires_at=1700000030))
+                s.private['expires_at'] = 1700000030
+                s.set_private()
+                s.helper.clock_receipt(s.data, lambda receipt: receipt['monotonic_deadlines'].update(
+                    host=130000000000, private=130000000000))
+                _, release_data = self.owner_data()
+                release = json.loads(release_data['request_raw'])['release']
+                request = json.loads(s.data['request_raw'])
+                request['release'] = release
+                s.data['aggregate_id'] = self.aggregate
+                s.data['request_raw'] = canonical_bytes(request).decode()
+                s.helper.edit_record(s.data, 'request_ref', lambda value: value.update(request))
+                c = json.loads(s.data['context_raw'])
+                consent = json.loads(s.data['originals'][c['consent_ref']['path']])
+                scope = json.loads(s.data['originals'][consent['scope_ref']['path']])
+                ref = scope['release_binding_ref']
+                raw = canonical_bytes(release)
+                s.data['originals'][ref['path']] = raw.decode()
+                s.helper.scope(s.data, lambda value: value.update(release_binding_ref=p1._ref(ref['path'], raw)))
+                with self.composition(), patch.object(owner, '_installed_owner_inputs', s.inputs), \
+                        patch.object(p1, '_installed_lifecycle', lambda: p1._Bindings(
+                            s.history, {'database_role': s.primitive})):
+                    s.proposal = s.current()
+                    s.deadline = s.proposal.deadline
+                    mandate = json.loads(s.mandate)
+                    context = thaw(s.proposal.context)
+                    mandate.update({k: context[k] for k in ('identity', 'effect', 'request_ref')})
+                    s.mandate = canonical_bytes(mandate)
+                    s.eb2_original = copy.deepcopy(s.data)
+                    yield s
+        return joined()
+
+    def sql_execute(self, s):
+        from cortex_core.install import lifecycle as p1
+        s.primitive._prime_sql()
+        return p1.execute_effect(s.data['request_raw'].encode())
+
+    def sql_interrupted(self, s, schedule):
+        # Reuse Cox's existing explicit interruption fixture and actual dispatch;
+        # no replacement producer, cached admission or alternate classifier.
+        return s.dispatch(schedule=schedule)
+
+    def sql_child(self, s, effect, parent):
+        import copy
+        from cortex_core.release.codec import canonical_bytes
+        from cortex_core.release.contracts import thaw
+        s.data = copy.deepcopy(s.eb2_original)
+        s.recover(effect)  # Existing fresh owner/peer/clock/private fence DATA.
+        q = json.loads(s.data['request_raw'])
+        q.update(operation='install', journal_ref=thaw(parent))
+        q['identity'].update(request_id='EB2-child-request', attempt_id='EB2-child-attempt')
+        s.data['request_raw'] = canonical_bytes(q).decode()
+        s.helper.edit_record(s.data, 'request_ref', lambda value: value.update(q))
+        s.helper.context(s.data, lambda c: c.update(identity=q['identity']))
+        s.helper.scope(s.data, lambda scope: scope.update(identity=q['identity'], operation='install'))
+        s.private['sql_native']['writer_attempt_id'] = q['identity']['attempt_id']
+        s.set_private()
+        s.adapter.identity = q['identity']
+
+    def setUp(self):
+        # Keep only the new finite schedules under the existing worker-owned
+        # TMPDIR. The runner can then remove their originals after a hard cap;
+        # all original EB1 fixtures retain their original setup and location.
+        if not self._testMethodName.startswith('test_EB2_'):
+            return super().setUp()
+        import tempfile
+        self.eb2_files = tempfile.TemporaryDirectory(prefix='EB2-originals-')
+        self.addCleanup(self.eb2_files.cleanup)
+        with patch('test_original_member_bridge.MAIN', Path(self.eb2_files.name).resolve()):
+            super().setUp()

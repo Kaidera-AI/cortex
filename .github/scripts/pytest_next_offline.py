@@ -23,8 +23,9 @@ ACCEPTED_BASE = 'a47a152ba4eb048f4a9ff211b875d59d82a2e066'
 BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
                    '5627f7fb496a2660f96f654fbfd3fabad2e13859',
                    'abfc68eab20ae486243ee8886f6314d962f22885')
-# Kai ruling359622c6: immutable five-row policy, retained in this branch's history.
-UNBUILT_POLICY = '741c43e41f46ba2e818d3bde8581fff9b27abc9c'
+# Kai ruling359622c6 + H-D569: unchanged five E1 rows plus exact155 corpus rows.
+# The declaration-only commit is independent of this gate implementation.
+UNBUILT_POLICY = 'c88f772bef234368d5057c298edc703ecf46ba97'
 # Kai ruling263722e5: exact U3 whole-file rows; no PASS credit.
 UNAVAILABLE_POLICY = '58031a28534aa1a36d20097bb0057dfc29ba383c'
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
@@ -172,7 +173,7 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
     if evidence['kind']=='unbuilt_unit':
-        # The same source reader accepts only the five explicitly ratified rows.
+        # The same source reader accepts only the explicitly ratified pinned rows.
         approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
         return any(row['nodeid']==nodeid and row['evidence']==evidence
             and row['evidence'].get('kind')=='unbuilt_unit' for row in approved)
@@ -309,6 +310,36 @@ def semantic_retirements(root, retired, replacements, checks):
     return checks
 
 
+def partition_parameters(value):
+    """An integer keeps the original schedule; named singletons share its count."""
+    if type(value) is int:
+        count, isolated = value, []
+    elif isinstance(value, dict) and set(value) == {'count', 'isolated'}:
+        count, isolated = value['count'], value['isolated']
+        if not isinstance(isolated, list) or not isolated:
+            raise ValueError('singleton partition list must be nonempty')
+    else:
+        raise ValueError('invalid execution partition specification')
+    if (type(count) is not int or not 2 <= count <= 16
+            or not all(isinstance(node, str) for node in isolated)
+            or isolated != sorted(set(isolated)) or len(isolated) >= count):
+        raise ValueError('invalid execution partition count or singleton identities')
+    return count, isolated
+
+
+def partition_plan(full, count, isolated=()):
+    """The worker and host use one exact, nonempty, disjoint full-collection cover."""
+    isolated = list(isolated)
+    partition_parameters({'count': count, 'isolated': isolated} if isolated else count)
+    if (not full or not all(isinstance(node, str) for node in full)
+            or len(full) != len(set(full)) or len(full) < count
+            or not set(isolated) <= set(full)):
+        raise ValueError('partition requires unique complete collection and known singleton IDs')
+    remaining = [node for node in full if node not in set(isolated)]
+    ordinary = count - len(isolated)
+    return [[node] for node in isolated] + [remaining[index::ordinary] for index in range(ordinary)]
+
+
 def inventory(root, manifest, base_manifest=None):
     root = Path(root).resolve()
     found = sorted(str(p.relative_to(root)) for p in (root / 'next').rglob('*.py')
@@ -397,7 +428,11 @@ def inventory(root, manifest, base_manifest=None):
                     invalid.append('coverage: method exclusion path outside RUN: '+node)
                     continue
                 tree,parsed=source_tree(root/path)
-                if not parsed or node not in named_nodes(path,tree) or not fixture_evidence(root,path,row['evidence'],node):
+                # Approved unbuilt IDs may be dynamically generated. The worker
+                # still requires each exact ID once in its actual collection.
+                if (not parsed or (row['evidence'].get('kind')!='unbuilt_unit'
+                        and node not in named_nodes(path,tree))
+                        or not fixture_evidence(root,path,row['evidence'],node)):
                     invalid.append('coverage: method exclusion lacks fixture proof: '+node)
                 nodes.append(node)
             if len(nodes)!=len(set(nodes)) or set(nodes)&{r['nodeid'] for r in retired}:raise ValueError('coverage: duplicate excluded/retired method')
@@ -406,10 +441,17 @@ def inventory(root, manifest, base_manifest=None):
             invalid.append(str(error) if isinstance(error,ValueError) else 'coverage: malformed source evidence')
     oracle = 'next/docs/runtime/rc0/test_oracle.py'
     partitions = manifest.get('partitions', {})
-    if (not isinstance(partitions, dict) or any(path not in run or type(count) is not int
-            or not 2 <= count <= 16 for path, count in partitions.items())
-            or isinstance(partitions, dict) and any(row['nodeid'].split('::')[0] in partitions
-                for row in [*retired, *method_exclusions])):
+    valid_partitions = isinstance(partitions, dict)
+    if valid_partitions:
+        for path, value in partitions.items():
+            try:
+                count, isolated = partition_parameters(value)
+                if path not in run or any(not node.startswith(path + '::') for node in isolated):
+                    valid_partitions = False
+            except (TypeError, ValueError):
+                valid_partitions = False
+    if (not valid_partitions or isinstance(partitions, dict) and any(
+            row['nodeid'].split('::')[0] in partitions for row in [*retired, *method_exclusions])):
         invalid.append('execution partitions require ordinary admitted RUN suites and counts 2..16')
     return dict(ok=not (invalid or duplicates or missing or stale), found=found,
                 run=run, excluded=excluded, missing=missing, stale=stale,
@@ -421,15 +463,36 @@ def inventory(root, manifest, base_manifest=None):
 def declaration_observations(packet, excluded):
     """Executed negative evidence, never a skip/xfail or a passing test."""
     result=[]
+    corpus_reason='H-D569: needs accepted original native execution corpus; next release (real-machine stage)'
+    corpus_approved=[]
+    if any(row.get('reason','').startswith(corpus_reason) for row in excluded):
+        try:
+            corpus_approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
+        except ValueError:
+            pass  # An unavailable independent approval cannot admit a witness.
     for declaration in excluded:
         if declaration.get('evidence',{}).get('kind')!='unbuilt_unit':continue
         node=declaration['nodeid'];rows=[r for r in packet.get('reports',[]) if r['nodeid']==node]
         calls=[r for r in rows if r['when']=='call']
+        call=calls[0] if len(calls)==1 else {}
+        expected_failure=(isinstance(call.get('exception_type'),str)
+            and call['exception_type'].split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
+        if declaration.get('reason','').startswith(corpus_reason):
+            detail=call.get('detail','')
+            lines=detail.splitlines() if isinstance(detail,str) else []
+            final=lines[-1] if lines else ''
+            prefix='E   AssertionError: unexpectedly None : NOT_RUN_MISSING_ORIGINAL_CORPUS ['
+            suffix=']: see missing_R01_cases and missing_composed_positive_material'
+            case=final[len(prefix):-len(suffix)] if final.startswith(prefix) and final.endswith(suffix) else ''
+            # Approved155 suffixes reverse exactly; never normalize a reported ID.
+            canonical=node.split('::')[-1].removeprefix('test_').replace('_','-')
+            expected_failure=(declaration in corpus_approved
+                and call.get('exception_type')=='builtins.AssertionError' and bool(case)
+                and case==canonical and Counter(packet.get('collected',[]))[node]==1)
         valid=(Counter(r['when'] for r in rows)==Counter(('setup','call','teardown'))
             and all(not r['wasxfail'] and r['outcome']==('failed' if r['when']=='call' else 'passed') for r in rows)
             and len(calls)==1 and calls[0].get('assertion') is True
-            and isinstance(calls[0].get('exception_type'),str)
-            and calls[0]['exception_type'].split('.')[-1] in ('SurfaceAbsent','SemanticRed'))
+            and expected_failure)
         result.append(dict(nodeid=node,reason=declaration['reason'],executed=bool(calls),
             outcome=calls[0]['outcome'] if len(calls)==1 else 'invalid',
             exception_type=calls[0].get('exception_type','') if len(calls)==1 else '',valid=valid,pass_credit=0))
@@ -518,23 +581,25 @@ def write(path, packet):
     path.write_text(json.dumps(packet, indent=2) + '\n')
 
 
-def merge_partitions(packets, codes, count):
+def merge_partitions(packets, codes, count, isolated=()):
     """Accept only the exact disjoint cover of every worker's complete collection."""
     try:
         if len(packets) != count or len(codes) != count or not 2 <= count <= 16:
             return None
         first = packets[0]
         full = first['full_collected']
-        if not full or len(full) != len(set(full)) or len(full) < count:
-            return None
+        plan = partition_plan(full, count, isolated)
         for index, (packet, code) in enumerate(zip(packets, codes)):
+            identity = dict(index=index, count=count)
+            if isolated:
+                identity['isolated'] = list(isolated)
             if (not receipt_valid(packet, code) or packet.get('retired') or packet.get('excluded_methods')
-                    or packet['partition'] != dict(index=index, count=count)
+                    or packet['partition'] != identity
                     or packet['full_collected'] != full
                     or any(packet[key] != first[key] for key in ('suite','source_sha256','python','uid'))
-                    or packet['collected'] != full[index::count]
-                    or packet['expected'] != full[index::count]
-                    or packet['selected'] != full[index::count]):
+                    or packet['collected'] != plan[index]
+                    or packet['expected'] != plan[index]
+                    or packet['selected'] != plan[index]):
                 return None
         combined = {**first, 'expected':full, 'selected':full, 'collected':full,
                     'reports':[row for packet in packets for row in packet['reports']],
@@ -546,7 +611,7 @@ def merge_partitions(packets, codes, count):
         return None
 
 
-def execute_partitioned(command, count, destination, root, environment):
+def execute_partitioned(command, count, destination, root, environment, isolated=()):
     packets, codes, logs, records = [], [], [], []
     for index in range(count):
         name = destination.stem + '-part-' + str(index)
@@ -556,6 +621,8 @@ def execute_partitioned(command, count, destination, root, environment):
         temporary = Path(args[args.index('--temporary') + 1])
         args[args.index('--temporary') + 1] = str(temporary.with_name(name))
         args += ['--partition-index', str(index), '--partition-count', str(count)]
+        if isolated:
+            args += ['--partition-isolated-json', json.dumps(list(isolated))]
         started = time.monotonic()
         try:
             process = subprocess.run(args, cwd=root, env=environment, capture_output=True, text=True, timeout=180)
@@ -570,7 +637,7 @@ def execute_partitioned(command, count, destination, root, environment):
         packets.append(packet);codes.append(code);logs.append(log)
         records.append(dict(index=index, receipt=part.name, log=name+'.txt', process_exit=code,
                             elapsed_seconds=round(time.monotonic()-started,3)))
-    combined = merge_partitions(packets, codes, count)
+    combined = merge_partitions(packets, codes, count, isolated)
     if combined is not None:
         combined['partition_runs'] = records
         write(destination, combined)
@@ -667,8 +734,9 @@ def main():
             partition_runs = []
             try:
                 if suite in checked['partitions']:
-                    code, log, partition_runs = execute_partitioned(command, checked['partitions'][suite],
-                        destination, ROOT, environment)
+                    count, isolated = partition_parameters(checked['partitions'][suite])
+                    code, log, partition_runs = execute_partitioned(command, count,
+                        destination, ROOT, environment, isolated)
                 else:
                     process = subprocess.run(command, cwd=ROOT, env=environment,
                                              capture_output=True, text=True, timeout=180)

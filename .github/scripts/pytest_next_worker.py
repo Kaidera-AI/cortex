@@ -36,11 +36,12 @@ def declared_cases(module):
 
 
 class Gate:
-    def __init__(self, output, skip, retired=(), excluded=(), partition_index=0, partition_count=1):
+    def __init__(self, output, skip, retired=(), excluded=(), partition_index=0, partition_count=1, isolated=()):
         self.output, self.skip = output, skip
         self.retired = list(retired)
         self.excluded = list(excluded)
         self.partition_index, self.partition_count = partition_index, partition_count
+        self.isolated = list(isolated)
         self.assertions = {}
         self.exceptions = {}
         self.expected = ()
@@ -100,7 +101,10 @@ class Gate:
                 raise ValueError('partition requires a complete nonempty ordinary suite')
             self.packet['full_collected'] = collected
             self.packet['partition'] = dict(index=self.partition_index, count=self.partition_count)
-            session.items[:] = session.items[self.partition_index::self.partition_count]
+            if self.isolated:
+                self.packet['partition']['isolated'] = self.isolated
+            selected = set(SHARED.partition_plan(collected, self.partition_count, self.isolated)[self.partition_index])
+            session.items[:] = [item for item in session.items if item.nodeid in selected]
             self.packet['collected'] = [item.nodeid for item in session.items]
         self.expected = tuple(item.nodeid for item in session.items)
         self.packet.update(expected=list(self.expected), selected=list(self.expected))
@@ -159,8 +163,12 @@ def main():
     parser.add_argument('--nodes-json',default='[]',help='named deciding proof nodes; all-suite execution remains separate')
     parser.add_argument('--partition-index',type=int,default=0)
     parser.add_argument('--partition-count',type=int,default=1)
+    parser.add_argument('--partition-isolated-json',default='[]',help='host-validated exact singleton IDs in the full collection')
     parser.add_argument('--observe-product',help='proof product locus relative to this owned source copy')
     args = parser.parse_args()
+    isolated = json.loads(args.partition_isolated_json)
+    if not isinstance(isolated, list) or isolated and args.partition_count == 1:
+        parser.error('singleton IDs require an execution partition')
     if not 1 <= args.partition_count <= 16 or not 0 <= args.partition_index < args.partition_count:
         parser.error('invalid execution partition')
     args.temporary.mkdir(mode=0o700)
@@ -184,7 +192,7 @@ def main():
     if not isinstance(requested,list) or any(not isinstance(n,str) or not n.startswith(args.suite+'::') for n in requested) or len(requested)!=len(set(requested)):
         raise ValueError('named_proof_collection')
     gate = Gate(args.output, args.force_skip, retired=json.loads(args.retired_json),excluded=json.loads(args.excluded_json),
-                partition_index=args.partition_index,partition_count=args.partition_count)
+                partition_index=args.partition_index,partition_count=args.partition_count,isolated=isolated)
     # Wrap the builder: unittest supplies deferred exceptions during report creation.
     Gate.pytest_runtest_makereport=pytest.hookimpl(tryfirst=True,hookwrapper=True)(Gate.pytest_runtest_makereport)
     gate.packet.update(suite=args.suite, source_sha256=hashlib.sha256(suite.read_bytes()).hexdigest(),
