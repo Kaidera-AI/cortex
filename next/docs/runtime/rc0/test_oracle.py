@@ -162,7 +162,13 @@ class RuntimeContractOracle(unittest.TestCase):
         self.assertEqual(new['migrations'][:19], old['migrations'])
         self.assertEqual(new['migrations'][19]['id'], 'runtime-grants-0001')
         self.assertNotEqual(new['manifest_sha256'], old['manifest_sha256'])
-        self.assertEqual(new['manifest_sha256'], sha((HERE.parents[2]/'schema/manifest.json').read_bytes()))
+        manifest = json.loads((HERE.parents[2]/'schema/manifest.json').read_bytes())
+        target_id = 'runtime-grants-0001'
+        migration_ids = [entry['id'] for entry in manifest['migrations']]
+        self.assertEqual(migration_ids.count(target_id), 1)
+        # The sealed20 bytes end at this identity; later source migrations are distinct.
+        manifest['migrations'] = manifest['migrations'][:migration_ids.index(target_id)+1]
+        self.assertEqual(new['manifest_sha256'], sha(manifest))
 
     def test_historical_current_validator_matrix_refuses_both_crosses(self):
         old, new = self.historical_oracle(), self.oracle()
