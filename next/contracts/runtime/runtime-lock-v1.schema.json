@@ -230,9 +230,9 @@
     "current_schema": {
       "const": {
         "manifest_path": "/opt/cortex/next/schema/manifest.json",
-        "manifest_sha256": "08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef",
-        "migration_count": 19,
-        "business_table_count": 42,
+        "manifest_sha256": "7c49366dcc51e6bea595db2735b51e1b8e2ea45f4d99fe8fd011f51972cdea83",
+        "migration_count": 20,
+        "business_table_count": 44,
         "migrations": [
           {
             "id": "core-0001",
@@ -328,6 +328,11 @@
             "id": "session-ids-read-0007",
             "file": "coordination/007-session-ids-read.sql",
             "sha256": "449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64"
+          },
+          {
+            "id": "runtime-grants-0001",
+            "file": "auth/007-runtime-grants.sql",
+            "sha256": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607"
           }
         ]
       }

@@ -9,13 +9,18 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+from types import SimpleNamespace
 import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
+from psycopg.pq import TransactionStatus
 from cortex_core.migrations import apply_migrations, MigrationError
 
 ROOT = Path(__file__).resolve().parents[2]
+CURRENT_ROOT = ROOT
 FROZEN_ENTRIES = [{'id': 'core-0001', 'file': 'core/001-core.sql', 'sha256': 'e838f374daf79aa120a2b9a47563a221a946f16f26977873e3bfb9d447e40147'}, {'id': 'auth-0001', 'file': 'auth/001-auth.sql', 'sha256': '97c1b435d9c31d00df9089a45c289fef79d41f8709d5c27c598e15e00bb5167e'}, {'id': 'coordination-0001', 'file': 'coordination/001-coordination.sql', 'sha256': 'c7c8d5f2de33acc07fd7c719d9f84a7a015a2c99c4cfb7a606c1ba4af812d9b1'}, {'id': 'retrieval-0000', 'file': 'retrieval/000-canonical.sql', 'sha256': '5d5ec69e3cc5addc7052c36717ef60fb7e66d8a9c089de713d9936f387b8cfd2'}, {'id': 'auth-0002', 'file': 'auth/002-isolation.sql', 'sha256': 'dc60e5fb24b525d8722792a24e846b6b3c78b141ee7ebc1a3b5a2dae81a79681'}, {'id': 'coordination-0002', 'file': 'coordination/002-record-replay.sql', 'sha256': '683f362d4070b61c1df44837d066b2dcac4c83d9507e1f403ccfca46be84ce87'}, {'id': 'auth-0003', 'file': 'auth/003-identity.sql', 'sha256': '678a6d5ba058b10f5293f03ffb13480a77f6b77a00f329dcb9434074c8cf5fa8'}, {'id': 'outbox-0002', 'file': 'coordination/002-outbox.sql', 'sha256': '125d948ddd5f2360e039a057fc944fc23d0652e4c1367533d3081e8bd9066a8e'}, {'id': 'module-consumers-0003', 'file': 'coordination/003-module-consumers.sql', 'sha256': 'bbde558b050a8121fe63e6eba1002058a8ec47731158a1c8375fbf633f33451a'}, {'id': 'api-replay-0004', 'file': 'coordination/004-api-replay.sql', 'sha256': 'b8f7651132e71ac8080b8be2aa6a38c066a25a8afb794f4060c174bae3780771'}, {'id': 'retrieval-0001', 'file': 'retrieval/001-pg-search.sql', 'sha256': 'bf1a5c1b14d57da70013e9ba4c90126797ab1e85533ad1d04db7f7780f113d84'}, {'id': 'retrieval-0002', 'file': 'retrieval/002-query-cache.sql', 'sha256': '02f5baf51828ae920988e37aac19169f78039e79481e413a6e1b0907fc62d868'}, {'id': 'retrieval-0003', 'file': 'retrieval/003-pg-graph.sql', 'sha256': 'bc12fe454576f666879151425b8752ad0aaa9ffeb241b3fee252e1a9d58e48cb'}, {'id': 'session-source-0005', 'file': 'coordination/005-session-source.sql', 'sha256': '81e7955f1792852160e384408557c8476abde0830ca72d2863ef51b3f81e8af4'}, {'id': 'retrieval-0004', 'file': 'retrieval/004-request-authority.sql', 'sha256': '3e7034a2c110f015b78b8efb88943e86f1a44ebf3153603550c6d4e1b1acee0e'}, {'id': 'auth-0004', 'file': 'auth/004-first-identity-capture.sql', 'sha256': '6c2a630667f51af9452b28bd6e559464007ea15162722acdf1fcdd7d15e02705'}, {'id': 'auth-0005', 'file': 'auth/005-first-identity.sql', 'sha256': '22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d'}, {'id': 'auth-0006', 'file': 'auth/006-enrollment-readiness.sql', 'sha256': '848840260b90e3cd88dc77d25acad908c63bcf711452eb1669e7ae4e833cee72'}, {'id': 'session-ids-read-0007', 'file': 'coordination/007-session-ids-read.sql', 'sha256': '449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64'}]
 FROZEN_TABLES = ('auth.credentials', 'auth.first_identity_receipts', 'auth.permission_generations', 'auth.principals', 'auth.project_grants', 'coordination.consumer_aggregate_heads', 'coordination.consumer_checkpoints', 'coordination.consumer_event_outcomes', 'coordination.consumer_project_checkpoints', 'coordination.feed_state', 'coordination.idempotency', 'coordination.job_attempts', 'coordination.job_results', 'coordination.jobs', 'coordination.leases', 'coordination.outbox', 'coordination.published_events', 'coordination.quarantine', 'coordination.session_sources', 'coordination.snapshot_floors', 'core.analytics_facts', 'core.blob_manifests', 'core.extraction_facts', 'core.installations', 'core.payloads', 'core.projects', 'core.record_aliases', 'core.record_revisions', 'core.records', 'core.tenants', 'retrieval.embedding_models', 'retrieval.embeddings', 'retrieval.generations', 'retrieval.graph_applied', 'retrieval.graph_edges', 'retrieval.graph_generations', 'retrieval.graph_nodes', 'retrieval.graph_state', 'retrieval.query_embeddings', 'retrieval.search_sources', 'retrieval.search_state', 'retrieval.search_vectors')
 STEPS = ('auth-0004', 'auth-0005', 'auth-0006', 'session-ids-read-0007')
@@ -28,7 +33,11 @@ class Cursor:
 class RecordingDB:
     """Record real migration-port decisions against frozen bytes, with no DB engine."""
     autocommit = True
-    def __init__(self):
+    def __init__(self, entries=None):
+        self.info = SimpleNamespace(transaction_status=TransactionStatus.IDLE)
+        self.commits = 0
+        self.borrowed_context = False
+        self.leave_in_transaction = False
         self.ledger = {x['id']: x['sha256'] for x in FROZEN_ENTRIES[:15]}
         self.migration_calls = []
         self.duplicate_ledger_inserts = []
@@ -36,15 +45,24 @@ class RecordingDB:
         self.data = {'canonical': b'synthetic retained bytes', 'grant_generation': 7,
                      'model': ('fixture', 768), 'outbox': (1,), 'consumer': 1}
         self.sql_ids = {hashlib.sha256((ROOT/'schema'/x['file']).read_bytes()).hexdigest():
-                        x['id'] for x in FROZEN_ENTRIES}
+                        x['id'] for x in (FROZEN_ENTRIES if entries is None else entries)}
 
     @contextmanager
     def transaction(self):
         before = copy.deepcopy((self.ledger, self.data))
-        try: yield
+        previous = self.info.transaction_status
+        nested = self.borrowed_context or previous != TransactionStatus.IDLE
+        self.info.transaction_status = TransactionStatus.INTRANS
+        try:
+            yield SimpleNamespace(savepoint_name='_pg3_1' if nested else None)
         except BaseException:
             self.ledger, self.data = before
             raise
+        else:
+            if not nested: self.commits += 1
+        finally:
+            self.info.transaction_status = (TransactionStatus.INTRANS
+                if self.leave_in_transaction or nested else previous)
 
     def execute(self, sql, args=None, **kwargs):
         self.trace.append(sql)
@@ -70,6 +88,23 @@ class CurrentBridge(unittest.TestCase):
                                                prefix='current-bridge-')
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        # Original method bodies observe an explicit historical19 input, never
+        # the current selected manifest or a production historical fallback.
+        historical = self.root/'historical19'
+        self.historical = historical/'schema'
+        shutil.copytree(CURRENT_ROOT/'schema', historical/'schema')
+        fixture = json.loads((CURRENT_ROOT/'docs/runtime/rc0/fixtures/paired-complete-19.json').read_bytes())
+        manifest = json.loads((CURRENT_ROOT/'schema/manifest.json').read_bytes())
+        manifest['migrations'] = fixture['lock']['current_schema']['migrations']
+        (historical/'schema/manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
+        # Only the original static19 oracle takes ROOT as its fixture input.
+        # Other tests, including the loaded-code filename witness, keep the
+        # actual current source root. All historical migration calls below use
+        # the explicit historical directory regardless of the selected package.
+        if self._testMethodName == 'test_current_fixture_exact_19_hashes_42_tables_and_donor_differences':
+            root_patch = patch(__name__+'.ROOT', historical)
+            root_patch.start()
+            self.addCleanup(root_patch.stop)
         self.db = RecordingDB()
 
     def api(self):
@@ -80,7 +115,7 @@ class CurrentBridge(unittest.TestCase):
         return Admission, AtomicUpgradeJournal, UpgradeCoordinator
 
     def staged(self, through):
-        try: return apply_migrations(self.db, through=through)
+        try: return apply_migrations(self.db, self.historical, through=through)
         except TypeError as error:
             self.fail(f'current migration port lacks explicit through: {error}')
 
@@ -324,6 +359,90 @@ class CurrentBridge(unittest.TestCase):
                         if x.co_qualname=='apply_migrations')
         self.assertEqual(apply_migrations.__code__, expected)
         self.assertEqual(fingerprint(apply_migrations.__code__), fingerprint(expected))
+
+    def test_selected20_suffix_is_atomic_reentry_preserves_original19(self):
+        entries = json.loads((CURRENT_ROOT/'schema/manifest.json').read_bytes())['migrations']
+        self.assertEqual(entries[:19], FROZEN_ENTRIES)
+        self.assertEqual(len(entries), 20)
+        self.assertEqual(entries[19]['id'], 'runtime-grants-0001')
+        self.db = RecordingDB(entries)
+        self.db.ledger = {x['id']:x['sha256'] for x in FROZEN_ENTRIES}
+        before = copy.deepcopy(self.db.data)
+        self.assertEqual(apply_migrations(self.db), ['runtime-grants-0001'])
+        self.assertEqual(self.db.commits, 1)
+        self.assertEqual(self.db.info.transaction_status, TransactionStatus.IDLE)
+        self.assertEqual(list(self.db.ledger.items()), [(x['id'],x['sha256']) for x in entries])
+        self.assertEqual(apply_migrations(self.db), [])
+        self.assertEqual(self.db.migration_calls, ['runtime-grants-0001'])
+        self.assertEqual(self.db.duplicate_ledger_inserts, [])
+        self.assertEqual(self.db.data, before)
+        tables = set()
+        for entry in entries:
+            raw = (CURRENT_ROOT/'schema'/entry['file']).read_bytes()
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), entry['sha256'])
+            tables.update(re.findall(r'CREATE TABLE\s+(?:IF NOT EXISTS\s+)?([a-z_]+\.[a-z_]+)', raw.decode(), re.I))
+        self.assertEqual(tables, set(FROZEN_TABLES) | {'auth.runtime_login_bindings', 'coordination.supervisor_leases'})
+        self.assertEqual(len(tables), 44)  # Static source, not native qualification.
+
+    def test_q2_caller_begin_and_non_idle_states_refuse_before_managed_sql(self):
+        for status in (TransactionStatus.INTRANS, TransactionStatus.INERROR,
+                       TransactionStatus.ACTIVE, TransactionStatus.UNKNOWN):
+            with self.subTest(status=status):
+                self.db = RecordingDB()
+                self.db.info.transaction_status = status
+                before = copy.deepcopy(self.db.ledger)
+                with self.assertRaises(MigrationError): self.staged(STEPS[0])
+                self.assertEqual(self.db.trace, [])
+                self.assertEqual(self.db.ledger, before)
+                self.assertEqual(self.db.info.transaction_status, status)
+                self.assertEqual(self.db.commits, 0)
+
+    def test_q2_missing_unreadable_and_impostor_driver_status_refuse(self):
+        from enum import IntEnum
+        class FakeStatus(IntEnum): IDLE = 0
+        class Unreadable:
+            @property
+            def transaction_status(self): raise RuntimeError('unreadable status')
+        for info in (None, SimpleNamespace(), Unreadable(),
+                     *(SimpleNamespace(transaction_status=x) for x in (0, False, 'IDLE', FakeStatus.IDLE))):
+            with self.subTest(info=type(info).__name__):
+                self.db = RecordingDB()
+                self.db.info = info
+                with self.assertRaises(MigrationError): self.staged(STEPS[0])
+                self.assertEqual(self.db.trace, [])
+
+    def test_q2_borrowed_context_refuses_before_managed_sql(self):
+        self.db.borrowed_context = True
+        before = copy.deepcopy(self.db.ledger)
+        with self.assertRaises(MigrationError): self.staged(STEPS[0])
+        self.assertEqual(self.db.trace, [])
+        self.assertEqual(self.db.ledger, before)
+        self.assertEqual(self.db.commits, 0)
+
+    def test_q2_healthy_idle_commits_before_return_and_exit_must_be_idle(self):
+        self.assertEqual(self.staged(STEPS[0]), [STEPS[0]])
+        self.assertEqual(self.db.commits, 1)
+        self.assertEqual(self.db.info.transaction_status, TransactionStatus.IDLE)
+        self.db.leave_in_transaction = True
+        with self.assertRaises(MigrationError): self.staged(STEPS[1])
+
+    def test_q2_autocommit_false_refuses_before_managed_sql(self):
+        self.db.autocommit = False
+        with self.assertRaises(MigrationError): self.staged(STEPS[0])
+        self.assertEqual(self.db.trace, [])
+
+    def test_q2_state_change_during_manifest_read_refuses_before_managed_sql(self):
+        original = Path.read_text
+        def caller_begins(path, *args, **kwargs):
+            result = original(path, *args, **kwargs)
+            if path == self.historical/'manifest.json':
+                self.db.info.transaction_status = TransactionStatus.INTRANS
+            return result
+        with patch.object(Path, 'read_text', caller_begins):
+            with self.assertRaises(MigrationError): self.staged(STEPS[0])
+        self.assertEqual(self.db.trace, [])
+        self.assertIs(self.db.info.transaction_status, TransactionStatus.INTRANS)
+        self.assertEqual(self.db.commits, 0)
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,8 +11,18 @@ class MigrationError(ValueError):
 
 
 def apply_migrations(connection, directory=SCHEMA, *, through=None):
-    if not connection.autocommit:
-        raise MigrationError("Migration connection must use autocommit")
+    from psycopg.pq import TransactionStatus
+
+    def require_state(expected):
+        try:
+            autocommit = connection.autocommit
+            status = connection.info.transaction_status
+        except Exception:
+            raise MigrationError("Migration connection state unavailable") from None
+        if autocommit is not True or type(status) is not TransactionStatus or status is not expected:
+            raise MigrationError(f"Migration connection must use autocommit and driver {expected.name}")
+
+    require_state(TransactionStatus.IDLE)
     directory = Path(directory).resolve()
     manifest = json.loads((directory / "manifest.json").read_text())
     if type(manifest.get("version")) is not int or manifest["version"] != 1:
@@ -35,7 +45,16 @@ def apply_migrations(connection, directory=SCHEMA, *, through=None):
     else:
         prepared_target = len(prepared) - 1
     applied = []
-    with connection.transaction():
+    # Preparation must not borrow a transaction opened by the caller meanwhile.
+    require_state(TransactionStatus.IDLE)
+    with connection.transaction() as transaction:
+        try:
+            savepoint_name = transaction.savepoint_name
+        except Exception:
+            raise MigrationError("Migration transaction ownership unavailable") from None
+        if savepoint_name is not None:
+            raise MigrationError("Migration transaction must own the top-level commit")
+        require_state(TransactionStatus.INTRANS)
         connection.execute("SELECT pg_advisory_xact_lock(6203001)")
         connection.execute("CREATE SCHEMA IF NOT EXISTS core")
         connection.execute("""CREATE TABLE IF NOT EXISTS core.schema_migrations (
@@ -56,4 +75,5 @@ def apply_migrations(connection, directory=SCHEMA, *, through=None):
             connection.execute(sql, prepare=False)
             connection.execute("INSERT INTO core.schema_migrations (migration_id,sha256) VALUES (%s,%s)", (identity, digest))
             applied.append(identity)
+    require_state(TransactionStatus.IDLE)
     return applied

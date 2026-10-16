@@ -18,20 +18,20 @@
     "release": {
       "state": "BOUND",
       "value": {
-        "release_id": "v0.0.0-fixture",
-        "api_contract": "fixture-only",
-        "schema_version": 19,
-        "event_version": 4,
-        "core_module_version": "0.0.0-fixture",
-        "api_module_version": "0.0.0-fixture"
+        "api_contract": "cortex.core-api.v1",
+        "api_module_version": "0.2.001",
+        "core_module_version": "0.2.001",
+        "event_version": 1,
+        "release_id": "v0.2.001",
+        "schema_version": 1
       },
       "original_receipt": "49afc731-ebe1-5ec2-9455-d179fe08e52e"
     },
     "current_schema": {
       "manifest_path": "/opt/cortex/next/schema/manifest.json",
-      "manifest_sha256": "08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef",
-      "migration_count": 19,
-      "business_table_count": 42,
+      "manifest_sha256": "7c49366dcc51e6bea595db2735b51e1b8e2ea45f4d99fe8fd011f51972cdea83",
+      "migration_count": 20,
+      "business_table_count": 44,
       "migrations": [
         {
           "id": "core-0001",
@@ -127,6 +127,11 @@
           "id": "session-ids-read-0007",
           "file": "coordination/007-session-ids-read.sql",
           "sha256": "449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64"
+        },
+        {
+          "id": "runtime-grants-0001",
+          "file": "auth/007-runtime-grants.sql",
+          "sha256": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607"
         }
       ]
     },
@@ -524,8 +529,8 @@
         "state": "BOUND",
         "value": {
           "path": "/opt/cortex/next/contracts/runtime/runtime-lock-v1.schema.json",
-          "sha256": "82cc5af6ab758e8fc51ada65e3cb8ec574f6e7bf8960802849c58280b07463aa",
-          "bytes": 131751,
+          "sha256": "d7e705bb4873c1fae2b49310074d1fee5e5d8a3881091347b1c7b041606c9770",
+          "bytes": 131957,
           "mode": "0555",
           "version": "fixture-only",
           "abi": "fixture-linux",
@@ -593,7 +598,7 @@
       "format_version": 1,
       "declaration_scope": "synthetic-fixture",
       "mode": "api",
-      "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+      "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
       "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
       "target": "linux/arm64",
       "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -925,7 +930,7 @@
         "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
         "environment": "fixture",
         "component": "cortex",
-        "release": "v0.0.0-fixture"
+        "release": "v0.2.001"
       }
     },
     "linux/amd64": {
@@ -933,7 +938,7 @@
       "format_version": 1,
       "declaration_scope": "synthetic-fixture",
       "mode": "api",
-      "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+      "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
       "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
       "target": "linux/amd64",
       "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -1265,7 +1270,7 @@
         "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
         "environment": "fixture",
         "component": "cortex",
-        "release": "v0.0.0-fixture"
+        "release": "v0.2.001"
       }
     }
   },
@@ -1459,7 +1464,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "api",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/arm64",
         "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -1791,7 +1796,7 @@
           "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "supervisor": {
@@ -1799,7 +1804,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "supervisor",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/arm64",
         "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -2128,7 +2133,7 @@
           "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "migrate": {
@@ -2136,7 +2141,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "migrate",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/arm64",
         "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -2465,7 +2470,7 @@
           "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "inspect": {
@@ -2473,7 +2478,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "inspect",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/arm64",
         "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -2804,7 +2809,7 @@
           "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "core-init": {
@@ -2812,7 +2817,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "core-init",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/arm64",
         "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -3141,7 +3146,7 @@
           "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "core-server": {
@@ -3149,7 +3154,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "core-server",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/arm64",
         "installation_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
@@ -3476,7 +3481,7 @@
           "deployment_id": "bcaf3ec8-76cf-5c6d-945b-857411cc4028",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       }
     },
@@ -3486,7 +3491,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "api",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/amd64",
         "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -3818,7 +3823,7 @@
           "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "supervisor": {
@@ -3826,7 +3831,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "supervisor",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/amd64",
         "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -4155,7 +4160,7 @@
           "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "migrate": {
@@ -4163,7 +4168,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "migrate",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/amd64",
         "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -4492,7 +4497,7 @@
           "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "inspect": {
@@ -4500,7 +4505,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "inspect",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/amd64",
         "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -4831,7 +4836,7 @@
           "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "core-init": {
@@ -4839,7 +4844,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "core-init",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/amd64",
         "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -5168,7 +5173,7 @@
           "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       },
       "core-server": {
@@ -5176,7 +5181,7 @@
         "format_version": 1,
         "declaration_scope": "synthetic-fixture",
         "mode": "core-server",
-        "runtime_lock_sha256": "c2d71dcc5975c6c62571972886b1924e7807b21a3f674ba8778ee524643c7bb5",
+        "runtime_lock_sha256": "e27f690fd238cd1f440acc23cdb82a82e89797c18a8cfeb619b597a6390c9a05",
         "operations_sha256": "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b",
         "target": "linux/amd64",
         "installation_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
@@ -5503,7 +5508,7 @@
           "deployment_id": "c445d8f4-2bd7-5629-8149-0ebcf2d316aa",
           "environment": "fixture",
           "component": "cortex",
-          "release": "v0.0.0-fixture"
+          "release": "v0.2.001"
         }
       }
     }

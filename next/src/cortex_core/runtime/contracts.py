@@ -10,7 +10,7 @@ from .signed_member import Refusal
 MAX_LOCK_BYTES = 262144
 MAX_CONFIG_BYTES = 65536
 RC0_SHA256 = {
-    'runtime-lock-v1.schema.json': '82cc5af6ab758e8fc51ada65e3cb8ec574f6e7bf8960802849c58280b07463aa',
+    'runtime-lock-v1.schema.json': 'd7e705bb4873c1fae2b49310074d1fee5e5d8a3881091347b1c7b041606c9770',
     'runtime-config-v1.schema.json': '5ea3feaca027ad2a9aab6c280ba33194ae7a9e686916bd8056d9b08f0e9f4e7b',
     'runtime-operations-v1.json': '51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b',
 }

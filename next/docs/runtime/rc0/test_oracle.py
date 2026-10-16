@@ -6,10 +6,12 @@ import sys
 import unittest
 
 from oracle import Oracle, Refusal, decode, encode, sha
+from jsonschema import Draft202012Validator
 
 HERE = pathlib.Path(__file__).resolve().parent
 CONTRACTS = HERE.parents[2] / 'contracts/runtime'
 FIXTURE = json.loads((HERE / 'fixtures/paired-complete.json').read_text())
+HISTORICAL = json.loads((HERE / 'fixtures/paired-complete-19.json').read_bytes())
 NEGATIVES = json.loads((HERE / 'fixtures/negatives.json').read_text())
 GAPS = json.loads((HERE / 'fixtures/owner-gaps.json').read_text())
 
@@ -25,6 +27,13 @@ class RuntimeContractOracle(unittest.TestCase):
         for name in ('runtime-lock-v1.schema.json', 'runtime-config-v1.schema.json', 'runtime-operations-v1.json'):
             self.assertTrue((CONTRACTS / name).is_file(), 'missing RC0 contract: ' + name)
         return Oracle()
+
+    def historical_oracle(self):
+        # Data-only historical oracle, never a product fallback or selector.
+        oracle = self.oracle()
+        oracle.lock_schema = decode((HERE/'fixtures/runtime-lock-schema-19.json').read_bytes())
+        oracle.lock_validator = Draft202012Validator(oracle.lock_schema)
+        return oracle
 
     def test_complete_paired_round_trip_and_all_literal_vectors(self):
         oracle = self.oracle()
@@ -66,14 +75,14 @@ class RuntimeContractOracle(unittest.TestCase):
                 self.assertEqual(effects, dict.fromkeys(effects, 0))
 
     def test_owner_gaps_have_shape_but_no_selection_or_native_credit(self):
-        oracle = self.oracle()
+        oracle = self.historical_oracle()
         rows = GAPS['native_materials']
         self.assertEqual(len(rows), 17)
         self.assertEqual(len({r['id'] for r in rows}), 17)
         self.assertTrue(all(r['state'] == 'GAP' and r['native_material_sha256'] is None for r in rows))
         owner_lock = GAPS['nonlaunchable_lock_declaration']
         self.assertEqual(list(oracle.lock_validator.iter_errors(owner_lock)), [])
-        for target, cfg in FIXTURE['configs'].items():
+        for target, cfg in HISTORICAL['configs'].items():
             with self.subTest(target=target):
                 with self.assertRaises(Refusal) as refused:
                     oracle.select(owner_lock, cfg, oracle.operations, observed_target=target, mode='api')
@@ -141,6 +150,62 @@ class RuntimeContractOracle(unittest.TestCase):
                 with self.assertRaises(Refusal) as refused:
                     oracle.select(lock, cfg, oracle.operations, observed_target=target, mode='api')
                 self.assertEqual(refused.exception.reason, 'bad_shape')
+
+    def test_historical_originals_are_exact_and_current20_is_distinct(self):
+        self.assertEqual(sha((HERE/'fixtures/paired-complete-19.json').read_bytes()),
+                         'e1a8649904bc89ec410d395b339813fae7bb49739e059549534d90372f251dfe')
+        self.assertEqual(sha((HERE/'fixtures/runtime-lock-schema-19.json').read_bytes()),
+                         '82cc5af6ab758e8fc51ada65e3cb8ec574f6e7bf8960802849c58280b07463aa')
+        old, new = HISTORICAL['lock']['current_schema'], FIXTURE['lock']['current_schema']
+        self.assertEqual((old['migration_count'],old['business_table_count']), (19,42))
+        self.assertEqual((new['migration_count'],new['business_table_count']), (20,44))
+        self.assertEqual(new['migrations'][:19], old['migrations'])
+        self.assertEqual(new['migrations'][19]['id'], 'runtime-grants-0001')
+        self.assertNotEqual(new['manifest_sha256'], old['manifest_sha256'])
+        self.assertEqual(new['manifest_sha256'], sha((HERE.parents[2]/'schema/manifest.json').read_bytes()))
+
+    def test_historical_current_validator_matrix_refuses_both_crosses(self):
+        old, new = self.historical_oracle(), self.oracle()
+        for oracle, fixture in ((old,HISTORICAL), (new,FIXTURE)):
+            with self.subTest(own=fixture['lock']['current_schema']['migration_count']):
+                self.assertEqual(list(oracle.lock_validator.iter_errors(fixture['lock'])), [])
+                result = oracle.select(fixture['lock'], fixture['configs']['linux/arm64'],
+                                       oracle.operations, observed_target='linux/arm64', mode='api')
+                self.assertFalse(result['effect_authority'])
+                self.assertFalse(result['native_qualified'])
+        for oracle, fixture in ((old,FIXTURE), (new,HISTORICAL)):
+            with self.subTest(cross=fixture['lock']['current_schema']['migration_count']):
+                with self.assertRaises(Refusal) as refused:
+                    oracle.select(fixture['lock'], fixture['configs']['linux/arm64'],
+                                  oracle.operations, observed_target='linux/arm64', mode='api')
+                self.assertEqual(refused.exception.reason, 'bad_shape')
+
+    def test_selected_new_identity_abi_and_all_internal_pins(self):
+        self.assertEqual(FIXTURE['lock']['release']['value'], {
+            'release_id':'v0.2.001', 'api_contract':'cortex.core-api.v1',
+            'core_module_version':'0.2.001', 'api_module_version':'0.2.001',
+            'schema_version':1, 'event_version':1})
+        raw = (CONTRACTS/'runtime-lock-v1.schema.json').read_bytes()
+        member = FIXTURE['lock']['contract_members']['lock_schema']['value']
+        self.assertEqual((member['sha256'],member['bytes']), (sha(raw),len(raw)))
+        self.assertEqual(FIXTURE['lock']['format_version'], 1)
+        for modes in FIXTURE['mode_configs'].values():
+            for cfg in modes.values():
+                self.assertEqual(cfg['runtime_lock_sha256'], sha(FIXTURE['lock']))
+                self.assertEqual(cfg['metrics_labels']['release'], 'v0.2.001')
+        for cfg in FIXTURE['configs'].values():
+            self.assertEqual(cfg['runtime_lock_sha256'], sha(FIXTURE['lock']))
+
+    def test_current_binding_gaps_still_refuse_before_selection(self):
+        oracle = self.oracle()
+        lock = copy.deepcopy(GAPS['nonlaunchable_lock_declaration'])
+        lock['current_schema'] = copy.deepcopy(FIXTURE['lock']['current_schema'])
+        lock['contract_members']['lock_schema'] = copy.deepcopy(FIXTURE['lock']['contract_members']['lock_schema'])
+        self.assertEqual(list(oracle.lock_validator.iter_errors(lock)), [])
+        with self.assertRaises(Refusal) as refused:
+            oracle.select(lock, FIXTURE['configs']['linux/arm64'], oracle.operations,
+                          observed_target='linux/arm64', mode='api')
+        self.assertEqual(refused.exception.reason, 'required_binding_gap')
 
 
 if __name__ == '__main__':
