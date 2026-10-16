@@ -94,9 +94,27 @@ class Engine:
             self.binding['closure'].append(dict(self.binding['closure'][0], path=path,
                 ino=len(self.binding['closure']) + 4))
         if action == 'helper':
+            self.plan['role'] = 'api'
             for v in (self.plan['before'], self.plan['after']):
-                v.update(running=True, process={'boot': 'boot-one', 'pid': 90, 'start': 10, 'uid': 1001})
+                v.update(role='api', name='api', image=OTHER,
+                    argv=['/opt/cortex/python/bin/python3', '-I', '-B', '-m', 'cortex_core.runtime',
+                          'api', '--config', '/run/cortex/instance.json',
+                          '--runtime-lock', '/run/cortex/runtime.lock.json'],
+                    ports=['127.0.0.1:8000:8000'],
+                    mounts=[{'source': 'api-config', 'target': '/run/cortex/instance.json', 'read_only': True}],
+                    running=True, process={'boot': 'boot-one', 'pid': 90, 'start': 10, 'uid': 1001})
+            self.plan['name'] = 'api'
             self.state = copy.deepcopy(self.plan['before'])
+        self.plan['dependencies'] = []
+        self.related = {}
+        if kind == 'container':
+            v = self.plan['after'] or self.plan['before']
+            refs = [('image', copy.deepcopy(self.plan['image_pair'][0 if v['role'] == 'core' else 1])),
+                    ('network', dict(resource('network'), id=OTHER))]
+            refs += [('volume', dict(resource('volume'), name=m['source'])) for m in v['mounts']]
+            for depkind, record in refs:
+                self.plan['dependencies'].append({'kind': depkind, 'resource': copy.deepcopy(record)})
+                self.related[(depkind, record.get('id', record.get('name')))] = copy.deepcopy(record)
 
     @contextmanager
     def hold(self):
@@ -116,6 +134,8 @@ class Engine:
         self.reads += 1
         if self.on_observe:
             self.on_observe(self)
+        if kind != self.kind:
+            return copy.deepcopy(self.related.get((kind, target)))
         return copy.deepcopy(self.state)
 
     def witnesses(self):
@@ -452,6 +472,28 @@ class PodmanPrimitives(unittest.TestCase):
                     self.assertEqual(result[0], 'APPLIED');e.binding['authority'][0] = 'revoked'
         with self.assertRaises(OwnerRefusal):p.dispatch(e.plan['subject'])
         self.assertEqual(len(e.calls), 1)
+
+    def test_referenced_image_network_and_volume_replacement_prevents_create(self):
+        for kind in ['image', 'network', 'volume']:
+            e = Engine()
+            with self.subTest(kind=kind), self.opened(e) as p:
+                p.snapshot()
+                key = next(k for k in e.related if k[0] == kind)
+                if kind == 'volume':e.related[key]['mountpoint']['ino'] = 999
+                else:e.related[key]['id'] = 'f'*64
+                with self.assertRaises(OwnerRefusal):p.dispatch(e.plan['subject'])
+            self.assertEqual(e.calls, [])
+
+    def test_missing_reference_originals_prevent_create_and_foreign_consumer_is_UNKNOWN(self):
+        e = Engine();e.plan['dependencies'] = []
+        with self.assertRaises(OwnerRefusal):self.execute(e)
+        self.assertEqual(e.calls, [])
+        e = Engine()
+        def foreign(e):
+            key = next(k for k in e.related if k[0] == 'volume')
+            e.related[key]['consumers'] = ['f'*64]
+        e.on_run = foreign
+        self.assertEqual(self.execute(e)[0], 'UNKNOWN')
 
 
 if __name__ == '__main__':
