@@ -106,6 +106,8 @@ class Engine:
             self.plan['name'] = 'api'
             self.state = copy.deepcopy(self.plan['before'])
         self.plan['dependencies'] = []
+        self.plan['image_inventory'] = [copy.deepcopy(before)] if kind == 'image' and before is not None else []
+        self.images = copy.deepcopy(self.plan['image_inventory'])
         self.related = {}
         self.absent = set()
         if kind == 'container':
@@ -139,6 +141,8 @@ class Engine:
             self.on_observe(self)
         if (kind, target) in self.absent:
             return None
+        if kind == 'image_inventory':
+            return copy.deepcopy(self.images)
         if kind != self.kind:
             return copy.deepcopy(self.related.get((kind, target)))
         return copy.deepcopy(self.state)
@@ -175,6 +179,11 @@ class Engine:
                     if self.state is not None:
                         consumers.add(self.state['id'])
                     v['consumers'] = sorted(consumers)
+            elif self.kind == 'image':
+                changed_id = (self.plan['before'] or self.plan['after'])['id']
+                self.images = [v for v in self.images if v['id'] != changed_id]
+                if self.state is not None:
+                    self.images.append(copy.deepcopy(self.state))
         return copy.deepcopy(self.reply)
 
 
@@ -560,6 +569,12 @@ class PodmanPrimitives(unittest.TestCase):
                     '--pwfile=/run/cortex/bootstrap/initdb-password', '--no-instructions']
             for r in [e.plan['before'], e.plan['after']]:
                 r.update(role='helper', running=False, process=None, argv=argv, ports=[])
+                if mode == 'core-init':
+                    r['image'] = ID
+            if mode == 'core-init':
+                e.plan['dependencies'][0]['resource'] = dict(resource('image'), consumers=[ID])
+                del e.related[('image', OTHER)]
+                e.related[('image', ID)] = copy.deepcopy(e.plan['dependencies'][0]['resource'])
             e.state = copy.deepcopy(e.plan['before'])
             with self.subTest(mode=mode):self.assertEqual(self.execute(e)[0], 'APPLIED')
             self.assertEqual(e.calls[0][0][-4:], ('start', '--attach', '--sig-proxy=false', ID))
@@ -572,6 +587,26 @@ class PodmanPrimitives(unittest.TestCase):
             with self.subTest(fault=fault), self.assertRaises(OwnerRefusal):
                 with self.opened(e):self.fail('malformed binding accepted')
             self.assertEqual(e.calls, [])
+
+    def test_absolute_other_tools_are_not_admitted_Podman(self):
+        for name in ['docker', 'sudo', 'sh', 'podman-compose']:
+            e = Engine();e.binding['executable'] = '/owner/bin/' + name
+            e.binding['closure'][0]['path'] = e.binding['executable']
+            with self.subTest(name=name), self.assertRaises(OwnerRefusal):
+                with self.opened(e):self.fail('other executable admitted')
+            self.assertEqual((e.calls, e.reads), ([], 0))
+
+    def test_image_load_preserves_complete_shared_inventory_and_tags(self):
+        e = Engine('image', 'load')
+        old = dict(resource('image'), id='f'*64, config='sha256:'+'f'*64, tags=['shared:tag'])
+        e.plan['image_inventory'] = [copy.deepcopy(old)];e.images = [copy.deepcopy(old)]
+        self.assertEqual(self.execute(e)[0], 'APPLIED')
+        for fault in [lambda e: e.images[0].update(tags=['overwritten:tag']),
+                      lambda e: e.images.clear()]:
+            e = Engine('image', 'load')
+            e.plan['image_inventory'] = [copy.deepcopy(old)];e.images = [copy.deepcopy(old)]
+            e.on_run = fault
+            with self.subTest(fault=fault):self.assertEqual(self.execute(e)[0], 'UNKNOWN')
 
 
 if __name__ == '__main__':
