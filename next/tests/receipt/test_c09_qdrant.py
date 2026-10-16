@@ -683,3 +683,235 @@ class S2Tests(unittest.IsolatedAsyncioTestCase):
                 finally:
                     gate.set()
                     await asyncio.gather(*jobs, return_exceptions=True)
+
+# S3 controls are appended; the complete S2 prefix remains immutable.
+from dataclasses import replace
+from types import SimpleNamespace
+from uuid import UUID
+from cortex_core.embeddings.projection_revision import EmbeddingIdentity
+try:
+    from cortex_core.modules.vector import projection as s3
+except ImportError:
+    s3 = None
+
+
+class ProjectionServer:
+    """Controlled destination with conditional whole-point replacement, no Core."""
+    def __init__(self, fault=None):
+        self.fault, self.points, self.calls = fault, {}, []
+        self.before_write = None
+        self.reads = 0
+
+    async def __call__(self, request):
+        body = json.loads(request.content) if request.content else None
+        self.calls.append((request.method, request.url.path, copy.deepcopy(body), request.headers['api-key']))
+        def reply(value, status=200):
+            return httpx.Response(status, json=value)
+        if request.method == 'PUT':
+            if self.before_write is not None:
+                callback, self.before_write = self.before_write, None
+                callback(self)
+            if self.fault == 'denied':
+                return reply({'error': 'SYNTHETIC-PRIVATE'}, 403)
+            if self.fault == 'unsupported':
+                return reply({'error': 'SYNTHETIC-PRIVATE'}, 404)
+            for point in body['points']:
+                old = self.points.get(point['id'])
+                mode = body.get('update_mode', 'upsert')
+                if mode == 'insert_only' and old is not None:
+                    continue
+                if mode == 'update_only' and old is None:
+                    continue
+                if old is not None and any(old['payload'].get(c['key']) != c['match']['value']
+                        for c in body.get('update_filter', {}).get('must', [])):
+                    continue
+                self.points[point['id']] = copy.deepcopy(point)
+            if self.fault == 'lost_ack':
+                raise RuntimeError('SYNTHETIC-PRIVATE-PARTIAL-EFFECT')
+            return reply({'status': 'ok', 'result': {'operation_id': 4,
+                'status': 'acknowledged' if self.fault == 'ack' else 'completed'}})
+        if request.method == 'POST' and request.url.path.endswith('/points'):
+            self.reads += 1
+            values = [copy.deepcopy(self.points[i]) for i in body['ids'] if i in self.points]
+            if self.fault == 'readback' and self.reads > 1 and values:
+                values[0]['vector'][0] += 1
+            if self.fault == 'duplicate' and values:
+                values.append(copy.deepcopy(values[0]))
+            if self.fault == 'malformed':
+                return httpx.Response(200, content=b'{"status":"ok","result":[],"result":[]}',
+                                      headers={'content-type': 'application/json'})
+            return reply({'status': 'ok', 'result': values})
+        raise AssertionError('Unexpected product HTTP route')
+
+
+class S3Tests(unittest.IsolatedAsyncioTestCase):
+    client = S2Tests.client
+
+    def binding(self, **overrides):
+        self.assertIsNotNone(s3, 'S3 source contract absent')
+        values = dict(installation_id=UUID(int=1), tenant_id=UUID(int=2), project_id=UUID(int=3),
+                      module_id='qdrant', consumer_generation=1, collection_generation=UUID(int=4),
+                      identity=EmbeddingIdentity('synthetic','model','v1',768,'text-v1'))
+        return s3.ProjectionBinding(**(values | overrides))
+
+    def event(self, revision=1, tombstone=False, **overrides):
+        payload = b'committed synthetic text'
+        import hashlib
+        env = dict(installation_id=str(UUID(int=1)), tenant_id=str(UUID(int=2)),
+                   project_id=str(UUID(int=3)), aggregate_id=str(UUID(int=10)),
+                   event_id=str(UUID(int=100+revision)), aggregate_revision=revision,
+                   aggregate_kind='memory', tombstone=tombstone, schema_version=1,
+                   operation='delete' if tombstone else 'upsert',
+                   payload_sha256=hashlib.sha256(payload).hexdigest())
+        return SimpleNamespace(cursor=revision, envelope=env | overrides, payload=payload)
+
+    @staticmethod
+    def vector(first=1.):
+        return [first, .5] + [0.]*766
+
+    async def apply_refusal(self, client, binding, event, vector=None):
+        caught = None
+        try:
+            await client.apply_projection(binding, event, self.vector() if vector is None else vector)
+        except Exception as error:
+            caught = error
+        self.assertIsInstance(caught, module.ProtocolFailure)
+        self.assertEqual(caught.code, 'capability_unavailable')
+        self.assertNotIn('SYNTHETIC-PRIVATE', str(caught))
+        return caught
+
+    async def test_s3_insert_complete_key_receipt_and_no_ordinary_upsert(self):
+        binding = self.binding()
+        for platform in PLATFORMS:
+            server = ProjectionServer()
+            async with self.client(server, platform=platform) as client:
+                receipt = await client.apply_projection(binding, self.event(), self.vector())
+                self.assertEqual(s3.validate_receipt(receipt, binding, self.event()), 'applied')
+                self.assertFalse(client.status()['module_ready'])
+                self.assertFalse(client.status()['core_auth_bound'])
+            self.assertEqual(len(server.points), 1)
+            point = next(iter(server.points.values()))
+            self.assertEqual(point, s3.build_point(binding, self.event(), self.vector()))
+            write = [c for c in server.calls if c[0] == 'PUT']
+            self.assertEqual(len(write), 1)
+            self.assertEqual(write[0][2]['update_mode'], 'insert_only')
+            self.assertTrue(all(c[1].startswith('/collections/cortex-') for c in server.calls))
+            self.assertEqual(server.reads, 2)
+
+    async def test_s3_full_key_and_model_generation_change_point_identity(self):
+        binding = self.binding()
+        point = s3.build_point(binding, self.event(), self.vector())
+        fields = dict(installation_id=UUID(int=21),tenant_id=UUID(int=22),project_id=UUID(int=23),
+                      module_id='other',consumer_generation=2,collection_generation=UUID(int=24),
+                      identity=EmbeddingIdentity('synthetic','model','v2',768,'text-v1'))
+        for field, value in fields.items():
+            altered = replace(binding, **{field:value})
+            event = self.event(**({field:str(value)} if field in ('installation_id','tenant_id','project_id') else {}))
+            self.assertNotEqual(point['id'], s3.build_point(altered,event,self.vector())['id'])
+        with self.assertRaises(ValueError):
+            s3.build_point(binding,self.event(tenant_id=str(UUID(int=999))),self.vector())
+
+    async def test_s3_update_cas_carries_every_key_and_observed_effect(self):
+        binding = self.binding(); server = ProjectionServer()
+        async with self.client(server) as client:
+            await client.apply_projection(binding,self.event(),self.vector())
+            receipt = await client.apply_projection(binding,self.event(2),self.vector(.25))
+        self.assertEqual(s3.validate_receipt(receipt,binding,self.event(2)), 'applied')
+        writes = [c[2] for c in server.calls if c[0]=='PUT']
+        self.assertEqual(writes[1]['update_mode'],'update_only')
+        conditions = {c['key']:c['match']['value'] for c in writes[1]['update_filter']['must']}
+        for field,value in s3.point_key(binding,UUID(int=10)).items():
+            self.assertEqual(conditions[field],value)
+        self.assertEqual(conditions['revision'],1)
+        self.assertEqual(conditions['effect_sha256'], writes[0]['points'][0]['payload']['effect_sha256'])
+
+    async def test_s3_replay_stale_and_tombstone_preserve_complete_newer_effect(self):
+        binding = self.binding(); server = ProjectionServer()
+        async with self.client(server) as client:
+            await client.apply_projection(binding,self.event(2,True),self.vector())
+            tombstone = copy.deepcopy(server.points)
+            receipt = await client.apply_projection(binding,self.event(2,True),self.vector())
+            self.assertEqual(s3.validate_receipt(receipt,binding,self.event(2,True)),'applied')
+            stale = await client.apply_projection(binding,self.event(),self.vector(.25))
+            self.assertEqual(s3.validate_receipt(stale,binding,self.event()),'stale')
+        self.assertEqual(server.points,tombstone)
+        self.assertEqual(stale['observed']['revision'],2)
+        self.assertTrue(stale['observed']['tombstone'])
+
+    async def test_s3_equal_revision_different_effect_and_collision_refuse(self):
+        binding = self.binding(); server = ProjectionServer()
+        async with self.client(server) as client:
+            await client.apply_projection(binding,self.event(),self.vector())
+            original = copy.deepcopy(server.points)
+            await self.apply_refusal(client,binding,self.event(),self.vector(.25))
+            self.assertEqual(server.points,original)
+            point=next(iter(server.points.values()))
+            point['payload']['tenant_id']=str(UUID(int=999))
+            count=len(server.calls)
+            await self.apply_refusal(client,binding,self.event(2))
+            self.assertFalse(any(c[0]=='PUT' for c in server.calls[count:]))
+
+    async def test_s3_destination_race_cannot_overwrite_newer_or_accept_unknown(self):
+        binding=self.binding(); server=ProjectionServer()
+        async with self.client(server) as client:
+            await client.apply_projection(binding,self.event(),self.vector())
+            newer=s3.build_point(binding,self.event(3,True),self.vector(.75))
+            server.before_write=lambda s:s.points.update({newer['id']:newer})
+            receipt=await client.apply_projection(binding,self.event(2),self.vector(.25))
+            self.assertEqual(s3.validate_receipt(receipt,binding,self.event(2)),'stale')
+            self.assertEqual(server.points[newer['id']],newer)
+            server.before_write=lambda s:s.points.clear()
+            await self.apply_refusal(client,binding,self.event(4))
+            self.assertFalse(server.points)  # update_only must not insert on racing removal
+
+    async def test_s3_lost_ack_is_unavailable_then_replay_reconciles_without_duplicate(self):
+        binding=self.binding();server=ProjectionServer('lost_ack')
+        async with self.client(server) as client:
+            await self.apply_refusal(client,binding,self.event())
+            self.assertEqual(len(server.points),1)
+            self.assertEqual(sum(c[0]=='PUT' for c in server.calls),1)
+            server.fault=None
+            receipt=await client.apply_projection(binding,self.event(),self.vector())
+            self.assertEqual(s3.validate_receipt(receipt,binding,self.event()),'applied')
+        self.assertEqual(len(server.points),1)
+
+    async def test_s3_engine_refusals_and_incomplete_readback_never_receipt(self):
+        binding=self.binding()
+        for fault in ('ack','denied','unsupported','readback','duplicate','malformed'):
+            with self.subTest(fault=fault):
+                server=ProjectionServer(fault)
+                async with self.client(server) as client:
+                    await self.apply_refusal(client,binding,self.event())
+                    self.assertFalse(client.status()['module_ready'])
+
+    async def test_s3_receipt_validator_closed_scope_event_and_observation(self):
+        binding=self.binding();server=ProjectionServer()
+        async with self.client(server) as client:
+            receipt=await client.apply_projection(binding,self.event(),self.vector())
+        for path,value in [('version',1),('event_id',str(UUID(int=99))),('generation',True),
+                           ('revision',True),('stale',True),('effect_sha256','0'*64),
+                           ('key.tenant_id',str(UUID(int=99))),('key.model_identity','0'*64),
+                           ('observed.revision',True),('observed.effect_sha256','0'*64),
+                           ('observed.tombstone',True),('proof','acknowledged')]:
+            altered=copy.deepcopy(receipt);target=altered;parts=path.split('.')
+            for part in parts[:-1]:target=target[part]
+            target[parts[-1]]=value
+            with self.subTest(path=path):
+                with self.assertRaises(ValueError):s3.validate_receipt(altered,binding,self.event())
+        altered=copy.deepcopy(receipt);altered['extra']=True
+        with self.assertRaises(ValueError):s3.validate_receipt(altered,binding,self.event())
+
+    async def test_s3_event_and_vector_refuse_before_transport_and_deadline_is_owned(self):
+        binding=self.binding(); server=ProjectionServer()
+        async with self.client(server) as client:
+            for event,vector in [(self.event(aggregate_revision=True),self.vector()),
+                    (self.event(payload_sha256='0'*64),self.vector()),
+                    (self.event(project_id=str(UUID(int=999))),self.vector()),
+                    (self.event(),[float('nan')]+[0.]*767)]:
+                await self.apply_refusal(client,binding,event,vector)
+            self.assertEqual(server.calls,[])
+            caught=None
+            try:await client.apply_projection(binding,self.event(),self.vector(),deadline=time.monotonic()-1)
+            except Exception as error:caught=error
+            self.assertIsInstance(caught,module.ProtocolFailure)
+            self.assertEqual(server.calls,[])
