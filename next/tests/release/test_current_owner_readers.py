@@ -86,6 +86,18 @@ class CurrentOwnerReaders(unittest.TestCase):
      with patch.object(Path,'open',changed):
       e=self.refused(m._precut_policy);self.assertNotIn('SENTINEL',str(e))
 
+ def test_semantically_valid_same_size_receipt_replacement_is_refused(self):
+  m=self.module();home=NEXT/'release/custody/2026-10-16'
+  names=('aggregate-policy.json','root-store-permission.json','owner-policy-custodian-acceptance.json')
+  originals={name:(home/name).read_bytes() for name in names}
+  name=names[2];changed=originals[name].replace(b'2026-10-16T06:10:38',b'2026-10-16T06:10:39')
+  self.assertNotEqual(changed,originals[name]);self.assertEqual(len(changed),len(originals[name]))
+  # Valid canonical DATA with identical permission/joins still is not the original.
+  self.assertEqual(m.canonical_bytes(m.decode_json(changed,len(changed))),changed)
+  def replaced(path,*args,**kwargs):
+   return io.BytesIO(changed if path.name==name else originals[path.name])
+  with patch.object(Path,'open',replaced):self.refused(m._precut_policy)
+
  def test_precut_pending_permission_and_digest_joins_are_observed(self):
   m=self.module();decode=m.decode_json
   faults=[('aggregate-policy.json',lambda v:v['owner_binding'].update(root_store_sha256='0'*64)),
