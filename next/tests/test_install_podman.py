@@ -701,5 +701,116 @@ class BoundaryPositiveControls(unittest.TestCase):
             self.assertEqual(len(e.calls), 1)
 
 
+# X11C-M1/M2/M3: retain mechanics review cases using the same engine fixture.
+import sys
+f = sys.modules[__name__]
+from cortex_core.install import podman as api
+
+class ReviewCases(unittest.TestCase):
+    @contextmanager
+    def opened(self,e):
+        with patch.object(api,'_installed_engine',lambda:e):
+            with api._open() as p:yield p
+    def execute(self,e):
+        with self.opened(e) as p:
+            p.snapshot();p.dispatch(copy.deepcopy(e.plan['subject']))
+            n=len(e.calls)
+            with p.measure(e.plan['subject']) as result:
+                self.assertEqual(len(e.calls),n,'measurement dispatched')
+                return result
+    def network(self,action):
+        e=f.Engine('network',action)
+        e.plan['before']['consumers']=[] if action=='connect' else [f.OTHER]
+        e.plan['after']['consumers']=[f.OTHER] if action=='connect' else []
+        e.state=copy.deepcopy(e.plan['before'])
+        c=dict(f.resource('container'),id=f.OTHER,network=None if action=='connect' else f.ID)
+        e.plan['dependencies']=[{'kind':'container','resource':copy.deepcopy(c)}]
+        e.related[('container',f.OTHER)]=copy.deepcopy(c)
+        return e
+    def start(self):
+        e=f.Engine('container','start')
+        e.plan['after'].update(running=True,process={'boot':'boot-one','pid':90,'start':10,'uid':1001})
+        return e
+    def test_applied_controls_all_resource_families(self):
+        for kind,action in [('image','load'),('volume','create'),('network','create'),('container','create')]:
+            with self.subTest(kind=kind):
+                e=f.Engine(kind,action);self.assertEqual(self.execute(e)[0],'APPLIED');self.assertEqual(len(e.calls),1)
+    def test_not_applied_controls_all_create_load_families(self):
+        for kind,action in [('image','load'),('volume','create'),('network','create'),('container','create')]:
+            with self.subTest(kind=kind):
+                e=f.Engine(kind,action);e.reply['returncode']=125;e.on_run=lambda e:setattr(e,'state',None)
+                self.assertEqual(self.execute(e)[0],'NOT_APPLIED');self.assertEqual(len(e.calls),1)
+    def test_network_connect_and_disconnect_applied_controls(self):
+        for action in ['connect','disconnect']:
+            with self.subTest(action=action):
+                e=self.network(action);e.on_run=lambda e,a=action:e.related[('container',f.OTHER)].update(network=f.ID if a=='connect' else None)
+                self.assertEqual(self.execute(e)[0],'APPLIED')
+    def test_partial_network_two_sides_remain_unknown(self):
+        for action in ['connect','disconnect']:
+            with self.subTest(action=action):self.assertEqual(self.execute(self.network(action))[0],'UNKNOWN')
+    def test_network_connect_proved_not_applied(self):
+        e=self.network('connect');old=copy.deepcopy(e.state);e.reply['returncode']=125
+        e.on_run=lambda e:setattr(e,'state',copy.deepcopy(old))
+        self.assertEqual(self.execute(e)[0],'NOT_APPLIED','complete original network+container preimage and clean finite helper must reconcile')
+    def test_network_disconnect_proved_not_applied(self):
+        e=self.network('disconnect');old=copy.deepcopy(e.state);e.reply['returncode']=125
+        e.on_run=lambda e:setattr(e,'state',copy.deepcopy(old))
+        self.assertEqual(self.execute(e)[0],'NOT_APPLIED','complete original network+container preimage and clean finite helper must reconcile')
+    def test_start_known_post_lifetime_control(self):
+        self.assertEqual(self.execute(self.start())[0],'APPLIED')
+    def test_start_accepts_unpredicted_kernel_lifetime(self):
+        e=self.start();e.plan['after']['process']=None
+        e.on_run=lambda e:e.state.update(process={'boot':'boot-one','pid':91,'start':11,'uid':1001})
+        try:result=self.execute(e)
+        except OwnerRefusal as exc:self.fail('start cannot hold an unobserved generated lifetime: '+exc.detail)
+        self.assertEqual(result[0],'APPLIED')
+    def test_start_measures_actual_lifetime_instead_of_predicting_pid(self):
+        e=self.start();e.on_run=lambda e:e.state.update(process={'boot':'boot-one','pid':91,'start':11,'uid':1001})
+        self.assertEqual(self.execute(e)[0],'APPLIED','a clean admitted start must measure its generated actual process identity, then pin it')
+    def test_nonhelper_cleanup_must_join_dispatched_execution_lifetime(self):
+        for kind,action in [('image','load'),('volume','create'),('network','create'),('container','create')]:
+            with self.subTest(kind=kind):
+                e=f.Engine(kind,action)
+                # The independent execution original pins child81. Clean child82
+                # is a different true observation, not proof that child81 was reaped.
+                e.on_run=lambda e:e.reply['lifetime'].update(pid=82,start=99)
+                self.assertEqual(self.execute(e)[0],'UNKNOWN','unrelated finite child cleanup cannot verify the dispatched child')
+    def test_nonhelper_missing_execution_original_is_unknown(self):
+        for kind,action in [('image','load'),('volume','create'),('network','create'),('container','create')]:
+            with self.subTest(kind=kind):
+                e=f.Engine(kind,action);e.execution_fault=lambda w:w.update(execution=None)
+                self.assertEqual(self.execute(e)[0],'UNKNOWN','missing independent current execution original must not verify finite cleanup')
+    def test_helper_wrong_cleanup_lifetime_is_unknown_control(self):
+        e=f.Engine('container','helper');e.on_run=lambda e:e.reply['lifetime'].update(pid=82,start=99)
+        self.assertEqual(self.execute(e)[0],'UNKNOWN')
+    def test_helper_wrong_execution_subject_is_unknown_control(self):
+        e=f.Engine('container','helper');e.execution_fault=lambda w:w['execution']['subject']['identity'].update(install='other')
+        self.assertEqual(self.execute(e)[0],'UNKNOWN')
+    def test_lost_reply_does_not_imply_no_effect(self):
+        for kind,action in [('image','load'),('volume','create'),('network','create'),('container','create')]:
+            with self.subTest(kind=kind):
+                e=f.Engine(kind,action);e.on_run=lambda e:(_ for _ in ()).throw(TimeoutError())
+                self.assertEqual(self.execute(e)[0],'APPLIED')
+    def test_repeated_measurement_performs_zero_additional_dispatches(self):
+        e=f.Engine()
+        with self.opened(e) as p:
+            p.snapshot();p.dispatch(e.plan['subject'])
+            for _ in range(2):
+                with p.measure(e.plan['subject']) as result:self.assertEqual(result[0],'APPLIED')
+            self.assertEqual(len(e.calls),1)
+    def test_changed_postimage_and_publication_witness_refuse(self):
+        e=f.Engine()
+        with self.opened(e) as p:
+            p.snapshot();p.dispatch(e.plan['subject'])
+            with self.assertRaises(OwnerRefusal):
+                with p.measure(e.plan['subject']) as result:
+                    self.assertEqual(result[0],'APPLIED');e.reply['lifetime']['pid']=82
+    def test_default_native_binding_stays_unavailable(self):
+        with patch('subprocess.Popen',side_effect=AssertionError('host execution')):
+            with self.assertRaises(OwnerRefusal) as ctx:
+                with api._open():self.fail('unbound native engine opened')
+        self.assertEqual(ctx.exception.detail,'required_binding_gap')
+
+
 if __name__ == '__main__':
     unittest.main()
