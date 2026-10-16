@@ -1069,8 +1069,8 @@ class RecoveryJoinOracle(unittest.TestCase):
     def test_P2B02_lost_reply_after_publication_reuses_the_exact_result(self):
         with tempfile.TemporaryDirectory() as root:
             s=JoinedSubject(root);raw=s.truth();actual=s.history.append
-            def published(record,*,expected_ref):
-                ref=actual(record,expected_ref=expected_ref)
+            def published(record,*,expected_ref,**publication):
+                ref=actual(record,expected_ref=expected_ref,**publication)
                 if record['result_ref'] is not None:s.expired=True
                 return ref
             with patch.object(s.history,'append',published):
