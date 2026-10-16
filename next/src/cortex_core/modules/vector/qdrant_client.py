@@ -1,7 +1,7 @@
-"""S2 bounded private HTTP probe. Native custody/placement and READY are UNBOUND.
+"""Bounded controlled HTTP probe and projection client; native remains UNBOUND.
 
 Only an explicit controlled MockTransport is admitted in this source profile.
-No default socket transport, Core binding, apply receipt or engine fallback.
+No default socket transport, runtime binding, READY admission or engine fallback.
 """
 import asyncio
 import copy
