@@ -56,6 +56,7 @@ class Resumed(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             s=helper.fixture(root)
             for phase in phases.PHASES:helper.run_phase(s,phase)
+            s.helper.context(s.data,lambda c:c['host_lease'].update(expires_at=1700000090))
             s.helper.edit_record(s.data,'clock_ref',lambda c:c.update(now_utc=1700000040,monotonic_ns=140_000_000_000))
             s.helper.clock(s.data,lambda c:c.update(now_utc=1700000041,monotonic_ns=141_000_000_000))
             s.helper.clock_receipt(s.data,lambda r:r['monotonic_deadlines'].update({k:200_000_000_000 for k in r['monotonic_deadlines']}))
