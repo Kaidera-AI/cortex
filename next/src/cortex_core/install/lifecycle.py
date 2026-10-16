@@ -161,6 +161,10 @@ class _History:
                     stop if previous is None else min(stop, previous[2]))
             try:
                 yield
+                # Final owner/history reads can return after the original stop.
+                # Refuse a late successful ACK while retaining durable facts.
+                if deadline is not None:
+                    self._check_publication(self.head()[0])
             finally:
                 self._publication.current = previous
 
@@ -936,6 +940,8 @@ def _execute_bound(original_request, first):
             _sql_prefix(history,consumed,consumed)
         effect_context = freeze(effect_data)
         try:
+            # Dispatch preparation can wait after its last owner observation.
+            history._check_publication(consumed)
             if cleanup is None or cleanup['targets']:
                 primitive.dispatch(effect_context)
             with _measurement(primitive,effect_context,mandated=mandated) as measured:
