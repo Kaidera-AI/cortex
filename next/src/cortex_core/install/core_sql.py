@@ -34,6 +34,7 @@ class _CoreSQL:
         self.previous_refs = thaw(previous_refs)
         self.sql_mandate_raw = getattr(primitive, 'sql_mandate_raw', None)
         self._stop = None
+        self.observation_ref = None
 
     def snapshot(self):
         return self.primitive.snapshot()
@@ -96,6 +97,23 @@ class _CoreSQL:
             and len({r[0] for r in rows}) == len(rows) and selected.get('through') == rows[-1][0]
             and type(selected.get('manifest_sha256')) is str
             and lifecycle._DIGEST.fullmatch(selected['manifest_sha256']), 'resource_changed')
+        # Use the sole R01 original-member reader; a selected descriptor cannot
+        # relabel a sealed20 member as full21 or substitute another ledger.
+        from cortex_core.runtime.contracts import decode, MAX_LOCK_BYTES
+        inputs = lifecycle._owner_inputs()
+        current = owner._decode(inputs.context_raw, 'owner_unavailable')
+        request = inputs.originals[current['request_ref']['path']]
+        q = thaw(lifecycle.parse_install_message(request, expected_kind='request').document)
+        member = owner.signed_member.request_member(inputs.aggregate_id, owner.RUNTIME_LOCK_MEMBER)
+        raw = owner.signed_member.read_member(member, aggregate_id=inputs.aggregate_id,
+                                              member_name=owner.RUNTIME_LOCK_MEMBER)
+        refs = [r for r in q['release']['artifact_refs'] if r['path'] == owner.RUNTIME_LOCK_MEMBER]
+        owner._require(len(refs) == 1, 'scope_denied')
+        lifecycle.measure_original_ref(refs[0], raw)
+        schema = decode(raw, limit=MAX_LOCK_BYTES)['current_schema']
+        owner._require(selected['manifest_sha256'] == schema['manifest_sha256']
+            and rows == [[r['id'], r['sha256']] for r in schema['migrations']]
+            and len(rows) == schema['migration_count'], 'resource_changed')
         return selected
 
     def _previous(self, context):
@@ -133,11 +151,24 @@ class _CoreSQL:
             and value.get('selection_ref') == self.selection_ref and value.get('windows_ref') == self.windows_ref,
             'resource_changed')
         selected = self._selection()
+        # Keep only the fixed nonsecret supplier DATA shape. Failed admission
+        # still exposes its exact retained inventory to X1-c, never a result.
+        fields = {'identity','phase','selection_ref','windows_ref','root','fresh','sql_ready',
+            'probe_closed','bootstrap_closed','finite_phase','committed','ledger','roles_bound',
+            'acl_exact','finite_disabled','auth_fenced','unresolved','old_generation_absent','applied_cleaned'}
+        unresolved = value.get('unresolved')
+        owner._require(set(value) == fields and type(unresolved) is dict and set(unresolved) == _INVENTORY
+            and all(type(items) is list and all(type(item) is dict
+                and set(item) == {'original_lifetime'} and type(item['original_lifetime']) is str
+                and 0 < len(item['original_lifetime']) <= 256 for item in items)
+                for items in unresolved.values()), 'journal_invalid')
+        self.observation_ref = self.history.retain(raw)
         if self.phase == 'init':
             root = value.get('root', {})
             owner._require(value.get('fresh') is True and all(root.get(k) is True for k in ('held', 'owned'))
                 and (post or root.get('empty') is True) and type(root.get('uid')) is int
-                and root['uid'] > 0 and root['uid'] == root.get('server_uid'), 'resource_changed')
+                and root['uid'] > 0 and root['uid'] == root.get('server_uid')
+                and (not post or not unresolved['children'] and not unresolved['carriers']), 'resource_changed')
         if self.phase == 'ready':
             owner._require(value.get('sql_ready') is True and value.get('probe_closed') is True,
                            'backend_unavailable')
@@ -161,13 +192,33 @@ class _CoreSQL:
                            'attempt_ambiguous')
         return raw
 
+    @contextmanager
+    def _bounded(self, context, *, recovery=None):
+        # A non-authority time clamp around the existing finite SQL client.
+        # Keep it installed through the SQL measure's publication exclusion.
+        from cortex_core.runtime.role_grants import _Primitive
+        client = self.primitive.client if type(self.primitive) is _Primitive else None
+        previous = getattr(client, '_finite_boundary', None)
+        def boundary():
+            self._guard(context, recovery=recovery)
+            return self._stop
+        if client is not None:
+            owner._require(previous is None, 'atomicity_unavailable')
+            client._finite_boundary = boundary
+        try:
+            yield
+        finally:
+            if client is not None:
+                client._finite_boundary = previous
+
     def dispatch(self, context):
         self._guard(context)
         self._previous(context)
         self._observed(context, post=False)
         self._guard(context)
         if self.phase != 'ordinary':
-            self.primitive.dispatch(context)
+            with self._bounded(context):
+                self.primitive.dispatch(context)
         self._guard(context)
 
     def _finish(self, context, raw, *, recovery=None):
@@ -177,37 +228,42 @@ class _CoreSQL:
             and result['state'] in ('applied_verified', 'not_applied_verified'), 'attempt_ambiguous')
         observation = self._observed(context, post=result['state'] == 'applied_verified', recovery=recovery)
         if recovery is not None:
-            # Never synthesize a fresh terminal result or a retry from new DATA.
-            original = result['observed'].get('core_sql', {})
-            owner._require(original.get('phase') == self.phase and original.get('selection_ref') == self.selection_ref
-                and original.get('windows_ref') == self.windows_ref
-                and original.get('previous_refs') == self.previous_refs, 'attempt_ambiguous')
-            self.history.read(original['observation_ref'])
-            return raw
+            # Only the existing inner reconciler establishes SQL truth. Preserve
+            # an already-published result exactly; a lost result may join fresh
+            # independent observation refs to that original consumed subject.
+            original = result['observed'].get('core_sql')
+            if original is not None:
+                owner._require(original.get('phase') == self.phase and original.get('selection_ref') == self.selection_ref
+                    and original.get('windows_ref') == self.windows_ref
+                    and original.get('previous_refs') == self.previous_refs, 'attempt_ambiguous')
+                self.history.read(original['observation_ref'])
+                return raw
         original = {'phase':self.phase, 'selection_ref':self.selection_ref, 'windows_ref':self.windows_ref,
-            'previous_refs':self.previous_refs, 'observation_ref':self.history.retain(observation)}
-        self._guard(context)
+            'previous_refs':self.previous_refs, 'observation_ref':self.observation_ref}
+        self._guard(context, recovery=recovery)
         result['observed'] = {**result['observed'], 'core_sql':original}
         return canonical_bytes(result)
 
     @contextmanager
     def _measured(self, context, *, recovery=None):
         # Preserve the inner SQL exclusion across observation and P1 publication.
-        measured = self.primitive.measure(context, **({} if recovery is None else {'recovery':recovery}))
-        with measured as answer:
-            if recovery is None:
-                yield self._finish(context, answer)
-            else:
-                state, raw = answer
-                if state == 'UNKNOWN':
-                    yield answer
+        with self._bounded(context, recovery=recovery):
+            measured = self.primitive.measure(context, **({} if recovery is None else {'recovery':recovery}))
+            with measured as answer:
+                if recovery is None:
+                    yield self._finish(context, answer)
                 else:
-                    yield state, self._finish(context, raw, recovery=recovery)
+                    state, raw = answer
+                    if state == 'UNKNOWN':
+                        yield answer
+                    else:
+                        yield state, self._finish(context, raw, recovery=recovery)
 
     def measure(self, context, *, recovery=None):
         if self.sql_mandate_raw is not None:
             return self._measured(context, recovery=recovery)
-        if recovery is not None:
-            state, raw = self.primitive.measure(context, recovery=recovery)
-            return (state, raw) if state == 'UNKNOWN' else (state, self._finish(context, raw, recovery=recovery))
-        return self._finish(context, self.primitive.measure(context))
+        with self._bounded(context, recovery=recovery):
+            if recovery is not None:
+                state, raw = self.primitive.measure(context, recovery=recovery)
+                return (state, raw) if state == 'UNKNOWN' else (state, self._finish(context, raw, recovery=recovery))
+            return self._finish(context, self.primitive.measure(context))

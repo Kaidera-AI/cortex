@@ -11,7 +11,7 @@ class MigrationError(ValueError):
     """Untrusted migration input or an incompatible applied ledger."""
 
 
-def apply_migrations(connection, directory=SCHEMA, *, through=None, _boundary=None, _transaction_scope=None):
+def apply_migrations(connection, directory=SCHEMA, *, through=None, _boundary=None, _transaction_scope=None, _execute=None):
     from psycopg.pq import TransactionStatus
 
     def require_state(expected):
@@ -29,7 +29,7 @@ def apply_migrations(connection, directory=SCHEMA, *, through=None, _boundary=No
 
     def execute(*args, **kwargs):
         boundary('before_sql')
-        result = connection.execute(*args, **kwargs)
+        result = (_execute if _execute is not None else connection.execute)(*args, **kwargs)
         boundary('after_sql')
         return result
 

@@ -264,6 +264,22 @@ class _RoleAdapter:
                 _require(status == driver.pq.TransactionStatus.IDLE, 'atomicity_unavailable')
         return driver
 
+    def _execute(self, conn, *args, **kwargs):
+        # Same existing connection/transaction, with the inherited finite clamp.
+        # This is not a connection provider and supplies no owner authority.
+        boundary = getattr(self, '_finite_boundary', None)
+        if boundary is not None:
+            self_stop = boundary()
+            remaining = self_stop - time.monotonic_ns()
+            _require(remaining > 0, 'reservation_expired')
+            conn.execute("SELECT pg_catalog.set_config('statement_timeout',%s,false)",
+                         (str(min(2000, max(1, remaining // 1_000_000))),))
+            _require(time.monotonic_ns() < self_stop, 'reservation_expired')
+        result = conn.execute(*args, **kwargs)
+        if boundary is not None:
+            boundary()
+        return result
+
     def _mandated(self, context=None):
         context=getattr(self,'context',None) if context is None else context
         if context is None:return False
@@ -322,21 +338,21 @@ class _RoleAdapter:
             lifecycle._admitted_deadline(context['deadline'],expected_context=expected)
             remaining=stop-time.monotonic_ns()
             _require(remaining>0,'reservation_expired')
-            conn.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true)",
+            self._execute(conn, "SELECT pg_catalog.set_config('statement_timeout',%s,true)",
                          (str(min(2000,max(1,remaining//1_000_000))),))
-            if conn.execute('SELECT pg_catalog.pg_try_advisory_xact_lock(%s)',(self.database[0],)).fetchone()==(True,):break
+            if self._execute(conn, 'SELECT pg_catalog.pg_try_advisory_xact_lock(%s)',(self.database[0],)).fetchone()==(True,):break
             time.sleep(min(.01,remaining/1_000_000_000))
         self._current(context,recovery=recovery)
         _require(time.monotonic_ns()<stop,'reservation_expired')
 
     def _sql_origin(self, conn):
         self._sql_capability(conn)
-        xid=conn.execute('SELECT pg_catalog.pg_current_xact_id()::text').fetchone()[0]
+        xid=self._execute(conn, 'SELECT pg_catalog.pg_current_xact_id()::text').fetchone()[0]
         _require(type(xid) is str and re.fullmatch(r'[1-9][0-9]{0,19}',xid)
             and 3<=int(xid)<2**64,'attempt_ambiguous')
-        cluster=conn.execute('SELECT c.system_identifier::text,p.timeline_id,pg_catalog.pg_is_in_recovery() '
+        cluster=self._execute(conn, 'SELECT c.system_identifier::text,p.timeline_id,pg_catalog.pg_is_in_recovery() '
             'FROM pg_catalog.pg_control_system() c CROSS JOIN pg_catalog.pg_control_checkpoint() p').fetchone()
-        durability=conn.execute("SELECT current_setting('synchronous_commit'),current_setting('fsync'),"
+        durability=self._execute(conn, "SELECT current_setting('synchronous_commit'),current_setting('fsync'),"
                                "current_setting('full_page_writes')").fetchone()
         _require(cluster and len(cluster)==3 and cluster[2] is False
             and type(cluster[0]) is str and type(cluster[1]) is int and cluster[1]>0,'resource_changed')
@@ -425,13 +441,13 @@ class _RoleAdapter:
         prefix=lifecycle._sql_prefix(self.history,thaw(context['journal_ref']),self.history.head()[0])
         mandate=lifecycle._decode(self.history.read(prefix['attempt']['sql_mandate_ref']))
         _require(mandate['phase'] in ('prepare','bind','migrate'),'atomicity_unavailable')
-        conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
+        self._execute(conn, 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
         binding,_,proof_ref=self._native(thaw(context['context']),mandate['native_binding_ref'])
         self._sql_barrier(conn,context)
         self.admit(conn)
         # Configuration/assignment precedes managed role effects. The original
         # transaction must keep this exact durability through COMMIT.
-        conn.execute('SET LOCAL synchronous_commit=on')
+        self._execute(conn, 'SET LOCAL synchronous_commit=on')
         origin=self._sql_origin(conn)
         _require(origin['database']==binding['database'] and origin['cluster'][:2]
             ==[binding['system_identifier'],binding['timeline_id']],'resource_changed')
@@ -444,7 +460,7 @@ class _RoleAdapter:
         yield
         _require(self._sql_transaction is not None and self._sql_transaction[0] is conn
             and self._sql_transaction[1] is transaction,'atomicity_unavailable')
-        conn.execute('SET CONSTRAINTS ALL IMMEDIATE')
+        self._execute(conn, 'SET CONSTRAINTS ALL IMMEDIATE')
         self._current();self._native(thaw(context['context']),mandate['native_binding_ref'])
         _require(self._sql_origin(conn)==origin,'atomicity_unavailable')
         raw=self._snapshot(conn);self._sql_postconditions(conn,raw,mandate['phase'],before=before,activate=activate)
@@ -480,7 +496,7 @@ class _RoleAdapter:
             _require(transaction.savepoint_name in (None, ''),'atomicity_unavailable')
             self._sql_transaction=(conn,transaction)
             try:
-                conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY')
+                self._execute(conn, 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY')
                 self._sql_barrier(conn,context,recovery=recovery)
                 # All status/current-state reads occur AFTER the lock statement.
                 raw=self._snapshot(conn)
@@ -509,10 +525,10 @@ class _RoleAdapter:
                             and xid['durability']==['on','on','on'] and type(xid['xid']) is str
                             and re.fullmatch(r'[1-9][0-9]{0,19}',xid['xid'])
                             and 3<=int(xid['xid'])<2**64,'attempt_ambiguous')
-                        cluster=conn.execute('SELECT c.system_identifier::text,p.timeline_id,pg_catalog.pg_is_in_recovery() '
+                        cluster=self._execute(conn, 'SELECT c.system_identifier::text,p.timeline_id,pg_catalog.pg_is_in_recovery() '
                             'FROM pg_catalog.pg_control_system() c CROSS JOIN pg_catalog.pg_control_checkpoint() p').fetchone()
                         _require(list(cluster)==xid['cluster'],'resource_changed')
-                        status=conn.execute('SELECT pg_catalog.pg_xact_status(%s::xid8)',(xid['xid'],)).fetchone()[0]
+                        status=self._execute(conn, 'SELECT pg_catalog.pg_xact_status(%s::xid8)',(xid['xid'],)).fetchone()[0]
                         if status=='aborted' and raw==before:
                             state='not_applied_verified'
                         elif status=='committed' and post_ref is not None:
@@ -540,17 +556,17 @@ class _RoleAdapter:
 
     def _database(self, conn):
         self._sql_capability(conn)
-        return conn.execute('SELECT oid,datname,datdba,datallowconn,datconnlimit FROM pg_catalog.pg_database '
+        return self._execute(conn, 'SELECT oid,datname,datdba,datallowconn,datconnlimit FROM pg_catalog.pg_database '
                             'WHERE datname=current_database()').fetchone()
 
     def _roles(self, conn):
         self._sql_capability(conn)
-        rows = conn.execute('SELECT oid,rolname,rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolinherit,'
+        rows = self._execute(conn, 'SELECT oid,rolname,rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolinherit,'
                             'rolreplication,rolbypassrls,rolconnlimit,rolvaliduntil::text,rolconfig '
                             'FROM pg_catalog.pg_roles WHERE rolname=ANY(%s) ORDER BY rolname',
                             (list(self.roles.values()),)).fetchall()
         oids = [r[0] for r in rows]
-        edges = conn.execute('SELECT roleid,member,grantor,admin_option,inherit_option,set_option '
+        edges = self._execute(conn, 'SELECT roleid,member,grantor,admin_option,inherit_option,set_option '
                              'FROM pg_catalog.pg_auth_members WHERE roleid=ANY(%s) OR member=ANY(%s) '
                              'ORDER BY roleid,member,grantor', (oids,oids)).fetchall()
         return {'roles': [list(r) for r in rows], 'memberships': [list(r) for r in edges]}
@@ -558,7 +574,7 @@ class _RoleAdapter:
     def _acl(self, conn):
         # ACL text is retained without normalizing NULL to effective defaults.
         self._sql_capability(conn)
-        rows = conn.execute("SELECT 'TABLE',c.oid,c.relowner,c.relacl::text[],"
+        rows = self._execute(conn, "SELECT 'TABLE',c.oid,c.relowner,c.relacl::text[],"
                             "format('%%I.%%I',n.nspname,c.relname),c.relkind::text "
                             "FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
                             "WHERE n.nspname=ANY(%s) AND c.relkind IN ('r','p','v','m','S','f') "
@@ -574,7 +590,7 @@ class _RoleAdapter:
                             "UNION ALL SELECT 'DATABASE',oid,datdba,datacl::text[],quote_ident(datname),'' "
                             "FROM pg_catalog.pg_database WHERE datname=current_database() ORDER BY 1,2",
                             (list(_SCHEMAS),list(_SCHEMAS),list(_SCHEMAS),[*_SCHEMAS,'public'])).fetchall()
-        defaults = conn.execute('SELECT defaclrole,defaclnamespace,defaclobjtype::text,defaclacl::text[] '
+        defaults = self._execute(conn, 'SELECT defaclrole,defaclnamespace,defaclobjtype::text,defaclacl::text[] '
                                 'FROM pg_catalog.pg_default_acl WHERE defaclrole IN '
                                 '(SELECT oid FROM pg_catalog.pg_roles WHERE rolname=ANY(%s)) '
                                 'ORDER BY defaclrole,defaclnamespace,defaclobjtype',
@@ -592,14 +608,14 @@ class _RoleAdapter:
                  and all(type(v) is bytes for v in material.values()), 'backend_unavailable')
         db = list(self._database(conn))
         _require(db[:2] == list(self.database[:2]))
-        present = conn.execute("SELECT to_regclass('auth.runtime_login_bindings') IS NOT NULL").fetchone()[0]
-        bindings = conn.execute('SELECT role_oid,role_name::text,logical_role,installation_id::text,active,revision,'
+        present = self._execute(conn, "SELECT to_regclass('auth.runtime_login_bindings') IS NOT NULL").fetchone()[0]
+        bindings = self._execute(conn, 'SELECT role_oid,role_name::text,logical_role,installation_id::text,active,revision,'
                                 'operation_id::text,database_oid,database_owner_oid,embedding_job_kind '
                                 'FROM auth.runtime_login_bindings ORDER BY role_oid').fetchall() if present else None
         database = {'database':db,'bindings':None if bindings is None else [list(r) for r in bindings]}
         if getattr(self, '_migration_selection', None) is not None:
-            present = conn.execute("SELECT to_regclass('core.schema_migrations') IS NOT NULL").fetchone()[0]
-            ledger = conn.execute('SELECT migration_id,sha256 FROM core.schema_migrations').fetchall() if present else []
+            present = self._execute(conn, "SELECT to_regclass('core.schema_migrations') IS NOT NULL").fetchone()[0]
+            ledger = self._execute(conn, 'SELECT migration_id,sha256 FROM core.schema_migrations').fetchall() if present else []
             database['ledger'] = sorted([list(row) for row in ledger])
         return {'role':canonical_bytes(self._roles(conn)), 'acl':canonical_bytes(self._acl(conn)),
                 'database':canonical_bytes(database), **material}
@@ -687,7 +703,7 @@ class _RoleAdapter:
         original_db=lifecycle._decode(originals['database'])['database']
         _require(list(db[:2]) == original_db[:2])
         if conn is self.connection:_require(db[2] == original_db[2])
-        login = conn.execute('SELECT a.usesysid,r.oid,r.rolname,current_user '
+        login = self._execute(conn, 'SELECT a.usesysid,r.oid,r.rolname,current_user '
                              'FROM pg_catalog.pg_stat_activity a JOIN pg_catalog.pg_roles r '
                              'ON r.rolname=session_user WHERE a.pid=pg_backend_pid()').fetchone()
         _require(login and login[0] == login[1] and login[2] == login[3], 'scope_denied')
@@ -714,7 +730,7 @@ class _RoleAdapter:
                 if self._mandated():
                     with self._sql_transactional(conn,transaction,activate=activate):yield
                 else:
-                    conn.execute('SELECT pg_catalog.pg_advisory_xact_lock(%s)', (self.database[0],))
+                    self._execute(conn, 'SELECT pg_catalog.pg_advisory_xact_lock(%s)', (self.database[0],))
                     self.admit(conn)
                     yield
                     self._current()  # refuse drift before transactional SQL publication
@@ -761,9 +777,9 @@ class _RoleAdapter:
                         if logical in ('request_group','verifier_owner'):_require(not row[2])
                 else:
                     _require(name not in expected)
-                    conn.execute(sql.SQL('CREATE ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
+                    self._execute(conn, sql.SQL('CREATE ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
                                          'NOINHERIT NOREPLICATION NOBYPASSRLS').format(sql.Identifier(name)))
-                    self.created[name] = conn.execute('SELECT oid FROM pg_catalog.pg_roles WHERE rolname=%s',
+                    self.created[name] = self._execute(conn, 'SELECT oid FROM pg_catalog.pg_roles WHERE rolname=%s',
                                                       (name,)).fetchone()[0]
         return self.receipt()
 
@@ -801,7 +817,7 @@ class _RoleAdapter:
                 for kind,fn in [('TABLE','table'),('SEQUENCE','sequence'),('FUNCTION','function'),
                                 ('TYPE','type'),('SCHEMA','schema'),('DATABASE','database')])+ ' END')
         query='SELECT q.n,'+','.join(expressions)+' FROM unnest(%s::text[],%s::text[],%s::text[],%s::text[]) WITH ORDINALITY AS q(role_name,kind,object_name,privilege,n) ORDER BY q.n'
-        rows=conn.execute(query,([self.roles[c[0]] for c in cells],[c[1] for c in cells],
+        rows=self._execute(conn, query,([self.roles[c[0]] for c in cells],[c[1] for c in cells],
                                  [c[2] for c in cells],[c[3] for c in cells])).fetchall()
         _require(len(rows)==len(cells) and [r[0] for r in rows]==list(range(1,len(cells)+1)))
         return [(cell,row[1],row[2]) for cell,row in zip(cells,rows)]
@@ -812,9 +828,9 @@ class _RoleAdapter:
             if actual != want or grant_option:
                 verb='GRANT '+privilege+' ON '+kind+' {} TO {}' if want else 'REVOKE '+privilege+' ON '+kind+' {} FROM {}'
                 target=sql.Identifier(name) if kind in ('DATABASE','SCHEMA') else sql.SQL(name)
-                conn.execute(sql.SQL(verb).format(target,sql.Identifier(self.roles[logical])))
+                self._execute(conn, sql.SQL(verb).format(target,sql.Identifier(self.roles[logical])))
                 if grant_option:
-                    conn.execute(sql.SQL('REVOKE GRANT OPTION FOR '+privilege+' ON '+kind+' {} FROM {} CASCADE')
+                    self._execute(conn, sql.SQL('REVOKE GRANT OPTION FOR '+privilege+' ON '+kind+' {} FROM {} CASCADE')
                                  .format(target,sql.Identifier(self.roles[logical])))
 
     def validate_acl(self, conn):
@@ -829,7 +845,7 @@ class _RoleAdapter:
         expected_oids=set()
         for kind,name in expected_objects:
             resolver={'FUNCTION':'to_regprocedure','TYPE':'to_regtype','TABLE':'to_regclass'}[kind]
-            oid=conn.execute(sql.SQL('SELECT pg_catalog.'+resolver+'(%s)::oid'),(name,)).fetchone()[0]
+            oid=self._execute(conn, sql.SQL('SELECT pg_catalog.'+resolver+'(%s)::oid'),(name,)).fetchone()[0]
             _require(oid is not None)
             expected_oids.add((kind,oid))
         actual_objects = {(kind,oid) for kind,oid,_,_,_,_ in acl['objects'] if kind not in ('SCHEMA','DATABASE')}
@@ -837,22 +853,22 @@ class _RoleAdapter:
         for kind,oid,object_owner,entries,_,relkind in acl['objects']:
             if kind == 'SCHEMA':continue
             acl_kind = {'TABLE':'s' if relkind=='S' else 'r','FUNCTION':'f','TYPE':'T','DATABASE':'d'}[kind]
-            _require(not conn.execute('SELECT 1 FROM pg_catalog.aclexplode('
+            _require(not self._execute(conn, 'SELECT 1 FROM pg_catalog.aclexplode('
                                       'COALESCE(%s::aclitem[],pg_catalog.acldefault(%s::"char",%s::oid))) WHERE grantee=0',
                                       (entries,acl_kind,object_owner)).fetchone())
         for creator,_,_,entries in acl['defaults']:
-            _require(not conn.execute('SELECT 1 FROM pg_catalog.aclexplode(%s::aclitem[]) WHERE grantee=0',
+            _require(not self._execute(conn, 'SELECT 1 FROM pg_catalog.aclexplode(%s::aclitem[]) WHERE grantee=0',
                                       (entries,)).fetchone())
         for logical in ('bootstrap','migrator'):
-            creator=conn.execute('SELECT oid FROM pg_catalog.pg_roles WHERE rolname=%s',(self.roles[logical],)).fetchone()[0]
+            creator=self._execute(conn, 'SELECT oid FROM pg_catalog.pg_roles WHERE rolname=%s',(self.roles[logical],)).fetchone()[0]
             for kind in ('f','T'):
                 rows=[r[3] for r in acl['defaults'] if r[:3]==[creator,0,kind]]
                 _require(len(rows)<=1)
-                _require(not conn.execute('SELECT 1 FROM pg_catalog.aclexplode('
+                _require(not self._execute(conn, 'SELECT 1 FROM pg_catalog.aclexplode('
                     'COALESCE(%s::aclitem[],pg_catalog.acldefault(%s::"char",%s::oid))) WHERE grantee=0',
                     (rows[0] if rows else None,kind,creator)).fetchone())
         nonfinite=[v for k,v in self.roles.items() if k not in ('bootstrap','migrator')]
-        _require(not conn.execute('SELECT 1 FROM pg_catalog.pg_database d WHERE d.datdba IN '
+        _require(not self._execute(conn, 'SELECT 1 FROM pg_catalog.pg_database d WHERE d.datdba IN '
             '(SELECT oid FROM pg_catalog.pg_roles WHERE rolname=ANY(%s)) OR '
             '(d.oid<>%s AND EXISTS(SELECT 1 FROM pg_catalog.aclexplode(d.datacl) a '
             'WHERE a.grantee IN (SELECT oid FROM pg_catalog.pg_roles WHERE rolname=ANY(%s)))) LIMIT 1',
@@ -861,7 +877,7 @@ class _RoleAdapter:
 
     def _expected_membership(self, conn):
         self._sql_capability(conn)
-        row = conn.execute('SELECT g.oid,m.oid FROM pg_catalog.pg_roles g,pg_catalog.pg_roles m '
+        row = self._execute(conn, 'SELECT g.oid,m.oid FROM pg_catalog.pg_roles g,pg_catalog.pg_roles m '
                            'WHERE g.rolname=%s AND m.rolname=%s',
                            (self.roles['request_group'],self.roles['api_request'])).fetchone()
         # The grantor is retained and checked separately by the current exact
@@ -882,7 +898,7 @@ class _RoleAdapter:
                     _require(not any(row[n] for n in (3,4,5,6,7,8)))
                     if logical in ('request_group','verifier_owner'):_require(not row[2])
             # Lock the existing protected map in a stable order, before changes.
-            old = conn.execute('SELECT role_oid,role_name::text,logical_role,installation_id,active,revision,'
+            old = self._execute(conn, 'SELECT role_oid,role_name::text,logical_role,installation_id,active,revision,'
                                'operation_id,database_oid,database_owner_oid,embedding_job_kind '
                                'FROM auth.runtime_login_bindings ORDER BY role_oid FOR UPDATE').fetchall()
             for row in old:
@@ -890,13 +906,13 @@ class _RoleAdapter:
                          and str(row[6])==self.identity['operation_id'] and row[7:9]==self.database[::2][:2])
             for logical in _SERVICES:
                 name = self.roles[logical]
-                conn.execute('INSERT INTO auth.runtime_login_bindings '
+                self._execute(conn, 'INSERT INTO auth.runtime_login_bindings '
                              '(role_oid,role_name,logical_role,installation_id,active,revision,operation_id,'
                              'database_oid,database_owner_oid,embedding_job_kind) '
                              'VALUES (%s,%s,%s,%s,false,1,%s,%s,%s,%s) ON CONFLICT (role_oid) DO NOTHING',
                              (roles[name],name,logical,self.installation_id,UUID(self.identity['operation_id']),
                               self.database[0],self.database[2],self.embedding_kind if logical=='observer' else None))
-                bound = conn.execute('SELECT role_name::text,logical_role,installation_id,operation_id,'
+                bound = self._execute(conn, 'SELECT role_name::text,logical_role,installation_id,operation_id,'
                                      'database_oid,database_owner_oid,embedding_job_kind FROM auth.runtime_login_bindings '
                                      'WHERE role_oid=%s', (roles[name],)).fetchone()
                 _require(bound==(name,logical,self.installation_id,UUID(self.identity['operation_id']),
@@ -906,17 +922,17 @@ class _RoleAdapter:
             _require(all(edge[:2]==[group,member] for edge in edges))
             if len(edges)!=1 or edges[0][3:]!=[False,False,True]:
                 for edge in edges:
-                    grantor = conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(edge[2],)).fetchone()[0]
-                    conn.execute(sql.SQL('REVOKE {} FROM {} GRANTED BY {}')
+                    grantor = self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(edge[2],)).fetchone()[0]
+                    self._execute(conn, sql.SQL('REVOKE {} FROM {} GRANTED BY {}')
                                  .format(sql.Identifier(self.roles['request_group']),sql.Identifier(self.roles['api_request']),sql.Identifier(grantor)))
-                conn.execute(sql.SQL('GRANT {} TO {} WITH INHERIT FALSE,SET TRUE,ADMIN FALSE')
+                self._execute(conn, sql.SQL('GRANT {} TO {} WITH INHERIT FALSE,SET TRUE,ADMIN FALSE')
                              .format(sql.Identifier(self.roles['request_group']),sql.Identifier(self.roles['api_request'])))
             self._apply_grants(conn,self._plans())
             self.validate_acl(conn)
             if activate:
                 for logical in _SERVICES:
-                    conn.execute(sql.SQL('ALTER ROLE {} LOGIN').format(sql.Identifier(self.roles[logical])))
-                conn.execute('UPDATE auth.runtime_login_bindings SET active=true,revision=revision+1 '
+                    self._execute(conn, sql.SQL('ALTER ROLE {} LOGIN').format(sql.Identifier(self.roles[logical])))
+                self._execute(conn, 'UPDATE auth.runtime_login_bindings SET active=true,revision=revision+1 '
                              'WHERE operation_id=%s AND NOT active', (UUID(self.identity['operation_id']),))
         return self.receipt()
 
@@ -924,7 +940,7 @@ class _RoleAdapter:
         sql = self._sql_capability(conn).sql
         for logical in ('migrator', 'bootstrap'):
             self._current()
-            conn.execute(sql.SQL('ALTER ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
+            self._execute(conn, sql.SQL('ALTER ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
                                 'NOINHERIT NOREPLICATION NOBYPASSRLS').format(sql.Identifier(self.roles[logical])))
             self._current()
 
@@ -974,7 +990,7 @@ class _RoleAdapter:
 
         boundary('before_prepare', conn)
         return apply_migrations(conn, directory, through=through, _boundary=boundary,
-                                _transaction_scope=transaction_scope)
+                                _transaction_scope=transaction_scope, _execute=lambda *a, **k: self._execute(conn, *a, **k))
 
     def close(self, conn):
         driver = self._sql_capability(conn)
@@ -982,18 +998,18 @@ class _RoleAdapter:
         finite=[self.roles['bootstrap'],self.roles['migrator']]
         query=('SELECT pid,usesysid,backend_start::text,datid FROM pg_catalog.pg_stat_activity '
                'WHERE usesysid IN (SELECT oid FROM pg_catalog.pg_roles WHERE rolname=ANY(%s)) ORDER BY pid')
-        current = conn.execute(query,(finite,)).fetchall()
+        current = self._execute(conn, query,(finite,)).fetchall()
         _require({r[0]:tuple(r[1:]) for r in current} == self.backends, 'scope_denied')
         self_pid = conn.info.backend_pid
         _require(self_pid in self.backends, 'scope_denied')
         with self._transaction(conn):
             # The database lock can wait. A PID set measured before that wait
             # cannot authorize terminating a different backend lifetime.
-            _require({r[0]:tuple(r[1:]) for r in conn.execute(query,(finite,)).fetchall()} == self.backends,
+            _require({r[0]:tuple(r[1:]) for r in self._execute(conn, query,(finite,)).fetchall()} == self.backends,
                      'scope_denied')
             for pid,lifetime in self.backends.items():
                 if pid != self_pid:
-                    row=conn.execute('SELECT pg_catalog.pg_terminate_backend(pid,1000) '
+                    row=self._execute(conn, 'SELECT pg_catalog.pg_terminate_backend(pid,1000) '
                                      'FROM pg_catalog.pg_stat_activity WHERE pid=%s AND usesysid=%s '
                                      'AND backend_start::text=%s AND datid=%s',(pid,*lifetime)).fetchone()
                     _require(row and row[0])
@@ -1002,7 +1018,7 @@ class _RoleAdapter:
         # a lost socket, decides whether all exact owned backend lifetimes drain.
         self._sql_capability(conn)
         try:
-            conn.execute('SELECT pg_catalog.pg_terminate_backend(pg_backend_pid())')
+            self._execute(conn, 'SELECT pg_catalog.pg_terminate_backend(pg_backend_pid())')
         except driver.OperationalError:
             self._sql_capability(self.recovery)
             if self.recovery.execute(query,(finite,)).fetchall():
@@ -1026,27 +1042,27 @@ class _RoleAdapter:
             actual = observed[(kind,oid)]
             if entries == actual[3]:continue
             target_kind = 'SEQUENCE' if relkind=='S' else kind
-            grantees = conn.execute('SELECT DISTINCT grantee FROM pg_catalog.aclexplode(%s::aclitem[])',
+            grantees = self._execute(conn, 'SELECT DISTINCT grantee FROM pg_catalog.aclexplode(%s::aclitem[])',
                                     (actual[3],)).fetchall()
             for (grantee,) in grantees:
-                role = sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
-                conn.execute(sql.SQL('REVOKE ALL ON '+target_kind+' {} FROM {} CASCADE').format(sql.SQL(name),role))
-            rows = conn.execute('SELECT grantor,grantee,privilege_type,is_grantable '
+                role = sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
+                self._execute(conn, sql.SQL('REVOKE ALL ON '+target_kind+' {} FROM {} CASCADE').format(sql.SQL(name),role))
+            rows = self._execute(conn, 'SELECT grantor,grantee,privilege_type,is_grantable '
                                 'FROM unnest(%s::aclitem[]) WITH ORDINALITY a(item,n) '
                                 'CROSS JOIN LATERAL pg_catalog.aclexplode(ARRAY[a.item]) ORDER BY n', (entries,)).fetchall()
             for grantor,grantee,privilege,option in rows:
                 _require(privilege in _PRIVS[target_kind])
-                recipient = sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
-                giver = sql.Identifier(conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(grantor,)).fetchone()[0])
+                recipient = sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
+                giver = sql.Identifier(self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(grantor,)).fetchone()[0])
                 # Object GRANTED BY must be the current user, including for a
                 # superuser recovery connection. Preserve the original grantor
                 # through PostgreSQL's checked SET ROLE, never a catalogue edit.
-                conn.execute(sql.SQL('SET LOCAL ROLE {}').format(giver))
+                self._execute(conn, sql.SQL('SET LOCAL ROLE {}').format(giver))
                 try:
-                    conn.execute(sql.SQL('GRANT '+privilege+' ON '+target_kind+' {} TO {}'+(' WITH GRANT OPTION' if option else '')+' GRANTED BY {}')
+                    self._execute(conn, sql.SQL('GRANT '+privilege+' ON '+target_kind+' {} TO {}'+(' WITH GRANT OPTION' if option else '')+' GRANTED BY {}')
                                  .format(sql.SQL(name),recipient,giver))
                 finally:
-                    conn.execute('RESET ROLE')
+                    self._execute(conn, 'RESET ROLE')
 
     def _restore_defaults(self, conn, original, current):
         sql = self._sql_capability(conn).sql
@@ -1058,28 +1074,28 @@ class _RoleAdapter:
             if before.get(key)==now.get(key):continue
             creator,namespace,kind=key
             _require(kind in kinds)
-            creator_name=conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(creator,)).fetchone()[0]
+            creator_name=self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(creator,)).fetchone()[0]
             _require(creator_name in self.roles.values())
             prefix=sql.SQL('ALTER DEFAULT PRIVILEGES FOR ROLE {}').format(sql.Identifier(creator_name))
             if namespace:
-                name=conn.execute('SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=%s',(namespace,)).fetchone()
+                name=self._execute(conn, 'SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=%s',(namespace,)).fetchone()
                 _require(name and name[0] in (*_SCHEMAS,'public'))
                 prefix += sql.SQL(' IN SCHEMA {}').format(sql.Identifier(name[0]))
-            for (grantee,) in conn.execute('SELECT DISTINCT grantee FROM pg_catalog.aclexplode(%s::aclitem[])',
+            for (grantee,) in self._execute(conn, 'SELECT DISTINCT grantee FROM pg_catalog.aclexplode(%s::aclitem[])',
                                            (now.get(key),)).fetchall():
-                recipient=sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
-                conn.execute(prefix+sql.SQL(' REVOKE ALL ON '+kinds[kind][0]+' FROM {} CASCADE').format(recipient))
+                recipient=sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
+                self._execute(conn, prefix+sql.SQL(' REVOKE ALL ON '+kinds[kind][0]+' FROM {} CASCADE').format(recipient))
             target=before.get(key)
             if target is None:
-                target=conn.execute('SELECT pg_catalog.acldefault(%s::"char",%s::oid)::text[]',
+                target=self._execute(conn, 'SELECT pg_catalog.acldefault(%s::"char",%s::oid)::text[]',
                                     (kind,creator)).fetchone()[0] if namespace==0 else []
-            rows=conn.execute('SELECT grantor,grantee,privilege_type,is_grantable '
+            rows=self._execute(conn, 'SELECT grantor,grantee,privilege_type,is_grantable '
                 'FROM unnest(%s::aclitem[]) WITH ORDINALITY a(item,n) '
                 'CROSS JOIN LATERAL pg_catalog.aclexplode(ARRAY[a.item]) ORDER BY n',(target,)).fetchall()
             for grantor,grantee,privilege,option in rows:
                 _require(grantor==creator and privilege in _PRIVS[kinds[kind][1]])
-                recipient=sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
-                conn.execute(prefix+sql.SQL(' GRANT '+privilege+' ON '+kinds[kind][0]+' TO {}'+(' WITH GRANT OPTION' if option else '')).format(recipient))
+                recipient=sql.SQL('PUBLIC') if grantee==0 else sql.Identifier(self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(grantee,)).fetchone()[0])
+                self._execute(conn, prefix+sql.SQL(' GRANT '+privilege+' ON '+kinds[kind][0]+' TO {}'+(' WITH GRANT OPTION' if option else '')).format(recipient))
 
     def restore(self, conn):
         sql = self._sql_capability(conn).sql
@@ -1093,9 +1109,9 @@ class _RoleAdapter:
             for row in roles['roles']:_require(row[1] in current and current[row[1]][0]==row[0])
             for name,row in current.items():_require(known.get(name)==row[0])
             db = database['database'];_require(list(self._database(conn))[:2] == db[:2])
-            db_owner = conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(db[2],)).fetchone()[0]
+            db_owner = self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(db[2],)).fetchone()[0]
             _require(known.get(db_owner)==db[2])
-            conn.execute(sql.SQL('ALTER DATABASE {} OWNER TO {}')
+            self._execute(conn, sql.SQL('ALTER DATABASE {} OWNER TO {}')
                          .format(sql.Identifier(db[1]),sql.Identifier(db_owner)))
             self._restore_acl(conn,acl)
             for row in roles['roles']:
@@ -1103,42 +1119,42 @@ class _RoleAdapter:
                 # preserve the original representation rather than relabel it.
                 if row[10] is None:_require(current[row[1]][10] is None)
                 flags = ' '.join(word if value else 'NO'+word for word,value in zip(_SQL_FLAGS,row[2:9]))
-                conn.execute(sql.SQL('ALTER ROLE {} '+flags+' CONNECTION LIMIT {}')
+                self._execute(conn, sql.SQL('ALTER ROLE {} '+flags+' CONNECTION LIMIT {}')
                              .format(sql.Identifier(row[1]),sql.Literal(row[9])))
                 if row[10] != current[row[1]][10]:
-                    conn.execute(sql.SQL('ALTER ROLE {} VALID UNTIL {}')
+                    self._execute(conn, sql.SQL('ALTER ROLE {} VALID UNTIL {}')
                                  .format(sql.Identifier(row[1]),sql.Literal(row[10])))
                 if current[row[1]][11] != row[11]:
-                    conn.execute(sql.SQL('ALTER ROLE {} RESET ALL').format(sql.Identifier(row[1])))
+                    self._execute(conn, sql.SQL('ALTER ROLE {} RESET ALL').format(sql.Identifier(row[1])))
                     for setting in row[11] or []:
                         key,value=setting.split('=',1)
-                        conn.execute(sql.SQL('ALTER ROLE {} SET {} TO {}')
+                        self._execute(conn, sql.SQL('ALTER ROLE {} SET {} TO {}')
                                      .format(sql.Identifier(row[1]),sql.Identifier(key),sql.Literal(value)))
             edges = self._roles(conn)['memberships']
             for granted,member,grantor,admin,inherit,set_role in edges:
                 if [granted,member,grantor,admin,inherit,set_role] not in roles['memberships']:
-                    names = [conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(oid,)).fetchone()[0]
+                    names = [self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(oid,)).fetchone()[0]
                              for oid in (granted,member)]
                     _require(all(name in self.roles.values() for name in names))
-                    grantor_name=conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(grantor,)).fetchone()[0]
-                    conn.execute(sql.SQL('REVOKE {} FROM {} GRANTED BY {}')
+                    grantor_name=self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(grantor,)).fetchone()[0]
+                    self._execute(conn, sql.SQL('REVOKE {} FROM {} GRANTED BY {}')
                                  .format(*map(sql.Identifier,names),sql.Identifier(grantor_name)))
             for granted,member,grantor,admin,inherit,set_role in roles['memberships']:
                 if [granted,member,grantor,admin,inherit,set_role] not in edges:
-                    names = [conn.execute('SELECT pg_catalog.pg_get_userbyid(%s)',(oid,)).fetchone()[0]
+                    names = [self._execute(conn, 'SELECT pg_catalog.pg_get_userbyid(%s)',(oid,)).fetchone()[0]
                              for oid in (granted,member,grantor)]
-                    conn.execute(sql.SQL('GRANT {} TO {} WITH ADMIN {},INHERIT {},SET {} GRANTED BY {}')
+                    self._execute(conn, sql.SQL('GRANT {} TO {} WITH ADMIN {},INHERIT {},SET {} GRANTED BY {}')
                                  .format(sql.Identifier(names[0]),sql.Identifier(names[1]),sql.Literal(admin),
                                          sql.Literal(inherit),sql.Literal(set_role),sql.Identifier(names[2])))
-            conn.execute(sql.SQL('ALTER DATABASE {} ALLOW_CONNECTIONS {} CONNECTION LIMIT {}')
+            self._execute(conn, sql.SQL('ALTER DATABASE {} ALLOW_CONNECTIONS {} CONNECTION LIMIT {}')
                          .format(sql.Identifier(db[1]),sql.Literal(db[3]),sql.Literal(db[4])))
             if database['bindings'] is not None:
-                conn.execute('DELETE FROM auth.runtime_login_bindings WHERE operation_id=%s', (UUID(self.identity['operation_id']),))
+                self._execute(conn, 'DELETE FROM auth.runtime_login_bindings WHERE operation_id=%s', (UUID(self.identity['operation_id']),))
                 for row in database['bindings']:
-                    conn.execute('INSERT INTO auth.runtime_login_bindings VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',row)
+                    self._execute(conn, 'INSERT INTO auth.runtime_login_bindings VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',row)
             original_names = {r[1] for r in roles['roles']}
             for name in sorted(set(current)-original_names):
-                conn.execute(sql.SQL('DROP ROLE {}').format(sql.Identifier(name)))
+                self._execute(conn, sql.SQL('DROP ROLE {}').format(sql.Identifier(name)))
             self.materials.restore({'hba':originals['hba'],'carrier':originals['carrier']})
             _require(self._snapshot(conn) == originals)  # same SQL transaction; P2 measure rereads after COMMIT
         return self.receipt()
