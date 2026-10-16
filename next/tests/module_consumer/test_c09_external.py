@@ -77,6 +77,7 @@ class IsolationTests(unittest.TestCase):
 
 class DurableExternal(Fixture):
     seed=ConsumerFixture.seed
+    foreign_event=ConsumerFixture.foreign_event
 
     def setUp(self):
         self.params=copied_database()  # before Fixture.reset or any connection
@@ -266,4 +267,10 @@ class DurableExternal(Fixture):
         self.assertEqual(self.checkpoint()[:2],(2,2))
         self.assertEqual(self.head()[:2],(2,UUID(second.envelope['event_id'])))
         self.assertEqual(self.admin.execute("SELECT count(*) FROM coordination.consumer_event_outcomes WHERE module_id='graph'").fetchone()[0],0)
+        self.assertTrue(self.state((UUID(uid(50)),))['targets'][0]['indexed'])
+
+    def test_foreign_project_published_head_does_not_block_local_core_proof(self):
+        self.seed();event=self.events()[0];self.receipt(event);p=self.port();p.register();p.cycle()
+        self.foreign_event(cursor=2)
+        self.assertEqual(self.checkpoint()[:2],(1,1))
         self.assertTrue(self.state((UUID(uid(50)),))['targets'][0]['indexed'])
