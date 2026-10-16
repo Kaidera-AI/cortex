@@ -194,7 +194,8 @@
     "next/tests/runtime_factory/test_x5_sessions.py",
     "next/tests/runtime_factory/test_x5_factory.py",
     "next/tests/runtime_factory/test_x5_current.py",
-    "next/tests/runtime_factory/test_x5_stop.py"
+    "next/tests/runtime_factory/test_x5_stop.py",
+    "next/tests/runtime_factory/test_x5_worker_hold.py"
   ],
   "excluded": [
     {

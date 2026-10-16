@@ -64,7 +64,8 @@ class _SyncSessions:
         return len(self._owned)
 
     def _failure(self, work, reason='session_unavailable'):
-        return SessionRefusal(reason, hold=not work.absent or bool(work.operations) or work.worker is None,
+        return SessionRefusal(reason, hold=not work.absent or bool(work.operations)
+                              or work.worker is None or not work.worker.done(),
                               commit_known=work.commit_known)
 
     def _current(self, work):
