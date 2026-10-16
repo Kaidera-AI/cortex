@@ -1,0 +1,25 @@
+{
+  "record_type": "cortex.release.custodian-material-acceptance",
+  "custodian": "finn@helix",
+  "accepted_utc": "2026-10-16T05:41:34.722086+00:00",
+  "handoff_id": "489ee433-bb05-4e61-8da9-3fae1eae362d",
+  "status": "accepted_for_public_material_custody_only",
+  "record_file": "root-custody.json",
+  "record_bytes": 2920,
+  "record_sha256": "4272c5baff3a3fefee3569803c61ab7093990f49f3fe3ae7768ede62a5b71c47",
+  "public_key_file": "release-public-key.pub",
+  "public_key_bytes": 113,
+  "public_key_sha256": "cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef",
+  "key_id": "7BBB4B7E0CE8852E",
+  "checks": {
+    "original_retained_file_equals_published_baked_git_blob": true,
+    "complete_file_bytes_length_hash_pinned": true,
+    "decoded_key_id_matches": true,
+    "original_public_bytes_copied_without_normalization": true
+  },
+  "independent_acceptance": "pending Vera",
+  "purpose_key_use_confirmation": "pending CTO confirmation",
+  "signing_authorized": false,
+  "effect_authority": false,
+  "qualification": "Material custody receipt; not a canonical aggregate-policy, root-store, signature, native or release authorization"
+}

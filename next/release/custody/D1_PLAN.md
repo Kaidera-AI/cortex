@@ -1,0 +1,15 @@
+# D1 accepted-public-custody consumption — bounded execution plan
+
+Authority: Kai row 6d9ef9a0-93aa-44d9-9d58-2041c571bdc4 resumes accepted D0 on main ae06a895d0ea8a7d23d04e4cebcacad51e8a74ee. Public originals are Finn 442f5ac4ac67362ece6904bba6083c77c2db5c9e, independently accepted by Vera for material custody only. This is implementation of that row, not new policy acceptance.
+
+1. Preserve Finn's three DATA files byte for byte. Add adversarial tests to existing test_manifest_trust_companions.py without changing inherited test bodies. Commit tests/plan/original DATA first; run complete file on Python 3.13 and 3.14 and retain expected assertion REDs.
+2. Change only release/trust.py. Read exactly the fixed installed custody originals with exact byte bounds and independently accepted hashes. Reuse decode_json and the existing public-root parser (extract the material-only body behind the existing _root wrapper). Read pending purpose/key-use and explicit false authorization flags as immutable DATA. No candidate path, env/config option, callback, key generation/signing or owner context is introduced.
+3. Retain _production_context identity as _unbound. Its refusal first observes custody state on every call, then raises required_binding_gap. Missing, altered, unavailable or unsupported custody data also yields required_binding_gap before candidate or effect work. A custody record never satisfies the canonical policy/root-store/current-state provider.
+4. Run unchanged complete affected trust/current, assembly and member-boundary suites under both Pythons, no exclusions. Add deterministic source/original invariance checks and assertion-based mutation controls. Commit implementation separately, push only own feature branch, verify exact remote bytes, no main merge or PR.
+5. Replace the old blocked D1 return, seal evidence, write normal memory/diary, return this row. Expose remaining independent canonical policy/root-store and purpose approval prerequisites alongside D2 clock/state/fence/original/startup inputs; final F/E pins remain D4. Do not call the full D0 policy/provider row complete.
+
+Files: next/release/custody/2026-10-16/{root-custody.json,release-public-key.pub,custodian-acceptance.json}; this plan; next/tests/release/test_manifest_trust_companions.py; next/src/cortex_core/release/trust.py. No receipts.py/artifacts.py/vfs.py overlap with Nix R3. Pin base explicitly; no merge-current-tip step.
+
+Risks: public file custody is DATA, not owner/signing/native/effect authority; fixed source paths are not OS protection or D2 original transport. No private material is accessed. Pending approval and missing canonical policy cannot be repaired by fixtures or caller data. Future independently accepted custody generations require a reviewed pin change, never an untrusted file swap.
+
+Depth tree: D1 -> accepted public originals / immutable pending state / production refusal / bounded and fresh reads / inherited root + policy behavior / published receipts. Missing full owner policy is a named external prerequisite, not silently replaced.
