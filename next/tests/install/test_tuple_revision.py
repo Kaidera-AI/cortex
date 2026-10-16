@@ -17,9 +17,11 @@ from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberD
 
 
 FIXTURES = Path(__file__).parent / 'fixtures'
-REVISION = 'e2-runtime-tuple-v1'
+REVISION = 'pgc20-runtime-tuple-v1'
 HISTORICAL_SHA256 = '25962b3efc0f0d43cfdb706707af46e0464dfe59ffe00ac2ceba8cf16e00ca58'
 HISTORICAL = json.loads((FIXTURES / 'p1-subjects-pre-e2.json').read_bytes())
+HISTORICAL_E2 = json.loads((FIXTURES / 'p1-subjects.json').read_bytes())
+ORIGINAL_FIXTURE_SHA256 = {'gate-b-linux.json': 'b4b7d8531398bdbd5df9ef45f92288fed1e7891fb11c21a97d2a613c0664377b', 'gate-b-macos.json': '1bb831297364e92f7b2cfae69dfc0d0c9f4319c10f27033ef06fadec4ba84924', 'gate-b-subjects.json': '5046c85bda82973bbf0e9b970ebdbff636e2dfdf07186acbea8eb0f88c655063', 'owner-proposal-subjects.json': 'b2f4aee17b91eff5c57b16a4096484944403f33e782b31e8b59fba5b216b73ed', 'p1-subjects-pre-e2.json': '25962b3efc0f0d43cfdb706707af46e0464dfe59ffe00ac2ceba8cf16e00ca58', 'p1-subjects.json': '698303043bdaf3550e543b096dcd5fa75fb36e32c9eca5b742ebd3075e263883', 'p2a-subjects.json': 'ec42de009bbc4b2829a7999117fe4985b5a9fc6343876695331310c8ce2166e6', 'p2b-subjects.json': '5c185e5880370514c1ca6676673812dc466cf2e6cbf85ca2e4f78c8387351f42', 'subjects.json': 'ea26da33aee24c4c1d048194b49736f315c8cebf888064ed88345525e1d1aa9d'}
 MEMBERS = (
     ('lock_schema', 'runtime-lock-v1.schema.json'),
     ('config_schema', 'runtime-config-v1.schema.json'),
@@ -98,7 +100,7 @@ class TupleRevisionOracle(unittest.TestCase):
             self.assertEqual(SUBJECTS[key], HISTORICAL[key])
 
     def test_fixture_index_binds_current_revision_and_original_history(self):
-        index = json.loads((FIXTURES / 'subjects.json').read_bytes())
+        index = json.loads((FIXTURES / 'subjects-pgc20-v1.json').read_bytes())
         self.assertEqual(index['P1'].get('revision'), REVISION)
         measure_original_ref({k: index['P1'][k] for k in ('path', 'bytes', 'sha256')},
                              (FIXTURES / index['P1']['path']).read_bytes())
@@ -130,9 +132,9 @@ class TupleRevisionOracle(unittest.TestCase):
                 self.refuse(lock_raw, json.loads(raw), target, 'bad_shape')
 
     def test_current_operations_with_stale_descriptors_is_contract_mismatch(self):
-        lock = json.loads(HISTORICAL['members']['runtime.lock.json'])
-        lock['operations_sha256'] = contracts.RC0_SHA256['runtime-operations-v1.json']
-        lock['contract_members']['operations']['value']['sha256'] = lock['operations_sha256']
+        lock = json.loads(SUBJECTS['members']['runtime.lock.json'])
+        old = json.loads(HISTORICAL['members']['runtime.lock.json'])
+        lock['contract_members']['lock_schema'] = copy.deepcopy(old['contract_members']['lock_schema'])
         for target, raw in SUBJECTS['configs'].items():
             cfg = json.loads(raw)
             cfg['operations_sha256'] = lock['operations_sha256']
@@ -159,6 +161,77 @@ class TupleRevisionOracle(unittest.TestCase):
                 for target, raw in SUBJECTS['configs'].items():
                     with self.subTest(member=key, field=field, target=target):
                         self.refuse(wire(lock), json.loads(raw), target, 'contract_mismatch')
+
+    def test_e2_tuple_is_bad_shape_on_both_targets(self):
+        lock_raw = HISTORICAL_E2['members']['runtime.lock.json'].encode()
+        for target, raw in HISTORICAL_E2['configs'].items():
+            with self.subTest(target=target):
+                self.refuse(lock_raw, json.loads(raw), target, 'bad_shape')
+
+    def test_all_prior_fixture_bytes_and_original_build_A_remain_exact(self):
+        # Fixed original digests, independent of the newly selected index/data.
+        originals = ORIGINAL_FIXTURE_SHA256
+        for name, digest in originals.items():
+            with self.subTest(fixture=name):
+                self.assertEqual(sha256((FIXTURES / name).read_bytes()), digest)
+        for key in ('real_build_A', 'real_build_A_ref', 'real_build_A_output_key', 'real_build_A_output'):
+            self.assertEqual(SUBJECTS[key], HISTORICAL_E2[key])
+        raw = SUBJECTS['real_build_A'].encode()
+        self.assertEqual(len(raw), 3224)
+        self.assertEqual(sha256(raw), '7c96304cfe47681904ebd84e4dbae7e2a0c28e4eea63f60f5e7a6e672f9111b4')
+
+    def test_pgc20_fixture_index_and_embedded_owner_references_are_closed(self):
+        index = json.loads((FIXTURES / 'subjects-pgc20-v1.json').read_bytes())
+        self.assertNotIn('GateB_accepted_execution', index)
+        for key in ('P1', 'historical_P1', 'historical_P1_e2', 'GateB_linux', 'GateB_macos', 'B1_proposal'):
+            ref = index[key]
+            measure_original_ref({k: ref[k] for k in ('path', 'bytes', 'sha256')},
+                                 (FIXTURES / ref['path']).read_bytes())
+        self.assertEqual(index['historical_P1_e2']['sha256'], ORIGINAL_FIXTURE_SHA256['p1-subjects.json'])
+        self.assertEqual(index['P1']['revision'], REVISION)
+        self.assertEqual(index['P1']['path'], 'p1-subjects-pgc20-v1.json')
+        self.assertEqual(index['B1_held_F2'], json.loads((FIXTURES / 'subjects.json').read_bytes())['B1_held_F2'])
+
+        def decoded_references(value):
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except (ValueError, TypeError):
+                    return
+            if isinstance(value, dict):
+                if {'path', 'bytes', 'sha256'} <= value.keys():
+                    yield value
+                for child in value.values():
+                    yield from decoded_references(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from decoded_references(child)
+
+        linux = json.loads((FIXTURES / index['GateB_linux']['path']).read_bytes())
+        mac = json.loads((FIXTURES / index['GateB_macos']['path']).read_bytes())
+        owner = json.loads((FIXTURES / index['B1_proposal']['path']).read_bytes())
+        packets = [owner, mac['owner_inputs']]
+        packets.extend(case['inputs'] for case in linux['cases'].values()
+                       if case['expected']['result'] == 'DATA')
+        self.assertEqual(linux['runtime_lock_raw'], SUBJECTS['members']['runtime.lock.json'])
+        for number, packet in enumerate(packets):
+            with self.subTest(packet=number):
+                if 'runtime_lock_raw' in packet:
+                    self.assertEqual(packet['runtime_lock_raw'], SUBJECTS['members']['runtime.lock.json'])
+                originals = {name: raw.encode() for name, raw in packet['originals'].items()}
+                originals.update({name: raw.encode() for name, raw in SUBJECTS['members'].items()})
+                self.assertEqual(packet['request_raw'].encode(), originals['b1-request.json'])
+                context = json.loads(packet['context_raw'])
+                measure_original_ref(context['request_ref'], packet['request_raw'].encode())
+                checked = 0
+                for ref in decoded_references(packet):
+                    if ref['path'] in originals:
+                        measure_original_ref({k: ref[k] for k in ('path', 'bytes', 'sha256')}, originals[ref['path']])
+                        checked += 1
+                self.assertGreater(checked, 20)
+        originals = mac['owner_inputs']['originals']
+        for ref in (mac['profile_ref'], mac['observation_ref']):
+            measure_original_ref(ref, originals[ref['path']].encode())
 
 
 if __name__ == '__main__':
