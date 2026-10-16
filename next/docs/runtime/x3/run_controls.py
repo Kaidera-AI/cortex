@@ -65,6 +65,9 @@ CONTROLS = [
      "        and context.hostname_checks_common_name is False,'invalid_connection_policy')",
      '    return  # control: trust insecure TLS context',
      'test_x303_insecure_asyncpg_context_never_dispatches'),
+    ('carrier-reservation', 'secret_resolver.py',
+     '        carrier._valid(state,present=False)\n', '',
+     'test_x304_invalid_original_reservation_dispatches_no_material_or_cleanup'),
 ]
 
 HARNESS = """

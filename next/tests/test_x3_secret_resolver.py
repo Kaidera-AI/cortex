@@ -44,7 +44,7 @@ class Inputs:
     async def reserve_carrier(self, grant, deadline):
         self.events.append('reserve')
         self.state = self.api._CarrierState('resource-original', ('mount','parent','inode'),
-            PROCESS, '1000', 0o600, 0o700, 1, True, True, False, 0)
+            PROCESS, '1000', 0o600, 0o700, 1, True, True, False, 0, 'S02')
         return self.state
 
     async def create_carrier(self, state, material, deadline):
