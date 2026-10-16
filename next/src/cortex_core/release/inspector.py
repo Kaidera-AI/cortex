@@ -23,6 +23,7 @@ ROLES={'engine','interpreter','stdlib','loader','inspector','image'}
 STARTUP=('/opt/cortex-inspector/bin/python','-I','-S','-B','/opt/cortex-inspector/inspect.py')
 CLOSED_CONFIG={'User':'65534:65534','WorkingDir':'/'}
 CLEANUP_SECONDS=30
+KILL_SECONDS=CLEANUP_SECONDS/3
 ARCH={'linux/amd64':('amd64','x86_64'),'linux/arm64':('arm64','aarch64')}
 DESCRIPTOR_KEYS={'schema','id','platform','python','archive','manifest_sha256','config_sha256',
                  'symlinks','members','engine','engine_config'}
@@ -69,12 +70,39 @@ class InspectorPlan:
             raise ReceiptRefusal('inspector_image_member_unbound')
 
 
+class _Budget:
+    """One work deadline and one cleanup reserve for a whole session (Hale H2).
+
+    Every operation timeout and its TERM/KILL allowance is drawn from these two
+    absolute instants; nothing restarts per batch, operation or pyc. The hard
+    ceiling is limits.seconds + CLEANUP_SECONDS from the session's start.
+    """
+
+    def __init__(self,seconds):
+        import time
+        now=time.monotonic()
+        self.work=now+seconds
+        self.total=now+seconds+CLEANUP_SECONDS
+
+    def work_timeout(self):
+        # A work operation's own TERM/KILL wait falls inside the reserve that follows self.work.
+        import time
+        left=self.work-time.monotonic()
+        require(left>0,'inspector_run_incomplete')
+        return left
+
+    def cleanup_timeout(self):
+        import time
+        return self.total-time.monotonic()-KILL_SECONDS
+
+
 @dataclass(frozen=True)
 class InspectionSession:
     """The one capability vfs may use to judge CHECKED_HASH caches."""
     capability:InspectorClosure
     profile:object
     _admission:object=field(default=None,compare=False,repr=False)
+    budget:object=field(default=None,compare=False,repr=False)
 
     def check(self,rows):
         require(self._admission is _ADMITTED and isinstance(self.capability,InspectorClosure),'inspector_capability_untrusted')
@@ -92,7 +120,7 @@ class InspectionSession:
                      'cache_b64':base64.b64encode(row['cache_bytes']).decode('ascii'),
                      'source_b64':base64.b64encode(row['source_bytes']).decode('ascii')} for row in rows]})
         plan=prepare_plan(self.capability,profile,request)
-        verdicts=_reply_verdicts(run_inspection(self.capability,plan,request),request,record['descriptor'],order,spec['limits'])
+        verdicts=_reply_verdicts(run_inspection(self.capability,plan,request,budget=self.budget),request,record['descriptor'],order,spec['limits'])
         require(all(equal is True for equal in verdicts),'python_compilation_policy')
 
 
@@ -301,8 +329,17 @@ def _engine(argv,environment,session,timeout,output_limit):
     from .build.engine import run_operation
     stem=session/('op-'+secrets.token_hex(8))
     result=run_operation(argv,session,dict(environment),timeout,Path(str(stem)+'.out'),Path(str(stem)+'.err'),
-                         output_limit=output_limit,kill_seconds=CLEANUP_SECONDS/3)
+                         output_limit=output_limit,kill_seconds=KILL_SECONDS)
     return result['exit'],Path(str(stem)+'.out').read_bytes()
+
+
+def _same_root(roots,session):
+    """The session path still names the directory created and recorded at the start."""
+    try:
+        (path,expected),=roots.created.items()
+        return path==session.resolve() and roots.identity(session.stat(follow_symlinks=False))==expected
+    except (OSError,ValueError):
+        return False
 
 
 def _write_owned(path,raw,mode):
@@ -325,22 +362,20 @@ def _loaded(raw,record,capability):
             type(value[0].get('RootFS')) is dict and value[0]['RootFS'].get('Layers')==record['diff_ids'],'inspector_run_incomplete')
 
 
-def run_inspection(capability,plan,request_bytes):
+def run_inspection(capability,plan,request_bytes,*,budget=None):
     """Fresh owned store, load the custody copy, inspect, run, always clean up."""
-    import time
+    from .build.engine import OwnedRoots
     require(isinstance(plan,InspectorPlan) and plan._admission is _ADMITTED and type(request_bytes) is bytes and
             sha256(request_bytes)==plan.request_sha256 and plan.session.parent==capability.root,'inspector_capability_untrusted')
     record=thaw(capability.descriptor);descriptor=record['descriptor']
     environment=dict(plan.environment);session=plan.session
-    deadline=time.monotonic()+plan.cumulative_seconds
-    def remaining():
-        left=deadline-time.monotonic()
-        require(left>0,'inspector_run_incomplete')
-        return left
-    created=False
+    budget=budget or _Budget(plan.cumulative_seconds)
+    remaining=budget.work_timeout
+    roots=None
     try:
         try:
-            os.mkdir(session,0o700);created=True
+            remaining()
+            roots=OwnedRoots([session]).create()
             for name in ('store','run','tmp','home','xdg','request'):os.mkdir(session/name,0o700)
             os.chmod(session/'request',0o755)
             _write_owned(session/'request'/'request.json',request_bytes,0o444)
@@ -360,36 +395,42 @@ def run_inspection(capability,plan,request_bytes):
         except ReceiptRefusal:raise
         except Exception:raise ReceiptRefusal('inspector_run_incomplete') from None
     finally:
-        if created:_cleanup(plan,environment,session)
+        if roots is not None:_cleanup(plan,environment,session,budget=budget,roots=roots)
 
 
-def _cleanup(plan,environment,session):
-    """Remove the owned container by name, prove it absent, then the owned roots."""
-    import shutil
-    clean=True
+def _cleanup(plan,environment,session,*,budget=None,roots=None):
+    """Remove the owned container by name and prove it absent; only then the owned roots.
+
+    Unproven absence or a replaced session directory preserves every root for
+    accountable recovery. All waits come from the one cleanup reserve.
+    """
+    budget=budget or _Budget(0)
+    def operation(argv):
+        timeout=budget.cleanup_timeout()
+        if timeout<=0:raise TimeoutError('cleanup reserve spent')
+        return _engine(argv,environment,session,timeout,64*1024)
     try:
-        code,_=_engine(plan.prefix+('rm','--force','--time','0','--ignore',plan.name),environment,session,CLEANUP_SECONDS/3,64*1024)
-        clean=code==0
-        code,out=_engine(plan.prefix+('ps','-a','--filter','name=^'+plan.name+'$','--format','{{.ID}}'),
-                         environment,session,CLEANUP_SECONDS/3,64*1024)
-        clean=clean and code==0 and out.strip()==b''
+        code,_=operation(plan.prefix+('rm','--force','--time','0','--ignore',plan.name))
+        absent=code==0
+        code,out=operation(plan.prefix+('ps','-a','--filter','name=^'+plan.name+'$','--format','{{.ID}}'))
+        absent=absent and code==0 and out.strip()==b''
         cid=session/'cid'
         if cid.exists():
             value=cid.read_bytes().strip()
-            clean=clean and len(value)==64 and all(c in b'0123456789abcdef' for c in value)
-        # Rootless store files belong to mapped ids: remove them inside the namespace.
-        code,_=_engine(plan.prefix+('unshare','rm','-rf','--',str(session/'store'),str(session/'run')),
-                       environment,session,CLEANUP_SECONDS/3,64*1024)
-        clean=clean and code==0
+            absent=absent and len(value)==64 and all(c in b'0123456789abcdef' for c in value)
     except Exception:
-        clean=False
+        absent=False
+    require(absent and roots is not None and _same_root(roots,session),'inspector_run_incomplete')
     try:
-        metadata=session.lstat()
-        require(stat.S_ISDIR(metadata.st_mode) and metadata.st_uid==os.getuid(),'inspector_run_incomplete')
-        shutil.rmtree(session)
+        # Rootless store files belong to mapped ids: remove them inside the namespace.
+        code,_=operation(plan.prefix+('unshare','rm','-rf','--',str(session/'store'),str(session/'run')))
+        removed=code==0
     except Exception:
-        clean=False
-    require(clean and not session.exists(),'inspector_run_incomplete')
+        removed=False
+    require(removed and _same_root(roots,session),'inspector_run_incomplete')
+    result=roots.cleanup()
+    require(result['complete'] is True and result['remaining_owned_resources']==[] and not session.exists(),
+            'inspector_run_incomplete')
 
 
 def _reply_verdicts(reply,request,descriptor,order,limits):
@@ -413,7 +454,7 @@ def _reply_verdicts(reply,request,descriptor,order,limits):
 def _session(capability,profile):
     """Mint the cache-judging session for an admitted closure (R6 gates its use)."""
     require(isinstance(capability,InspectorClosure) and capability._admission is _ADMITTED,'trusted_inspector_capability_unavailable')
-    return InspectionSession(capability,freeze(profile),_ADMITTED)
+    return InspectionSession(capability,freeze(profile),_ADMITTED,_Budget(profile['inspector']['limits']['seconds']))
 
 
 def admit_inspection(verified_input,acceptance):

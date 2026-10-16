@@ -709,14 +709,17 @@ class Budget(Base):
     def test_direct_cleanup_spends_one_reserve_including_kill_waits(self):
         closure = self.fx.admit()
         plan = inspector.prepare_plan(closure, self.fx.profile, codec.canonical_bytes({'rows': []}))
-        plan.session.mkdir(mode=0o700)
+        roots = engine.OwnedRoots([plan.session]).create()  # recorded identity, so the namespace removal is reached
         for name in ('store', 'run', 'tmp'):
             (plan.session / name).mkdir(mode=0o700)
         clock = Clock()
         fake = TimedEngine(self.fx, clock, {'rm': 9, 'ps': 9, 'unshare': 1000})
         with patch.object(time, 'monotonic', clock), patch.object(inspector, '_engine', fake):
-            self.refuses('inspector_run_incomplete', inspector._cleanup, plan, dict(plan.environment), plan.session)
+            self.refuses('inspector_run_incomplete', inspector._cleanup, plan, dict(plan.environment), plan.session,
+                         roots=roots)
+        self.assertEqual(fake.calls, ['rm', 'ps', 'unshare'])
         self.assertLessEqual(clock.now, inspector.CLEANUP_SECONDS)
+        self.assertTrue((plan.session / 'store').is_dir())  # failed namespace removal preserves the roots
 
     def test_container_still_present_preserves_every_owned_root(self):
         sessions = []
