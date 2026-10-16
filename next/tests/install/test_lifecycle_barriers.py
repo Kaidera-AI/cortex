@@ -67,6 +67,9 @@ class Chain:
                 c=thaw(effect['context'])
                 return canonical_bytes({k:c[k] for k in ('identity','effect','request_ref')} | {
                     'state':state,'observed':observed})
+        if type(barrier) is getattr(p1,'_Stop',None) and barrier.phase=='core':
+            observed=copy.deepcopy(observed)
+            observed['stop'].setdefault('dependents_result_ref',barrier.original_ref)
         primitive=Primitive()
         with s.installed(primitive),patch.object(p1,'_installed_lifecycle',return_value=p1._Bindings(
                 self.history,{'service':primitive},barrier)):
@@ -106,29 +109,46 @@ class Barriers(unittest.TestCase):
                 self.assertEqual(result['effect'],event['effect']);self.assertEqual(result['request_ref'],event['request_ref'])
                 self.assertEqual(p1._decode(c.history.read(obs['reservation_ref']))['state'],'consumed')
 
-    def test_MECH01_02A_02B_03_04_05_06_false_barriers_never_start_downstream(self):
-        cases=[('MECH01','S03','sql_session','S04'),('MECH02A','S04','ledger','S05'),
-            ('MECH02B','S04','catalogue','S05'),('MECH03','S04','finite_absent','S05'),
-            ('MECH04','S05','complete_clients','S06'),('MECH05','S06','telemetry_listener','S07'),
-            ('MECH06','S07','current_lease','S08')]
-        for case,bad,fact,next_stage in cases:
-            with self.subTest(case=case),tempfile.TemporaryDirectory() as root:
-                c=Chain(root)
-                for name in STAGES[:STAGES.index(bad)]:self.ok(c,name)
-                s=c.subject(bad);observed=self.observed(bad);observed['barriers'][fact]=False
-                observed['remaining']=[case+'-unresolved']
-                with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage(bad,c.prior),observed)
-                failed=c.history.head()[0];c.prior.append(failed)
-                s=c.subject(next_stage);before=len(c.calls)
-                with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage(next_stage,c.prior),self.observed(next_stage))
-                self.assertEqual(len(c.calls),before)
-                self.assertEqual(p1._History(c.root).head()[0],failed)
-                self.assertEqual(p1._decode(c.history.read(c.history.head()[1]['result_ref']))['observed']['remaining'],[case+'-unresolved'])
-            # Matched restoration has exact successful original P1 receipts.
-            with tempfile.TemporaryDirectory() as root:
-                c=Chain(root)
-                for name in STAGES[:STAGES.index(next_stage)+1]:self.ok(c,name)
-                self.assertEqual(c.calls[-1],next_stage)
+    def _mech(self,case,bad,fact,next_stage):
+        with tempfile.TemporaryDirectory() as root:
+            c=Chain(root)
+            for name in STAGES[:STAGES.index(bad)]:self.ok(c,name)
+            s=c.subject(bad);observed=self.observed(bad);observed['barriers'][fact]=False
+            observed['remaining']=[case+'-unresolved']
+            with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage(bad,c.prior),observed)
+            failed=c.history.head()[0];c.prior.append(failed)
+            s=c.subject(next_stage);before=len(c.calls)
+            with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage(next_stage,c.prior),self.observed(next_stage))
+            self.assertEqual(len(c.calls),before)
+            self.assertEqual(p1._History(c.root).head()[0],failed)
+            self.assertEqual(p1._decode(c.history.read(c.history.head()[1]['result_ref']))['observed']['remaining'],[case+'-unresolved'])
+        # Matched restoration has exact successful original P1 receipts.
+        with tempfile.TemporaryDirectory() as root:
+            c=Chain(root)
+            for name in STAGES[:STAGES.index(next_stage)+1]:self.ok(c,name)
+            self.assertEqual(c.calls[-1],next_stage)
+
+    def test_MECH01(self):
+        self._mech('MECH01','S03','sql_session','S04')
+
+    def test_MECH02A(self):
+        self._mech('MECH02A','S04','ledger','S05')
+
+    def test_MECH02B(self):
+        self._mech('MECH02B','S04','catalogue','S05')
+
+    def test_MECH03(self):
+        self._mech('MECH03','S04','finite_absent','S05')
+
+    def test_MECH04(self):
+        self._mech('MECH04','S05','complete_clients','S06')
+
+    def test_MECH05(self):
+        self._mech('MECH05','S06','telemetry_listener','S07')
+
+    def test_MECH06(self):
+        self._mech('MECH06','S07','current_lease','S08')
+
 
     def test_missing_reordered_foreign_and_changed_predecessors_refuse_before_consume(self):
         for mode in ('missing','reordered','foreign','changed','not-applied'):
@@ -139,8 +159,7 @@ class Barriers(unittest.TestCase):
                 elif mode=='foreign':
                     s=c.subject('S03');s.helper.context(s.data,lambda x:x['target'].update(arch='arm64'))
                     s.helper.scope(s.data,lambda x:x['target'].update(arch='arm64'))
-                elif mode=='changed':
-                    p=c.root/prior[0]['path'];p.write_bytes(p.read_bytes()+b' ')
+                elif mode=='changed':pass
                 else:
                     # A genuine durable NOT_APPLIED never becomes a stage success.
                     c2=Chain(Path(root)/'not-applied');s2=c2.subject('S01')
@@ -148,8 +167,11 @@ class Barriers(unittest.TestCase):
                     c=c2;prior=[c.history.head()[0]]
                 if mode!='foreign':s=c.subject('S03' if mode!='not-applied' else 'S02')
                 before=len(c.history.events());calls=len(c.calls)
+                if mode=='changed':
+                    p=c.root/prior[0]['path'];p.write_bytes(p.read_bytes()+b' ')
                 with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage('S03' if mode!='not-applied' else 'S02',prior),self.observed('S03'))
-                self.assertEqual(len(c.history.events()),before);self.assertEqual(len(c.calls),calls)
+                count=len(list((c.root/'events').glob('*.json'))) if mode=='changed' else len(c.history.events())
+                self.assertEqual(count,before);self.assertEqual(len(c.calls),calls)
 
     def test_enrollment_required_is_healthy_without_writing_first_identity(self):
         with tempfile.TemporaryDirectory() as root:
@@ -163,7 +185,7 @@ class Barriers(unittest.TestCase):
     def stop_before(self,c):
         c.operation='stop-operation'
         s=c.subject('stop-dependents');d=s.deadline
-        c.before=canonical_bytes({'t0_ns':101000000000,'deadline_ns':103000000000,
+        c.before=canonical_bytes({'t0_ns':101000000000,'deadline_ns':105000000000,
             'expires_monotonic_ns':d.expires_monotonic_ns,'owner_epoch':d.owner_epoch,
             'installation_id':s.proposal.context['identity']['installation_id'],
             'operation_id':s.proposal.context['identity']['operation_id'],'inventory':['api','lease','core']})
@@ -171,12 +193,12 @@ class Barriers(unittest.TestCase):
         return s
 
     def stop_observed(self,phase,**change):
-        # T=2s, rational cutoffs rounded DOWN: never gain time.
-        value={'phase':phase,'t0_ns':101000000000,'deadline_ns':103000000000,
-            'c1_ns':101666666666,'c2_ns':102333333333,'c3_ns':102666666666,
-            'dependents_absent_at_ns':102000000000,'lease_fenced':True,
+        # T=4s, rational cutoffs rounded DOWN: never gain time.
+        value={'phase':phase,'t0_ns':101000000000,'deadline_ns':105000000000,
+            'c1_ns':102333333333,'c2_ns':103666666666,'c3_ns':104333333333,
+            'dependents_absent_at_ns':103000000000,'lease_fenced':True,
             'core_term_at_ns':None,'core_force_at_ns':None,'core_absent_at_ns':None,'remaining':[]}
-        if phase=='core':value.update(core_term_at_ns=102400000000,core_force_at_ns=102800000000,core_absent_at_ns=102900000000)
+        if phase=='core':value.update(core_term_at_ns=104000000000,core_force_at_ns=104500000000,core_absent_at_ns=104900000000)
         value.update(change);return {'stop':value}
 
     def stop_pair(self,c):
@@ -184,28 +206,45 @@ class Barriers(unittest.TestCase):
         s=c.subject('stop-core');core=thaw(c.run(s,self.stop('core',dep),self.stop_observed('core')))
         return dep,core
 
-    def test_STOP01_02_03_unproved_C2_retains_Core_and_exact_inventory(self):
-        for case in ('STOP01','STOP02','STOP03'):
-            with self.subTest(case=case),tempfile.TemporaryDirectory() as root:
-                c=Chain(root);s=self.stop_before(c)
-                changes={'STOP01':{'dependents_absent_at_ns':None,'remaining':['api']},
-                         'STOP02':{'dependents_absent_at_ns':102333333334},
-                         'STOP03':{'lease_fenced':False}}
-                o=self.stop_observed('dependents',**changes[case])
-                with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('dependents'),o)
-                anchor=c.history.head()[0];s=c.subject('stop-core');before=len(c.calls)
-                with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('core',anchor),self.stop_observed('core'))
-                self.assertEqual(len(c.calls),before);self.assertNotIn('stop-core',c.calls)
-            with tempfile.TemporaryDirectory() as root:self.stop_pair(Chain(root))
+    def _stop_unproved(self,case):
+        with tempfile.TemporaryDirectory() as root:
+            c=Chain(root);s=self.stop_before(c)
+            changes={'STOP01':{'dependents_absent_at_ns':None,'remaining':['api']},
+                     'STOP02':{'dependents_absent_at_ns':103666666667},
+                     'STOP03':{'lease_fenced':False}}
+            o=self.stop_observed('dependents',**changes[case])
+            with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('dependents'),o)
+            anchor=c.history.head()[0];s=c.subject('stop-core');before=len(c.calls)
+            with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('core',anchor),self.stop_observed('core'))
+            self.assertEqual(len(c.calls),before);self.assertNotIn('stop-core',c.calls)
+        with tempfile.TemporaryDirectory() as root:self.stop_pair(Chain(root))
+
+    def test_STOP01(self):
+        self._stop_unproved('STOP01')
+
+    def test_STOP02(self):
+        self._stop_unproved('STOP02')
+
+    def test_STOP03(self):
+        self._stop_unproved('STOP03')
+
 
     def test_STOP04_Core_last_force_cutoff_and_final_absence_are_required(self):
-        for change in ({'core_term_at_ns':101900000000},{'core_force_at_ns':102500000000},
-                       {'core_absent_at_ns':103000000001},{'core_absent_at_ns':None,'remaining':['core']}):
+        for change in ({'core_term_at_ns':102900000000},{'core_force_at_ns':104000000000},
+                       {'core_absent_at_ns':105000000001},{'core_absent_at_ns':None,'remaining':['core']}):
             with self.subTest(change=change),tempfile.TemporaryDirectory() as root:
                 c=Chain(root);s=self.stop_before(c)
                 dep=c.run(s,self.stop('dependents'),self.stop_observed('dependents'));s=c.subject('stop-core')
                 with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('core',thaw(dep)),self.stop_observed('core',**change))
         with tempfile.TemporaryDirectory() as root:self.stop_pair(Chain(root))
+
+    def test_Core_receipt_retains_the_exact_dependent_original(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=Chain(root);s=self.stop_before(c)
+            dep=c.run(s,self.stop('dependents'),self.stop_observed('dependents'))
+            s=c.subject('stop-core')
+            with self.assertRaises(owner.OwnerRefusal):
+                c.run(s,self.stop('core',thaw(dep)),self.stop_observed('core',dependents_result_ref={'wrong':'original'}))
 
     def test_STOP05_06_duplicates_and_manager_escalation_never_create_new_stop_budget(self):
         with tempfile.TemporaryDirectory() as root:
@@ -215,7 +254,7 @@ class Barriers(unittest.TestCase):
                 self.assertEqual(c.history.head()[0],before)
             self.assertEqual(c.calls,['stop-dependents','stop-core'])
             # A different original D/preimage cannot replace the retained stop.
-            c.before=canonical_bytes(json.loads(c.before)|{'deadline_ns':104000000000})
+            c.before=canonical_bytes(json.loads(c.before)|{'deadline_ns':106000000000})
             s=c.subject('stop-core-escalated')
             with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stop('core',dep),self.stop_observed('core'))
             self.assertEqual(c.calls,['stop-dependents','stop-core'])
@@ -235,25 +274,40 @@ class Barriers(unittest.TestCase):
         s.helper.scope(s.data,lambda x:x.update(identity=q['identity']))
         return s
 
-    def test_RESTART01_02A_02B_03_05_survivors_unknown_stop_or_result_block_replacement(self):
-        for case in ('RESTART01','RESTART02A','RESTART02B','RESTART03','RESTART05'):
-            with self.subTest(case=case),tempfile.TemporaryDirectory() as root:
-                c=Chain(root)
-                for name in STAGES:self.ok(c,name)
-                baseline=list(c.prior);dep,stop_ref=self.stop_pair(c)
-                absent=dict.fromkeys(('core','api','telemetry','finite','supervisor'),True)
-                if case in ('RESTART01','RESTART02A','RESTART02B'):
-                    absent[{'RESTART01':'core','RESTART02A':'api','RESTART02B':'finite'}[case]]=False
-                bad_baseline=baseline[:-1] if case=='RESTART05' else baseline
-                bad_stop=dep if case=='RESTART03' else stop_ref
-                s=self.ordinary(c,baseline,bad_stop,old_generation_absent=absent)
-                before=len(c.calls)
-                with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage('S01',baseline=tuple(bad_baseline),stop_ref=bad_stop),self.observed('S01'))
-                self.assertEqual(len(c.calls),before)
-                # Same exact prior source truth, independently restored absence.
-                s=self.ordinary(c,baseline,stop_ref)
-                r=c.run(s,self.stage('S01',baseline=tuple(baseline),stop_ref=stop_ref),self.observed('S01'))
-                self.assertEqual(c.calls[-1],'S01');self.assertEqual(thaw(r),c.history.head()[0])
+    def _restart_blocked(self,case):
+        with tempfile.TemporaryDirectory() as root:
+            c=Chain(root)
+            for name in STAGES:self.ok(c,name)
+            baseline=list(c.prior);dep,stop_ref=self.stop_pair(c)
+            absent=dict.fromkeys(('core','api','telemetry','finite','supervisor'),True)
+            if case in ('RESTART01','RESTART02A','RESTART02B'):
+                absent[{'RESTART01':'core','RESTART02A':'api','RESTART02B':'finite'}[case]]=False
+            bad_baseline=baseline[:-1] if case=='RESTART05' else baseline
+            bad_stop=dep if case=='RESTART03' else stop_ref
+            s=self.ordinary(c,baseline,bad_stop,old_generation_absent=absent)
+            before=len(c.calls)
+            with self.assertRaises(owner.OwnerRefusal):c.run(s,self.stage('S01',baseline=tuple(bad_baseline),stop_ref=bad_stop),self.observed('S01'))
+            self.assertEqual(len(c.calls),before)
+            # Same exact prior source truth, independently restored absence.
+            s=self.ordinary(c,baseline,stop_ref)
+            r=c.run(s,self.stage('S01',baseline=tuple(baseline),stop_ref=stop_ref),self.observed('S01'))
+            self.assertEqual(c.calls[-1],'S01');self.assertEqual(thaw(r),c.history.head()[0])
+
+    def test_RESTART01(self):
+        self._restart_blocked('RESTART01')
+
+    def test_RESTART02A(self):
+        self._restart_blocked('RESTART02A')
+
+    def test_RESTART02B(self):
+        self._restart_blocked('RESTART02B')
+
+    def test_RESTART03(self):
+        self._restart_blocked('RESTART03')
+
+    def test_RESTART05(self):
+        self._restart_blocked('RESTART05')
+
 
     def test_RESTART04_ordinary_refuses_init_bootstrap_migrate_and_second_enrollment(self):
         with tempfile.TemporaryDirectory() as root:
