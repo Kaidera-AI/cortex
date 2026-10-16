@@ -348,3 +348,25 @@ class Barriers(unittest.TestCase):
             with self.assertRaises(owner.OwnerRefusal):
                 c.run(s,self.stage('S01'),self.observed('S01'),after_snapshot=expire)
             self.assertEqual(c.calls,[]);self.assertEqual(c.history.events(),[])
+
+    def test_authority_loss_during_final_barrier_read_never_dispatches(self):
+        for mode in ('revoked','expired'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as root:
+                c=Chain(root);s=c.subject('S01');read=p1._barrier_before
+                def delayed_read(*args,**kwargs):
+                    answer=read(*args,**kwargs)
+                    ref,event=c.history.head()
+                    if ref is not None:
+                        _,obs=p1._load_entry(c.history,ref)
+                        if p1._decode(c.history.read(obs['reservation_ref']))['state']=='consumed':
+                            if mode=='revoked':s.revoked=True
+                            else:s.helper.clock(s.data,lambda clock:clock.update(
+                                now_utc=1700000030,monotonic_ns=130000000000))
+                    return answer
+                with patch.object(p1,'_barrier_before',side_effect=delayed_read):
+                    with self.assertRaises(owner.OwnerRefusal):
+                        c.run(s,self.stage('S01'),self.observed('S01'))
+                self.assertEqual(c.calls,[])
+                _,obs=p1._load_entry(c.history,c.history.head()[0])
+                self.assertEqual(p1._decode(c.history.read(obs['attempt_ref']))['dispatch_state'],
+                                 'consumed_result_unknown')
