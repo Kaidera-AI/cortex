@@ -50,7 +50,10 @@ class _MacOSInputs:
 
 def _installed_macos_inputs():
     # One fixed private native composition. No environment, search or test mode.
-    raise owner.OwnerRefusal('required_binding_gap')
+    # X2: the private collector behind its one native seam, UNBOUND until the
+    # signed helper exists (required_binding_gap before any read).
+    from ._macos_collector import collect
+    return collect()
 
 
 def _closed(value, keys):
