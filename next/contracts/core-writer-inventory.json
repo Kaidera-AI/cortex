@@ -945,6 +945,42 @@
       "classification": "immutable_current_event_receipt_guard"
     },
     {
+      "file": "src/cortex_core/runtime/connections.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "75259fd33189c1a457d22bfd6031e45b68492b405f5a582484c3b7b91b8a1a81",
+      "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/connections.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "8bf1bdd2a518fa8bc709860584a2181498163736ace4974522dc374cbde711cf",
+      "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/connections.py",
+      "owner": "dynamic_name:getattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "75259fd33189c1a457d22bfd6031e45b68492b405f5a582484c3b7b91b8a1a81",
+      "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/connections.py",
+      "owner": "dynamic_name:getattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "8bf1bdd2a518fa8bc709860584a2181498163736ace4974522dc374cbde711cf",
+      "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
       "file": "src/cortex_core/runtime/role_grants.py",
       "owner": "<module>",
       "verb": "UPDATE",
@@ -1258,6 +1294,60 @@
       "ordinal": 1,
       "statement_sha256": "ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4",
       "classification": "common_owner_private_binding_DATA; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/secret_resolver.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "21329c6f12d58a5f62d53b9f7be23d875418554e4aa2c4ed9c66ce80dec15d9f",
+      "classification": "X3_fixed_Grant_atom_validation_DATA; closed_7_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/secret_resolver.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "728f5d8f24222d3e2e5f002195773c70598ee81b8f0805badbd5e03be7733700",
+      "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/secret_resolver.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 2,
+      "statement_sha256": "187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561",
+      "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/secret_resolver.py",
+      "owner": "dynamic_name:getattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "21329c6f12d58a5f62d53b9f7be23d875418554e4aa2c4ed9c66ce80dec15d9f",
+      "classification": "X3_fixed_Grant_atom_validation_DATA; closed_7_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/secret_resolver.py",
+      "owner": "dynamic_name:getattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "728f5d8f24222d3e2e5f002195773c70598ee81b8f0805badbd5e03be7733700",
+      "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/secret_resolver.py",
+      "owner": "dynamic_name:getattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 2,
+      "statement_sha256": "187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561",
+      "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
     }
   ]
 }
