@@ -133,7 +133,7 @@ def _inspect(capability,profile,rows,budget,account=None,children=None):
             'verdicts':[{'cache':cache,'equal':equal} for cache,equal in zip(order,verdicts)]},verdicts
 
 
-def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=None,evidence_dir=None):
+def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=None,evidence_dir=None,history=None):
     """EVIDENCE-ONLY producer call (Vera R4-T1): the same transport and core as the
     session, under an admitted closure, returning measured unqualified evidence.
 
@@ -148,6 +148,9 @@ def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=
     request,order=_request(capability,profile,rows)
     plan=prepare_plan(capability,profile,request)
     children=_Children(dict(plan.environment),evidence_dir,nested)
+    if history is not None:
+        # the caller's list IS the collector's record list: a failed run keeps its history
+        children.records=history
     reply=run_inspection(capability,plan,request,budget=budget,account=account,children=children)
     verdicts=_reply_verdicts(reply,request,thaw(capability.descriptor)['descriptor'],order,profile['inspector']['limits'])
     return {'closure_sha256':capability.closure_sha256,'request_sha256':sha256(request),'reply_sha256':sha256(reply),

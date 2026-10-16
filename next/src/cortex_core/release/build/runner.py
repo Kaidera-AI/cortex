@@ -132,19 +132,45 @@ class _EvidenceInspection:
         from cortex_core.release.inspector import ENGINE_ENVIRONMENT, collect_inspection_evidence
 
         started = time.time_ns()
-        record = collect_inspection_evidence(self.closure, self.profile, rows, deadline=self.deadline,
-                                             account=self.account, evidence_dir=self.evidence_dir)
+        nested = []
+        try:
+            record = collect_inspection_evidence(self.closure, self.profile, rows, deadline=self.deadline,
+                                                 account=self.account, evidence_dir=self.evidence_dir, history=nested)
+        except BaseException as error:
+            # Hale R4-MAP-001: a failed nested run publishes its call and its REAL history too
+            self._publish(started, nested, None, canonical_bytes({"error": type(error).__name__}),
+                          (type(error).__name__ + ": " + str(error))[:512], None)
+            raise
         self.records.append(record)
-        nested = list(record.get("children") or [])
-        # Hale R4-MAP-001(b): the evidence call itself, then its REAL nested children;
-        # nothing is synthesized. Its streams are the request-bound reply and the
-        # nested child list, written as original evidence.
-        call = {"argv": list(record["argv"]), "cwd": str(self.evidence_dir),
-                "environment_names": sorted(ENGINE_ENVIRONMENT),
-                "exit": 0 if nested else None, "started_at_unix_ns": started, "finished_at_unix_ns": time.time_ns()}
+        nested = list(record.get("children") or nested)
+        self._publish(started, nested, record["argv"], record.get("reply") or canonical_bytes(record["verdicts"]), None,
+                      record.get("request"))
+        if not nested:
+            raise ReceiptRefusal("inspector_run_incomplete")
+        if not all(row["equal"] is True for row in record["verdicts"]):
+            raise ReceiptRefusal("python_compilation_policy")
+
+    def _publish(self, started, nested, argv, stdout, error, request):
+        """The evidence call itself, then its real nested children (success or failure)."""
+        import time
+        from pathlib import Path
+        from cortex_core.release.codec import canonical_bytes, sha256
+        from cortex_core.release.inspector import ENGINE_ENVIRONMENT
+
+        if argv is None:
+            runs = [child["argv"] for child in nested if child["argv"][8:9] == ["run"]]
+            argv = runs[0] if runs else ["inspector-evidence-call"]
+        session = argv[3][:-len("/store")] if len(argv) > 3 and argv[3].endswith("/store") else str(self.evidence_dir)
+        call = {"argv": list(argv), "cwd": session, "environment_names": sorted(ENGINE_ENVIRONMENT),
+                "exit": 0 if nested and error is None else None, "started_at_unix_ns": started,
+                "finished_at_unix_ns": time.time_ns()}
+        if error is not None:
+            call["error"] = error
         index = len(self.children)
-        for key, raw in (("stdout", record.get("reply") or canonical_bytes(record["verdicts"])),
-                         ("stderr", b""), ("journal", canonical_bytes(nested))):
+        streams = [("stdout", stdout), ("stderr", b""), ("journal", canonical_bytes(nested))]
+        if request is not None:
+            streams.append(("request", request))  # the request this reply answers (Cox R4-R01-001)
+        for key, raw in streams:
             if self.evidence_dir is None:
                 call[key] = {"path": None, "bytes": len(raw), "sha256": sha256(raw)}
                 continue
@@ -153,10 +179,6 @@ class _EvidenceInspection:
             call[key] = {"path": str(path), "bytes": len(raw), "sha256": sha256(raw)}
         self.children.append(call)
         self.children.extend(nested)
-        if not nested:
-            raise ReceiptRefusal("inspector_run_incomplete")
-        if not all(row["equal"] is True for row in record["verdicts"]):
-            raise ReceiptRefusal("python_compilation_policy")
 
 
 def native_lane(slot, verified, materialize, base, closure, host, parent,
@@ -335,7 +357,7 @@ def native_lane(slot, verified, materialize, base, closure, host, parent,
         classes["runtime"] = _runtime_smoke(state)
         state["inspection"] = judge.records
         for child in state["phases"]["audit"]["children"]:
-            for key in ("stdout", "stderr", "journal"):
+            for key in ("stdout", "stderr", "journal", "request"):
                 stream = child.get(key)
                 if stream and stream.get("path") and Path(stream["path"]).is_absolute():
                     stream["path"] = str(Path(stream["path"]).relative_to(evidence_root))
@@ -494,7 +516,7 @@ def _build_record(lane, value, host, evidence_root, output_root):
                 "media_type": "application/octet-stream", "bytes": child[key]["bytes"], "sha256": child[key]["sha256"]}
                for phase in ("input", "parser", "build", "export", "audit", "cleanup")
                for index, child in enumerate(lane["phases"][phase]["children"])
-               for key in ("stdout", "stderr", "journal")]
+               for key in ("stdout", "stderr", "journal", "request") if key in child]
     evidence = ([op["evidence"] for op in operations] + list(reports.values()) + [custody, cleanup] + children +
                 streams)
     return build, reports, evidence
