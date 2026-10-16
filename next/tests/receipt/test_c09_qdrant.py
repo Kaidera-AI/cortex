@@ -1153,3 +1153,30 @@ class S3QueryTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsInstance(search,s3query.QdrantSearch)
             self.assertEqual(await port.capability_source('pg_search',p),{'state':'unavailable','reason':'qdrant_native_unbound'})
             self.assertEqual(server.calls,[])
+
+class S3WorkerOwnership(unittest.TestCase):
+    def test_s3_sync_bridge_deadline_retains_uncooperative_work_and_refuses_overlap(self):
+        from cortex_core.modules.vector.consumer_adapter import QdrantSink
+        import threading
+        x=S3Tests();release=threading.Event();entered=threading.Event();clients=[]
+        def factory():
+            c=x.client();clients.append(c);return c
+        async def stubborn(identity,payload):
+            entered.set()
+            while not release.is_set():
+                try:await asyncio.sleep(.005)
+                except asyncio.CancelledError:pass
+            return x.vector()
+        sink=QdrantSink(x.binding(),factory,stubborn);caught=None
+        try:
+            try:sink.apply(x.event(),1,deadline=time.monotonic()+.05)
+            except Exception as error:caught=error
+            self.assertIsInstance(caught,module.ProtocolFailure,'sync worker deadline owner absent')
+            self.assertTrue(entered.is_set())
+            self.assertGreater(sink.status()['pending_workers'],0)
+            with self.assertRaises(module.ProtocolFailure):sink.apply(x.event(),1)
+        finally:
+            release.set()
+            if hasattr(sink,'close'):sink.close(deadline=time.monotonic()+1)
+        self.assertEqual(sink.status()['pending_workers'],0)
+        self.assertTrue(all(c._http.is_closed for c in clients))

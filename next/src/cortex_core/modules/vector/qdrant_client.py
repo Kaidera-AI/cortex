@@ -137,7 +137,8 @@ class PrivateClient:
                      or method in ('PUT', 'POST') and re.fullmatch(_COLLECTION + '/points', path))
             if collection is not None:
                 route = (re.fullmatch(r'/collections/cortex-[0-9a-f]{32}', collection) is not None
-                         and path == collection+'/points' and method in ('PUT','POST'))
+                         and (path == collection+'/points' and method in ('PUT','POST')
+                              or path == collection+'/points/query' and method == 'POST'))
             if not route or self._http is None or self._closed:
                 raise ValueError()
             if method == 'PUT' and path.endswith('/points') and (
@@ -328,3 +329,69 @@ class PrivateClient:
                 return make_receipt(binding, event, desired, actual, completion['result']['operation_id'])
             finally:
                 writer = reader = None
+
+
+    async def read_projection(self, binding, aggregate_id, *, deadline=None):
+        try:
+            async def operation(end):
+                async with self._slots:
+                    writer, reader = await self._keys(end)
+                    try:
+                        return await self._projection_read(binding, aggregate_id, reader, end)
+                    finally:
+                        writer = reader = None
+            return await self._owned(operation, deadline)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            raise ProtocolFailure('qdrant_projection_unavailable') from None
+
+    async def query_projection(self, binding, vector, *, limit=20, kind=None, deadline=None):
+        from uuid import UUID
+        from .projection import _vector, binding_contract, validate_point
+        try:
+            if type(limit) is not int or not 1 <= limit <= 100:
+                raise ValueError()
+            if kind is not None and (type(kind) is not str or not 1 <= len(kind) <= 64
+                    or kind != kind.strip() or not kind.isprintable()):
+                raise ValueError()
+            values = _vector(vector, binding.identity.dimensions)
+            async def operation(end):
+                async with self._slots:
+                    writer, reader = await self._keys(end)
+                    try:
+                        conditions = binding_contract(binding) | {'tombstone':False}
+                        if kind is not None:
+                            conditions['aggregate_kind'] = kind
+                        body = {'query':values, 'limit':limit, 'with_vector':True, 'with_payload':True,
+                            'filter':{'must':[{'key':k,'match':{'value':v}} for k,v in conditions.items()]}}
+                        value = await self._request('POST', binding.collection+'/points/query', body,
+                            reader, end, collection=binding.collection)
+                        result = value.get('result')
+                        if value.get('status') != 'ok' or type(result) is not dict or set(result) != {'points'}:
+                            raise ValueError()
+                        rows = result['points']
+                        if type(rows) is not list or len(rows) > limit:
+                            raise ValueError()
+                        hits = []; seen = set()
+                        for row in rows:
+                            if (type(row) is not dict or not {'id','payload','vector','score'} <= set(row)
+                                    or set(row)-{'id','payload','vector','score','version','shard_key','order_value'}
+                                    or type(row['score']) not in (int,float) or not math.isfinite(row['score'])
+                                    or not -1.000001 <= row['score'] <= 1.000001):
+                                raise ValueError()
+                            point = validate_point({k:row[k] for k in ('id','payload','vector')}, binding,
+                                                   UUID(row['payload']['aggregate_id']))
+                            if (point['id'] in seen or point['payload']['tombstone']
+                                    or kind is not None and point['payload']['aggregate_kind'] != kind):
+                                raise ValueError()
+                            seen.add(point['id']); hits.append((point,1-float(row['score'])))
+                        _check(end)
+                        return tuple(hits)
+                    finally:
+                        writer = reader = None
+            return await self._owned(operation, deadline)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            raise ProtocolFailure('qdrant_projection_unavailable') from None
