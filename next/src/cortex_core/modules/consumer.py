@@ -54,6 +54,14 @@ class ModuleConsumer:
         self.after_checkpoint = after_checkpoint
         self.max_pending_outcomes = max_pending_outcomes
 
+    def _fail(self, code, cause=None):
+        # An external effect and its Core commit are independent. Failure (even
+        # an ambiguous commit exit) never grants synthetic completion or leaks
+        # the database/authority exception through the v2 capability boundary.
+        if self.external_binding is not None:
+            raise ConsumerError('capability_unavailable') from None
+        raise ConsumerError(code) from cause
+
     def _call(self, signature, args=()):
         try:
             with authorized(self.connection, self.credential,
@@ -79,7 +87,7 @@ class ModuleConsumer:
                 result = row.fetchone()[0]
             return result
         except (AuthError, psycopg.Error) as error:
-            raise ConsumerError('core_unavailable') from error
+            self._fail('core_unavailable', error)
 
     def status(self):
         return self._call('c07_status(%s)', (self.module_id,))
@@ -121,7 +129,7 @@ class ModuleConsumer:
                 self.connection.execute('SELECT pg_advisory_unlock(hashtextextended(%s,0))',
                                         (key,))
         except psycopg.Error as error:
-            raise ConsumerError('core_unavailable') from error
+            self._fail('core_unavailable', error)
 
     def _state(self):
         state = self.status()
@@ -195,10 +203,10 @@ class ModuleConsumer:
                 receipt = {k:receipt[k] for k in ('event_id','aggregate_id','revision',
                     'tombstone','payload_sha256','generation','stale')}
             except (ValueError, KeyError, TypeError):
-                raise ConsumerError('invalid_target_receipt') from None
+                self._fail('invalid_target_receipt')
         required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}
         if not isinstance(receipt, dict) or set(receipt) != required:
-            raise ConsumerError('invalid_target_receipt')
+            self._fail('invalid_target_receipt')
         try:
             if (not isinstance(receipt['event_id'], str) or UUID(receipt['event_id']) != UUID(env['event_id'])
                     or not isinstance(receipt['aggregate_id'], str) or UUID(receipt['aggregate_id']) != aggregate
@@ -215,16 +223,16 @@ class ModuleConsumer:
                     or not isinstance(receipt['payload_sha256'], str)
                     or not re.fullmatch('[0-9a-f]{64}', receipt['payload_sha256'])
                     or receipt['payload_sha256'] != env['payload_sha256']):
-                raise ConsumerError('invalid_target_receipt')
+                self._fail('invalid_target_receipt')
         except (ValueError, TypeError, OverflowError):
-            raise ConsumerError('invalid_target_receipt') from None
+            self._fail('invalid_target_receipt')
         outcome = 'stale' if receipt.get('stale') is True else 'applied'
         self._record(state, event, outcome, receipt=external_receipt)
         if self.after_checkpoint is not None:
             try:
                 self.after_checkpoint()
             except Exception as error:
-                raise ConsumerError('after_checkpoint') from error
+                self._fail('after_checkpoint', error)
         return True
 
     def cycle(self, *, limit=100):
@@ -243,7 +251,7 @@ class ModuleConsumer:
                 except OutboxError as error:
                     if error.code == 'expired':
                         self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
-                    raise ConsumerError(error.code) from error
+                    self._fail(error.code, error)
                 if observed.floor > state['applied_cursor']:
                     self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
                     raise ConsumerError('expired')
@@ -273,7 +281,7 @@ class ModuleConsumer:
             except OutboxError as error:
                 if error.code == 'expired':
                     self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
-                raise ConsumerError(error.code) from error
+                self._fail(error.code, error)
             if page.floor > state['applied_cursor']:
                 self._call('c07_expire(%s,%s)', (self.module_id, state['generation']))
                 raise ConsumerError('expired')
@@ -302,7 +310,7 @@ class ModuleConsumer:
                 try:
                     page = self.feed.page(after=cursor, limit=1000)
                 except OutboxError as error:
-                    raise ConsumerError(error.code) from error
+                    self._fail(error.code, error)
                 page_cursor = cursor
                 for event in page.events:
                     if event.cursor > scan_fence:
