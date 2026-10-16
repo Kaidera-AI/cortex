@@ -830,10 +830,24 @@ def _run_file(root, name):
     return decode_json(path.read_bytes(), 1024 * 1024) if path.is_file() and not path.is_symlink() else None
 
 
+def _run_binding(run_id, root):
+    """What one teardown result is evidence FOR: this run id and the exact setup and
+    receipt records it cleaned (Hale r2 COMPOSITION)."""
+    from pathlib import Path
+    from cortex_core.release.codec import sha256
+
+    def digest(name):
+        path = Path(root) / ("operator-" + name + ".json")
+        return sha256(path.read_bytes()) if path.is_file() and not path.is_symlink() else None
+    return {"run_id": run_id, "setup_sha256": digest("setup"), "receipt_sha256": digest("receipt")}
+
+
 def operator_teardown(run_id, backend, root, *, clock=None, deadline=None):
     """The ONE concrete finally of a run: the in-process lifecycle cleanup of operator_run
     AND the unit's ExecStopPost. Exactly once: the first call writes its result
-    (O_EXCL); any later call returns that result and touches nothing. Every backend call
+    (O_EXCL), bound to this run id and the setup/receipt records it cleaned; a later
+    call returns it only for that same binding, else reports marker_mismatch, and
+    touches nothing either way. Every backend call
     is (op, run_id, timeout) inside the teardown reserve. Packages: only OUR recorded
     transaction is undone, after its undo preview; a setup without a proven receipt is
     HOLD (residual), never a blind undo."""
@@ -842,9 +856,12 @@ def operator_teardown(run_id, backend, root, *, clock=None, deadline=None):
     from cortex_core.release.inspector import _write_owned
     from .engine import Deadline
 
+    binding = _run_binding(run_id, root)
     done = _run_file(root, "teardown")
     if done is not None:
-        return done
+        if type(done) is dict and all(done.get(key) == value for key, value in binding.items()):
+            return done
+        return {"run_id": run_id, "complete": False, "remaining_owned_resources": ["teardown: marker_mismatch"]}
     if deadline is None:  # ExecStopPost after the run process died: a fresh reserve only
         deadline = Deadline(OPERATOR_TEARDOWN_SEC, clock=clock or _now, reserve=OPERATOR_TEARDOWN_SEC)
     deadline.enter_cleanup(OPERATOR_TEARDOWN_SEC)
@@ -866,7 +883,7 @@ def operator_teardown(run_id, backend, root, *, clock=None, deadline=None):
     residuals = operator_finally([("stop", lambda: call("stop")), ("absent", lambda: call("absent")),
                                   ("custody", lambda: call("custody")), ("session", lambda: call("session_stop")),
                                   ("user", lambda: call("user_remove")), ("packages", packages)])
-    result = {"run_id": run_id, "complete": not residuals, "remaining_owned_resources": residuals}
+    result = dict(binding, complete=not residuals, remaining_owned_resources=residuals)
     _write_owned(Path(root) / "operator-teardown.json", canonical_bytes(result), 0o444)
     return result
 
@@ -890,6 +907,11 @@ def operator_run(run_id, backend, modules, closure, probe, host, parent, root, a
     deadline = operator_deadline(budget, clock=clock)
     stages = budget["stages"]
     root = Path(root)
+    # ONE run per operator root: a root that already carries any record (a setup, a
+    # receipt, a teardown marker, qualification output) is refused before any effect,
+    # so a finally can never be another run's (Hale r2 COMPOSITION).
+    if not root.is_dir() or root.is_symlink() or any(root.iterdir()):
+        raise ValueError("operator_root_not_fresh")
     state = {"lanes": None, "teardown": None}
 
     def call(op, *args):
