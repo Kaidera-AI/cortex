@@ -190,7 +190,13 @@ BEGIN
     ORDER BY generation DESC LIMIT 1;
   SELECT COALESCE((project_retained_floors->>(s.tenant_id::text||':'||s.project_id::text))::bigint,0)
     INTO floor_value FROM coordination.feed_state WHERE installation_id=s.installation_id;
-  IF c.state<>'active' OR c.applied_cursor<COALESCE(floor_value,0) THEN RAISE EXCEPTION 'vector_read_refused'; END IF;
+  -- An observed successor head does not prove its contiguous Core outcome.
+  -- Foreign-project publication must not hold this project's proof closed.
+  IF c.state<>'active' OR c.applied_cursor<COALESCE(floor_value,0) OR EXISTS (
+    SELECT 1 FROM coordination.published_events p WHERE
+      (p.installation_id,p.tenant_id,p.project_id)=(s.installation_id,s.tenant_id,s.project_id)
+      AND p.cursor>c.applied_cursor
+  ) THEN RAISE EXCEPTION 'vector_read_refused'; END IF;
   SELECT binding INTO STRICT binding_value FROM coordination.vector_bindings WHERE
     (installation_id,module_id,tenant_id,project_id,generation)=
     (s.installation_id,p_module,s.tenant_id,s.project_id,c.generation);
