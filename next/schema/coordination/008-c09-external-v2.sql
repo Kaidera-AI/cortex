@@ -1,6 +1,6 @@
--- S3 SOURCE DRAFT. NOT MANIFESTED, NOT an admitted production migration.
--- PG-C owns schema admission/sealing. No existing SQL byte or manifest is changed.
--- Execute only in a separately authorized copied-DB qualification after review.
+-- C09 Core external-v2 bookkeeping, source manifest migration21.
+-- Appended after PG-C runtime-grants-0001; existing migration bytes unchanged.
+-- Capability UNAVAILABLE; source admission does not grant runtime/release seals.
 CREATE TABLE coordination.vector_bindings (
     installation_id uuid NOT NULL,
     module_id text NOT NULL,

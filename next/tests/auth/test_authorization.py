@@ -9,6 +9,7 @@ import unittest
 from uuid import UUID
 
 import psycopg
+from psycopg import sql
 from cortex_core.auth import AuthError, authorized
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'schema'))
@@ -37,6 +38,21 @@ class AuthorizationTests(unittest.TestCase):
             END IF;
         END $$''')
         self.admin.execute(f'GRANT "{REQUEST}" TO "{API}"')
+        if self.admin.execute("SELECT to_regclass('auth.runtime_login_bindings')").fetchone()[0]:
+            # PG-C closes PUBLIC CONNECT and binds the authenticated login.
+            # Only this synthetic fixture login gets the current owned DB.
+            database=self.admin.execute('SELECT current_database()').fetchone()[0]
+            if not database.startswith('kaidera-test-'):
+                raise RuntimeError('runtime fixture requires an owned test database')
+            self.admin.execute(sql.SQL('GRANT CONNECT ON DATABASE {} TO {}').format(
+                sql.Identifier(database),sql.Identifier(API)))
+            self.admin.execute(sql.SQL('GRANT {} TO {} WITH INHERIT FALSE,SET TRUE,ADMIN FALSE').format(
+                sql.Identifier(REQUEST),sql.Identifier(API)))
+            self.admin.execute("""INSERT INTO auth.runtime_login_bindings
+                (role_oid,role_name,logical_role,installation_id,active,revision,operation_id,database_oid,database_owner_oid)
+                SELECT r.oid,r.rolname,'api_request',%s,true,1,%s,d.oid,d.datdba
+                FROM pg_roles r CROSS JOIN pg_database d WHERE r.rolname=%s AND d.datname=%s""",
+                (uid(1),uid(900),API,database))
         self.request = psycopg.connect(os.environ['TEST_DATABASE_URL'].replace('postgres@', API+'@'), autocommit=True)
         self.addCleanup(self.request.close)
         self.request.execute(f'SET ROLE "{REQUEST}"')
