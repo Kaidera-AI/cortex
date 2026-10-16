@@ -118,38 +118,36 @@ class PostgresSearch:
             return ProjectionRevision(state, record_id, required, indexed, key, reason=reason)
         try:
             async with self._request(subject) as (conn, scope):
-                current = await conn.fetchrow(
-                    'SELECT current_revision,tombstone,kind FROM core.records '
-                    'WHERE tenant_id=$1 AND project_id=$2 AND id=$3',
+                row = await conn.fetchrow(
+                    """SELECT r.current_revision,r.tombstone,r.kind,
+                              st.identity AS state_identity,st.state,
+                              s.source_revision AS desired_revision,s.kind AS source_kind,
+                              v.source_revision AS indexed_revision,v.identity AS vector_identity
+                         FROM core.records r
+                         LEFT JOIN retrieval.search_state st
+                           ON (st.tenant_id,st.project_id)=(r.tenant_id,r.project_id)
+                         LEFT JOIN retrieval.search_sources s
+                           ON (s.tenant_id,s.project_id,s.record_id)=(r.tenant_id,r.project_id,r.id::text)
+                         LEFT JOIN retrieval.search_vectors v
+                           ON (v.tenant_id,v.project_id,v.record_id)=(s.tenant_id,s.project_id,s.record_id)
+                        WHERE r.tenant_id=$1 AND r.project_id=$2 AND r.id=$3""",
                     scope.tenant_id, scope.project_id, record_id)
-                state = await conn.fetchrow(
-                    'SELECT identity,state FROM retrieval.search_state '
-                    'WHERE tenant_id=$1 AND project_id=$2', scope.tenant_id, scope.project_id)
-                if current is None:
+                if row is None:
                     result = observation('unavailable', reason='target_unavailable')
-                elif current['tombstone']:
+                elif row['tombstone']:
                     result = observation('unavailable', reason='tombstone')
-                elif state is None:
+                elif row['state_identity'] is None:
                     result = observation('unavailable', reason='not_configured')
-                elif state['identity'] != key:
+                elif row['state_identity'] != key:
                     result = observation('unavailable', reason='identity_mismatch')
-                elif state['state'] != 'ready':
-                    result = observation('unavailable', reason=state['state'])
+                elif row['state'] != 'ready':
+                    result = observation('unavailable', reason=row['state'])
                 else:
-                    row = await conn.fetchrow(
-                        '''SELECT s.source_revision AS desired_revision,s.kind,
-                                  v.source_revision AS indexed_revision,v.identity AS vector_identity
-                             FROM retrieval.search_sources s
-                             LEFT JOIN retrieval.search_vectors v
-                               USING(tenant_id,project_id,record_id)
-                            WHERE s.tenant_id=$1 AND s.project_id=$2 AND s.record_id=$3
-                            ORDER BY s.record_id LIMIT 1''',
-                        scope.tenant_id, scope.project_id, str(record_id))
-                    indexed = row['indexed_revision'] if row is not None and row['vector_identity'] == key else None
+                    indexed = row['indexed_revision'] if row['vector_identity'] == key else None
                     visible = (indexed is not None and indexed >= required
-                               and indexed == current['current_revision']
-                               and row['desired_revision'] == current['current_revision']
-                               and row['kind'] == current['kind'])
+                               and indexed == row['current_revision']
+                               and row['desired_revision'] == row['current_revision']
+                               and row['source_kind'] == row['kind'])
                     result = observation('visible' if visible else 'pending', indexed,
                                          '' if visible else 'index_pending')
         except CoreUnavailable:
@@ -298,18 +296,19 @@ class PostgresSearch:
             )
 
     @staticmethod
-    async def _freshness(conn, scope, key):
-        row = await conn.fetchrow(
-            """SELECT count(v.record_id) AS indexed,
-            count(*) FILTER(WHERE v.record_id IS NULL) AS pending
-            FROM retrieval.search_sources s LEFT JOIN retrieval.search_vectors v
-            ON (v.tenant_id,v.project_id,v.record_id)=(s.tenant_id,s.project_id,s.record_id)
-            AND v.source_revision=s.source_revision AND v.identity=$3
-            WHERE s.tenant_id=$1 AND s.project_id=$2""",
-            scope.tenant_id,
-            scope.project_id,
-            key,
-        )
+    async def _freshness(conn, scope, key, row=None):
+        if row is None:
+            row = await conn.fetchrow(
+                """SELECT count(v.record_id) AS indexed,
+                count(*) FILTER(WHERE v.record_id IS NULL) AS pending
+                FROM retrieval.search_sources s LEFT JOIN retrieval.search_vectors v
+                ON (v.tenant_id,v.project_id,v.record_id)=(s.tenant_id,s.project_id,s.record_id)
+                AND v.source_revision=s.source_revision AND v.identity=$3
+                WHERE s.tenant_id=$1 AND s.project_id=$2""",
+                scope.tenant_id,
+                scope.project_id,
+                key,
+            )
         return Freshness(key, row["indexed"], row["pending"])
 
     @retry_authorized_transaction
@@ -342,22 +341,33 @@ class PostgresSearch:
             raise ValueError("Search limit must be 1..100")
         async with self._request(subject) as (conn, scope):
             state = await self._state(conn, scope, key)
-            freshness = await self._freshness(conn, scope, key)
             if state != "ready":
-                raise CapabilityUnavailable(state, freshness)
+                raise CapabilityUnavailable(state, await self._freshness(conn, scope, key))
             # PGvector >=0.8 iterative scan avoids the default filtered-ANN underfill.
             # Bounded scan remains approximate; real-data recall belongs to Mike.
             await conn.execute(
                 "SET LOCAL hnsw.iterative_scan='strict_order'; SET LOCAL hnsw.ef_search=100; SET LOCAL hnsw.max_scan_tuples=20000"
             )
             rows = await conn.fetch(
-                """SELECT v.record_id,s.kind,v.source_revision,
-                v.embedding <=> $4::vector AS distance FROM retrieval.search_vectors v
-                JOIN retrieval.search_sources s USING(tenant_id,project_id,record_id)
-                WHERE v.tenant_id=$1 AND v.project_id=$2 AND v.identity=$3
-                AND v.source_revision=s.source_revision
-                AND ($6::text IS NULL OR s.kind=$6)
-                ORDER BY v.embedding <=> $4::vector LIMIT $5""",
+                """WITH freshness AS (
+                    SELECT count(v.record_id) AS indexed,
+                           count(*) FILTER(WHERE v.record_id IS NULL) AS pending
+                      FROM retrieval.search_sources s LEFT JOIN retrieval.search_vectors v
+                        ON (v.tenant_id,v.project_id,v.record_id)=(s.tenant_id,s.project_id,s.record_id)
+                       AND v.source_revision=s.source_revision AND v.identity=$3
+                     WHERE s.tenant_id=$1 AND s.project_id=$2
+                )
+                SELECT f.indexed,f.pending,h.record_id,h.kind,h.source_revision,h.distance
+                  FROM freshness f LEFT JOIN LATERAL (
+                    SELECT v.record_id,s.kind,v.source_revision,
+                           v.embedding <=> $4::vector AS distance FROM retrieval.search_vectors v
+                    JOIN retrieval.search_sources s USING(tenant_id,project_id,record_id)
+                    WHERE v.tenant_id=$1 AND v.project_id=$2 AND v.identity=$3
+                      AND v.source_revision=s.source_revision
+                      AND ($6::text IS NULL OR s.kind=$6)
+                    ORDER BY v.embedding <=> $4::vector LIMIT $5
+                  ) h ON true
+                ORDER BY h.distance""",
                 scope.tenant_id,
                 scope.project_id,
                 key,
@@ -365,10 +375,13 @@ class PostgresSearch:
                 limit,
                 kind,
             )
+            if not rows:
+                raise CoreUnavailable("Authoritative Core is unavailable")
+            freshness = await self._freshness(conn, scope, key, rows[0])
             return SearchResult(
                 tuple(
                     Hit(r["record_id"], r["kind"], r["source_revision"], r["distance"])
-                    for r in rows
+                    for r in rows if r["record_id"] is not None
                 ),
                 freshness,
             )

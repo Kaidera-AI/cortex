@@ -156,6 +156,7 @@
     "next/tests/reproducibility/test_source_envelope_shapes.py",
     "next/tests/reproducibility/test_source_envelopes.py",
     "next/tests/runtime/test_admission.py",
+    "next/tests/runtime_adapters/test_source_adapters.py",
     "next/tests/runtime_driver_free/test_imports.py",
     "next/tests/runtime_egress/test_e0.py",
     "next/tests/runtime_egress/test_e0_cache_fence.py",
