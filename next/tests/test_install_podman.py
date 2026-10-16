@@ -107,6 +107,7 @@ class Engine:
             self.state = copy.deepcopy(self.plan['before'])
         self.plan['dependencies'] = []
         self.related = {}
+        self.absent = set()
         if kind == 'container':
             v = self.plan['after'] or self.plan['before']
             refs = [('image', copy.deepcopy(self.plan['image_pair'][0 if v['role'] == 'core' else 1])),
@@ -136,6 +137,8 @@ class Engine:
         self.reads += 1
         if self.on_observe:
             self.on_observe(self)
+        if (kind, target) in self.absent:
+            return None
         if kind != self.kind:
             return copy.deepcopy(self.related.get((kind, target)))
         return copy.deepcopy(self.state)
@@ -507,6 +510,68 @@ class PodmanPrimitives(unittest.TestCase):
             e.related[key]['consumers'] = ['f'*64]
         e.on_run = foreign
         self.assertEqual(self.execute(e)[0], 'UNKNOWN')
+
+    def test_resource_replacement_during_publication_prevents_verified_exit(self):
+        e = Engine()
+        with self.opened(e) as p:
+            p.snapshot();p.dispatch(e.plan['subject'])
+            with self.assertRaises(OwnerRefusal):
+                with p.measure(e.plan['subject']) as result:
+                    self.assertEqual(result[0], 'APPLIED');e.state['id'] = OTHER
+
+    def test_core_last_uses_actual_dependent_absence_not_empty_plan_shortcut(self):
+        e = Engine('container', 'stop');e.now = 601
+        e.plan['before'].update(running=True, process={'boot': 'boot-one', 'pid': 90, 'start': 10, 'uid': 1001})
+        e.state = copy.deepcopy(e.plan['before']);e.plan['dependents'] = [OTHER]
+        e.absent.add(('container', OTHER))
+        self.assertEqual(self.execute(e)[0], 'APPLIED')
+
+    def test_network_attach_detach_requires_exact_stopped_container_and_full_id(self):
+        for action in ['connect', 'disconnect']:
+            e = Engine('network', action)
+            before, after = ([] if action == 'connect' else [OTHER]), ([OTHER] if action == 'connect' else [])
+            e.plan['before']['consumers'] = before;e.plan['after']['consumers'] = after
+            e.state = copy.deepcopy(e.plan['before'])
+            c = dict(resource('container'), id=OTHER,
+                     network=None if action == 'connect' else ID)
+            e.plan['dependencies'] = [{'kind': 'container', 'resource': copy.deepcopy(c)}]
+            e.related[('container', OTHER)] = c
+            e.on_run = lambda e, action=action: e.related[('container', OTHER)].update(network=ID if action == 'connect' else None)
+            with self.subTest(action=action):self.assertEqual(self.execute(e)[0], 'APPLIED')
+            self.assertEqual(e.calls[0][0][-4:], ('network', action, ID, OTHER))
+        e = Engine('network', 'disconnect');e.plan['before']['consumers'] = [OTHER]
+        e.plan['after']['consumers'] = [];e.state = copy.deepcopy(e.plan['before'])
+        with self.assertRaises(OwnerRefusal):self.execute(e)
+        self.assertEqual(e.calls, [])
+
+    def test_finite_migrate_and_core_init_reuse_exact_RC0_vectors(self):
+        for mode in ['migrate', 'core-init']:
+            e = Engine('container', 'helper');e.plan['role'] = 'helper';e.plan['helper'] = mode
+            e.binding.update(core_initdb='/opt/cortex/bin/initdb', bootstrap_role='bootstrap_one',
+                             operation_id='00000000-0000-4000-8000-000000000001')
+            if mode == 'migrate':
+                argv = ['/opt/cortex/python/bin/python3', '-I', '-B', '-m', 'cortex_core.runtime',
+                    'migrate', '--config', '/run/cortex/migration.json', '--runtime-lock',
+                    '/run/cortex/runtime.lock.json', '--operation-id', e.binding['operation_id']]
+            else:
+                argv = ['/opt/cortex/bin/initdb', '-D', '/var/lib/cortex/core', '--username',
+                    'bootstrap_one', '--encoding=UTF8', '--locale-provider=libc', '--locale=C',
+                    '--auth-local=scram-sha-256', '--auth-host=scram-sha-256', '--data-checksums',
+                    '--pwfile=/run/cortex/bootstrap/initdb-password', '--no-instructions']
+            for r in [e.plan['before'], e.plan['after']]:
+                r.update(role='helper', running=False, process=None, argv=argv, ports=[])
+            e.state = copy.deepcopy(e.plan['before'])
+            with self.subTest(mode=mode):self.assertEqual(self.execute(e)[0], 'APPLIED')
+            self.assertEqual(e.calls[0][0][-4:], ('start', '--attach', '--sig-proxy=false', ID))
+
+    def test_malformed_internal_binding_and_plan_refuse_without_raw_error(self):
+        for fault in [lambda e: e.binding.update(owner_groups=1),
+                      lambda e: e.plan.update(image_pair=[{}, {}]),
+                      lambda e: e.plan.update(after={'id': None})]:
+            e = Engine();fault(e)
+            with self.subTest(fault=fault), self.assertRaises(OwnerRefusal):
+                with self.opened(e):self.fail('malformed binding accepted')
+            self.assertEqual(e.calls, [])
 
 
 if __name__ == '__main__':
