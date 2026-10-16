@@ -113,6 +113,8 @@ class Engine:
                     ('network', dict(resource('network'), id=OTHER))]
             refs += [('volume', dict(resource('volume'), name=m['source'])) for m in v['mounts']]
             for depkind, record in refs:
+                if self.plan['before'] is not None:
+                    record['consumers'] = [self.plan['before']['id']]
                 self.plan['dependencies'].append({'kind': depkind, 'resource': copy.deepcopy(record)})
                 self.related[(depkind, record.get('id', record.get('name')))] = copy.deepcopy(record)
 
@@ -157,8 +159,19 @@ class Engine:
         self.state = copy.deepcopy(self.plan['after'])
         self.execution = {'argv': list(argv), 'subject': copy.deepcopy(self.plan['subject']),
                           'lifetime': copy.deepcopy(self.reply['lifetime']), 'deadline_ns': deadline_ns}
-        if self.on_run:
-            self.on_run(self)
+        try:
+            if self.on_run:
+                self.on_run(self)
+        finally:
+            # Actual resource attachments survive a lost engine reply too.
+            if self.kind == 'container':
+                for v in self.related.values():
+                    consumers = set(v['consumers'])
+                    if self.plan['before'] is not None:
+                        consumers.discard(self.plan['before']['id'])
+                    if self.state is not None:
+                        consumers.add(self.state['id'])
+                    v['consumers'] = sorted(consumers)
         return copy.deepcopy(self.reply)
 
 

@@ -97,6 +97,7 @@ def _binding(b):
     env = b.get('environment')
     _need(type(env) is dict and set(env) == _ENV and all(_path(x) for x in env.values())
           and env['HOME'] == b['home'] and env['XDG_RUNTIME_DIR'] == b['runroot'], 'custody_changed')
+    _need({env['CONTAINERS_CONF'], env['CONTAINERS_STORAGE_CONF']} <= {x['path'] for x in closure}, 'custody_changed')
 
 
 def _lifetime(value, binding):
@@ -150,6 +151,40 @@ def _vector(operations, mode, binding):
     return result
 
 
+def _generated(kind):
+    # Only kernel/engine-generated identities may be unspecified in a NEW
+    # resource's post-contract. Never wildcard an existing object's preimage.
+    return ({('id',)} if kind in ('container', 'network') else
+            {('created_at',), ('mountpoint', 'dev'), ('mountpoint', 'ino')} if kind == 'volume' else set())
+
+
+def _expectation(kind, value, binding, *, creating):
+    candidate = thaw(_copy(value))
+    if creating:
+        for path in _generated(kind):
+            parent = candidate
+            for key in path[:-1]:
+                parent = parent[key]
+            if parent[path[-1]] is None:
+                parent[path[-1]] = ('0'*64 if path == ('id',) else
+                                    'unobserved' if path == ('created_at',) else 1)
+    _resource(kind, candidate, binding)
+
+
+def _matches(kind, actual, expected, *, creating):
+    a = thaw(actual); e = thaw(expected)
+    if a is None or e is None:
+        return a is e
+    if creating:
+        for path in _generated(kind):
+            ap = a; ep = e
+            for key in path[:-1]:
+                ap = ap[key]; ep = ep[key]
+            if ep[path[-1]] is None:
+                ep[path[-1]] = ap[path[-1]]
+    return canonical_bytes(a) == canonical_bytes(e)
+
+
 def _container(v, b):
     _need(v.get('role') in ('core', 'api', 'helper') and _NAME.fullmatch(v.get('name', ''))
           and _id(v.get('image')) and _id(v.get('network'))
@@ -190,15 +225,18 @@ def _plan(p, b):
     _need(_integer(p.get('deadline_ns')) and _integer(p.get('c2_ns'))
           and p['c2_ns'] <= p['deadline_ns'])
     _need(type(p.get('subject')) is dict and set(p['subject']) == {'identity', 'effect', 'request_ref'})
+    _need(type(p['subject']['effect']) is dict
+          and p['subject']['effect'].get('resource_kind') == p['kind'], 'generation_changed')
     _need(p.get('ownership') in ('created_by_this_transaction', 'verified_owned_continuation', 'external_read_only'))
     _need(p.get('data_class') in ('ephemeral', 'authoritative', 'backup', 'credentials'))
     _need(type(p.get('inverse')) is bool and type(p.get('dependents')) is list
           and all(_id(x) for x in p['dependents']))
     _need(p.get('role') in ('core', 'api', 'helper') and p.get('signal') in ('TERM', 'KILL'))
     _need(p.get('helper') in ('inspect', 'status'))
-    for r in (p.get('before'), p.get('after')):
+    for which in ('before', 'after'):
+        r = p.get(which)
         if r is not None:
-            _resource(p['kind'], r, b)
+            _expectation(p['kind'], r, b, creating=which == 'after' and p.get('before') is None)
     _need(p.get('before') is not None or p.get('after') is not None)
     if p['action'] in ('create', 'load'):
         _need(p['before'] is None and p['after'] is not None, 'resource_changed')
@@ -221,13 +259,41 @@ def _plan(p, b):
         _resource('image', image, b)
     if p['kind'] == 'image' and p['action'] == 'load':
         _need(p['after'] in pair and _path(p.get('oci'))
-              and p['oci'].startswith(str(PurePosixPath(b['environment']['CONTAINERS_CONF']).parent) + '/'), 'custody_changed')
+              and p['oci'].startswith(str(PurePosixPath(b['environment']['CONTAINERS_CONF']).parent) + '/')
+              and p['oci'] in [x['path'] for x in b['closure']], 'custody_changed')
     if p['kind'] == 'container':
         for v in (p['before'], p['after']):
             if v is not None:
                 _need(v['role'] == p['role'] and v['image'] == pair[0 if v['role'] == 'core' else 1]['id'], 'resource_changed')
         if p['before'] is not None and p['after'] is not None:
             _need(p['before']['id'] == p['after']['id'], 'resource_changed')
+            mutable = {'running', 'ready', 'process'} if p['action'] in ('start', 'stop', 'signal') else set()
+            _need({k:v for k,v in p['before'].items() if k not in mutable}
+                  == {k:v for k,v in p['after'].items() if k not in mutable}, 'resource_changed')
+        if p['action'] == 'start':
+            _need(not p['before']['running'] and p['after']['running'], 'resource_changed')
+        if p['action'] in ('stop', 'signal'):
+            _need(p['before']['running'] and not p['after']['running'], 'resource_changed')
+        if p['action'] == 'helper':
+            _need(p['before']['running'] and p['role'] == 'api', 'resource_changed')
+        _dependencies(p, b)
+
+
+def _dependencies(p, b):
+    """Exact original resource graph used by container operations; no name trust."""
+    deps = p.get('dependencies')
+    _need(type(deps) is list and 0 < len(deps) <= 18, 'resource_changed')
+    v = p['before'] or p['after']
+    needed = {('image', v['image']), ('network', v['network'])}
+    needed |= {('volume', m['source']) for m in v['mounts']}
+    found = []
+    for dep in deps:
+        _need(type(dep) is dict and set(dep) == {'kind', 'resource'}
+              and dep['kind'] in ('image', 'network', 'volume'), 'resource_changed')
+        kind = dep['kind']; r = dep['resource']
+        _resource(kind, r, b)
+        found.append((kind, r['name'] if kind == 'volume' else r['id']))
+    _need(len(found) == len(set(found)) and set(found) == needed, 'resource_changed')
 
 
 def _argv(p, b):
@@ -321,17 +387,39 @@ class _Primitive:
         self._current()
         p = thaw(self.plan)
         before = p['before'] or p['after']
-        target = before['name'] if p['kind'] == 'volume' else before['id']
+        target = before['name'] if p['kind'] == 'volume' or p['before'] is None and p['kind'] in ('network', 'container') else before['id']
         value = self.engine.observe(p['kind'], target, deadline_ns=p['deadline_ns'])
         self._current()  # Collector IO/waits may revoke authority or the bound.
         if value is not None:
             _resource(p['kind'], value, thaw(self.binding))
         return _copy(value)
 
+    def _related(self, actual, *, after):
+        p = thaw(self.plan)
+        result = []
+        for dep in p.get('dependencies', []):
+            kind = dep['kind']; expected = thaw(_copy(dep['resource']))
+            if after and p['kind'] == 'container':
+                consumers = set(expected['consumers'])
+                if p['before'] is not None:
+                    consumers.discard(p['before']['id'])
+                if actual is not None:
+                    consumers.add(actual['id'])
+                expected['consumers'] = sorted(consumers)
+            target = expected['name'] if kind == 'volume' else expected['id']
+            self._current()
+            observed = self.engine.observe(kind, target, deadline_ns=p['deadline_ns'])
+            self._current()
+            _resource(kind, observed, thaw(self.binding))
+            _need(canonical_bytes(observed) == canonical_bytes(expected), 'resource_changed')
+            result.append({'kind': kind, 'resource': observed})
+        return result
+
     def snapshot(self):
         _need(not self.snapshotted and not self.attempted, 'reservation_used')
         actual = self._observe()
         _need(actual == self.plan['before'], 'resource_changed')
+        self._related(thaw(actual), after=False)
         self.preimage = actual
         self.snapshotted = True
         # Private non-SQL facts, deliberately NOT forged into SQL's five slots.
@@ -341,9 +429,10 @@ class _Primitive:
         _need(self.snapshotted and not self.attempted, 'reservation_used')
         _need(thaw(context) == thaw(self.plan['subject']), 'generation_changed')
         _need(self._observe() == self.preimage, 'resource_changed')
+        self._related(thaw(self.preimage), after=False)
         p = thaw(self.plan); b = thaw(self.binding)
-        if p['kind'] == 'container' and p['role'] == 'core' and p['action'] in ('stop', 'signal', 'remove'):
-            _need(self.now < p['c2_ns'] and not p['dependents'], 'attempt_ambiguous')
+        if p['kind'] == 'container' and p['role'] == 'core' and p['action'] in ('stop', 'signal'):
+            _need(self.now >= p['c2_ns'] and not p['dependents'], 'attempt_ambiguous')
         argv = _argv(p, b)
         self._current()
         self.attempted = True  # Ambiguous failed/lost replies never permit retry.
@@ -372,10 +461,11 @@ class _Primitive:
             actual = self._observe()
             witness = self.engine.witnesses()
             cleanup = self._cleanup(witness)
+            related = self._related(thaw(actual), after=True)
             self._current()
             p = thaw(self.plan)
             state = None
-            if actual == self.plan['after']:
+            if _matches(p['kind'], actual, self.plan['after'], creating=p['before'] is None):
                 creation = witness['creation']
                 if p['before'] is None:
                     _need(creation == {'before_absent': True, 'subject': p['subject'],
@@ -384,6 +474,9 @@ class _Primitive:
                 if self.plan['before'] != self.plan['after']:
                     state = 'APPLIED'
                 elif self.attempted and p['action'] == 'helper' and cleanup['returncode'] == 0:
+                    _need(witness.get('execution') == {'argv': list(_argv(p, thaw(self.binding))),
+                        'subject': p['subject'], 'lifetime': cleanup['lifetime'],
+                        'deadline_ns': p['deadline_ns']}, 'attempt_ambiguous')
                     state = 'APPLIED'
             if state is None and actual == self.preimage and self.plan['before'] != self.plan['after']:
                 state = 'NOT_APPLIED'
@@ -391,6 +484,7 @@ class _Primitive:
                 result = {**p['subject'], 'state': {'APPLIED': 'applied_verified',
                     'NOT_APPLIED': 'not_applied_verified'}[state], 'observed': {
                     'resource': thaw(actual), 'backend': thaw(self.binding),
+                    'related': related,
                     'finite_child': {k: cleanup[k] for k in ('lifetime', 'remaining', 'reaped', 'pipes_closed')}}}
                 answer = (state, canonical_bytes(result))
         except Exception:
