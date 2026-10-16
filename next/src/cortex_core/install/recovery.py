@@ -217,12 +217,21 @@ def _execute_recovery(history, original_request, current, primitives):
     primitive = primitives.get(context['effect']['resource_kind'])
     owner._require(primitive is not None, 'backend_unavailable')
     attempt = p2._decode(history.read(observation['attempt_ref']))
+    reservation = p2._decode(history.read(observation['reservation_ref']))
+    owner._require(reservation['state'] == 'consumed'
+        and attempt['dispatch_state'] in ('consumed_result_unknown','applied_verified','not_applied_verified')
+        and type(attempt['consumption_sequence']) is int
+        and attempt['consume_clock_ref'] is not None, 'attempt_ambiguous')
     mandated = attempt.get('sql_mandate_ref') is not None
     original = {'context':context,'journal_ref':anchor,'preimages_ref':observation['preimages_ref']}
-    if mandated:original['deadline'] = current.deadline
+    original['deadline'] = current.deadline
     head = history.head()[0]
     if mandated:p2._sql_prefix(history,anchor,head)
-    with p2._measurement(primitive,freeze(original),mandated=mandated,recovery=True) as answer:
+    latest_ref, latest, obs = p2._latest_attempt(history,event['identity'])
+    latest_attempt = p2._decode(history.read(obs['attempt_ref']))
+    first_result = (latest_attempt['dispatch_state'] == 'consumed_result_unknown'
+        and latest_attempt['result_ref'] is None and latest_attempt['reconciliation_ref'] is None)
+    with p2._measurement(primitive,freeze(original),mandated=mandated or first_result,recovery=True) as answer:
         owner._require(type(answer) is tuple and len(answer) == 2
             and answer[0] in ('APPLIED','NOT_APPLIED','UNKNOWN'), 'attempt_ambiguous')
         state, raw = answer
@@ -238,8 +247,12 @@ def _execute_recovery(history, original_request, current, primitives):
             attempt = p2._decode(history.read(obs['attempt_ref']))
             reference = (attempt['reconciliation_ref'] if attempt['dispatch_state'] == 'consumed_result_unknown'
                          else attempt['result_ref'])
-            owner._require(reference is not None and history.read(reference) == raw
-                and latest['result_ref'] == attempt['result_ref'], 'journal_invalid')
+            owner._require(latest['result_ref'] == attempt['result_ref'], 'journal_invalid')
+            if reference is None:
+                owner._require(first_result and attempt['dispatch_state'] == 'consumed_result_unknown'
+                    and attempt['result_ref'] is None and attempt['reconciliation_ref'] is None, 'journal_invalid')
+            else:
+                owner._require(history.read(reference) == raw, 'resource_changed')
         result = p2._decode(raw)
         expected_state = 'applied_verified' if state == 'APPLIED' else 'not_applied_verified'
         owner._require(set(result) == {'identity','effect','request_ref','state','observed'}
@@ -257,7 +270,8 @@ def _execute_recovery(history, original_request, current, primitives):
             published = attempt['dispatch_state'] == 'consumed_result_unknown'
         elif attempt['dispatch_state'] == 'consumed_result_unknown':
             completed = p2._record_result(history,latest_ref,raw,publication_head=head,
-                publication_revision=final.observed_state_revision)
+                publication_revision=final.observed_state_revision,deadline=final.deadline,
+                publication_context=thaw(final.context))
             published = True
         else:
             owner._require(attempt['dispatch_state'] == expected_state, 'attempt_ambiguous')
@@ -275,7 +289,8 @@ def _execute_recovery(history, original_request, current, primitives):
             completed = p2._publish_entry(history,context=old_context,reservation=reservation,
                 attempt=attempt,preimages_ref=obs['preimages_ref'],request_ref=latest['request_ref'],
                 release_ref=latest['release_binding_ref'],expected_ref=head,phase='held',
-                recorded_at=clock['now_utc'],result_ref=reference)
+                recorded_at=clock['now_utc'],result_ref=reference,deadline=final.deadline,
+                expected_context=thaw(final.context))
             published = True
         # Truth may survive an expired/lost reply, but no old effect is redispatched.
         _, after = p2._current_owner(original_request,final.deadline)

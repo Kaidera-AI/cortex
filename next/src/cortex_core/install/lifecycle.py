@@ -553,6 +553,11 @@ class _X11:
         event, obs = _load_entry(self.history, effect['journal_ref'])
         _require(all(event[k] == subject[k] for k in subject)
             and obs['preimages_ref'] == effect['preimages_ref'], 'journal_invalid')
+        reservation = _decode(self.history.read(obs['reservation_ref']))
+        deadline = effect.get('deadline')
+        _require(type(deadline) is owner.ProposedDeadline
+            and self.primitive.plan['deadline_ns'] <= min(deadline.expires_monotonic_ns,
+                reservation['expires_monotonic_ns']), 'reservation_expired')
         before = _decode(self.history.read(obs['preimages_ref']))
         _require(before['identity'] == subject['identity'] and self.before is not None
             and set(before['originals']) == set(self.before)
@@ -806,7 +811,7 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
     anchor_attempt = _decode(history.read(obs['attempt_ref']))
     mandated = anchor_attempt.get('sql_mandate_ref') is not None
     latest_ref, _, latest = _latest_attempt(history, event['identity'])
-    if mandated:
+    if mandated or publication_context is not None:
         admitted_inputs, fresh = _admitted_deadline(deadline, expected_context=publication_context)
         if publication_context is not None:
             if fresh.context['request_ref'] == event['request_ref']:
@@ -816,9 +821,20 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
                     admitted_inputs.originals[fresh.context['request_ref']['path']],
                     expected_kind='request').document)
                 _require(recovery_request['operation'] == 'recover'
-                    and recovery_request['journal_ref'] == consumed_ref
                     and recovery_request['identity']['parent_attempt_id'] == event['identity']['attempt_id'],
                     'scope_denied')
+                root, root_obs = _load_entry(history,recovery_request['journal_ref'])
+                root_attempt = _decode(history.read(root_obs['attempt_ref']))
+                _require(all(root[k] == event[k] for k in
+                    ('identity','effect','request_ref','origin_request_ref','release_binding_ref'))
+                    and root_obs['preimages_ref'] == obs['preimages_ref']
+                    and all(root_attempt[k] == anchor_attempt[k] for k in
+                        ('consumption_sequence','consume_clock_ref','context_ref'))
+                    and root_attempt['consumption_sequence'] is not None
+                    and root_attempt['consume_clock_ref'] is not None, 'journal_invalid')
+                if mandated:
+                    _require(recovery_request['journal_ref'] == consumed_ref,'scope_denied')
+    if mandated:
         head = consumed_ref if publication_head is None else publication_head
         prefix = _sql_prefix(history,consumed_ref,head)
         _require(fresh.observed_state_revision == history.current_revision()
@@ -861,7 +877,8 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
         attempt['reservation_ref'] = history.retain(canonical_bytes(reservation))
     result_ref = history.retain(original_measurement)
     attempt.update(dispatch_state=result['state'], result_ref=result_ref)
-    if mandated and result['state'] == 'not_applied_verified':attempt['reconciliation_ref'] = result_ref
+    if (mandated or publication_context is not None) and result['state'] == 'not_applied_verified':
+        attempt['reconciliation_ref'] = result_ref
     context = _decode(history.read(obs['context_ref']))
     if publication_revision is not None:
         context['state_revision'] = publication_revision
@@ -990,8 +1007,8 @@ def _execute_bound(original_request, first):
                        'preimages_ref': observation['preimages_ref']}
         if cleanup is not None:
             effect_data['cleanup'] = cleanup
+        effect_data['deadline'] = deadline
         if mandated:
-            effect_data['deadline'] = deadline
             _sql_prefix(history,consumed,consumed)
         effect_context = freeze(effect_data)
         try:
