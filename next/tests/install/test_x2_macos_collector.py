@@ -275,6 +275,32 @@ class Stale(Base):
             with self.subTest(case=name):
                 self.refuses('custody_changed', change)
 
+    def test_substituted_scalar_types_refuse_and_are_never_erased(self):
+        """Vera X2M-001: True == 1 == 1.0 in Python; a native fact of the wrong exact type
+        is malformed (BLOCK), never mapped away into the unchanged pinned observation."""
+        def second(change):
+            return lambda v: change(v['samples'][1])
+        cases = {'second sender_valid True -> 1': second(lambda s: s['xpc'].__setitem__('sender_valid', 1)),
+                 'second owner_requirement_satisfied True -> 1': second(lambda s: s['code'].__setitem__(
+                     'owner_requirement_satisfied', 1)),
+                 'second launchd pid int -> float': second(lambda s: s['launchd'][0].__setitem__(
+                     'pid', float(s['launchd'][0]['pid']))),
+                 'second requirement_rc 0 -> False': second(lambda s: s['xpc'].__setitem__('requirement_rc', False)),
+                 'both requirement revision 1 -> True': both(lambda s: s['xpc']['requirement'].__setitem__('revision', True)),
+                 'both requirement_rc 0 -> False': both(lambda s: s['xpc'].__setitem__('requirement_rc', False)),
+                 'admitted uid int -> float': lambda v: v['admitted']['launch'].__setitem__(
+                     'uid', float(v['admitted']['launch']['uid'])),
+                 'denial outcome bool': both(lambda s: s['denials'].__setitem__('backend_bypass', True))}
+        for name, change in cases.items():
+            for rebind in (False, True):
+                with self.subTest(case=name, rebind=rebind):
+                    value = snapshot()
+                    change(value)
+                    with self.assertRaises(owner.OwnerRefusal) as got:
+                        self.observe(value, rebind=rebind)
+                    self.assertEqual(got.exception.detail, 'owner_unavailable')
+        self.assertIs(type(self.observe(snapshot(), rebind=False)), owner._Inputs)  # authentic control
+
     def test_another_host_or_stale_session_fails(self):
         self.refuses('peer_denied', both(lambda s: s.__setitem__('host_identity_sha256', '1' * 64)))
         self.refuses('peer_denied', both(lambda s: s.__setitem__('session_id', 'old-session')))
