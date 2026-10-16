@@ -92,10 +92,16 @@ def _installed_startup():
                 and current.fence == facts['host_lease']['fence'], 'aggregate_replay')
             trust._require(inputs.aggregate_id == 'sha256:' + policy['expected_aggregate_sha256'],
                            'aggregate_identity_mismatch')
+            consent = owner._original(inputs, context['consent_ref'])
+            scope = owner._original(inputs, consent['scope_ref'])
+            release = owner._original(inputs, scope['release_binding_ref'])
+            trust._require(inputs.aggregate_id == 'sha256:' + release['joint_index_ref']['sha256'],
+                           'aggregate_identity_mismatch')
             # C0 has admitted the original clock receipt, epoch, uncertainty and
             # finite window. A callback timestamp cannot replace that clock.
             clock = owner._decode(inputs.current_clock_raw, 'time_unavailable')
-            current = replace(current, now=clock['now_utc'])
+            now, uncertainty = clock['now_utc'], clock['uncertainty_seconds']
+            current = replace(current, now=now, clock_interval=(now-uncertainty,now+uncertainty))
             return frame, proposal, current, observed_identity, inputs.aggregate_id
         except Refusal:
             raise

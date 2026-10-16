@@ -58,6 +58,9 @@ class _OwnerContext:
     fence: int
     placement: str
     current_state: Mapping
+    # Optional private owner DATA. Legacy point observations retain their exact
+    # semantics; the installed B1 composition supplies its full admitted bounds.
+    clock_interval: tuple | None = None
 
 
 @dataclass(frozen=True)
@@ -193,9 +196,15 @@ def _current(policy,value,context):
     _require(type(now) is int and type(context.generation) is int and type(context.fence) is int
              and context.generation==owner['policy_generation']==state['policy_generation']
              and context.fence==state['fence'],'aggregate_replay')
-    _require(validity['not_before']<=now<=validity['expires_at'] and value['not_before']<=now<=value['expires_at']
+    interval=(now,now) if context.clock_interval is None else context.clock_interval
+    _require(type(interval) is tuple and len(interval)==2
+             and all(type(n) is int and 0<=n<=253402300799 for n in interval)
+             and interval[0]<=now<=interval[1],'aggregate_replay')
+    lower,upper=interval
+    _require(validity['not_before']<=lower<=upper<=validity['expires_at']
+             and value['not_before']<=lower<=upper<=value['expires_at']
              and value['not_before']<=value['expires_at'] and validity['not_before']<=validity['expires_at']
-             and now-value['not_before']<=validity['maximum_release_age_seconds'],'aggregate_replay')
+             and upper-value['not_before']<=validity['maximum_release_age_seconds'],'aggregate_replay')
     _require(value['sequence']>=policy['sequence_floor'],'aggregate_replay')
     _require(value['release']==policy['release'] and value['source']==policy['source'],'aggregate_identity_mismatch')
 
