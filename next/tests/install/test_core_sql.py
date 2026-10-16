@@ -40,8 +40,9 @@ class CoreSQL(unittest.TestCase):
         raw=canonical_bytes(q);c=json.loads(s.data['context_raw']);ref={**c['request_ref'],
             'bytes':len(raw),'sha256':__import__('hashlib').sha256(raw).hexdigest()}
         s.data['request_raw']=raw.decode();s.data['originals'][ref['path']]=raw.decode()
-        s.helper.context(s.data,lambda v:v.update(identity=q['identity'],request_ref=ref,nonce='x4-nonce-'+phase))
-        s.helper.scope(s.data,lambda v:v.update(identity=q['identity']))
+        effect={**c['effect'],'effect_id':'x4-'+phase}
+        s.helper.context(s.data,lambda v:v.update(identity=q['identity'],effect=effect,request_ref=ref,nonce='x4-nonce-'+phase))
+        s.helper.scope(s.data,lambda v:v.update(identity=q['identity'],effect=effect))
         s.phase=phase
 
     def observation(self,s,context):
