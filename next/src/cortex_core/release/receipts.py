@@ -37,7 +37,9 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
         require(policy.get('policy_sha256') == thaw(verified_input.document)['admission_policy']['policy_sha256'],
                 'receipt_audit_policy')
         from .inspector import admit_inspection
-        admit_inspection(verified_input, policy)
+        inspection = admit_inspection(verified_input, policy)
+    else:
+        inspection = None
     parsed = parse_build_receipt(receipt.raw)
     require(parsed.sha256 == receipt.sha256 and parsed.document == receipt.document, 'changed_parsed_receipt')
     value, input_value = thaw(parsed.document), thaw(verified_input.document)
@@ -106,7 +108,8 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
         archive = actual[roles['archive']['path']]
         closure, layer_inventory = inspect_oci(archive, outputs, actual, build['oci'], input_value,
                                               module_policy=thaw(verified_input.metadata)['release_policy'],
-                                              accepted_inputs=thaw(verified_input.metadata)['accepted_inputs'])
+                                              accepted_inputs=thaw(verified_input.metadata)['accepted_inputs'],
+                                              inspection=inspection)
         require(build['provenance'] == roles['provenance'] and roles['provenance']['media_type'] == 'application/json', 'provenance_record_binding')
         provenance = decode_json(actual[roles['provenance']['path']], 8 * 1024 * 1024)
         expected = {key: build[key] for key in ('build_id','source_sha256','recipe_sha256','dependency_sha256','observed_builder')}

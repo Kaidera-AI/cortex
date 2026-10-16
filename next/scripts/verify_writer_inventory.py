@@ -21,7 +21,7 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
     ('src/cortex_core/records.py','_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
     ('src/cortex_core/migrations.py','apply_migrations'): 'f6b91694ad8b164dba2faf88e9d1e67a0d206c8f2a298273aeaf3e59b2c580fb',
     ('src/cortex_core/backup_validation.py','read_restored_snapshot'): '138962613394d459cf5c93a5843b2d25a94afc8b8ce2da3b391fea2277ba00eb',
-    ('src/cortex_core/release/artifacts.py','_compiled_fields_equal'): 'fad0c5ff2c9164641b78522302295d9a76ea58924a1bb460879e8e131f1a09ce',
+    ('src/cortex_core/release/_pyc_check.py','_compiled_fields_equal'): 'fad0c5ff2c9164641b78522302295d9a76ea58924a1bb460879e8e131f1a09ce',
     ('src/cortex_core/release/build/audit.py','_code_equal'): '25fa770e8b9d590251468d0610c4692a940b05cada23e7cc4736b29b84b63d7c',
     ('src/vector_baseline/product_path.py','snapshot_corpus'): 'a89b8ce6091ec7c232f6a81f2202d6c04f903f01132d2ddfd6329363ba393f24',
 }
@@ -35,7 +35,7 @@ KNOWN_INPUT_FILE_SHA256 = {
     'src/cortex_core/records.py': 'e52d86a0cddfa7b98315f87c9904aeb64665e8dc68e353b8280a276ca97a32d3',
     'src/cortex_core/migrations.py': '2af9a2b517a8646ed819ad7acdeef3522bbcaaaf1ea0a5705ebd614ca9781277',
     'src/cortex_core/backup_validation.py': '5d3731e58e5217ba4b2fc6f538679fc4bcc85327924c813f67f6f5bc5819a84a',
-    'src/cortex_core/release/artifacts.py': 'cd0703c12cb5d3d8731be91225e3de188abc885587654fe782f5276147aa8607',
+    'src/cortex_core/release/_pyc_check.py': '1f35d123db1346056e7b932d8437771c1a4f4d3edc87c25b3bcab00aa40508cf',
     'src/cortex_core/release/build/audit.py': '6639168da2ebb9ab1128b50e6fecf72d7f8f4d6250ced97bfe497900ef9ae306',
     'src/vector_baseline/product_path.py': '68776fc8ec72034bcc1dad696ffff8158b178a8291da14c2a7fa5733de41dca1',
 }
@@ -131,7 +131,7 @@ CODE_FIELDS = ('co_argcount','co_posonlyargcount','co_kwonlyargcount','co_nlocal
                'co_filename','co_name','co_qualname','co_firstlineno','co_linetable',
                'co_exceptiontable','co_freevars','co_cellvars')
 REFLECTION_INPUTS = {
-    'src/cortex_core/release/artifacts.py': ('_compiled_fields_equal',('actual','expected'),'field',CODE_FIELDS),
+    'src/cortex_core/release/_pyc_check.py': ('_compiled_fields_equal',('actual','expected'),'field',CODE_FIELDS),
     'src/cortex_core/release/build/audit.py': ('_code_equal',('left','right'),'k',CODE_FIELDS),
     'src/vector_baseline/product_path.py': ('snapshot_corpus',('staged',),'name',
                                          ('vectors','records','offsets','indices','weights')),

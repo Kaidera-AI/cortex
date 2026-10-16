@@ -1,14 +1,12 @@
 """Remeasure OCI closure and deterministic layer metadata without extraction."""
 import io
 import _imp
-import importlib.util
-import marshal
+import marshal  # the shared core's decoder; trust controls observe it through this name
 import posixpath
 import re
 import tarfile
-import struct
 from datetime import datetime, timezone
-from types import CodeType
+from . import _pyc_check
 from .codec import canonical_bytes, decode_json, relative_path, sha256
 from .contracts import ReceiptRefusal
 
@@ -92,10 +90,8 @@ def _descriptor(desc, media, blobs):
     return key
 
 
-def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module_policy=None, accepted_inputs=None):
-    limit = value['resources']['disk_bytes']
-    module_policy = module_policy or {'oci_config':{},'history':[], 'layer_policy':{'allow_replacements':False,'allow_directories':False,'symlinks':{}}}
-    v1 = module_policy.get('schema') == 'cortex.release-policy.v1'
+def oci_image(raw_archive, limit, platform):
+    """The one OCI layout reader: outer layout, index, manifest and config."""
     members, outer_inventory = tar_members(raw_archive, limit)
     require(all(row.get('kind') != 'directory' or row['path'] in ('blobs','blobs/sha256') for row in outer_inventory), 'oci_unknown_directory')
     require('oci-layout' in members and 'index.json' in members, 'oci_layout_missing')
@@ -109,7 +105,6 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
     require(isinstance(index, dict) and type(index.get('schemaVersion')) is int and index['schemaVersion'] == 2 and
             index.get('mediaType') == INDEX and isinstance(index.get('manifests'), list) and len(index['manifests']) == 1,
             'oci_index_shape')
-    platform = value['target']['oci_platform']
     desc = index['manifests'][0]
     require(desc.get('platform') == {'os': 'linux', 'architecture': platform.split('/')[1]}, 'oci_platform')
     manifest_key = _descriptor(desc, MANIFEST, blobs)
@@ -122,17 +117,33 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
     require(isinstance(config, dict) and config.get('os') == 'linux' and
             config.get('architecture') == platform.split('/')[1], 'oci_config_platform')
     require(set(config) <= {'architecture','os','rootfs','config','created','history'}, 'oci_unknown_config_metadata')
-    epoch = datetime.fromtimestamp(value['determinism']['epoch'],timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
-    history = config.get('history',[])
-    require(('created' not in config or config['created'] == epoch) and isinstance(history,list) and
-            all(isinstance(row,dict) and (v1 or row.get('created') == epoch) for row in history), 'oci_clock_policy')
-    require((history if v1 else [{k:v for k,v in row.items() if k != 'created'} for row in history]) == module_policy['history'], 'oci_history_policy')
+    return members, blobs, manifest, manifest_key, config, config_key
+
+
+def oci_layers(manifest, config, blobs, manifest_key, config_key):
+    """Layer descriptors, diff_ids and the complete blob closure."""
     layers = [_descriptor(desc, LAYER, blobs) for desc in manifest['layers']]
     require(len(layers) == len(set(layers)), 'oci_duplicate_layer')
     require(config.get('rootfs') == {'type': 'layers', 'diff_ids': ['sha256:' + key for key in layers]},
             'oci_diff_ids')
     closure = set(layers + [manifest_key, config_key])
-    require(set(blobs) == closure and oci == {'index': sha256(members['index.json']), 'manifest': manifest_key,
+    require(set(blobs) == closure, 'oci_declared_closure')
+    return layers, closure
+
+
+def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module_policy=None, accepted_inputs=None, inspection=None):
+    limit = value['resources']['disk_bytes']
+    module_policy = module_policy or {'oci_config':{},'history':[], 'layer_policy':{'allow_replacements':False,'allow_directories':False,'symlinks':{}}}
+    v1 = module_policy.get('schema') == 'cortex.release-policy.v1'
+    platform = value['target']['oci_platform']
+    members, blobs, manifest, manifest_key, config, config_key = oci_image(raw_archive, limit, platform)
+    epoch = datetime.fromtimestamp(value['determinism']['epoch'],timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
+    history = config.get('history',[])
+    require(('created' not in config or config['created'] == epoch) and isinstance(history,list) and
+            all(isinstance(row,dict) and (v1 or row.get('created') == epoch) for row in history), 'oci_clock_policy')
+    require((history if v1 else [{k:v for k,v in row.items() if k != 'created'} for row in history]) == module_policy['history'], 'oci_history_policy')
+    layers, closure = oci_layers(manifest, config, blobs, manifest_key, config_key)
+    require(oci == {'index': sha256(members['index.json']), 'manifest': manifest_key,
             'config': config_key, 'blobs': sorted(closure), 'platform': platform}, 'oci_declared_closure')
     roles = {r['role']: r for r in output_records}
     expected = {'index': (INDEX, members['index.json']), 'manifest': (MANIFEST, blobs[manifest_key]),
@@ -143,9 +154,11 @@ def inspect_oci(raw_archive, output_records, output_bytes, oci, value, *, module
         require(record['media_type'] == media and output_bytes[record['path']] == body, 'oci_inventory_body')
     if v1:
         from .vfs import inspect_profile_files
-        inventory = inspect_profile_files(layers, blobs, config, value, module_policy, accepted_inputs or {}, tar_members, _admit_symlink, _admit_generated)
+        inventory = inspect_profile_files(layers, blobs, config, value, module_policy, accepted_inputs or {}, tar_members, _admit_symlink, _admit_generated, inspection)
         require(config.get('config') == module_policy['oci_config'], 'unreviewed_runtime_config_or_labels')
         return tuple(sorted(closure)), inventory
+    # The legacy closed profile is fixture scope only: its caches use the in-process core.
+    require(inspection is None, 'inspector_profile_unqualified')
     files, contents = {}, {}
     for key in layers:
         bodies, inventory = tar_members(blobs[key], limit, metadata=value['determinism']['file_metadata'],layer_policy=module_policy['layer_policy'])
@@ -203,45 +216,13 @@ def _accepted_sources(contents,value,accepted_inputs):
             require(origin in accepted_inputs and accepted_inputs[origin] == body, 'accepted_source_origin')
 
 
-def _compiled_fields_equal(actual, expected):
-    """Compare compiler output including fields omitted by CodeType equality."""
-    if type(actual) is not type(expected):
-        return False
-    if isinstance(expected, CodeType):
-        fields = ('co_argcount', 'co_posonlyargcount', 'co_kwonlyargcount',
-                  'co_nlocals', 'co_stacksize', 'co_flags', 'co_code',
-                  'co_consts', 'co_names', 'co_varnames', 'co_filename',
-                  'co_name', 'co_qualname', 'co_firstlineno', 'co_linetable',
-                  'co_exceptiontable', 'co_freevars', 'co_cellvars')
-        return all(_compiled_fields_equal(getattr(actual, field), getattr(expected, field)) for field in fields)
-    if isinstance(expected, tuple):
-        return len(actual) == len(expected) and all(_compiled_fields_equal(a, b) for a, b in zip(actual, expected))
-    if isinstance(expected, float):
-        return struct.pack('!d', actual) == struct.pack('!d', expected)
-    if isinstance(expected, complex):
-        return struct.pack('!dd', actual.real, actual.imag) == struct.pack('!dd', expected.real, expected.imag)
-    if isinstance(expected, frozenset):
-        if len(actual) != len(expected):
-            return False
-        remaining = list(expected)
-        for item in actual:
-            for index, candidate in enumerate(remaining):
-                if _compiled_fields_equal(item, candidate):
-                    remaining.pop(index)
-                    break
-            else:
-                return False
-        return not remaining
-    return actual == expected
-
-
-def _check_pyc(path, raw, contents, value):
+def pyc_row(path, raw, contents, value):
+    """Controller byte checks for one cache; no marshal, no compile, no own magic."""
     policy=value['determinism']['python']
     require(policy['applicable'] and len(raw) <= 1024*1024 and len(raw) >= 16 and
             int.from_bytes(raw[4:8],'little') == 3, 'python_checked_hash_policy')
-    magic={'3.12':bytes.fromhex('cb0d0d0a'),'3.13':bytes.fromhex('f30d0d0a'),'3.14':bytes.fromhex('2b0e0d0a')}
     version='.'.join(value['builder_requirements']['toolchain']['version'].split('.')[:2])
-    require(raw[:4] == magic.get(version) and raw[:4] == importlib.util.MAGIC_NUMBER, 'python_verifier_compiler_unqualified')
+    require(version in _pyc_check.MAGIC and raw[:4] == bytes.fromhex(_pyc_check.MAGIC[version]), 'python_verifier_compiler_unqualified')
     if '/__pycache__/' in path:
         prefix,name=path.rsplit('/__pycache__/',1)
         suffix='.cpython-'+version.replace('.','')+('.opt-'+str(policy['optimization']) if policy['optimization'] else '')+'.pyc'
@@ -252,16 +233,14 @@ def _check_pyc(path, raw, contents, value):
     require(source in contents and raw[8:16] == _imp.source_hash(int.from_bytes(raw[:4],'little'),contents[source]), 'python_source_hash_policy')
     filename='/'+source
     require(filename.startswith(policy['final_root'].rstrip('/')+'/'), 'python_final_root_policy')
+    return {'cache': path, 'source': source, 'final_filename': filename, 'cache_bytes': raw,
+            'source_bytes': contents[source], 'optimization': policy['optimization']}
+
+
+def _check_pyc(path, raw, contents, value):
+    """Fixture scope: the controller byte checks, then the one core in-process."""
+    row=pyc_row(path, raw, contents, value)
     try:
-        stream=io.BytesIO(raw[16:]);code=marshal.load(stream)
-        require(not stream.read(1) and isinstance(code,CodeType), 'python_bytecode_shape')
-        def filenames(current):
-            require(current.co_filename == filename, 'python_final_filename_policy')
-            for constant in current.co_consts:
-                if isinstance(constant,CodeType):filenames(constant)
-        filenames(code)
-        expected=compile(contents[source],filename,'exec',dont_inherit=True,optimize=policy['optimization'])
-        require(_compiled_fields_equal(code, expected), 'python_compilation_policy')
-    except (EOFError, ValueError, TypeError, SyntaxError, RecursionError) as error:
-        if isinstance(error,ReceiptRefusal):raise
-        raise ReceiptRefusal('python_bytecode_shape') from error
+        _pyc_check.check(row['cache_bytes'], row['source_bytes'], row['final_filename'], row['optimization'])
+    except _pyc_check.Refused as error:
+        raise ReceiptRefusal(str(error)) from None

@@ -1,5 +1,6 @@
 """Bounded non-extracting v1 virtual inventory and selected-user footprint."""
 import posixpath
+from .artifacts import pyc_row
 from .codec import decode_json, sha256
 from .contracts import ReceiptRefusal
 
@@ -22,7 +23,7 @@ def _record(record):
     return dict(record,kind=record.get('kind','regular'))
 
 
-def inspect_profile_files(layers,blobs,config,value,profile,accepted,reader,admit_link,admit_generated):
+def inspect_profile_files(layers,blobs,config,value,profile,accepted,reader,admit_link,admit_generated,inspection=None):
     policy=profile['layer_policy'];base=policy['base'];runtime=profile['runtime']
     images=value['dependencies']['base_images']
     base_manifest=decode_json(accepted.get('deps/base-manifest.json',b''),8*1024*1024)
@@ -106,5 +107,13 @@ def inspect_profile_files(layers,blobs,config,value,profile,accepted,reader,admi
             require(retained in profile['source_bindings'], 'retained_source_unbound')
     for final,binding in profile['source_bindings'].items():
         require(final in files and files[final]['kind']=='regular' and binding['input'] in accepted and contents.get(final)==accepted[binding['input']], 'accepted_source_origin')
-    require(all(not p.endswith('.pyc') for p in files) if profile['inspector']['python_caches']=='none' else False, 'profile_cache_inventory')
+    caches=[p for p in sorted(files) if p.endswith('.pyc')]
+    if profile['inspector']['python_caches']=='none':
+        require(not caches, 'profile_cache_inventory')
+    else:
+        # CHECKED_HASH: only the session admit_inspection returned may judge caches;
+        # the controller reads headers/names/source hashes, never marshal/compile.
+        require(inspection is not None, 'native_inspector_execution_unqualified')
+        require(all(files[p]['kind']=='regular' for p in caches), 'profile_cache_inventory')
+        inspection.check([pyc_row(p,contents[p],contents,value) for p in caches])
     return [files[p] for p in sorted(files)]

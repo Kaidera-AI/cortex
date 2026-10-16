@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import os
+import selectors
 import signal
 import subprocess
 import time
@@ -55,6 +56,29 @@ def require_fresh_paths(paths):
     return resolved
 
 
+def _drain(process, sinks, limit, expires, clock, argv, timeout):
+    """Copy both pipes until EOF under one cumulative budget and the deadline."""
+    total = 0
+    with selectors.DefaultSelector() as selector:
+        for stream in sinks:
+            selector.register(stream, selectors.EVENT_READ)
+        while selector.get_map():
+            remaining = expires - clock()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(list(argv), timeout)
+            for key, _ in selector.select(remaining):
+                chunk = os.read(key.fd, 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                if total + len(chunk) > limit:
+                    sinks[key.fileobj].write(chunk[: limit - total])
+                    raise OverflowError("operation output budget exceeded")
+                total += len(chunk)
+                sinks[key.fileobj].write(chunk)
+    return total
+
+
 def run_operation(
     argv,
     cwd,
@@ -65,13 +89,25 @@ def run_operation(
     *,
     popen=subprocess.Popen,
     clock=time.monotonic,
+    output_limit=None,
+    kill_seconds=20,
 ):
+    """Run one explicit argv under one deadline.
+
+    With output_limit, stdout+stderr are drained together while the process
+    runs against ONE cumulative byte budget; the first excess byte stops the
+    process group and raises OverflowError. kill_seconds is the total budget
+    for the TERM then KILL waits after a failure.
+    """
     if not isinstance(argv, (list, tuple)):
         raise ValueError("explicit argv sequence required")
     argv = tuple(argv)
     if not argv or any(not isinstance(a, str) or "\x00" in a for a in argv):
         raise ValueError("bounded explicit argv required")
     _positive_timeout(timeout)
+    _positive_timeout(kill_seconds)
+    if output_limit is not None and (type(output_limit) is not int or output_limit <= 0):
+        raise ValueError("positive integer output budget required")
     environment = dict(environment)
     start = clock()
     process = None
@@ -99,33 +135,44 @@ def run_operation(
             }
         )
         try:
+            piped = output_limit is not None
             process = popen(
                 argv,
                 cwd=str(cwd),
                 env=environment,
                 stdin=subprocess.DEVNULL,
-                stdout=out,
-                stderr=err,
+                stdout=subprocess.PIPE if piped else out,
+                stderr=subprocess.PIPE if piped else err,
                 start_new_session=True,
             )
-            code = process.wait(timeout=timeout)
+            if piped:
+                _drain(process, {process.stdout: out, process.stderr: err},
+                       output_limit, start + timeout, clock, argv, timeout)
+                code = process.wait(timeout=max(start + timeout - clock(), 0.001))
+            else:
+                code = process.wait(timeout=timeout)
         except BaseException as error:
             failure = type(error).__name__
             if process is not None:
+                kill_started = clock()
                 try:
                     os.killpg(process.pid, signal.SIGTERM)
                 except ProcessLookupError:
                     pass
                 try:
-                    code = process.wait(timeout=10)
+                    code = process.wait(timeout=kill_seconds / 2)
                 except subprocess.TimeoutExpired:
                     try:
                         os.killpg(process.pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
-                    code = process.wait(timeout=10)
+                    code = process.wait(timeout=max(kill_seconds - (clock() - kill_started), 0.001))
             raise
         finally:
+            if process is not None and output_limit is not None:
+                for stream in (process.stdout, process.stderr):
+                    if stream is not None:
+                        stream.close()
             observe(
                 {
                     "status": "finished" if failure is None and code == 0 else "failed",
@@ -246,11 +293,19 @@ def resource_argv(resources):
     for key in ("cpu_millicores", "memory_bytes", "disk_bytes"):
         if type(resources.get(key)) is not int or resources[key] <= 0:
             raise ValueError("explicit positive resource limit required: " + key)
+    return cpu_memory_argv(resources["cpu_millicores"], resources["memory_bytes"])
+
+
+def cpu_memory_argv(cpu_millicores, memory_bytes):
+    """The one CPU/memory flag formatting; it claims nothing about disk."""
+    for key, value in (("cpu_millicores", cpu_millicores), ("memory_bytes", memory_bytes)):
+        if type(value) is not int or value <= 0:
+            raise ValueError("explicit positive resource limit required: " + key)
     return [
         "--cpu-period",
         "1000000",
         "--cpu-quota",
-        str(resources["cpu_millicores"] * 1000),
+        str(cpu_millicores * 1000),
         "--memory",
-        str(resources["memory_bytes"]),
+        str(memory_bytes),
     ]
