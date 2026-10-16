@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from psycopg.pq import TransactionStatus as TS
+from cortex_core.release.codec import canonical_bytes
 from cortex_core import migrations
 from cortex_core.install import lifecycle, owner
 from cortex_core.runtime import role_grants
@@ -77,7 +78,7 @@ class FiniteRolePhase(unittest.TestCase):
     def test_exact_migrator_private_phase_and_oid_admitted(self):
         a=self.adapter();c=SimpleNamespace(execute=lambda *args:SimpleNamespace(fetchone=lambda:(22,22,'migrator','migrator')))
         a.connection=c
-        original={'database':b'{"database":[10,"owned",20]}'}
+        original={'database':canonical_bytes({'database':[10,'owned',20]})}
         private={'phase':'migrator','session_user_name':'migrator','session_user_oid':22}
         with patch.object(a,'_sql_capability'),patch.object(a,'_current',return_value=original), \
              patch.object(a,'_database',return_value=a.database),patch.object(lifecycle,'_owner_inputs',return_value=object()), \
@@ -86,7 +87,7 @@ class FiniteRolePhase(unittest.TestCase):
             except owner.OwnerRefusal as error:self.fail('exact finite migrator refused: '+error.detail)
     def test_runtime_private_phase_cannot_borrow_bootstrap(self):
         a=self.adapter();c=SimpleNamespace(execute=lambda *args:SimpleNamespace(fetchone=lambda:(20,20,'bootstrap','bootstrap')))
-        a.connection=c;original={'database':b'{"database":[10,"owned",20]}'}
+        a.connection=c;original={'database':canonical_bytes({'database':[10,'owned',20]})}
         private={'phase':'runtime','session_user_name':'bootstrap','session_user_oid':20}
         with patch.object(a,'_sql_capability'),patch.object(a,'_current',return_value=original), \
              patch.object(a,'_database',return_value=a.database),patch.object(lifecycle,'_owner_inputs',return_value=object()), \
