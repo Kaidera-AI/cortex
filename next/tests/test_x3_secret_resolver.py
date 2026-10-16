@@ -409,10 +409,10 @@ class X3(unittest.IsolatedAsyncioTestCase):
         api,inputs,resolver,_,_=self.fixture()
         original_read,original_policy,original_retire=inputs.read,inputs.sql_policy,inputs.retire
         async def read(*args):
-            logging.getLogger('x3-fixture-provider').warning('%s',VALUE)
+            logging.getLogger('x3-fixture-read').warning('%s',VALUE)
             return await original_read(*args)
         def policy(*args):
-            logging.getLogger('x3-fixture-provider').warning('%s',VALUE)
+            logging.getLogger('x3-fixture-policy').warning('%s',VALUE)
             return original_policy(*args)
         async def retire(*args):
             logging.getLogger('psycopg').warning('%s',VALUE,exc_info=True)
@@ -423,7 +423,8 @@ class X3(unittest.IsolatedAsyncioTestCase):
         with self.assertLogs(level='WARNING') as captured:
             conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
             await adapter.retire(conn,deadline=self.deadline())
-        self.assertEqual(len(captured.records),3)
+        self.assertEqual({record.name for record in captured.records},
+            {'x3-fixture-read','x3-fixture-policy','psycopg'})
         self.assertNotIn(VALUE,repr(captured.output),'X3_SUPPLIER_LOG_LEAK')
         self.assertTrue(all(record.exc_info is None for record in captured.records))
 

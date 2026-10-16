@@ -53,6 +53,18 @@ CONTROLS = [
      '        with private_driver_logs():\n            async with asyncio.timeout_at(deadline):\n                result = await awaitable',
      '        async with asyncio.timeout_at(deadline):\n            result = await awaitable',
      'test_x305_supplier_read_policy_and_retire_logs_are_private'),
+    ('reservation-fence', 'connections.py',
+     '                await resolver.check(handle,deadline)\n', '',
+     'test_x308_revocation_during_reservation_dispatches_no_driver'),
+    ('current-db-policy', 'connections.py',
+     '_same(getattr(current,key),getattr(policy,key))', 'True',
+     'test_x307_current_role_binding_change_withholds_and_retires'),
+    ('asyncpg-strict-tls', 'connections.py',
+     "    secrets._require(type(context) is ssl.SSLContext and context.check_hostname\n"
+     "        and context.verify_mode == ssl.CERT_REQUIRED\n"
+     "        and context.hostname_checks_common_name is False,'invalid_connection_policy')",
+     '    return  # control: trust insecure TLS context',
+     'test_x303_insecure_asyncpg_context_never_dispatches'),
 ]
 
 HARNESS = """
