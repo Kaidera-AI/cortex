@@ -31,7 +31,8 @@ def sha(raw):
 
 def lane_value(fx, *, cpu=500, memory=1 << 28, disk=1 << 20, absolute=600, caps=None, base_config='0' * 64):
     value = {'target': {'module_id': 'api', 'module_version': '0.2.001', 'oci_platform': 'linux/amd64'},
-             'determinism': {'epoch': 0, 'environment': {'names': ['PYTHONHASHSEED']}},
+             'determinism': {'epoch': 0, 'environment': {'names': ['PYTHONHASHSEED']},
+                             'python': {'applicable': True, 'optimization': 0, 'final_root': '/app'}},
              'resources': {'absolute_timeout_sec': absolute, 'cpu_millicores': cpu, 'memory_bytes': memory,
                            'disk_bytes': disk,
                            'phase_timeouts_sec': caps or {'input': 60, 'parser': 60, 'build': 120, 'export': 60,
@@ -401,10 +402,12 @@ def journal(lane, image, *, exit=0, status='finished', error=None, environment=N
 def originals(lane, *, positive_equal=True, negative_same=False, probe_exit=None, probe_denied=True,
               flags=None, environment=None):
     core = product('_pyc_check')
-    rows = [{'cache': 'app/__pycache__/m.%s.pyc' % r3.TAG, 'source': 'app/m.py', 'final_filename': '/app/m.py',
-             'cache_b64': 'AAAA', 'source_b64': 'eCA9IDEK'},
-            {'cache': 'app/__pycache__/n.%s.pyc' % r3.TAG, 'source': 'app/n.py', 'final_filename': '/app/n.py',
-             'cache_b64': 'BBBB', 'source_b64': 'eSA9IDIK'}]
+    import base64
+    rows = [{'cache': r['cache'], 'source': r['source'], 'final_filename': r['final_filename'],
+             'cache_b64': base64.b64encode(r['cache_bytes']).decode(), 'source_b64': base64.b64encode(r['source_bytes']).decode()}
+            for r in r3.rows(('m', b'x = 1\n'), ('n', b'y = 2\n'))]
+    flipped = base64.b64decode(rows[0]['cache_b64'])
+    flipped = base64.b64encode(flipped[:-1] + bytes([flipped[-1] ^ 1])).decode()
     def request(rows):
         return codec.canonical_bytes({'schema': core.REQUEST_SCHEMA, 'policy_sha256': lane.closure.policy_sha256,
                                       'closure_sha256': lane.closure.closure_sha256,
@@ -415,7 +418,7 @@ def originals(lane, *, positive_equal=True, negative_same=False, probe_exit=None
                                       'verdicts': [{'cache': r['cache'], 'equal': e} for r, e in zip(rows, equals)]})
     files = {}
     positive = request(rows)
-    negative = positive if negative_same else request([dict(rows[0], cache_b64='AAAB'), rows[1]])
+    negative = positive if negative_same else request([dict(rows[0], cache_b64=flipped), rows[1]])
     argv = None
     if flags:
         argv = [t if t != '--network=none' else flags for t in inspector.plan_argv(
@@ -441,6 +444,11 @@ def originals(lane, *, positive_equal=True, negative_same=False, probe_exit=None
     return files, containment
 
 
+def runner_python():
+    import sys
+    return sys.executable
+
+
 def qualification(lane, *, files=None, **change):
     descriptor = contracts.thaw(lane.closure.descriptor)['descriptor']
     built, containment = originals(lane)
@@ -451,7 +459,9 @@ def qualification(lane, *, files=None, **change):
            'inspector': {'closure_sha256': lane.closure.closure_sha256,
                          'positive': {'request': 'q/positive.request', 'reply': 'q/positive.reply', 'journal': 'q/positive.journal'},
                          'negative': {'request': 'q/negative.request', 'reply': 'q/negative.reply', 'journal': 'q/negative.journal'}},
-           'probe_image': PROBE_IMAGE, 'containment': containment}
+           'probe_image': PROBE_IMAGE, 'containment': containment,
+           'cleanup_interpreter': runner_python(),
+           'cleanup_script': {'path': owned_remove.__file__, 'sha256': sha(Path(owned_remove.__file__).read_bytes())}}
     doc.update(change)
     # the R6 operator places the cited originals in the evidence root
     for name, raw in (built if files is None else files).items():
@@ -696,6 +706,184 @@ class ChildBinding(unittest.TestCase):
                 with self.assertRaises(ValueError) as caught:
                     receipts._native_children(build, tampered, inventory, doc, lane.value)
                 self.assertEqual(str(caught.exception), 'native_child_evidence')
+
+
+class OwnerRound2(unittest.TestCase):
+    """Cox's R01 round-2 deciding REDs, ported from his owner packet (cox-r4-r01-r2-20261016):
+    every case must stop before the ordinary native verifier's session boundary."""
+
+    class Reached(Exception):
+        pass
+
+    def candidate(self):
+        lane, value, measured, doc = ChildBinding.receipt(self)
+        checked = verified(lane.fx, lane.value)
+        policy = {'receipt_sha256': codec.sha256(codec.canonical_bytes(value)),
+                  'policy_sha256': lane.value['admission_policy']['policy_sha256'], 'input_sha256': checked.input_sha256,
+                  'qualification_scope': 'native', 'inspector_capability': lane.closure, 'inspector_host': HOST,
+                  'required_classes': list(receipts.CLASSES)}
+        return lane, value, measured, doc, checked, policy
+
+    def sessions(self, candidate):
+        lane, value, measured, doc, checked, policy = candidate
+        for row in value['evidence']['inventory']:
+            raw = measured[row['path']]
+            row.update(bytes=len(raw), sha256=codec.sha256(raw))
+        index = value['evidence']['index']
+        raw = codec.canonical_bytes({'inventory': value['evidence']['inventory']})
+        measured[index['path']] = raw
+        index.update(bytes=len(raw), sha256=codec.sha256(raw))
+        raw = codec.canonical_bytes(value)
+        policy['receipt_sha256'] = codec.sha256(raw)
+        def no_output(*args):
+            raise AssertionError('candidate outputs read before the session boundary')
+        with patch.object(inspector, '_session', side_effect=self.Reached) as session:
+            try:
+                receipts.verify_native_receipt_bytes(raw, checked, no_output, measured.__getitem__, policy)
+            except (self.Reached, contracts.ReceiptRefusal):
+                pass
+        return session.call_count
+
+    def change_request(self, c, change):
+        for kind in ('positive', 'negative'):
+            path = 'q/' + kind + '.request'
+            request = json.loads(c[2][path])
+            change(request)
+            raw = codec.canonical_bytes(request)
+            c[2][path] = raw
+            path = 'q/' + kind + '.reply'
+            reply = json.loads(c[2][path])
+            reply['request_sha256'] = codec.sha256(raw)
+            c[2][path] = codec.canonical_bytes(reply)
+
+    def children(self, c, phase):
+        op = next(op for op in c[1]['builds']['A']['operations'] if op['phase'] == phase)
+        path = op['evidence']['path'][:-5] + '.children.json'
+        return op, path, json.loads(c[2][path])
+
+    def test_control_corrected_candidate_reaches_one_session(self):
+        self.assertEqual(self.sessions(self.candidate()), 1)
+
+    def test_malformed_request_row_cannot_admit(self):
+        c = self.candidate()
+        self.change_request(c, lambda request: request['rows'][0].pop('source_b64'))
+        self.assertEqual(self.sessions(c), 0)
+
+    def test_foreign_request_abi_cannot_admit(self):
+        c = self.candidate()
+        self.change_request(c, lambda request: request.__setitem__('abi', {'version': '0.0.0', 'magic': '00000000'}))
+        self.assertEqual(self.sessions(c), 0)
+
+    def test_request_optimization_outside_profile_cannot_admit(self):
+        c = self.candidate()
+        self.change_request(c, lambda request: request.__setitem__('optimization', 2))
+        self.assertEqual(self.sessions(c), 0)
+
+    def test_filtered_cleanup_discovery_cannot_admit(self):
+        c = self.candidate()
+        _, path, rows = self.children(c, 'cleanup')
+        rows[0]['argv'] = rows[0]['argv'][:8] + ['ps', '--all', '--filter', 'name=foreign', '--format', 'json']
+        c[2][path] = codec.canonical_bytes(rows)
+        self.assertEqual(self.sessions(c), 0)
+
+    def test_foreign_cleanup_deleter_cannot_admit(self):
+        c = self.candidate()
+        _, path, rows = self.children(c, 'cleanup')
+        rows[-1]['argv'][9] = '/untrusted/python'
+        rows[-1]['argv'][13] = '/untrusted/foreign-remove.py'
+        c[2][path] = codec.canonical_bytes(rows)
+        self.assertEqual(self.sessions(c), 0)
+
+    def test_foreign_full_audit_commands_cannot_admit(self):
+        c = self.candidate()
+        op, path, _ = self.children(c, 'audit')
+        source = json.loads(c[2]['A/input.children.json'])[0]
+        forged = []
+        for verb in ['run', 'load', 'image', 'run', 'rm', 'ps', 'unshare']:
+            child = json.loads(json.dumps(source))
+            child.update(started_at_unix_ns=op['started_at_unix_ns'], finished_at_unix_ns=op['finished_at_unix_ns'],
+                         cwd='/foreign')
+            child['argv'] = ['/foreign/engine', '--remote=true', '--root', '/foreign/store', '--runroot', '/foreign/run',
+                             '--tmpdir', '/foreign/tmp', verb, '--privileged', 'sha256:' + 'f' * 64]
+            forged.append(child)
+        c[2][path] = codec.canonical_bytes(forged)
+        self.assertEqual(self.sessions(c), 0)
+
+
+class AuditBinding(unittest.TestCase):
+    """Hale R4-MAP-001(c) / Cox round 2: a REAL audit group (evidence call + six nested
+    R3 children) binds by full command, session, request and reply join."""
+
+    def receipt(self):
+        lane = Lane(self)
+        fake = r3.FakeEngine(lane.fx)
+
+        def engine(argv, environment, session, timeout, limit):
+            code, out = fake(argv, environment, session, timeout, limit)
+            files = {}
+            for key, raw in (('stdout', out), ('stderr', b''), ('journal', b'{"fixture":true}\n')):
+                path = Path(session) / ('fixture-' + str(len(fake.calls)) + '.' + key)
+                path.write_bytes(raw)
+                files[key] = path
+            return code, out, files
+
+        def inspect(*args, inspection, **kwargs):
+            inspection.check(r3.rows(('a', b'x = 1\n')))
+            return (), [{'path': 'app/module.py', 'bytes': 5, 'sha256': '0' * 64, 'mode': 420, 'uid': 1001, 'gid': 1001, 'mtime': 0}]
+        with patch.object(product('artifacts'), 'inspect_oci', inspect), patch.object(inspector, '_engine', engine), \
+                patch.object(runner, '_runtime_smoke', return_value=('pass', 'fixture contract')), \
+                patch.object(runner, '_child', Engine(lane, ps=[[], [], [], []])):
+            result = runner.native_lanes(verified(lane.fx, lane.value), lane.materialize, lane.base, lane.closure, HOST,
+                                         lane.parent, lane.outputs, lane.evidence, codec.canonical_bytes(qualification(lane)))
+        self.assertEqual(result['result'], 'RAW')
+        value = json.loads(result['receipt'])
+        measured = {row['path']: (lane.evidence / row['path']).read_bytes() for row in value['evidence']['inventory']}
+        pending = inspector._Pending(lane.closure, contracts.freeze(lane.fx.profile), contracts.freeze(HOST), inspector._ADMITTED)
+        return lane, value, measured, json.loads(measured['qualification.json']), pending
+
+    def bind(self, lane, value, measured, doc, pending, change=None):
+        build = value['builds']['A']
+        inventory = value['evidence']['inventory']
+        if change:
+            op = next(op for op in build['operations'] if op['phase'] == 'audit')
+            path = op['evidence']['path'][:-5] + '.children.json'
+            children = json.loads(measured[path])
+            change(children)
+            raw = codec.canonical_bytes(children)
+            measured = dict(measured, **{path: raw})
+            inventory = [dict(row, bytes=len(raw), sha256=sha(raw)) if row['path'] == path else row for row in inventory]
+        return receipts._native_children(build, measured, inventory, doc, lane.value, pending)
+
+    def test_real_audit_group_binds_and_every_tamper_refuses(self):
+        lane, value, measured, doc, pending = self.receipt()
+        self.bind(lane, value, measured, doc, pending)
+        def flag(c):
+            c[0]['argv'] = [t if t != '--network=none' else '--network=host' for t in c[0]['argv']]
+            c[3]['argv'] = list(c[0]['argv'])
+        cases = {'plan flag': flag,
+                 'nested load': lambda c: c[1]['argv'].__setitem__(-1, '/elsewhere/image.tar'),
+                 'nested rm name': lambda c: c[4]['argv'].__setitem__(-1, 'cortex-inspector-foreign'),
+                 'request stream': lambda c: c[0].__setitem__('request', dict(c[0]['stderr'])),
+                 'reply join': lambda c: c[3].__setitem__('stdout', dict(c[3]['stderr'])),
+                 'cwd': lambda c: c[2].__setitem__('cwd', '/elsewhere'),
+                 'group cut': lambda c: c.pop()}
+        for name, change in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises(ValueError) as caught:
+                    self.bind(lane, value, measured, doc, pending, change)
+                self.assertEqual(str(caught.exception), 'native_child_evidence')
+        with self.assertRaises(ValueError):
+            receipts._native_children(value['builds']['A'], measured, value['evidence']['inventory'], doc, lane.value, None)
+
+    def test_request_row_with_an_unknown_key_refuses(self):
+        lane = Lane(self)
+        files, _ = originals(lane)
+        request = json.loads(files['q/positive.request'])
+        request['rows'][0]['extra'] = 'x'
+        raw = codec.canonical_bytes(request)
+        with self.assertRaises(ValueError):
+            receipts._closed_request(raw, lane.closure, contracts.thaw(lane.closure.descriptor)['descriptor'],
+                                     lane.fx.profile, lane.value)
 
 
 if __name__ == '__main__':
