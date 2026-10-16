@@ -58,6 +58,12 @@ def emit(
 
     The caller supplies measured build/audit records. R01 remeasures every output,
     evidence link and required class. This function grants no build or deploy effect.
+
+    Native scope (R4, Vera Q3): a conditional RAW emitter replaces the former
+    unconditional refusal. Without complete lanes and complete R6 qualification
+    records it still raises r02_native_emission_unqualified. With them it returns
+    (raw, None): producer claims only. It never calls verify_shared_receipt and
+    never returns a VerifiedBuildReceipt; Cox's acceptance and R01 decide later.
     """
     from cortex_core.release.codec import canonical_bytes
     from cortex_core.release.contracts import thaw
@@ -65,10 +71,9 @@ def emit(
     from .inputs import require_verified
 
     require_verified(verified_input)
-    # R02a has no qualified native execution producer. Do not inspect candidate
-    # outputs to manufacture a native receipt before this held boundary.
-    if verified_input.document["admission_policy"]["qualification_scope"] == "native":
-        raise ValueError("r02_native_emission_unqualified")
+    native = verified_input.document["admission_policy"]["qualification_scope"] == "native"
+    if native:
+        _require_native_complete(builds, audit, evidence, evidence_reader, custody, cleanup)
     if set(builds) != {"A", "B"}:
         raise ValueError("exact independent A/B records required")
     archives = []
@@ -112,7 +117,65 @@ def emit(
         "cleanup": cleanup,
     }
     raw = canonical_bytes(value)
+    if native:
+        return raw, None
     verified = verify_shared_receipt(
         raw, verified_input, output_reader, evidence_reader, qualification_policy
     )
     return raw, verified
+
+
+def _require_native_complete(builds, audit, evidence, evidence_reader, custody=None, cleanup=None):
+    """Producer completeness before any output read (Hale R4-EMIT-001): the exact
+    required class set with clean reports for BOTH lanes, complete per-lane operation,
+    custody and cleanup evidence, complete top-level custody and cleanup, and one
+    complete R6 record whose cited originals are present. Producer claims only."""
+    from cortex_core.release.codec import decode_json
+    from cortex_core.release.receipts import CLASSES, PHASES, qualification_complete, qualification_paths
+
+    def original(record):
+        return decode_json(verify_checked_bytes(evidence_reader(record["path"]), record["sha256"]), 8 * 1024 * 1024)
+
+    try:
+        # Every check that needs no reader runs first: a candidate without its R6
+        # record or with incomplete flags refuses before any output/evidence read.
+        rows = [row for row in evidence["inventory"] if row["role"] == "native.qualification"]
+        if len(rows) != 1:
+            raise ValueError
+        if (set(builds) != {"A", "B"} or audit.get("required_classes") != list(CLASSES) or
+                set(audit.get("reports", {})) != {"A", "B"} or audit.get("findings") != [] or
+                any(set(audit["reports"][slot]) != set(CLASSES) for slot in ("A", "B"))):
+            raise ValueError
+        if not (custody and custody.get("complete") is True and custody.get("partial") is False and
+                custody.get("missing_roles") == [] and cleanup and cleanup.get("complete") is True and
+                cleanup.get("remaining_owned_resources") == []):
+            raise ValueError
+        if original(custody["receipt"]).get("complete") is not True:
+            raise ValueError
+        lane_cleanup_doc = original(cleanup["receipt"])
+        if lane_cleanup_doc.get("complete") is not True or lane_cleanup_doc.get("remaining_owned_resources") != []:
+            raise ValueError
+        doc = qualification_complete(original(rows[0]))
+        present = {row["path"] for row in evidence["inventory"]}
+        if not set(qualification_paths(doc)) <= present:
+            raise ValueError
+        for slot in ("A", "B"):
+            build = builds[slot]
+            observed = build["observed_builder"]
+            if observed["architecture"] != doc["architecture"] or observed["engine"] != doc["engine"]:
+                raise ValueError
+            for record in audit["reports"][slot].values():
+                if original(record).get("findings") != []:
+                    raise ValueError
+            if [op["phase"] for op in build["operations"]] != list(PHASES):
+                raise ValueError
+            for op in build["operations"]:
+                if op["exit_code"] != 0 or op["status"] != "exited" or original(op["evidence"]).get("exit_code") != 0:
+                    raise ValueError
+            if original(build["custody"]).get("complete") is not True:
+                raise ValueError
+            lane_cleanup = original(build["cleanup"])
+            if lane_cleanup.get("complete") is not True or lane_cleanup.get("remaining_owned_resources") != []:
+                raise ValueError
+    except (ValueError, KeyError, TypeError, OSError, AttributeError):
+        raise ValueError("r02_native_emission_unqualified") from None

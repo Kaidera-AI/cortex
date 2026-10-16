@@ -1,4 +1,5 @@
 """Shared build receipt verifier; no assembly, signing or installation effects."""
+from dataclasses import dataclass
 from .artifacts import inspect_oci, measure, require
 from .codec import canonical_bytes, decode_json, ordered_inventory, schema_validate, sha256
 from .contracts import ParsedBuildReceipt, ReceiptRefusal, VerifiedBuildInput, VerifiedBuildReceipt, _SEAL, freeze, thaw
@@ -6,6 +7,336 @@ from .contracts import ParsedBuildReceipt, ReceiptRefusal, VerifiedBuildInput, V
 CLASSES = ('accounts', 'cache', 'clock', 'files', 'input', 'labels', 'logs', 'python', 'runtime', 'serialization', 'xattrs-acls')
 PHASES = ('input', 'parser', 'build', 'export', 'audit', 'cleanup')
 IDENTITIES = ('build_id', 'execution_id', 'store_id', 'runroot_id', 'container_id', 'source_id')
+
+
+QUALIFICATION_SCHEMA = 'cortex.native-qualification.v1'
+QUALIFICATION_KEYS = {'schema', 'architecture', 'platform', 'host', 'engine', 'engine_path', 'engine_config',
+                      'inspector', 'probe_image', 'containment', 'cleanup_interpreter', 'cleanup_script'}
+PROBES = ('memory', 'mounts_env', 'network', 'pids', 'rootfs_write', 'time', 'tmpfs')
+KILLED_PROBES = ('memory', 'time')
+
+
+@dataclass(frozen=True)
+class MatchedQualification:
+    """R01's statement, made only inside the native verifier, that measured R6
+    originals matched THIS verification's accepted context (Cox R4-R01-002)."""
+    pending: object
+    receipt_sha256: str
+    input_sha256: str
+    closure_sha256: str
+    _seal: object
+
+
+def _hex(value):
+    return type(value) is str and len(value) == 64 and all(c in '0123456789abcdef' for c in value)
+
+
+def _ref(value):
+    return type(value) is str and 0 < len(value) <= 4096 and not value.startswith('/') and '..' not in value.split('/')
+
+
+def qualification_complete(doc):
+    """The ONE closed R6 record shape. Every result is a reference to an ORIGINAL
+    (request, reply, run journal, probe observation); the record itself asserts no
+    outcome. Shape only: R01's match re-derives every result from the originals."""
+    def run(row):
+        return type(row) is dict and set(row) == {'request', 'reply', 'journal'} and all(_ref(v) for v in row.values())
+    def probe(name, row):
+        return (type(row) is dict and set(row) == {'journal', 'observation'} and _ref(row['journal']) and
+                (row['observation'] is None if name in KILLED_PROBES else _ref(row['observation'])))
+    try:
+        valid = (type(doc) is dict and set(doc) == QUALIFICATION_KEYS and doc['schema'] == QUALIFICATION_SCHEMA and
+                 doc['architecture'] in ('amd64', 'arm64') and doc['platform'] == 'linux/' + doc['architecture'] and
+                 type(doc['host']) is dict and set(doc['host']) == {'os', 'arch', 'uid', 'rootless', 'emulated', 'kernel'} and
+                 doc['host']['os'] == 'linux' and doc['host']['rootless'] is True and doc['host']['emulated'] is False and
+                 type(doc['host']['uid']) is int and doc['host']['uid'] > 0 and
+                 type(doc['engine']) is dict and set(doc['engine']) == {'engine_id', 'version', 'sha256'} and
+                 _hex(doc['engine']['sha256']) and type(doc['engine_path']) is str and doc['engine_path'].startswith('/') and
+                 type(doc['engine_config']) is dict and set(doc['engine_config']) == {'containers_conf', 'storage_conf'} and
+                 all(_hex(v) for v in doc['engine_config'].values()) and
+                 type(doc['inspector']) is dict and set(doc['inspector']) == {'closure_sha256', 'positive', 'negative'} and
+                 _hex(doc['inspector']['closure_sha256']) and run(doc['inspector']['positive']) and
+                 run(doc['inspector']['negative']) and type(doc['probe_image']) is str and
+                 doc['probe_image'].startswith('sha256:') and _hex(doc['probe_image'][7:]) and
+                 type(doc['containment']) is dict and set(doc['containment']) == set(PROBES) and
+                 all(probe(name, doc['containment'][name]) for name in PROBES) and
+                 type(doc['cleanup_interpreter']) is str and doc['cleanup_interpreter'].startswith('/') and
+                 type(doc['cleanup_script']) is dict and set(doc['cleanup_script']) == {'path', 'sha256'} and
+                 type(doc['cleanup_script']['path']) is str and doc['cleanup_script']['path'].startswith('/') and
+                 _hex(doc['cleanup_script']['sha256']))
+    except (AttributeError, KeyError, TypeError):
+        valid = False
+    require(valid, 'native_qualification_incomplete')
+    return doc
+
+
+def qualification_paths(doc):
+    paths = [doc['inspector'][kind][key] for kind in ('positive', 'negative') for key in ('request', 'reply', 'journal')]
+    for name in PROBES:
+        paths.append(doc['containment'][name]['journal'])
+        if doc['containment'][name]['observation'] is not None:
+            paths.append(doc['containment'][name]['observation'])
+    return paths
+
+
+def _journal(raw):
+    """A run_operation journal: (started row, finished row)."""
+    rows = [decode_json(line, 1024 * 1024, canonical=False) for line in raw.split(b'\n') if line]
+    require(len(rows) == 2 and type(rows[0]) is dict and type(rows[1]) is dict and rows[0].get('status') == 'started'
+            and rows[1].get('status') in ('finished', 'failed'), 'native_inspector_execution_unqualified')
+    return rows
+
+
+def _closed_request(raw, capability, descriptor, profile, input_value):
+    """The ONE closed inspector request check (Cox R4-R01-001): the protocol's exact
+    keys, the admitted ABI and optimization, sorted unique rows, and the existing
+    controller byte checks (artifacts.pyc_row) on every row. Never compiles."""
+    import base64
+    from .artifacts import pyc_row
+    from . import _pyc_check
+    fail = 'native_inspector_execution_unqualified'
+    limits = profile['inspector']['limits']
+    request = decode_json(raw, limits['input_bytes'])
+    require(type(request) is dict and set(request) == _pyc_check.REQUEST_KEYS and
+            request['schema'] == _pyc_check.REQUEST_SCHEMA and request['closure_sha256'] == capability.closure_sha256 and
+            request['policy_sha256'] == capability.policy_sha256 and
+            request['abi'] == {'version': descriptor['python']['version'], 'magic': descriptor['python']['magic']} and
+            type(request['optimization']) is int and request['optimization'] == profile['inspector']['optimization'] and
+            type(request['rows']) is list and bool(request['rows']), fail)
+    caches = [row.get('cache') if type(row) is dict else None for row in request['rows']]
+    require(caches == sorted(set(caches)) and None not in caches, fail)
+    for row in request['rows']:
+        require(set(row) == _pyc_check.ROW_KEYS and all(type(row[key]) is str for key in _pyc_check.ROW_KEYS), fail)
+        try:
+            cache = base64.b64decode(row['cache_b64'], validate=True)
+            source = base64.b64decode(row['source_b64'], validate=True)
+            checked = pyc_row(row['cache'], cache, {row['source']: source}, input_value)
+        except (ValueError, KeyError, TypeError):
+            raise ReceiptRefusal(fail) from None
+        require(checked['source'] == row['source'] and checked['final_filename'] == row['final_filename'] and
+                checked['optimization'] == request['optimization'], fail)
+    return request
+
+
+def _match_qualification(doc, pending, input_value, builds, measured, inventory, receipt_sha256, input_sha256):
+    """Inside the native verifier only: re-derive every R6 result from its measured
+    original and bind it to the admitted closure, engine, confs, host, plan, flags,
+    limits and fixed environment (Cox R4-R01-001). Returns the context-bound match
+    and the originals it consumed (for the exact-set evidence closure)."""
+    from .inspector import ARCH, ENGINE_ENVIRONMENT, plan_argv
+    from . import _pyc_check
+    qualification_complete(doc)
+    capability = pending.capability
+    descriptor = thaw(capability.descriptor)['descriptor']
+    profile = thaw(pending.profile)
+    limits = profile['inspector']['limits']
+    host = thaw(pending.host)
+    fail = 'native_inspector_execution_unqualified'
+    require(doc['architecture'] == input_value['builder_requirements']['architecture'] and
+            doc['platform'] == input_value['target']['oci_platform'] == descriptor['platform'] and
+            doc['engine'] == input_value['builder_requirements']['engine'] and
+            all(builds[slot]['observed_builder']['engine'] == doc['engine'] for slot in ('A', 'B')) and
+            doc['engine_path'] == str(capability.engine) and doc['engine']['sha256'] == capability.engine_sha256 and
+            doc['inspector']['closure_sha256'] == capability.closure_sha256 and
+            doc['engine_config'] == {name: descriptor['engine_config'][name]['sha256'] for name in ('containers_conf', 'storage_conf')} and
+            all(doc['host'][key] == host.get(key) for key in ('os', 'arch', 'uid', 'rootless')) and
+            doc['probe_image'] != capability.image_digest, fail)
+    from .build import _owned_remove
+    from pathlib import Path as _Path
+    require(doc['cleanup_script']['sha256'] == sha256(_Path(_owned_remove.__file__).read_bytes()), fail)
+    rows = {row['path']: row for row in inventory if row['role'] == 'native.qualification.original'}
+    found = {}
+
+    def original(path):
+        require(path in rows and path in measured, fail)
+        found[path] = rows[path]
+        return measured[path]
+
+    def started(path, image):
+        first, last = _journal(original(path))
+        argv = first.get('argv')
+        require(type(argv) is list and len(argv) > 10 and first.get('environment_names') == sorted(ENGINE_ENVIRONMENT), fail)
+        session, name = argv[3][:-len('/store')] if argv[3].endswith('/store') else None, argv[argv.index('--name') + 1] if '--name' in argv else None
+        require(session is not None and name is not None and
+                tuple(argv) == plan_argv(doc['engine_path'], image, limits, session, name), fail)
+        return last
+
+    def inspection(kind):
+        row = doc['inspector'][kind]
+        request_raw, reply_raw = original(row['request']), original(row['reply'])
+        request = _closed_request(request_raw, capability, descriptor, profile, input_value)
+        reply = decode_json(reply_raw, limits['output_bytes'])
+        require(type(reply) is dict and reply.get('schema') == _pyc_check.RESPONSE_SCHEMA and
+                reply.get('request_sha256') == sha256(request_raw) and
+                reply.get('abi') == {'version': descriptor['python']['version'], 'magic': descriptor['python']['magic'],
+                                     'machine': ARCH[descriptor['platform']][1]} and
+                [v.get('cache') for v in reply.get('verdicts', [])] == [r.get('cache') for r in request['rows']] and
+                all(type(v.get('equal')) is bool for v in reply['verdicts']), fail)
+        last = started(row['journal'], capability.image_digest)
+        require(last.get('status') == 'finished' and last.get('exit') == 0, fail)
+        return request_raw, request, [v['equal'] for v in reply['verdicts']]
+
+    positive_raw, positive, positive_verdicts = inspection('positive')
+    negative_raw, negative, negative_verdicts = inspection('negative')
+    changed = [index for index, (a, b) in enumerate(zip(positive['rows'], negative['rows'])) if a != b]
+    require(all(positive_verdicts) and negative_raw != positive_raw and len(positive['rows']) == len(negative['rows']) and
+            len(changed) == 1 and negative_verdicts.count(False) == 1 and negative_verdicts[changed[0]] is False and
+            {k: v for k, v in negative['rows'][changed[0]].items() if k != 'cache_b64'} ==
+            {k: v for k, v in positive['rows'][changed[0]].items() if k != 'cache_b64'}, fail)
+    for name in PROBES:
+        row = doc['containment'][name]
+        last = started(row['journal'], doc['probe_image'])
+        if name == 'memory':
+            require(last.get('exit') == 137, fail)
+        elif name == 'time':
+            require(last.get('status') == 'failed' and last.get('error') == 'TimeoutExpired', fail)
+        else:
+            require(last.get('status') == 'finished' and last.get('exit') == 0 and
+                    decode_json(original(row['observation']), 1024 * 1024) == {'probe': name, 'denied': True}, fail)
+    return MatchedQualification(pending, receipt_sha256, input_sha256, capability.closure_sha256, _SEAL), found
+
+
+FULL_CHILD = {'argv', 'cwd', 'environment_names', 'exit', 'started_at_unix_ns', 'finished_at_unix_ns',
+              'stdout', 'stderr', 'journal'}
+
+
+def _native_children(build, measured, inventory, doc, input_value=None, pending=None):
+    """Every phase's REQUIRED ordered children with full metadata and measured
+    streams (Hale R4-MAP-001(c), Cox R4-R01-001): owned prefix, fixed engine
+    environment, owned temporary path; the build child is prefix + admitted
+    template in the bound clone cwd. An empty or reordered list refuses."""
+    from .inspector import ENGINE_ENVIRONMENT
+    rows = {row['path']: row for row in inventory}
+    found = {}
+    observed = build['observed_builder']
+    store, runroot = observed['store_id'], observed['runroot_id']
+    fail = 'native_child_evidence'
+    require(store.endswith('-store') and runroot == store[:-len('-store')] + '-runroot', fail)
+    stem = store[:-len('-store')]
+    prefix = [doc['engine_path'], '--remote=false', '--root', store, '--runroot', runroot, '--tmpdir', stem + '-tmp']
+    # The verifier always passes input_value: the inspect digest is the accepted base
+    # config and the build suffix the admitted template. Without it (helper use) the
+    # same sequence/metadata binding applies with the op's own recorded template.
+    base = 'sha256:' + input_value['dependencies']['base_images'][0]['config_digest'] if input_value else None
+    template = list(input_value['recipe']['argv_template']) if input_value else None
+    expected = {
+        'input': [['load', '--input', stem + '-tmp/base.tar'], ['image', 'inspect', '--format', 'json', base or '']],
+        'parser': [['info', '--format', 'json']],
+        'build': [template or []],
+        'export': [['image', 'save', '--format', 'oci-dir', '--uncompressed', '--output', stem + '-layout/oci',
+                    observed['container_id']]]}
+    for op in build['operations']:
+        path = op['evidence']['path']
+        require(path.endswith('.json'), fail)
+        path = path[:-5] + '.children.json'
+        require(path in rows and path in measured, fail)
+        found[path] = rows[path]
+        children = decode_json(measured[path], 8 * 1024 * 1024)
+        require(type(children) is list, fail)
+        for child in children:
+            require(type(child) is dict and FULL_CHILD <= set(child) and child['exit'] == 0 and
+                    child['environment_names'] == sorted(ENGINE_ENVIRONMENT) and type(child['argv']) is list and
+                    op['started_at_unix_ns'] <= child['started_at_unix_ns'] <= child['finished_at_unix_ns'] <=
+                    op['finished_at_unix_ns'], fail)
+            for key in ('stdout', 'stderr', 'journal', 'request'):
+                if key == 'request' and key not in child:
+                    continue
+                stream = child[key]
+                require(type(stream) is dict and stream.get('path') in rows and stream['path'] in measured and
+                        stream.get('bytes') == len(measured[stream['path']]) and
+                        stream.get('sha256') == sha256(measured[stream['path']]), fail)
+                found[stream['path']] = rows[stream['path']]
+        phase = op['phase']
+        if phase in expected:
+            wanted = [list(tail) for tail in expected[phase]]
+            if phase == 'build' and template is None:
+                wanted = [list(op['argv'])]
+            if phase == 'input' and base is None and len(children) == 2:
+                digest = children[1]['argv'][-1]
+                require(digest.startswith('sha256:') and len(digest) == 71, fail)
+                wanted[1][-1] = digest
+            require([child['argv'] for child in children] == [prefix + tail for tail in wanted], fail)
+            if phase == 'build':
+                require(children[0]['cwd'] == observed['source_id'] and op['argv'] == wanted[0], fail)
+        elif phase == 'cleanup':
+            # complete discovery of the owned store, removal of exactly what it found,
+            # positive absence, then the controlled deleter on the recorded roots
+            listing = prefix + ['ps', '-a', '--external', '--format', 'json']
+            require(len(children) in (3, 4) and children[0]['argv'] == listing and children[-2]['argv'] == listing, fail)
+            found_ids = _container_ids(measured[children[0]['stdout']['path']])
+            if len(children) == 4:
+                require(bool(found_ids) and children[1]['argv'] == prefix + ['rm', '--force', '--time', '0', *found_ids], fail)
+            else:
+                require(found_ids == [], fail)
+            require(_container_ids(measured[children[-2]['stdout']['path']]) == [], fail)
+            _deleter(children[-1]['argv'], prefix, doc, [store, runroot])
+        else:  # audit: [evidence call, its real nested R3 children]* (empty only without caches)
+            require(not children or pending is not None, fail)
+            index = 0
+            while index < len(children):
+                _audit_group(children[index:index + 7], measured, doc, pending, input_value)
+                index += 7
+    return found
+
+
+def _container_ids(raw):
+    rows = decode_json(raw or b'[]', 1024 * 1024, canonical=False)
+    require(type(rows) is list and all(type(row) is dict and _hex(row.get('Id')) for row in rows), 'native_child_evidence')
+    return sorted({row['Id'] for row in rows})
+
+
+def _deleter(argv, prefix, doc, roots):
+    """The one controlled namespace deleter: recorded interpreter, the repository's own
+    _owned_remove.py (bound by sha in _match_qualification), exact owned roots + ids."""
+    head = prefix + ['unshare', doc['cleanup_interpreter'], '-I', '-S', '-B', doc['cleanup_script']['path']]
+    tail = argv[len(head):]
+    require(argv[:len(head)] == head and len(tail) == 3 * len(roots) and
+            [tail[3 * i] for i in range(len(roots))] == roots and
+            all(tail[3 * i + j].isdigit() for i in range(len(roots)) for j in (1, 2)), 'native_child_evidence')
+
+
+def _audit_group(group, measured, doc, pending, input_value):
+    """One evidence call + its six real nested R3 children, bound to the admitted engine,
+    inspector closure/plan, owned session/name, flags, limits, cwd and request/reply."""
+    from pathlib import Path
+    from .inspector import ARCH, plan_argv
+    from . import _pyc_check
+    fail = 'native_child_evidence'
+    capability = pending.capability
+    descriptor = thaw(capability.descriptor)['descriptor']
+    profile = thaw(pending.profile)
+    require(len(group) == 7 and 'request' in group[0], fail)
+    call, nested = group[0], group[1:]
+    argv = call['argv']
+    require(len(argv) > 10 and argv[3].endswith('/store') and '--name' in argv, fail)
+    session = argv[3][:-len('/store')]
+    name = argv[argv.index('--name') + 1]
+    require(str(Path(session).parent) == str(capability.root) and
+            tuple(argv) == plan_argv(doc['engine_path'], capability.image_digest, profile['inspector']['limits'],
+                                     session, name), fail)
+    prefix = list(argv[:8])
+    expected = [prefix + ['load', '--input', session + '/image.tar'],
+                prefix + ['image', 'inspect', '--format', 'json', capability.image_digest], list(argv),
+                prefix + ['rm', '--force', '--time', '0', '--ignore', name],
+                prefix + ['ps', '-a', '--filter', 'name=^' + name + '$', '--format', '{{.ID}}']]
+    require([child['argv'] for child in nested[:5]] == expected and
+            all(child['cwd'] == session for child in group), fail)
+    _deleter(nested[5]['argv'], prefix, doc, [session + '/store', session + '/run'])
+    stream = call['request']
+    require(type(stream) is dict and stream.get('path') in measured and
+            stream.get('sha256') == sha256(measured[stream['path']]), fail)
+    request_raw = measured[stream['path']]
+    try:
+        request = _closed_request(request_raw, capability, descriptor, profile, input_value)
+        reply = decode_json(measured[call['stdout']['path']], profile['inspector']['limits']['output_bytes'])
+    except ValueError:
+        raise ReceiptRefusal(fail) from None
+    require(type(reply) is dict and reply.get('schema') == _pyc_check.RESPONSE_SCHEMA and
+            reply.get('request_sha256') == sha256(request_raw) and
+            reply.get('abi') == {'version': descriptor['python']['version'], 'magic': descriptor['python']['magic'],
+                                 'machine': ARCH[descriptor['platform']][1]} and
+            [v.get('cache') for v in reply.get('verdicts', [])] == [r['cache'] for r in request['rows']] and
+            nested[2]['stdout']['sha256'] == call['stdout']['sha256'], fail)
 
 
 def parse_build_receipt(raw_bytes):
@@ -36,10 +367,12 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
                 policy.get('receipt_sha256') == sha256(receipt.raw), 'native_receipt_not_independently_accepted')
         require(policy.get('policy_sha256') == thaw(verified_input.document)['admission_policy']['policy_sha256'],
                 'receipt_audit_policy')
-        from .inspector import admit_inspection
-        inspection = admit_inspection(verified_input, policy)
+        # Vera Q2 order, step 1: closure/ABI/host preflight only; no session yet.
+        from .inspector import preflight
+        pending = preflight(verified_input, policy)
     else:
-        inspection = None
+        pending = None
+    inspection = None
     parsed = parse_build_receipt(receipt.raw)
     require(parsed.sha256 == receipt.sha256 and parsed.document == receipt.document, 'changed_parsed_receipt')
     value, input_value = thaw(parsed.document), thaw(verified_input.document)
@@ -61,6 +394,21 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
     measured = {r['path']: measure(r, evidence_reader, min(limit, 8 * 1024 * 1024)) for r in inventory + [index_record]}
     require(_json_record(index_record, measured) == {'inventory': inventory}, 'evidence_index_closure')
     required_evidence, output_paths, builds = {}, set(), value['builds']
+    if scope == 'native':
+        # Steps 2-4: measured closed native roles, matched to the accepted context,
+        # then the ONE session. Exact-set evidence closure stays below.
+        rows = [row for row in inventory if row['role'] == 'native.qualification']
+        require(len(rows) == 1, 'native_qualification_incomplete')
+        record = rows[0]
+        doc = decode_json(measured[record['path']], 1024 * 1024)
+        matched, originals = _match_qualification(doc, pending, input_value, builds, measured, inventory,
+                                                  parsed.sha256, verified_input.input_sha256)
+        required_evidence.update(originals)
+        for slot in ('A', 'B'):
+            required_evidence.update(_native_children(builds[slot], measured, inventory, doc, input_value, pending))
+        required_evidence[record['path']] = record
+        from .inspector import admit_session
+        inspection = admit_session(pending, matched)
     for slot in ('A', 'B'):
         observed = builds[slot]['observed_builder']
         require(observed['build_id'] == builds[slot]['build_id'], 'observed_build_binding')
@@ -168,6 +516,8 @@ def verify_native_receipt_bytes(raw, verified_input, output_reader, evidence_rea
     require(isinstance(qualification_policy, dict) and type(raw) is bytes and len(raw)<=8*1024*1024 and
             qualification_policy.get('receipt_sha256')==sha256(raw), 'native_receipt_not_independently_accepted')
     require(qualification_policy.get('policy_sha256')==thaw(verified_input.document)['admission_policy']['policy_sha256'], 'receipt_audit_policy')
-    from .inspector import admit_inspection
-    admit_inspection(verified_input, qualification_policy)
+    # Vera Q2 step 1 before any decoding: closure/ABI/host eligibility only. No session
+    # here; verify_build_receipt runs the one preflight/match/session order.
+    from .inspector import preflight
+    preflight(verified_input, qualification_policy)
     return verify_build_receipt(parse_build_receipt(raw), verified_input, output_reader, evidence_reader, qualification_policy)
