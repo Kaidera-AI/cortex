@@ -629,6 +629,15 @@ class X3(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(coroutine.cr_frame,'unstarted supplier coroutine was retained')
 
 
+    async def test_x310_completed_supplier_after_event_loop_stall_is_late(self):
+        api,inputs,resolver,_,_=self.fixture()
+        async def stall():
+            import time
+            time.sleep(.03)  # controlled source-only event-loop stall
+            return True
+        await self.denied(api._bounded(stall(),self.deadline(.01)),'deadline_expired')
+
+
 # Hale's seven reviewer methods are retained verbatim; use this module's fixtures.
 import sys
 fixtures=sys.modules[__name__]
