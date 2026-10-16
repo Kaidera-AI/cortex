@@ -638,6 +638,32 @@ class X3(unittest.IsolatedAsyncioTestCase):
         await self.denied(api._bounded(stall(),self.deadline(.01)),'deadline_expired')
 
 
+    async def test_x3close001_queued_close_precedes_no_driver_dispatch(self):
+        api,inputs,resolver,_,_=self.fixture();holder={};original=api.SecretResolver.resolve
+        policy=inputs.sql_policy;scheduled=False
+        async def resolve(self,*args):
+            handle=await original(self,*args);holder['handle']=handle;return handle
+        def close():
+            holder['handle'].close();inputs.events.append('handle-closed')
+        def current_policy(grant):
+            nonlocal scheduled
+            if 'connect-reserve' in inputs.events and not scheduled:
+                scheduled=True;asyncio.get_running_loop().call_soon(close)
+            return policy(grant)
+        inputs.sql_policy=current_policy
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        with patch.object(api.SecretResolver,'resolve',resolve):
+            try:conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+            except api.SecretRefusal:conn=None
+        await asyncio.sleep(0)
+        if conn is not None:await adapter.retire(conn,deadline=self.deadline())
+        self.assertIn('handle-closed',inputs.events)
+        if 'connect' in inputs.events:
+            self.assertLess(inputs.events.index('connect'),inputs.events.index('handle-closed'),
+                            'driver dispatched after queued close')
+
+
 # Hale's seven reviewer methods are retained verbatim; use this module's fixtures.
 import sys
 fixtures=sys.modules[__name__]
