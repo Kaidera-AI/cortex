@@ -6,17 +6,18 @@ from contextlib import suppress
 from urllib.parse import parse_qs
 from uuid import UUID
 
-from cortex_core.auth import AuthError
+from cortex_core.auth import AuthError, Scope as AuthScope
 from cortex_core.coordination import JobError, Jobs
 from .c11b import _credential
 from .c11a import KeywordResponse
 from cortex_core.embeddings.keyword import (KeywordSearch, KeywordResult, current_rows,
     source_state, request_deadline, check_deadline)
 from cortex_core.embeddings.pg_search import (
-    CapabilityUnavailable, CoreUnavailable, EmbeddingIdentity, PostgresSearch,
+    CapabilityUnavailable, CoreUnavailable, EmbeddingIdentity,
 )
-from cortex_core.embeddings.query_cache import CacheScope, QueryEmbeddingCache
+from cortex_core.embeddings.query_cache import CacheScope
 from cortex_core.modules.graph.pg_graph import GraphScope, GraphUnavailable, PostgresGraph
+from cortex_core.runtime.pg_adapters import _RequestMaterial, _C04Search, _C04Cache
 
 PROBE_VECTOR = [1.0] + [0.0] * 767
 
@@ -129,7 +130,19 @@ class C11b2ReadPort:
         return value
 
     def _ports(self, principal):
-        async def search_authorize(_conn, subject):
+        request = principal['_request_scope']
+        project = self.record_port._project(request)
+        try:
+            expected = AuthScope(self.record_port.installation_id, UUID(principal['tenant_id']),
+                                 UUID(principal['project_id']), UUID(principal['principal_id']),
+                                 principal['permission_generation'], 'read')
+        except (ValueError, TypeError, KeyError):
+            raise AuthError('scope_mismatch') from None
+        if project != expected.project_id:
+            raise AuthError('scope_mismatch')
+        material = _RequestMaterial(_credential(request), expected)
+
+        async def graph_scope(_conn, subject):
             await self._current(principal)
             if subject != principal['principal_id']:
                 raise PermissionError('principal changed')
@@ -159,7 +172,7 @@ class C11b2ReadPort:
                               str(principal['permission_generation']))
 
         async def graph_authorize(_conn, subject):
-            scope = await search_authorize(_conn, subject)
+            scope = await graph_scope(_conn, subject)
             project_key = next((key for key, value in self.record_port.projects.items()
                                 if value == scope.project_id), None)
             if project_key not in self.project_repos:
@@ -170,14 +183,14 @@ class C11b2ReadPort:
         async def deny(_conn, _subject):
             raise PermissionError('graph mutation port is not bound')
 
-        search = PostgresSearch(self.pool, search_authorize)
+        search = _C04Search(self.pool, material)
         graph = PostgresGraph(self.pool, authorize_read=graph_authorize,
                               authorize_control=deny, authorize_writer=deny,
                               extractor_identity=self.extractor_identity)
         return search, graph
 
     def _cache(self, search):
-        return QueryEmbeddingCache(self.pool, search.authorize, self.provider.embed)
+        return _C04Cache(self.pool, search._material, self.provider.embed)
 
     async def permission_recheck(self, principal, _capability):
         await self._current(principal)

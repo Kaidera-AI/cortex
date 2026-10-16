@@ -52,6 +52,7 @@ EXEMPT_SYMBOL_FILES = {
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
+    "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
     "schema/auth/007-runtime-grants.sql": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607",
     "src/cortex_core/install/lifecycle.py": "cfb9c7585cca903600988498888f3a0f9826fbfd903ffd80b36a305c71689ec3",
@@ -62,6 +63,7 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/auth.py', 'authorized', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '73b404c4edb916b5bf9f29735fa35621b218f0508f2df3604f10cefabf7c73eb'): 'fixed_C04_role_catalogue_read; SELECT_only; owned_request_SQL_transaction; local_request_ROLE; no_canonical_write_authority; native_HELD',
     ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.credentials', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
     ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.first_identity_receipts', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',
     ('schema/auth/007-runtime-grants.sql', 'auth.first_identity', 'INSERT', 'auth.principals', 0, '566abcb49c2a858ed0ae776b31aed25ea8ffefa7b9cc209168132adfbc6b50b3'): 'held_PG_B_installer_enrollment; fixed_login_OID/map; caller_SQL_transaction; C06_identity_fact',

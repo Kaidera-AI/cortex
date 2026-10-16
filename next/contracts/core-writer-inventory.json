@@ -639,6 +639,15 @@
       "classification": "private_transaction_binding_housekeeping"
     },
     {
+      "file": "src/cortex_core/auth.py",
+      "owner": "authorized",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "73b404c4edb916b5bf9f29735fa35621b218f0508f2df3604f10cefabf7c73eb",
+      "classification": "fixed_C04_role_catalogue_read; SELECT_only; owned_request_SQL_transaction; local_request_ROLE; no_canonical_write_authority; native_HELD"
+    },
+    {
       "file": "src/cortex_core/conductor/supervisor.py",
       "owner": "Supervisor.acquire",
       "verb": "INSERT",
