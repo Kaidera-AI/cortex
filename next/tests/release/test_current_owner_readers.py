@@ -31,8 +31,13 @@ class CurrentOwnerReaders(unittest.TestCase):
   return error
 
  def sample(self,m,*,empty=False):
-  # Sole inherited test factory: unrelated in-memory root, never product custody.
+  # Inherited policy shape, with the pinned PUBLIC root DATA for full schema.
+  # No signature or owner provenance is manufactured; production still refuses.
   a=factory.test_authority()
+  public=(NEXT/'release/custody/2026-10-16/release-public-key.pub').read_bytes()
+  a.root_material=public
+  a.policy['root'].update(key_id=m.PRODUCTION_KEY_ID,public_key_bytes=len(public),
+                         key_material_sha256=m.sha256(public))
   if empty:
    a.policy['installed_baseline']=dict(state='empty',receipt_sha256='e'*64,fence=1,policy_generation=1)
    a.current_state['installed_baseline']=copy.deepcopy(a.policy['installed_baseline'])
