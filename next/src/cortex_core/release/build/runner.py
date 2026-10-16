@@ -625,20 +625,23 @@ def _qualification_row(evidence, kind, request, children):
     return {"request": base + ".request", "children": base + ".children.json"}
 
 
-def qualify(verified, materialize, base, closure, probe, host, parent, root, allowlist, *, clock=None):
+def qualify(verified, materialize, base, closure, probe, host, parent, root, allowlist, *, clock=None, deadline=None,
+            account=None):
     """R6 run 2, steps c-f for one arch (note v2 ORDER): ONE preliminary lane (slot P)
     whose evidence-only audit IS the positive; the negative (exactly one cache body
     byte flipped, through collect_inspection_evidence); the seven probes (purpose=probe,
     each its own fresh store); then the record (references only). The shared R01 row
     function must accept EVERY row here, else no record and no native_lanes call.
     P-lane outputs and roots are unqualified material: never assembled or emitted.
+    Inside an operator run, every step starts only if its own fixed bound still fits the
+    operator Deadline window (_fits) and the negative/probes share its output account.
     Returns (record bytes, {evidence path: original bytes})."""
     import base64
     import sys
     from pathlib import Path
     from cortex_core.release.codec import canonical_bytes, decode_json, sha256
     from cortex_core.release.contracts import ReceiptRefusal, thaw
-    from cortex_core.release.inspector import _request, collect_inspection_evidence, run_probe
+    from cortex_core.release.inspector import CLEANUP_SECONDS, _request, collect_inspection_evidence, run_probe
     from cortex_core.release.receipts import (PROBES, QUALIFICATION_SCHEMA, qualification_complete,
                                               qualification_paths, qualification_row, qualification_streams)
     from . import _owned_remove
@@ -650,6 +653,8 @@ def qualify(verified, materialize, base, closure, probe, host, parent, root, all
         path.mkdir(mode=0o700)
     value = thaw(verified.document)
     profile = thaw(verified.metadata)["release_policy"]
+    seconds = profile["inspector"]["limits"]["seconds"] + CLEANUP_SECONDS  # an inspection's whole own budget
+    _fits(deadline, value["resources"]["absolute_timeout_sec"])
     lane = native_lane("P", verified, materialize, base, closure, host, parent, material, evidence, clock=clock)
     if len(lane["inspection"]) != 1:
         raise ReceiptRefusal(fail)  # no corpus: nothing to qualify against
@@ -664,14 +669,16 @@ def qualify(verified, materialize, base, closure, probe, host, parent, root, all
     (evidence / QUALIFICATION_DIR / "negative").mkdir(mode=0o700)
     nested = []
     try:
+        _fits(deadline, seconds)
         negative = collect_inspection_evidence(closure, profile, cases, evidence_dir=evidence / QUALIFICATION_DIR / "negative",
-                                               history=nested)["request"]
+                                               history=nested, account=account)["request"]
     except ReceiptRefusal:
         negative = _request(closure, profile, cases)[0]  # the failed run's history still becomes evidence
     rows["negative"] = _qualification_row(evidence, "negative", negative, nested)
     for name in PROBES:
         (evidence / QUALIFICATION_DIR / name).mkdir(mode=0o700)
-        result = run_probe(probe, profile, name, evidence_dir=evidence / QUALIFICATION_DIR / name)
+        _fits(deadline, seconds)
+        result = run_probe(probe, profile, name, evidence_dir=evidence / QUALIFICATION_DIR / name, account=account)
         rows[name] = _qualification_row(evidence, name, result["request"], result["children"])
     descriptor = thaw(closure.descriptor)["descriptor"]
     doc = {"schema": QUALIFICATION_SCHEMA, "architecture": value["builder_requirements"]["architecture"],
@@ -706,7 +713,7 @@ def qualify(verified, materialize, base, closure, probe, host, parent, root, all
     return canonical_bytes(doc), files
 
 
-def operate(modules, closure, probe, host, parent, root, allowlist, *, clock=None):
+def operate(modules, closure, probe, host, parent, root, allowlist, *, clock=None, deadline=None, account=None):
     """R6 run 2 for one arch, the exact call sequence: qualify (steps c-f, the corpus is
     the Core input) and only then native_lanes(Core), native_lanes(API) (step g): TWO
     calls, each running A then B internally, each with the record's originals written
@@ -717,7 +724,7 @@ def operate(modules, closure, probe, host, parent, root, allowlist, *, clock=Non
 
     core = modules["Core"]
     record, files = qualify(core["verified"], core["materialize"], core["base"], closure, probe, host, parent, root,
-                            allowlist, clock=clock)
+                            allowlist, clock=clock, deadline=deadline, account=account)
     results = {}
     for name in ("Core", "API"):
         module = modules[name]
@@ -725,6 +732,7 @@ def operate(modules, closure, probe, host, parent, root, allowlist, *, clock=Non
             target = Path(module["evidence_root"]) / path
             target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             _write_owned(target, raw, 0o444)
+        _fits(deadline, 2 * module["verified"].document["resources"]["absolute_timeout_sec"])  # lanes A then B
         results[name] = native_lanes(module["verified"], module["materialize"], module["base"], closure, host, parent,
                                      module["output_root"], module["evidence_root"], record, clock=clock)
     return {"record": record, "lanes": results}
@@ -738,34 +746,58 @@ OPERATOR_TEARDOWN_SEC = 1200
 UNIT_DIR = "/run/systemd/system"
 
 
+CONTROL_CALL_SEC = 60  # every outer-driver backend call is bounded by this timeout
+
+
+def _fits(deadline, seconds):
+    """Start a step only if its OWN fixed bound still fits the operator window: a lane
+    or inspection that could outlive the run is never begun (no fresh standalone time)."""
+    if deadline is not None and deadline.child_timeout(KILL_SECONDS) < seconds:
+        raise TimeoutError("operator window cannot hold the next step")
+
+
 def operator_budget(absolute_timeout_sec):
-    """The reconciled run budget: named stages, the teardown reserve, and their total
-    (= the unit's RuntimeMaxSec). Refuses anything but a positive integer timeout."""
+    """The reconciled run budget for the admitted lane timeout A: named stages, the
+    teardown reserve and their total (= the unit's RuntimeMaxSec)."""
     if type(absolute_timeout_sec) is not int or absolute_timeout_sec <= 0:
         raise ValueError("operator_budget_unreconciled")
     stages = dict(OPERATOR_STAGES_SEC)
     stages["lanes"] = OPERATOR_LANE_WINDOWS * absolute_timeout_sec
     stages["teardown"] = OPERATOR_TEARDOWN_SEC
-    return {"stages": stages, "total_sec": sum(stages.values())}
+    return {"absolute_timeout_sec": absolute_timeout_sec, "stages": stages, "total_sec": sum(stages.values())}
+
+
+def _checked_budget(budget, refusal):
+    """The ONE budget check (Hale R6-LIFETIME-001.BUDGET), shared by the Deadline and the
+    unit: every stage term equals the rebuild from the budget's OWN admitted A, so a
+    reconciled four-window or reserve-less budget is refused, not only an unsummed one."""
+    try:
+        valid = (type(budget) is dict and set(budget) == {"absolute_timeout_sec", "stages", "total_sec"} and
+                 budget == operator_budget(budget["absolute_timeout_sec"]))
+    except (ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise ValueError(refusal)
+    return budget
 
 
 def operator_deadline(budget, *, clock=None):
     """The ONE run Deadline: total budget, the last OPERATOR_TEARDOWN_SEC for teardown."""
     from .engine import Deadline
 
-    if budget.get("total_sec") != sum(budget["stages"].values()) or budget["stages"].get("teardown") != OPERATOR_TEARDOWN_SEC:
-        raise ValueError("operator_budget_unreconciled")
+    _checked_budget(budget, "operator_budget_unreconciled")
     return Deadline(budget["total_sec"], clock=clock or _now, reserve=OPERATOR_TEARDOWN_SEC)
 
 
 def operator_unit(name, budget, exec_start, exec_stop_post):
     """The transient root unit text (lab rule: a unit file in /run/systemd/system, never
-    systemd-run). RuntimeMaxSec = the reconciled total; ExecStopPost runs the finally
-    on every exit including the timeout. Returns (path, text)."""
+    systemd-run). RuntimeMaxSec = the checked total; ExecStopPost runs the finally
+    (operator_teardown) on every exit including the timeout. Returns (path, text)."""
     import re
 
     token = re.compile(r"[A-Za-z0-9_./=:,+@-]+")
-    if (not re.fullmatch(r"cortex-r6-[a-z0-9-]{1,64}", name) or budget.get("total_sec") != sum(budget["stages"].values()) or
+    _checked_budget(budget, "operator_unit_refused")
+    if (not re.fullmatch(r"cortex-r6-[a-z0-9-]{1,64}", name) or
             not all(type(argv) is list and argv and argv[0].startswith("/") and
                     all(type(part) is str and token.fullmatch(part) for part in argv)
                     for argv in (exec_start, exec_stop_post))):
@@ -777,9 +809,9 @@ def operator_unit(name, budget, exec_start, exec_stop_post):
 
 
 def operator_finally(steps):
-    """The guest-side finally (ExecStopPost): EVERY step attempted in order (stop work,
-    prove owned containers/processes absent, close results/custody, stop the session,
-    remove the user, reconcile packages); a failure is kept, never skips the rest."""
+    """The guest-side finally steps: EVERY step attempted in order (stop work, prove
+    owned containers/processes absent, close results/custody, stop the session, remove
+    the user, reconcile packages); a failure is kept, never skips the rest."""
     residuals = []
     for name, step in steps:
         try:
@@ -790,12 +822,118 @@ def operator_finally(steps):
     return residuals
 
 
+def _run_file(root, name):
+    from pathlib import Path
+    from cortex_core.release.codec import decode_json
+
+    path = Path(root) / ("operator-" + name + ".json")
+    return decode_json(path.read_bytes(), 1024 * 1024) if path.is_file() and not path.is_symlink() else None
+
+
+def operator_teardown(run_id, backend, root, *, clock=None, deadline=None):
+    """The ONE concrete finally of a run: the in-process lifecycle cleanup of operator_run
+    AND the unit's ExecStopPost. Exactly once: the first call writes its result
+    (O_EXCL); any later call returns that result and touches nothing. Every backend call
+    is (op, run_id, timeout) inside the teardown reserve. Packages: only OUR recorded
+    transaction is undone, after its undo preview; a setup without a proven receipt is
+    HOLD (residual), never a blind undo."""
+    from pathlib import Path
+    from cortex_core.release.codec import canonical_bytes
+    from cortex_core.release.inspector import _write_owned
+    from .engine import Deadline
+
+    done = _run_file(root, "teardown")
+    if done is not None:
+        return done
+    if deadline is None:  # ExecStopPost after the run process died: a fresh reserve only
+        deadline = Deadline(OPERATOR_TEARDOWN_SEC, clock=clock or _now, reserve=OPERATOR_TEARDOWN_SEC)
+    deadline.enter_cleanup(OPERATOR_TEARDOWN_SEC)
+    setup, receipt = _run_file(root, "setup"), _run_file(root, "receipt")
+
+    def call(op, *args):
+        timeout = deadline.cleanup_timeout(KILL_SECONDS)
+        if timeout <= 0:
+            raise TimeoutError("teardown reserve spent")
+        return backend(op, run_id, timeout, *args)
+
+    def packages():
+        if setup is None:
+            return True  # nothing was ever installed
+        if receipt is None:
+            raise ValueError("package_ownership_hold")
+        call("undo", package_undo_preview(receipt, call("undo_preview", receipt["transaction_id"])))
+        return package_readback(setup["baseline"], call("rpm_qa"), call("user_absent")) == "clean"
+    residuals = operator_finally([("stop", lambda: call("stop")), ("absent", lambda: call("absent")),
+                                  ("custody", lambda: call("custody")), ("session", lambda: call("session_stop")),
+                                  ("user", lambda: call("user_remove")), ("packages", packages)])
+    result = {"run_id": run_id, "complete": not residuals, "remaining_owned_resources": residuals}
+    _write_owned(Path(root) / "operator-teardown.json", canonical_bytes(result), 0o444)
+    return result
+
+
+def operator_run(run_id, backend, modules, closure, probe, host, parent, root, allowlist, *, clock=None):
+    """R6 run 2 as ONE bounded operator run (the unit's ExecStart; Hale
+    R6-LIFETIME-001.COMPOSITION): the checked budget for the admitted A, ONE operator
+    Deadline, stage windows (setup, then qualification + lanes), one output account,
+    and the existing lifecycle() whose finally is operator_teardown. Setup records the
+    rpm baseline and history id BEFORE the install and the exact transaction receipt
+    after it, then creates the build user. Returns {result, reason, stages, teardown}."""
+    from pathlib import Path
+    from cortex_core.release.codec import canonical_bytes
+    from cortex_core.release.inspector import _write_owned
+    from .engine import OutputAccount
+
+    timeouts = {module["verified"].document["resources"]["absolute_timeout_sec"] for module in modules.values()}
+    if len(timeouts) != 1:
+        raise ValueError("operator_budget_unreconciled")
+    budget = operator_budget(timeouts.pop())
+    deadline = operator_deadline(budget, clock=clock)
+    stages = budget["stages"]
+    root = Path(root)
+    state = {"lanes": None, "teardown": None}
+
+    def call(op, *args):
+        return backend(op, run_id, deadline.child_timeout(KILL_SECONDS), *args)
+
+    def stage(name):
+        if name == "setup":
+            deadline.enter_phase(stages["setup"])
+            baseline = call("rpm_qa")
+            last = max([row["id"] for row in call("history")] or [0])
+            package_preview(baseline, call("install_preview"))
+            _write_owned(root / "operator-setup.json", canonical_bytes({"baseline": baseline, "last_id_before": last}), 0o444)
+            call("install")
+            receipt = package_receipt(baseline, last, call("rpm_qa"), call("history"))
+            _write_owned(root / "operator-receipt.json", canonical_bytes(receipt), 0o444)
+            call("user_create")
+            return {"exit": 0}
+        deadline.enter_phase(stages["qualification"] + stages["lanes"])
+        (root / "qualification").mkdir(mode=0o700)
+        disk = modules["Core"]["verified"].document["resources"]["disk_bytes"]
+        state["lanes"] = operate(modules, closure, probe, host, parent, root / "qualification", allowlist, clock=clock,
+                                 deadline=deadline, account=OutputAccount(disk))["lanes"]
+        return {"exit": 0 if all(lane["result"] == "RAW" for lane in state["lanes"].values()) else 1}
+
+    def custody():
+        return {"complete": state["lanes"] is not None}
+
+    def cleanup():
+        state["teardown"] = operator_teardown(run_id, backend, root, clock=clock, deadline=deadline)
+        return state["teardown"]
+
+    result = lifecycle(("setup", "work"), stage, custody, cleanup, lambda row: None)
+    return {"result": result["result"], "reason": result["reason"], "stages": result["stages"],
+            "teardown": state["teardown"], "lanes": state["lanes"]}
+
+
 def operator_drive(start, read_state, deallocate, readback, *, polls):
-    """The outer driver: start the named unit ONCE, poll it within a bounded window,
+    """The outer driver: start the named unit ONCE, poll it a bounded number of times,
     then ALWAYS request deallocation and read it back, whatever happened before. An
     unknown state, a lost connection or an exhausted window is HOLD (reconcile by the
-    unit name), never a duplicate start. Returns {result, unit, deallocated}."""
-    unit = None
+    unit name), never a duplicate start. Every error is kept; a failed deallocation
+    request is never PASS, whatever the readback says (Hale .DEALLOCATE).
+    Returns {result, unit, deallocated, errors}."""
+    unit, errors = None, []
     try:
         start()
         unit = "unknown"
@@ -803,21 +941,36 @@ def operator_drive(start, read_state, deallocate, readback, *, polls):
             unit = read_state()
             if unit not in ("activating", "active", "deactivating"):
                 break
-    except Exception:
+    except Exception as error:
+        errors.append(("state" if unit else "start") + ": " + type(error).__name__)
         unit = unit or "start-failed"
     try:
         deallocate()
-    except Exception:
-        pass
+    except Exception as error:
+        errors.append("deallocate: " + type(error).__name__)
     try:
         deallocated = readback() == "deallocated"
-    except Exception:
+    except Exception as error:
+        errors.append("readback: " + type(error).__name__)
         deallocated = False
-    if not deallocated or unit not in ("inactive", "failed", "start-failed"):
+    if not deallocated or unit not in ("inactive", "failed", "start-failed") or \
+            any(e.startswith(("deallocate", "readback")) for e in errors):
         result = "HOLD"
     else:
-        result = "PASS" if unit == "inactive" else "RED"
-    return {"result": result, "unit": unit, "deallocated": deallocated}
+        result = "PASS" if unit == "inactive" and not errors else "RED"
+    return {"result": result, "unit": unit, "deallocated": deallocated, "errors": errors}
+
+
+def operator_control(run_id, ctl, *, polls, clock=None):
+    """The outer driver bound to ONE run identity: ctl(op, run_id, timeout) for start,
+    state, deallocate and readback, each bounded by CONTROL_CALL_SEC (a blocking backend
+    call cannot outlive it), composed through operator_drive."""
+    import re
+
+    if not re.fullmatch(r"cortex-r6-[a-z0-9-]{1,64}", run_id):
+        raise ValueError("operator_unit_refused")
+    bound = lambda op: (lambda: ctl(op, run_id, CONTROL_CALL_SEC))
+    return operator_drive(bound("start"), bound("state"), bound("deallocate"), bound("readback"), polls=polls)
 
 
 def _package_name(nevra):
