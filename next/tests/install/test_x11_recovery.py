@@ -202,3 +202,167 @@ class X11JoinTests(unittest.TestCase):
     def test_podman_lost_APPLIED_and_NOT_APPLIED_recover_once(self):
         for state in ('APPLIED','NOT_APPLIED'):
             with self.subTest(state=state),tempfile.TemporaryDirectory() as root:self.lost(root,'volume',state)
+
+
+class FaultTests(unittest.TestCase):
+    def held(self,c,*,unchanged=True):
+        s=c.subject;before=s.tree();head=s.history.head()[0]
+        with patch.object(p1,'_consume',side_effect=AssertionError('reconsumed')):
+            with self.assertRaises(owner.OwnerRefusal):c.run()
+        if unchanged:self.assertEqual(before,s.tree())
+        self.assertEqual(c.dispatched,1);self.assertFalse(c.held)
+        return head
+
+    def test_wrong_original_identity_effect_request_and_state_refuse(self):
+        for key in ('identity','effect','request_ref','state'):
+            with self.subTest(key=key),tempfile.TemporaryDirectory() as root:
+                c=LostResult(root)
+                def changed(v):
+                    if key=='state':v[key]='not_applied_verified'
+                    else:
+                        field=next(iter(v[key]));v[key][field]='wrong-original'
+                c.raw_edit=changed
+                self.held(c)
+
+    def test_revoked_and_expired_recovery_after_measurement_refuse(self):
+        for flag in ('expired','revoked'):
+            with self.subTest(flag=flag),tempfile.TemporaryDirectory() as root:
+                c=LostResult(root);c.after_measure=lambda:setattr(c.subject,flag,True)
+                self.held(c)
+
+    def test_unheld_first_measurement_cannot_publish(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root)
+            raw=canonical_bytes({**c.subject_key,'state':'applied_verified','observed':{}})
+            with patch.object(c,'measure',return_value=('APPLIED',raw)):
+                self.held(c)
+
+    def test_conflicting_retained_result_cannot_be_replaced(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root);first=c.run();head=c.subject.history.head()[0]
+            c.raw_edit=lambda v:v['observed'].update(conflicting=True)
+            self.held(c)
+            self.assertEqual(thaw(first),head);self.assertEqual(len(c.subject.history.events()),3)
+
+    def test_lost_ACK_retains_one_result_and_fresh_recovery_reuses_it(self):
+        for state in ('APPLIED','NOT_APPLIED'):
+            with self.subTest(state=state),tempfile.TemporaryDirectory() as root:
+                c=LostResult(root,state);s=c.subject;current=p1._current_owner
+                def changed(*args,**kwargs):
+                    if len(s.history.events())==3:s.revoked=True
+                    return current(*args,**kwargs)
+                with patch.object(p1,'_current_owner',changed):self.held(c,unchanged=False)
+                head=s.history.head()[0];raw=s.history.read(s.history.head()[1]['result_ref'])
+                s.revoked=False
+                again=c.run()
+                self.assertEqual(thaw(again),head);self.assertEqual(len(s.history.events()),3)
+                self.assertEqual(s.history.read(s.history.head()[1]['result_ref']),raw)
+
+    def test_competing_first_publisher_wins_CAS_without_second_result(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root);s=c.subject;winner=[]
+            def compete():
+                _,fresh=p1._current_owner(s.data['request_raw'].encode(),s.deadline)
+                winner.append(p1._record_result(s.history,s.consumed,c.raw,
+                    publication_head=s.history.head()[0],publication_revision=fresh.observed_state_revision,
+                    deadline=fresh.deadline,publication_context=thaw(fresh.context)))
+            c.after_measure=compete
+            self.held(c,unchanged=False)
+            self.assertEqual(len(winner),1);self.assertEqual(len(s.history.events()),3)
+            c.after_measure=None
+            self.assertEqual(thaw(c.run()),winner[0]);self.assertEqual(len(s.history.events()),3)
+
+    def test_stale_authority_during_file_and_directory_fsync_never_ACKs(self):
+        for directory in (False,True):
+            with self.subTest(directory=directory),tempfile.TemporaryDirectory() as root:
+                c=LostResult(root);s=c.subject;fsync=p1.os.fsync;fired=[]
+                def waited(fd):
+                    result=fsync(fd)
+                    import stat
+                    is_directory=stat.S_ISDIR(os.fstat(fd).st_mode)
+                    if c.held and is_directory==directory and not fired:
+                        # Only intercept event publication, not ordinary retained
+                        # fact writes, so the event's file/directory frontier is named.
+                        names={p.name for p in (s.root/'events').iterdir()}
+                        if any(n.startswith('.pending-') for n in names) or len(s.history.events())==3:
+                            fired.append(True);s.revoked=True
+                    return result
+                with patch.object(p1.os,'fsync',waited):self.held(c,unchanged=False)
+                self.assertEqual(fired,[True])
+                self.assertEqual(len(s.history.events()),3 if directory else 2)
+                s.revoked=False
+                self.assertEqual(thaw(c.run()),s.history.head()[0]);self.assertEqual(len(s.history.events()),3)
+
+    def test_unconsumed_anchor_does_not_reach_measurement(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root);s=c.subject
+            # An admitted recovery of a reservation is not original consumption.
+            q=json.loads(s.data['request_raw']);q['journal_ref']=s.reserved
+            raw=canonical_bytes(q);path=json.loads(s.data['context_raw'])['request_ref']['path']
+            s.data['request_raw']=raw.decode();s.data['originals'][path]=raw.decode()
+            s.helper.context(s.data,lambda x:x.update(request_ref=p1._ref(path,raw)))
+            self.held(c)
+            self.assertEqual(c.reads,0,'reserved anchor reached original-effect measurement')
+
+    def test_final_ACK_tail_keeps_original_operation_cutoff(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root);s=c.subject;clock=[0];current=p1._current_owner;fired=[]
+            def waited(*args,**kwargs):
+                result=current(*args,**kwargs)
+                if len(s.history.events())==3 and not fired:
+                    fired.append(True);clock[0]=s.history._publication.current[2]
+                return result
+            with patch.object(p1.time,'monotonic_ns',lambda:clock[0]),patch.object(p1,'_current_owner',waited):
+                self.held(c,unchanged=False)
+            self.assertEqual(fired,[True]);self.assertEqual(len(s.history.events()),3)
+            self.assertEqual(thaw(c.run()),s.history.head()[0]);self.assertEqual(len(s.history.events()),3)
+
+    def test_X11_partial_file_stage_and_unreaped_child_remain_UNKNOWN(self):
+        fixture=X11JoinTests()
+        for kind in ('file','volume'):
+            with self.subTest(kind=kind),tempfile.TemporaryDirectory() as root,fixture.opened(root,kind) as (s,j,inputs):
+                with s.installed(j):
+                    s.before=j.snapshot();s.reserve(mandate=False);s.consume()
+                    _,o,_=s.entry(s.consumed)
+                    effect=freeze({'context':json.loads(s.history.read(o['context_ref'])),
+                        'journal_ref':s.consumed,'preimages_ref':o['preimages_ref'],'deadline':s.deadline})
+                    j.dispatch(effect)
+                if kind=='file':(inputs.root/inputs.plan['stage']).write_bytes(b'uncertain retained stage')
+                else:inputs.reply['remaining']=[{'unknown':'child'}]
+                fixture.recover(s);before=s.tree()
+                with s.installed(j),patch.object(j,'dispatch',side_effect=AssertionError('replayed')):
+                    with self.assertRaises(owner.OwnerRefusal):p1.execute_effect(s.data['request_raw'].encode())
+                self.assertEqual(s.tree(),before);self.assertEqual(len(s.history.events()),2)
+
+    def test_X11_substituted_preimages_refuses_before_effect(self):
+        fixture=X11JoinTests()
+        with tempfile.TemporaryDirectory() as root,fixture.opened(root) as (s,j,inputs):
+            with s.installed(j):
+                s.before=j.snapshot();s.reserve(mandate=False);s.consume()
+                _,o,_=s.entry(s.consumed)
+                different=s.history.retain(canonical_bytes({'wrong':'preimages'}))
+                effect=freeze({'context':json.loads(s.history.read(o['context_ref'])),
+                    'journal_ref':s.consumed,'preimages_ref':different,'deadline':s.deadline})
+                with self.assertRaises(owner.OwnerRefusal):j.dispatch(effect)
+                self.assertFalse(j.primitive.attempted);self.assertFalse((inputs.root/'published').exists())
+
+    def test_X11_original_plan_cannot_extend_consumed_deadline(self):
+        fixture=X11JoinTests()
+        with tempfile.TemporaryDirectory() as root,fixture.opened(root) as (s,j,inputs):
+            with s.installed(j):
+                s.before=j.snapshot();s.reserve(mandate=False);s.consume()
+                _,o,_=s.entry(s.consumed)
+                plan=thaw(j.primitive.plan);plan['deadline_ns']=s.deadline.expires_monotonic_ns+1
+                j.primitive.plan=freeze(plan)
+                effect=freeze({'context':json.loads(s.history.read(o['context_ref'])),
+                    'journal_ref':s.consumed,'preimages_ref':o['preimages_ref'],'deadline':s.deadline})
+                with self.assertRaises(owner.OwnerRefusal):j.dispatch(effect)
+                self.assertFalse(j.primitive.attempted)
+
+    def test_X11_matching_result_does_not_permit_automatic_retry(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root,'NOT_APPLIED');c.run();s=c.subject
+            original=s.history.read(c.original[0]['request_ref']);head=s.history.head()[0]
+            with s.installed(c):
+                with self.assertRaises(owner.OwnerRefusal):p1.execute_effect(original)
+            self.assertEqual(head,s.history.head()[0]);self.assertEqual(c.dispatched,1)
