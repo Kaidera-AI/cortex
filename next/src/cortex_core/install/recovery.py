@@ -222,7 +222,7 @@ def _execute_recovery(history, original_request, current, primitives):
     if mandated:original['deadline'] = current.deadline
     head = history.head()[0]
     if mandated:p2._sql_prefix(history,anchor,head)
-    with p2._measurement(primitive,freeze(original),mandated=mandated) as answer:
+    with p2._measurement(primitive,freeze(original),mandated=mandated,recovery=True) as answer:
         owner._require(type(answer) is tuple and len(answer) == 2
             and answer[0] in ('APPLIED','NOT_APPLIED','UNKNOWN'), 'attempt_ambiguous')
         state, raw = answer

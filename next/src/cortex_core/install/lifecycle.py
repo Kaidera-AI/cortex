@@ -525,21 +525,73 @@ def _sql_prefix(history, consumed_ref, publication_head, *, candidate=None):
     return previous
 
 
+class _X11:
+    """Private projection of an already-open fixed X11 primitive into P1.
+
+    The caller cannot install this via request DATA. Its native supplier's hold
+    must enclose execute_effect, including operation's final ACK. No effects,
+    result publisher or new admission path are introduced by this projection.
+    """
+    def __init__(self, primitive, history):
+        from . import files, podman
+        _require(type(primitive) in (files._Primitive, podman._Primitive)
+            and type(history) is _History, 'backend_unavailable')
+        self.primitive, self.history = primitive, history
+        self.before = None
+
+    def snapshot(self):
+        value = self.primitive.snapshot()
+        kind = self.primitive.plan['subject']['effect']['resource_kind']
+        self.before = {kind: canonical_bytes(thaw(value))}
+        return dict(self.before)
+
+    def _subject(self, effect):
+        effect = thaw(effect)
+        context = effect['context']
+        subject = {k: context[k] for k in ('identity', 'effect', 'request_ref')}
+        _require(subject == thaw(self.primitive.plan)['subject'], 'scope_denied')
+        event, obs = _load_entry(self.history, effect['journal_ref'])
+        _require(all(event[k] == subject[k] for k in subject)
+            and obs['preimages_ref'] == effect['preimages_ref'], 'journal_invalid')
+        before = _decode(self.history.read(obs['preimages_ref']))
+        _require(before['identity'] == subject['identity'] and self.before is not None
+            and set(before['originals']) == set(self.before)
+            and all(self.history.read(before['originals'][k]) == raw
+                    for k, raw in self.before.items()), 'resource_changed')
+        return subject
+
+    def dispatch(self, effect):
+        self.primitive.dispatch(self._subject(effect))
+
+    def measure(self, effect):
+        return self.primitive.measure(self._subject(effect))
+
+
 @contextmanager
-def _measurement(primitive, context, *, mandated):
-    # V2 extends the lifetime of the existing measure, never a caller provider.
+def _measurement(primitive, context, *, mandated, recovery=False):
+    # ONE held measurement path for SQL and X11. Legacy private source
+    # recorders retain their immediate-byte/tuple contract; native X11 never
+    # loses its hold at the tuple-to-normal-result projection.
     measured = primitive.measure(context)
-    if mandated:
-        _require(hasattr(measured,'__enter__') and hasattr(measured,'__exit__'), 'atomicity_unavailable')
+    held = hasattr(measured, '__enter__') and hasattr(measured, '__exit__')
+    _require(not (mandated or type(primitive) is _X11) or held, 'atomicity_unavailable')
+    def project(answer):
+        if not recovery and type(answer) is tuple:
+            _require(len(answer) == 2 and answer[0] in ('APPLIED', 'NOT_APPLIED')
+                and type(answer[1]) is bytes, 'attempt_ambiguous')
+            return answer[1]
+        return answer
+    if held:
         failure = None
         with measured as answer:
-            try:yield answer
+            try: yield project(answer)
             except BaseException as error:
                 failure = error
                 raise
-        # A fixed producer must never turn a failed publication/HOLD into ACK.
-        if failure is not None:raise failure
-    else:yield measured
+        # A producer must never turn failed publication/HOLD into an ACK.
+        if failure is not None: raise failure
+    else:
+        yield project(measured)
 
 
 def _publish_entry(history, *, context, reservation, attempt, preimages_ref, request_ref,
@@ -601,7 +653,9 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     if revision is not None:
         _require(revision == proposal.observed_state_revision, 'generation_changed')
     _require(proposal.observed_state_revision < owner._INT_MAX, 'generation_changed')
-    _require(type(preimages) is dict and set(preimages) == _PREIMAGES
+    preimage_names = set(preimages) if type(preimages) is dict else set()
+    _require(type(preimages) is dict and (preimage_names == _PREIMAGES
+             or (sql_mandate_raw is None and preimage_names == {context['effect']['resource_kind']}))
              and all(type(raw) is bytes and len(raw) <= _RAW_LIMIT for raw in preimages.values()), 'backend_unavailable')
     lineage = None
     retry = operation == 'install' and thaw(request.document)['journal_ref'] is not None
@@ -643,12 +697,13 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     try:
         preimages_ref = _retained_preimages(history, context['identity'])
         existing = _decode(history.read(preimages_ref))
-        _require(all(history.read(existing['originals'][k]) == preimages[k] for k in _PREIMAGES), 'resource_changed')
+        _require(set(existing['originals']) == preimage_names
+            and all(history.read(existing['originals'][k]) == preimages[k] for k in preimage_names), 'resource_changed')
     except owner.OwnerRefusal as refusal:
         if refusal.detail != 'scope_denied':
             raise
         preimages_ref = history.retain(canonical_bytes({'identity': context['identity'],
-            'originals': {k: history.retain(preimages[k]) for k in sorted(_PREIMAGES)}}))
+            'originals': {k: history.retain(preimages[k]) for k in sorted(preimage_names)}}))
     release_ref = history.retain(canonical_bytes(thaw(request.document)['release']))
     first_context_ref = history.retain(canonical_bytes(context))
     context['clock_ref'] = history.retain(clock_raw)
