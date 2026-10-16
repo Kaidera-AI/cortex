@@ -88,6 +88,37 @@ def good_roundtrip(request):
             'project_id': request['project_id'], 'response_sha256': 'b' * 64}
 
 
+P1 = json.loads((NEXT / 'tests/install/fixtures/p1-subjects-pgc20-v1.json').read_bytes())['receipt']
+
+
+def accepted_original(accepted, delivered, request_raw=None):
+    """What the fixed install owner delivers: its protected P1 receipt (whose
+    readiness.checks_ref names the ACCEPTED enrollment receipt), the stored
+    enrollment receipt bytes and the consumed request reference."""
+    if accepted is None:
+        return None  # owner-attested: no enrollment recorded yet
+    request_raw = canonical(request_doc()) if request_raw is None else request_raw
+    p1 = copy.deepcopy(P1)
+    p1['identity']['installation_id'] = INST
+    p1['disposition'] = 'created_by_this_transaction'
+    p1['product_state'] = {'source_revision': 'a' * 40, **{k: ref(k, k.encode()) for k in (
+        'runtime_inventory_ref', 'module_inventory_ref', 'schema_manifest_ref', 'api_descriptor_ref', 'product_interface_ref')}}
+    p1['readiness'] = {'state': 'ready', 'descriptor_ref': ref('descriptor', b'd'), 'connection_custody_ref': ref('custody', b'c'),
+                       'checks_ref': ref('enrollment/receipt.json', accepted)}
+    return {'p1_receipt': canonical(p1), 'enrollment_receipt': delivered,
+            'request_ref': ref('enrollment/request.json', request_raw)}
+
+
+def owner_reader(m, readiness, scope, delivered, accepted='same'):
+    """Build the D3 reader the way production does: the receipt comes ONLY from the
+    owner delivery. (Pre-fix fallback: the old candidate-bytes API, RED evidence.)"""
+    accepted = delivered if accepted == 'same' else accepted
+    if not hasattr(m, '_accepted_enrollment'):
+        return m.enrollment_state_reader(readiness, scope, delivered)
+    with patch.object(m, '_accepted_enrollment', return_value=accepted_original(accepted, delivered)):
+        return m.enrollment_state_reader(readiness, scope)
+
+
 def module():
     try:
         return importlib.import_module('cortex_core.runtime.enrollment')
@@ -167,7 +198,7 @@ class X12(unittest.TestCase):
             return state
         async def scope(digest, installation, project):
             return [] if rows is None else rows
-        return m.enrollment_state_reader(readiness, scope, receipt)
+        return owner_reader(m, readiness, scope, receipt)
 
     def state(self, reader, installation=INST):
         return asyncio.run(reader(UUID(installation)))
@@ -300,7 +331,7 @@ class X12(unittest.TestCase):
         ops = json.loads((NEXT/'contracts/runtime/runtime-operations-v1.json').read_text())
         self.assertNotIn('installer_enrollment', ops['secret_handles_by_mode']['inspect'])
         self.assertEqual(ops['roles']['installer_enrollment']['credential_consumers'], ['enrollment-owner-client'])
-        self.assertFalse(hasattr(m.enrollment_state_reader(None, None, None), 'enroll'))
+        self.assertFalse(hasattr(owner_reader(m, None, None, None), 'enroll'))
 
     def test_E12_reader_is_bounded_by_the_existing_health_budget(self):
         m = module()
@@ -312,12 +343,91 @@ class X12(unittest.TestCase):
             return {'core_available': True, 'state': 'healthy'}
         async def scope(*_):
             return self.row()
-        health = EnrollmentHealth(core, m.enrollment_state_reader(slow, scope, self.receipt(m)), UUID(INST), timeout_seconds=.05)
+        health = EnrollmentHealth(core, owner_reader(m, slow, scope, self.receipt(m)), UUID(INST), timeout_seconds=.05)
         self.assertEqual(asyncio.run(health())['readiness'], 'unavailable')
         async def fast(_):
             return 'ready'
-        health = EnrollmentHealth(core, m.enrollment_state_reader(fast, scope, self.receipt(m)), UUID(INST), timeout_seconds=.05)
+        health = EnrollmentHealth(core, owner_reader(m, fast, scope, self.receipt(m)), UUID(INST), timeout_seconds=.05)
         self.assertEqual(asyncio.run(health()), {'component': 'cortex', 'status': 'ok', 'readiness': 'ready'})
+
+    # ---- X12-001 (Vera P2): the receipt must be the ACCEPTED original -----------
+    def corrupt(self, m, field):
+        original = self.receipt(m); doc = json.loads(original)
+        if field == 'request_sha256': doc[field] = 'c' * 64
+        elif field == 'response_sha256': doc['roundtrip'][field] = 'c' * 64
+        elif field == 'credential_id': doc[field] = HANDLE
+        elif field == 'consent_ref': doc[field] = dict(doc[field], path='enrollment/replaced-consent.json')
+        mutated = canonical(doc); self.assertNotEqual(mutated, original)
+        m.parse_receipt(mutated)  # schema-valid: only provenance can refuse it
+        return original, mutated
+
+    def probe(self, m, delivered, accepted, scope=None):
+        async def readiness(_): return 'ready'
+        async def rows(*_): return self.row()
+        return asyncio.run(owner_reader(m, readiness, scope or rows, delivered, accepted)(UUID(INST)))
+
+    def test_V1_changed_request_digest_refuses(self):
+        m = module(); original, mutated = self.corrupt(m, 'request_sha256')
+        self.assertEqual(self.probe(m, mutated, original), 'unavailable', 'BODY_RED: changed admitted request digest became ready')
+        self.assertEqual(self.probe(m, original, original), 'ready')  # matched positive
+
+    def test_V2_changed_roundtrip_digest_refuses(self):
+        m = module(); original, mutated = self.corrupt(m, 'response_sha256')
+        self.assertEqual(self.probe(m, mutated, original), 'unavailable', 'BODY_RED: changed roundtrip response digest became ready')
+
+    def test_V3_changed_credential_identity_refuses(self):
+        m = module(); original, mutated = self.corrupt(m, 'credential_id')
+        self.assertEqual(self.probe(m, mutated, original), 'unavailable', 'BODY_RED: unrelated credential UUID became ready')
+
+    def test_V4_changed_consent_reference_refuses(self):
+        m = module(); original, mutated = self.corrupt(m, 'consent_ref')
+        self.assertEqual(self.probe(m, mutated, original), 'unavailable', 'BODY_RED: substituted consent reference became ready')
+
+    def test_V5_replaced_principal_cannot_hide_first_credential_revocation(self):
+        m = module(); original = self.receipt(m); doc = json.loads(original)
+        other_p, other_c, other_d = '77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888', 'd' * 64
+        doc.update(principal_id=other_p, credential_id=other_c, credential_digest=other_d)
+        doc['roundtrip']['principal_id'] = other_p
+        forged = canonical(doc); m.parse_receipt(forged)
+        async def scope(digest, installation, project):
+            if digest == other_d:
+                return [{'installation_id': INST, 'tenant_id': TEN, 'project_id': PROJ, 'principal_id': other_p}]
+            return []  # first credential A revoked
+        self.assertEqual(self.probe(m, original, original, scope), 'unavailable')
+        self.assertEqual(self.probe(m, forged, original, scope), 'unavailable',
+                         'BODY_RED: replacing the first identity receipt hides the revoked first credential')
+
+    def test_V6_no_candidate_receipt_parameter_and_unbound_default_is_unavailable(self):
+        m = module()
+        import inspect
+        self.assertTrue(hasattr(m, '_accepted_enrollment'), 'BODY_RED: no owner-delivered receipt admission')
+        self.assertEqual(list(inspect.signature(m.enrollment_state_reader).parameters), ['readiness', 'resolve_scope'],
+                         'BODY_RED: the reader still accepts candidate receipt bytes')
+        async def ready(_): return 'ready'
+        async def rows(*_): return self.row()
+        self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')  # UNBOUND
+
+    def test_V7_receipt_bound_to_recorded_request_and_installation(self):
+        m = module(); receipt = self.receipt(m)
+        async def ready(_): return 'ready'
+        async def rows(*_): return self.row()
+        if hasattr(m, '_accepted_enrollment'):
+            other_request = canonical(request_doc(idempotency_key='enroll-other'))
+            record = accepted_original(receipt, receipt, other_request)
+            with patch.object(m, '_accepted_enrollment', return_value=record):
+                self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+            record = accepted_original(receipt, receipt)
+            p1 = json.loads(record['p1_receipt']); p1['identity']['installation_id'] = TEN
+            record['p1_receipt'] = canonical(p1)
+            with patch.object(m, '_accepted_enrollment', return_value=record):
+                self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+            p1['identity']['installation_id'] = INST; p1['readiness']['state'] = 'not_checked'
+            for k in ('descriptor_ref', 'connection_custody_ref', 'checks_ref'): p1['readiness'][k] = None
+            record['p1_receipt'] = canonical(p1)
+            with patch.object(m, '_accepted_enrollment', return_value=record):
+                self.assertEqual(asyncio.run(m.enrollment_state_reader(ready, rows)(UUID(INST))), 'unavailable')
+        else:
+            self.fail('BODY_RED: receipt not bound to the recorded request/installation')
 
     # ---- receipt -----------------------------------------------------------------
     def test_R1_receipt_is_canonical_value_free_and_binds_request_and_roundtrip(self):
