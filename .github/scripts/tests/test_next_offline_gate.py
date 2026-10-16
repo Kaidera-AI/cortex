@@ -1160,6 +1160,8 @@ class UnbuiltUnitOracle(Subject, unittest.TestCase):
 
 class ExecutionPartitionOracle(Subject, unittest.TestCase):
     def test_real_workers_preserve_complete_ids_and_fail_closed_on_lost_evidence(self):
+        plan=getattr(self.gate,'partition_plan',None)
+        self.assertTrue(callable(plan),'BODY RED: shared exact singleton partition selection absent')
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);scripts=root/'.github/scripts';scripts.mkdir(parents=True)
             for name in ('pytest_next_offline.py','pytest_next_worker.py','pytest_u13_worker.py'):
@@ -1174,23 +1176,36 @@ class ExecutionPartitionOracle(Subject, unittest.TestCase):
                 self.assertTrue(out.is_file(),result.stdout+result.stderr)
                 return result.returncode,json.loads(out.read_text())
             code,baseline=run('baseline',[]);self.assertEqual(code,0)
-            parts=[run('part-'+str(i),['--partition-index',str(i),'--partition-count','4']) for i in range(4)]
-            merge=getattr(self.gate,'merge_partitions',None);self.assertTrue(callable(merge),'BODY RED: complete execution partition reconciliation absent')
-            combined=merge([p for c,p in parts],[c for c,p in parts],4)
-            self.assertEqual(combined['selected'],baseline['selected']);self.assertEqual(len(combined['selected']),9)
-            self.assertTrue(self.gate.receipt_valid(combined,0));self.assertEqual(len(combined['reports']),27)
-            for fault in ('missing-part','duplicate-part','missing-node','missing-phase','changed-collection','changed-source','killed','skip','empty'):
-                packets=copy.deepcopy([p for c,p in parts]);codes=[c for c,p in parts]
-                if fault=='missing-part':packets.pop();codes.pop()
-                elif fault=='duplicate-part':packets[1]=copy.deepcopy(packets[0])
-                elif fault=='missing-node':packets[0]['selected'].pop()
-                elif fault=='missing-phase':packets[0]['reports'].pop()
-                elif fault=='changed-collection':packets[1]['full_collected'].pop()
-                elif fault=='changed-source':packets[1]['source_sha256']='f'*64
-                elif fault=='killed':codes[0]=124
-                elif fault=='skip':packets[0]['reports'][1]['outcome']='skipped'
-                elif fault=='empty':packets=[];codes=[]
-                self.assertIsNone(merge(packets,codes,4),fault)
+            merge=self.gate.merge_partitions
+            for isolated in ([],[baseline['selected'][0]]):
+                label='single' if isolated else 'ordinary'
+                extra=['--partition-isolated-json',json.dumps(isolated)] if isolated else []
+                parts=[run(label+'-'+str(i),['--partition-index',str(i),'--partition-count','4',*extra]) for i in range(4)]
+                packets=[p for c,p in parts];codes=[c for c,p in parts]
+                combined=merge(packets,codes,4,isolated)
+                self.assertIsNotNone(combined)
+                self.assertEqual(combined['selected'],baseline['selected']);self.assertEqual(len(combined['selected']),9)
+                self.assertTrue(self.gate.receipt_valid(combined,0));self.assertEqual(len(combined['reports']),27)
+                self.assertEqual([p['selected'] for p in packets],plan(baseline['selected'],4,isolated))
+                if isolated:self.assertEqual(packets[0]['selected'],isolated)
+                for fault in ('missing-part','duplicate-part','missing-node','missing-phase','changed-collection','changed-source','killed','skip','empty','changed-isolation'):
+                    bad=copy.deepcopy(packets);bad_codes=list(codes)
+                    if fault=='missing-part':bad.pop();bad_codes.pop()
+                    elif fault=='duplicate-part':bad[1]=copy.deepcopy(bad[0])
+                    elif fault=='missing-node':bad[0]['selected'].pop()
+                    elif fault=='missing-phase':bad[0]['reports'].pop()
+                    elif fault=='changed-collection':bad[1]['full_collected'].pop()
+                    elif fault=='changed-source':bad[1]['source_sha256']='f'*64
+                    elif fault=='killed':bad_codes[0]=124
+                    elif fault=='skip':bad[0]['reports'][1]['outcome']='skipped'
+                    elif fault=='empty':bad=[];bad_codes=[]
+                    elif fault=='changed-isolation':bad[0]['partition']['isolated']=['forged']
+                    self.assertIsNone(merge(bad,bad_codes,4,isolated),label+' '+fault)
+                self.assertIsNotNone(merge(copy.deepcopy(packets),list(codes),4,isolated))
+            full=baseline['selected']
+            for count,isolated in ((4,['missing']),(4,[full[0],full[0]]),(4,full[:4]),(True,[]),(17,[]),(4,[False])):
+                with self.assertRaises(ValueError):plan(full,count,isolated)
+            with self.assertRaises(ValueError):plan(full+[full[0]],4,[])
 
     def test_manifest_partitions_only_admitted_full_suites(self):
         root=SCRIPT.parents[2];m=json.loads((root/'.github/next-offline-suites.json').read_text())
@@ -1199,6 +1214,16 @@ class ExecutionPartitionOracle(Subject, unittest.TestCase):
         for value in ({suite:True},{suite:0},{suite:1},{suite:17},{'next/missing.py':4},[],{suite:'4'}):
             changed=copy.deepcopy(m);changed['partitions']=value
             self.assertFalse(self.gate.inventory(root,changed)['ok'],repr(value))
+        boundary='next/tests/release/test_verifier_boundary.py'
+        node=boundary+'::OwnerSourceJoin::test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child'
+        m['partitions']={boundary:{'count':9,'isolated':[node]}}
+        self.assertTrue(self.gate.inventory(root,m)['ok'])
+        for value in ({'count':9,'isolated':[]},{'count':True,'isolated':[node]},
+                      {'count':9,'isolated':[node,node]},{'count':9,'isolated':[False]},
+                      {'count':9,'isolated':[node],'extra':1},{'count':2,'isolated':[node,node+'z']}):
+            with self.assertRaises(ValueError):self.gate.partition_parameters(value)
+        changed=copy.deepcopy(m);changed['partitions']={suite:{'count':9,'isolated':[node]}}
+        self.assertFalse(self.gate.inventory(root,changed)['ok'])
 
     def test_bridge_diagnostics_do_not_start_async_watchdog(self):
         tree=ast.parse((SCRIPT.parent/'pytest_next_worker.py').read_text())
