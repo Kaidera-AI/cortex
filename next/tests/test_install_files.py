@@ -133,8 +133,9 @@ class FilesTests(unittest.TestCase):
     def test_installed_supplier_refuses_before_io(self):
         api = self.api()
         with patch.object(api.os, 'open', side_effect=AssertionError('candidate accessed')):
-            with self.assertRaisesRegex(OwnerRefusal, 'required_binding_gap'):
+            with self.assertRaises(OwnerRefusal) as raised:
                 with api._open(): pass
+            self.assertEqual(raised.exception.detail, 'required_binding_gap')
 
     def test_file_create_and_original_result(self):
         with self.opened() as p:
