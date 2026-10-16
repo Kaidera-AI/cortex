@@ -169,3 +169,20 @@ class RecoveryAdmission(unittest.TestCase):
                     try:answer=p.measure(context)
                     except (owner.OwnerRefusal,TypeError,ValueError):self.fail('X4_FRESH_RECOVERY_NOT_INFERRED_OR_OLD_STOP_REUSED')
                 self.assertEqual(answer,('UNKNOWN',None));self.assertEqual(called,[context]);self.assertEqual(s.effects,0)
+
+class PublicationLockCompatibility(unittest.TestCase):
+    def test_lock_wrapper_cannot_erase_the_original_operation_stop(self):
+        helper=phases.CoreSQL()
+        with tempfile.TemporaryDirectory() as root:
+            s=helper.fixture(root);original=s.history._lock;now=[101_000_000_000]
+            @contextmanager
+            def wrapped(*a,**k):
+                with original(*a,**k):yield
+            with s.installed(),patch.object(s.history,'_lock',wrapped),patch.object(lifecycle.time,'monotonic_ns',side_effect=lambda:now[0]):
+                try:
+                    with s.history.operation(deadline=s.deadline,expected_context=thaw(s.current().context)):
+                        s.history.retain(b'bounded lock DATA')
+                        now[0]=106_000_000_000
+                except owner.OwnerRefusal as error:self.assertEqual(error.detail,'reservation_expired')
+                except TypeError:self.fail('X4_LOCK_WRAPPER_ERASED_ORIGINAL_STOP')
+                else:self.fail('X4_LOCK_WRAPPER_ACCEPTED_LATE_ACK')
