@@ -1,4 +1,4 @@
-"""C09 admitted-Core oracle. Real PG tests are UNEXECUTED until Kai authorizes them.
+"""C09 admitted-Core oracle; S3c authorizes the isolated pytest-pg Podman copy.
 
 The destination receipt is synthetic: these tests can prove Core durability, never
 Qdrant atomicity. Reuse C04/C07 fixtures; no direct execution of an unadmitted SQL
@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import unittest
 from uuid import UUID
 
@@ -36,13 +37,10 @@ def copied_database():
     """No connection or reset unless the existing URL names this task's copy."""
     url=os.environ.get('TEST_DATABASE_URL','')
     params=conninfo_to_dict(url)
-    prefix='/Users/amadmalik/DevVault/helix/tmp/nemo-qdrant-s3b-20261016/'
-    if (not url.startswith(('postgresql://postgres@','postgres://postgres@'))
-            or not params.get('dbname','').startswith('nemo_c09_s3b_')
-            or params.get('user')!='postgres'
-            or not params.get('host','').startswith(prefix)
-            or not Path(params.get('host','')).resolve().is_relative_to(Path(prefix).resolve())
-            or ',' in params.get('host','') or params.get('hostaddr') or params.get('service')):
+    # Existing U13Fixture creates this DB inside an owned network=none
+    # namespace, without published ports. Its parent verifies ownership labels.
+    if (url!='postgresql://postgres@127.0.0.1:55432/kaidera-test-upgrade-ci'
+            or re.fullmatch(r'local-[0-9a-f]{10}',os.environ.get('CORTEX_C09_COPY_RUN_ID','')) is None):
         raise RuntimeError('C09 tests require the separately authorized task-owned copied database')
     return params
 
@@ -58,19 +56,23 @@ class IsolationTests(unittest.TestCase):
     def test_only_task_owned_copy_url_is_admitted_before_any_connection(self):
         from unittest.mock import patch
         import socket
-        host='/Users/amadmalik/DevVault/helix/tmp/nemo-qdrant-s3b-20261016/pg-socket'
-        good='postgresql://postgres@/nemo_c09_s3b_oracle?host='+host
+        good='postgresql://postgres@127.0.0.1:55432/kaidera-test-upgrade-ci'
         bad=['','postgresql://postgres@localhost/cortex',
-             good.replace('nemo_c09_s3b_oracle','cortex'),
+             good.replace('kaidera-test-upgrade-ci','cortex'),
              good.replace('postgres@','kaidera-test-core-api@'),
-             good.replace(host,host+'/../../shared'),good+'&hostaddr=127.0.0.1']
-        with patch.object(psycopg,'connect',side_effect=AssertionError('no DB connect in isolation oracle')), \
+             good.replace('127.0.0.1','localhost'),good.replace('55432','5499'),
+             good+'?hostaddr=127.0.0.1']
+        with patch.dict(os.environ,{'CORTEX_C09_COPY_RUN_ID':'local-0123456789'}), \
+             patch.object(psycopg,'connect',side_effect=AssertionError('no DB connect in isolation oracle')), \
              patch.object(socket.socket,'connect',side_effect=AssertionError('no socket connect in isolation oracle')):
             for url in bad:
                 with self.subTest(url=url),patch.dict(os.environ,{'TEST_DATABASE_URL':url}):
                     with self.assertRaises(RuntimeError):copied_database()
             with patch.dict(os.environ,{'TEST_DATABASE_URL':good}):
-                self.assertEqual(copied_database()['dbname'],'nemo_c09_s3b_oracle')
+                self.assertEqual(copied_database()['dbname'],'kaidera-test-upgrade-ci')
+                for run_id in ('','shared','local-../../live'):
+                    with patch.dict(os.environ,{'CORTEX_C09_COPY_RUN_ID':run_id}):
+                        with self.assertRaises(RuntimeError):copied_database()
 
 
 class DurableExternal(Fixture):
@@ -230,3 +232,38 @@ class DurableExternal(Fixture):
         self.admin.execute('''UPDATE coordination.feed_state SET project_retained_floors=%s::jsonb
             WHERE installation_id=%s''',(json.dumps({uid(2)+':'+uid(3):2}),uid(1)))
         with self.assertRaises(AuthError):self.state((UUID(uid(50)),))
+
+    def test_concurrent_stale_and_successor_share_the_c07_checkpoint_lock(self):
+        from concurrent.futures import ThreadPoolExecutor
+        import threading
+        import time
+        self.seed();self.seed(body=b'successor',revision=1);first,second=self.events()
+        self.receipt(first,second);self.receipt(second);self.port().register()
+        connections=[self.fresh(request=True),self.fresh(request=True)]
+        for connection in connections:connection.execute("SET statement_timeout='5s'")
+        ready=threading.Barrier(3)
+        def record(connection,event):
+            ready.wait(timeout=5)
+            self.port(connection=connection)._apply_event({'generation':1},event)
+        pids=[connection.info.backend_pid for connection in connections]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            with self.admin.transaction():
+                self.admin.execute("""SELECT 1 FROM coordination.consumer_project_checkpoints
+                    WHERE module_id='graph' AND project_id=%s FOR UPDATE""",(uid(3),))
+                futures=[pool.submit(record,connection,event)
+                         for connection,event in zip(connections,(first,second))]
+                ready.wait(timeout=5)
+                deadline=time.monotonic()+3
+                while time.monotonic()<deadline:
+                    self.admin.execute('SELECT pg_stat_clear_snapshot()')
+                    waiting=self.admin.execute("""SELECT count(*) FROM pg_stat_activity
+                        WHERE pid=ANY(%s) AND wait_event_type='Lock'""",(pids,)).fetchone()[0]
+                    if waiting==2:break
+                    time.sleep(.02)
+                self.assertEqual(waiting,2,'both real connections must wait on the existing checkpoint row')
+                self.assertEqual(self.checkpoint()[:2],(0,0));self.assertIsNone(self.head())
+            for future in futures:future.result(timeout=5)
+        self.assertEqual(self.checkpoint()[:2],(2,2))
+        self.assertEqual(self.head()[:2],(2,UUID(second.envelope['event_id'])))
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM coordination.consumer_event_outcomes WHERE module_id='graph'").fetchone()[0],0)
+        self.assertTrue(self.state((UUID(uid(50)),))['targets'][0]['indexed'])
