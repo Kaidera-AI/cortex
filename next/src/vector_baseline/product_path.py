@@ -188,36 +188,229 @@ async def evaluate_admitted(c, spec, q, identity, expected_scope, cache, search,
             "source_fixture_only": True}
 
 
+class PreparedInput:
+    """One privately retained snapshot/truth shared by the eight load clients.
+
+    Construct before load.run. compare() is an OFFLINE seam: a refusal must be
+    charged to its original offer, never omitted or converted to a safe result.
+    """
+    def __init__(self, root, spec, expected, source_root):
+        c, spec, _, identity, _ = admit(root,spec,expected,spec['splits']['held_out'][0],source_root)
+        self._corpus, self._spec, self.identity, self.input_sha256 = c, spec, identity, expected
+        self._queries = {q['id']:q for q in spec['queries'] if q['id'] in spec['splits']['held_out']}
+        if any(identity.dimensions != 768 or c.identity['metric'] != 'cosine'
+                or identity.provider != 'openrouter' or q['mode'] != 'dense'
+                or q['sparse'] is not None or q['cell'] != 'scope/dense'
+                or any(q[k] is not None for k in ('lo','hi','kind','time_lo','time_hi'))
+                for q in self._queries.values()):
+            raise Refusal('product_contract_unbound')
+        self._scopes = {(m['tenant'],m['project']):(UUID(m['tenant_id']),UUID(m['project_id']))
+                        for m in spec['scope_map']}
+        self._records = {r['id'].decode():r for r in c.records}
+        self._reverse = {v:k for k,v in spec['record_map'].items()}
+        self._truth = {qid:oracle.rank(c,q,modes=('dense',)) for qid,q in self._queries.items()}
+        # Freeze the exact strict ranking AND every float64 score, including ties.
+        truth_binding = {qid:[(rid,float(truth.score('dense',rid)))
+                             for rid in truth.ids('dense',limit=len(c.records))]
+                         for qid,truth in self._truth.items()}
+        self.truth_sha256 = hashlib.sha256(canonical(truth_binding)).hexdigest()
+
+    def compare(self, qid, response):
+        """Validate retained serialized C11 bytes, then reuse the unchanged oracle."""
+        try:
+            q = self._queries[qid]
+            if (response['query_id'] != qid or response['input_sha256'] != self.input_sha256
+                    or response['truth_sha256'] != self.truth_sha256
+                    or hashlib.sha256(response['body'].encode()).hexdigest() != response['response_sha256']):
+                raise Refusal('response_binding_changed')
+            body = json.loads(response['body']); fresh = body['freshness']
+            if (body['query'] != q['text'] or body['complete'] is not True
+                    or body['state'] not in ('ready','ready_empty') or fresh['state'] != 'current'
+                    or fresh['complete'] is not True or type(fresh['pending_records']) is not int
+                    or fresh['pending_records'] != 0 or fresh['identity'] != self.identity.key
+                    or fresh['model_identity'] != self._spec['identity']
+                    or type(body['results']) is not list or len(body['results']) > q['limit']
+                    or (body['state'] == 'ready_empty') != (len(body['results']) == 0)):
+                raise Refusal('response_unfulfilled')
+            hits = []
+            for hit in body['results']:
+                sid = self._reverse.get(hit['id'])
+                if sid is None: raise Refusal('hit_unbound')
+                record = self._records[sid]
+                if (record['tenant'].decode() != q['tenant'] or record['project'].decode() != q['project']
+                        or bool(record['deleted']) or hit['kind'] != self._spec['kind_map'][str(int(record['kind']))]
+                        or type(hit['revision']) is not int or hit['revision'] != self._spec['source_revisions'][sid]
+                        or type(hit['distance']) not in (int,float) or not math.isfinite(hit['distance'])):
+                    raise Refusal('hit_source_mismatch')
+                hits.append(sid)
+            measured = oracle.measure(self._truth[qid],hits,'dense',top_k=q['limit'])
+            if not measured['safe']: raise Refusal('unsafe_hit_inventory')
+            return measured
+        except Refusal:
+            raise
+        except (KeyError,TypeError,ValueError,AttributeError,OverflowError):
+            raise Refusal('response_invalid') from None
+
+
+def prepare_input(root, spec, expected, *, source_root):
+    try:
+        return PreparedInput(root,spec,expected,source_root)
+    except Refusal:
+        raise
+    except (ValueError,TypeError,KeyError,IndexError,OSError,UnicodeError):
+        raise Refusal('input_invalid') from None
+
+
+def _observed_c11(source, owner):
+    """Observe the existing C11/C04 cache and provider, without another cache.
+
+    One instance per persistent client. Embed invocations are NOT HTTP-call or
+    paid-call counts; the provider transport owner must supply those separately.
+    All resources and their lifetime remain the explicit fixture owner's.
+    """
+    from cortex_core.api.c11b2 import C11b2ReadPort
+    from types import SimpleNamespace
+    if not isinstance(source,C11b2ReadPort) or source.identity != owner.frozen.identity:
+        raise Refusal('c11_binding_invalid')
+
+    async def embed(text, identity):
+        owner._observed['provider_embed_calls'] += 1
+        return await source.provider.embed(text,identity)
+
+    class ObservedC11(C11b2ReadPort):
+        def _cache(self, search):
+            cache = super()._cache(search)
+            async def get(*args):
+                cached = await cache.get(*args)
+                vector_literal(cached.vector,768)
+                q = owner._query
+                if np.asarray(cached.vector,dtype='<f4').tobytes() != np.asarray(q['vector'],dtype='<f4').tobytes():
+                    raise Refusal('provider_vector_unbound')
+                owner._observed['cache_hit'] = cached.cache_hit
+                return cached
+            return SimpleNamespace(get=get)
+
+    return ObservedC11(source.record_port,source.pool,source.identity,SimpleNamespace(embed=embed),
+        source.extractor_identity,source.project_repos,selection=source.selection,keyword=source.keyword,
+        vector_projection=source.vector_projection)
+
+
 class ProductClient:
-    """Cooperatively cancellable load port; shared resource lifetime is external."""
+    """SOURCE_FIXTURE load port. read_port selects the actual C11 component seam.
+
+    Legacy direct-component calls remain diagnostic. Only the C11 mode moves
+    independent truth out of timing. No public route or native capability is
+    admitted by using a C11 handler and its existing serializer in a fixture.
+    """
     def __init__(self, *args, **kwargs):
         self.arguments, self.options = args, kwargs
         self._prepared = None
+        self.frozen = None
+        self._read = None
+        self._busy = False
 
     async def open(self):
         root, spec, expected, *_ = self.arguments
         try:
-            self._prepared = admit(root, spec, expected, spec["splits"]["held_out"][0],
-                                   self.options["source_root"])
+            if self.options.get('read_port') is not None:
+                if not callable(self.options.get('scope_for')): raise Refusal('request_scope_unbound')
+                frozen = self.options.get('prepared')
+                if frozen is None: frozen = prepare_input(root,spec,expected,source_root=self.options['source_root'])
+                if type(frozen) is not PreparedInput or frozen.input_sha256 != expected:
+                    raise Refusal('input_binding_changed')
+                self.frozen = frozen
+                self._read = _observed_c11(self.options['read_port'],self)
+                self._prepared = frozen
+            else:
+                self._prepared = admit(root, spec, expected, spec['splits']['held_out'][0],
+                                       self.options['source_root'])
         except (Refusal, ValueError, TypeError, KeyError, OSError, UnicodeError):
-            raise UnfulfilledResult("input_admission_failed") from None
+            raise UnfulfilledResult('input_admission_failed') from None
 
     async def request(self, query):
+        if self._prepared is None: raise UnfulfilledResult('client_not_open')
+        if self._read is not None:
+            return await self._c11_request(query)
         _, _, _, cache, search, authorize = self.arguments
         c, spec, _, identity, _ = self._prepared
-        if query["id"] not in spec["splits"]["held_out"]:
-            raise UnfulfilledResult("unapproved_query")
-        q = next(q for q in spec["queries"] if q["id"] == query["id"])
-        mapped = next(m for m in spec["scope_map"] if (m["tenant"], m["project"]) == (q["tenant"], q["project"]))
-        scope = (UUID(mapped["tenant_id"]), UUID(mapped["project_id"]))
+        if query['id'] not in spec['splits']['held_out']:
+            raise UnfulfilledResult('unapproved_query')
+        q = next(q for q in spec['queries'] if q['id'] == query['id'])
+        mapped = next(m for m in spec['scope_map'] if (m['tenant'], m['project']) == (q['tenant'], q['project']))
+        scope = (UUID(mapped['tenant_id']), UUID(mapped['project_id']))
         row = await evaluate_admitted(c, spec, q, identity, scope, cache, search, authorize)
         if row["status"] != "MEASURED":
-            raise UnfulfilledResult("unfulfilled_source_query")
+            raise UnfulfilledResult('unfulfilled_source_query')
         return row
+
+    async def _c11_request(self, query):
+        if self._prepared is None or self._busy: raise UnfulfilledResult('client_not_idle')
+        self._busy = True
+        try:
+            import asyncio
+            from cortex_core.api import c11a
+            q = self.frozen._queries[query['id']]
+            if canonical(query) != canonical(q): raise Refusal('offer_binding_changed')
+            self._query = q
+            self._observed = {'cache_hit':None,'provider_embed_calls':0}
+            scope = copy.deepcopy(self.options['scope_for'](copy.deepcopy(q)))
+            scope.update(method='POST',_c11b_body={'query':q['text'],'top_k':q['limit']})
+            scope['_cortex_deadline'] = min(scope.get('_cortex_deadline',float('inf')),
+                                           asyncio.get_running_loop().time()+10)
+            principal = await self._read.principal(scope)
+            if ((UUID(principal['tenant_id']),UUID(principal['project_id'])) !=
+                    self.frozen._scopes[q['tenant'],q['project']]
+                    or type(principal['permission_generation']) is not int
+                    or principal['permission_generation'] < 1):
+                raise Refusal('current_scope_mismatch')
+            body = await self._read.search(principal,scope,None)
+            messages = []
+            from cortex_core.embeddings.keyword import check_deadline
+            async def send(message):
+                check_deadline(scope['_cortex_deadline'])
+                messages.append(message)
+            await c11a._respond(send,200,body)
+            if (len(messages) != 2 or messages[0]['status'] != 200
+                    or messages[1]['type'] != 'http.response.body' or messages[1].get('more_body',False)):
+                raise Refusal('serialization_incomplete')
+            data = messages[1]['body']
+            return {'query_id':q['id'],'input_sha256':self.frozen.input_sha256,
+                    'truth_sha256':self.frozen.truth_sha256,'body':data.decode(),
+                    'response_sha256':hashlib.sha256(data).hexdigest(),**self._observed,
+                    'source_fixture_only':True,'api_qualified':False}
+        except Exception:
+            raise UnfulfilledResult('unfulfilled_c11_source_query') from None
+        finally:
+            self._busy = False
+            self._query = None
+
+    def compare(self, query_id, response):
+        return self.frozen.compare(query_id,response)
+
+    async def prepare_measured(self, warmup_records, config):
+        """After-warmup seam for Mike: refuse all native/cache cells for now.
+
+        No owned native state controller or transport-call budget is bound here.
+        Hashes bind this refusal to the admitted input, truth, config and exact
+        retained warmup records. They cannot serve as cache/native proof or as a
+        repetition receipt. Do not perform warmup/emptying/cold work here.
+        """
+        from dataclasses import asdict
+        if self._prepared is None or self.frozen is None or self._busy:
+            raise Refusal('client_not_idle')
+        config.validate()
+        binding = {'input_sha256':self.frozen.input_sha256,'truth_sha256':self.frozen.truth_sha256,
+                   'config':asdict(config),'warmup_records':warmup_records}
+        return {'status':'NOT_RUN','reason':'owned_measured_state_and_provider_budget_unbound',
+                'capability':'UNAVAILABLE','sustained_all_miss':'NOT_RUN',
+                'input_sha256':self.frozen.input_sha256,'truth_sha256':self.frozen.truth_sha256,
+                'preparation_sha256':hashlib.sha256(canonical(binding)).hexdigest(),
+                'warmup_errors':sum(r.get('status') != 'OK' for r in warmup_records)}
 
     async def aclose(self):
         self._prepared = None
-
+        self._read = None
+        # Retain frozen truth for Mike's offline join after load closes clients.
 
 def client(*args, **kwargs):
     return ProductClient(*args, **kwargs)

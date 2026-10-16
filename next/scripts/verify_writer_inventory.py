@@ -37,7 +37,7 @@ KNOWN_INPUT_FILE_SHA256 = {
     'src/cortex_core/backup_validation.py': '5d3731e58e5217ba4b2fc6f538679fc4bcc85327924c813f67f6f5bc5819a84a',
     'src/cortex_core/release/_pyc_check.py': '1f35d123db1346056e7b932d8437771c1a4f4d3edc87c25b3bcab00aa40508cf',
     'src/cortex_core/release/build/audit.py': '6639168da2ebb9ab1128b50e6fecf72d7f8f4d6250ced97bfe497900ef9ae306',
-    'src/vector_baseline/product_path.py': '68776fc8ec72034bcc1dad696ffff8158b178a8291da14c2a7fa5733de41dca1',
+    'src/vector_baseline/product_path.py': '8e363c9f896c56ca6b6188a2cf5012755ad947e4c0a9a67ee9596845ea04cdde',
 }
 EXEMPT_SYMBOL_FILES = {
     '_private': {'src/cortex_core/records.py'},
