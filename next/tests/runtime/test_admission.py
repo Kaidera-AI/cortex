@@ -286,6 +286,50 @@ class Admission(unittest.TestCase):
         self.assertEqual(caught.exception.reason, 'required_binding_gap')
         self.assertEqual(caught.exception.unit, 'RC2 finite migration owner adapter')
 
+    def test_selected20_manifest_and_schema_pin_are_exact(self):
+        contracts = importlib.import_module('cortex_core.runtime.contracts')
+        lock, cfg = self.materials()
+        current = lock['current_schema']
+        manifest = json.loads((NEXT/'schema/manifest.json').read_bytes())
+        self.assertEqual((current['migration_count'],current['business_table_count']), (20,44))
+        self.assertEqual(current['migrations'], manifest['migrations'])
+        self.assertEqual(current['manifest_sha256'], sha256((NEXT/'schema/manifest.json').read_bytes()))
+        raw = (NEXT/'contracts/runtime/runtime-lock-v1.schema.json').read_bytes()
+        self.assertEqual(contracts.RC0_SHA256['runtime-lock-v1.schema.json'], sha256(raw))
+        pin = lock['contract_members']['lock_schema']['value']
+        self.assertEqual((pin['sha256'],pin['bytes']), (sha256(raw),len(raw)))
+        result = self.select(lock, cfg)
+        self.assertFalse(result.effect_authority)
+        self.assertFalse(result.native_qualified)
+
+    def test_old19_package_and_mixed_schema_pins_refuse_current_package(self):
+        historical = json.loads((DOCS/'fixtures/paired-complete-19.json').read_bytes())
+        lock, cfg = self.materials()
+        for field in ('migration_count', 'business_table_count', 'manifest_sha256', 'migrations'):
+            mixed = copy.deepcopy(lock)
+            mixed['current_schema'][field] = copy.deepcopy(historical['lock']['current_schema'][field])
+            changed = copy.deepcopy(cfg)
+            changed['runtime_lock_sha256'] = sha256(encode(mixed))
+            with self.subTest(field=field):
+                self.refuse('bad_shape', lambda: self.select(mixed, changed))
+        self.refuse('bad_shape', lambda: self.select(historical['lock'], historical['configs']['linux/arm64']))
+        for field in ('sha256', 'bytes'):
+            mixed = copy.deepcopy(lock)
+            mixed['contract_members']['lock_schema']['value'][field] = historical['lock']['contract_members']['lock_schema']['value'][field]
+            changed = copy.deepcopy(cfg)
+            changed['runtime_lock_sha256'] = sha256(encode(mixed))
+            with self.subTest(pin=field):
+                self.refuse('contract_mismatch', lambda: self.select(mixed, changed))
+
+    def test_old_validator_bytes_cannot_be_loaded_as_current_package(self):
+        contracts = importlib.import_module('cortex_core.runtime.contracts')
+        historical = (DOCS/'fixtures/runtime-lock-schema-19.json').read_bytes()
+        original = Path.read_bytes
+        def substituted(path):
+            return historical if path.name == 'runtime-lock-v1.schema.json' else original(path)
+        with patch.object(Path, 'read_bytes', substituted):
+            self.refuse('contract_mismatch', contracts.load_contracts)
+
 
 def positive(target, mode):
     def test(self):

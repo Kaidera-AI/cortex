@@ -70,3 +70,83 @@ An accepted installation OFF revision stops new AI dispatch before acknowledgeme
 Keep one absolute monotonic request deadline from HTTP admission through auth, waits, resolver, cache, provider and final checks, clamped to the existing `budgets.request_ms` (10000); subordinate limits only shorten it. OFF search uses bounded current-authorized canonical keyword reads and preserves the separate graph read with actual freshness. Unsupported kinds/payloads and scan bounds are typed, never successful silent empty/complete. Any C11 response ABI change requires Cox approval.
 
 This amendment changes declarations only. Its diff is not applied by E0. After ratification, Cox must re-freeze operations.expected/paired fixture digests and original member descriptors, and coordinate the exact config/operations byte pins with E1/RC2. Old pins must continue refusing changed bytes until that explicit coordinated update; do not add multi-revision fallback. Keep every earlier frozen test source and its original-revision receipts unchanged. Unaffected authorization, privacy, freshness and effect-refusal oracles must still pass; deliberately changed declaration, exact-pin, omitted-rerank and keyword-wire expectations require separately versioned renewal under the owner ruling, while original-revision fixtures qualify only their matching accepted bytes. No old assertion is weakened or fake warning/model value inserted to force the new ABI green. Production R01/Core/native/effect authority is still UNBOUND. E3 and DEP-W projection writers remain separate scope.
+
+## PG-C C1 selection — fresh install, 2026-10-16
+
+Kai's C1 row `ac100097-846a-4421-b6e9-ef512e5ec27b` applies the
+Finn/Vera-ratified different-domain mapping and thirteen-path plan. It selects
+`release_id=v0.2.001`, `api_contract=cortex.core-api.v1`,
+`core_module_version=0.2.001` and `api_module_version=0.2.001` from Finn's
+original candidate `next/release/candidates/2026-10-21/release.json` at
+`192c9cba7601e7f50c2557dda511f7e33b3b2dcf` on
+`origin/finn/v2-identity-20261016`, raw SHA256
+`10470761f3082d5e97832685f5ee0f88eb005623300a9e41049418a439b87ad2`.
+The candidate records source commit
+`1d1806e9a421d92238f8dcab0b87a442d4c8bf25`; the final composed F rebind,
+descriptor/member/policy/lock joins and signed original admission remain later
+custodian gates. C1 neither rewrites that candidate nor claims a signed release.
+
+Document/format versions remain 1. R01 release/module schema ABI, interface and
+event versions remain 1 with all existing equality/decoder guards unchanged.
+U13 deployment compatibility epochs are a separate domain: historical source
+probes use 1 and the proposed NEW deployment epoch is 2. Neither migration
+count 20 nor R01 ABI 1 is a U13 deployment epoch. The signed legacy U13 deployment
+format and the R01 aggregate format remain distinct; no converter, verifier or
+additional authority port is introduced. A version string cannot establish
+provenance or native compatibility.
+
+The selected manifest appends only `runtime-grants-0001` from
+`auth/007-runtime-grants.sql`, SHA256
+`fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607`.
+All original nineteen SQL files and ordered manifest entries remain unchanged.
+The 20-entry/44-business-table selection uses manifest raw SHA256
+`7c49366dcc51e6bea595db2735b51e1b8e2ea45f4d99fe8fd011f51972cdea83`.
+The sole current lock-validator is 131957 bytes, raw SHA256
+`d7e705bb4873c1fae2b49310074d1fee5e5d8a3881091347b1c7b041606c9770`;
+RC0_SHA256 and the explicitly renewed synthetic paired fixture pin those exact
+bytes. Manifest document version stays 1. Counts and source hashes do not prove
+native catalog, permissions or deployment readiness.
+
+`fixtures/paired-complete-19.json` and `fixtures/runtime-lock-schema-19.json`
+preserve the original fixture and validator byte for byte. The original
+19-entry manifest digest is
+`08eb769113fd2b5ddbbc65431b8e1da82b077d94f9d4a6faa9e9956f0313edef`;
+its validator digest is
+`82cc5af6ab758e8fc51ada65e3cb8ec574f6e7bf8960802849c58280b07463aa`.
+Historical tests and owner-gap declarations qualify only against that explicit
+historical data. The product loads one current validator and refuses historical
+or crossed pins. The current paired fixture remains public synthetic inert data
+with `native_qualified=false`; its selected NEW labels confer no authority.
+
+This fresh-install policy supersedes the earlier proposal's conditional OLD
+allowances. There is no admitted released-v2 OLD original. Every OLD cell is
+REFUSED, including OLD/OLD; historical19 source, the launcher and unsigned test
+releases cannot supply it. The complete intended reader/writer matrix is:
+
+| Consumer | Release | Schema content | Disposition |
+| --- | --- | --- | --- |
+| Reader | OLD unavailable | historical19 | REFUSED: no released-v2 original |
+| Reader | OLD unavailable | selected20 | REFUSED: no released-v2 original |
+| Reader | v0.2.001 | historical19 | REFUSED: unsupported OLD content |
+| Reader | v0.2.001 | selected20 | Fresh install only after original admission and all later gates |
+| Writer | OLD unavailable | historical19 | REFUSED: no released-v2 original |
+| Writer | OLD unavailable | selected20 | REFUSED: no released-v2 original |
+| Writer | v0.2.001 | historical19 | REFUSED: existing new-writer/old-schema prohibition retained |
+| Writer | v0.2.001 | selected20 | Fresh install only after original admission and all later gates |
+
+Missing, stale, mixed or unlisted release/content/original joins refuse. The NEW
+U13 module digest kind, if later used, is `sha256:` plus the raw R01 image-member
+OCI archive SHA256. Its platform `oci_manifest_sha256` is carried separately;
+RC0 image identity uses the platform manifest digest. Archive, descriptor,
+manifest, version and runtime-lock-instance digests are never interchangeable.
+
+Q2-IDLE narrows the sole explicit migration port: actual psycopg driver IDLE and
+autocommit at entry and after preparation, owned top-level transaction before
+managed SQL, and driver IDLE after normal context exit before success. Caller
+BEGIN, unavailable/impostor state and borrowed savepoints refuse; the caller
+retains its outer transaction. The original manifest/checksum/prefix/DDL
+algorithm is retained. Native caller-BEGIN refusal and independent-observer
+commit visibility require their separately admitted disposable fixture. Source
+recorders do not satisfy those witnesses. Native 20-path catalog/permission
+qualification, PG-F compound DB/role/HBA/carrier restore, final-F originals and
+signed admission, Hale review, merge and release remain later gates.

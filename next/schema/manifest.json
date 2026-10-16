@@ -96,6 +96,11 @@
       "id": "session-ids-read-0007",
       "file": "coordination/007-session-ids-read.sql",
       "sha256": "449c944cb57156b5ffcc1b6b58eec347e181adafc30fad3826aa74dbc90caa64"
+    },
+    {
+      "id": "runtime-grants-0001",
+      "file": "auth/007-runtime-grants.sql",
+      "sha256": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607"
     }
   ]
 }

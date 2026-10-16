@@ -30,8 +30,13 @@ class CurrentManifestStaging(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(dir=os.environ['CORTEX_U13_CASE_ROOT'], prefix='cox-migration-head-')
         self.addCleanup(self.temp.cleanup)
         prefix_dir = Path(self.temp.name) / 'prefix'
-        shutil.copytree(SCHEMA, prefix_dir)
+        self.historical = Path(self.temp.name) / 'historical19'
+        shutil.copytree(SCHEMA, self.historical)
         self.manifest = json.loads((SCHEMA / 'manifest.json').read_text())
+        fixture = json.loads((SCHEMA.parent/'docs/runtime/rc0/fixtures/paired-complete-19.json').read_bytes())
+        self.manifest['migrations'] = fixture['lock']['current_schema']['migrations']
+        (self.historical/'manifest.json').write_text(json.dumps(self.manifest, indent=2)+'\n')
+        shutil.copytree(self.historical, prefix_dir)
         self.entries = self.manifest['migrations']
         (prefix_dir / 'manifest.json').write_text(json.dumps({
             'version': 1, 'migrations': self.entries[:15],
@@ -40,7 +45,7 @@ class CurrentManifestStaging(unittest.TestCase):
 
     def staged(self, target):
         try:
-            return apply_migrations(self.db, through=target)
+            return apply_migrations(self.db, self.historical, through=target)
         except TypeError as error:
             self.fail(f'current migration port has no through target: {error}')
 
@@ -195,6 +200,26 @@ class CurrentManifestStaging(unittest.TestCase):
                         self.db.execute(f'DROP SCHEMA IF EXISTS {schema} CASCADE')
                     prefix_dir = Path(self.temp.name) / 'prefix'
                     apply_migrations(self.db, prefix_dir)
+
+    def test_selected20_target_reentry_and_preservation(self):
+        selected = json.loads((SCHEMA/'manifest.json').read_bytes())
+        self.assertEqual(selected['version'], 1)
+        self.assertEqual(selected['migrations'][:19], self.entries)
+        self.assertEqual(len(selected['migrations']), 20)
+        self.seed()
+        before = self.snapshot()
+        for target in STEPS: self.staged(target)
+        self.assertEqual(apply_migrations(self.db, through='runtime-grants-0001'), ['runtime-grants-0001'])
+        self.db.close()
+        self.db = psycopg.connect(os.environ['TEST_DATABASE_URL'], autocommit=True)
+        self.assertEqual(apply_migrations(self.db), [])
+        self.assertEqual(self.ledger(), [(x['id'],x['sha256']) for x in selected['migrations']])
+        self.assertEqual(self.snapshot(), before)
+        tables = self.db.execute("SELECT n.nspname,c.relname FROM pg_class c "
+                                 "JOIN pg_namespace n ON n.oid=c.relnamespace "
+                                 "WHERE n.nspname IN ('core','auth','coordination','retrieval') "
+                                 "AND c.relkind='r' AND c.relname<>'schema_migrations'").fetchall()
+        self.assertEqual(len(tables), 44)
 
 
 if __name__ == '__main__':

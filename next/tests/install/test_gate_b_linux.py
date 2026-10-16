@@ -18,7 +18,7 @@ from cortex_core.runtime import signed_member
 from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberDouble
 
 NEXT = Path(__file__).resolve().parents[2]
-SUBJECTS = json.loads((Path(__file__).parent/'fixtures/gate-b-linux.json').read_bytes())
+SUBJECTS = json.loads((Path(__file__).parent/'fixtures/gate-b-linux-pgc20-v1.json').read_bytes())
 
 
 class LinuxObserverOracle(unittest.TestCase):
