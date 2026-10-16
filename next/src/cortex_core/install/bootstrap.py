@@ -18,12 +18,16 @@ import stat
 import sys
 
 from cortex_core.release.codec import canonical_bytes, decode_json
+from cortex_core.release.member_admission import _TYPING_ALIASES
 from cortex_core.runtime.signed_member import Refusal
 
 SELECTION_SCHEMA = 'cortex.release-bootstrap-selection.v1'
 RECORD_SCHEMA = 'cortex.release-bootstrap.v1'
-# The selected owner closure (cox gA1 'Later inputs'); not a caller choice.
-SELECTED = {'cpython': '3.12.15', 'cryptography': '50.0.0', 'cffi': '2.1.1', 'pycparser': '3.0'}
+# The selected owner closure (cox gA1 'Later inputs' + kai Q2: the jsonschema closure
+# release/codec imports); keys are the exact METADATA Name values. Not a caller choice.
+SELECTED = {'cpython': '3.12.15', 'cryptography': '50.0.0', 'cffi': '2.1.1', 'pycparser': '3.0',
+            'jsonschema': '4.25.1', 'attrs': '25.4.0', 'referencing': '0.37.0', 'rpds-py': '0.30.0',
+            'jsonschema-specifications': '2025.9.1', 'typing_extensions': '4.16.0'}
 _ROLES = frozenset(('interpreter', 'source', 'stdlib', 'loader', 'crypto', 'data'))
 _REQUIRED = frozenset(('interpreter', 'source', 'stdlib', 'loader', 'crypto'))
 _COMMON = frozenset(('schema', 'bootstrap_id', 'pins', 'executable', 'entrypoint', 'python_version',
@@ -75,10 +79,11 @@ def _table(rows, doc, reason):
     paths = [r[1] for r in rows]
     roles = {r[0]: True for r in rows}
     native = {r[1] for r in rows if r[0] in ('loader', 'crypto')}
+    typing = {r[1] for r in rows if r[0] == 'stdlib' and r[1].endswith('/typing.py')}
     _require(0 < len(rows) <= _MAX_FILES and paths == sorted(set(paths)) and _REQUIRED <= set(roles)
              and [doc['executable'], 'interpreter'] in [[r[1], r[0]] for r in rows]
              and [doc['entrypoint'], 'source'] in [[r[1], r[0]] for r in rows]
-             and all(a[1] in native for a in doc['module_aliases']), reason)
+             and all(a[1] in native or (a[0] in _TYPING_ALIASES and a[1] in typing) for a in doc['module_aliases']), reason)
 
 
 def parse_selection(raw):
