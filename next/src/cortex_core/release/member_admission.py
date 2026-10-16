@@ -8,6 +8,7 @@ Images retain their separate future stream gate; this snapshot stays <=262144.
 """
 from dataclasses import dataclass, replace
 import re
+import sys
 import time
 from types import SimpleNamespace
 
@@ -48,14 +49,20 @@ def _installed_startup():
     must have been independently captured before Python executes. This source
     composition does not establish that native protection or create effects.
     """
-    from cortex_core.install import owner
-    from . import trust
+    # Installed R01 executes inside V. A standalone/cold caller cannot bootstrap
+    # V by importing candidate-visible Python dependencies before authority.
+    owner = sys.modules.get('cortex_core.install.owner')
+    if owner is None:
+        raise Refusal('required_binding_gap', unit=MISSING_UNIT)
 
     def observe(previous=None, identity=None):
         try:
-            inputs = owner._installed_owner_inputs()
+            inputs, current_refusal = owner._observe_owner_inputs()
             if type(inputs) is not owner._Inputs or type(inputs.release_startup) is not _StartupContext:
                 raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+            # Mandatory binding precedes fixed-schema imports as well as any
+            # candidate handling, including in a fresh interpreter.
+            from . import trust
             frame = inputs.release_startup
             observed_identity = _startup_identity(frame)
             if identity is not None:
@@ -66,8 +73,9 @@ def _installed_startup():
             # Resolve the OWNER-retained original through the sole P1 grammar;
             # no request, root, clock or current fact comes from RC2 arguments.
             owner.measure_original_ref(reference, raw)
-            proposal = owner._evaluate(raw, inputs,
-                previous_deadline=None if previous is None else previous.deadline)
+            proposal = owner._evaluate(raw, inputs, check_drift=False,
+                previous_deadline=None if previous is None else previous.deadline,
+                current_refusal=current_refusal)
             if previous is not None:
                 try:
                     owner._same_context(previous, proposal)
@@ -100,6 +108,7 @@ def _installed_startup():
             raise Refusal('member_authority_unavailable') from None
 
     frame, first, _, identity, _ = observe()
+    from . import trust
 
     def current():
         return observe(first, identity)[2]
