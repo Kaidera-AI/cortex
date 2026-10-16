@@ -1,12 +1,18 @@
 """X2 Linux owner-binding fixture contract; no host or native qualification."""
 import copy
+import errno
+import stat
 import sys
+import struct
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from cortex_core.install import owner
 from cortex_core.install.platforms import linux
-from test_gate_b_linux import LinuxObserverOracle
+from cortex_core.runtime import signed_member
+from non_authoritative_signed_member_double import NonAuthoritativeSignedMemberDouble
+from test_gate_b_linux import LinuxObserverOracle, SUBJECTS
 
 
 class X2LinuxObserverBinding(unittest.TestCase):
@@ -134,6 +140,35 @@ class X2LinuxCollector(unittest.TestCase):
         with patch.object(linux, '_LINUX_BINDING', bindings, create=True), \
              patch.object(linux, '_LINUX_SYSCALLS', fake.table(), create=True):
             return linux._installed_owner_inputs()
+
+    def propose(self, fake, mutate=None):
+        table = fake.table()
+        if mutate is not None:
+            mutate(table)
+        events = []
+        peer_transport = table['peer_transport']
+
+        def observing_transport(fd):
+            events.append('observe')
+            return peer_transport(fd)
+
+        table['peer_transport'] = observing_transport
+        signed = NonAuthoritativeSignedMemberDouble(
+            SUBJECTS['runtime_lock_raw'].encode(), aggregate_id=self.base.aggregate_id,
+            member_name='runtime.lock.json')
+        read_original = signed.read_original
+
+        def audited_read(limit):
+            events.append('r01-read')
+            return read_original(limit)
+
+        with patch.object(sys, 'platform', 'linux'), \
+             patch.object(linux, '_LINUX_BINDING', {'inputs': self.base, 'peer_fd': 700}, create=True), \
+             patch.object(linux, '_LINUX_SYSCALLS', table, create=True), \
+             patch.object(signed, 'read_original', audited_read), \
+             signed.installed(signed_member):
+            proposal = owner.propose_effect(SUBJECTS['request_raw'].encode())
+        return proposal, events
 
     def test_fake_collector_returns_valid_data_and_holds_both_pidfds_until_done(self):
         fake = _FakeLinuxSyscalls(self.receipt)
@@ -275,6 +310,163 @@ class X2LinuxCollector(unittest.TestCase):
                     with self.assertRaises(owner.OwnerRefusal) as got:
                         linux._installed_owner_inputs()
                 self.assertEqual(got.exception.detail, 'peer_denied')
+
+    def test_unsafe_peer_capabilities_should_refuse(self):
+        for capability in ('effective', 'permitted', 'inheritable', 'ambient'):
+            with self.subTest(capability=capability):
+                fake = _FakeLinuxSyscalls(self.receipt)
+
+                def violate(table, capability=capability):
+                    process_snapshot = table['process_snapshot']
+
+                    def privileged(pid, pidfd):
+                        value = process_snapshot(pid, pidfd)
+                        if pid == self.receipt['peer_process']['pid']:
+                            value['capabilities'][capability] = 1
+                        return value
+
+                    table['process_snapshot'] = privileged
+
+                with self.assertRaises(owner.OwnerRefusal) as got:
+                    self.propose(fake, violate)
+                self.assertEqual(got.exception.detail, 'peer_denied')
+
+    def test_peer_without_no_new_privs_should_refuse(self):
+        fake = _FakeLinuxSyscalls(self.receipt)
+
+        def violate(table):
+            process_snapshot = table['process_snapshot']
+
+            def privileged(pid, pidfd):
+                value = process_snapshot(pid, pidfd)
+                if pid == self.receipt['peer_process']['pid']:
+                    value['no_new_privs'] = False
+                return value
+
+            table['process_snapshot'] = privileged
+
+        with self.assertRaises(owner.OwnerRefusal) as got:
+            self.propose(fake, violate)
+        self.assertEqual(got.exception.detail, 'peer_denied')
+
+    def test_cleanup_should_try_both_descriptors_after_first_close_error(self):
+        fake = _FakeLinuxSyscalls(self.receipt)
+        table = fake.table()
+        closed = []
+
+        def close(fd):
+            closed.append(fd)
+            if fd == 702:
+                raise OSError(errno.EIO, 'synthetic first close error')
+            if fd == 701:
+                raise OSError(errno.EBADF, 'synthetic second close error')
+
+        table['pidfd_close'] = close
+        with patch.object(linux, '_LINUX_BINDING', {'inputs': self.base, 'peer_fd': 700}, create=True), \
+             patch.object(linux, '_LINUX_SYSCALLS', table, create=True):
+            with self.assertRaises(owner.OwnerRefusal) as got:
+                linux._installed_linux_inputs()
+        self.assertEqual(got.exception.detail, 'required_binding_gap')
+        self.assertEqual(closed, [702, 701])
+        self.assertIsInstance(got.exception.__cause__, OSError)
+        self.assertEqual(got.exception.__cause__.errno, errno.EIO)
+
+    def test_cleanup_closes_duplicate_pidfd_only_once(self):
+        fake = _FakeLinuxSyscalls(self.receipt)
+        table = fake.table()
+        closed = []
+        table['pidfd_open'] = lambda pid: 701
+        table['pidfd_close'] = closed.append
+        with patch.object(linux, '_LINUX_BINDING', {'inputs': self.base, 'peer_fd': 700}, create=True), \
+             patch.object(linux, '_LINUX_SYSCALLS', table, create=True):
+            with self.assertRaises(owner.OwnerRefusal) as got:
+                linux._installed_linux_inputs()
+        self.assertEqual(got.exception.detail, 'required_binding_gap')
+        self.assertEqual(closed, [701])
+
+    def test_cleanup_close_error_does_not_replace_first_collector_refusal(self):
+        fake = _FakeLinuxSyscalls(self.receipt)
+        table = fake.table()
+        closed = []
+
+        def close(fd):
+            closed.append(fd)
+            if fd == 702:
+                raise OSError(errno.EIO, 'synthetic close error after refusal')
+
+        table['pidfd_alive'] = lambda fd: False
+        table['pidfd_close'] = close
+        with patch.object(linux, '_LINUX_BINDING', {'inputs': self.base, 'peer_fd': 700}, create=True), \
+             patch.object(linux, '_LINUX_SYSCALLS', table, create=True):
+            with self.assertRaises(owner.OwnerRefusal) as got:
+                linux._installed_linux_inputs()
+        self.assertEqual(got.exception.detail, 'peer_denied')
+        self.assertEqual(closed, [702, 701])
+
+
+class LinuxObjectSnapshotACLTests(unittest.TestCase):
+    def _snapshot(self, *, custody_changed=False, acl_value=None):
+        before = SimpleNamespace(st_dev=17, st_ino=23, st_mode=stat.S_IFSOCK | 0o660,
+                                 st_uid=501, st_gid=20, st_nlink=1)
+        after = SimpleNamespace(st_dev=17, st_ino=24 if custody_changed else 23,
+                                st_mode=before.st_mode, st_uid=501, st_gid=20, st_nlink=1)
+        stat_calls = []
+        open_calls = []
+        close_calls = []
+        getxattr_calls = []
+
+        def fake_open(path, flags, *, dir_fd=None):
+            open_calls.append((path, flags, dir_fd))
+            return 31 if path == '/' else 32
+
+        def fake_stat(path, *, dir_fd=None, follow_symlinks=True):
+            stat_calls.append((path, dir_fd, follow_symlinks))
+            return before if len(stat_calls) == 1 else after
+
+        def fake_fstat(fd):
+            self.assertEqual(fd, 32)
+            return before
+
+        def fake_getxattr(path, name):
+            getxattr_calls.append((path, name))
+            if path == 32:
+                raise OSError(errno.EBADF, 'synthetic O_PATH xattr refusal')
+            if path == '/proc/self/fd/32':
+                if acl_value is None:
+                    raise OSError(errno.ENODATA, 'synthetic absent ACL')
+                return acl_value
+            raise AssertionError(f'unexpected xattr path: {path!r}')
+
+        with patch.object(linux.os, 'open', side_effect=fake_open), \
+             patch.object(linux.os, 'stat', side_effect=fake_stat), \
+             patch.object(linux.os, 'fstat', side_effect=fake_fstat), \
+             patch.object(linux.os, 'close', side_effect=close_calls.append), \
+             patch.object(linux.os, 'getxattr', side_effect=fake_getxattr, create=True), \
+             patch.object(linux.os, 'O_PATH', 0x200000, create=True), \
+             patch.object(linux, '_fd_mount_id', return_value=29):
+            result = linux._object_snapshot('/endpoint')
+        return result, open_calls, close_calls, getxattr_calls
+
+    def test_mode_only_socket_accepts_absent_acl_after_opath_retry(self):
+        result, open_calls, close_calls, getxattr_calls = self._snapshot()
+        self.assertEqual(result['kind'], 'socket')
+        self.assertEqual(result['mode'], 0o660)
+        self.assertEqual(result['acl'], [])
+        self.assertEqual(result['identity'], [17, 23, 29])
+        self.assertEqual(result['held_identity'], result['identity'])
+        self.assertEqual([call[0] for call in getxattr_calls], [32, '/proc/self/fd/32'])
+        self.assertTrue(open_calls[1][1] & 0x200000)
+        self.assertEqual(close_calls, [32, 31])
+
+    def test_valid_acl_bytes_still_parse_after_opath_retry(self):
+        acl = struct.pack('<IHHI', 2, 1, 6, 0)
+        result, _, _, _ = self._snapshot(acl_value=acl)
+        self.assertEqual(result['acl'], [{'tag': 'owner', 'id': None, 'perm': 6}])
+
+    def test_real_named_held_identity_change_refuses_as_custody_changed(self):
+        with self.assertRaises(owner.OwnerRefusal) as got:
+            self._snapshot(custody_changed=True)
+        self.assertEqual(got.exception.detail, 'custody_changed')
 
 
 if __name__ == "__main__":

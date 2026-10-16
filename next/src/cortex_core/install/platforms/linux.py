@@ -329,14 +329,20 @@ def _acl_entries(data):
 
 
 def _xattr_acl(fd, name, *, fallback=False):
+    absent = (errno.ENODATA, getattr(errno, 'ENOATTR', errno.ENODATA))
     try:
         raw = os.getxattr(fd, name)
     except OSError as error:
-        if error.errno in (errno.ENODATA, getattr(errno, 'ENOATTR', errno.ENODATA)):
+        if error.errno in absent:
             return []
         if not fallback or error.errno != errno.EBADF:
             raise
-        raw = os.getxattr(f'/proc/self/fd/{fd}', name)
+        try:
+            raw = os.getxattr(f'/proc/self/fd/{fd}', name)
+        except OSError as retry_error:
+            if retry_error.errno in absent:
+                return []
+            raise
     return _acl_entries(raw)
 
 
@@ -512,6 +518,8 @@ def _collect_linux_receipt(policy, template, peer_fd):
         owner_first = calls['process_snapshot'](owner_pid, owner_pidfd)
         peer_process = _process_observation(peer_first)
         owner_process = _process_observation(owner_first)
+        owner._require(_matches_privilege_policy(peer_first, policy['capabilities']), 'peer_denied')
+        owner._require(_matches_privilege_policy(owner_first, policy['capabilities']), 'peer_denied')
         owner._require(all({key: process[key] for key in _LIFE} == expected for process, expected in (
             (peer_process, peer_expected), (owner_process, owner_expected))), 'peer_denied')
         owner._require(peer_first['process']['uids'][0] == peer_uid
@@ -547,8 +555,6 @@ def _collect_linux_receipt(policy, template, peer_fd):
         owner._require(type(paths) is dict and set(paths) == _PROBES
             and all(value == 'denied' for value in paths.values()), 'peer_denied')
         capabilities = owner_first['capabilities']
-        owner._require(_cap_shape(capabilities) and capabilities == policy['capabilities']
-            and owner_first['no_new_privs'] is True, 'peer_denied')
 
         owner._require(calls['pidfd_alive'](peer_pidfd)
             and calls['pidfd_alive'](owner_pidfd), 'peer_denied')
@@ -580,13 +586,18 @@ def _collect_linux_receipt(policy, template, peer_fd):
         failure = owner.OwnerRefusal('required_binding_gap')
         raise failure from None
     finally:
+        closed = set()
+        close_error = None
         for fd in (owner_pidfd, peer_pidfd):
-            if type(fd) is int and fd >= 0:
+            if type(fd) is int and fd >= 0 and fd not in closed:
+                closed.add(fd)
                 try:
                     calls['pidfd_close'](fd)
-                except OSError:
-                    if failure is None:
-                        raise owner.OwnerRefusal('required_binding_gap') from None
+                except OSError as error:
+                    if close_error is None:
+                        close_error = error
+        if failure is None and close_error is not None:
+            raise owner.OwnerRefusal('required_binding_gap') from close_error
 
 
 def _process_observation(value):
@@ -595,6 +606,11 @@ def _process_observation(value):
             or not _cap_shape(value['capabilities']) or type(value['no_new_privs']) is not bool):
         raise owner.OwnerRefusal('peer_denied')
     return value['process']
+
+
+def _matches_privilege_policy(value, expected):
+    return (type(value) is dict and _cap_shape(value.get('capabilities'))
+            and value['capabilities'] == expected and value.get('no_new_privs') is True)
 
 
 def _closed(value, fields):
