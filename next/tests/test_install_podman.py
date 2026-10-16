@@ -630,5 +630,76 @@ class PodmanPrimitives(unittest.TestCase):
             with self.subTest(fault=fault):self.assertEqual(self.execute(e)[0], 'UNKNOWN')
 
 
+# X11C-001: retain the independent final-collector probes as permanent regressions.
+class FinalWitnessBoundary(unittest.TestCase):
+    def exercise(self, fault=None, when=2):
+        harness = PodmanPrimitives()
+        e = Engine('network')
+        calls = []
+        original = e.witnesses
+        def witnesses():
+            value = original()
+            calls.append(copy.deepcopy(value))
+            if len(calls) == when and fault:
+                fault(e)
+            return value
+        e.witnesses = witnesses
+        with harness.opened(e) as p:
+            p.snapshot()
+            p.dispatch(e.plan['subject'])
+            with p.measure(e.plan['subject']) as answer:
+                self.assertEqual(answer[0], 'APPLIED', 'PROBE_NEVER_REACHED_VALID_PUBLICATION_BODY')
+                self.assertTrue(e.held)
+            self.assertEqual(len(calls), 2)
+        self.assertFalse(e.held)
+        self.assertEqual(len(e.calls), 1, 'review probe must never redispatch')
+        return e, calls
+
+    def test_deadline_equal_during_final_witness_must_refuse_exit(self):
+        with self.assertRaises(OwnerRefusal, msg='LATE_FINAL_WITNESS_ACKNOWLEDGED'):
+            self.exercise(lambda e: setattr(e, 'now', e.plan['deadline_ns']))
+
+    def test_authority_revoked_during_final_witness_must_refuse_exit(self):
+        with self.assertRaises(OwnerRefusal, msg='REVOKED_FINAL_WITNESS_ACKNOWLEDGED'):
+            self.exercise(lambda e: e.binding['authority'].__setitem__(0, 'revoked'))
+
+    def test_exclusion_changed_during_final_witness_must_refuse_exit(self):
+        with self.assertRaises(OwnerRefusal, msg='CHANGED_FINAL_EXCLUSION_ACKNOWLEDGED'):
+            self.exercise(lambda e: e.binding['exclusion'].update(generation=4))
+
+
+class BoundaryPositiveControls(unittest.TestCase):
+    def test_unmodified_and_restored_final_witness_exit_succeeds(self):
+        probe = FinalWitnessBoundary()
+        # Same immutable implementation and fresh original fixture, before/after faults.
+        for _ in range(2):
+            e, calls = probe.exercise()
+            self.assertEqual(e.now, 1)
+            self.assertEqual(calls[0], calls[1])
+
+    def test_final_witness_advances_before_deadline_succeeds(self):
+        e, calls = FinalWitnessBoundary().exercise(lambda e: setattr(e, 'now', 999))
+        self.assertEqual(e.now, 999)
+        self.assertEqual(calls[0], calls[1])
+
+    def test_same_fault_in_initial_witness_is_already_unknown(self):
+        for fault in [lambda e: setattr(e, 'now', 1000),
+                      lambda e: e.binding['authority'].__setitem__(0, 'revoked'),
+                      lambda e: e.binding['exclusion'].update(generation=4)]:
+            harness = PodmanPrimitives()
+            e = Engine('network')
+            original = e.witnesses
+            def witnesses():
+                value = original()
+                fault(e)
+                return value
+            e.witnesses = witnesses
+            with harness.opened(e) as p:
+                p.snapshot(); p.dispatch(e.plan['subject'])
+                with p.measure(e.plan['subject']) as answer:
+                    self.assertEqual(answer, ('UNKNOWN', None))
+            self.assertEqual(len(e.calls), 1)
+
+
 if __name__ == '__main__':
     unittest.main()
