@@ -364,3 +364,22 @@ class FaultTests(unittest.TestCase):
             with s.installed(c):
                 with self.assertRaises(owner.OwnerRefusal):p1.execute_effect(original)
             self.assertEqual(head,s.history.head()[0]);self.assertEqual(c.dispatched,1)
+
+    def test_fresh_recovery_scope_cannot_substitute_original_effect(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root);s=c.subject
+            s.helper.context(s.data,lambda x:x['effect'].update(effect_id='unrelated-effect'))
+            s.helper.scope(s.data,lambda x:x['effect'].update(effect_id='unrelated-effect'))
+            self.held(c)
+            self.assertEqual(c.reads,0,'unrelated recovery scope reached original measurement')
+
+    def test_fresh_recovery_request_cannot_substitute_original_operation(self):
+        with tempfile.TemporaryDirectory() as root:
+            c=LostResult(root);s=c.subject
+            q=json.loads(s.data['request_raw']);q['identity']['operation_id']='00000000-0000-4000-8000-000000000099'
+            raw=canonical_bytes(q);path=json.loads(s.data['context_raw'])['request_ref']['path']
+            s.data['request_raw']=raw.decode();s.data['originals'][path]=raw.decode()
+            s.helper.context(s.data,lambda x:x.update(identity=q['identity'],request_ref=p1._ref(path,raw)))
+            s.helper.scope(s.data,lambda x:x.update(identity=q['identity']))
+            self.held(c)
+            self.assertEqual(c.reads,0,'unrelated recovery operation reached original measurement')
