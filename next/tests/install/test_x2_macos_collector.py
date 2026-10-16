@@ -72,13 +72,43 @@ def both(change):
     return apply
 
 
+def encode(value):
+    return (json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False) + '\n').encode()
+
+
+def rebound(value, observation_ref):
+    """The admitted session pins THIS observation (peer.macos_observation_ref, as the
+    Gate B oracle's rebind does), so macos.py's semantic guards decide, not the pin."""
+    value = dict(value, admitted=dict(value['admitted']))
+    inputs = value['admitted']['owner_inputs']
+    originals = dict(inputs.originals)
+    context = json.loads(inputs.context_raw)
+
+    def rewrite(key, change):
+        reference = context[key]
+        record = json.loads(originals[reference['path']])
+        change(record)
+        raw = encode(record)
+        originals[reference['path']] = raw
+        context[key] = dict(reference, bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+    rewrite('peer_ref', lambda peer: peer.__setitem__('macos_observation_ref', observation_ref))
+    rewrite('consent_ref', lambda consent: consent.__setitem__('subject_ref', context['peer_ref']))
+    value['admitted']['owner_inputs'] = owner._Inputs(encode(context), originals, inputs.current_clock_raw,
+                                                      inputs.aggregate_id)
+    return value
+
+
 class Base(unittest.TestCase):
-    def observe(self, value, *, calls=None):
-        def seam():
-            if calls is not None:
-                calls.append('native-snapshot')
-            return value
-        with patch.object(collector(), '_native_snapshot', seam):
+    def observe(self, value, *, rebind=True):
+        if rebind:
+            with patch.object(collector(), '_native_snapshot', lambda: value):
+                try:
+                    carrier = collector().collect()
+                except owner.OwnerRefusal:
+                    carrier = None  # the collector's own refusal decides; macos re-raises it unchanged
+            if carrier is not None:
+                value = rebound(value, carrier.observation_ref)
+        with patch.object(collector(), '_native_snapshot', lambda: value):
             return macos._installed_owner_inputs()
 
     def refuses(self, detail, change):
@@ -123,6 +153,14 @@ class Seam(Base):
         self.assertEqual(calls, ['native-snapshot'] * 2)  # re-observed, never cached
         self.assertEqual(first, second)
 
+    def test_a_coherent_but_different_observation_is_refused_by_the_session_pin(self):
+        value = snapshot()
+        both(lambda s: s['owner'].__setitem__('groups', [602, 80]))(value)  # valid shape, not the pinned world
+        with self.assertRaises(owner.OwnerRefusal) as got:
+            self.observe(value, rebind=False)
+        self.assertEqual(got.exception.detail, 'peer_denied')
+        self.assertIs(type(self.observe(value)), owner._Inputs)  # the same world, pinned, passes every guard
+
     def test_collector_and_provider_stay_probe_free_and_zero_argument(self):
         import inspect
         self.assertEqual(list(inspect.signature(collector()._native_snapshot).parameters), [])
@@ -136,6 +174,13 @@ class Seam(Base):
         self.assertFalse(calls & {'open', 'read_bytes', 'stat', 'lstat', 'getenv', 'getuid', 'system', 'Popen', 'eval', 'exec'})
 
 
+def stale_observation(value):
+    inputs = value['admitted']['owner_inputs']
+    originals = dict(inputs.originals, **{value['admitted']['observation_path']: b'{"stale":true}\n'})
+    value['admitted']['owner_inputs'] = owner._Inputs(inputs.context_raw, originals, inputs.current_clock_raw,
+                                                      inputs.aggregate_id)
+
+
 class Shape(Base):
     """Missing or malformed observations BLOCK (owner_unavailable); no implicit default."""
 
@@ -146,6 +191,7 @@ class Shape(Base):
                  'sample key missing': lambda v: v['samples'][1].pop('denials'),
                  'sample extra key': lambda v: v['samples'][0].__setitem__('note', 'x'),
                  'admitted inputs not the carrier type': lambda v: v['admitted'].__setitem__('owner_inputs', {}),
+                 'a stale observation already admitted (never overwritten)': stale_observation,
                  'launchd job absent': both(lambda s: s.__setitem__('launchd', [])),
                  'no audit-token peer lifetime (no PID-only fallback)': both(lambda s: s['xpc'].__setitem__('peer', None))}
         for name, change in cases.items():
