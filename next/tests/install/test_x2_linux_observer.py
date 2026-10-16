@@ -469,5 +469,123 @@ class LinuxObjectSnapshotACLTests(unittest.TestCase):
         self.assertEqual(got.exception.detail, 'custody_changed')
 
 
+
+
+class LinuxGroupAHostFit(unittest.TestCase):
+    """Kai 16:38 source-only host profile; observations are not host authority."""
+    profile = dict(os='linux', distribution='rocky', version='10.2', architecture='x86_64',
+                   kernel='6.12.0-211.16.1.el10_2', selinux='enforcing')
+
+    def binding(self):
+        inputs = LinuxObserverOracle().inputs('positive')
+        context = owner._decode(inputs.context_raw, 'owner_unavailable')
+        peer = owner._original(inputs, context['peer_ref'])
+        receipt = owner._original(inputs, peer['linux_ref'])
+        fake = _FakeLinuxSyscalls(receipt)
+        calls = fake.table()
+        calls['host_snapshot'] = lambda: copy.deepcopy(self.profile)
+        return inputs, fake, calls
+
+    def collect(self, inputs, calls):
+        with patch.object(linux, '_LINUX_BINDING', {'inputs': inputs, 'peer_fd': 700}), \
+             patch.object(linux, '_LINUX_SYSCALLS', calls):
+            return linux._installed_linux_inputs()
+
+    def native(self):
+        method = getattr(linux, '_host_snapshot', None)
+        self.assertTrue(callable(method), 'GA_HOST_SURFACE_ABSENT: bounded native host observation')
+        return method
+
+    def test_missing_original_binding_refuses_before_host_observation(self):
+        observed = []
+        with patch.object(linux, '_LINUX_BINDING', None), \
+             patch.object(linux, '_LINUX_SYSCALLS', {'host_snapshot': lambda: observed.append('host')}):
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                linux._installed_linux_inputs()
+        self.assertEqual(caught.exception.detail, 'required_binding_gap')
+        self.assertEqual(observed, [])
+
+    def test_expected_profile_is_measured_before_existing_peer_collection(self):
+        inputs, fake, calls = self.binding()
+        def host():
+            fake.events.append(('host_snapshot',))
+            return copy.deepcopy(self.profile)
+        calls['host_snapshot'] = host
+        result = self.collect(inputs, calls)
+        self.assertIs(type(result), owner._Inputs)
+        self.assertEqual(fake.events[0], ('host_snapshot',))
+        self.assertIn(('peer_pidfd', 700), fake.events)
+
+    def test_each_incompatible_profile_refuses_before_peer_or_pidfd(self):
+        for key, value in [('os','darwin'), ('distribution','ubuntu'), ('version','10.1'),
+                           ('architecture','aarch64'), ('kernel','6.12.0-other'),
+                           ('selinux','permissive')]:
+            with self.subTest(key=key):
+                inputs, fake, calls = self.binding()
+                bad = dict(self.profile, **{key:value})
+                calls['host_snapshot'] = lambda: bad
+                with self.assertRaises(owner.OwnerRefusal) as caught:
+                    self.collect(inputs, calls)
+                self.assertEqual(caught.exception.detail, 'required_binding_gap')
+                self.assertEqual(fake.events, [])
+
+    def test_missing_extra_and_substituted_profile_types_refuse(self):
+        class Equal:
+            def __eq__(self, other): return True
+        bad = [None, dict(self.profile, extra=True),
+               {k:v for k,v in self.profile.items() if k!='kernel'},
+               dict(self.profile, kernel=Equal()), dict(self.profile, selinux=True)]
+        for observation in bad:
+            with self.subTest(shape=type(observation).__name__):
+                inputs, fake, calls = self.binding()
+                calls['host_snapshot'] = lambda: observation
+                with self.assertRaises(owner.OwnerRefusal) as caught:
+                    self.collect(inputs, calls)
+                self.assertEqual(caught.exception.detail, 'required_binding_gap')
+                self.assertEqual(fake.events, [])
+
+    def test_unavailable_host_observation_never_collects_peer(self):
+        inputs, fake, calls = self.binding()
+        def unavailable(): raise OSError(errno.EACCES, 'protected host unavailable')
+        calls['host_snapshot'] = unavailable
+        with self.assertRaises(owner.OwnerRefusal) as caught:
+            self.collect(inputs, calls)
+        self.assertEqual(caught.exception.detail, 'required_binding_gap')
+        self.assertEqual(fake.events, [])
+
+    def test_non_linux_native_probe_refuses_before_reading_any_file(self):
+        probe = self.native()
+        with patch.object(sys, 'platform', 'darwin'), \
+             patch.object(linux.os, 'open', side_effect=AssertionError('native IO on wrong host')):
+            with self.assertRaises(owner.OwnerRefusal) as caught: probe()
+        self.assertEqual(caught.exception.detail, 'required_binding_gap')
+
+    def test_native_profile_uses_os_release_uname_and_bounded_enforce_read(self):
+        probe = self.native()
+        with patch.object(sys, 'platform', 'linux'), \
+             patch('platform.freedesktop_os_release', return_value={'ID':'rocky','VERSION_ID':'10.2'}), \
+             patch.object(linux.os, 'uname', return_value=SimpleNamespace(release=self.profile['kernel'], machine='x86_64')), \
+             patch.object(linux.os, 'open', return_value=901) as opened, \
+             patch.object(linux, '_read_fd', return_value=b'1\n') as read, \
+             patch.object(linux.os, 'close') as close:
+            self.assertEqual(probe(), self.profile)
+        opened.assert_called_once_with('/sys/fs/selinux/enforce',
+            linux.os.O_RDONLY | linux.os.O_CLOEXEC | linux.os.O_NOFOLLOW)
+        read.assert_called_once_with(901, 2)
+        close.assert_called_once_with(901)
+
+    def test_native_unavailable_or_non_enforcing_selinux_refuses_and_closes(self):
+        probe = self.native()
+        for raw in [b'0', b'', b'2', b'1\nextra']:
+            with self.subTest(raw_length=len(raw)), patch.object(sys, 'platform', 'linux'), \
+                 patch('platform.freedesktop_os_release', return_value={'ID':'rocky','VERSION_ID':'10.2'}), \
+                 patch.object(linux.os, 'uname', return_value=SimpleNamespace(release=self.profile['kernel'], machine='x86_64')), \
+                 patch.object(linux.os, 'open', return_value=901), \
+                 patch.object(linux, '_read_fd', return_value=raw), \
+                 patch.object(linux.os, 'close') as close:
+                with self.assertRaises(owner.OwnerRefusal): probe()
+                close.assert_called_once_with(901)
+
+
 if __name__ == "__main__":
     unittest.main()
