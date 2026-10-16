@@ -1220,6 +1220,33 @@ class S3ReviewTests(S3QueryTests):
             self.core_state['targets'][0].update(revision=2,indexed_revision=2)
             with self.assertRaises(CapabilityUnavailable):await query.recheck_result(str(UUID(int=50)),result)
 
+    async def test_s3_c11_response_calls_final_core_hit_recheck(self):
+        from cortex_core.api.c11b2 import C11b2ReadPort
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector())
+        core=self.core(binding,[point]);server=QueryProjectionServer();server.points[point['id']]=point
+        principal=dict(principal_id=str(UUID(int=50)),tenant_id=str(binding.tenant_id),
+                       project_id=str(binding.project_id),permission_generation=1)
+        test=self;changes=[]
+        class Records:
+            projects={};installation_id=binding.installation_id
+            async def principal(self,scope):
+                if changes:test.core_state['targets'][0].update(revision=2,indexed_revision=2)
+                return dict(principal)
+        class Cache:
+            async def get(self,*args):return SimpleNamespace(vector=test.vector())
+        scope=dict(method='GET',query_string=b'q=synthetic',headers=[(b'authorization',b'Bearer synthetic')])
+        principal['_request_scope']=scope
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            port=C11b2ReadPort(Records(),None,binding.identity,SimpleNamespace(embed=lambda *a:None),'synthetic',{},
+                vector_projection=s3query.QdrantProjection(binding,client))
+            port._ports=lambda p:(query,None);port._cache=lambda q:Cache()
+            response=await port.search(principal,scope,None)
+            self.assertEqual(response['results'][0]['revision'],1)
+            changes.append(True)
+            with self.assertRaises(CapabilityUnavailable):await port.search(principal,scope,None)
+
 
 class S3SchemaTests(unittest.TestCase):
     def test_s3_binding_rejects_coerced_model_dimensions(self):
