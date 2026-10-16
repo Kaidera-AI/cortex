@@ -68,7 +68,12 @@ class Inputs:
         return self.api._SQLPolicy(self.driver, '10.7.0.2', 5432, 'fixture-db',
             'fixture-login', '/admitted/ca.pem', '10.7.0.2', context, 44, 7)
 
-    async def connect(self, policy, kwargs, deadline):
+    async def reserve_connect(self, grant, policy, deadline):
+        self.events.append('connect-reserve')
+        return self.api._ConnectAttempt('operation-original','attempt-original',
+                                        'owned-connect-resource',grant.process)
+
+    async def connect(self, policy, kwargs, deadline, attempt):
         self.events.append('connect')
         self.kwargs, self.connect_deadline = kwargs.copy(), deadline
         if self.driver == 'asyncpg':
@@ -341,15 +346,15 @@ class X3(unittest.IsolatedAsyncioTestCase):
         async def lost(*args):
             await original(*args)
             raise RuntimeError(VALUE)
-        async def abort(grant,policy,deadline):
-            inputs.aborted.append((grant.reference,policy.login_oid))
+        async def abort(attempt,deadline):
+            inputs.aborted.append((attempt.attempt,attempt.resource))
             for conn in inputs.connections:await conn.close()
             return True
         inputs.connect=lost;inputs.abort_connect=abort
         from cortex_core.runtime.connections import ResolverConnection
         adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
         await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100))
-        self.assertEqual(inputs.aborted,[(REF,44)],'X3_LOST_CONNECT_NOT_RECONCILED')
+        self.assertEqual(inputs.aborted,[('attempt-original','owned-connect-resource')],'X3_LOST_CONNECT_NOT_RECONCILED')
         self.assertTrue(inputs.connections[-1].closed)
 
     async def test_x310_missing_unknown_connect_cleanup_is_hold(self):
@@ -359,6 +364,30 @@ class X3(unittest.IsolatedAsyncioTestCase):
         from cortex_core.runtime.connections import ResolverConnection
         adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
         await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100),'cleanup_unproved',hold=True)
+
+
+    async def test_x310_cleanup_that_swallows_cancel_cannot_publish_late_success(self):
+        api,inputs,resolver,_,_=self.fixture()
+        from cortex_core.runtime.connections import _retire_resolved
+        async def late(connection,deadline):
+            try: await asyncio.sleep(1)
+            except asyncio.CancelledError: return True
+        inputs.retire=late
+        await self.denied(_retire_resolved(inputs,Connection(),self.deadline(.01)),
+                          'cleanup_unproved',hold=True)
+
+    async def test_x304_descriptor_retains_original_phase_presence_and_expiry(self):
+        api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver,'bootstrap','core-init')
+        carrier=await resolver.carrier(h,self.deadline())
+        descriptor=carrier.descriptor
+        self.assertIsInstance(descriptor,dict,'X3_DESCRIPTOR_SHAPE')
+        self.assertEqual(descriptor['phase'],'S02')
+        self.assertIs(descriptor['reserved_present'],False)
+        self.assertEqual(descriptor['mode'],'core-init')
+        self.assertEqual(descriptor['generation'],1)
+        self.assertGreater(descriptor['expires'],asyncio.get_running_loop().time())
+        await carrier.close()
+        self.assertEqual(carrier.descriptor,descriptor,'original reservation must not be rewritten')
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
