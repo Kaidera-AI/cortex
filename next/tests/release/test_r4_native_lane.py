@@ -437,8 +437,8 @@ class QEngine:
     image; `time` is held to its deadline (or ends early), `survivor` leaves a container."""
 
     def __init__(self, lane, wall, *, observe=None, run_exit=None, time_mode='deadline', survivor=None, reply=None,
-                 image_ids=None):
-        self.lane, self.wall, self.calls = lane, wall, []
+                 image_ids=None, journal_skew=0):
+        self.lane, self.wall, self.calls, self.journal_skew = lane, wall, [], journal_skew
         self.observe = dict(observations(lane), **(observe or {}))
         self.run_exit, self.time_mode, self.survivor, self.reply = run_exit or {}, time_mode, survivor, reply
         self.image_ids, self.current = image_ids or {}, None
@@ -446,13 +446,25 @@ class QEngine:
     def __call__(self, argv, environment, session, timeout, limit):
         verb = argv[8]
         self.calls.append(verb)
-        code, out = self.respond(verb, argv, timeout)
+        started = self.wall()
+        error, journal = None, b'{"fixture":true}\n'
+        try:
+            code, out = self.respond(verb, argv, timeout)
+        except r3.subprocess.TimeoutExpired as expired:
+            # the adapter's real shape: a two-row journal ending failed/TimeoutExpired,
+            # handed to the collector with the error (the R6-FU-1 seam), never dropped
+            error, code, out = expired, None, b''
+            rows = [{'status': 'started', 'argv': list(argv), 'environment_names': sorted(environment),
+                     'started_at_unix_ns': started, 'timeout_ns': int(timeout * 10 ** 9)},
+                    {'status': 'failed', 'exit': -9, 'error': 'TimeoutExpired', 'finished_at_unix_ns': self.wall(),
+                     'elapsed_ns': self.wall() - started + self.journal_skew}]
+            journal = b''.join(json.dumps(row, sort_keys=True).encode() + b'\n' for row in rows)
         files = {}
-        for key, raw in (('stdout', out), ('stderr', b''), ('journal', b'{"fixture":true}\n')):
+        for key, raw in (('stdout', out), ('stderr', b''), ('journal', journal)):
             path = Path(session) / ('fixture-' + str(len(self.calls)) + '.' + key)
             path.write_bytes(raw)
             files[key] = path
-        return code, out, files
+        return (code, out, files) if error is None else (code, out, files, error)
 
     def respond(self, verb, argv, timeout):
         if verb == 'image':
