@@ -29,6 +29,7 @@ _LIMIT = 262144
 _RAW_LIMIT = max(LIMITS.values())
 _EVENT_NAME = re.compile(r'^[0-9]{20}\.json$')
 _DIGEST = re.compile(r'^[0-9a-f]{64}$')
+_dispatch_scope = threading.local()
 _OBSERVATIONS = frozenset(('context_ref', 'reservation_ref', 'attempt_ref', 'preimages_ref'))
 
 
@@ -353,20 +354,24 @@ class _History:
         return reservation['expected_state_revision'] + (reservation['state'] != 'reserved')
 
 
-def _load_entry(history, reference):
-    event = thaw(parse_install_message(history.read(reference), expected_kind='journal_event').document)
+def _load_observation(history, event):
     observation = _decode(history.read(event['observations_ref']))
     _require(set(observation) == _OBSERVATIONS, 'journal_invalid')
     for ref in observation.values():
         history.read(ref)
-    return event, observation
+    return observation
+
+
+def _load_entry(history, reference):
+    event = thaw(parse_install_message(history.read(reference), expected_kind='journal_event').document)
+    return event, _load_observation(history,event)
 
 
 def _operation(identity):
     return tuple(identity[k] for k in ('product', 'installation_id', 'operation_id'))
 
 
-def _retained_preimages(history, identity):
+def _retained_preimages(history, identity, resource_kind=None):
     """PG-B2 private input: opaque P1 observations original, never a grant.
 
     The currently admitted dispatcher supplies this history and operation; the
@@ -377,7 +382,11 @@ def _retained_preimages(history, identity):
             _, obs = _load_entry(history, reference)
             bundle = _decode(history.read(obs['preimages_ref']))
             _require(_operation(bundle['identity']) == _operation(identity), 'journal_invalid')
-            return obs['preimages_ref']
+            names = set(bundle['originals'])
+            if (resource_kind is None and names == _PREIMAGES) or (
+                    resource_kind is not None and event['effect']['resource_kind'] == resource_kind
+                    and names == {resource_kind}):
+                return obs['preimages_ref']
     raise owner.OwnerRefusal('scope_denied')
 
 
@@ -663,6 +672,11 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
     _require(type(preimages) is dict and (preimage_names == _PREIMAGES
              or (sql_mandate_raw is None and preimage_names == {context['effect']['resource_kind']}))
              and all(type(raw) is bytes and len(raw) <= _RAW_LIMIT for raw in preimages.values()), 'backend_unavailable')
+    if context['effect']['effect_id'] == 'cortex.enrollment.first-identity':
+        _require(context['effect']['product'] == context['identity']['product'] == 'cortex'
+            and context['effect']['resource_kind'] == 'interface'
+            and preimage_names == {'interface'},'scope_denied')
+        measure_original_ref(context['effect']['expected_before_ref'],preimages['interface'])
     lineage = None
     retry = operation == 'install' and thaw(request.document)['journal_ref'] is not None
     if retry:
@@ -701,7 +715,8 @@ def _reserve(history, original_request, proposal, originals, preimages, *, clock
                  and inputs.current_clock_raw == clock_raw, 'owner_unavailable')
         lineage, _ = _part1_plan(history, original_request, proposal, inputs)
     try:
-        preimages_ref = _retained_preimages(history, context['identity'])
+        preimages_ref = _retained_preimages(history, context['identity'],
+            None if preimage_names == _PREIMAGES else context['effect']['resource_kind'])
         existing = _decode(history.read(preimages_ref))
         _require(set(existing['originals']) == preimage_names
             and all(history.read(existing['originals'][k]) == preimages[k] for k in preimage_names), 'resource_changed')
@@ -909,10 +924,253 @@ def _record_result(history, consumed_ref, original_measurement, *, current_conte
         expected_context=publication_context)
 
 
+@contextmanager
+def _enrollment_dispatch(history, effect_context):
+    if effect_context['context']['effect']['effect_id'] != 'cortex.enrollment.first-identity':
+        yield
+        return
+    _require(getattr(_dispatch_scope,'current',None) is None,'scope_denied')
+    _dispatch_scope.current = [history,effect_context,False]
+    try:
+        yield
+    finally:
+        _dispatch_scope.current = None
+
+
+def _enrollment_consumed(effect_context):
+    # Check the private live scope BEFORE inspecting any caller candidate DATA.
+    scope = getattr(_dispatch_scope,'current',None)
+    _require(scope is not None and not scope[2],'scope_denied')
+    history, original, _ = scope
+    _require(effect_context == original,'scope_denied')
+    context = thaw(original['context'])
+    history._check_publication(thaw(original['journal_ref']))
+    event, obs = _load_entry(history,original['journal_ref'])
+    attempt = _decode(history.read(obs['attempt_ref']))
+    reservation = _decode(history.read(obs['reservation_ref']))
+    bundle = _decode(history.read(obs['preimages_ref']))
+    _require(event['identity'] == context['identity'] and event['effect'] == context['effect']
+        and event['request_ref'] == context['request_ref'] and event['result_ref'] is None
+        and obs['preimages_ref'] == thaw(original['preimages_ref'])
+        and reservation['state'] == 'consumed' and attempt['dispatch_state'] == 'consumed_result_unknown'
+        and attempt['result_ref'] is None and attempt['consumption_sequence'] == event['sequence']
+        and attempt['consume_clock_ref'] is not None
+        and context['identity']['product'] == context['effect']['product'] == 'cortex'
+        and context['effect']['effect_id'] == 'cortex.enrollment.first-identity'
+        and context['effect']['resource_kind'] == 'interface'
+        and _operation(bundle['identity']) == _operation(context['identity'])
+        and set(bundle['originals']) == {'interface'},'scope_denied')
+    measure_original_ref(context['effect']['expected_before_ref'],history.read(bundle['originals']['interface']))
+    history._check_publication(thaw(original['journal_ref']))
+    scope[2] = True
+
+
+# Private composition DATA, never an install request enum or another authority.
+@dataclass(frozen=True)
+class _Stage:
+    name: str
+    prior: tuple = ()
+    baseline: tuple = ()
+    stop_ref: object = None
+
+
+@dataclass(frozen=True)
+class _Stop:
+    phase: str
+    original_ref: object = None
+
+
+_STAGES = ('S01','S02','S03','S04','S05','S06','S07','S08')
+_ORDINARY = ('S01','S03','S05','S06','S07','S08')
+_STAGE_FACTS = {
+    'S01': ('materialized','owned_preimages','exact_tuple'),
+    'S02': ('new_empty_owned_root','init_complete','finite_absent'),
+    'S03': ('sql_session','core_lifetime','probe_closed'),
+    'S04': ('ledger','catalogue','acl','finite_absent','bootstrap_disabled','migrator_closed'),
+    'S05': ('restricted_factory','complete_clients','current_scope'),
+    'S06': ('api_listener','telemetry_listener','namespace','publication','fatal_pair'),
+    'S07': ('supervisor_session','current_lease','current_fence'),
+    'S08': ('stack_healthy','enrollment_current','scoped_read')}
+_ABSENT = frozenset(('core','api','telemetry','finite','supervisor'))
+
+
+def _barrier_receipt(history, ref, context, *, operation=None, epoch=None, events=None):
+    # Membership in the real immutable chain is mandatory: a retained event-like
+    # fact, candidate result, later recovery or bare ref cannot stand in for it.
+    # Reuse this barrier's just-verified chain under the existing operation
+    # lock; each pre-consume/dispatch/ACK barrier reads a fresh chain and facts.
+    events = history.events() if events is None else events
+    event = next((e for r,e in events if r == ref),None)
+    _require(event is not None,'journal_invalid')
+    obs = _load_observation(history,event)
+    saved = _decode(history.read(obs['context_ref']))
+    attempt = _decode(history.read(obs['attempt_ref']))
+    reservation = _decode(history.read(obs['reservation_ref']))
+    _require(event['result_ref'] is not None and event['phase'] == 'created'
+        and event['result_ref'] == attempt['result_ref']
+        and attempt['dispatch_state'] == 'applied_verified' and reservation['state'] == 'consumed'
+        and attempt['consumption_sequence'] is not None and attempt['consume_clock_ref'] is not None,
+        'attempt_ambiguous')
+    result = _decode(history.read(event['result_ref']))
+    _require(result['state'] == 'applied_verified'
+        and all(result[k] == event[k] == saved[k] for k in ('identity','effect','request_ref'))
+        and all(event['identity'][k] == context['identity'][k] for k in ('product','installation_id'))
+        and saved['target'] == context['target'],'resource_changed')
+    if operation is not None:
+        _require(_operation(event['identity']) == operation,'scope_denied')
+    if epoch is not None:
+        _require((saved['owner_epoch'],saved['session_id']) == epoch,'scope_denied')
+    bundle = _decode(history.read(obs['preimages_ref']))
+    _require(_operation(bundle['identity']) == _operation(event['identity']),'journal_invalid')
+    for original in bundle['originals'].values():history.read(original)
+    return event, saved, result['observed'], bundle
+
+
+def _stage_observed(name, observed):
+    _require(observed.get('stage') == name and observed.get('remaining') == [],'attempt_ambiguous')
+    facts = observed.get('barriers')
+    _require(type(facts) is dict and set(facts) == set(_STAGE_FACTS[name]),'attempt_ambiguous')
+    required = _STAGE_FACTS[name]
+    if name == 'S08':
+        _require(observed.get('readiness') in ('ready','enrollment_required'),'attempt_ambiguous')
+        if observed['readiness'] == 'enrollment_required':
+            _require(facts['enrollment_current'] is False and facts['scoped_read'] is False,'attempt_ambiguous')
+            required = ('stack_healthy',)
+    _require(all(facts[k] is True for k in required),'attempt_ambiguous')
+
+
+def _stage_chain(history, refs, names, context, *, release, operation=None, epoch=None, events=None):
+    _require(type(refs) is tuple and len(refs) == len(names),'scope_denied')
+    previous = -1
+    first = None
+    for ref,name in zip(refs,names):
+        event,saved,observed,_ = _barrier_receipt(history,ref,context,operation=operation,epoch=epoch,events=events)
+        _require(thaw(parse_install_message(history.read(event['request_ref']),expected_kind='request').document)['release']
+            == release,'resource_changed')
+        _require(event['sequence'] > previous,'journal_invalid')
+        if first is None:first = saved
+        _require(_operation(event['identity']) == _operation(first['identity'])
+            and (saved['owner_epoch'],saved['session_id']) == (first['owner_epoch'],first['session_id']),
+            'scope_denied')
+        previous = event['sequence']
+        _stage_observed(name,observed)
+    return first
+
+
+def _stop_original(history, bundle, context):
+    _require(set(bundle['originals']) == {'service'},'scope_denied')
+    return _stop_values(_decode(history.read(bundle['originals']['service'])),context)
+
+
+def _stop_values(value, context):
+    fields = {'t0_ns','deadline_ns','expires_monotonic_ns','owner_epoch','installation_id','operation_id','inventory'}
+    _require(set(value) == fields and all(type(value[k]) is int for k in
+        ('t0_ns','deadline_ns','expires_monotonic_ns')),'scope_denied')
+    t0,d,e = (value[k] for k in ('t0_ns','deadline_ns','expires_monotonic_ns'))
+    _require(0 <= t0 < d == min(e,t0+15_000_000_000)
+        and value['owner_epoch'] == context['owner_epoch']
+        and all(value[k] == context['identity'][k] for k in ('installation_id','operation_id'))
+        and type(value['inventory']) is list and value['inventory']
+        and all(type(v) is str for v in value['inventory'])
+        and len(set(value['inventory'])) == len(value['inventory']),'scope_denied')
+    span = d-t0
+    return value, (t0,d,t0+span//3,t0+2*span//3,t0+5*span//6)
+
+
+def _stop_observed(history, observed, bundle, context, phase):
+    original, cutoffs = _stop_original(history,bundle,context)
+    stop = observed.get('stop')
+    _require(type(stop) is dict and stop.get('phase') == phase
+        and tuple(stop.get(k) for k in ('t0_ns','deadline_ns','c1_ns','c2_ns','c3_ns')) == cutoffs
+        and stop.get('remaining') == [] and stop.get('lease_fenced') is True,'attempt_ambiguous')
+    t0,d,_,c2,c3 = cutoffs
+    absence = stop.get('dependents_absent_at_ns')
+    _require(type(absence) is int and t0 <= absence <= c2,'attempt_ambiguous')
+    if phase == 'core':
+        _,saved,dep,before = _barrier_receipt(history,stop.get('dependents_result_ref'),context,
+            operation=_operation(context['identity']),epoch=(context['owner_epoch'],context['session_id']))
+        _require(before == bundle,'resource_changed')
+        _stop_observed(history,dep,before,saved,'dependents')
+        _require(dep['stop']['dependents_absent_at_ns'] == absence,'resource_changed')
+        term,force,gone = (stop.get(k) for k in ('core_term_at_ns','core_force_at_ns','core_absent_at_ns'))
+        _require(type(term) is int and absence <= term <= d
+            and type(gone) is int and term <= gone <= d
+            and (force is None or (type(force) is int and max(term,c3) <= force <= gone)),
+            'attempt_ambiguous')
+    else:
+        _require(all(stop.get(k) is None for k in ('core_term_at_ns','core_force_at_ns','core_absent_at_ns')),
+            'attempt_ambiguous')
+    return original
+
+
+def _barrier_before(history, barrier, context, preimages, release):
+    if barrier is None:return
+    events = history.events()
+    if type(barrier) is _Stage:
+        ordinary = bool(barrier.baseline)
+        names = _ORDINARY if ordinary else _STAGES
+        _require(barrier.name in names,'scope_denied')
+        _stage_chain(history,barrier.prior,names[:names.index(barrier.name)],context,
+            operation=_operation(context['identity']),epoch=(context['owner_epoch'],context['session_id']),release=release,events=events)
+        if ordinary:
+            old = _stage_chain(history,barrier.baseline,_STAGES,context,release=release,events=events)
+            event,saved,observed,bundle = _barrier_receipt(history,barrier.stop_ref,context,events=events)
+            _require(saved['owner_epoch'] == old['owner_epoch']
+                and event['sequence'] > _load_entry(history,barrier.baseline[-1])[0]['sequence']
+                and context['owner_epoch'] != old['owner_epoch']
+                and _operation(context['identity']) != _operation(old['identity']),'scope_denied')
+            _stop_observed(history,observed,bundle,saved,'core')
+            _require(type(preimages) is dict and set(preimages) == {'service'},'scope_denied')
+            restart = _decode(preimages['service'])
+            _require(restart.get('manager_epoch') == context['owner_epoch']
+                and restart.get('original_stop_ref') == barrier.stop_ref
+                and restart.get('target') == old['target']
+                and type(restart.get('old_generation_absent')) is dict
+                and set(restart['old_generation_absent']) == _ABSENT
+                and all(v is True for v in restart['old_generation_absent'].values()),'attempt_ambiguous')
+        else:
+            _require(barrier.stop_ref is None,'scope_denied')
+    elif type(barrier) is _Stop:
+        _require(barrier.phase in ('dependents','core') and context['effect']['resource_kind'] == 'service',
+            'scope_denied')
+        _require(type(preimages) is dict and set(preimages) == {'service'},'scope_denied')
+        value = _decode(preimages['service'])
+        active = getattr(history._publication,'current',None)
+        _require(active is not None and value.get('expires_monotonic_ns') == active[0].expires_monotonic_ns,
+            'reservation_expired')
+        # Validate the original stop even before its first intent/consume.
+        _stop_values(value,context)
+        if barrier.phase == 'core':
+            _,saved,observed,original = _barrier_receipt(history,barrier.original_ref,context,
+                operation=_operation(context['identity']),epoch=(context['owner_epoch'],context['session_id']),events=events)
+            prior_event = next(e for r,e in events if r == barrier.original_ref)
+            _require(thaw(parse_install_message(history.read(prior_event['request_ref']),expected_kind='request').document)['release']
+                == release,'resource_changed')
+            _require(history.read(original['originals']['service']) == preimages['service'],'resource_changed')
+            _stop_observed(history,observed,original,saved,'dependents')
+        else:
+            _require(barrier.original_ref is None,'scope_denied')
+    else:
+        raise owner.OwnerRefusal('scope_denied')
+
+
+def _barrier_after(history, barrier, ref, context):
+    if barrier is None:return
+    _,saved,observed,bundle = _barrier_receipt(history,ref,context,
+        operation=_operation(context['identity']),epoch=(context['owner_epoch'],context['session_id']))
+    if type(barrier) is _Stage:
+        _stage_observed(barrier.name,observed)
+    else:
+        if barrier.phase == 'core':
+            _require(observed.get('stop',{}).get('dependents_result_ref') == barrier.original_ref,'resource_changed')
+        _stop_observed(history,observed,bundle,saved,barrier.phase)
+
+
 @dataclass(frozen=True)
 class _Bindings:
     history: _History
     primitives: dict
+    barrier: object = None
 
 
 def _installed_lifecycle():
@@ -982,9 +1240,11 @@ def _execute_bound(original_request, first):
         preimages = primitive.snapshot()
         inputs, refreshed = _current_owner(original_request, current.deadline)
         owner._same_context(current, refreshed)
+        _barrier_before(history,bindings.barrier,thaw(refreshed.context),preimages,request['release'])
         reserved = _reserve(history, original_request, refreshed, inputs.originals, preimages,
                             clock_raw=inputs.current_clock_raw, inputs=inputs,sql_mandate_raw=sql_mandate_raw,deadline=deadline)
         inputs, final = _current_owner(original_request, refreshed.deadline)
+        _barrier_before(history,bindings.barrier,thaw(final.context),preimages,request['release'])
         consumed = _consume(history, reserved, final, inputs.current_clock_raw,
                             originals=inputs.originals, inputs=inputs,deadline=deadline)
         _, observation = _load_entry(history, consumed)
@@ -1016,7 +1276,9 @@ def _execute_bound(original_request, first):
             # Dispatch preparation can wait after its last owner observation.
             history._check_publication(consumed)
             if cleanup is None or cleanup['targets']:
-                primitive.dispatch(effect_context)
+                _barrier_before(history,bindings.barrier,thaw(dispatch_current.context),preimages,request['release'])
+                with _enrollment_dispatch(history,effect_context):
+                    primitive.dispatch(effect_context)
             with _measurement(primitive,effect_context,mandated=mandated) as measured:
                 # The same measure owns v2 SQL exclusion until durable P1 ACK.
                 history.retain(measured)
@@ -1030,6 +1292,8 @@ def _execute_bound(original_request, first):
                     current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
                     clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
                     cleanup_plan=cleanup,**publication)
+                _barrier_before(history,bindings.barrier,thaw(dispatch_current.context),preimages,request['release'])
+                _barrier_after(history,bindings.barrier,completed,thaw(dispatch_current.context))
                 _, after = _current_owner(original_request, deadline)
                 _continuity(thaw(fresh.context), thaw(after.context))
                 _require(after.observed_state_revision == fresh.observed_state_revision+1, 'generation_changed')

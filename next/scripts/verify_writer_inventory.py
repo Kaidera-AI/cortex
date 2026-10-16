@@ -56,13 +56,13 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
     "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
     "schema/auth/007-runtime-grants.sql": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607",
-    "src/cortex_core/install/lifecycle.py": "cfb9c7585cca903600988498888f3a0f9826fbfd903ffd80b36a305c71689ec3",
+    "src/cortex_core/install/lifecycle.py": "28482c3e4073774f47c8d50be7bcea16a30f0423bb7d67e85546dda7807217e1",
     "src/cortex_core/install/owner.py": "12b97f4e9f45c32e5d3deebc0d07d4c6084676d0d5d394c45b678d7ba106ee2d",
-    "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
+    "src/cortex_core/install/recovery.py": "f1ced8f227bf536ef43f833b51fa525cebe6414df916a60a6e2baa2908b242d2",
     "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
     "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",
     "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496",
-    "src/cortex_core/runtime/enrollment.py": "9f4bd86f2f95e5ae125b97dde6f8b5e27e133e6d9eae8a067ccbd528fd2c856d"
+    "src/cortex_core/runtime/enrollment.py": "404a7fdaa4f11a587397fa297b7737da0c4fd6106d1750c741630543b36f7d62"
 }
 
 

@@ -42,10 +42,16 @@ def _require(value, reason):
 
 
 def _unbound(_effect_context):
-    raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+    # Only P2's active, one-use dispatch can bind this existing seam. The
+    # original DATA remains useless outside that thread/operation/deadline.
+    from cortex_core.install import lifecycle, owner
+    try:
+        lifecycle._enrollment_consumed(_effect_context)
+    except owner.OwnerRefusal:
+        raise Refusal('required_binding_gap', unit=MISSING_UNIT) from None
 
 
-# P2a's consumed dispatch is the only authority; the fixed owner binds it later.
+# P2a's consumed dispatch is the only authority; the installed owner stays UNBOUND.
 _consumed_dispatch = _unbound
 
 

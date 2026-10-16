@@ -48,11 +48,13 @@
     "next/tests/identity_receipts/test_identity_receipts.py",
     "next/tests/install/test_adapter_contract.py",
     "next/tests/install/test_contracts.py",
+    "next/tests/install/test_enrollment_p2.py",
     "next/tests/install/test_gate_b_linux.py",
     "next/tests/install/test_gate_b_macos.py",
     "next/tests/install/test_hold1_interface.py",
     "next/tests/install/test_hold1_pubscope.py",
     "next/tests/install/test_lifecycle_ack_deadline.py",
+    "next/tests/install/test_lifecycle_barriers.py",
     "next/tests/install/test_lifecycle_logical_paths.py",
     "next/tests/install/test_lifecycle_receipt.py",
     "next/tests/install/test_owner_admission.py",
@@ -2471,6 +2473,7 @@
       "isolated": [
         "next/tests/release/test_verifier_boundary.py::OwnerSourceJoin::test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child"
       ]
-    }
+    },
+    "next/tests/install/test_lifecycle_barriers.py": 8
   }
 }
