@@ -132,6 +132,7 @@ def _resource(kind, value, binding, *, selected=True):
                   and value.get('source') == binding['source'] and value.get('version') == binding['version'], 'resource_changed')
     elif kind == 'network':
         _need(_NAME.fullmatch(value.get('name', '')) and value.get('driver') == 'bridge'
+              and value.get('internal') is True
               and value.get('options') == {} and value.get('listeners') == []
               and type(value.get('subnet')) is str, 'resource_changed')
         # No engine default network, host networking or unspecified topology.
@@ -551,7 +552,7 @@ class _Primitive:
         try:
             _need(self.snapshotted and thaw(context) == thaw(self.plan['subject']), 'generation_changed')
             actual = self._observe()
-            witness = self.engine.witnesses()
+            witness = thaw(freeze(self.engine.witnesses()))
             cleanup = self._cleanup(witness)
             related = self._related(thaw(actual), after=True)
             images = self._images(actual, after=True)
@@ -596,4 +597,6 @@ class _Primitive:
             _need(self._observe() == actual, 'resource_changed')
             self._related(thaw(actual), after=True)
             self._images(actual, after=True)
-            self._cleanup(self.engine.witnesses())
+            current_witness = self.engine.witnesses()
+            self._cleanup(current_witness)
+            _need(current_witness == witness, 'attempt_ambiguous')
