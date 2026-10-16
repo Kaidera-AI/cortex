@@ -42,7 +42,9 @@ class StdlibAliases(StartupFixture, unittest.TestCase):
 
     def test_any_other_pseudo_module_name_refuses(self):
         self.init_typing(); other = object(); self.typing.other = other
-        self.frame = replace(self.frame, module_aliases=(*self.frame.module_aliases, ('typing.other', other, self.typing_path)))
+        # Kept sorted so only the name restriction can refuse it.
+        self.frame = replace(self.frame, module_aliases=tuple(sorted((*self.frame.module_aliases, ('typing.other', other, self.typing_path)),
+                                                                     key=lambda r: r[0])))
         self.replace_observation(modules=(*self.observation.modules, ('typing.other', None, object, ())),
                                  module_objects=(*self.observation.module_objects, ('typing.other', other)))
         self.refusal('required_binding_gap', self.check)
