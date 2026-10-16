@@ -179,6 +179,13 @@ class Outcomes(Base):
         children[2]['timeout_ns'] //= 2  # a deadline that is not the plan's limits.seconds
         wrong = dict(files, **{rows['time']['children']: codec.canonical_bytes(children)})
         self.refuses(row, lane, 'time', files=wrong, rows=rows)
+        # R6-ORACLE-001.TIME: the measured adapter journal decides; absent or contradicting refuses
+        children = json.loads(files[rows['time']['children']])
+        self.assertIsNotNone(children[2]['journal'])
+        children[2]['journal'] = None
+        self.refuses(row, lane, 'time', files=dict(files, **{rows['time']['children']: codec.canonical_bytes(children)}),
+                     rows=rows)
+        self.refuses(row, lane, 'time', journal_skew=-30 * 10 ** 9)  # journal says it ended before its deadline
 
     def test_mounts_and_environment_equal_the_accepted_allowlist(self):
         lane = Lane(self)
@@ -438,6 +445,160 @@ class Lifetime(Base):
 
 BASELINE = ['bash-0:5.2.26-4.el10.x86_64', 'glibc-0:2.39-17.el10.x86_64']
 OURS = ['podman-5:5.4.0-1.el10.x86_64', 'crun-0:1.20-1.el10.x86_64']
+RUN = 'cortex-r6-amd64-1'
+TEARDOWN = ['stop', 'absent', 'custody', 'session_stop', 'user_remove', 'undo_preview', 'undo']
+
+
+class FakeHost:
+    """The one backend callable (op, run_id, timeout, *args) at fixture level: rpm/dnf
+    state, the build user and the guest finally steps. `fail` maps an op to an exception
+    or a return value; `jump` advances the clock inside an op (a deadline expiring)."""
+
+    def __init__(self, clock, *, fail=None, jump=None):
+        self.clock, self.fail, self.jump, self.calls = clock, fail or {}, jump or {}, []
+        self.packages, self.transactions, self.user = list(BASELINE), [{'id': 41, 'actions': [['install', BASELINE[0]]]}], False
+
+    def __call__(self, op, run_id, timeout, *args):
+        assert run_id == RUN and timeout > 0, (op, run_id, timeout)
+        self.calls.append(op)
+        self.clock.now += self.jump.get(op, 0)
+        if op in self.fail:
+            if isinstance(self.fail[op], Exception):
+                raise self.fail[op]
+            return self.fail[op]
+        if op == 'rpm_qa':
+            return sorted(self.packages)
+        if op == 'history':
+            return list(reversed(self.transactions))  # dnf lists newest first
+        if op == 'install_preview':
+            return [['install', n] for n in OURS]
+        if op == 'install':
+            self.packages += OURS
+            self.transactions.append({'id': 42, 'actions': [['install', n] for n in OURS]})
+            return None
+        if op == 'undo_preview':
+            return [['remove', n] for n in OURS] if args == (42,) else []
+        if op == 'undo':
+            self.packages = [n for n in self.packages if n not in OURS]
+            return None
+        if op == 'user_create':
+            self.user = True
+            return None
+        if op == 'user_remove':
+            self.user = False
+            return True
+        if op == 'user_absent':
+            return not self.user
+        return True  # stop, absent, custody, session_stop
+
+
+class Composition(Base):
+    """R6-LIFETIME-001.COMPOSITION (Hale r1): ONE bounded operator entry. The unit's
+    ExecStart is operator_run (setup -> qualification + lanes inside the operator Deadline,
+    the R4 lifecycle finally = operator_teardown); its ExecStopPost is the SAME teardown,
+    exactly once; the outer driver always deallocates, bound to the run id."""
+
+    def enter(self, lane, host_options=None, *, state=None, readback='deallocated', smoke=('pass', 'fixture contract'),
+              **engine):
+        clock = r4.Clock()
+        host = FakeHost(clock, **(host_options or {}))
+        probe = probe_closure(lane)
+        wall = r4.Wall()
+        fake = r4.QEngine(lane, wall, **engine)
+        seen = {'run': None, 'stop_post': None, 'calls': []}
+        root = lane.fx.top / 'operator'
+        root.mkdir(mode=0o700)
+
+        def inspect(*args, inspection, **kwargs):
+            inspection.check(r3.rows(('a', b'x = 1\n'), ('b', b'y = 2\n')))
+            return (), [{'path': 'app/module.py', 'bytes': 5, 'sha256': '0' * 64, 'mode': 420, 'uid': 1001, 'gid': 1001, 'mtime': 0}]
+
+        def ctl(op, run_id, timeout):
+            assert run_id == RUN and timeout > 0
+            seen['calls'].append(op)
+            if op == 'start':
+                seen['run'] = runner.operator_run(RUN, host, Order.modules(self, lane), lane.closure, probe, HOST,
+                                                  lane.parent, root, ALLOWLIST, clock=clock)
+                before = list(host.calls)
+                seen['stop_post'] = runner.operator_teardown(RUN, host, root, clock=clock)  # systemd ExecStopPost
+                seen['stop_post_calls'] = host.calls[len(before):]
+                return None
+            if op == 'state':
+                return state or ('inactive' if seen['run']['result'] == 'PASS' else 'failed')
+            if op == 'readback':
+                return readback
+            return None  # deallocate
+        with patch.object(product('artifacts'), 'inspect_oci', inspect), patch.object(inspector, '_engine', fake), \
+                patch.object(runner, '_child', Engine(lane, ps=[[]] * 12)), patch.object(r4.time, 'time_ns', wall), \
+                patch.object(runner, '_runtime_smoke', return_value=smoke):
+            drive = runner.operator_control(RUN, ctl, polls=3, clock=clock)
+        return drive, seen, host
+
+    def once(self, seen, host):
+        self.assertEqual(seen['calls'].count('start'), 1)
+        self.assertEqual(seen['calls'].count('deallocate'), 1)
+        self.assertEqual(seen['calls'].count('readback'), 1)
+        for op in ('stop', 'absent', 'custody', 'session_stop', 'user_remove'):
+            self.assertEqual(host.calls.count(op), 1, op)
+        self.assertEqual(seen['stop_post_calls'], [])  # ExecStopPost found the teardown done: exactly once
+        self.assertEqual(seen['stop_post'], seen['run']['teardown'])
+
+    def test_clean_run_passes_with_one_teardown_and_one_deallocation(self):
+        lane = Lane(self)
+        drive, seen, host = self.enter(lane)
+        self.assertEqual((drive['result'], seen['run']['result']), ('PASS', 'PASS'))
+        self.assertEqual(seen['run']['teardown']['remaining_owned_resources'], [])
+        self.assertEqual(sorted(host.packages), sorted(BASELINE))
+        self.once(seen, host)
+        self.assertEqual([op for op in host.calls if op in TEARDOWN], TEARDOWN)
+
+    def test_runtime_missing_keeps_the_composed_run_red(self):
+        lane = Lane(self)
+        drive, seen, host = self.enter(lane, smoke=None)
+        self.assertEqual((drive['result'], seen['run']['result']), ('RED', 'RED'))
+        self.once(seen, host)
+
+    def test_qualification_failure_still_tears_down_once_and_deallocates(self):
+        lane = Lane(self)
+        drive, seen, host = self.enter(lane, observe={'network': {**observations(lane)['network'], 'errno': 'ECONNREFUSED'}})
+        self.assertEqual((drive['result'], seen['run']['result'], seen['run']['reason']), ('RED', 'RED', 'ReceiptRefusal'))
+        self.assertEqual(seen['run']['teardown']['remaining_owned_resources'], [])
+        self.assertEqual(sorted(host.packages), sorted(BASELINE))
+        self.once(seen, host)
+
+    def test_deadline_expiry_keeps_the_teardown_reserve_and_retains_the_residual(self):
+        lane = Lane(self)
+        budget = runner.operator_budget(lane.value['resources']['absolute_timeout_sec'])
+        work = budget['total_sec'] - runner.OPERATOR_TEARDOWN_SEC
+        drive, seen, host = self.enter(lane, {'jump': {'install': work + 1}})
+        self.assertEqual((drive['result'], seen['run']['result'], seen['run']['reason']), ('RED', 'RED', 'TimeoutError'))
+        # install ran but its receipt was never proven: ownership HOLD, no blind undo, residual kept
+        self.assertEqual(seen['run']['teardown']['remaining_owned_resources'], ['packages: ValueError'])
+        self.assertNotIn('undo', host.calls)
+        self.once(seen, host)
+
+    def test_unknown_unit_state_holds_without_a_second_start(self):
+        lane = Lane(self)
+        drive, seen, host = self.enter(lane, state='unknown')
+        self.assertEqual(drive['result'], 'HOLD')
+        self.once(seen, host)
+
+    def test_cleanup_failures_are_retained_and_deallocation_still_happens(self):
+        lane = Lane(self)
+        drive, seen, host = self.enter(lane, {'fail': {'absent': False, 'user_remove': OSError('busy')}})
+        self.assertEqual((drive['result'], seen['run']['result']), ('RED', 'RED'))
+        self.assertEqual(seen['run']['teardown']['remaining_owned_resources'], ['absent', 'user: OSError', 'packages: ValueError'])
+        self.once(seen, host)
+
+    def test_deallocation_error_is_kept_and_never_pass(self):
+        lane = Lane(self)
+        clock = r4.Clock()
+        result = runner.operator_control(RUN, lambda op, run_id, timeout: (_ for _ in ()).throw(OSError('api'))
+                                         if op == 'deallocate' else ('inactive' if op == 'state' else
+                                                                     'deallocated' if op == 'readback' else None),
+                                         polls=1, clock=clock)
+        self.assertEqual(result['result'], 'HOLD')
+        self.assertEqual(result['errors'], ['deallocate: OSError'])
 
 
 class Packages(Base):
