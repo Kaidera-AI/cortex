@@ -425,7 +425,7 @@ class X3(unittest.IsolatedAsyncioTestCase):
             await adapter.retire(conn,deadline=self.deadline())
         self.assertEqual({record.name for record in captured.records},
             {'x3-fixture-read','x3-fixture-policy','psycopg'})
-        self.assertNotIn(VALUE,repr(captured.output),'X3_SUPPLIER_LOG_LEAK')
+        self.assertFalse(any(VALUE in line for line in captured.output),'X3_SUPPLIER_LOG_LEAK')
         self.assertTrue(all(record.exc_info is None for record in captured.records))
 
 

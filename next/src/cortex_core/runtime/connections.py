@@ -1,7 +1,7 @@
-"""RC3a connection declarations only. No driver, secret, pool or live role binding.
+"""RC3a declarations and X3 physical-connect policy; installed ports UNBOUND.
 
-Role/catalogue snapshots are DATA, never PostgreSQL or custody authority. RC3b
-must replace the missing owner boundary under a separately accepted grant matrix.
+Role/catalogue/session observations are DATA, never PostgreSQL or custody
+authority. X3 adds no driver, pool, secret store or live factory selection.
 """
 from dataclasses import dataclass
 
