@@ -66,6 +66,9 @@ class Engine:
         self.reads = 0
         self.on_run = None
         self.on_observe = None
+        self.creation_fault = None
+        self.execution_fault = None
+        self.execution = None
         self.reply = {'returncode': 0, 'stdout': b'', 'stderr': b'',
             'lifetime': {'boot': 'boot-one', 'pid': 81, 'start': 9, 'uid': 1001},
             'remaining': [], 'pipes_closed': True, 'reaped': True}
@@ -84,6 +87,16 @@ class Engine:
             'environment': {'HOME': '/owner/home', 'XDG_RUNTIME_DIR': '/owner/run',
                             'CONTAINERS_CONF': '/owner/originals/containers.conf',
                             'CONTAINERS_STORAGE_CONF': '/owner/originals/storage.conf'}}
+        self.plan['subject']['effect']['resource_kind'] = kind
+        for path in [*self.binding['environment'].values(), self.plan['oci']]:
+            if path in (self.binding['home'], self.binding['runroot']):
+                continue
+            self.binding['closure'].append(dict(self.binding['closure'][0], path=path,
+                ino=len(self.binding['closure']) + 4))
+        if action == 'helper':
+            for v in (self.plan['before'], self.plan['after']):
+                v.update(running=True, process={'boot': 'boot-one', 'pid': 90, 'start': 10, 'uid': 1001})
+            self.state = copy.deepcopy(self.plan['before'])
 
     @contextmanager
     def hold(self):
@@ -107,16 +120,23 @@ class Engine:
 
     def witnesses(self):
         assert self.held
-        return {'creation': {'before_absent': self.plan['before'] is None,
+        witness = {'creation': {'before_absent': self.plan['before'] is None,
             'subject': self.plan['subject'], 'resource': copy.deepcopy(self.state),
             'exclusion': copy.deepcopy(self.binding['exclusion'])},
-            'cleanup': copy.deepcopy(self.reply)}
+            'cleanup': copy.deepcopy(self.reply), 'execution': copy.deepcopy(self.execution)}
+        if self.creation_fault:
+            self.creation_fault(witness)
+        if self.execution_fault:
+            self.execution_fault(witness)
+        return witness
 
     def run(self, argv, *, env, deadline_ns, stdout_limit, stderr_limit):
         assert self.held and deadline_ns == self.plan['deadline_ns']
         assert stdout_limit == stderr_limit == 65536
         self.calls.append((tuple(argv), dict(env), deadline_ns))
         self.state = copy.deepcopy(self.plan['after'])
+        self.execution = {'argv': list(argv), 'subject': copy.deepcopy(self.plan['subject']),
+                          'lifetime': copy.deepcopy(self.reply['lifetime']), 'deadline_ns': deadline_ns}
         if self.on_run:
             self.on_run(self)
         return copy.deepcopy(self.reply)
@@ -357,6 +377,81 @@ class PodmanPrimitives(unittest.TestCase):
             p.dispatch(SUBJECT)
             self.assertNotIn('/bin/sh', e.calls[0][0])
             with p.measure(SUBJECT) as result:self.assertEqual(result[0], 'UNKNOWN')
+
+    def test_new_generated_resource_identity_is_observed_not_predicted(self):
+        for kind in ['volume', 'network', 'container']:
+            e = Engine(kind)
+            actual = resource(kind)
+            if kind == 'volume':
+                e.plan['after']['created_at'] = None
+                e.plan['after']['mountpoint'].update(dev=None, ino=None)
+            else:
+                e.plan['after']['id'] = None
+            e.on_run = lambda e, actual=actual: setattr(e, 'state', copy.deepcopy(actual))
+            with self.subTest(kind=kind):self.assertEqual(self.execute(e)[0], 'APPLIED')
+
+    def test_missing_or_wrong_creation_original_is_UNKNOWN(self):
+        for fault in [lambda w: w.update(creation=None),
+                      lambda w: w['creation'].update(before_absent=False),
+                      lambda w: w['creation']['subject']['identity'].update(install='foreign'),
+                      lambda w: w['creation']['exclusion'].update(generation=999)]:
+            e = Engine();e.creation_fault = fault
+            with self.subTest(fault=fault):self.assertEqual(self.execute(e)[0], 'UNKNOWN')
+
+    def test_helper_exit_code_cannot_replace_independent_execution_witness(self):
+        for fault in [lambda w: w.update(execution=None),
+                      lambda w: w['execution'].update(argv=['/bin/sh']),
+                      lambda w: w['execution'].update(deadline_ns=2000),
+                      lambda w: w['execution']['lifetime'].update(start=999),
+                      lambda w: w['execution']['subject']['identity'].update(install='foreign')]:
+            e = Engine('container', 'helper');e.execution_fault = fault
+            with self.subTest(fault=fault):self.assertEqual(self.execute(e)[0], 'UNKNOWN')
+
+    def test_core_stop_waits_until_C2_and_measured_noncore_absence(self):
+        e = Engine('container', 'stop')
+        e.plan['before'].update(running=True, process={'boot': 'boot-one', 'pid': 90, 'start': 10, 'uid': 1001})
+        e.state = copy.deepcopy(e.plan['before']);e.now = 599
+        with self.assertRaises(OwnerRefusal):self.execute(e)
+        self.assertEqual(e.calls, [])
+        e.now = 601
+        self.assertEqual(self.execute(e)[0], 'APPLIED')
+        self.assertEqual(e.calls[0][0][-3:], ('kill', '--signal=TERM', ID))
+
+    def test_start_cannot_attest_unchanged_stopped_container(self):
+        e = Engine('container', 'start')
+        with self.assertRaises(OwnerRefusal):self.execute(e)
+        self.assertEqual(e.calls, [])
+
+    def test_wrong_kind_subject_refused_before_observation(self):
+        e = Engine('volume');e.plan['subject']['effect']['resource_kind'] = 'network'
+        with self.assertRaises(OwnerRefusal):
+            with self.opened(e):self.fail('wrong effect projection accepted')
+        self.assertEqual((e.calls, e.reads), ([], 0))
+
+    def test_source_original_and_engine_config_descriptors_must_stay_held(self):
+        for path in ['/owner/originals/core.oci', '/owner/originals/containers.conf',
+                     '/owner/originals/storage.conf']:
+            e = Engine('image', 'load')
+            e.binding['closure'] = [x for x in e.binding['closure'] if x['path'] != path]
+            with self.subTest(path=path), self.assertRaises(OwnerRefusal):self.execute(e)
+            self.assertEqual((e.calls, e.reads), ([], 0))
+
+    def test_guard_revoked_during_observe_prevents_dispatch(self):
+        e = Engine()
+        with self.opened(e) as p:
+            p.snapshot();e.on_observe = lambda e: e.binding['exclusion'].update(generation=4)
+            with self.assertRaises(OwnerRefusal):p.dispatch(e.plan['subject'])
+        self.assertEqual(e.calls, [])
+
+    def test_publication_revocation_propagates_and_closed_primitive_cannot_run(self):
+        e = Engine()
+        with self.opened(e) as p:
+            p.snapshot();p.dispatch(e.plan['subject'])
+            with self.assertRaises(OwnerRefusal):
+                with p.measure(e.plan['subject']) as result:
+                    self.assertEqual(result[0], 'APPLIED');e.binding['authority'][0] = 'revoked'
+        with self.assertRaises(OwnerRefusal):p.dispatch(e.plan['subject'])
+        self.assertEqual(len(e.calls), 1)
 
 
 if __name__ == '__main__':
