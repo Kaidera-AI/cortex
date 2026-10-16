@@ -58,6 +58,12 @@ def emit(
 
     The caller supplies measured build/audit records. R01 remeasures every output,
     evidence link and required class. This function grants no build or deploy effect.
+
+    Native scope (R4, Vera Q3): a conditional RAW emitter replaces the former
+    unconditional refusal. Without complete lanes and complete R6 qualification
+    records it still raises r02_native_emission_unqualified. With them it returns
+    (raw, None): producer claims only. It never calls verify_shared_receipt and
+    never returns a VerifiedBuildReceipt; Cox's acceptance and R01 decide later.
     """
     from cortex_core.release.codec import canonical_bytes
     from cortex_core.release.contracts import thaw
@@ -65,10 +71,9 @@ def emit(
     from .inputs import require_verified
 
     require_verified(verified_input)
-    # R02a has no qualified native execution producer. Do not inspect candidate
-    # outputs to manufacture a native receipt before this held boundary.
-    if verified_input.document["admission_policy"]["qualification_scope"] == "native":
-        raise ValueError("r02_native_emission_unqualified")
+    native = verified_input.document["admission_policy"]["qualification_scope"] == "native"
+    if native:
+        _require_native_complete(builds, audit, evidence, evidence_reader)
     if set(builds) != {"A", "B"}:
         raise ValueError("exact independent A/B records required")
     archives = []
@@ -112,7 +117,36 @@ def emit(
         "cleanup": cleanup,
     }
     raw = canonical_bytes(value)
+    if native:
+        return raw, None
     verified = verify_shared_receipt(
         raw, verified_input, output_reader, evidence_reader, qualification_policy
     )
     return raw, verified
+
+
+def _require_native_complete(builds, audit, evidence, evidence_reader):
+    """Producer completeness before any output read: both lanes' class reports clean
+    and one complete R6 qualification record matching the lanes' arch and engine."""
+    from cortex_core.release.codec import decode_json
+    from cortex_core.release.receipts import qualification_complete
+
+    try:
+        if set(builds) != {"A", "B"} or set(audit.get("reports", {})) != {"A", "B"}:
+            raise ValueError
+        rows = [row for row in evidence["inventory"] if row["role"] == "native.qualification"]
+        if len(rows) != 1:
+            raise ValueError
+        raw = verify_checked_bytes(evidence_reader(rows[0]["path"]), rows[0]["sha256"])
+        doc = qualification_complete(decode_json(raw, 1024 * 1024))
+        for slot in ("A", "B"):
+            observed = builds[slot]["observed_builder"]
+            if observed["architecture"] != doc["architecture"] or observed["engine"] != doc["engine"]:
+                raise ValueError
+            for record in audit["reports"][slot].values():
+                report = decode_json(verify_checked_bytes(evidence_reader(record["path"]), record["sha256"]),
+                                     8 * 1024 * 1024)
+                if report.get("findings") != []:
+                    raise ValueError
+    except (ValueError, KeyError, TypeError, OSError):
+        raise ValueError("r02_native_emission_unqualified") from None
