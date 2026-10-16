@@ -121,6 +121,33 @@ def _stream(child, key, measured, found=None, fail='native_child_evidence'):
     return measured[stream['path']]
 
 
+def _journal_join(child, measured, found, fail):
+    """One child's MEASURED adapter journal (engine.run_operation's two rows) must parse
+    and join that child (Vera R6T1-R1): started with the child's exact argv,
+    environment names and timeout, inside the child's own interval; then finished/failed
+    with the child's exit or error. Returns (started row, closing row)."""
+    try:
+        rows = [decode_json(line, 1024 * 1024, canonical=False)
+                for line in _stream(child, 'journal', measured, found, fail).split(b'\n') if line]
+    except ValueError:
+        raise ReceiptRefusal(fail) from None
+    require(len(rows) == 2 and all(type(r) is dict for r in rows), fail)
+    first, last = rows
+    started, finished, error = child.get('started_at_unix_ns'), child.get('finished_at_unix_ns'), child.get('error')
+    require(set(first) == {'status', 'argv', 'environment_names', 'started_at_unix_ns', 'timeout_ns'} and
+            first['status'] == 'started' and first['argv'] == child.get('argv') and
+            first['environment_names'] == child.get('environment_names') and
+            type(child.get('timeout_ns')) is int and first['timeout_ns'] == child['timeout_ns'] and
+            set(last) == {'status', 'exit', 'error', 'finished_at_unix_ns', 'elapsed_ns'} and
+            all(type(v) is int for v in (started, finished, first['started_at_unix_ns'], last['finished_at_unix_ns'],
+                                         last['elapsed_ns'])) and
+            started <= first['started_at_unix_ns'] <= last['finished_at_unix_ns'] <= finished and
+            last['elapsed_ns'] >= 0 and last['error'] == error and
+            (last['exit'] == child.get('exit') if error is None else child.get('exit') is None) and
+            last['status'] == ('finished' if child.get('exit') == 0 and error is None else 'failed'), fail)
+    return first, last
+
+
 def _nested_group(nested, measured, doc, capability, limits, fail, found=None):
     """The six real R3 children of one contained run (load, inspect, run, rm, ps,
     unshare), bound to the engine, the given admitted capability's image and owned
@@ -146,11 +173,10 @@ def _nested_group(nested, measured, doc, capability, limits, fail, found=None):
             all(child.get('cwd') == session and child.get('environment_names') == sorted(ENGINE_ENVIRONMENT)
                 for child in nested), fail)
     _deleter(nested[5]['argv'], prefix, doc, [session + '/store', session + '/run'])
-    for index, child in enumerate(nested):
-        for key in ('stdout', 'stderr', 'journal'):
-            if index == 2 and child.get('exit') is None and child.get(key) is None:
-                continue  # a run stopped by its deadline may have no streams; its row decides
-            _stream(child, key, measured, found, fail)
+    for child in nested:
+        for key in ('stdout', 'stderr'):
+            _stream(child, key, measured, found, fail)  # a stopped run keeps its adapter streams too
+        _journal_join(child, measured, found, fail)
     require(all(nested[i].get('exit') == 0 for i in (0, 1, 3, 4, 5)) and
             _stream(nested[4], 'stdout', measured, found, fail).strip() == b'', fail)  # the run's container is absent
     return session, name, run
@@ -182,19 +208,20 @@ def qualification_row(kind, request_raw, children, measured, context):
     require(capability is not None, fail)
     _, _, run = _nested_group(children, measured, context['doc'], capability, limits, fail, found)
     if kind == 'time':
-        # Stopped by the run deadline, no reply. The collector's row records the run's
-        # window: it ends at the admitted limits.seconds counted from the run's budget
-        # (begun at most TIME_SETUP_SLACK_SEC before the load child), the run was held
-        # until then and killed within the fixed kill wait; cleanup proves the --name gone.
+        # Stopped by the run deadline, no reply. The MEASURED adapter journal decides
+        # (Hale R6-ORACLE-001.TIME): exactly started + failed/TimeoutExpired for THIS
+        # argv and environment, its timeout == the collector's, held until that timeout
+        # and killed within the fixed kill wait. The window ends at the admitted
+        # limits.seconds counted from the run's budget (begun at most
+        # TIME_SETUP_SLACK_SEC before the load child); cleanup proves the --name gone.
         from .inspector import KILL_SECONDS
-        timeout, started, finished = run.get('timeout_ns'), run.get('started_at_unix_ns'), run.get('finished_at_unix_ns')
-        load = children[0].get('started_at_unix_ns')
-        require(run.get('exit') is None and run.get('error') == 'TimeoutExpired' and
-                all(type(v) is int for v in (timeout, started, finished, load)) and timeout > 0, fail)
+        first, last = _journal_join(run, measured, found, fail)  # already joined in _nested_group; parsed again here
+        timeout, started, load = run['timeout_ns'], run['started_at_unix_ns'], children[0].get('started_at_unix_ns')
+        require(run.get('error') == 'TimeoutExpired' and last['error'] == 'TimeoutExpired' and type(load) is int and
+                timeout > 0 and timeout <= last['elapsed_ns'] <= timeout + int((KILL_SECONDS + 1) * 10 ** 9), fail)
         end = started + timeout + int(KILL_SECONDS * 10 ** 9)
         window = load + limits['seconds'] * 10 ** 9
-        require(window - TIME_SETUP_SLACK_SEC * 10 ** 9 <= end <= window and
-                timeout <= finished - started <= timeout + int((KILL_SECONDS + 1) * 10 ** 9), fail)
+        require(window - TIME_SETUP_SLACK_SEC * 10 ** 9 <= end <= window, fail)
         require(decode_json(request_raw, 1024) == {'schema': PROBE_REQUEST_SCHEMA, 'probe': 'time'}, fail)
         return found, None
     require(run.get('exit') == 0, fail)
@@ -233,7 +260,7 @@ def qualification_row(kind, request_raw, children, measured, context):
         # pids controller attributed it (events max +1); an early EAGAIN refuses.
         ok = (reply['errno'] == 'EAGAIN' and reply['pids_max'] == limits['pids'] and
               reply['pids_current_at_denial'] == limits['pids'] and type(reply['pids_events_max_delta']) is int and
-              reply['pids_events_max_delta'] >= 1 and reply['reaped'] is True)
+              reply['pids_events_max_delta'] == 1 and reply['reaped'] is True)  # exactly the one denied fork (kai)
     elif kind == 'memory':
         ok = (reply['memory_max'] == limits['memory_bytes'] and type(reply['attempted_bytes']) is int and
               reply['attempted_bytes'] > limits['memory_bytes'] and reply['child_signal'] == 9 and
