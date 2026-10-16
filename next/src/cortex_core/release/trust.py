@@ -23,6 +23,11 @@ from .ed25519 import verify_ed25519
 
 MISSING_UNIT='R01 unit 3: signed Core/API aggregate and member admission'
 PRODUCTION_KEY_ID='7BBB4B7E0CE8852E'
+# The ONE baked public root (CTO H-D518): the exact published minisign public
+# half KOS also bakes. A short key ID is not identity; an internal TEST root is
+# a separate installer build, never a second root or switch here.
+PRODUCTION_ROOT=(b'untrusted comment: minisign public key 7BBB4B7E0CE8852E\n'
+                 b'RWQuhegMfku7e4RltjV64sZmxXHEETzAntDePCQsJPYvXXujVMqKIvHL\n')
 MAX_MANIFEST=1048576
 MAX_SIGNATURE=4096
 MAX_POLICY=8388608
@@ -123,6 +128,7 @@ def verify_manifest(raw: bytes, signature: bytes) -> ManifestSignature:
         _require(policy.get('root',{}).get('key_id')==PRODUCTION_KEY_ID,'aggregate_root_mismatch')
         if next(_POLICY_VALIDATOR.iter_errors(policy),None) is not None:
             raise Refusal('required_binding_gap',unit=MISSING_UNIT)
+        _require(type(context.public_root) is bytes and context.public_root==PRODUCTION_ROOT,'aggregate_root_mismatch')
         return _verify_original(raw,signature,context)
     except Refusal:raise
     except Exception:
