@@ -30,11 +30,14 @@ class _Work:
     deadline: float
     adapter: object
     connection: object = None
+    handle: object = None
     used: bool = False
     leased: bool = False
     fenced: bool = False
     absent: bool = True
     commit_known: bool = False
+    reconciling: bool = False
+    caller_done: bool = False
     worker: object = None
     operations: set = field(default_factory=set)
 
@@ -71,13 +74,32 @@ class _SyncSessions:
     def _reap(self, work):
         # Only the loop mutates ownership. Completed IO alone does not prove
         # session absence; completed worker alone does not prove IO absence.
+        if (work.worker.done() and not work.operations and not work.absent
+                and work.fenced and not work.reconciling and work.connection is not None
+                and self._loop.time() < work.deadline):
+            # A cancelled caller does not strand a now-idle session. Reconcile
+            # only after BOTH worker and IO finish, under the SAME original E.
+            work.reconciling = True
+            async def reconcile():
+                try: await work.adapter.retire(work.connection, deadline=work.deadline)
+                finally: work.absent = work.connection not in work.adapter._sessions
+            task = self._loop.create_task(reconcile())
+            work.operations.add(task)
+            def reconciled(done):
+                work.operations.discard(done)
+                if not done.cancelled(): done.exception()
+                self._reap(work)
+            task.add_done_callback(reconciled)
         if work.worker.done() and not work.operations and work.absent:
+            if work.handle is not None and (work.caller_done or work.fenced):
+                work.handle.close()
             if work in self._owned:
                 self._owned.remove(work)
                 self._slots.release()
 
     def _fence(self, work):
         work.fenced = True
+        if work.handle is not None: work.handle.close()
         for task in tuple(work.operations): task.cancel()
 
     async def _dispatch(self, work, operation):
@@ -149,12 +171,9 @@ class _SyncSessions:
                 self._fence(work)
                 raise self._failure(work, 'cleanup_unproved')
             if work.used:
-                # The physical session's handle was retired. Recheck the fixed
-                # X3 source AFTER outer release, without material or a new E.
-                handle = await SecretResolver().resolve(self._reference, 'api_request',
-                    self._installation, 'api', deadline)
-                try: await SecretResolver().check(handle, deadline)
-                finally: handle.close()
+                # Keep the ORIGINAL publication handle across physical retirement.
+                # Resolving a fresh handle here would accept a changed generation.
+                await SecretResolver().check(work.handle, deadline)
                 self._current(work)
             return value
         except asyncio.CancelledError:
@@ -165,19 +184,30 @@ class _SyncSessions:
             reason = error.reason if isinstance(error, SecretRefusal) else 'session_unavailable'
             raise self._failure(work, reason) from None
         finally:
+            work.caller_done = True
+            if work.handle is not None: work.handle.close()
             # Retain/observe a detached worker's exception and never publish it.
             if not work.worker.done():
                 work.worker.add_done_callback(lambda f: None if f.cancelled() else f.exception())
             self._reap(work)
 
     async def _open(self, work):
-        work.used, work.absent = True, False
-        remaining = min(2, work.deadline-self._loop.time())
+        work.used = True
         try:
+            # This handle carries no material. It pins the existing X3 original
+            # across transaction IO AND physical handle retirement/publication.
+            work.handle = await SecretResolver().resolve(self._reference, 'api_request',
+                self._installation, 'api', work.deadline)
+            self._current(work)
+            remaining = min(2, work.deadline-self._loop.time())
+            work.absent = False
             work.connection = await work.adapter.connect(connect_timeout_seconds=remaining,
                 statement_timeout_ms=max(1, int(remaining*1000)))
             await work.adapter.check(work.connection, deadline=work.deadline)
+            await SecretResolver().check(work.handle, work.deadline)
         except SecretRefusal as error:
+            if work.connection is not None and work.connection in work.adapter._sessions:
+                await work.adapter.retire(work.connection, deadline=work.deadline)
             # X3 proves retirement/abort before raising any non-HOLD refusal.
             work.absent = error.result != 'HOLD'
             raise
@@ -240,7 +270,10 @@ class _Connection:
     def _call(self, operation):
         async def checked():
             if not self._work.leased: raise SessionRefusal('session_not_leased')
-            return await operation()
+            await SecretResolver().check(self._work.handle, self._work.deadline)
+            result = await operation()
+            await SecretResolver().check(self._work.handle, self._work.deadline)
+            return result
         return self._bridge._sync(self._work, checked)
 
     def _attribute(self, name):
@@ -260,13 +293,22 @@ class _Connection:
         return SimpleNamespace(transaction_status=self._call(status))
 
     def execute(self, sql, params=None):
-        async def execute(): return await self._work.connection.execute(sql, params)
+        async def execute():
+            remaining = min(2, self._work.deadline-self._bridge._loop.time())
+            if remaining <= 0: raise SessionRefusal('deadline_or_lifetime_expired')
+            # A queue/earlier statement consumes E. The connect-time GUC alone
+            # would otherwise leave a later native statement its old full budget.
+            await self._work.connection.execute(
+                "SELECT set_config('statement_timeout', %s, false)",
+                (str(max(1, int(remaining*1000))),))
+            await SecretResolver().check(self._work.handle, self._work.deadline)
+            return await self._work.connection.execute(sql, params)
         return _Cursor(self, self._call(execute))
 
     def transaction(self): return _Transaction(self)
 
     def close(self):
-        return self._call(lambda: self._bridge._release(self._work))
+        return self._bridge._sync(self._work, lambda: self._bridge._release(self._work))
 
 
 class _Cursor:
