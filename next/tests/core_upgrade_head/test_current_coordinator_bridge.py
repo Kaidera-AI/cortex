@@ -363,17 +363,21 @@ class CurrentBridge(unittest.TestCase):
 
     def test_selected20_suffix_is_atomic_reentry_preserves_original19(self):
         entries = json.loads((CURRENT_ROOT/'schema/manifest.json').read_bytes())['migrations']
+        target_id = 'runtime-grants-0001'
+        migration_ids = [entry['id'] for entry in entries]
+        self.assertEqual(migration_ids.count(target_id), 1)
+        entries = entries[:migration_ids.index(target_id)+1]
         self.assertEqual(entries[:19], FROZEN_ENTRIES)
         self.assertEqual(len(entries), 20)
         self.assertEqual(entries[19]['id'], 'runtime-grants-0001')
         self.db = RecordingDB(entries)
         self.db.ledger = {x['id']:x['sha256'] for x in FROZEN_ENTRIES}
         before = copy.deepcopy(self.db.data)
-        self.assertEqual(apply_migrations(self.db), ['runtime-grants-0001'])
+        self.assertEqual(apply_migrations(self.db, through=target_id), ['runtime-grants-0001'])
         self.assertEqual(self.db.commits, 1)
         self.assertEqual(self.db.info.transaction_status, TransactionStatus.IDLE)
         self.assertEqual(list(self.db.ledger.items()), [(x['id'],x['sha256']) for x in entries])
-        self.assertEqual(apply_migrations(self.db), [])
+        self.assertEqual(apply_migrations(self.db, through=target_id), [])
         self.assertEqual(self.db.migration_calls, ['runtime-grants-0001'])
         self.assertEqual(self.db.duplicate_ledger_inserts, [])
         self.assertEqual(self.db.data, before)
