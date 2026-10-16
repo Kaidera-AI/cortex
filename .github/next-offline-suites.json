@@ -154,6 +154,7 @@
     "next/tests/release/test_unit1_red.py",
     "next/tests/release/test_verifier_boundary.py",
     "next/tests/release/test_verifier_boundary_aliases.py",
+    "next/tests/release/test_verifier_boundary_stdlib_aliases.py",
     "next/tests/reproducibility/test_attempt_lessons.py",
     "next/tests/reproducibility/test_bytecode_positive.py",
     "next/tests/reproducibility/test_engine_controls.py",
