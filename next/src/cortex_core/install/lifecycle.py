@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import secrets
 import stat
+import threading
 import time
 
 from cortex_core.release.codec import canonical_bytes, decode_json
@@ -58,6 +59,7 @@ class _History:
 
     def __init__(self, root):
         self.root = Path(root)
+        self._publication = threading.local()
         _require(self.root.is_absolute(), 'custody_changed')
         try:
             self.root.mkdir(mode=0o700, exist_ok=True)
@@ -134,7 +136,7 @@ class _History:
                     _, fresh = _admitted_deadline(deadline, expected_context=expected_context)
                     owner._same_context(admitted,fresh)
                     _require(time.monotonic_ns() < stop,'reservation_expired')
-                yield
+                yield stop if deadline is not None else None
             except OSError:
                 raise owner.OwnerRefusal('atomicity_unavailable') from None
             finally:
@@ -142,10 +144,50 @@ class _History:
                     fcntl.flock(fd, fcntl.LOCK_UN)
                     os.close(fd)
 
+    @contextmanager
     def operation(self, *, deadline=None, expected_context=None):
-        # Stable installation/operation/resource exclusion is distinct from CAS.
-        # The fixed owner uses the same root for all operations it serializes.
-        return self._lock('.operation.lock',**({} if deadline is None else {'deadline':deadline, 'expected_context':expected_context}))
+        # One resource lock and one original owner/deadline for this operation.
+        # Thread-local scope only carries private DATA to existing persistence;
+        # it is neither another supplier nor an installed authority capability.
+        with self._lock('.operation.lock', **({} if deadline is None else {
+                'deadline': deadline, 'expected_context': expected_context})) as stop:
+            previous = getattr(self._publication, 'current', None)
+            if deadline is not None:
+                if previous is not None:
+                    _require(previous[0] == deadline, 'reservation_expired')
+                    if previous[1] is not None and expected_context is not None:
+                        _continuity(previous[1], expected_context)
+                self._publication.current = (deadline, expected_context,
+                    stop if previous is None else min(stop, previous[2]))
+            try:
+                yield
+                # Final owner/history reads can return after the original stop.
+                # Refuse a late successful ACK while retaining durable facts.
+                if deadline is not None:
+                    self._check_publication(self.head()[0])
+            finally:
+                self._publication.current = previous
+
+    def _check_publication(self, expected_head=None, *, check_chain=True):
+        scope = getattr(self._publication, 'current', None)
+        if scope is None:
+            return  # Unbound private source recorders, never the fixed entry.
+        deadline, context, stop = scope
+        _require(time.monotonic_ns() < stop, 'reservation_expired')
+        if not check_chain:
+            # Retained facts are ordinary evidence, not a published decision.
+            # The event/child ACK re-admits after all their persistence waits.
+            return
+        _require(self.head()[0] == expected_head, 'generation_changed')
+        revision = self.current_revision()
+        _, current = _admitted_deadline(deadline, expected_context=context)
+        if revision is not None:
+            _require(current.observed_state_revision == revision, 'generation_changed')
+        elif context is not None:
+            _require(current.observed_state_revision == context['state_revision'], 'generation_changed')
+        _require(self.head()[0] == expected_head, 'generation_changed')
+        # Reads/observation can wait too; retain the operation's original cutoff.
+        _require(time.monotonic_ns() < stop, 'reservation_expired')
 
     def _read_path(self, folder, name, *, missing_ok=False):
         with self._root() as root:
@@ -194,6 +236,10 @@ class _History:
 
     def _publish(self, folder, name, raw):
         _require(type(raw) is bytes and len(raw) <= _RAW_LIMIT, 'journal_invalid')
+        guarded = getattr(self._publication, 'current', None) is not None
+        publication_head = self.head()[0] if guarded and folder == 'events' else None
+        if guarded and folder == 'events':
+            self._check_publication(publication_head)
         with self._root() as root:
             directory = self._directory(root, folder)
             temporary = '.pending-'+secrets.token_hex(16)
@@ -204,6 +250,9 @@ class _History:
                     file.write(raw)
                     file.flush()
                     os.fsync(file.fileno())
+                # File fsync may wait: re-admit before exposing a chain event.
+                if guarded and folder == 'events':
+                    self._check_publication(publication_head)
                 # Atomic no-clobber publication; originals and events are immutable.
                 try:
                     os.link(temporary, name, src_dir_fd=directory, dst_dir_fd=directory,
@@ -212,6 +261,11 @@ class _History:
                     _require(self._read_path(folder, name) == raw, 'journal_invalid')
                 os.unlink(temporary, dir_fd=directory)
                 os.fsync(directory)
+                if guarded:
+                    # Ordinary original bytes may survive lost authority as DATA.
+                    # A late observation never ACKs a stale event or receipt.
+                    expected = _ref('events/'+name, raw) if folder == 'events' else publication_head
+                    self._check_publication(expected, check_chain=folder == 'events')
             except OSError:
                 raise owner.OwnerRefusal('atomicity_unavailable') from None
             finally:
@@ -842,9 +896,8 @@ def _execute_bound(original_request, first):
     if request['operation'] == 'recover':
         _, subject = _load_entry(history,request['journal_ref'])
         mandated = _decode(history.read(subject['attempt_ref'])).get('sql_mandate_ref') is not None
-    deadline = first.deadline if mandated else None
-    with history.operation(**({} if deadline is None else {
-            'deadline':deadline, 'expected_context':thaw(first.context)})):
+    deadline = first.deadline
+    with history.operation(deadline=deadline, expected_context=thaw(first.context)):
         inputs, current = _current_owner(original_request, first.deadline)
         owner._same_context(first, current)
         request = thaw(parse_install_message(original_request,expected_kind='request').document)
@@ -887,27 +940,26 @@ def _execute_bound(original_request, first):
             _sql_prefix(history,consumed,consumed)
         effect_context = freeze(effect_data)
         try:
+            # Dispatch preparation can wait after its last owner observation.
+            history._check_publication(consumed)
             if cleanup is None or cleanup['targets']:
                 primitive.dispatch(effect_context)
             with _measurement(primitive,effect_context,mandated=mandated) as measured:
                 # The same measure owns v2 SQL exclusion until durable P1 ACK.
                 history.retain(measured)
                 result_inputs = _owner_inputs()
-                publication = {}
-                if mandated:
-                    _, fresh = _current_owner(original_request,deadline)
-                    _continuity(thaw(dispatch_current.context),thaw(fresh.context))
-                    publication = {'publication_head':history.head()[0],
-                        'publication_revision':fresh.observed_state_revision,'deadline':deadline,
-                        'publication_context':thaw(fresh.context)}
+                _, fresh = _current_owner(original_request, deadline)
+                _continuity(thaw(dispatch_current.context), thaw(fresh.context))
+                publication = {'publication_head': history.head()[0],
+                    'publication_revision': fresh.observed_state_revision, 'deadline': deadline,
+                    'publication_context': thaw(fresh.context)}
                 completed = _record_result(history, consumed, measured,
                     current_context=thaw(dispatch_current.context), originals=dispatch_inputs.originals,
                     clock_raw=result_inputs.current_clock_raw, result_originals=result_inputs.originals,
                     cleanup_plan=cleanup,**publication)
-                if mandated:
-                    _, after = _current_owner(original_request,deadline)
-                    _continuity(thaw(fresh.context),thaw(after.context))
-                    _require(after.observed_state_revision == fresh.observed_state_revision+1,'generation_changed')
+                _, after = _current_owner(original_request, deadline)
+                _continuity(thaw(fresh.context), thaw(after.context))
+                _require(after.observed_state_revision == fresh.observed_state_revision+1, 'generation_changed')
         except owner.OwnerRefusal:
             raise
         except Exception:

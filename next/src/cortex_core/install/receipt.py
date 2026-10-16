@@ -53,7 +53,7 @@ def _persist_child_receipt(original_request, original_child):
     owner._require(type(bindings) is lifecycle._Bindings
         and type(bindings.history) is lifecycle._History, 'backend_unavailable')
     history = bindings.history
-    with history.operation():
+    with history.operation(deadline=first.deadline, expected_context=thaw(first.context)):
         inputs, current = lifecycle._current_owner(original_request, first.deadline)
         owner._same_context(first, current)
         if (parse_install_message is not contracts.parse_install_message

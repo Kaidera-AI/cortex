@@ -205,3 +205,46 @@ class AdmissionOrdering(unittest.TestCase):
             with self.assertRaises(owner.OwnerRefusal) as got:
                 owner.propose_effect(b'{}\n')
         self.assertEqual(got.exception.detail, 'invalid_request')
+
+
+class X1OriginalAdmission(unittest.TestCase):
+    """Fixture-only full-chain refusals; existing owner/codec remain unchanged."""
+
+    def test_x1_authority_faults_never_reach_lifecycle_or_dispatch(self):
+        import test_owner_proposal as original
+        from cortex_core.install import lifecycle
+        helper = original.OwnerProposalOracle()
+        changes = [
+            ('peer_denied', lambda d: helper.edit_record(d, 'peer_ref', lambda p: p.update(owner_uid=502))),
+            ('peer_denied', lambda d: helper.edit_record(d, 'peer_ref', lambda p: p.update(owner_epoch='forged'))),
+            ('session_stale', lambda d: helper.edit_record(d, 'peer_ref', lambda p: p.update(expires_at=1700000001))),
+            ('consent_revoked', lambda d: helper.edit_record(d, 'consent_ref', lambda c: c.update(revoked=True))),
+            ('time_unavailable', lambda d: helper.clock(d, lambda c: c.update(owner_epoch='forged'))),
+            ('reservation_expired', lambda d: helper.clock(d, lambda c: c.update(monotonic_ns=105000000000))),
+            ('fence_changed', lambda d: helper.edit_record(d, 'current_state_ref', lambda s: s.update(host_fence=999))),
+            ('scope_denied', lambda d: helper.scope(d, lambda s: s['identity'].update(request_id='forged'))),
+        ]
+        for detail, change in changes:
+            with self.subTest(detail=detail):
+                data = helper.data(); change(data)
+                double = NonAuthoritativeSignedMemberDouble(data['runtime_lock_raw'].encode(),
+                    aggregate_id=data['aggregate_id'], member_name='runtime.lock.json')
+                with patch.object(owner, '_installed_owner_inputs', lambda: helper.inputs(owner, data)),                         double.installed(signed_member),                         patch.object(lifecycle, '_installed_lifecycle') as backend:
+                    with self.assertRaises(owner.OwnerRefusal) as caught:
+                        lifecycle.execute_effect(data['request_raw'].encode())
+                self.assertEqual(caught.exception.detail, detail, 'X1A_ORIGINAL_AUTHORITY')
+                backend.assert_not_called()
+
+    def test_x1_changed_original_after_r01_has_no_lifecycle_binding(self):
+        import test_owner_proposal as original
+        from cortex_core.install import lifecycle
+        helper = original.OwnerProposalOracle(); data = helper.data(); fresh = copy.deepcopy(data)
+        helper.edit_record(fresh, 'peer_ref', lambda p: p.update(lifetime='replacement-process'))
+        values = iter([helper.inputs(owner, data), helper.inputs(owner, fresh)])
+        double = NonAuthoritativeSignedMemberDouble(data['runtime_lock_raw'].encode(),
+            aggregate_id=data['aggregate_id'], member_name='runtime.lock.json')
+        with patch.object(owner, '_installed_owner_inputs', lambda: next(values)),                 double.installed(signed_member), patch.object(lifecycle, '_installed_lifecycle') as backend:
+            with self.assertRaises(owner.OwnerRefusal) as caught:
+                lifecycle.execute_effect(data['request_raw'].encode())
+        self.assertEqual(caught.exception.detail, 'resource_changed', 'X1A_ORIGINAL_JOIN')
+        backend.assert_not_called()
