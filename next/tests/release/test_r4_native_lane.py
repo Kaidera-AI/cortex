@@ -385,63 +385,129 @@ class Audit(unittest.TestCase):
         self.assertNotEqual(record['result'], 'PASS')
 
 
-SESSION = '/fixture/owned/session-' + 'a' * 32
-NAME = 'cortex-inspector-' + 'b' * 32
-PROBE_IMAGE = 'sha256:' + 'c' * 64
+ALLOWLIST = {'mounts': ['/', '/cortex-request.json', '/dev', '/proc', '/sys'], 'environment': ['HOME', 'PATH', 'container']}
 
 
-def journal(lane, image, *, exit=0, status='finished', error=None, environment=None, argv=None):
+def probe_closure(lane):
+    """The test-only purpose=probe asset (R6-ASSET-001): the same image shape with the
+    probe script at the inspector path, admitted through the SAME port, same engine."""
+    if 'probe' not in vars(lane):
+        script = Path(product('_probe').__file__).read_bytes()
+        fx = lane.fx
+        root = fx.top / 'probe-owned'
+        root.mkdir(mode=0o755)
+        archive, manifest, config, diff_id = r3.image(entries=r3.layer_entries(script=script))
+        fx.write(root / 'inspector.tar', archive, 0o444)
+        descriptor = fx.make_descriptor()
+        descriptor.update(archive={'path': 'inspector.tar', 'bytes': len(archive), 'sha256': sha(archive), 'mode': 0o444},
+                          manifest_sha256=manifest, config_sha256=config)
+        descriptor['members'][1] = dict(role='inspector', **fx.row(inspector.STARTUP[4], script, 0o644))
+        raw = codec.canonical_bytes(descriptor)
+        lane.probe = inspector.admit_closure(raw, sha(raw), fx.profile, root, candidate_roots=[fx.candidate], script=script)
+        lane.images = {lane.closure.image_digest: (fx.config, fx.diff_id), lane.probe.image_digest: (config, diff_id)}
+    return lane.probe
+
+
+def observations(lane):
     limits = lane.fx.profile['inspector']['limits']
-    argv = argv or list(inspector.plan_argv(str(lane.closure.engine), image, limits, SESSION, NAME))
-    first = {'status': 'started', 'argv': argv, 'environment_names': environment or sorted(inspector.ENGINE_ENVIRONMENT),
-             'started_at_unix_ns': 1, 'timeout_ns': 1}
-    last = {'status': status, 'exit': exit, 'error': error, 'finished_at_unix_ns': 2, 'elapsed_ns': 1}
-    return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+    return {'network': {'probe': 'network', 'attempted': '1.1.1.1:443', 'interfaces': ['lo'], 'errno': 'ENETUNREACH'},
+            'rootfs_write': {'probe': 'rootfs_write', 'target': '/opt/cortex-inspector/canary', 'errno': 'EROFS', 'written': False},
+            'tmpfs': {'probe': 'tmpfs', 'target': '/tmp/cortex-probe', 'errno': 'EROFS', 'written': False, 'tmpfs_on_tmp': False},
+            'pids': {'probe': 'pids', 'errno': 'EAGAIN', 'pids_max': limits['pids'], 'pids_current_at_denial': limits['pids'],
+                     'pids_events_max_delta': 1, 'children': limits['pids'] - 2, 'reaped': True},
+            'memory': {'probe': 'memory', 'memory_max': limits['memory_bytes'], 'attempted_bytes': 2 * limits['memory_bytes'],
+                       'child_signal': 9, 'oom_kill_delta': 1},
+            'mounts_env': {'probe': 'mounts_env', 'mounts': list(ALLOWLIST['mounts']),
+                           'environment': list(ALLOWLIST['environment'])}}
 
 
-def originals(lane, *, positive_equal=True, negative_same=False, probe_exit=None, probe_denied=True,
-              flags=None, environment=None):
-    core = product('_pyc_check')
-    import base64
-    rows = [{'cache': r['cache'], 'source': r['source'], 'final_filename': r['final_filename'],
-             'cache_b64': base64.b64encode(r['cache_bytes']).decode(), 'source_b64': base64.b64encode(r['source_bytes']).decode()}
-            for r in r3.rows(('m', b'x = 1\n'), ('n', b'y = 2\n'))]
-    flipped = base64.b64decode(rows[0]['cache_b64'])
-    flipped = base64.b64encode(flipped[:-1] + bytes([flipped[-1] ^ 1])).decode()
-    def request(rows):
-        return codec.canonical_bytes({'schema': core.REQUEST_SCHEMA, 'policy_sha256': lane.closure.policy_sha256,
-                                      'closure_sha256': lane.closure.closure_sha256,
-                                      'abi': {'version': r3.VERSION, 'magic': r3.MAGIC}, 'optimization': 0, 'rows': rows})
-    def reply(raw, equals):
-        return codec.canonical_bytes({'schema': core.RESPONSE_SCHEMA, 'request_sha256': sha(raw),
-                                      'abi': {'version': r3.VERSION, 'magic': r3.MAGIC, 'machine': 'x86_64'},
-                                      'verdicts': [{'cache': r['cache'], 'equal': e} for r, e in zip(rows, equals)]})
-    files = {}
-    positive = request(rows)
-    negative = positive if negative_same else request([dict(rows[0], cache_b64=flipped), rows[1]])
-    argv = None
-    if flags:
-        argv = [t if t != '--network=none' else flags for t in inspector.plan_argv(
-            str(lane.closure.engine), lane.closure.image_digest, lane.fx.profile['inspector']['limits'], SESSION, NAME)]
-    files['q/positive.request'] = positive
-    files['q/positive.reply'] = reply(positive, [positive_equal, True])
-    files['q/positive.journal'] = journal(lane, lane.closure.image_digest, environment=environment, argv=argv)
-    files['q/negative.request'] = negative
-    files['q/negative.reply'] = reply(negative, [False, True])
-    files['q/negative.journal'] = journal(lane, lane.closure.image_digest)
-    containment = {}
-    for name in receipts.PROBES:
-        if name == 'memory':
-            files['q/memory.journal'] = journal(lane, PROBE_IMAGE, exit=probe_exit or 137, status='failed')
-            containment[name] = {'journal': 'q/memory.journal', 'observation': None}
-        elif name == 'time':
-            files['q/time.journal'] = journal(lane, PROBE_IMAGE, exit=None, status='failed', error='TimeoutExpired')
-            containment[name] = {'journal': 'q/time.journal', 'observation': None}
-        else:
-            files['q/' + name + '.journal'] = journal(lane, PROBE_IMAGE, exit=probe_exit or 0)
-            files['q/' + name + '.observation'] = codec.canonical_bytes({'probe': name, 'denied': probe_denied})
-            containment[name] = {'journal': 'q/' + name + '.journal', 'observation': 'q/' + name + '.observation'}
-    return files, containment
+class Wall:
+    """time.time_ns plus an offset the fake engine advances (a run held to its deadline)."""
+
+    def __init__(self):
+        self.real, self.offset = time.time_ns, 0
+
+    def __call__(self):
+        return self.real() + self.offset
+
+
+class QEngine:
+    """The fake engine at inspector._engine for the R6 rows: real streams, the real
+    controller core for the inspector image, a configured observation for the probe
+    image; `time` is held to its deadline (or ends early), `survivor` leaves a container."""
+
+    def __init__(self, lane, wall, *, observe=None, run_exit=None, time_mode='deadline', survivor=None, reply=None,
+                 image_ids=None):
+        self.lane, self.wall, self.calls = lane, wall, []
+        self.observe = dict(observations(lane), **(observe or {}))
+        self.run_exit, self.time_mode, self.survivor, self.reply = run_exit or {}, time_mode, survivor, reply
+        self.image_ids, self.current = image_ids or {}, None
+
+    def __call__(self, argv, environment, session, timeout, limit):
+        verb = argv[8]
+        self.calls.append(verb)
+        code, out = self.respond(verb, argv, timeout)
+        files = {}
+        for key, raw in (('stdout', out), ('stderr', b''), ('journal', b'{"fixture":true}\n')):
+            path = Path(session) / ('fixture-' + str(len(self.calls)) + '.' + key)
+            path.write_bytes(raw)
+            files[key] = path
+        return code, out, files
+
+    def respond(self, verb, argv, timeout):
+        if verb == 'image':
+            config, diff_id = self.lane.images[argv[-1]]
+            config = self.image_ids.get(argv[-1], config)
+            return 0, json.dumps([{'Id': config, 'Os': 'linux', 'Architecture': 'amd64', 'RootFS': {'Layers': [diff_id]}}]).encode()
+        if verb == 'run':
+            image = argv[argv.index('--entrypoint') + 2]
+            request = Path(next(a for a in argv if a.startswith('type=bind,src=')).split(',')[1][4:]).read_bytes()
+            if image == self.lane.closure.image_digest:
+                value = json.loads(r3.core.respond(request))
+                value['abi']['machine'] = 'x86_64'
+                reply = codec.canonical_bytes(value)
+                return 0, self.reply(reply, request) if self.reply else reply
+            self.current = probe = json.loads(request)['probe']
+            if probe == 'time':
+                if self.time_mode == 'early':
+                    return 1, b''
+                self.wall.offset += int(timeout * 10 ** 9) + 5 * 10 ** 8
+                raise r3.subprocess.TimeoutExpired(list(argv), timeout)
+            return self.run_exit.get(probe, 0), codec.canonical_bytes(self.observe[probe])
+        if verb == 'ps':
+            return 0, (b'f' * 64 + b'\n') if self.survivor is not None and self.survivor == self.current else b''
+        return 0, b''
+
+
+def originals(lane, *, negative_same=False, **engine):
+    """Every R6 row's originals produced by the REAL collectors (collect_inspection_evidence,
+    run_probe -> inspector._Children) through the fake engine; returns (files, rows)."""
+    import tempfile
+    probe = probe_closure(lane)
+    wall = Wall()
+    fake = QEngine(lane, wall, **engine)
+    work = Path(tempfile.mkdtemp(dir=lane.fx.top))
+    (work / runner.QUALIFICATION_DIR).mkdir()
+    cases = r3.rows(('m', b'x = 1\n'), ('n', b'y = 2\n'))
+    flipped = [dict(cases[0], cache_bytes=cases[0]['cache_bytes'][:-1] + bytes([cases[0]['cache_bytes'][-1] ^ 1])), cases[1]]
+    rows = {}
+    with patch.object(inspector, '_engine', fake), patch.object(time, 'time_ns', wall):
+        for kind, given in (('positive', cases), ('negative', cases if negative_same else flipped)):
+            (work / 'q' / kind).mkdir()
+            nested = []
+            try:
+                request = inspector.collect_inspection_evidence(lane.closure, lane.fx.profile, given,
+                                                                evidence_dir=work / 'q' / kind, history=nested)['request']
+            except ValueError:
+                request = inspector._request(lane.closure, lane.fx.profile, given)[0]
+            rows[kind] = runner._qualification_row(work, kind, request, nested)
+        for name in receipts.PROBES:
+            (work / 'q' / name).mkdir()
+            fake.current = name
+            result = inspector.run_probe(probe, lane.fx.profile, name, evidence_dir=work / 'q' / name)
+            rows[name] = runner._qualification_row(work, name, result['request'], result['children'])
+    files = {str(p.relative_to(work)): p.read_bytes() for p in work.rglob('*') if p.is_file()}
+    return files, rows
 
 
 def runner_python():
@@ -451,15 +517,13 @@ def runner_python():
 
 def qualification(lane, *, files=None, **change):
     descriptor = contracts.thaw(lane.closure.descriptor)['descriptor']
-    built, containment = originals(lane)
+    built, rows = originals(lane)
     doc = {'schema': receipts.QUALIFICATION_SCHEMA, 'architecture': 'amd64', 'platform': 'linux/amd64',
            'host': dict(HOST), 'engine': dict(lane.value['builder_requirements']['engine']),
            'engine_path': str(lane.closure.engine),
            'engine_config': {name: descriptor['engine_config'][name]['sha256'] for name in ('containers_conf', 'storage_conf')},
-           'inspector': {'closure_sha256': lane.closure.closure_sha256,
-                         'positive': {'request': 'q/positive.request', 'reply': 'q/positive.reply', 'journal': 'q/positive.journal'},
-                         'negative': {'request': 'q/negative.request', 'reply': 'q/negative.reply', 'journal': 'q/negative.journal'}},
-           'probe_image': PROBE_IMAGE, 'containment': containment,
+           'inspector': {'closure_sha256': lane.closure.closure_sha256, 'positive': rows['positive'], 'negative': rows['negative']},
+           'probe_image': lane.probe.image_digest, 'containment': {name: rows[name] for name in receipts.PROBES},
            'cleanup_interpreter': runner_python(),
            'cleanup_script': {'path': owned_remove.__file__, 'sha256': sha(Path(owned_remove.__file__).read_bytes())}}
     doc.update(change)
@@ -469,6 +533,13 @@ def qualification(lane, *, files=None, **change):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(raw)
     return doc
+
+
+def pending(lane, **change):
+    probe_closure(lane)
+    fields = {'probe': lane.probe, 'allowlist': contracts.freeze(ALLOWLIST), **change}
+    return inspector._Pending(lane.closure, contracts.freeze(lane.fx.profile), contracts.freeze(HOST), inspector._ADMITTED,
+                              **fields)
 
 
 class Emission(unittest.TestCase):
@@ -500,13 +571,14 @@ class Emission(unittest.TestCase):
     def test_missing_failed_or_mismatched_records_keep_the_emission_refusal(self):
         def missing(lane):
             files = dict(originals(lane)[0])
-            del files['q/positive.reply']
+            del files['q/positive.request']
             return qualification(lane, files=files)
         bad = {'missing original': missing,
                'other arch': lambda lane: qualification(lane, architecture='arm64', platform='linux/arm64'),
                'other engine': lambda lane: qualification(lane, engine={**lane.value['builder_requirements']['engine'], 'sha256': 'f' * 64}),
-               'probe observation missing': lambda lane: qualification(lane, containment={
-                   **originals(lane)[1], 'pids': {'journal': 'q/pids.journal', 'observation': None}})}
+               'probe children missing': lambda lane: qualification(lane, containment={
+                   **{n: r for n, r in originals(lane)[1].items() if n in receipts.PROBES},
+                   'pids': {'request': 'q/pids.request', 'children': None}})}
         for name, make in bad.items():
             with self.subTest(case=name):
                 with self.assertRaises(ValueError) as caught:
@@ -574,7 +646,7 @@ class Order(unittest.TestCase):
     verifier only, bound to this verification; one session."""
 
     def pending(self, lane):
-        return inspector._Pending(lane.closure, contracts.freeze(lane.fx.profile), contracts.freeze(HOST), inspector._ADMITTED)
+        return pending(lane)
 
     def builds(self, lane):
         return {slot: {'observed_builder': {'engine': lane.value['builder_requirements']['engine']}} for slot in ('A', 'B')}
@@ -597,23 +669,42 @@ class Order(unittest.TestCase):
     def test_matched_originals_mint_exactly_one_session(self):
         lane = Lane(self)
         pending = self.pending(lane)
-        matched, found = self.match(lane, pending)
-        self.assertEqual(len(found), len(receipts.qualification_paths(qualification(lane))))
+        files = originals(lane)[0]
+        matched, found = self.match(lane, pending, files=files)
+        # every original the collectors produced is consumed: requests, child records, streams
+        self.assertEqual(set(found), set(files))
+        self.assertLess(len(receipts.qualification_paths(qualification(lane))), len(found))
         self.assertIsInstance(inspector.admit_session(pending, matched), inspector.InspectionSession)
 
     def test_results_are_rederived_from_the_originals(self):
         lane = Lane(self)
-        cases = {'positive not equal': originals(lane, positive_equal=False)[0],
+
+        def unequal(reply, request):
+            value = json.loads(reply)
+            value['verdicts'][1]['equal'] = False
+            return codec.canonical_bytes(value)
+
+        def child(files, kind, index, change):
+            files = dict(files)
+            children = json.loads(files['q/' + kind + '.children.json'])
+            change(children[index])
+            files['q/' + kind + '.children.json'] = codec.canonical_bytes(children)
+            return files
+
+        good = originals(lane)[0]
+        cases = {'positive not equal': originals(lane, reply=unequal)[0],
                  'negative unchanged': originals(lane, negative_same=True)[0],
-                 'probe allowed': originals(lane, probe_denied=False)[0],
-                 'probe exit': originals(lane, probe_exit=3)[0],
-                 'wrong flags': originals(lane, flags='--network=host')[0],
-                 'wrong environment': originals(lane, environment=['HOME', 'PATH'])[0]}
-        swapped = dict(originals(lane)[0])
-        swapped['q/positive.reply'], swapped['q/negative.reply'] = swapped['q/negative.reply'], swapped['q/positive.reply']
+                 'probe allowed': originals(lane, observe={'network': {**observations(lane)['network'], 'errno': 'CONNECTED'}})[0],
+                 'probe exit': originals(lane, run_exit={'rootfs_write': 3})[0],
+                 'wrong flags': child(good, 'positive', 2, lambda c: c.__setitem__(
+                     'argv', [t if t != '--network=none' else '--network=host' for t in c['argv']])),
+                 'wrong environment': child(good, 'tmpfs', 2, lambda c: c.__setitem__('environment_names', ['HOME', 'PATH']))}
+        swapped = dict(good)
+        swapped['q/positive.children.json'], swapped['q/negative.children.json'] = \
+            swapped['q/negative.children.json'], swapped['q/positive.children.json']
         cases['swapped replies'] = swapped
-        missing = dict(originals(lane)[0])
-        del missing['q/tmpfs.observation']
+        missing = dict(good)
+        del missing['q/tmpfs.children.json']
         cases['missing original'] = missing
         for name, files in cases.items():
             with self.subTest(case=name):
@@ -721,6 +812,7 @@ class OwnerRound2(unittest.TestCase):
         policy = {'receipt_sha256': codec.sha256(codec.canonical_bytes(value)),
                   'policy_sha256': lane.value['admission_policy']['policy_sha256'], 'input_sha256': checked.input_sha256,
                   'qualification_scope': 'native', 'inspector_capability': lane.closure, 'inspector_host': HOST,
+                  'probe_capability': lane.probe, 'containment_allowlist': ALLOWLIST,
                   'required_classes': list(receipts.CLASSES)}
         return lane, value, measured, doc, checked, policy
 
@@ -751,10 +843,14 @@ class OwnerRound2(unittest.TestCase):
             change(request)
             raw = codec.canonical_bytes(request)
             c[2][path] = raw
-            path = 'q/' + kind + '.reply'
-            reply = json.loads(c[2][path])
+            # the run's reply stream answers the changed request (the join stays intact)
+            children = json.loads(c[2]['q/' + kind + '.children.json'])
+            stream = children[2]['stdout']
+            reply = json.loads(c[2][stream['path']])
             reply['request_sha256'] = codec.sha256(raw)
-            c[2][path] = codec.canonical_bytes(reply)
+            c[2][stream['path']] = codec.canonical_bytes(reply)
+            stream.update(bytes=len(c[2][stream['path']]), sha256=codec.sha256(c[2][stream['path']]))
+            c[2]['q/' + kind + '.children.json'] = codec.canonical_bytes(children)
 
     def children(self, c, phase):
         op = next(op for op in c[1]['builds']['A']['operations'] if op['phase'] == phase)
