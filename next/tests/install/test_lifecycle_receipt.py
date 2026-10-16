@@ -374,3 +374,58 @@ class LifecycleReceiptOracle(unittest.TestCase):
                         api.execute_effect(raw)
             self.assertEqual(caught.exception.detail, 'scope_denied')
             self.assertIsNone(history.head()[0])
+
+
+class X1HistoryExclusion(unittest.TestCase):
+    def test_x1_concurrent_consumers_have_one_durable_winner(self):
+        import threading
+        from cortex_core.install import lifecycle as api
+        check=LifecycleReceiptOracle()
+        with tempfile.TemporaryDirectory() as root:
+            history=api._History(Path(root)); helper,data,proposal,reserved=check.reserve(api,history)
+            current,clock=check.current(helper,data,proposal.observed_state_revision+1)
+            barrier=threading.Barrier(2); answers=[]
+            def consume():
+                barrier.wait()
+                try: answers.append(('ok',api._consume(history,reserved,current,clock,
+                    originals=check.current_originals)))
+                except owner.OwnerRefusal as e: answers.append(('refused',e.detail))
+            threads=[threading.Thread(target=consume) for _ in range(2)]
+            for thread in threads:thread.start()
+            for thread in threads:thread.join(10)
+            self.assertFalse(any(t.is_alive() for t in threads))
+            self.assertEqual([x[0] for x in answers].count('ok'),1)
+            self.assertEqual([x[0] for x in answers].count('refused'),1)
+            self.assertEqual(len(history.events()),2)
+            _,obs=api._load_entry(history,history.head()[0])
+            self.assertEqual(json.loads(history.read(obs['attempt_ref']))['consumption_sequence'],1)
+
+    def test_x1_parent_child_lock_uses_original_deadline(self):
+        from test_recovery_uninstall import AppliedSubject
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as root:
+            s=AppliedSubject(root,route='kos_prerequisite',retain_receipt=False)
+            operation=s.history.operation;seen=[]
+            def observed(**kwargs):seen.append(kwargs);return operation(**kwargs)
+            with patch.object(s.history,'operation',observed):reference=s.parent()
+            self.assertIsNotNone(seen[0].get('deadline'),'X1B_CHILD_UNBOUNDED_LOCK')
+            self.assertIsNotNone(seen[0].get('expected_context'))
+            self.assertEqual(s.history.read(reference),s.child_raw)
+
+    def test_x1_replaced_history_root_cannot_publish_through_old_descriptor(self):
+        from cortex_core.install import lifecycle as api
+        from test_owner_deadline_retention import X1NonSQLDeadline
+        check=X1NonSQLDeadline()
+        with tempfile.TemporaryDirectory() as root:
+            location=Path(root)/'protected';s=check.subject(location)
+            actual=os.fsync;changed=[];old=Path(root)/'retained-original'
+            def replace_root(fd):
+                actual(fd)
+                if not changed and stat.S_ISREG(os.fstat(fd).st_mode):
+                    changed.append(True);location.rename(old);api._History(location)
+            with s.installed(check.primitive(s)),patch.object(api.os,'fsync',replace_root):
+                with self.assertRaises(owner.OwnerRefusal) as caught:check.execute(s)
+            self.assertEqual(caught.exception.detail,'custody_changed')
+            self.assertEqual(changed,[True]);self.assertEqual(s.effects,0)
+            self.assertIsNone(api._History(old).head()[0])
+            self.assertIsNone(api._History(location).head()[0])
