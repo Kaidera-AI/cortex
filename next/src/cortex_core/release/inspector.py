@@ -133,6 +133,27 @@ def _inspect(capability,profile,rows,budget,account=None,children=None):
             'verdicts':[{'cache':cache,'equal':equal} for cache,equal in zip(order,verdicts)]},verdicts
 
 
+def _inspector_purpose(capability):
+    require(isinstance(capability,InspectorClosure) and thaw(capability.descriptor).get('purpose')=='inspector',
+            'inspector_capability_untrusted')
+
+
+def run_probe(capability,profile,probe,*,deadline=None,account=None,evidence_dir=None):
+    """R6: one containment probe through the SAME plan and transport with the admitted
+    purpose=probe asset. Returns its request, reply (None when stopped), error and the
+    real child records; it never yields a session or an inspector verdict."""
+    require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and capability._admission is _ADMITTED and
+            thaw(capability.descriptor).get('purpose')=='probe','inspector_capability_untrusted')
+    request=canonical_bytes({'schema':'cortex.probe-request.v1','probe':probe})
+    plan=prepare_plan(capability,profile,request)
+    children=_Children(dict(plan.environment),evidence_dir,deadline is not None)
+    budget=deadline or _budget(profile['inspector']['limits']['seconds'])
+    reply=error=None
+    try:reply=run_inspection(capability,plan,request,budget=budget,account=account,children=children)
+    except ReceiptRefusal as refusal:error=str(refusal)
+    return {'probe':probe,'request':request,'reply':reply,'error':error,'argv':list(plan.argv),'children':children.records}
+
+
 def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=None,evidence_dir=None,history=None):
     """EVIDENCE-ONLY producer call (Vera R4-T1): the same transport and core as the
     session, under an admitted closure, returning measured unqualified evidence.
@@ -143,6 +164,7 @@ def collect_inspection_evidence(capability,profile,rows,*,deadline=None,account=
     """
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and capability._admission is _ADMITTED,
             'inspector_capability_untrusted')
+    _inspector_purpose(capability)
     nested=deadline is not None
     budget=deadline or _budget(profile['inspector']['limits']['seconds'])
     request,order=_request(capability,profile,rows)
@@ -211,7 +233,7 @@ def _file_row(row,absolute):
             type(row['mode']) is int and 0<=row['mode']<=0o7777)
 
 
-def _descriptor(value,spec,profile):
+def _descriptor(value,spec,profile,script=None):
     """Closed descriptor shape; the pre-reader ABI identity is read here (Vera)."""
     from . import _pyc_check
     try:
@@ -229,7 +251,7 @@ def _descriptor(value,spec,profile):
                             _file_row({k:r[k] for k in FILE_KEYS},True) for r in rows)
         paths=[r['path'] for r in rows] if valid else []
         roles=[r['role'] for r in rows] if valid else []
-        script=Path(_pyc_check.__file__).read_bytes()
+        script=Path(_pyc_check.__file__).read_bytes() if script is None else script
         valid=(valid and len(set(paths))==len(paths) and roles.count('interpreter')==1 and roles.count('inspector')==1 and
                'stdlib' in roles and 'loader' in roles and
                any(r['role']=='interpreter' and r['path']==STARTUP[0] for r in rows) and
@@ -254,15 +276,18 @@ def _parents(path):
     return ['/'.join(parts[:n]) for n in range(1,len(parts))]
 
 
-def admit_closure(raw,independently_accepted_sha256,profile,root,*,candidate_roots):
+def admit_closure(raw,independently_accepted_sha256,profile,root,*,candidate_roots,script=None):
     """Original registry asset bytes are accepted before decode or physical reads.
 
     The independently supplied identity must be from the trusted install/release
     owner, not candidate output. It names the descriptor only (Hale H4); the
     archive, manifest M and config/ImageID C are separate rows inside it.
     """
+    # the profile names the product inspector only; the test-only probe asset's sha is
+    # accepted separately by its owner (R6-ASSET-001) and supplied by the caller
     require(type(raw) is bytes and len(raw)<=MAX_MANIFEST and sha256(raw)==independently_accepted_sha256 and
-            profile['inspector'].get('closure_sha256')==independently_accepted_sha256,'inspector_closure_not_accepted')
+            (script is not None or profile['inspector'].get('closure_sha256')==independently_accepted_sha256),
+            'inspector_closure_not_accepted')
     spec=profile['inspector']
     # A profile that does not request contained native execution binds no image.
     require(spec.get('execution')=='contained' and spec.get('scope')=='native' and spec.get('python_caches')=='CHECKED_HASH' and
@@ -270,7 +295,13 @@ def admit_closure(raw,independently_accepted_sha256,profile,root,*,candidate_roo
     startup_argv(profile)
     try:value=decode_json(raw,MAX_MANIFEST)
     except ValueError:raise ReceiptRefusal('inspector_image_member_unbound') from None
-    value=_descriptor(value,spec,profile)
+    # R6-ASSET-001: the same port admits the test-only probe asset when the caller names
+    # its script bytes; the result is purpose=probe and no session path accepts it.
+    purpose='inspector' if script is None else 'probe'
+    from . import _pyc_check
+    require(script is None or (type(script) is bytes and script!=Path(_pyc_check.__file__).read_bytes()),
+            'inspector_image_member_unbound')  # the real inspector is never a probe asset
+    value=_descriptor(value,spec,profile,script)
     private=_private_root(root,candidate_roots)
     engine=_host_file(value['engine'],'engine',candidate_roots)
     for name,row in sorted(value['engine_config'].items()):_host_file(row,'engine',candidate_roots)
@@ -299,7 +330,7 @@ def admit_closure(raw,independently_accepted_sha256,profile,root,*,candidate_roo
                 found['mode']&(0o005 if executable else 0o004)==(0o005 if executable else 0o004) and
                 all(parent not in files or (files[parent].get('kind')=='directory' and files[parent]['mode']&0o001)
                     for parent in _parents(path)),'inspector_image_member_unbound')
-    record=freeze({'descriptor':value,'diff_ids':['sha256:'+key for key in layers]})
+    record=freeze({'descriptor':value,'diff_ids':['sha256:'+key for key in layers],'purpose':purpose})
     return InspectorClosure(sha256(canonical_bytes(profile)),independently_accepted_sha256,private,
                             tuple((m['role'],m['path'],m['sha256']) for m in value['members']),'sha256:'+config_key,
                             Path(value['engine']['path']),engine[3],_SEAL,record,_ADMITTED)
@@ -326,7 +357,9 @@ def _shape(value):
 
 def prepare_plan(capability,profile,request_bytes):
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and
-            capability.policy_sha256==sha256(canonical_bytes(profile)) and capability.closure_sha256==profile['inspector'].get('closure_sha256'),'inspector_capability_untrusted')
+            capability.policy_sha256==sha256(canonical_bytes(profile)) and
+            (capability.closure_sha256==profile['inspector'].get('closure_sha256') or
+             thaw(capability.descriptor).get('purpose')=='probe'),'inspector_capability_untrusted')  # R6 probe: own accepted sha
     # A sealed object alone is not a verified image: only admit_closure admits.
     require(capability._admission is _ADMITTED,'inspector_image_member_unbound')
     import secrets
@@ -376,15 +409,18 @@ class _Children:
     def call(self,argv,session,timeout,limit):
         import shutil,time
         started=time.time_ns();row={'argv':list(argv),'cwd':str(session),'environment_names':sorted(self.environment),
-                                     'started_at_unix_ns':started}
+                                     'started_at_unix_ns':started,'timeout_ns':int(timeout*10**9)}
         try:result=_engine(argv,self.environment,session,timeout,limit)
         except BaseException as error:
             row.update(exit=None,error=type(error).__name__,finished_at_unix_ns=time.time_ns(),
                        stdout=None,stderr=None,journal=None)
             self.records.append(row)
             raise
-        code,stdout,files=(*result,None)[:3]
-        row.update(exit=code,finished_at_unix_ns=time.time_ns())
+        # (exit, stdout[, files[, error]]): a failed adapter run (R6-FU-1) hands back its
+        # REAL journal/streams with the error; they are kept, then the error is raised
+        code,stdout,files,failure=(*result,None,None)[:4]
+        row.update(exit=None if failure is not None else code,finished_at_unix_ns=time.time_ns())
+        if failure is not None:row['error']=type(failure).__name__
         for key in ('stdout','stderr','journal'):
             source=(files or {}).get(key)
             if source is not None and self.evidence_dir is not None:
@@ -397,6 +433,7 @@ class _Children:
             else:
                 row[key]=None
         self.records.append(row)
+        if failure is not None:raise failure
         return code,stdout
 
 
@@ -407,10 +444,14 @@ def _engine(argv,environment,session,timeout,output_limit):
     stem=session/('op-'+secrets.token_hex(8))
     # output_limit is a per-call byte cap, or a lane's shared OutputAccount (R4 nesting)
     budget={'account':output_limit} if isinstance(output_limit,OutputAccount) else {'output_limit':output_limit}
-    result=run_operation(argv,session,dict(environment),timeout,Path(str(stem)+'.out'),Path(str(stem)+'.err'),
-                         kill_seconds=KILL_SECONDS,**budget)
-    return result['exit'],Path(str(stem)+'.out').read_bytes(),{
-        'stdout':Path(str(stem)+'.out'),'stderr':Path(str(stem)+'.err'),'journal':Path(result['journal'])}
+    out,err,journal=Path(str(stem)+'.out'),Path(str(stem)+'.err'),Path(str(stem)+'.out.operation.jsonl')
+    try:
+        result=run_operation(argv,session,dict(environment),timeout,out,err,kill_seconds=KILL_SECONDS,**budget)
+    except Exception as error:
+        # the adapter wrote its failed journal before raising: hand it to the collector
+        if not (out.is_file() and err.is_file() and journal.is_file()):raise
+        return None,out.read_bytes(),{'stdout':out,'stderr':err,'journal':journal},error
+    return result['exit'],out.read_bytes(),{'stdout':out,'stderr':err,'journal':Path(result['journal'])}
 
 
 def _same_root(roots,session):
@@ -546,7 +587,8 @@ def _reply_verdicts(reply,request,descriptor,order,limits):
 
 def _session(capability,profile):
     """Mint the cache-judging session for an admitted closure (R6 gates its use)."""
-    require(isinstance(capability,InspectorClosure) and capability._admission is _ADMITTED,'trusted_inspector_capability_unavailable')
+    require(isinstance(capability,InspectorClosure) and capability._admission is _ADMITTED and
+            thaw(capability.descriptor).get('purpose')=='inspector','trusted_inspector_capability_unavailable')
     return InspectionSession(capability,freeze(profile),_ADMITTED,_budget(profile['inspector']['limits']['seconds']))
 
 
@@ -557,6 +599,8 @@ class _Pending:
     profile:object
     host:object
     _admission:object=field(default=None,compare=False,repr=False)
+    probe:object=None  # R6: the accepted purpose=probe asset (same policy and engine), or None
+    allowlist:object=None  # R6: the ACCEPTED mounts/environment allowlist (tate R8), or None
 
 
 def preflight(verified_input,acceptance):
@@ -566,6 +610,7 @@ def preflight(verified_input,acceptance):
     capability=acceptance.get('inspector_capability')
     require(isinstance(capability,InspectorClosure) and capability._seal is _SEAL and capability._admission is _ADMITTED and
             capability.policy_sha256==sha256(canonical_bytes(profile)) and
+            thaw(capability.descriptor).get('purpose')=='inspector' and
             capability.closure_sha256==profile['inspector'].get('closure_sha256'),'trusted_inspector_capability_unavailable')
     value=thaw(verified_input.document);descriptor=thaw(capability.descriptor)['descriptor']
     version='.'.join(value['builder_requirements']['toolchain']['version'].split('.')[:2])
@@ -581,7 +626,17 @@ def preflight(verified_input,acceptance):
     except AttributeError:qualified=False
     require(qualified and (value.get('admission_policy') or {}).get('qualification_scope')=='native',
             'native_inspector_execution_unqualified')
-    return _Pending(capability,freeze(profile),freeze(host),_ADMITTED)
+    # R6 context comes from the acceptance policy only, never from the producer's record.
+    probe=acceptance.get('probe_capability')
+    if not (isinstance(probe,InspectorClosure) and probe._seal is _SEAL and probe._admission is _ADMITTED and
+            thaw(probe.descriptor).get('purpose')=='probe' and probe.policy_sha256==capability.policy_sha256 and
+            probe.engine==capability.engine and probe.engine_sha256==capability.engine_sha256):
+        probe=None
+    allowlist=acceptance.get('containment_allowlist')
+    if not (type(allowlist) is dict and set(allowlist)=={'mounts','environment'} and
+            all(type(v) is list and all(type(x) is str for x in v) for v in allowlist.values())):
+        allowlist=None
+    return _Pending(capability,freeze(profile),freeze(host),_ADMITTED,probe,freeze(allowlist))
 
 
 def admit_session(pending,matched):
