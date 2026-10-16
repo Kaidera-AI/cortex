@@ -302,4 +302,63 @@ class X3(unittest.IsolatedAsyncioTestCase):
         old.close();fresh.close()
 
 
+    async def test_x301_public_check_does_not_export_supplier_or_grant(self):
+        api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver)
+        self.assertIsNone(await resolver.check(h,self.deadline()),'X3_SUPPLIER_EXPORTED')
+
+    async def test_x304_revoked_before_carrier_handoff_refuses_but_cleanup_works(self):
+        api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver,'bootstrap','core-init')
+        carrier=await resolver.carrier(h,self.deadline());inputs.active=False
+        await self.denied(carrier.check())
+        await carrier.close();self.assertFalse(inputs.state.present)
+
+    async def test_x303_supplier_policy_exception_is_scrubbed(self):
+        api,inputs,resolver,_,_=self.fixture()
+        def broken(grant):raise RuntimeError(VALUE)
+        inputs.sql_policy=broken
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        error=None
+        try:await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+        except Exception as caught:error=caught
+        self.assertIsInstance(error,api.SecretRefusal,'X3_RAW_POLICY_ERROR')
+        self.assertNotIn(VALUE,str(error))
+        self.assertNotIn('connect',inputs.events)
+
+    async def test_x310_failed_retirement_fences_password_callback(self):
+        api,inputs,resolver,_,_=self.fixture();inputs.driver='asyncpg'
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+        inputs.cleanup_fault=True
+        await self.denied(adapter.retire(conn,deadline=self.deadline()),'cleanup_unproved',hold=True)
+        await self.denied(inputs.password_callback(),'invalid_handle')
+        inputs.cleanup_fault=None;await adapter.retire(conn,deadline=self.deadline())
+
+    async def test_x310_lost_connect_result_reconciles_reserved_attempt_or_hold(self):
+        api,inputs,resolver,_,_=self.fixture();inputs.aborted=[]
+        original=inputs.connect
+        async def lost(*args):
+            await original(*args)
+            raise RuntimeError(VALUE)
+        async def abort(grant,policy,deadline):
+            inputs.aborted.append((grant.reference,policy.login_oid))
+            for conn in inputs.connections:await conn.close()
+            return True
+        inputs.connect=lost;inputs.abort_connect=abort
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100))
+        self.assertEqual(inputs.aborted,[(REF,44)],'X3_LOST_CONNECT_NOT_RECONCILED')
+        self.assertTrue(inputs.connections[-1].closed)
+
+    async def test_x310_missing_unknown_connect_cleanup_is_hold(self):
+        api,inputs,resolver,_,_=self.fixture()
+        async def lost(*args):raise RuntimeError(VALUE)
+        inputs.connect=lost
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100),'cleanup_unproved',hold=True)
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
