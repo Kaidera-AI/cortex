@@ -103,6 +103,7 @@
     "next/tests/release/test_aggregate_custody_rework.py",
     "next/tests/release/test_aggregate_members.py",
     "next/tests/release/test_aggregate_replay.py",
+    "next/tests/release/test_bootstrap_producer.py",
     "next/tests/release/test_build_contract_roundtrip.py",
     "next/tests/release/test_build_input.py",
     "next/tests/release/test_build_receipt.py",
