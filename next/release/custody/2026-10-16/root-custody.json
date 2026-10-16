@@ -1,0 +1,74 @@
+{
+  "record_type": "cortex.release.public-root-custody",
+  "record_date": "2026-10-16",
+  "custodian": "finn@helix",
+  "authority": {
+    "kai_handoff_id": "489ee433-bb05-4e61-8da9-3fae1eae362d",
+    "kai_ruling": "2026-10-16 05:23 cut step A, item2; custody delivery row04:47UTC",
+    "scope": "Independent original PUBLIC material delivery only",
+    "source": "docs/handoffs/2026-10-07_kai_rulings-r426.md; docs/handoffs/2026-10-16_finn_kai_stepA.md item2"
+  },
+  "root": {
+    "key_id": "7BBB4B7E0CE8852E",
+    "public_key_ref": "owner-release-public-key",
+    "public_key_file": "release-public-key.pub",
+    "public_key_bytes": 113,
+    "key_material_sha256": "cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef",
+    "signature_algorithm": "ED",
+    "key_use_permission": "cortex-core-api-release",
+    "allowed_purposes": [
+      "cortex/core-api/test"
+    ]
+  },
+  "purpose_and_permission": {
+    "purpose": "cortex/core-api/test",
+    "label": "TEST",
+    "key_use_permission": "cortex-core-api-release",
+    "status": "pending CTO confirmation",
+    "confirmation_owner": "CTO via kai@helix",
+    "confirmation_item": "docs/CTO_CONSULT.md item R",
+    "signing_authorized": false,
+    "production_purpose_authorized": false
+  },
+  "original_public_sources": [
+    {
+      "kind": "published baked installer public-key file",
+      "repository": "https://github.com/Kaidera-AI/kaideraos",
+      "ref": "refs/heads/release/kos-v0.2.010",
+      "commit": "26107b5b0ac5447b189b5d68d1f09a6b8260e709",
+      "path": "scripts/release/installer/kos_installer/release-public-key.pub",
+      "git_blob": "5535ec7bf8a787cf32018c4d71f071ce4308254c",
+      "bytes": 113,
+      "sha256": "cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef"
+    },
+    {
+      "kind": "retained original public-key file",
+      "path": "/Users/amadmalik/DevVault/helix/output/release-keys-2026-10-06/kaidera-release.pub",
+      "bytes": 113,
+      "sha256": "cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef",
+      "byte_equal_published_baked_file": true
+    }
+  ],
+  "custodian_receipt": "custodian-acceptance.json",
+  "independent_acceptance": {
+    "reviewer": "vera@helix",
+    "status": "pending"
+  },
+  "limits": {
+    "canonical_aggregate_policy_delivered": false,
+    "production_owner_context_bound": false,
+    "root_store_acceptance_delivered": false,
+    "signature_made": false,
+    "secret_key_accessed": false,
+    "key_generated": false,
+    "native_qualified": false,
+    "effect_authority": false
+  },
+  "deferred": [
+    "CTO TEST-purpose/key-use confirmation",
+    "Vera independent public-material acceptance",
+    "Canonical full owner policy and independent root-store/current-state/baseline/validity/provider receipt joins",
+    "Final source F and aggregate E pins at D4; no values defaulted here"
+  ],
+  "data_branch_base": "ae06a895d0ea8a7d23d04e4cebcacad51e8a74ee"
+}
