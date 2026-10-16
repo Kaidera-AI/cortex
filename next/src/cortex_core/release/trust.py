@@ -196,7 +196,8 @@ def _current(policy,value,context):
     _require(type(now) is int and type(context.generation) is int and type(context.fence) is int
              and context.generation==owner['policy_generation']==state['policy_generation']
              and context.fence==state['fence'],'aggregate_replay')
-    interval=(now,now) if context.clock_interval is None else context.clock_interval
+    interval=getattr(context,'clock_interval',None)
+    interval=(now,now) if interval is None else interval
     _require(type(interval) is tuple and len(interval)==2
              and all(type(n) is int and 0<=n<=253402300799 for n in interval)
              and interval[0]<=now<=interval[1],'aggregate_replay')
