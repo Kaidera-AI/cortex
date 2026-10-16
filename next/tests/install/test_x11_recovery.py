@@ -383,3 +383,19 @@ class FaultTests(unittest.TestCase):
             s.helper.scope(s.data,lambda x:x.update(identity=q['identity']))
             self.held(c)
             self.assertEqual(c.reads,0,'unrelated recovery operation reached original measurement')
+
+    def test_latest_original_preimage_consumption_and_deadline_lineage_cannot_change(self):
+        for fault in ('preimages','consume_clock','consumption_sequence','expiry'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as root:
+                c=LostResult(root);first=c.run();s=c.subject
+                e,o,parts=s.entry(first)
+                if fault=='preimages':o['preimages_ref']=s.history.retain(canonical_bytes({'unrelated':'preimage'}))
+                elif fault=='consume_clock':parts['attempt']['consume_clock_ref']=s.history.retain(canonical_bytes({'unrelated':'clock'}))
+                elif fault=='consumption_sequence':parts['attempt']['consumption_sequence']+=1
+                else:parts['reservation']['expires_monotonic_ns']+=1
+                p1._publish_entry(s.history,context=parts['context'],reservation=parts['reservation'],
+                    attempt=parts['attempt'],preimages_ref=o['preimages_ref'],request_ref=e['request_ref'],
+                    release_ref=e['release_binding_ref'],expected_ref=s.history.head()[0],phase=e['phase'],
+                    recorded_at=1700000001,result_ref=e['result_ref'])
+                c.reads=0;self.held(c)
+                self.assertEqual(c.reads,0,'changed original lineage reached measurement')
