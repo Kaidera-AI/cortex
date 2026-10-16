@@ -57,7 +57,7 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
     "schema/auth/007-runtime-grants.sql": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607",
     "src/cortex_core/install/lifecycle.py": "cfb9c7585cca903600988498888f3a0f9826fbfd903ffd80b36a305c71689ec3",
-    "src/cortex_core/install/owner.py": "12b97f4e9f45c32e5d3deebc0d07d4c6084676d0d5d394c45b678d7ba106ee2d",
+    "src/cortex_core/install/owner.py": "074ad69cbde63aaa3e0fdc83c03a472a29bd10dbd81deca2e1f8ce54aa8c350d",
     "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
     "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
     "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",

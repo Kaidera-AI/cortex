@@ -17,6 +17,7 @@ moved between samples. It performs no platform probe or effect and grants nothin
 the result is DATA for macos._installed_owner_inputs.
 """
 import hashlib
+from dataclasses import replace
 import json
 
 from .. import owner
@@ -158,5 +159,5 @@ def collect():
     reference = {'path': path, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
     originals = dict(inputs.originals)
     originals[path] = raw
-    return _MacOSInputs(owner._Inputs(inputs.context_raw, originals, inputs.current_clock_raw, inputs.aggregate_id),
+    return _MacOSInputs(replace(inputs, originals=originals),
                         admitted['profile_ref'], reference)

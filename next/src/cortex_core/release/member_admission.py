@@ -1,13 +1,14 @@
 """Sole read-only R01 backend to the existing RC2 original-member port.
 
-Fixed owner composition is UNBOUND before arguments/imports/physical reads.
+Fixed owner composition refuses absent bindings before candidate access.
 Private context/transport callables are trusted installed-owner dependencies,
 never client parameters or an authority binder. Source test composition proves
 neither protected installation nor current native/image/effect authority.
 Images retain their separate future stream gate; this snapshot stays <=262144.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
+import sys
 import time
 from types import SimpleNamespace
 
@@ -41,8 +42,91 @@ class _StartupContext:
 
 
 def _installed_startup():
-    # No env/config/argv/root/callback binder, repair or fixture fallback.
-    raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+    """Join the existing protected B1 observer to the existing R01 bootstrap.
+
+    No client supplies this carrier or selects callbacks. The fixed platform
+    observer authenticates actual peer/code/custody first; its bootstrap DATA
+    must have been independently captured before Python executes. This source
+    composition does not establish that native protection or create effects.
+    """
+    # Installed R01 executes inside V. A standalone/cold caller cannot bootstrap
+    # V by importing candidate-visible Python dependencies before authority.
+    owner = sys.modules.get('cortex_core.install.owner')
+    if owner is None:
+        raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+
+    def observe(previous=None, identity=None):
+        try:
+            inputs, current_refusal = owner._observe_owner_inputs()
+            if type(inputs) is not owner._Inputs or type(inputs.release_startup) is not _StartupContext:
+                raise Refusal('required_binding_gap', unit=MISSING_UNIT)
+            # Mandatory binding precedes fixed-schema imports as well as any
+            # candidate handling, including in a fresh interpreter.
+            from . import trust
+            frame = inputs.release_startup
+            observed_identity = _startup_identity(frame)
+            if identity is not None:
+                trust._require(observed_identity == identity, 'aggregate_replay')
+            context = owner._decode(inputs.context_raw, 'owner_unavailable')
+            reference = context['request_ref']
+            raw = inputs.originals[reference['path']]
+            # Resolve the OWNER-retained original through the sole P1 grammar;
+            # no request, root, clock or current fact comes from RC2 arguments.
+            owner.measure_original_ref(reference, raw)
+            proposal = owner._evaluate(raw, inputs, check_drift=False,
+                previous_deadline=None if previous is None else previous.deadline,
+                current_refusal=current_refusal)
+            if previous is not None:
+                try:
+                    owner._same_context(previous, proposal)
+                except owner.OwnerRefusal:
+                    raise Refusal('aggregate_replay') from None
+            current = frame.current()
+            policy = trust._owner_policy(current)
+            binding = policy['owner_binding']
+            facts = proposal.context
+            trust._require(current.placement == 'owner'
+                and binding['installation_id'] == facts['identity']['installation_id']
+                and binding['operation_id'] == facts['identity']['operation_id'], 'aggregate_scope_mismatch')
+            trust._require(current.generation == binding['policy_generation'] == facts['policy_generation']
+                and current.fence == facts['host_lease']['fence'], 'aggregate_replay')
+            trust._require(inputs.aggregate_id == 'sha256:' + policy['expected_aggregate_sha256'],
+                           'aggregate_identity_mismatch')
+            consent = owner._original(inputs, context['consent_ref'])
+            scope = owner._original(inputs, consent['scope_ref'])
+            release = owner._original(inputs, scope['release_binding_ref'])
+            trust._require(inputs.aggregate_id == 'sha256:' + release['joint_index_ref']['sha256'],
+                           'aggregate_identity_mismatch')
+            # C0 has admitted the original clock receipt, epoch, uncertainty and
+            # finite window. A callback timestamp cannot replace that clock.
+            clock = owner._decode(inputs.current_clock_raw, 'time_unavailable')
+            now, uncertainty = clock['now_utc'], clock['uncertainty_seconds']
+            current = replace(current, now=now, clock_interval=(now-uncertainty,now+uncertainty))
+            return frame, proposal, current, observed_identity, inputs.aggregate_id
+        except Refusal:
+            raise
+        except owner.OwnerRefusal as error:
+            if error.detail == 'required_binding_gap':
+                raise Refusal('required_binding_gap', unit=MISSING_UNIT) from None
+            reason = 'aggregate_replay' if error.detail in owner._DRIFT else 'member_authority_unavailable'
+            raise Refusal(reason) from None
+        except Exception:
+            raise Refusal('member_authority_unavailable') from None
+
+    frame, first, _, identity, _ = observe()
+    from . import trust
+
+    def current():
+        return observe(first, identity)[2]
+
+    def originals(aggregate_id):
+        fresh, _, _, _, selected = observe(first, identity)
+        trust._require(aggregate_id == selected, 'aggregate_identity_mismatch')
+        # Reload the actual current transport; never retain an earlier callback
+        # or memoize a signature, current state or authority result.
+        return fresh.originals(aggregate_id)
+
+    return replace(frame, current=current, originals=originals)
 
 
 def _startup_identity(startup):
@@ -225,7 +309,9 @@ def _owner_originals():
     def current():
         fresh=_installed_startup()
         if _startup_identity(fresh)!=identity:raise Refusal('aggregate_replay')
-        owner,observed=_admit_startup(fresh)
+        # Keep the original current closure's finite C0 deadline while measuring
+        # the fresh startup files. Rebuilding a frame cannot renew this audit.
+        owner,observed=_admit_startup(replace(fresh, current=startup.current))
         if observed!=stamp:raise Refusal('member_custody_changed')
         return owner
     return current,startup.originals
