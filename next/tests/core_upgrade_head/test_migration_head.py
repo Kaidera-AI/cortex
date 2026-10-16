@@ -203,16 +203,20 @@ class CurrentManifestStaging(unittest.TestCase):
 
     def test_selected20_target_reentry_and_preservation(self):
         selected = json.loads((SCHEMA/'manifest.json').read_bytes())
+        # PG-C's named target remains a prefix when later migrations are admitted.
+        target_id = 'runtime-grants-0001'
+        migration_ids = [entry['id'] for entry in selected['migrations']]
+        self.assertEqual(migration_ids.count(target_id), 1)
+        selected['migrations'] = selected['migrations'][:migration_ids.index(target_id) + 1]
         self.assertEqual(selected['version'], 1)
-        self.assertEqual(selected['migrations'][:19], self.entries)
-        self.assertEqual(len(selected['migrations']), 20)
+        self.assertEqual(selected['migrations'][:-1], self.entries)
         self.seed()
         before = self.snapshot()
         for target in STEPS: self.staged(target)
-        self.assertEqual(apply_migrations(self.db, through='runtime-grants-0001'), ['runtime-grants-0001'])
+        self.assertEqual(apply_migrations(self.db, through=target_id), [target_id])
         self.db.close()
         self.db = psycopg.connect(os.environ['TEST_DATABASE_URL'], autocommit=True)
-        self.assertEqual(apply_migrations(self.db), [])
+        self.assertEqual(apply_migrations(self.db, through=target_id), [])
         self.assertEqual(self.ledger(), [(x['id'],x['sha256']) for x in selected['migrations']])
         self.assertEqual(self.snapshot(), before)
         tables = self.db.execute("SELECT n.nspname,c.relname FROM pg_class c "
