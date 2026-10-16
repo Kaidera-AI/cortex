@@ -27,6 +27,42 @@ def build_argv(engine, source, output, epoch):
     ]
 
 
+def native_build_template(value):
+    """The ONE canonical native build suffix (R4 v3, Hale R4-TEMPLATE-001).
+
+    A native recipe's argv_template must equal this list token for token: the
+    engine prefix (owned store/runroot/tmpdir) is prepended by the lane, the cwd
+    is the admitted clone, and every value comes from the admitted input. There
+    is no capability, privilege, namespace, logging, hook, volume, secret, ssh,
+    extra context or security option to admit, and no remote operand.
+    """
+    epoch = value["determinism"]["epoch"]
+    platform = value["target"]["oci_platform"]
+    resources = value["resources"]
+    if type(epoch) is not int or not 0 <= epoch <= 253402300799:
+        raise ValueError("invalid deterministic epoch")
+    if platform not in ("linux/amd64", "linux/arm64"):
+        raise ValueError("native platform required")
+    from .engine import cpu_memory_argv
+
+    return [
+        "build",
+        "--network=none",
+        "--pull=never",
+        "--no-cache",
+        "--layers=false",
+        "--force-rm",
+        "--platform=" + platform,
+        "--source-date-epoch=" + str(epoch),
+        "--rewrite-timestamp",
+        "--build-arg=SOURCE_DATE_EPOCH=" + str(epoch),
+        *cpu_memory_argv(resources["cpu_millicores"], resources["memory_bytes"]),
+        "--file=Dockerfile",
+        "--iidfile=image.iid",
+        ".",
+    ]
+
+
 def verify_native(observed, platform):
     arches = {"linux/amd64": {"amd64", "x86_64"}, "linux/arm64": {"arm64", "aarch64"}}
     if (

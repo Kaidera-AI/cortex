@@ -1,6 +1,5 @@
 """Bounded explicit-argv engine adapter; no SDK or resource provisioning."""
 
-from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -20,11 +19,23 @@ def _positive_timeout(value):
 
 
 class Deadline:
-    """One monotonic absolute budget; each declared phase keeps its own cap."""
+    """One monotonic absolute budget; each declared phase keeps its own cap.
 
-    def __init__(self, absolute_timeout, *, clock=time.monotonic):
+    With reserve, the last `reserve` seconds belong to cleanup only. enter_phase
+    fixes a phase window once at entry; child_timeout hands out only what is
+    left of it (never a fresh phase allowance per child). cleanup_timeout leaves
+    the caller's kill allowance inside the absolute budget.
+    """
+
+    def __init__(self, absolute_timeout, *, clock=time.monotonic, reserve=0):
         self.clock = clock
-        self.expires = clock() + _positive_timeout(absolute_timeout)
+        _positive_timeout(absolute_timeout)
+        if type(reserve) not in (int, float) or not math.isfinite(reserve) or not 0 <= reserve <= absolute_timeout:
+            raise ValueError("cleanup reserve must fit inside the absolute budget")
+        self.expires = clock() + absolute_timeout
+        self.work_expires = self.expires - reserve
+        self.phase_expires = self.work_expires
+        self.cleanup_expires = None
 
     def phase_timeout(self, declared_timeout):
         cap = _positive_timeout(declared_timeout)
@@ -32,6 +43,53 @@ class Deadline:
         if remaining <= 0:
             raise TimeoutError("absolute build deadline expired")
         return min(cap, remaining)
+
+    def enter_phase(self, declared_timeout):
+        cap = _positive_timeout(declared_timeout)
+        now = self.clock()
+        if now >= self.work_expires:
+            raise TimeoutError("work deadline expired")
+        self.phase_expires = min(now + cap, self.work_expires)
+
+    def child_timeout(self, kill_seconds=0):
+        """What is left of the fixed phase window, minus the child's own TERM/KILL wait."""
+        left = min(self.phase_expires, self.work_expires) - self.clock() - kill_seconds
+        if left <= 0:
+            raise TimeoutError("phase window spent")
+        return left
+
+    def enter_cleanup(self, declared_timeout):
+        """Fix cleanup's own window once, at its entry, inside the absolute deadline."""
+        self.cleanup_expires = min(self.clock() + _positive_timeout(declared_timeout), self.expires)
+
+    def cleanup_timeout(self, kill_seconds):
+        limit = self.expires if self.cleanup_expires is None else self.cleanup_expires
+        return limit - self.clock() - kill_seconds
+
+
+class OutputAccount:
+    """One cumulative retained-output budget (stdout + stderr + journals).
+
+    The last `reserve` bytes are usable only after cleanup(): overflowing work
+    output can never starve removal/absence evidence. A work overflow is sticky.
+    """
+
+    def __init__(self, limit, reserve=0):
+        if type(limit) is not int or limit <= 0 or type(reserve) is not int or not 0 <= reserve < limit:
+            raise ValueError("positive integer output budget and smaller reserve required")
+        self.limit, self.reserve, self.used = limit, reserve, 0
+        self.overflow = self.cleaning = False
+
+    def cleanup(self):
+        self.cleaning = True
+
+    def take(self, count):
+        ceiling = self.limit if self.cleaning else self.limit - self.reserve
+        if (self.overflow and not self.cleaning) or self.used + count > ceiling:
+            if not self.cleaning:
+                self.overflow = True
+            raise OverflowError("output budget exceeded")
+        self.used += count
 
 
 def executable_bytes(path, expected):
@@ -56,8 +114,8 @@ def require_fresh_paths(paths):
     return resolved
 
 
-def _drain(process, sinks, limit, expires, clock, argv, timeout):
-    """Copy both pipes until EOF under one cumulative budget and the deadline."""
+def _drain(process, sinks, account, expires, clock, argv, timeout):
+    """Copy both pipes until EOF under one cumulative account and the deadline."""
     total = 0
     with selectors.DefaultSelector() as selector:
         for stream in sinks:
@@ -71,9 +129,10 @@ def _drain(process, sinks, limit, expires, clock, argv, timeout):
                 if not chunk:
                     selector.unregister(key.fileobj)
                     continue
-                if total + len(chunk) > limit:
-                    sinks[key.fileobj].write(chunk[: limit - total])
-                    raise OverflowError("operation output budget exceeded")
+                try:
+                    account.take(len(chunk))
+                except OverflowError:
+                    raise OverflowError("operation output budget exceeded") from None
                 total += len(chunk)
                 sinks[key.fileobj].write(chunk)
     return total
@@ -91,13 +150,16 @@ def run_operation(
     clock=time.monotonic,
     output_limit=None,
     kill_seconds=20,
+    account=None,
 ):
     """Run one explicit argv under one deadline.
 
     With output_limit, stdout+stderr are drained together while the process
     runs against ONE cumulative byte budget; the first excess byte stops the
-    process group and raises OverflowError. kill_seconds is the total budget
-    for the TERM then KILL waits after a failure.
+    process group and raises OverflowError. With account (an OutputAccount
+    shared by a whole lane) the same drain charges that account, and the journal
+    rows are charged too. kill_seconds is the total budget for the TERM then
+    KILL waits after a failure.
     """
     if not isinstance(argv, (list, tuple)):
         raise ValueError("explicit argv sequence required")
@@ -108,6 +170,11 @@ def run_operation(
     _positive_timeout(kill_seconds)
     if output_limit is not None and (type(output_limit) is not int or output_limit <= 0):
         raise ValueError("positive integer output budget required")
+    if account is not None and (output_limit is not None or not isinstance(account, OutputAccount)):
+        raise ValueError("one output account or one per-call limit, not both")
+    shared = account is not None
+    if output_limit is not None:
+        account = OutputAccount(output_limit)
     environment = dict(environment)
     start = clock()
     process = None
@@ -121,7 +188,11 @@ def run_operation(
     ):
 
         def observe(row):
-            journal.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+            line = json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n"
+            if shared and row.get("status") == "started":
+                # the closing row is reserved with the opening one (bounded size)
+                account.take(len(line.encode()) + 512)
+            journal.write(line)
             journal.flush()
             os.fsync(journal.fileno())
 
@@ -135,7 +206,7 @@ def run_operation(
             }
         )
         try:
-            piped = output_limit is not None
+            piped = account is not None
             process = popen(
                 argv,
                 cwd=str(cwd),
@@ -147,7 +218,7 @@ def run_operation(
             )
             if piped:
                 _drain(process, {process.stdout: out, process.stderr: err},
-                       output_limit, start + timeout, clock, argv, timeout)
+                       account, start + timeout, clock, argv, timeout)
                 code = process.wait(timeout=max(start + timeout - clock(), 0.001))
             else:
                 code = process.wait(timeout=timeout)
@@ -169,7 +240,7 @@ def run_operation(
                     code = process.wait(timeout=max(kill_seconds - (clock() - kill_started), 0.001))
             raise
         finally:
-            if process is not None and output_limit is not None:
+            if process is not None and account is not None:
                 for stream in (process.stdout, process.stderr):
                     if stream is not None:
                         stream.close()
@@ -234,16 +305,10 @@ class OwnedRoots:
         return self
 
     def cleanup(self):
-        import shutil
         import stat
+        from . import _owned_remove
 
         failures = []
-        if not shutil.rmtree.avoids_symlink_attacks:
-            return {
-                "complete": False,
-                "remaining_owned_resources": [str(p) for p in self.created],
-                "errors": ["descriptor-safe cleanup unavailable"],
-            }
         for path, expected in self.created.items():
             try:
                 current = path.stat(follow_symlinks=False)
@@ -253,21 +318,8 @@ class OwnedRoots:
                     or not stat.S_ISDIR(current.st_mode)
                 ):
                     raise ValueError("owned root identity changed")
-                descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-                with _directory_descriptor(descriptor) as owned_fd:
-                    if self.identity(os.fstat(owned_fd)) != expected:
-                        raise ValueError("owned root changed before cleanup")
-                    for entry in os.scandir(owned_fd):
-                        observed = os.stat(
-                            entry.name, dir_fd=owned_fd, follow_symlinks=False
-                        )
-                        if stat.S_ISDIR(observed.st_mode):
-                            shutil.rmtree(entry.name, dir_fd=owned_fd)
-                        else:
-                            os.unlink(entry.name, dir_fd=owned_fd)
-                    if self.identity(path.stat(follow_symlinks=False)) != expected:
-                        raise ValueError("owned root replaced during cleanup")
-                    path.rmdir()
+                # the one descriptor-safe removal, also used inside the user namespace
+                _owned_remove.remove(path, expected[0], expected[1])
             except (OSError, ValueError) as error:
                 failures.append({"path": str(path), "reason": type(error).__name__})
         remaining = [
@@ -278,14 +330,6 @@ class OwnedRoots:
             "remaining_owned_resources": remaining,
             "errors": failures,
         }
-
-
-@contextmanager
-def _directory_descriptor(descriptor):
-    try:
-        yield descriptor
-    finally:
-        os.close(descriptor)
 
 
 def resource_argv(resources):
