@@ -16,7 +16,8 @@ import threading
 import time
 import unittest
 from unittest.mock import patch
-from psycopg.pq import TransactionStatus
+import psycopg
+from psycopg.pq import TransactionStatus, ConnStatus
 from cortex_core.migrations import apply_migrations, MigrationError
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,7 +55,7 @@ class RecordingDB:
         nested = self.borrowed_context or previous != TransactionStatus.IDLE
         self.info.transaction_status = TransactionStatus.INTRANS
         try:
-            yield SimpleNamespace(savepoint_name='_pg3_1' if nested else None)
+            yield SimpleNamespace(savepoint_name='_pg3_1' if nested else '')
         except BaseException:
             self.ledger, self.data = before
             raise
@@ -443,6 +444,80 @@ class CurrentBridge(unittest.TestCase):
         self.assertEqual(self.db.trace, [])
         self.assertIs(self.db.info.transaction_status, TransactionStatus.INTRANS)
         self.assertEqual(self.db.commits, 0)
+
+
+# Actual installed psycopg transaction machinery; no PostgreSQL connection.
+class Prepared:
+    def clear(self):pass
+    def maintain_gen(self,connection):
+        if False:yield None
+
+class DriverConnection(RecordingDB):
+    def __init__(self):
+        super().__init__();self.pgconn=SimpleNamespace(transaction_status=TransactionStatus.IDLE,status=ConnStatus.OK)
+        self.lock=threading.Lock();self._num_transactions=0;self._prepared=Prepared();self.driver_commands=[];self.last_transaction=None
+    def _get_tx_start_command(self):return b'BEGIN'
+    def _exec_command(self,command):
+        self.driver_commands.append(command.decode())
+        if command==b'BEGIN':self.info.transaction_status=self.pgconn.transaction_status=TransactionStatus.INTRANS
+        elif command in (b'COMMIT',b'ROLLBACK'):
+            self.info.transaction_status=self.pgconn.transaction_status=TransactionStatus.IDLE
+            if command==b'COMMIT':self.commits+=1
+        else:raise AssertionError('unexpected driver command')
+        if False:yield None
+    def wait(self,generator):
+        while True:
+            try:next(generator)
+            except StopIteration as stop:return stop.value
+    def transaction(self):
+        self.last_transaction=psycopg.Transaction(self)
+        return self.last_transaction
+
+class DriverContract(unittest.TestCase):
+    def test_healthy_top_level_driver_transaction_must_be_admitted(self):
+        db=DriverConnection();caught=None;value=None
+        try:value=apply_migrations(db,through=STEPS[0])
+        except Exception as error:caught=error
+        self.assertIs(type(db.last_transaction),psycopg.Transaction)
+        self.assertTrue(db.last_transaction._outer_transaction)
+        self.assertEqual(db.last_transaction.savepoint_name,'')
+        if caught is not None:
+            self.assertIsInstance(caught,MigrationError)
+            self.assertEqual(str(caught),'Migration transaction must own the top-level commit')
+            self.assertEqual(db.driver_commands,['BEGIN','ROLLBACK'])
+            self.assertEqual(db.trace,[])
+        self.assertIsNone(caught,'healthy actual psycopg.Transaction rejected: '+str(caught))
+        self.assertEqual(value,[STEPS[0]])
+        self.assertEqual(db.commits,1)
+        self.assertEqual(db.driver_commands,['BEGIN','COMMIT'])
+    def test_caller_begin_still_refuses_before_entering_driver_context(self):
+        db=DriverConnection();db.info.transaction_status=db.pgconn.transaction_status=TransactionStatus.INTRANS
+        with self.assertRaises(MigrationError):apply_migrations(db,through=STEPS[0])
+        self.assertIsNone(db.last_transaction);self.assertEqual(db.driver_commands,[]);self.assertEqual(db.trace,[])
+        self.assertIs(db.info.transaction_status,TransactionStatus.INTRANS);self.assertEqual(db.commits,0)
+
+    def test_only_exact_unnamed_string_metadata_is_admitted(self):
+        class Unreadable:
+            @property
+            def savepoint_name(self): raise RuntimeError('unreadable savepoint')
+        contexts = [SimpleNamespace(savepoint_name=value)
+                    for value in (None, False, 0, True, b'', '_pg3_1')]
+        contexts.extend((SimpleNamespace(), Unreadable()))
+        for context in contexts:
+            with self.subTest(context=repr(context)):
+                db = RecordingDB()
+                before = copy.deepcopy(db.ledger)
+                @contextmanager
+                def transaction():
+                    db.info.transaction_status = TransactionStatus.INTRANS
+                    try: yield context
+                    finally: db.info.transaction_status = TransactionStatus.IDLE
+                db.transaction = transaction
+                with self.assertRaises(MigrationError):
+                    apply_migrations(db, through=STEPS[0])
+                self.assertEqual(db.trace, [])
+                self.assertEqual(db.ledger, before)
+                self.assertEqual(db.commits, 0)
 
 if __name__ == '__main__':
     unittest.main()

@@ -52,7 +52,8 @@ def apply_migrations(connection, directory=SCHEMA, *, through=None):
             savepoint_name = transaction.savepoint_name
         except Exception:
             raise MigrationError("Migration transaction ownership unavailable") from None
-        if savepoint_name is not None:
+        # psycopg uses an empty string for an unnamed top-level transaction.
+        if type(savepoint_name) is not str or savepoint_name != "":
             raise MigrationError("Migration transaction must own the top-level commit")
         require_state(TransactionStatus.INTRANS)
         connection.execute("SELECT pg_advisory_xact_lock(6203001)")
