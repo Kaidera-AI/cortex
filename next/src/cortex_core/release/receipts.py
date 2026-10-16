@@ -11,7 +11,7 @@ IDENTITIES = ('build_id', 'execution_id', 'store_id', 'runroot_id', 'container_i
 
 QUALIFICATION_SCHEMA = 'cortex.native-qualification.v1'
 QUALIFICATION_KEYS = {'schema', 'architecture', 'platform', 'host', 'engine', 'engine_path', 'engine_config',
-                      'inspector', 'probe_image', 'containment'}
+                      'inspector', 'probe_image', 'containment', 'cleanup_interpreter', 'cleanup_script'}
 PROBES = ('memory', 'mounts_env', 'network', 'pids', 'rootfs_write', 'time', 'tmpfs')
 KILLED_PROBES = ('memory', 'time')
 
@@ -59,7 +59,11 @@ def qualification_complete(doc):
                  run(doc['inspector']['negative']) and type(doc['probe_image']) is str and
                  doc['probe_image'].startswith('sha256:') and _hex(doc['probe_image'][7:]) and
                  type(doc['containment']) is dict and set(doc['containment']) == set(PROBES) and
-                 all(probe(name, doc['containment'][name]) for name in PROBES))
+                 all(probe(name, doc['containment'][name]) for name in PROBES) and
+                 type(doc['cleanup_interpreter']) is str and doc['cleanup_interpreter'].startswith('/') and
+                 type(doc['cleanup_script']) is dict and set(doc['cleanup_script']) == {'path', 'sha256'} and
+                 type(doc['cleanup_script']['path']) is str and doc['cleanup_script']['path'].startswith('/') and
+                 _hex(doc['cleanup_script']['sha256']))
     except (AttributeError, KeyError, TypeError):
         valid = False
     require(valid, 'native_qualification_incomplete')
@@ -81,6 +85,37 @@ def _journal(raw):
     require(len(rows) == 2 and type(rows[0]) is dict and type(rows[1]) is dict and rows[0].get('status') == 'started'
             and rows[1].get('status') in ('finished', 'failed'), 'native_inspector_execution_unqualified')
     return rows
+
+
+def _closed_request(raw, capability, descriptor, profile, input_value):
+    """The ONE closed inspector request check (Cox R4-R01-001): the protocol's exact
+    keys, the admitted ABI and optimization, sorted unique rows, and the existing
+    controller byte checks (artifacts.pyc_row) on every row. Never compiles."""
+    import base64
+    from .artifacts import pyc_row
+    from . import _pyc_check
+    fail = 'native_inspector_execution_unqualified'
+    limits = profile['inspector']['limits']
+    request = decode_json(raw, limits['input_bytes'])
+    require(type(request) is dict and set(request) == _pyc_check.REQUEST_KEYS and
+            request['schema'] == _pyc_check.REQUEST_SCHEMA and request['closure_sha256'] == capability.closure_sha256 and
+            request['policy_sha256'] == capability.policy_sha256 and
+            request['abi'] == {'version': descriptor['python']['version'], 'magic': descriptor['python']['magic']} and
+            type(request['optimization']) is int and request['optimization'] == profile['inspector']['optimization'] and
+            type(request['rows']) is list and bool(request['rows']), fail)
+    caches = [row.get('cache') if type(row) is dict else None for row in request['rows']]
+    require(caches == sorted(set(caches)) and None not in caches, fail)
+    for row in request['rows']:
+        require(set(row) == _pyc_check.ROW_KEYS and all(type(row[key]) is str for key in _pyc_check.ROW_KEYS), fail)
+        try:
+            cache = base64.b64decode(row['cache_b64'], validate=True)
+            source = base64.b64decode(row['source_b64'], validate=True)
+            checked = pyc_row(row['cache'], cache, {row['source']: source}, input_value)
+        except (ValueError, KeyError, TypeError):
+            raise ReceiptRefusal(fail) from None
+        require(checked['source'] == row['source'] and checked['final_filename'] == row['final_filename'] and
+                checked['optimization'] == request['optimization'], fail)
+    return request
 
 
 def _match_qualification(doc, pending, input_value, builds, measured, inventory, receipt_sha256, input_sha256):
@@ -106,6 +141,9 @@ def _match_qualification(doc, pending, input_value, builds, measured, inventory,
             doc['engine_config'] == {name: descriptor['engine_config'][name]['sha256'] for name in ('containers_conf', 'storage_conf')} and
             all(doc['host'][key] == host.get(key) for key in ('os', 'arch', 'uid', 'rootless')) and
             doc['probe_image'] != capability.image_digest, fail)
+    from .build import _owned_remove
+    from pathlib import Path as _Path
+    require(doc['cleanup_script']['sha256'] == sha256(_Path(_owned_remove.__file__).read_bytes()), fail)
     rows = {row['path']: row for row in inventory if row['role'] == 'native.qualification.original'}
     found = {}
 
@@ -126,11 +164,9 @@ def _match_qualification(doc, pending, input_value, builds, measured, inventory,
     def inspection(kind):
         row = doc['inspector'][kind]
         request_raw, reply_raw = original(row['request']), original(row['reply'])
-        request, reply = decode_json(request_raw, limits['input_bytes']), decode_json(reply_raw, limits['output_bytes'])
-        require(type(request) is dict and request.get('schema') == _pyc_check.REQUEST_SCHEMA and
-                request.get('closure_sha256') == capability.closure_sha256 and
-                request.get('policy_sha256') == capability.policy_sha256 and type(request.get('rows')) is list and
-                bool(request['rows']) and type(reply) is dict and reply.get('schema') == _pyc_check.RESPONSE_SCHEMA and
+        request = _closed_request(request_raw, capability, descriptor, profile, input_value)
+        reply = decode_json(reply_raw, limits['output_bytes'])
+        require(type(reply) is dict and reply.get('schema') == _pyc_check.RESPONSE_SCHEMA and
                 reply.get('request_sha256') == sha256(request_raw) and
                 reply.get('abi') == {'version': descriptor['python']['version'], 'magic': descriptor['python']['magic'],
                                      'machine': ARCH[descriptor['platform']][1]} and
@@ -164,7 +200,7 @@ FULL_CHILD = {'argv', 'cwd', 'environment_names', 'exit', 'started_at_unix_ns', 
               'stdout', 'stderr', 'journal'}
 
 
-def _native_children(build, measured, inventory, doc, input_value=None):
+def _native_children(build, measured, inventory, doc, input_value=None, pending=None):
     """Every phase's REQUIRED ordered children with full metadata and measured
     streams (Hale R4-MAP-001(c), Cox R4-R01-001): owned prefix, fixed engine
     environment, owned temporary path; the build child is prefix + admitted
@@ -202,7 +238,9 @@ def _native_children(build, measured, inventory, doc, input_value=None):
                     child['environment_names'] == sorted(ENGINE_ENVIRONMENT) and type(child['argv']) is list and
                     op['started_at_unix_ns'] <= child['started_at_unix_ns'] <= child['finished_at_unix_ns'] <=
                     op['finished_at_unix_ns'], fail)
-            for key in ('stdout', 'stderr', 'journal'):
+            for key in ('stdout', 'stderr', 'journal', 'request'):
+                if key == 'request' and key not in child:
+                    continue
                 stream = child[key]
                 require(type(stream) is dict and stream.get('path') in rows and stream['path'] in measured and
                         stream.get('bytes') == len(measured[stream['path']]) and
@@ -221,18 +259,84 @@ def _native_children(build, measured, inventory, doc, input_value=None):
             if phase == 'build':
                 require(children[0]['cwd'] == observed['source_id'] and op['argv'] == wanted[0], fail)
         elif phase == 'cleanup':
-            verbs = [child['argv'][len(prefix)] if child['argv'][:len(prefix)] == prefix else None for child in children]
-            require(verbs in (['ps', 'ps', 'unshare'], ['ps', 'rm', 'ps', 'unshare']) and
-                    children[-1]['argv'][-6] == store and children[-1]['argv'][-3] == runroot, fail)
+            # complete discovery of the owned store, removal of exactly what it found,
+            # positive absence, then the controlled deleter on the recorded roots
+            listing = prefix + ['ps', '-a', '--external', '--format', 'json']
+            require(len(children) in (3, 4) and children[0]['argv'] == listing and children[-2]['argv'] == listing, fail)
+            found_ids = _container_ids(measured[children[0]['stdout']['path']])
+            if len(children) == 4:
+                require(bool(found_ids) and children[1]['argv'] == prefix + ['rm', '--force', '--time', '0', *found_ids], fail)
+            else:
+                require(found_ids == [], fail)
+            require(_container_ids(measured[children[-2]['stdout']['path']]) == [], fail)
+            _deleter(children[-1]['argv'], prefix, doc, [store, runroot])
         else:  # audit: [evidence call, its real nested R3 children]* (empty only without caches)
+            require(not children or pending is not None, fail)
             index = 0
             while index < len(children):
-                call = children[index]
-                nested = [c['argv'][8:10] for c in children[index + 1:index + 7]]
-                require(len(call['argv']) > 8 and call['argv'][8] == 'run' and
-                        [n[0] for n in nested] == ['load', 'image', 'run', 'rm', 'ps', 'unshare'], fail)
+                _audit_group(children[index:index + 7], measured, doc, pending, input_value)
                 index += 7
     return found
+
+
+def _container_ids(raw):
+    rows = decode_json(raw or b'[]', 1024 * 1024, canonical=False)
+    require(type(rows) is list and all(type(row) is dict and _hex(row.get('Id')) for row in rows), 'native_child_evidence')
+    return sorted({row['Id'] for row in rows})
+
+
+def _deleter(argv, prefix, doc, roots):
+    """The one controlled namespace deleter: recorded interpreter, the repository's own
+    _owned_remove.py (bound by sha in _match_qualification), exact owned roots + ids."""
+    head = prefix + ['unshare', doc['cleanup_interpreter'], '-I', '-S', '-B', doc['cleanup_script']['path']]
+    tail = argv[len(head):]
+    require(argv[:len(head)] == head and len(tail) == 3 * len(roots) and
+            [tail[3 * i] for i in range(len(roots))] == roots and
+            all(tail[3 * i + j].isdigit() for i in range(len(roots)) for j in (1, 2)), 'native_child_evidence')
+
+
+def _audit_group(group, measured, doc, pending, input_value):
+    """One evidence call + its six real nested R3 children, bound to the admitted engine,
+    inspector closure/plan, owned session/name, flags, limits, cwd and request/reply."""
+    from pathlib import Path
+    from .inspector import ARCH, plan_argv
+    from . import _pyc_check
+    fail = 'native_child_evidence'
+    capability = pending.capability
+    descriptor = thaw(capability.descriptor)['descriptor']
+    profile = thaw(pending.profile)
+    require(len(group) == 7 and 'request' in group[0], fail)
+    call, nested = group[0], group[1:]
+    argv = call['argv']
+    require(len(argv) > 10 and argv[3].endswith('/store') and '--name' in argv, fail)
+    session = argv[3][:-len('/store')]
+    name = argv[argv.index('--name') + 1]
+    require(str(Path(session).parent) == str(capability.root) and
+            tuple(argv) == plan_argv(doc['engine_path'], capability.image_digest, profile['inspector']['limits'],
+                                     session, name), fail)
+    prefix = list(argv[:8])
+    expected = [prefix + ['load', '--input', session + '/image.tar'],
+                prefix + ['image', 'inspect', '--format', 'json', capability.image_digest], list(argv),
+                prefix + ['rm', '--force', '--time', '0', '--ignore', name],
+                prefix + ['ps', '-a', '--filter', 'name=^' + name + '$', '--format', '{{.ID}}']]
+    require([child['argv'] for child in nested[:5]] == expected and
+            all(child['cwd'] == session for child in group), fail)
+    _deleter(nested[5]['argv'], prefix, doc, [session + '/store', session + '/run'])
+    stream = call['request']
+    require(type(stream) is dict and stream.get('path') in measured and
+            stream.get('sha256') == sha256(measured[stream['path']]), fail)
+    request_raw = measured[stream['path']]
+    try:
+        request = _closed_request(request_raw, capability, descriptor, profile, input_value)
+        reply = decode_json(measured[call['stdout']['path']], profile['inspector']['limits']['output_bytes'])
+    except ValueError:
+        raise ReceiptRefusal(fail) from None
+    require(type(reply) is dict and reply.get('schema') == _pyc_check.RESPONSE_SCHEMA and
+            reply.get('request_sha256') == sha256(request_raw) and
+            reply.get('abi') == {'version': descriptor['python']['version'], 'magic': descriptor['python']['magic'],
+                                 'machine': ARCH[descriptor['platform']][1]} and
+            [v.get('cache') for v in reply.get('verdicts', [])] == [r['cache'] for r in request['rows']] and
+            nested[2]['stdout']['sha256'] == call['stdout']['sha256'], fail)
 
 
 def parse_build_receipt(raw_bytes):
@@ -301,7 +405,7 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
                                                   parsed.sha256, verified_input.input_sha256)
         required_evidence.update(originals)
         for slot in ('A', 'B'):
-            required_evidence.update(_native_children(builds[slot], measured, inventory, doc, input_value))
+            required_evidence.update(_native_children(builds[slot], measured, inventory, doc, input_value, pending))
         required_evidence[record['path']] = record
         from .inspector import admit_session
         inspection = admit_session(pending, matched)
