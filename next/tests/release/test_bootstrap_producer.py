@@ -123,12 +123,19 @@ class Producer(unittest.TestCase):
         from cortex_core.release import member_admission
         raw = self.produce()
         sys.modules.setdefault('_cffi_backend', type(sys)('_cffi_backend'))
-        frame = m.startup_context(raw, owner_binding=('a' * 64, 1, 1), current=lambda: None, originals=lambda _: None)
-        self.assertIs(type(frame), member_admission._StartupContext)
-        identity = member_admission._startup_identity(frame)  # the existing consumer accepts it
+        kw = dict(owner_binding=('a' * 64, 1, 1), current=lambda: None, originals=lambda _: None)
+        # V runs with -I -S: exactly the two standard path hooks (zipimporter, FileFinder).
+        with patch.object(sys, 'path_hooks', sys.path_hooks[:2]):
+            frame = m.startup_context(raw, **kw)
+            self.assertIs(type(frame), member_admission._StartupContext)
+            identity = member_admission._startup_identity(frame)  # the existing consumer accepts it
+            self.assertEqual(frame.path_hooks, tuple(sys.path_hooks))
         self.assertEqual(identity[6], tuple(tuple(r) for r in json.loads(raw)['files']))
-        self.assertEqual(frame.path_hooks, tuple(sys.path_hooks))
         self.assertIs(frame.module_aliases[0][1], sys.modules['_cffi_backend'])
+        # A polluted interpreter (an extra .pth path hook) is carried truthfully and refused.
+        with patch.object(sys, 'path_hooks', sys.path_hooks[:2] + [lambda path: None]):
+            polluted = m.startup_context(raw, **kw)
+        self.refused('required_binding_gap', lambda: member_admission._startup_identity(polluted))
 
     def test_P4_every_row_reverifies_with_the_consumer_reader_then_tamper_refuses(self):
         from cortex_core.release import inspector
@@ -166,6 +173,15 @@ class Producer(unittest.TestCase):
         self.refused('bootstrap_selection_invalid', lambda: self.produce(doc))
         doc = selection(module_aliases=[['_cffi_backend', STD + '/os.py']])
         self.refused('bootstrap_selection_invalid', lambda: self.produce(doc))
+        # The interpreter row stays, but the executable names another file.
+        self.refused('bootstrap_selection_invalid', lambda: self.produce(selection(executable=STD + '/os.py')))
+        # Every required role must be present (here: no crypto originals at all).
+        doc = selection(); doc['closure'] = [r for r in doc['closure'] if r[0] != 'crypto']
+        self.refused('bootstrap_selection_invalid', lambda: self.produce(doc))
+        # Version metadata must be a measured closure row.
+        doc = selection(dist_metadata=dict(selection()['dist_metadata'], cffi=SITE + '/cffi-elsewhere/METADATA'))
+        self.refused('bootstrap_selection_invalid', lambda: self.produce(doc))
+        self.assertTrue(self.produce())  # matched positive
 
     # ---- measurement ----------------------------------------------------------------
     def test_M1_symlink_original_refuses_then_restore(self):
@@ -229,6 +245,7 @@ class Producer(unittest.TestCase):
         raw = self.produce()
         doc = json.loads(raw)
         kw = dict(owner_binding=('a' * 64, 1, 1), current=lambda: None, originals=lambda _: None)
+        sys.modules['_cffi_backend'] = type(sys)('_cffi_backend')  # aliases loaded: only the record can refuse
         for bad in (raw.replace(b'"files"', b'"filez"'), canonical(dict(doc, extra=1)), b'{}\n'):
             self.refused('bootstrap_record_invalid', lambda bad=bad: m.startup_context(bad, **kw))
         with patch.dict(sys.modules, {}, clear=False):
