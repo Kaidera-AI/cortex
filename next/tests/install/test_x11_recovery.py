@@ -131,7 +131,7 @@ class X11JoinTests(unittest.TestCase):
         return cls(primitive,history)
 
     @contextmanager
-    def opened(self, root, kind='file'):
+    def opened(self, root, kind='file', deadline_extra=0):
         s=Subject(Path(root)/'history')
         s.helper.context(s.data,lambda c:c['effect'].update(resource_kind=kind))
         s.helper.scope(s.data,lambda c:c['effect'].update(resource_kind=kind))
@@ -140,13 +140,13 @@ class X11JoinTests(unittest.TestCase):
         subject={k:c[k] for k in ('identity','effect','request_ref')}
         if kind=='file':
             inputs=file_fixtures.Inputs(Path(root))
-            inputs.plan.update(subject=subject,deadline_ns=103000000000)
+            inputs.plan.update(subject=subject,deadline_ns=103000000000+deadline_extra)
             inputs.now=101000000000
             with patch.object(files,'_installed_files',return_value=inputs),files._open() as primitive:
                 yield s,self.join(primitive,s.history),inputs
         else:
             engine=podman_fixtures.Engine(kind)
-            engine.plan.update(subject=subject,deadline_ns=103000000000)
+            engine.plan.update(subject=subject,deadline_ns=103000000000+deadline_extra)
             engine.now=101000000000
             with patch.object(podman,'_installed_engine',return_value=engine),podman._open() as primitive:
                 yield s,self.join(primitive,s.history),engine
@@ -348,12 +348,10 @@ class FaultTests(unittest.TestCase):
 
     def test_X11_original_plan_cannot_extend_consumed_deadline(self):
         fixture=X11JoinTests()
-        with tempfile.TemporaryDirectory() as root,fixture.opened(root) as (s,j,inputs):
+        with tempfile.TemporaryDirectory() as root,fixture.opened(root,deadline_extra=1) as (s,j,inputs):
             with s.installed(j):
                 s.before=j.snapshot();s.reserve(mandate=False);s.consume()
                 _,o,_=s.entry(s.consumed)
-                plan=thaw(j.primitive.plan);plan['deadline_ns']=s.deadline.expires_monotonic_ns+1
-                j.primitive.plan=freeze(plan)
                 effect=freeze({'context':json.loads(s.history.read(o['context_ref'])),
                     'journal_ref':s.consumed,'preimages_ref':o['preimages_ref'],'deadline':s.deadline})
                 with self.assertRaises(owner.OwnerRefusal):j.dispatch(effect)
