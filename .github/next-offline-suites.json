@@ -180,7 +180,8 @@
     "next/tests/runtime_keyword/test_selection.py",
     "next/tests/runtime_keyword/test_wire.py",
     "next/tests/schema/test_causal_mutations.py",
-    "next/tests/schema/test_mutation_receipts.py"
+    "next/tests/schema/test_mutation_receipts.py",
+    "next/tests/test_install_podman.py"
   ],
   "excluded": [
     {

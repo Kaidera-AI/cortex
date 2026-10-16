@@ -68,6 +68,7 @@ def _binding(b):
     _need(type(b) is dict)
     for key in ('executable', 'root', 'runroot', 'tmpdir', 'home', 'core_executable'):
         _need(_path(b.get(key)))
+    _need(PurePosixPath(b['executable']).name == 'podman', 'custody_changed')
     uid = b.get('owner_uid'); peer = b.get('peer_uid')
     _need(_integer(uid) and _integer(peer) and uid != peer, 'peer_denied')
     _need(b.get('backend_uid') == uid and b.get('owner_groups')
@@ -106,7 +107,7 @@ def _lifetime(value, binding):
             and _integer(value['pid']) and _integer(value['start']))
 
 
-def _resource(kind, value, binding):
+def _resource(kind, value, binding, *, selected=True):
     _need(type(value) is dict and type(value.get('consumers')) is list
           and len(set(value['consumers'])) == len(value['consumers'])
           and all(_id(c) for c in value['consumers']), 'resource_changed')
@@ -123,9 +124,12 @@ def _resource(kind, value, binding):
     if kind == 'image':
         _need(_digest(value.get('manifest')) and value.get('config') == 'sha256:' + value['id']
               and type(value.get('layers')) is list and value['layers'] and all(_digest(x) for x in value['layers'])
-              and value.get('os') == 'linux' and value.get('arch') == binding['target_arch']
-              and value.get('source') == binding['source'] and value.get('version') == binding['version']
-              and type(value.get('tags')) is list, 'resource_changed')
+              and type(value.get('tags')) is list and len(value['tags']) <= 256
+              and all(type(x) is str and 0 < len(x) <= 512 for x in value['tags'])
+              and len(set(value['tags'])) == len(value['tags']), 'resource_changed')
+        if selected:
+            _need(value.get('os') == 'linux' and value.get('arch') == binding['target_arch']
+                  and value.get('source') == binding['source'] and value.get('version') == binding['version'], 'resource_changed')
     elif kind == 'network':
         _need(_NAME.fullmatch(value.get('name', '')) and value.get('driver') == 'bridge'
               and value.get('options') == {} and value.get('listeners') == []
@@ -143,10 +147,25 @@ def _resource(kind, value, binding):
 
 def _vector(operations, mode, binding):
     result = []
+    fields = {'target.core.postgres.value.path': 'core_executable',
+              'target.core.initdb.value.path': 'core_initdb',
+              'config.roles.bootstrap.binding.value.sql_name': 'bootstrap_role',
+              'config.operation_id': 'operation_id'}
     for part in operations['operation_vectors'][mode]['argv']:
         if type(part) is dict:
-            _need(part == {'field': 'target.core.postgres.value.path'}, 'required_binding_gap')
-            part = binding['core_executable']
+            _need(set(part) == {'field'} and part['field'] in fields, 'required_binding_gap')
+            key = fields[part['field']]
+            part = binding.get(key)
+            if key in ('core_executable', 'core_initdb'):
+                _need(_path(part), 'required_binding_gap')
+            elif key == 'bootstrap_role':
+                _need(type(part) is str and re.fullmatch(r'[a-z_][a-z0-9_]{0,62}', part), 'required_binding_gap')
+            else:
+                from uuid import UUID
+                try:
+                    _need(str(UUID(part)) == part, 'required_binding_gap')
+                except (ValueError, TypeError, AttributeError):
+                    raise owner.OwnerRefusal('required_binding_gap') from None
         result.append(part)
     return result
 
@@ -187,7 +206,7 @@ def _matches(kind, actual, expected, *, creating):
 
 def _container(v, b):
     _need(v.get('role') in ('core', 'api', 'helper') and _NAME.fullmatch(v.get('name', ''))
-          and _id(v.get('image')) and _id(v.get('network'))
+          and _id(v.get('image')) and (_id(v.get('network')) or v.get('network') is None and v.get('running') is False)
           and v.get('uid') == b['owner_uid'] and v.get('gid') == b['owner_uid']
           and v.get('uid_map') == [[b['owner_uid'], b['owner_uid'], 1]]
           and v.get('read_only') is True and v.get('cap_drop') == ['ALL']
@@ -195,8 +214,14 @@ def _container(v, b):
           and v.get('engine_access') == [], 'resource_changed')
     _need(v.get('ports') == ([] if v['role'] != 'api' else ['127.0.0.1:8000:8000']), 'resource_changed')
     operations = load_contracts().operations
-    mode = {'core': 'core-server', 'api': 'api', 'helper': 'inspect'}[v['role']]
-    _need(v.get('argv') == _vector(operations, mode, b), 'resource_changed')
+    modes = {'core': ['core-server'], 'api': ['api'], 'helper': ['inspect', 'migrate', 'core-init']}[v['role']]
+    vectors = []
+    for mode in modes:
+        try:
+            vectors.append(_vector(operations, mode, b))
+        except owner.OwnerRefusal:
+            continue
+    _need(v.get('argv') in vectors, 'resource_changed')
     limits = v.get('resources')
     _need(type(limits) is dict and set(limits) == {'cpu_millicores', 'memory_bytes', 'pids'}
           and all(_integer(x) for x in limits.values()) and limits['pids'] <= 4096, 'resource_changed')
@@ -232,7 +257,7 @@ def _plan(p, b):
     _need(type(p.get('inverse')) is bool and type(p.get('dependents')) is list
           and all(_id(x) for x in p['dependents']))
     _need(p.get('role') in ('core', 'api', 'helper') and p.get('signal') in ('TERM', 'KILL'))
-    _need(p.get('helper') in ('inspect', 'status'))
+    _need(p.get('helper') in ('inspect', 'status', 'migrate', 'core-init'))
     for which in ('before', 'after'):
         r = p.get(which)
         if r is not None:
@@ -261,10 +286,20 @@ def _plan(p, b):
         _need(p['after'] in pair and _path(p.get('oci'))
               and p['oci'].startswith(str(PurePosixPath(b['environment']['CONTAINERS_CONF']).parent) + '/')
               and p['oci'] in [x['path'] for x in b['closure']], 'custody_changed')
+        _need(p['after']['tags'] == [], 'scope_denied')
+    if p['kind'] == 'image':
+        inventory = p.get('image_inventory')
+        _need(type(inventory) is list and len(inventory) <= 256, 'resource_changed')
+        for image in inventory:
+            _resource('image', image, b, selected=False)
+        _need(len({i['id'] for i in inventory}) == len(inventory), 'resource_changed')
+        _need((p['before'] is not None and p['before'] in inventory) or
+              (p['before'] is None and all(i['id'] != p['after']['id'] for i in inventory)), 'resource_changed')
     if p['kind'] == 'container':
         for v in (p['before'], p['after']):
             if v is not None:
-                _need(v['role'] == p['role'] and v['image'] == pair[0 if v['role'] == 'core' else 1]['id'], 'resource_changed')
+                core = v['role'] == 'core' or v['role'] == 'helper' and p['helper'] == 'core-init'
+                _need(v['role'] == p['role'] and v['image'] == pair[0 if core else 1]['id'], 'resource_changed')
         if p['before'] is not None and p['after'] is not None:
             _need(p['before']['id'] == p['after']['id'], 'resource_changed')
             mutable = {'running', 'ready', 'process'} if p['action'] in ('start', 'stop', 'signal') else set()
@@ -275,7 +310,16 @@ def _plan(p, b):
         if p['action'] in ('stop', 'signal'):
             _need(p['before']['running'] and not p['after']['running'], 'resource_changed')
         if p['action'] == 'helper':
-            _need(p['before']['running'] and p['role'] == 'api', 'resource_changed')
+            if p['role'] == 'api':
+                _need(p['before']['running'] and p['helper'] in ('inspect', 'status'), 'resource_changed')
+            else:
+                _need(p['role'] == 'helper' and not p['before']['running']
+                      and p['helper'] != 'status'
+                      and p['before']['argv'] == _vector(load_contracts().operations, p['helper'], b), 'resource_changed')
+        _dependencies(p, b)
+    elif p['kind'] == 'network' and p['action'] in ('connect', 'disconnect'):
+        _need({k:v for k,v in p['before'].items() if k != 'consumers'}
+              == {k:v for k,v in p['after'].items() if k != 'consumers'}, 'resource_changed')
         _dependencies(p, b)
 
 
@@ -283,6 +327,15 @@ def _dependencies(p, b):
     """Exact original resource graph used by container operations; no name trust."""
     deps = p.get('dependencies')
     _need(type(deps) is list and 0 < len(deps) <= 18, 'resource_changed')
+    if p['kind'] == 'network':
+        old = set(p['before']['consumers']); new = set(p['after']['consumers'])
+        changed = new - old if p['action'] == 'connect' else old - new
+        _need(len(changed) == 1 and (old <= new if p['action'] == 'connect' else new <= old)
+              and len(deps) == 1 and deps[0]['kind'] == 'container', 'resource_changed')
+        c = deps[0]['resource']; _resource('container', c, b)
+        _need(c['id'] == next(iter(changed)) and not c['running']
+              and c['network'] == (None if p['action'] == 'connect' else p['before']['id']), 'resource_changed')
+        return
     v = p['before'] or p['after']
     needed = {('image', v['image']), ('network', v['network'])}
     needed |= {('volume', m['source']) for m in v['mounts']}
@@ -331,8 +384,11 @@ def _argv(p, b):
         argv += ['sha256:' + v['image'], *v['argv']]
     elif action == 'helper':
         _need(p['helper'] != 'status' or v['role'] == 'api', 'scope_denied')
-        argv += ['exec', '--user=' + str(v['uid']) + ':' + str(v['gid']), target,
-                 *_vector(load_contracts().operations, p['helper'], b)]
+        if v['role'] == 'helper':
+            argv += ['start', '--attach', '--sig-proxy=false', target]
+        else:
+            argv += ['exec', '--user=' + str(v['uid']) + ':' + str(v['gid']), target,
+                     *_vector(load_contracts().operations, p['helper'], b)]
     elif action == 'signal':
         argv += ['kill', '--signal=' + p['signal'], target]
     elif action == 'stop':
@@ -352,11 +408,16 @@ def _installed_engine():
 def _open():
     engine = _installed_engine()
     with engine.hold():
-        binding, now = engine.current()
-        _binding(binding)
-        plan = thaw(_copy(engine.plan))
-        _plan(plan, binding)
-        primitive = _Primitive(engine, binding, plan, now)
+        try:
+            binding, now = engine.current()
+            _binding(binding)
+            plan = thaw(_copy(engine.plan))
+            _plan(plan, binding)
+            primitive = _Primitive(engine, binding, plan, now)
+        except owner.OwnerRefusal:
+            raise
+        except Exception:
+            raise owner.OwnerRefusal('backend_unavailable') from None
         try:
             yield primitive
         finally:
@@ -373,6 +434,8 @@ class _Primitive:
         self.snapshotted = False
         self.attempted = False
         self.closed = False
+        self.postimage_held = False
+        self.postimage = None
 
     def _current(self):
         _need(not self.closed, 'custody_changed')
@@ -406,6 +469,8 @@ class _Primitive:
                 if actual is not None:
                     consumers.add(actual['id'])
                 expected['consumers'] = sorted(consumers)
+            elif after and p['kind'] == 'network':
+                expected['network'] = p['before']['id'] if p['action'] == 'connect' else None
             target = expected['name'] if kind == 'volume' else expected['id']
             self._current()
             observed = self.engine.observe(kind, target, deadline_ns=p['deadline_ns'])
@@ -415,11 +480,32 @@ class _Primitive:
             result.append({'kind': kind, 'resource': observed})
         return result
 
+    def _images(self, actual, *, after):
+        p = thaw(self.plan)
+        if p['kind'] != 'image':
+            return None
+        expected = p['image_inventory']
+        if after:
+            target = (p['before'] or p['after'])['id']
+            expected = [v for v in expected if v['id'] != target]
+            if actual is not None:
+                expected.append(thaw(actual))
+        self._current()
+        observed = self.engine.observe('image_inventory', None, deadline_ns=p['deadline_ns'])
+        self._current()
+        _need(type(observed) is list and len(observed) <= 256, 'resource_changed')
+        for image in observed:
+            _resource('image', image, thaw(self.binding), selected=False)
+        key = lambda v: v['id']
+        _need(canonical_bytes(sorted(observed, key=key)) == canonical_bytes(sorted(expected, key=key)), 'resource_changed')
+        return observed
+
     def snapshot(self):
         _need(not self.snapshotted and not self.attempted, 'reservation_used')
         actual = self._observe()
         _need(actual == self.plan['before'], 'resource_changed')
         self._related(thaw(actual), after=False)
+        self._images(actual, after=False)
         self.preimage = actual
         self.snapshotted = True
         # Private non-SQL facts, deliberately NOT forged into SQL's five slots.
@@ -430,9 +516,15 @@ class _Primitive:
         _need(thaw(context) == thaw(self.plan['subject']), 'generation_changed')
         _need(self._observe() == self.preimage, 'resource_changed')
         self._related(thaw(self.preimage), after=False)
+        self._images(self.preimage, after=False)
         p = thaw(self.plan); b = thaw(self.binding)
         if p['kind'] == 'container' and p['role'] == 'core' and p['action'] in ('stop', 'signal'):
-            _need(self.now >= p['c2_ns'] and not p['dependents'], 'attempt_ambiguous')
+            _need(self.now >= p['c2_ns'], 'attempt_ambiguous')
+            for dependent in p['dependents']:
+                absent = self.engine.observe('container', dependent, deadline_ns=p['deadline_ns'])
+                self._current()
+                _need(absent is None, 'attempt_ambiguous')
+            self._cleanup(self.engine.witnesses())
         argv = _argv(p, b)
         self._current()
         self.attempted = True  # Ambiguous failed/lost replies never permit retry.
@@ -462,6 +554,7 @@ class _Primitive:
             witness = self.engine.witnesses()
             cleanup = self._cleanup(witness)
             related = self._related(thaw(actual), after=True)
+            images = self._images(actual, after=True)
             self._current()
             p = thaw(self.plan)
             state = None
@@ -481,10 +574,17 @@ class _Primitive:
             if state is None and actual == self.preimage and self.plan['before'] != self.plan['after']:
                 state = 'NOT_APPLIED'
             if state is not None:
+                if state == 'APPLIED':
+                    if self.postimage_held:
+                        _need(actual == self.postimage, 'resource_changed')
+                    else:
+                        self.postimage = actual
+                        self.postimage_held = True
                 result = {**p['subject'], 'state': {'APPLIED': 'applied_verified',
                     'NOT_APPLIED': 'not_applied_verified'}[state], 'observed': {
                     'resource': thaw(actual), 'backend': thaw(self.binding),
                     'related': related,
+                    'image_inventory': images,
                     'finite_child': {k: cleanup[k] for k in ('lifetime', 'remaining', 'reaped', 'pipes_closed')}}}
                 answer = (state, canonical_bytes(result))
         except Exception:
@@ -493,3 +593,7 @@ class _Primitive:
         yield answer
         if answer[0] != 'UNKNOWN':
             self._current()  # Held exclusion survives durable verified publication.
+            _need(self._observe() == actual, 'resource_changed')
+            self._related(thaw(actual), after=True)
+            self._images(actual, after=True)
+            self._cleanup(self.engine.witnesses())
