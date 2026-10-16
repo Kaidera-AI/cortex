@@ -513,6 +513,18 @@ class FilesTests(unittest.TestCase):
             with p.measure(SUBJECT) as answer: self.assertEqual(answer,('UNKNOWN',None))
         self.assertEqual((self.inputs.root/'published').read_bytes(),b'original member\n')
 
+    def test_not_applied_does_not_permit_a_second_dispatch(self):
+        api=self.api(); real=api.os.open
+        def fail_stage(path,flags,*a,**kw):
+            if path=='.stage-one' and flags & os.O_CREAT: raise OSError('no effect')
+            return real(path,flags,*a,**kw)
+        with self.opened() as p:
+            p.snapshot()
+            with patch.object(api.os,'open',side_effect=fail_stage): p.dispatch(SUBJECT)
+            with p.measure(SUBJECT) as answer: self.assertEqual(answer[0],'NOT_APPLIED')
+            with self.assertRaises(OwnerRefusal): p.dispatch(SUBJECT)
+        self.assertEqual(list(self.inputs.root.iterdir()),[])
+
 
 if __name__ == '__main__':
     unittest.main()

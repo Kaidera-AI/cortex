@@ -83,13 +83,15 @@ def _plan(p):
     _need(_integer(p.get('deadline_ns'), 1) and _integer(p.get('expanded_bytes'), 1)
           and _integer(p.get('member_count'), 1) and p['member_count'] <= 10000)
     _need(type(p.get('subject')) is dict and set(p['subject']) == {'identity','effect','request_ref'})
-    _need(p.get('ownership') == 'created_by_this_transaction' and p.get('data_class') == 'ephemeral')
+    _need(p.get('ownership') in ('created_by_this_transaction','verified_owned_continuation')
+          and p.get('data_class') == 'ephemeral')
     if p['action'] in ('replace','remove'):
         _need(type(p.get('before')) is dict)
     else:
-        _need(p.get('before') is None)
+        _need(p.get('before') is None and p['ownership'] == 'created_by_this_transaction')
     if p['action'] == 'remove':
-        _need(p.get('inverse') is True and p.get('after') is None)
+        _need(p.get('inverse') is True and p.get('after') is None
+              and p['ownership'] == 'created_by_this_transaction')
         return
     _need(p.get('inverse') is False)
     flat = {}; total = 0
@@ -394,8 +396,11 @@ class _Primitive:
                 self._remove(fd,child,value)
             self._current(); _need(not os.listdir(fd))
             os.fsync(fd); self._current()
-            _need([os.stat(name,dir_fd=parent,follow_symlinks=False).st_dev,
-                   os.stat(name,dir_fd=parent,follow_symlinks=False).st_ino] == [expected['dev'],expected['ino']])
+            final = self._observe(parent,name)
+            _need(final is not None and final.get('children') == {} and all(
+                final[key] == expected[key] for key in
+                ('kind','dev','ino','uid','gid','mode','acl','xattrs')))
+            self._current()
             os.rmdir(name,dir_fd=parent)
         else:
             os.unlink(name,dir_fd=parent)
@@ -459,6 +464,7 @@ class _Primitive:
                 result = {**p['subject'], 'state': {'APPLIED':'applied_verified',
                     'NOT_APPLIED':'not_applied_verified'}[state], 'observed': {
                     'resource': thaw(actual), 'backend': thaw(self.binding),
+                    'ownership': p['ownership'],
                     'cleanup': {'stage_absent':True, 'writers_closed':True}}}
                 self._current(); answer = (state,canonical_bytes(result))
         except Exception:

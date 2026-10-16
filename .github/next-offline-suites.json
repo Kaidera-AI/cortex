@@ -186,6 +186,7 @@
     "next/tests/runtime_keyword/test_wire.py",
     "next/tests/schema/test_causal_mutations.py",
     "next/tests/schema/test_mutation_receipts.py",
+    "next/tests/test_install_files.py",
     "next/tests/test_install_podman.py",
     "next/tests/test_x3_secret_resolver.py"
   ],
