@@ -75,7 +75,7 @@ class EnrollmentP2(unittest.TestCase):
             result=p1._decode(s.history.read(event['result_ref']))
             self.assertEqual(s.history.read(result['observed']['enrollment_receipt_ref']),c.raw)
             self.assertEqual(enrollment.parse_receipt(c.raw)['installation_id'],x12.INST)
-            self.assertEqual(c.calls,c.core.identities,1);self.assertEqual(len(s.history.events()),3)
+            self.assertEqual(c.calls,1);self.assertEqual(c.core.identities,1);self.assertEqual(len(s.history.events()),3)
             self.assertEqual(p1._History(s.root).head()[0],thaw(ref))
             with self.assertRaises(owner.OwnerRefusal):c.run()
             self.assertEqual(c.calls,1);self.assertEqual(c.core.identities,1)
