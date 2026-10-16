@@ -278,3 +278,28 @@ for _case in frozen.CASES.values():
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class X1ClientWireContract(unittest.TestCase):
+    def test_x1_unbound_client_cannot_turn_r01_data_into_execution(self):
+        from unittest.mock import patch
+        from cortex_core.install import __main__ as client, lifecycle
+        from cortex_core.runtime import signed_member
+        with patch.object(signed_member,'request_member',return_value=object()) as r01, \
+                patch.object(lifecycle,'execute_effect') as execute:
+            result=client.main()
+        self.assertEqual((result.result,result.reason_code,result.unit),
+            ('BLOCKED','dependency_not_run','P1 installation owner composition'))
+        self.assertFalse(result.effect_authority);self.assertFalse(result.native_qualified)
+        r01.assert_called_once_with('','runtime.lock.json');execute.assert_not_called()
+
+    def test_x1_original_closed_wire_rejects_caller_selected_supplier(self):
+        import json
+        import test_owner_proposal as original
+        from cortex_core.install.contracts import InstallRefusal,parse_install_message
+        data=original.OwnerProposalOracle().data(); q=json.loads(data['request_raw'])
+        self.assertEqual(parse_install_message(data['request_raw'].encode(),expected_kind='request').raw,
+            data['request_raw'].encode())
+        q['owner_supplier']='caller-selected'
+        with self.assertRaises(InstallRefusal):
+            parse_install_message(original.encode(q),expected_kind='request')
