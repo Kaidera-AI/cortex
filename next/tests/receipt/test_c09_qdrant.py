@@ -649,3 +649,37 @@ class S2Tests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(client._http.is_closed)
             await client.aclose()
             await self.refusal(client)
+
+    async def test_s2_custody_protocol_failure_reason_is_also_scrubbed(self):
+        self.assertIsNotNone(s2, 'S2 source surface absent')
+        for platform in PLATFORMS:
+            async def broken(ref):
+                raise module.ProtocolFailure('SYNTHETIC-PRIVATE-CUSTODY')
+            server = HTTPServer()
+            async with self.client(server, platform=platform, resolver=broken) as client:
+                error = await self.refusal(client)
+                self.assertEqual(error.reason, 'qdrant_credentials_refused')
+            self.assertEqual(server.calls, [])
+
+    async def test_s2_pending_work_has_a_separate_finite_admission_bound(self):
+        self.assertIsNotNone(s2, 'S2 source surface absent')
+        for platform in PLATFORMS:
+            gate, entered = asyncio.Event(), asyncio.Event()
+            active = 0
+            async def handler(request):
+                nonlocal active
+                active += 1
+                if active == 8:
+                    entered.set()
+                await gate.wait()
+                return httpx.Response(200, json={'version': 'bad'})
+            async with self.client(platform=platform, transport=httpx.MockTransport(handler)) as client:
+                jobs = [asyncio.create_task(client.probe()) for _ in range(16)]
+                try:
+                    await asyncio.wait_for(entered.wait(), 1)
+                    await self.refusal(client)
+                    self.assertEqual(client.status()['pending_operations'], 16)
+                    self.assertEqual(active, 8)
+                finally:
+                    gate.set()
+                    await asyncio.gather(*jobs, return_exceptions=True)
