@@ -186,7 +186,7 @@ class Outcomes(Base):
         children[2]['journal'] = None
         self.refuses(row, lane, 'time', files=dict(files, **{rows['time']['children']: codec.canonical_bytes(children)}),
                      rows=rows)
-        self.refuses(row, lane, 'time', journal_skew=-30 * 10 ** 9)  # journal says it ended before its deadline
+        self.refuses(row, lane, 'time', journal_skew=-2 * 10 ** 9)  # journal says it ended before its deadline
 
     def test_mounts_and_environment_equal_the_accepted_allowlist(self):
         lane = Lane(self)
@@ -283,13 +283,24 @@ class Originals(Base):
             last.update(status='failed', exit=7)
             return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
 
+        def status_only(child, raw):
+            first, last = [json.loads(line) for line in raw.splitlines()]
+            last['status'] = 'failed' if last['status'] == 'finished' else 'finished'
+            return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+
+        def exit_only(child, raw):
+            first, last = [json.loads(line) for line in raw.splitlines()]
+            last['exit'] = 7 if last['exit'] != 7 else 8
+            return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
+
         def other_timeout(child, raw):
             first, last = [json.loads(line) for line in raw.splitlines()]
             first['timeout_ns'] += 10 ** 9
             return (json.dumps(first) + '\n' + json.dumps(last) + '\n').encode()
         edits = {'non-JSON failure text': lambda child, raw: b'not-json: different-command, wrong-image, failed-exit=7\n',
                  'one row only': lambda child, raw: raw.splitlines(keepends=True)[0],
-                 'another command': other_command, 'another outcome': other_outcome, 'another timeout': other_timeout}
+                 'another command': other_command, 'another outcome': other_outcome, 'another timeout': other_timeout,
+                 'closing status only': status_only, 'exit only': exit_only}
         for kind in ('positive', 'negative', 'network', 'time'):
             for name, edit in edits.items():
                 with self.subTest(kind=kind, case=name):
@@ -344,7 +355,7 @@ class Order(Base):
                           'output_root': out, 'evidence_root': ev}
         return made
 
-    def operate(self, lane, *, audit=True, smoke=None, **engine):
+    def operate(self, lane, *, audit=True, smoke=None, deadline=None, **engine):
         probe = probe_closure(lane)
         wall = r4.Wall()
         fake = r4.QEngine(lane, wall, **engine)
@@ -367,8 +378,9 @@ class Order(Base):
                 patch.object(runner, '_child', Engine(lane, ps=[[]] * 12)), patch.object(runner, 'native_lanes', lanes), \
                 patch.object(r4.time, 'time_ns', wall), smoke_patch:
             try:
-                result = runner.operate(self.modules(lane), lane.closure, probe, HOST, lane.parent, root, ALLOWLIST)
-            except ValueError as error:
+                result = runner.operate(self.modules(lane), lane.closure, probe, HOST, lane.parent, root, ALLOWLIST,
+                                        deadline=deadline)
+            except (ValueError, TimeoutError) as error:
                 return None, calls, str(error)
         return result, calls, None
 
@@ -388,6 +400,13 @@ class Order(Base):
         lane = Lane(self)
         _, calls, error = self.operate(lane, observe={'network': {**observations(lane)['network'], 'errno': 'ECONNREFUSED'}})
         self.assertEqual((error, calls), (FAIL, []))
+
+    def test_a_step_that_cannot_fit_the_operator_window_is_never_started(self):
+        lane = Lane(self)
+        window = product('build.engine').Deadline(lane.value['resources']['absolute_timeout_sec'] // 2, clock=r4.Clock())
+        _, calls, error = self.operate(lane, deadline=window)
+        self.assertEqual((error, calls), ('operator window cannot hold the next step', []))
+        self.assertEqual(lane.roots(), [])  # not even the P lane's roots were created
 
     def test_missing_corpus_refuses_before_any_native_lanes_call(self):
         lane = Lane(self)
