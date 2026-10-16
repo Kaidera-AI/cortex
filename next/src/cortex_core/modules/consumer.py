@@ -25,7 +25,7 @@ class ConsumerError(RuntimeError):
 class ModuleConsumer:
     def __init__(self, connection, credential, installation_id, project_id,
                  module_id, sink, *, manifest, feed=None, after_checkpoint=None,
-                 max_pending_outcomes=10000):
+                 max_pending_outcomes=10000, external_binding=None):
         try:
             parsed = ModuleManifest.parse(manifest)
         except ValueError:
@@ -34,6 +34,15 @@ class ModuleConsumer:
             raise ConsumerError('invalid_manifest')
         if type(max_pending_outcomes) is not int or not 1 <= max_pending_outcomes <= 100000:
             raise ConsumerError('invalid_input')
+        if parsed.protocol_version == 2:
+            from .vector.projection import ProjectionBinding
+            if (type(external_binding) is not ProjectionBinding
+                    or external_binding.installation_id != installation_id
+                    or external_binding.project_id != project_id or external_binding.module_id != module_id):
+                raise ConsumerError('invalid_manifest')
+        elif external_binding is not None:
+            raise ConsumerError('invalid_manifest')
+        self.external_binding = external_binding
         self.connection = connection
         self.credential = credential
         self.installation_id = installation_id
@@ -53,6 +62,8 @@ class ModuleConsumer:
                     row = self.connection.execute('SELECT coordination.c07_status(%s)', args)
                 elif signature == 'c07_register(%s,%s,%s,%s)':
                     row = self.connection.execute('SELECT coordination.c07_register(%s,%s,%s,%s)', args)
+                elif signature == 'c09_bind(%s,%s,%s)':
+                    row = self.connection.execute('SELECT coordination.c09_bind(%s,%s,%s::jsonb)', args)
                 elif signature == 'c07_expire(%s,%s)':
                     row = self.connection.execute('SELECT coordination.c07_expire(%s,%s)', args)
                 elif signature == 'c07_poisoned(%s,%s,%s)':
@@ -76,14 +87,25 @@ class ModuleConsumer:
     def register(self, *, snapshot_cursor=0, generation=1):
         if type(snapshot_cursor) is not int or type(generation) is not int:
             raise ConsumerError('invalid_input')
-        return self._call('c07_register(%s,%s,%s,%s)',
-                          (self.module_id, snapshot_cursor, generation, False))
+        state = self._call('c07_register(%s,%s,%s,%s)',
+                           (self.module_id, snapshot_cursor, generation, False))
+        return self._bind_external(state)
 
     def begin_rebuild(self, *, snapshot_cursor, generation):
         if type(snapshot_cursor) is not int or type(generation) is not int:
             raise ConsumerError('invalid_input')
-        return self._call('c07_register(%s,%s,%s,%s)',
-                          (self.module_id, snapshot_cursor, generation, True))
+        state = self._call('c07_register(%s,%s,%s,%s)',
+                           (self.module_id, snapshot_cursor, generation, True))
+        return self._bind_external(state)
+
+    def _bind_external(self, state):
+        if self.external_binding is not None:
+            from .vector.projection import binding_contract
+            if state['generation'] != self.external_binding.consumer_generation:
+                raise ConsumerError('invalid_manifest')
+            self._call('c09_bind(%s,%s,%s)', (self.module_id, state['generation'],
+                json.dumps(binding_contract(self.external_binding))))
+        return state
 
     @contextmanager
     def hold_lock(self):
@@ -153,12 +175,27 @@ class ModuleConsumer:
         try:
             receipt = self.sink.apply(event, state['generation'])
         except ValueError as error:
+            if self.external_binding is not None:
+                raise ConsumerError('capability_unavailable') from None
             if str(error) != 'target_conflict':
                 raise ConsumerError('target_unavailable') from error
             self._record(state, event, 'poison', error='target_conflict')
             return False
         except Exception as error:
+            if self.external_binding is not None:
+                raise ConsumerError('capability_unavailable') from None
             raise ConsumerError('target_unavailable') from error
+        external_receipt = receipt
+        if self.external_binding is not None:
+            from .vector.projection import validate_receipt
+            try:
+                if state['generation'] != self.external_binding.consumer_generation:
+                    raise ValueError()
+                validate_receipt(receipt, self.external_binding, event)
+                receipt = {k:receipt[k] for k in ('event_id','aggregate_id','revision',
+                    'tombstone','payload_sha256','generation','stale')}
+            except (ValueError, KeyError, TypeError):
+                raise ConsumerError('invalid_target_receipt') from None
         required = {'event_id','aggregate_id','revision','tombstone','payload_sha256','generation','stale'}
         if not isinstance(receipt, dict) or set(receipt) != required:
             raise ConsumerError('invalid_target_receipt')
@@ -182,7 +219,7 @@ class ModuleConsumer:
         except (ValueError, TypeError, OverflowError):
             raise ConsumerError('invalid_target_receipt') from None
         outcome = 'stale' if receipt.get('stale') is True else 'applied'
-        self._record(state, event, outcome, receipt=receipt)
+        self._record(state, event, outcome, receipt=external_receipt)
         if self.after_checkpoint is not None:
             try:
                 self.after_checkpoint()

@@ -979,3 +979,177 @@ class S3CoreTests(unittest.TestCase):
         for version,sink in [(1,'qdrant'),(2,'postgres'),(True,'postgres'),(3,'qdrant')]:
             with self.assertRaises(ValueError):ModuleManifest.parse(dict(manifest,protocol_version=version,sink=sink))
         self.assertEqual(ModuleManifest.parse(dict(manifest,protocol_version=1,sink='postgres')).protocol_version,1)
+
+    def test_s3_sync_worker_bridge_owns_client_and_provider_and_replays(self):
+        self.assertIsNotNone(s3)
+        from cortex_core.modules.vector.consumer_adapter import QdrantSink
+        x=S3Tests();binding=x.binding();server=ProjectionServer();clients=[];embeds=[]
+        def factory():
+            client=x.client(server);clients.append(client);return client
+        async def embed(identity,payload):
+            embeds.append((identity,payload));return x.vector()
+        sink=QdrantSink(binding,factory,embed)
+        port=self.consumer(binding,sink)
+        self.assertTrue(port._apply_event({'generation':1},x.event()))
+        self.assertTrue(port._apply_event({'generation':1},x.event()))
+        self.assertEqual(len(server.points),1)
+        self.assertEqual(len(clients),2)
+        self.assertTrue(all(c._http.is_closed and c.status()['pending_operations']==0 for c in clients))
+        self.assertEqual(embeds,[(binding.identity,x.event().payload)]*2)
+
+try:
+    from cortex_core.modules.vector import search as s3query
+except ImportError:
+    s3query=None
+from contextlib import asynccontextmanager
+from cortex_core.auth import Scope as AuthScope
+from cortex_core.runtime.pg_adapters import _C04Search, _RequestMaterial
+
+
+class QueryProjectionServer(ProjectionServer):
+    def __init__(self,fault=None):
+        super().__init__(fault);self.query_rows=None;self.on_query=None
+    async def __call__(self,request):
+        if request.url.path.endswith('/points/query'):
+            body=json.loads(request.content)
+            self.calls.append((request.method,request.url.path,copy.deepcopy(body),request.headers['api-key']))
+            if self.on_query:self.on_query()
+            rows=[dict(copy.deepcopy(p),score=.75) for p in self.points.values()] if self.query_rows is None else self.query_rows
+            if self.fault=='query_failure':return httpx.Response(500,json={'detail':'SYNTHETIC-PRIVATE'})
+            return httpx.Response(200,json={'status':'ok','result':{'points':rows[:body['limit']]}})
+        return await super().__call__(request)
+
+
+class S3QueryTests(unittest.IsolatedAsyncioTestCase):
+    client=S2Tests.client
+    binding=S3Tests.binding
+    event=S3Tests.event
+    vector=staticmethod(S3Tests.vector)
+
+    def core(self,binding,points=(),pending=0):
+        expected=AuthScope(binding.installation_id,binding.tenant_id,binding.project_id,UUID(int=50),1,'read')
+        core=_C04Search(None,_RequestMaterial(b'synthetic',expected));self.core_calls=[]
+        targets=[]
+        for point in points:
+            p=point['payload']
+            targets.append(dict(record_id=p['aggregate_id'],kind=p['aggregate_kind'],revision=p['revision'],
+                tombstone=p['tombstone'],indexed_revision=p['revision'],event_id=p['event_id'],
+                payload_sha256=p['payload_sha256'],effect_sha256=p['effect_sha256'],point_id=point['id'],indexed=True))
+        state=dict(binding=s3.binding_contract(binding),indexed_records=len(points),pending_records=pending,targets=targets)
+        self.core_state=state;self.core_refused=False
+        test=self
+        class Conn:
+            async def fetchval(self,query,module,ids):
+                test.core_calls.append((query,module,ids))
+                value=copy.deepcopy(test.core_state)
+                value['targets']=[r for r in value['targets'] if UUID(r['record_id']) in ids]
+                return value
+        @asynccontextmanager
+        async def request(subject,**kw):
+            if test.core_refused:raise PermissionError('synthetic revoked Core permission')
+            if subject!=str(expected.principal_id):raise PermissionError('changed subject')
+            yield Conn(),SimpleNamespace(tenant_id=binding.tenant_id,project_id=binding.project_id)
+            if test.core_refused:raise PermissionError('synthetic revoked Core permission')
+        core._request=request
+        return core
+
+    def query(self,core,client,binding):
+        self.assertIsNotNone(s3query,'S3 C10 query source absent')
+        return s3query.QdrantProjection(binding,client).bind(core)
+
+    async def test_s3_query_filters_full_key_tombstones_and_core_rechecks_freshness(self):
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector());server=QueryProjectionServer()
+        server.points[point['id']]=point
+        core=self.core(binding,[point])
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            result=await query.search(str(UUID(int=50)),binding.identity,self.vector(),limit=5)
+        self.assertEqual(len(result.hits),1)
+        self.assertEqual(result.hits[0].record_id,str(UUID(int=10)))
+        self.assertEqual(result.freshness.pending_records,0)
+        self.assertEqual(result.freshness.indexed_records,1)
+        self.assertGreaterEqual(len(self.core_calls),2)
+        body=[c[2] for c in server.calls if c[1].endswith('/query')][0]
+        conditions={c['key']:c['match']['value'] for c in body['filter']['must']}
+        self.assertEqual(conditions,s3.binding_contract(binding)|{'tombstone':False})
+
+    async def test_s3_query_valid_empty_is_distinct_from_engine_failure(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();server=QueryProjectionServer();core=self.core(binding)
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            result=await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            self.assertEqual(result.hits,())
+            server.fault='query_failure'
+            with self.assertRaises(CapabilityUnavailable) as raised:
+                await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            self.assertNotIn('SYNTHETIC-PRIVATE',str(raised.exception))
+            self.assertTrue(raised.exception.__suppress_context__)
+
+    async def test_s3_query_cross_scope_model_stale_tombstone_or_duplicate_cannot_escape(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector());server=QueryProjectionServer()
+        core=self.core(binding,[point])
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            for path,value in [('tenant_id',str(UUID(int=999))),('model_identity','0'*64),('revision',2),('tombstone',True)]:
+                bad=copy.deepcopy(point);bad['payload'][path]=value
+                server.query_rows=[dict(bad,score=.5)]
+                with self.subTest(path=path):
+                    with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            server.query_rows=[dict(point,score=.5),dict(point,score=.5)]
+            with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+
+    async def test_s3_query_core_lag_and_generation_or_permission_change_refuse(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector());server=QueryProjectionServer()
+        server.points[point['id']]=point;core=self.core(binding,[point],pending=1)
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            self.assertEqual(server.calls,[])
+            self.core_state['pending_records']=0
+            server.on_query=lambda:self.core_state['targets'][0].update(revision=2,indexed=False)
+            with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            server.on_query=lambda:setattr(self,'core_refused',True)
+            with self.assertRaises(PermissionError):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+
+    async def test_s3_projection_revision_requires_core_receipt_and_exact_engine_point(self):
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector());server=QueryProjectionServer()
+        server.points[point['id']]=point;core=self.core(binding,[point]);checks=[]
+        async def recheck(subject,scope):checks.append(subject);return True
+        target=dict(record_id=UUID(int=10),revision=1)
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            observed=await query.projection_revision(str(UUID(int=50)),target,binding.identity,recheck=recheck)
+            self.assertEqual(observed.state,'visible')
+            server.points.clear()
+            observed=await query.projection_revision(str(UUID(int=50)),target,binding.identity,recheck=recheck)
+            self.assertEqual(observed.state,'unavailable')
+            self.assertEqual(len(checks),2)
+            self.core_state['targets'][0]['indexed']=False
+            observed=await query.projection_revision(str(UUID(int=50)),target,binding.identity,recheck=recheck)
+            self.assertEqual(observed.state,'pending')
+
+    async def test_s3_c11_source_binding_never_reports_qdrant_ready_or_uses_pg_miss(self):
+        self.assertIsNotNone(s3query,'S3 C11 binding source absent')
+        from cortex_core.api.c11b2 import C11b2ReadPort
+        binding=self.binding();server=QueryProjectionServer()
+        principal=dict(principal_id=str(UUID(int=50)),tenant_id=str(binding.tenant_id),project_id=str(binding.project_id),permission_generation=1)
+        class Records:
+            installation_id=binding.installation_id
+            projects={'synthetic':binding.project_id}
+            def _project(self,scope):return binding.project_id
+            async def principal(self,scope):return dict(principal)
+        async with self.client(server) as client:
+            caught=None
+            try:
+                port=C11b2ReadPort(Records(),None,binding.identity,SimpleNamespace(embed=lambda *a:None),
+                    'synthetic',{},vector_projection=s3query.QdrantProjection(binding,client))
+            except Exception as error:caught=error
+            self.assertIsNone(caught,'explicit C11 vector source binding absent')
+            p=principal|{'_request_scope':{'headers':[(b'authorization',b'Bearer synthetic')]}}
+            search,_=port._ports(p)
+            self.assertIsInstance(search,s3query.QdrantSearch)
+            self.assertEqual(await port.capability_source('pg_search',p),{'state':'unavailable','reason':'qdrant_native_unbound'})
+            self.assertEqual(server.calls,[])
