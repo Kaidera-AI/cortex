@@ -40,14 +40,9 @@ class Resumed(unittest.TestCase):
             windows=json.loads(s.history.read(s.windows));windows['E']=103_000_000_000
             s.windows=s.history.retain(canonical_bytes(windows));p.windows_ref=s.windows
             now=[101_000_000_000];original=s.history._publish;published=[]
-            def delayed(*a,**k):
-                answer=original(*a,**k)
-                if k.get('event',{}).get('result_ref') is not None:now[0]=104_000_000_000;published.append(True)
-                return answer
-            # _publish takes the event positionally in the existing history.
-            def publish(*a,**k):
-                answer=original(*a,**k)
-                event=a[0] if a else k.get('event',{})
+            def publish(folder,name,raw):
+                answer=original(folder,name,raw)
+                event=json.loads(raw) if folder=='events' else {}
                 if event.get('result_ref') is not None:now[0]=104_000_000_000;published.append(True)
                 return answer
             with s.installed(p),patch.object(lifecycle.time,'monotonic_ns',side_effect=lambda:now[0]),patch.object(s.history,'_publish',publish):
