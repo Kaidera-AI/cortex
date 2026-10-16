@@ -40,6 +40,14 @@ _SHAPE_RESOLVER=_MANIFEST_VALIDATOR._resolver
 _POLICY_SCHEMA=json.loads((_SCHEMA_HOME/'aggregate-policy.schema.json').read_bytes())
 _POLICY_VALIDATOR=WireValidator(_POLICY_SCHEMA)
 _BASELINE_VALIDATOR=WireValidator(_POLICY_SCHEMA['properties']['installed_baseline'])
+# Independently accepted PUBLIC material only (Finn 442f5ac4; Vera 2026-10-16).
+# These original bytes are not a canonical owner policy or root-store receipt.
+_CUSTODY_HOME=Path(__file__).resolve().parents[3]/'release/custody/2026-10-16'
+_CUSTODY_FILES=(
+    ('root-custody.json',2920,'4272c5baff3a3fefee3569803c61ab7093990f49f3fe3ae7768ede62a5b71c47'),
+    ('custodian-acceptance.json',1151,'7dfe2923368cef237d420aea28159c123f32f48144e329262e496d50815595ac'),
+    ('release-public-key.pub',113,'cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef'),
+)
 
 
 @dataclass(frozen=True)
@@ -79,6 +87,8 @@ def _require(value,reason):
 
 
 def _unbound():
+    _public_custody()
+    # Observing accepted custody DATA cannot replace any missing owner provider.
     raise Refusal('required_binding_gap',unit=MISSING_UNIT)
 
 
@@ -139,7 +149,10 @@ def _base64(line,size,reason):
 
 
 def _root(context,policy):
-    root=policy['root'];material=context.public_root
+    return _root_material(context.public_root,policy['root'])
+
+
+def _root_material(material,root):
     _require(type(material) is bytes and 0<len(material)<=MAX_ROOT,'aggregate_root_mismatch')
     _require(type(root['public_key_bytes']) is int and root['public_key_bytes']==len(material),'aggregate_root_mismatch')
     _require(type(root['key_material_sha256']) is str and _HEX.fullmatch(root['key_material_sha256'])
@@ -151,6 +164,39 @@ def _root(context,policy):
     parsed=_base64(lines[1],42,'aggregate_root_mismatch')
     _require(parsed[:2]==b'Ed' and parsed[2:10][::-1].hex().upper()==root['key_id'],'aggregate_root_mismatch')
     return parsed[2:10],parsed[10:]
+
+
+def _public_custody():
+    """Read fixed, bounded, pinned PUBLIC originals as immutable pending DATA.
+
+    No caller/config path, signing operation, owner context or acceptance memo.
+    Only this independently accepted pending generation is understood; a later
+    authorization requires independent delivery/review, never a file flag swap.
+    D2 still owns protected original transport/current-state/bootstrap custody.
+    """
+    try:
+        originals=[]
+        for name,size,digest in _CUSTODY_FILES:
+            with (_CUSTODY_HOME/name).open('rb') as stream:
+                raw=stream.read(size+1)
+            _require(len(raw)==size and sha256(raw)==digest,'required_binding_gap')
+            originals.append(raw)
+        record=decode_json(originals[0],2920,canonical=False)
+        receipt=decode_json(originals[1],1151,canonical=False)
+        root=record['root'];permission=record['purpose_and_permission']
+        _root_material(originals[2],root)
+        _require(root['key_id']==PRODUCTION_KEY_ID and root['signature_algorithm']=='ED'
+                 and root['allowed_purposes']==['cortex/core-api/test']
+                 and root['key_use_permission']==permission['key_use_permission']=='cortex-core-api-release'
+                 and permission['purpose']=='cortex/core-api/test'
+                 and permission['status']==receipt['purpose_key_use_confirmation']=='pending CTO confirmation'
+                 and permission['signing_authorized'] is False
+                 and permission['production_purpose_authorized'] is False
+                 and receipt['signing_authorized'] is False and receipt['effect_authority'] is False
+                 and all(value is False for value in record['limits'].values()),'required_binding_gap')
+        return freeze(record)
+    except Exception:
+        raise Refusal('required_binding_gap',unit=MISSING_UNIT) from None
 
 
 def _envelope(signature,key_id):
