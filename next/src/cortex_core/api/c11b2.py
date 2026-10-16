@@ -67,7 +67,7 @@ class C11b2ReadPort:
     """Recheck C04 on each Nemo query and again before any result is emitted."""
 
     def __init__(self, record_port, pool, identity, provider, extractor_identity,
-                 project_repos, *, selection=None, keyword=None):
+                 project_repos, *, selection=None, keyword=None, vector_projection=None):
         hosted=selection is None or selection.snapshot.mode!='off'
         if ((hosted and (not isinstance(identity, EmbeddingIdentity)
                          or not callable(getattr(provider, 'embed', None))))
@@ -80,6 +80,12 @@ class C11b2ReadPort:
             raise ValueError('canonical read source is unbound')
         if keyword is not None and not callable(getattr(keyword,'search',None)):
             raise ValueError('keyword source is invalid')
+        if vector_projection is not None:
+            from cortex_core.modules.vector.search import QdrantProjection
+            if (type(vector_projection) is not QdrantProjection
+                    or vector_projection.binding.identity != identity):
+                raise ValueError('C11 vector projection binding is invalid')
+        self.vector_projection = vector_projection
         self.record_port, self.pool = record_port, pool
         self.identity, self.provider = identity, provider
         self.selection,self.keyword=selection,keyword
@@ -184,6 +190,8 @@ class C11b2ReadPort:
             raise PermissionError('graph mutation port is not bound')
 
         search = _C04Search(self.pool, material)
+        if getattr(self,'vector_projection',None) is not None:
+            search = self.vector_projection.bind(search)
         graph = PostgresGraph(self.pool, authorize_read=graph_authorize,
                               authorize_control=deny, authorize_writer=deny,
                               extractor_identity=self.extractor_identity)
@@ -198,6 +206,8 @@ class C11b2ReadPort:
 
     async def _core_pending(self, search, principal):
         """Refuse success if a committed Core head has not reached Nemo's source list."""
+        if getattr(search,'external_projection',False):
+            return await search.pending(principal['principal_id'])
         async with search._request(principal['principal_id']) as (conn, scope):
             return await conn.fetchval('''SELECT count(*) FROM core.records r
                 LEFT JOIN retrieval.search_sources s ON
@@ -209,6 +219,9 @@ class C11b2ReadPort:
     async def status_degradation(self, principal, _scope, _request_key):
         """Keep observed search lag distinct from canonical-write availability."""
         await self._current(principal)
+        if getattr(self,'vector_projection',None) is not None:
+            return {'search':{'state':'unavailable','reason':'qdrant_native_unbound'},
+                    'canonical_write':{'state':'unavailable','reason':'write_observation_unbound'}}
         if getattr(self,'selection',None) is not None and self.selection.snapshot.mode=='off':
             return {'search':{'state':'unavailable','reason':'hosted_disabled'},
                     'canonical_write':{'state':'unavailable','reason':'write_observation_unbound'}}
@@ -247,6 +260,9 @@ class C11b2ReadPort:
             raise CapabilityUnavailable('index_lagging', fresh)
 
     async def capability_source(self, name, principal):
+        if name == 'pg_search' and getattr(self,'vector_projection',None) is not None:
+            await self._current(principal)
+            return {'state':'unavailable','reason':'qdrant_native_unbound'}
         if name=='pg_search' and getattr(self,'selection',None) is not None and self.selection.snapshot.mode=='off':
             return {'state':'unavailable','reason':'hosted_disabled'}
         search, graph = self._ports(principal)
@@ -466,6 +482,9 @@ class C11b2ReadPort:
                     raise asyncio.CancelledError
             await self._current(principal)
             current()
+            if getattr(search,'external_projection',False):
+                await search.recheck_result(principal['principal_id'],result)
+                current()
             response = {'query': query, 'results': [{'id': hit.record_id, 'kind': hit.kind,
                      'revision': hit.source_revision, 'distance': hit.distance}
                      for hit in result.hits], 'degraded': degraded, 'reranked': False,

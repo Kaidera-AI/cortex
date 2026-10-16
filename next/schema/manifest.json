@@ -101,6 +101,11 @@
       "id": "runtime-grants-0001",
       "file": "auth/007-runtime-grants.sql",
       "sha256": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607"
+    },
+    {
+      "id": "c09-external-v2-0008",
+      "file": "coordination/008-c09-external-v2.sql",
+      "sha256": "9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11"
     }
   ]
 }

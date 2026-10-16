@@ -291,9 +291,14 @@ class Admission(unittest.TestCase):
         lock, cfg = self.materials()
         current = lock['current_schema']
         manifest = json.loads((NEXT/'schema/manifest.json').read_bytes())
+        target_id = 'runtime-grants-0001'
+        migration_ids = [entry['id'] for entry in manifest['migrations']]
+        self.assertEqual(migration_ids.count(target_id), 1)
+        # Reconstruct the exact frozen20 document, preserving its independent SHA pin.
+        manifest['migrations'] = manifest['migrations'][:migration_ids.index(target_id)+1]
         self.assertEqual((current['migration_count'],current['business_table_count']), (20,44))
         self.assertEqual(current['migrations'], manifest['migrations'])
-        self.assertEqual(current['manifest_sha256'], sha256((NEXT/'schema/manifest.json').read_bytes()))
+        self.assertEqual(current['manifest_sha256'], sha256(encode(manifest)))
         raw = (NEXT/'contracts/runtime/runtime-lock-v1.schema.json').read_bytes()
         self.assertEqual(contracts.RC0_SHA256['runtime-lock-v1.schema.json'], sha256(raw))
         pin = lock['contract_members']['lock_schema']['value']

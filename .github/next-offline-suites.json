@@ -70,6 +70,7 @@
     "next/tests/integration/test_pg_search_tools.py",
     "next/tests/integration/test_query_cache_float32_roundtrip.py",
     "next/tests/integration/test_query_cache_tools.py",
+    "next/tests/module_consumer/test_c09_external.py",
     "next/tests/outbox_caller/test_outbox_caller.py",
     "next/tests/outbox_inventory/test_outbox_inventory.py",
     "next/tests/outbox_inventory/test_outbox_manifest.py",
@@ -88,6 +89,7 @@
     "next/tests/pg_b2_draft/test_pg_b2_rework.py",
     "next/tests/receipt/test_async_fixture_reuse.py",
     "next/tests/receipt/test_c09_qdrant.py",
+    "next/tests/receipt/test_c09_qdrant_s3b.py",
     "next/tests/receipt/test_classifier.py",
     "next/tests/receipt/test_fixture_subtests.py",
     "next/tests/receipt/test_shared_location.py",
@@ -231,7 +233,7 @@
       "evidence": {
         "kind": "postgres_fixture",
         "source": "next/tests/auth/test_authorization.py",
-        "sha256": "ed6338b81d137c7b2d536fb060dcec83566d92565239f13d6a8d34124d6e615c",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
         "symbol": "AuthorizationTests.setUp"
       }
     },
@@ -699,7 +701,7 @@
       "evidence": {
         "kind": "postgres_fixture",
         "source": "next/tests/auth/test_authorization.py",
-        "sha256": "ed6338b81d137c7b2d536fb060dcec83566d92565239f13d6a8d34124d6e615c",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
         "symbol": "AuthorizationTests.setUp"
       }
     },
@@ -2337,6 +2339,116 @@
         "source": "next/tests/install/test_owner_admission.py",
         "sha256": "b7e2c2ee82394b177b54d63b49f2f702cde78a36e9ccdb22fe08ee8a8d623340",
         "symbol": "compare_execution"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_sql_and_python_point_ids_match_full_binding",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_applied_commit_visible_to_fresh_connection_then_replay_is_stable",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_stale_records_actual_successor_but_does_not_jump_contiguous_cursor",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_vector_head_failure_rolls_back_existing_c07_outcome_and_prefix",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_poison_holds_prefix_across_other_aggregate_and_fresh_client",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_direct_v1_and_foreign_key_receipts_cannot_credit_bound_generation",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_private_tables_force_rls_and_request_role_cannot_write_or_read_them",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_binding_is_immutable_and_snapshot_rebuild_cannot_claim_materialization",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_retained_floor_expiry_refuses_old_core_proof",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_concurrent_stale_and_successor_share_the_c07_checkpoint_lock",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
+      }
+    },
+    {
+      "nodeid": "next/tests/module_consumer/test_c09_external.py::DurableExternal::test_foreign_project_published_head_does_not_block_local_core_proof",
+      "reason": "Requires the separately authorized task-owned copied PostgreSQL fixture; no native execution in the offline job.",
+      "evidence": {
+        "kind": "postgres_fixture",
+        "source": "next/tests/auth/test_authorization.py",
+        "sha256": "0183b097cdca7fead35002f6b6e0ca91b2b32c2ea7d1c96fbdc38f6e99f9423a",
+        "symbol": "AuthorizationTests.setUp"
       }
     }
   ],

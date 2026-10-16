@@ -639,6 +639,24 @@
       "classification": "private_transaction_binding_housekeeping"
     },
     {
+      "file": "schema/coordination/008-c09-external-v2.sql",
+      "owner": "coordination.c07_record",
+      "verb": "INSERT",
+      "table": "coordination.vector_applied_heads",
+      "ordinal": 0,
+      "statement_sha256": "20df52164a58822d5f5fdc62798b15912878bd92e61b0a01229041a1c4877a62",
+      "classification": "C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE"
+    },
+    {
+      "file": "schema/coordination/008-c09-external-v2.sql",
+      "owner": "coordination.c09_bind",
+      "verb": "INSERT",
+      "table": "coordination.vector_bindings",
+      "ordinal": 0,
+      "statement_sha256": "3229a056b109ec96b75c4715a2847cb982711c8571ccf4f73e7ee4422bf135d2",
+      "classification": "C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE"
+    },
+    {
       "file": "src/cortex_core/auth.py",
       "owner": "authorized",
       "verb": "DYNAMIC",
