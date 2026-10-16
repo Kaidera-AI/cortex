@@ -64,7 +64,7 @@ class _SyncSessions:
         return len(self._owned)
 
     def _failure(self, work, reason='session_unavailable'):
-        return SessionRefusal(reason, hold=not work.absent or bool(work.operations),
+        return SessionRefusal(reason, hold=not work.absent or bool(work.operations) or work.worker is None,
                               commit_known=work.commit_known)
 
     def _current(self, work):
@@ -74,6 +74,7 @@ class _SyncSessions:
     def _reap(self, work):
         # Only the loop mutates ownership. Completed IO alone does not prove
         # session absence; completed worker alone does not prove IO absence.
+        if work.worker is None: return  # dispatch ticket's absence is unproved
         if (work.worker.done() and not work.operations and not work.absent
                 and work.fenced and not work.reconciling and work.connection is not None
                 and self._loop.time() < work.deadline):
@@ -156,9 +157,17 @@ class _SyncSessions:
         self._owned.add(work)
         def worker():
             self._local.work = work
-            try: return callback(self.connection_factory)
+            try:
+                self._current(work)
+                return callback(self.connection_factory)
             finally: del self._local.work
-        work.worker = self._loop.run_in_executor(self._executor, worker)
+        try:
+            work.worker = self._loop.run_in_executor(self._executor, worker)
+        except Exception:
+            # An executor may enqueue before failing to start a worker. Fence
+            # that callback and retain its ticket; never infer native absence.
+            self._fence(work)
+            raise SessionRefusal('worker_dispatch_unproved', hold=True) from None
         work.worker.add_done_callback(lambda _: self._reap(work))
         try:
             done, _ = await asyncio.wait({work.worker}, timeout=max(0, deadline-self._loop.time()))
@@ -248,12 +257,15 @@ class _SyncSessions:
         if type(deadline) not in (int, float) or not math.isfinite(deadline):
             raise SessionRefusal('invalid_deadline')
         self._closed = True
-        for work in tuple(self._owned): self._fence(work)
-        workers = {work.worker for work in self._owned if not work.worker.done()}
+        for work in tuple(self._owned):
+            work.deadline = min(work.deadline, deadline)
+            self._fence(work)
+        workers = {work.worker for work in self._owned if work.worker is not None and not work.worker.done()}
         if workers:
             await asyncio.wait(workers, timeout=max(0, deadline-self._loop.time()))
         for work in tuple(self._owned):
-            if work.worker.done() and not work.operations and not work.absent and work.connection is not None:
+            if (work.worker is not None and work.worker.done() and not work.operations
+                    and not work.absent and work.connection is not None):
                 try: await work.adapter.retire(work.connection, deadline=min(deadline, work.deadline))
                 except BaseException: pass
                 work.absent = work.connection not in work.adapter._sessions

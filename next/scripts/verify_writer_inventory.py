@@ -61,7 +61,9 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
     "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
     "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
     "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",
-    "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496"
+    "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496",
+    'src/cortex_core/runtime/factory.py': '5d676ba5c231ede91d93162031ef0beb5dbb0e30e91a71f7ae2637011c978327',
+    'src/cortex_core/runtime/service_sessions.py': '78843842dca3ac6f7d8c26f0c5fb40ebb2fb7211a98b3dfd582383717a250b7d',
 }
 
 
@@ -125,6 +127,10 @@ REVIEWED_WRITER_CLASSES = {
     ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '21329c6f12d58a5f62d53b9f7be23d875418554e4aa2c4ed9c66ce80dec15d9f'): 'X3_fixed_Grant_atom_validation_DATA; closed_7_field_tuple; no_SQL_or_transaction',
     ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '728f5d8f24222d3e2e5f002195773c70598ee81b8f0805badbd5e03be7733700'): 'X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
     ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 2, '187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561'): 'X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/factory.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '19b6d8c8e767f5789de4651fc0f19c766eaeffab1852005730710252eeaaac6f'): 'X5_fixed_X12_enrollment_state_reader_join; existing_owner_port_only; no_SQL_parser_or_credential_path; installed_UNBOUND_native_HELD',
+    ('src/cortex_core/runtime/service_sessions.py', '_Connection.execute.execute', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '33f41f90a9a4e29967595c068ca002673821bcb52a03d702ab8f50612eae4c23'): 'X5_C11b_sync_facade_over_fixed_X3; C04_Records_own_SQL_and_transactions; remaining_E_statement_GUC; exclusive_worker_per_use_retire; installed_UNBOUND_native_HELD',
+    ('src/cortex_core/runtime/service_sessions.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '172a6957e8f0672c36cfd2dc43939b5e9e6d61c0600dbe86e982b3bf7fecaefd'): 'X5_closed_connection_flag_DATA; getattr_names_closed_autocommit_only; no_SQL_or_transaction; whole_source_pins_callers',
+    ('src/cortex_core/runtime/service_sessions.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '172a6957e8f0672c36cfd2dc43939b5e9e6d61c0600dbe86e982b3bf7fecaefd'): 'X5_closed_connection_flag_DATA; getattr_names_closed_autocommit_only; no_SQL_or_transaction; whole_source_pins_callers',
 }
 
 

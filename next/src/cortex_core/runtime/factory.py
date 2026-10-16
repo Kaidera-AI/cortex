@@ -107,7 +107,13 @@ async def _installed_health(core_health, enrollment_state, installation, *, dead
     async def current_enrollment(installation_id):
         if loop.time() >= deadline: return 'unavailable'
         value = await enrollment_state(installation_id)
-        return value if loop.time() < deadline else 'unavailable'
+        # Enrollment waited: re-observe the existing Core/supervisor port under
+        # the same E before accepting readiness. A prior roundtrip is not current.
+        core = await current_core()
+        if (loop.time() >= deadline or type(core) is not dict
+                or core.get('state') != 'healthy' or core.get('core_available') is not True):
+            return 'unavailable'
+        return value
     composer = EnrollmentHealth(current_core, current_enrollment, installation,
         timeout_seconds=min(10, deadline-loop.time()))
     task = loop.create_task(composer())

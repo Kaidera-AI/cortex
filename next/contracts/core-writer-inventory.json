@@ -981,6 +981,15 @@
       "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
     },
     {
+      "file": "src/cortex_core/runtime/factory.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "19b6d8c8e767f5789de4651fc0f19c766eaeffab1852005730710252eeaaac6f",
+      "classification": "X5_fixed_X12_enrollment_state_reader_join; existing_owner_port_only; no_SQL_parser_or_credential_path; installed_UNBOUND_native_HELD"
+    },
+    {
       "file": "src/cortex_core/runtime/role_grants.py",
       "owner": "<module>",
       "verb": "UPDATE",
@@ -1348,6 +1357,33 @@
       "ordinal": 2,
       "statement_sha256": "187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561",
       "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/service_sessions.py",
+      "owner": "_Connection.execute.execute",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "33f41f90a9a4e29967595c068ca002673821bcb52a03d702ab8f50612eae4c23",
+      "classification": "X5_C11b_sync_facade_over_fixed_X3; C04_Records_own_SQL_and_transactions; remaining_E_statement_GUC; exclusive_worker_per_use_retire; installed_UNBOUND_native_HELD"
+    },
+    {
+      "file": "src/cortex_core/runtime/service_sessions.py",
+      "owner": "dynamic_name:call_target",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "172a6957e8f0672c36cfd2dc43939b5e9e6d61c0600dbe86e982b3bf7fecaefd",
+      "classification": "X5_closed_connection_flag_DATA; getattr_names_closed_autocommit_only; no_SQL_or_transaction; whole_source_pins_callers"
+    },
+    {
+      "file": "src/cortex_core/runtime/service_sessions.py",
+      "owner": "dynamic_name:getattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "172a6957e8f0672c36cfd2dc43939b5e9e6d61c0600dbe86e982b3bf7fecaefd",
+      "classification": "X5_closed_connection_flag_DATA; getattr_names_closed_autocommit_only; no_SQL_or_transaction; whole_source_pins_callers"
     }
   ]
 }
