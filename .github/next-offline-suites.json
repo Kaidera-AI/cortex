@@ -293,11 +293,11 @@
     },
     {
       "path": "next/tests/core_upgrade/test_migration_steps.py",
-      "reason": "Needs real PostgreSQL; selected by the eleven-method U13 PG CI gate (original eight plus three PG-C witnesses)."
+      "reason": "Needs real PostgreSQL; covered by the unchanged U13 PG CI step (PR155)."
     },
     {
       "path": "next/tests/core_upgrade/test_rehearsal.py",
-      "reason": "Needs real PostgreSQL; selected by the eleven-method U13 PG CI gate (original eight plus three PG-C witnesses)."
+      "reason": "Needs real PostgreSQL; covered by the unchanged U13 PG CI step (PR155)."
     },
     {
       "path": "next/tests/core_upgrade/test_signed_pair.py",
@@ -305,7 +305,7 @@
     },
     {
       "path": "next/tests/core_upgrade_head/test_migration_head.py",
-      "reason": "Needs real PostgreSQL; selected by the eleven-method U13 PG CI gate (original eight plus three PG-C witnesses)."
+      "reason": "Needs real PostgreSQL; covered by the unchanged U13 PG CI step (PR155)."
     },
     {
       "path": "next/tests/core_upgrade_signed/test_signed_admission.py",
