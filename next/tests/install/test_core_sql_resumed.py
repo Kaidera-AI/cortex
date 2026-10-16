@@ -119,3 +119,33 @@ class Baseline(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             s=self.fixture(root);s.baseline_damage=lambda v:v.update(kind='installed')
             with s.installed(),self.assertRaises(owner.OwnerRefusal):self.read(s)
+    def test_installed_original_close_is_measured_without_redispatch(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=self.fixture(root);helper=phases.CoreSQL()
+            for phase in phases.PHASES:helper.run_phase(s,phase)
+            event,_=lifecycle._load_entry(s.history,s.previous[-1]);original=s.attestation
+            def installed(i):
+                v=original(i);v.update(kind='installed',release_binding_ref=event['release_binding_ref']);return v
+            s.attestation=installed;count=s.effects
+            with s.installed():b=self.read(s)
+            self.assertEqual(b['kind'],'installed');self.assertEqual(b['head_ref'],s.previous[-1])
+            self.assertEqual(b['revision'],s.history.current_revision());self.assertEqual(s.effects,count)
+    def test_fixed_default_gap_precedes_candidate_or_history_access(self):
+        fn=getattr(core_sql,'_current_baseline',None);self.assertTrue(callable(fn),'X4_BASELINE_PRODUCER_ABSENT')
+        with tempfile.TemporaryDirectory() as root:
+            h=lifecycle._History(root)
+            with patch.object(owner,'_installed_owner_inputs',side_effect=owner.OwnerRefusal('required_binding_gap')), \
+                 patch.object(h,'head',side_effect=AssertionError('history touched')),self.assertRaises(owner.OwnerRefusal) as e:
+                fn(h,object())
+            self.assertEqual(e.exception.detail,'required_binding_gap')
+    def test_revoke_during_original_retention_refuses_return(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=self.fixture(root);original=s.history.retain;seen=[]
+            def delayed(raw):
+                ref=original(raw);s.revoked=True;seen.append(ref);return ref
+            with s.installed(),patch.object(s.history,'retain',delayed),self.assertRaises(owner.OwnerRefusal):self.read(s)
+            self.assertTrue(seen);self.assertIsNone(s.history.head()[0])
+    def test_root_substitution_is_not_database_restore(self):
+        with tempfile.TemporaryDirectory() as root:
+            s=self.fixture(root);s.history._identity=(s.history._identity[0],s.history._identity[1]+1)
+            with s.installed(),self.assertRaises(owner.OwnerRefusal):self.read(s)

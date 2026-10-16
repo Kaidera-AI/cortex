@@ -186,7 +186,12 @@
     "next/tests/runtime_keyword/test_wire.py",
     "next/tests/schema/test_causal_mutations.py",
     "next/tests/schema/test_mutation_receipts.py",
-    "next/tests/test_x3_secret_resolver.py"
+    "next/tests/test_x3_secret_resolver.py",
+    "next/tests/install/test_core_sql.py",
+    "next/tests/install/test_core_sql_boundaries.py",
+    "next/tests/install/test_core_sql_resumed.py",
+    "next/tests/install/test_core_sql_seams.py",
+    "next/tests/install/test_lifecycle_ack_deadline.py"
   ],
   "excluded": [
     {
