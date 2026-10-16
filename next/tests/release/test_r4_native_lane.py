@@ -520,6 +520,20 @@ class Emission(unittest.TestCase):
             self.emit_value(change)()
         self.assertEqual(str(caught.exception), 'r02_native_emission_unqualified')
 
+    def test_missing_record_refuses_before_any_reader(self):
+        lane, result = self.complete_lanes(qualification)
+        value = json.loads(result['receipt'])
+        value['evidence']['inventory'] = [r for r in value['evidence']['inventory'] if r['role'] != 'native.qualification']
+        reads = []
+        def reader(path):
+            reads.append(path)
+            raise AssertionError('reader called')
+        with self.assertRaises(ValueError) as caught:
+            build_receipts.emit(verified(lane.fx, lane.value), value['builds'], value['audit'], value['evidence'],
+                                value['custody'], value['cleanup'], reader, reader, None)
+        self.assertEqual(str(caught.exception), 'r02_native_emission_unqualified')
+        self.assertEqual(reads, [])
+
     def test_required_class_list_must_be_the_full_set_even_with_full_reports(self):
         def change(value):
             value['audit']['required_classes'] = [c for c in value['audit']['required_classes'] if c != 'runtime']

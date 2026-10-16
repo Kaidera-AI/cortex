@@ -137,18 +137,23 @@ def _require_native_complete(builds, audit, evidence, evidence_reader, custody=N
         return decode_json(verify_checked_bytes(evidence_reader(record["path"]), record["sha256"]), 8 * 1024 * 1024)
 
     try:
-        if (set(builds) != {"A", "B"} or audit.get("required_classes") != list(CLASSES) or
-                set(audit.get("reports", {})) != {"A", "B"} or audit.get("findings") != []):
-            raise ValueError
-        if not (custody and custody.get("complete") is True and custody.get("partial") is False and
-                custody.get("missing_roles") == [] and original(custody["receipt"]).get("complete") is True):
-            raise ValueError
-        if not (cleanup and cleanup.get("complete") is True and cleanup.get("remaining_owned_resources") == [] and
-                original(cleanup["receipt"]) .get("complete") is True and
-                original(cleanup["receipt"]).get("remaining_owned_resources") == []):
-            raise ValueError
+        # Every check that needs no reader runs first: a candidate without its R6
+        # record or with incomplete flags refuses before any output/evidence read.
         rows = [row for row in evidence["inventory"] if row["role"] == "native.qualification"]
         if len(rows) != 1:
+            raise ValueError
+        if (set(builds) != {"A", "B"} or audit.get("required_classes") != list(CLASSES) or
+                set(audit.get("reports", {})) != {"A", "B"} or audit.get("findings") != [] or
+                any(set(audit["reports"][slot]) != set(CLASSES) for slot in ("A", "B"))):
+            raise ValueError
+        if not (custody and custody.get("complete") is True and custody.get("partial") is False and
+                custody.get("missing_roles") == [] and cleanup and cleanup.get("complete") is True and
+                cleanup.get("remaining_owned_resources") == []):
+            raise ValueError
+        if original(custody["receipt"]).get("complete") is not True:
+            raise ValueError
+        lane_cleanup_doc = original(cleanup["receipt"])
+        if lane_cleanup_doc.get("complete") is not True or lane_cleanup_doc.get("remaining_owned_resources") != []:
             raise ValueError
         doc = qualification_complete(original(rows[0]))
         present = {row["path"] for row in evidence["inventory"]}
@@ -158,8 +163,6 @@ def _require_native_complete(builds, audit, evidence, evidence_reader, custody=N
             build = builds[slot]
             observed = build["observed_builder"]
             if observed["architecture"] != doc["architecture"] or observed["engine"] != doc["engine"]:
-                raise ValueError
-            if set(audit["reports"][slot]) != set(CLASSES):
                 raise ValueError
             for record in audit["reports"][slot].values():
                 if original(record).get("findings") != []:
