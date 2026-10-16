@@ -138,6 +138,7 @@
     "next/tests/release/test_r4_hale_probes.py",
     "next/tests/release/test_r4_hale_residual.py",
     "next/tests/release/test_r4_native_lane.py",
+    "next/tests/release/test_r6_hale_composition.py",
     "next/tests/release/test_r6_hale_residual.py",
     "next/tests/release/test_r6_native_operator.py",
     "next/tests/release/test_semantic_oracle.py",
