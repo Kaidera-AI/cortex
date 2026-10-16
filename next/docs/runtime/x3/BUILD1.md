@@ -108,3 +108,12 @@ CI inventory pins. No protected branch changed. The X3 delta against that main
 is exactly six declared files; CI change is one additional RUN test admission.
 The privacy failure assertion now reports a boolean leak result and its marker,
 so a newly detected public synthetic fixture value is not copied into diagnostics.
+
+
+Carrier reservation review: `_CarrierState.phase` is an observed supplier field,
+not a phase inferred from a path or invented by the descriptor. The initial
+original must be S02, absent and have zero surviving consumers before any
+material read/create. Invalid original reservations refuse before create or
+cleanup; a bad descriptor is not permission to touch a target. After a valid
+original begins creation, cancellation/uncertainty still reconciles only that
+original and yields HOLD unless measured absence is established.

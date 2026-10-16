@@ -58,6 +58,7 @@ class _CarrierState:
     regular: bool
     present: bool
     consumers: int
+    phase: str
 
 
 @dataclass(frozen=True)
@@ -249,8 +250,10 @@ class SecretResolver:
         _require((grant.purpose,grant.mode) == ('bootstrap','core-init'), 'purpose_not_in_view')
         state = await _bounded(inputs.reserve_carrier(grant,bound),bound)
         carrier = _Carrier(inputs,grant,state,min(absolute_deadline,_handle(handle)[2]),handle)
+        # Reserve is material-effect-free. An invalid original is not permission
+        # to create material or to dispatch cleanup against an unadmitted target.
+        carrier._valid(state,present=False)
         try:
-            carrier._valid(state,present=False)
             async with self._material(handle,bound) as material:
                 await _bounded(inputs.create_carrier(state,material,bound),bound)
             await carrier.check()
@@ -277,7 +280,7 @@ class _Carrier:
             generation=g.generation,process=g.process,expires=self._deadline,
             resource=s.resource,identity=s.identity,uid=s.uid,file_mode=s.mode,
             directory_mode=s.directory_mode,links=s.links,private=s.private,
-            regular=s.regular,reserved_present=s.present,phase='S02')
+            regular=s.regular,reserved_present=s.present,phase=s.phase)
     def _valid(self, state, *, present):
         original = self._state
         _require(type(state) is _CarrierState and type(original) is _CarrierState,
@@ -291,7 +294,8 @@ class _Carrier:
             and type(state.links) is int and state.links == 1
             and state.private is True and state.regular is True
             and state.present is present and type(state.consumers) is int
-            and state.consumers >= 0, 'carrier_mismatch')
+            and state.consumers >= 0 and (present or state.consumers == 0)
+            and state.phase == original.phase == 'S02', 'carrier_mismatch')
     async def check(self):
         _require(not self._closed, 'carrier_mismatch')
         await SecretResolver().check(self._handle,self._deadline)
