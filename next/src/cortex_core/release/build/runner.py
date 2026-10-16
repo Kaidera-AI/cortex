@@ -548,12 +548,12 @@ def native_lanes(verified, materialize, base, closure, host, parent, output_root
     for slot, lane in lanes.items():
         builds[slot], reports[slot], rows = _build_record(lane, value, host, evidence_root, output_root)
         evidence += rows
-    # The R6 record and every original it cites (requests, replies, journals,
-    # observations), which the R6 operator placed in the evidence root, join the
-    # exact-set evidence inventory (Cox R4-R01-001). Missing ones stay absent, so
-    # emit (and later R01) refuse.
+    # The R6 record and every original it cites (each row's request and real child
+    # records, plus the streams those records name), which the R6 operator placed in
+    # the evidence root, join the exact-set evidence inventory (Cox R4-R01-001).
+    # Missing ones stay absent, so emit (and later R01) refuse.
     from cortex_core.release.codec import decode_json
-    from cortex_core.release.receipts import qualification_complete, qualification_paths
+    from cortex_core.release.receipts import qualification_complete, qualification_paths, qualification_streams
 
     record = qualification
     _write_owned(Path(evidence_root) / "qualification.json", record, 0o444)
@@ -563,12 +563,23 @@ def native_lanes(verified, materialize, base, closure, host, parent, output_root
         cited = qualification_paths(qualification_complete(decode_json(record, 1024 * 1024)))
     except ValueError:
         cited = []
-    for name in sorted(set(cited)):
+    originals = {}
+    for name in cited:
         source = Path(evidence_root) / name
         if source.is_file() and not source.is_symlink():
-            raw = source.read_bytes()
-            evidence.append({"role": "native.qualification.original", "path": name,
-                             "media_type": "application/octet-stream", "bytes": len(raw), "sha256": sha256(raw)})
+            originals[name] = source.read_bytes()
+            if name.endswith(".children.json"):
+                try:
+                    streams = qualification_streams(originals[name])
+                except ValueError:
+                    streams = []
+                for path in streams:
+                    stream = Path(evidence_root) / path
+                    if stream.is_file() and not stream.is_symlink():
+                        originals[path] = stream.read_bytes()
+    for name, raw in sorted(originals.items()):
+        evidence.append({"role": "native.qualification.original", "path": name,
+                         "media_type": "application/octet-stream", "bytes": len(raw), "sha256": sha256(raw)})
     outputs = sorted([row for slot in builds for row in builds[slot]["outputs"]], key=lambda row: row["path"])
     def record(role, name, raw):
         _write_owned(Path(evidence_root) / name, raw, 0o444)
@@ -590,3 +601,440 @@ def native_lanes(verified, materialize, base, closure, host, parent, output_root
         lambda path: (Path(output_root) / path).read_bytes(), lambda path: (Path(evidence_root) / path).read_bytes(),
         None)
     return {"result": "RAW", "lanes": lanes, "receipt": raw, "verified": verified_receipt}
+
+
+QUALIFICATION_DIR = "q"
+
+
+def _qualification_row(evidence, kind, request, children):
+    """One row's originals in the evidence root: its request and the REAL child records
+    of its run (inspector._Children), stream paths made relative. Returns the refs."""
+    from pathlib import Path
+    from cortex_core.release.codec import canonical_bytes
+    from cortex_core.release.inspector import _write_owned
+
+    evidence = Path(evidence)
+    for child in children:
+        for key in ("stdout", "stderr", "journal"):
+            stream = child.get(key)
+            if stream and stream.get("path") and Path(stream["path"]).is_absolute():
+                stream["path"] = str(Path(stream["path"]).relative_to(evidence))
+    base = QUALIFICATION_DIR + "/" + kind
+    _write_owned(evidence / (base + ".request"), request, 0o444)
+    _write_owned(evidence / (base + ".children.json"), canonical_bytes(children), 0o444)
+    return {"request": base + ".request", "children": base + ".children.json"}
+
+
+def qualify(verified, materialize, base, closure, probe, host, parent, root, allowlist, *, clock=None, deadline=None,
+            account=None):
+    """R6 run 2, steps c-f for one arch (note v2 ORDER): ONE preliminary lane (slot P)
+    whose evidence-only audit IS the positive; the negative (exactly one cache body
+    byte flipped, through collect_inspection_evidence); the seven probes (purpose=probe,
+    each its own fresh store); then the record (references only). The shared R01 row
+    function must accept EVERY row here, else no record and no native_lanes call.
+    P-lane outputs and roots are unqualified material: never assembled or emitted.
+    Inside an operator run, every step starts only if its own fixed bound still fits the
+    operator Deadline window (_fits) and the negative/probes share its output account.
+    Returns (record bytes, {evidence path: original bytes})."""
+    import base64
+    import sys
+    from pathlib import Path
+    from cortex_core.release.codec import canonical_bytes, decode_json, sha256
+    from cortex_core.release.contracts import ReceiptRefusal, thaw
+    from cortex_core.release.inspector import CLEANUP_SECONDS, _request, collect_inspection_evidence, run_probe
+    from cortex_core.release.receipts import (PROBES, QUALIFICATION_SCHEMA, qualification_complete,
+                                              qualification_paths, qualification_row, qualification_streams)
+    from . import _owned_remove
+
+    fail = "native_inspector_execution_unqualified"
+    root = Path(root)
+    evidence, material = root / "evidence", root / "material"
+    for path in (evidence, material, evidence / QUALIFICATION_DIR):
+        path.mkdir(mode=0o700)
+    value = thaw(verified.document)
+    profile = thaw(verified.metadata)["release_policy"]
+    seconds = profile["inspector"]["limits"]["seconds"] + CLEANUP_SECONDS  # an inspection's whole own budget
+    _fits(deadline, value["resources"]["absolute_timeout_sec"])
+    lane = native_lane("P", verified, materialize, base, closure, host, parent, material, evidence, clock=clock)
+    if len(lane["inspection"]) != 1:
+        raise ReceiptRefusal(fail)  # no corpus: nothing to qualify against
+    corpus = lane["inspection"][0]
+    rows = {"positive": _qualification_row(evidence, "positive", corpus["request"], corpus["children"])}
+    request = decode_json(corpus["request"], profile["inspector"]["limits"]["input_bytes"])
+    cases = [{"cache": row["cache"], "source": row["source"], "final_filename": row["final_filename"],
+              "optimization": request["optimization"], "cache_bytes": base64.b64decode(row["cache_b64"]),
+              "source_bytes": base64.b64decode(row["source_b64"])} for row in request["rows"]]
+    body = cases[0]["cache_bytes"]
+    cases[0]["cache_bytes"] = body[:-1] + bytes([body[-1] ^ 1])
+    (evidence / QUALIFICATION_DIR / "negative").mkdir(mode=0o700)
+    nested = []
+    try:
+        _fits(deadline, seconds)
+        negative = collect_inspection_evidence(closure, profile, cases, evidence_dir=evidence / QUALIFICATION_DIR / "negative",
+                                               history=nested, account=account)["request"]
+    except ReceiptRefusal:
+        negative = _request(closure, profile, cases)[0]  # the failed run's history still becomes evidence
+    rows["negative"] = _qualification_row(evidence, "negative", negative, nested)
+    for name in PROBES:
+        (evidence / QUALIFICATION_DIR / name).mkdir(mode=0o700)
+        _fits(deadline, seconds)
+        result = run_probe(probe, profile, name, evidence_dir=evidence / QUALIFICATION_DIR / name, account=account)
+        rows[name] = _qualification_row(evidence, name, result["request"], result["children"])
+    descriptor = thaw(closure.descriptor)["descriptor"]
+    doc = {"schema": QUALIFICATION_SCHEMA, "architecture": value["builder_requirements"]["architecture"],
+           "platform": value["target"]["oci_platform"],
+           "host": {key: host.get(key) for key in ("os", "arch", "uid", "rootless", "emulated", "kernel")},
+           "engine": lane["engine"], "engine_path": str(closure.engine),
+           "engine_config": {name: descriptor["engine_config"][name]["sha256"] for name in ("containers_conf", "storage_conf")},
+           "inspector": {"closure_sha256": closure.closure_sha256, "positive": rows["positive"], "negative": rows["negative"]},
+           "probe_image": probe.image_digest, "containment": {name: rows[name] for name in PROBES},
+           "cleanup_interpreter": sys.executable,
+           "cleanup_script": {"path": _owned_remove.__file__, "sha256": sha256(Path(_owned_remove.__file__).read_bytes())}}
+    files = {}
+    try:
+        qualification_complete(doc)
+        for path in qualification_paths(doc):
+            files[path] = (evidence / path).read_bytes()
+            if path.endswith(".children.json"):
+                for stream in qualification_streams(files[path]):
+                    files[stream] = (evidence / stream).read_bytes()
+        # step f: the SAME pure row function R01 uses, producer-side, before any lane call
+        context = {"capability": closure, "probe": probe, "descriptor": descriptor, "profile": profile,
+                   "input_value": value, "doc": doc, "allowlist": allowlist, "positive": None}
+        def check(kind, cited):
+            children = decode_json(files[cited["children"]], 8 * 1024 * 1024)
+            return qualification_row(kind, files[cited["request"]], children, files, context)[1]
+        context["positive"] = check("positive", rows["positive"])
+        check("negative", rows["negative"])
+        for name in PROBES:
+            check(name, rows[name])
+    except (ValueError, KeyError, TypeError, OSError):
+        raise ReceiptRefusal(fail) from None
+    return canonical_bytes(doc), files
+
+
+def operate(modules, closure, probe, host, parent, root, allowlist, *, clock=None, deadline=None, account=None):
+    """R6 run 2 for one arch, the exact call sequence: qualify (steps c-f, the corpus is
+    the Core input) and only then native_lanes(Core), native_lanes(API) (step g): TWO
+    calls, each running A then B internally, each with the record's originals written
+    into its own evidence root. modules[name] = {verified, materialize, base,
+    output_root, evidence_root}."""
+    from pathlib import Path
+    from cortex_core.release.inspector import _write_owned
+
+    core = modules["Core"]
+    record, files = qualify(core["verified"], core["materialize"], core["base"], closure, probe, host, parent, root,
+                            allowlist, clock=clock, deadline=deadline, account=account)
+    results = {}
+    for name in ("Core", "API"):
+        module = modules[name]
+        for path, raw in sorted(files.items()):
+            target = Path(module["evidence_root"]) / path
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            _write_owned(target, raw, 0o444)
+        _fits(deadline, 2 * module["verified"].document["resources"]["absolute_timeout_sec"])  # lanes A then B
+        results[name] = native_lanes(module["verified"], module["materialize"], module["base"], closure, host, parent,
+                                     module["output_root"], module["evidence_root"], record, clock=clock)
+    return {"record": record, "lanes": results}
+
+
+# R6-LIFETIME-001: ONE bounded operator run identity. Stage budgets (seconds); the
+# lanes stage charges all FIVE lane windows (P + Core A/B + API A/B, kai R6 clause).
+OPERATOR_STAGES_SEC = (("setup", 1200), ("assets", 1200), ("qualification", 1800))
+OPERATOR_LANE_WINDOWS = 5
+OPERATOR_TEARDOWN_SEC = 1200
+UNIT_DIR = "/run/systemd/system"
+
+
+CONTROL_CALL_SEC = 60  # every outer-driver backend call is bounded by this timeout
+
+
+def _fits(deadline, seconds):
+    """Start a step only if its OWN fixed bound still fits the operator window: a lane
+    or inspection that could outlive the run is never begun (no fresh standalone time)."""
+    if deadline is not None and deadline.child_timeout(KILL_SECONDS) < seconds:
+        raise TimeoutError("operator window cannot hold the next step")
+
+
+def operator_budget(absolute_timeout_sec):
+    """The reconciled run budget for the admitted lane timeout A: named stages, the
+    teardown reserve and their total (= the unit's RuntimeMaxSec)."""
+    if type(absolute_timeout_sec) is not int or absolute_timeout_sec <= 0:
+        raise ValueError("operator_budget_unreconciled")
+    stages = dict(OPERATOR_STAGES_SEC)
+    stages["lanes"] = OPERATOR_LANE_WINDOWS * absolute_timeout_sec
+    stages["teardown"] = OPERATOR_TEARDOWN_SEC
+    return {"absolute_timeout_sec": absolute_timeout_sec, "stages": stages, "total_sec": sum(stages.values())}
+
+
+def _checked_budget(budget, refusal):
+    """The ONE budget check (Hale R6-LIFETIME-001.BUDGET), shared by the Deadline and the
+    unit: every stage term equals the rebuild from the budget's OWN admitted A, so a
+    reconciled four-window or reserve-less budget is refused, not only an unsummed one."""
+    try:
+        valid = (type(budget) is dict and set(budget) == {"absolute_timeout_sec", "stages", "total_sec"} and
+                 budget == operator_budget(budget["absolute_timeout_sec"]))
+    except (ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise ValueError(refusal)
+    return budget
+
+
+def operator_deadline(budget, *, clock=None):
+    """The ONE run Deadline: total budget, the last OPERATOR_TEARDOWN_SEC for teardown."""
+    from .engine import Deadline
+
+    _checked_budget(budget, "operator_budget_unreconciled")
+    return Deadline(budget["total_sec"], clock=clock or _now, reserve=OPERATOR_TEARDOWN_SEC)
+
+
+def operator_unit(name, budget, exec_start, exec_stop_post):
+    """The transient root unit text (lab rule: a unit file in /run/systemd/system, never
+    systemd-run). RuntimeMaxSec = the checked total; ExecStopPost runs the finally
+    (operator_teardown) on every exit including the timeout. Returns (path, text)."""
+    import re
+
+    token = re.compile(r"[A-Za-z0-9_./=:,+@-]+")
+    _checked_budget(budget, "operator_unit_refused")
+    if (not re.fullmatch(r"cortex-r6-[a-z0-9-]{1,64}", name) or
+            not all(type(argv) is list and argv and argv[0].startswith("/") and
+                    all(type(part) is str and token.fullmatch(part) for part in argv)
+                    for argv in (exec_start, exec_stop_post))):
+        raise ValueError("operator_unit_refused")
+    text = ("[Unit]\nDescription=Cortex R6 native qualification run " + name + "\n\n[Service]\nType=exec\n"
+            "RuntimeMaxSec=" + str(budget["total_sec"]) + "\nExecStart=" + " ".join(exec_start) +
+            "\nExecStopPost=" + " ".join(exec_stop_post) + "\n")
+    return UNIT_DIR + "/" + name + ".service", text
+
+
+def operator_finally(steps):
+    """The guest-side finally steps: EVERY step attempted in order (stop work, prove
+    owned containers/processes absent, close results/custody, stop the session, remove
+    the user, reconcile packages); a failure is kept, never skips the rest."""
+    residuals = []
+    for name, step in steps:
+        try:
+            if step() is not True:
+                residuals.append(name)
+        except Exception as error:
+            residuals.append(name + ": " + type(error).__name__)
+    return residuals
+
+
+def _run_file(root, name):
+    from pathlib import Path
+    from cortex_core.release.codec import decode_json
+
+    path = Path(root) / ("operator-" + name + ".json")
+    return decode_json(path.read_bytes(), 1024 * 1024) if path.is_file() and not path.is_symlink() else None
+
+
+def _run_binding(run_id, root):
+    """What one teardown result is evidence FOR: this run id and the exact setup and
+    receipt records it cleaned (Hale r2 COMPOSITION)."""
+    from pathlib import Path
+    from cortex_core.release.codec import sha256
+
+    def digest(name):
+        path = Path(root) / ("operator-" + name + ".json")
+        return sha256(path.read_bytes()) if path.is_file() and not path.is_symlink() else None
+    return {"run_id": run_id, "setup_sha256": digest("setup"), "receipt_sha256": digest("receipt")}
+
+
+def operator_teardown(run_id, backend, root, *, clock=None, deadline=None):
+    """The ONE concrete finally of a run: the in-process lifecycle cleanup of operator_run
+    AND the unit's ExecStopPost. Exactly once: the first call writes its result
+    (O_EXCL), bound to this run id and the setup/receipt records it cleaned; a later
+    call returns it only for that same binding, else reports marker_mismatch, and
+    touches nothing either way. Every backend call
+    is (op, run_id, timeout) inside the teardown reserve. Packages: only OUR recorded
+    transaction is undone, after its undo preview; a setup without a proven receipt is
+    HOLD (residual), never a blind undo."""
+    from pathlib import Path
+    from cortex_core.release.codec import canonical_bytes
+    from cortex_core.release.inspector import _write_owned
+    from .engine import Deadline
+
+    binding = _run_binding(run_id, root)
+    done = _run_file(root, "teardown")
+    if done is not None:
+        if type(done) is dict and all(done.get(key) == value for key, value in binding.items()):
+            return done
+        return {"run_id": run_id, "complete": False, "remaining_owned_resources": ["teardown: marker_mismatch"]}
+    if deadline is None:  # ExecStopPost after the run process died: a fresh reserve only
+        deadline = Deadline(OPERATOR_TEARDOWN_SEC, clock=clock or _now, reserve=OPERATOR_TEARDOWN_SEC)
+    deadline.enter_cleanup(OPERATOR_TEARDOWN_SEC)
+    setup, receipt = _run_file(root, "setup"), _run_file(root, "receipt")
+
+    def call(op, *args):
+        timeout = deadline.cleanup_timeout(KILL_SECONDS)
+        if timeout <= 0:
+            raise TimeoutError("teardown reserve spent")
+        return backend(op, run_id, timeout, *args)
+
+    def packages():
+        if setup is None:
+            return True  # nothing was ever installed
+        if receipt is None:
+            raise ValueError("package_ownership_hold")
+        call("undo", package_undo_preview(receipt, call("undo_preview", receipt["transaction_id"])))
+        return package_readback(setup["baseline"], call("rpm_qa"), call("user_absent")) == "clean"
+    residuals = operator_finally([("stop", lambda: call("stop")), ("absent", lambda: call("absent")),
+                                  ("custody", lambda: call("custody")), ("session", lambda: call("session_stop")),
+                                  ("user", lambda: call("user_remove")), ("packages", packages)])
+    result = dict(binding, complete=not residuals, remaining_owned_resources=residuals)
+    _write_owned(Path(root) / "operator-teardown.json", canonical_bytes(result), 0o444)
+    return result
+
+
+def operator_run(run_id, backend, modules, closure, probe, host, parent, root, allowlist, *, clock=None):
+    """R6 run 2 as ONE bounded operator run (the unit's ExecStart; Hale
+    R6-LIFETIME-001.COMPOSITION): the checked budget for the admitted A, ONE operator
+    Deadline, stage windows (setup, then qualification + lanes), one output account,
+    and the existing lifecycle() whose finally is operator_teardown. Setup records the
+    rpm baseline and history id BEFORE the install and the exact transaction receipt
+    after it, then creates the build user. Returns {result, reason, stages, teardown}."""
+    from pathlib import Path
+    from cortex_core.release.codec import canonical_bytes
+    from cortex_core.release.inspector import _write_owned
+    from .engine import OutputAccount
+
+    timeouts = {module["verified"].document["resources"]["absolute_timeout_sec"] for module in modules.values()}
+    if len(timeouts) != 1:
+        raise ValueError("operator_budget_unreconciled")
+    budget = operator_budget(timeouts.pop())
+    deadline = operator_deadline(budget, clock=clock)
+    stages = budget["stages"]
+    root = Path(root)
+    # ONE run per operator root: a root that already carries any record (a setup, a
+    # receipt, a teardown marker, qualification output) is refused before any effect,
+    # so a finally can never be another run's (Hale r2 COMPOSITION).
+    if not root.is_dir() or root.is_symlink() or any(root.iterdir()):
+        raise ValueError("operator_root_not_fresh")
+    state = {"lanes": None, "teardown": None}
+
+    def call(op, *args):
+        return backend(op, run_id, deadline.child_timeout(KILL_SECONDS), *args)
+
+    def stage(name):
+        if name == "setup":
+            deadline.enter_phase(stages["setup"])
+            baseline = call("rpm_qa")
+            last = max([row["id"] for row in call("history")] or [0])
+            package_preview(baseline, call("install_preview"))
+            _write_owned(root / "operator-setup.json", canonical_bytes({"baseline": baseline, "last_id_before": last}), 0o444)
+            call("install")
+            receipt = package_receipt(baseline, last, call("rpm_qa"), call("history"))
+            _write_owned(root / "operator-receipt.json", canonical_bytes(receipt), 0o444)
+            call("user_create")
+            return {"exit": 0}
+        deadline.enter_phase(stages["qualification"] + stages["lanes"])
+        (root / "qualification").mkdir(mode=0o700)
+        disk = modules["Core"]["verified"].document["resources"]["disk_bytes"]
+        state["lanes"] = operate(modules, closure, probe, host, parent, root / "qualification", allowlist, clock=clock,
+                                 deadline=deadline, account=OutputAccount(disk))["lanes"]
+        return {"exit": 0 if all(lane["result"] == "RAW" for lane in state["lanes"].values()) else 1}
+
+    def custody():
+        return {"complete": state["lanes"] is not None}
+
+    def cleanup():
+        state["teardown"] = operator_teardown(run_id, backend, root, clock=clock, deadline=deadline)
+        return state["teardown"]
+
+    result = lifecycle(("setup", "work"), stage, custody, cleanup, lambda row: None)
+    return {"result": result["result"], "reason": result["reason"], "stages": result["stages"],
+            "teardown": state["teardown"], "lanes": state["lanes"]}
+
+
+def operator_drive(start, read_state, deallocate, readback, *, polls):
+    """The outer driver: start the named unit ONCE, poll it a bounded number of times,
+    then ALWAYS request deallocation and read it back, whatever happened before. An
+    unknown state, a lost connection or an exhausted window is HOLD (reconcile by the
+    unit name), never a duplicate start. Every error is kept; a failed deallocation
+    request is never PASS, whatever the readback says (Hale .DEALLOCATE).
+    Returns {result, unit, deallocated, errors}."""
+    unit, errors = None, []
+    try:
+        start()
+        unit = "unknown"
+        for _ in range(polls):
+            unit = read_state()
+            if unit not in ("activating", "active", "deactivating"):
+                break
+    except Exception as error:
+        errors.append(("state" if unit else "start") + ": " + type(error).__name__)
+        unit = unit or "start-failed"
+    try:
+        deallocate()
+    except Exception as error:
+        errors.append("deallocate: " + type(error).__name__)
+    try:
+        deallocated = readback() == "deallocated"
+    except Exception as error:
+        errors.append("readback: " + type(error).__name__)
+        deallocated = False
+    if not deallocated or unit not in ("inactive", "failed", "start-failed") or \
+            any(e.startswith(("deallocate", "readback")) for e in errors):
+        result = "HOLD"
+    else:
+        result = "PASS" if unit == "inactive" and not errors else "RED"
+    return {"result": result, "unit": unit, "deallocated": deallocated, "errors": errors}
+
+
+def operator_control(run_id, ctl, *, polls, clock=None):
+    """The outer driver bound to ONE run identity: ctl(op, run_id, timeout) for start,
+    state, deallocate and readback, each bounded by CONTROL_CALL_SEC (a blocking backend
+    call cannot outlive it), composed through operator_drive."""
+    import re
+
+    if not re.fullmatch(r"cortex-r6-[a-z0-9-]{1,64}", run_id):
+        raise ValueError("operator_unit_refused")
+    bound = lambda op: (lambda: ctl(op, run_id, CONTROL_CALL_SEC))
+    return operator_drive(bound("start"), bound("state"), bound("deallocate"), bound("readback"), polls=polls)
+
+
+def _package_name(nevra):
+    return nevra.rsplit("-", 2)[0]
+
+
+def package_preview(baseline, preview):
+    """`dnf install --assumeno` plan rows (action, nevra): only fresh installs of
+    packages absent from the baseline; any upgrade/downgrade/removal or a preexisting
+    package refuses (no approved disposition exists)."""
+    names = {_package_name(nevra) for nevra in baseline}
+    if not preview or not all(type(row) in (list, tuple) and len(row) == 2 and row[0] == "install" and
+                              row[1] not in baseline and _package_name(row[1]) not in names for row in preview):
+        raise ValueError("package_ownership_hold")
+    return sorted(row[1] for row in preview)
+
+
+def package_receipt(baseline, last_id_before, after, history):
+    """The owned delta = exactly OUR transaction (kai R6 clause): the history's last id
+    at baseline; afterwards exactly ONE new transaction, id = that + 1, whose action set
+    equals after-minus-baseline, all installs, and the baseline kept whole. Any
+    intervening transaction or mismatch refuses ownership and cleanup (HOLD)."""
+    new = [row for row in history if row["id"] > last_id_before]
+    delta = sorted(set(after) - set(baseline))
+    if not (type(last_id_before) is int and len(new) == 1 and new[0]["id"] == last_id_before + 1 and
+            set(baseline) <= set(after) and delta and
+            all(type(row) in (list, tuple) and len(row) == 2 and row[0] == "install" for row in new[0]["actions"]) and
+            sorted(row[1] for row in new[0]["actions"]) == delta):
+        raise ValueError("package_ownership_hold")
+    return {"transaction_id": new[0]["id"], "delta": delta,
+            "cleanup_argv": ["dnf", "history", "undo", "--assumeyes", str(new[0]["id"])]}
+
+
+def package_undo_preview(receipt, preview):
+    """The undo's resolved action set, checked BEFORE it runs: exactly removing the delta."""
+    if sorted(tuple(row) for row in preview) != sorted(("remove", nevra) for nevra in receipt["delta"]):
+        raise ValueError("package_ownership_hold")
+    return receipt["cleanup_argv"]
+
+
+def package_readback(baseline, after_cleanup, user_absent):
+    """Clean host only when rpm -qa == baseline AND the build user/session are gone."""
+    if sorted(after_cleanup) != sorted(baseline) or user_absent is not True:
+        raise ValueError("package_ownership_hold")
+    return "clean"
