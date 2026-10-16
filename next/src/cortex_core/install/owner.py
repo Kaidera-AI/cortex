@@ -110,6 +110,9 @@ class _Inputs:
     originals: dict
     current_clock_raw: bytes
     aggregate_id: str
+    # Independently captured pre-execution R01 bootstrap DATA, carried by the
+    # same protected observer. Its presence is never peer/native authority.
+    release_startup: object = None
 
 
 @dataclass(frozen=True)

@@ -14,6 +14,7 @@ only. Actual roots, accounts, namespaces, capabilities, OS and image/R01 proofs
 still need separate native qualification. No syscall, repair, launch or effect.
 """
 import errno
+from dataclasses import replace
 import hashlib
 import json
 import os
@@ -471,8 +472,7 @@ def _collect_linux_inputs(inputs, peer_fd):
         peer_ref = _original_ref(context['peer_ref']['path'], peer_raw)
         originals[peer_ref['path']] = peer_raw
         context['peer_ref'] = peer_ref
-        return owner._Inputs(_encode_original(context), originals,
-                             inputs.current_clock_raw, inputs.aggregate_id)
+        return replace(inputs, context_raw=_encode_original(context), originals=originals)
     except owner.OwnerRefusal:
         raise
     except (KeyError, TypeError, ValueError, UnicodeError):

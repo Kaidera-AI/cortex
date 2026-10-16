@@ -14,7 +14,7 @@ the existing RecordRef grammar. B1's unchanged peer_ref comparison therefore
 also binds these native DATA subjects across audit; no context field is added.
 The reference graph is acyclic: these native subjects do not refer to the peer.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import PurePosixPath
 import re
 
@@ -254,7 +254,7 @@ def _installed_owner_inputs():
         with owner._current_observation(inputs):
             expected_custody = owner._original(inputs, profile['custody_ref'])
             owner._require(_custody_valid(profile, observed['custody_before'], observed['custody_after'], expected_custody), 'custody_changed')  # BM custody
-        return owner._Inputs(inputs.context_raw, dict(inputs.originals), inputs.current_clock_raw, inputs.aggregate_id)
+        return replace(inputs, originals=dict(inputs.originals))
     except owner.OwnerRefusal:
         raise
     except Exception:
