@@ -582,7 +582,7 @@ class Composition(Base):
         probe = probe_closure(lane)
         wall = r4.Wall()
         fake = r4.QEngine(lane, wall, **engine)
-        seen = {'run': None, 'stop_post': None, 'calls': []}
+        seen = {'run': None, 'stop_post': None, 'stop_post_calls': None, 'calls': []}
         root = lane.fx.top / 'operator'
         root.mkdir(mode=0o700)
 
@@ -686,6 +686,19 @@ class Composition(Base):
         moved = runner.operator_teardown(RUN, host, root, clock=r4.Clock())
         self.assertEqual(moved['remaining_owned_resources'], ['teardown: marker_mismatch'])
         self.assertEqual(len(host.calls), calls)  # a distrusted marker never runs a second, blind cleanup
+
+    def test_a_used_operator_root_is_refused_before_any_effect(self):
+        lane = Lane(self)
+        clock = r4.Clock()
+        host = FakeHost(clock)
+        root = lane.fx.top / 'operator'
+        root.mkdir(mode=0o700)
+        (root / 'operator-teardown.json').write_bytes(b'{"complete":true}\n')  # any earlier record
+        with self.assertRaises(ValueError) as got:
+            runner.operator_run(RUN, host, Order.modules(self, lane), lane.closure, probe_closure(lane), HOST,
+                                lane.parent, root, ALLOWLIST, clock=clock)
+        self.assertEqual(str(got.exception), 'operator_root_not_fresh')
+        self.assertEqual(host.calls, [])  # no rpm query, no install, no user: nothing to leave behind
 
     def test_deallocation_error_is_kept_and_never_pass(self):
         lane = Lane(self)
