@@ -34,8 +34,8 @@ def facts(path):
              mtime_ns=s.st_mtime_ns, ctime_ns=s.st_ctime_ns, acl=[], xattrs={})
     if path.is_symlink():
         return dict(v, kind='link', target=os.readlink(path))
-    v['xattrs'] = {n: hashlib.sha256(os.getxattr(path, n)).hexdigest()
-                   for n in sorted(os.listxattr(path))}
+    # Source fixture metadata collector below declares empty ACL/xattrs. Mac
+    # stdlib lacks listxattr; no native extended-metadata measurement is claimed.
     if path.is_dir():
         return dict(v, kind='directory', children={p.name: facts(p) for p in sorted(path.iterdir())})
     raw = path.read_bytes()
@@ -86,9 +86,9 @@ class Inputs:
         assert self.held
         return copy.deepcopy(self.binding), self.now
 
-    def acl(self, parent, name, fd):
+    def metadata(self, parent, name, fd):
         assert self.held
-        return copy.deepcopy(self.acl_value)
+        return dict(acl=copy.deepcopy(self.acl_value), xattrs={})
 
 
 class FilesTests(unittest.TestCase):
