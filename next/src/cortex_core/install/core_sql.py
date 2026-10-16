@@ -67,7 +67,7 @@ class _CoreSQL:
         owner._require(fresh.observed_state_revision == self.history.current_revision(), 'generation_changed')
         windows = lifecycle._decode(self.history.read(self.windows_ref))
         owner._require(windows['operation'] == list(lifecycle._operation(self.identity))
-            and windows['owner_epoch'] == c['owner_epoch']
+            and (recovery is not None or self.phase == 'ordinary' or windows['owner_epoch'] == c['owner_epoch'])
             and all(type(windows[k]) is int and windows[k] > 0 for k in ('E', 'init_start'))
             and (windows.get('finite_start') is None or type(windows['finite_start']) is int
                  and windows['finite_start'] >= windows['init_start']),
@@ -75,7 +75,7 @@ class _CoreSQL:
         clock = owner._decode(inputs.current_clock_raw, 'time_unavailable')
         deadline = fresh.deadline
         stop = deadline.expires_monotonic_ns
-        if recovery is None:
+        if recovery is None and self.phase != 'ordinary':
             stop = min(stop, windows['E'])
             if self.phase != 'ready':
                 phase_start = windows['init_start'] if self.phase == 'init' else windows['finite_start']
@@ -87,6 +87,7 @@ class _CoreSQL:
         local_stop = time.monotonic_ns() + remaining
         self._stop = local_stop if self._stop is None else min(self._stop, local_stop)
         owner._require(time.monotonic_ns() < self._stop, 'reservation_expired')
+        self.history._clamp_publication(self._stop)
         return c
 
     def _selection(self):
@@ -248,7 +249,7 @@ class _CoreSQL:
     def _measured(self, context, *, recovery=None):
         # Preserve the inner SQL exclusion across observation and P1 publication.
         with self._bounded(context, recovery=recovery):
-            measured = self.primitive.measure(context, **({} if recovery is None else {'recovery':recovery}))
+            measured = self.primitive.measure(context)
             with measured as answer:
                 if recovery is None:
                     yield self._finish(context, answer)
@@ -264,6 +265,75 @@ class _CoreSQL:
             return self._measured(context, recovery=recovery)
         with self._bounded(context, recovery=recovery):
             if recovery is not None:
-                state, raw = self.primitive.measure(context, recovery=recovery)
+                state, raw = self.primitive.measure(context)
                 return (state, raw) if state == 'UNKNOWN' else (state, self._finish(context, raw, recovery=recovery))
             return self._finish(context, self.primitive.measure(context))
+
+
+def _current_baseline(history, original_request):
+    """Produce family-2 DATA from fixed originals and the sole protected P1 CAS.
+
+    The fixed owner must supply an explicit attestation; absence is never an
+    empty installation. Its protected journal custody is outside DB restore.
+    This joins/rechecks DATA, not native provenance. The installed supplier and
+    lifecycle still refuse until the real protected composition exists.
+    """
+    owner._require(type(history) is lifecycle._History, 'custody_changed')
+    first = owner.propose_effect(original_request)  # fixed observer precedes candidate
+    with history.operation(deadline=first.deadline, expected_context=thaw(first.context)):
+        inputs, current = lifecycle._current_owner(original_request, first.deadline)
+        owner._same_context(first, current)
+        c = thaw(current.context)
+        state = owner._original(inputs, c['current_state_ref'])
+        attestation_ref = state.get('baseline_ref')
+        attestation = owner._original(inputs, attestation_ref, 'custody_changed')
+        owner._require(set(attestation) == {'kind','identity','generation','fence','revision',
+            'head_ref','release_binding_ref','journal'} and attestation['identity'] == c['identity'],
+            'custody_changed')
+        owner._require(attestation['generation'] == c['policy_generation']
+            and attestation['revision'] == c['state_revision'], 'generation_changed')
+        owner._require(attestation['fence'] == c['host_lease']['fence'], 'fence_changed')
+        journal = attestation['journal']
+        owner._require(type(journal) is dict and set(journal) == {'device','inode','outside_database_restore'}
+            and type(journal['device']) is int and type(journal['inode']) is int
+            and (journal['device'], journal['inode']) == history._identity
+            and journal['outside_database_restore'] is True, 'custody_changed')
+        head, _ = history.head()
+        owner._require(head == attestation['head_ref'], 'generation_changed')
+        if attestation['kind'] == 'explicit_empty':
+            owner._require(head is None and attestation['release_binding_ref'] is None,
+                           'attempt_ambiguous')
+        elif attestation['kind'] == 'installed':
+            owner._require(head is not None, 'attempt_ambiguous')
+            event, _ = lifecycle._load_entry(history, head)
+            owner._require(event['result_ref'] is not None
+                and event['release_binding_ref'] == attestation['release_binding_ref']
+                and lifecycle._operation(event['identity']) == lifecycle._operation(c['identity']),
+                'attempt_ambiguous')
+            result = lifecycle._decode(history.read(event['result_ref']))
+            core = result.get('observed', {}).get('core_sql', {})
+            owner._require(result['state'] == 'applied_verified'
+                and all(result[k] == event[k] for k in ('identity','effect','request_ref'))
+                and core.get('phase') in ('close','ordinary'), 'attempt_ambiguous')
+            observed = lifecycle._decode(history.read(core['observation_ref']))
+            owner._require(observed.get('finite_disabled') is True and observed.get('auth_fenced') is True
+                and set(observed.get('unresolved', {})) == _INVENTORY
+                and all(type(v) is list and not v for v in observed['unresolved'].values()),
+                'attempt_ambiguous')
+            owner._require(history.current_revision() == c['state_revision'], 'generation_changed')
+        else:
+            raise owner.OwnerRefusal('custody_changed')
+        # Retain the original policy, scope, request, lease/clock and attestation
+        # bytes in P1, then re-admit after all persistence waits. No new cursor,
+        # counter, journal or database authority is created here.
+        for raw in inputs.originals.values():
+            history.retain(raw)
+        baseline_ref = history.retain(inputs.originals[attestation_ref['path']])
+        _, fresh = lifecycle._current_owner(original_request, first.deadline)
+        owner._same_context(current, fresh)
+        owner._require(history.head()[0] == head, 'generation_changed')
+        history._check_publication(head)
+        return {'kind':attestation['kind'], 'baseline_ref':baseline_ref,
+            'head_ref':head, 'state_ref':c['current_state_ref'], 'policy_ref':c['policy_ref'],
+            'generation':c['policy_generation'], 'fence':c['host_lease']['fence'],
+            'revision':c['state_revision'], 'aggregate_id':inputs.aggregate_id}

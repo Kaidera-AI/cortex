@@ -268,14 +268,24 @@ class _RoleAdapter:
         # Same existing connection/transaction, with the inherited finite clamp.
         # This is not a connection provider and supplies no owner authority.
         boundary = getattr(self, '_finite_boundary', None)
+        # SET TRANSACTION must precede any snapshot-taking SELECT. Its fixed
+        # control statement cannot wait on an application lock; the existing
+        # timeout query follows it and still precedes every data/effect query.
+        isolation = bool(args and type(args[0]) is str and args[0] in (
+            'SET TRANSACTION ISOLATION LEVEL READ COMMITTED',
+            'SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY'))
         if boundary is not None:
             self_stop = boundary()
             remaining = self_stop - time.monotonic_ns()
             _require(remaining > 0, 'reservation_expired')
+            if isolation:
+                result = conn.execute(*args, **kwargs)
+                boundary()
             conn.execute("SELECT pg_catalog.set_config('statement_timeout',%s,false)",
                          (str(min(2000, max(1, remaining // 1_000_000))),))
             _require(time.monotonic_ns() < self_stop, 'reservation_expired')
-        result = conn.execute(*args, **kwargs)
+        if boundary is None or not isolation:
+            result = conn.execute(*args, **kwargs)
         if boundary is not None:
             boundary()
         return result

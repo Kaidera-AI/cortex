@@ -168,6 +168,16 @@ class _History:
             finally:
                 self._publication.current = previous
 
+    def _clamp_publication(self, stop):
+        # X4 narrows the existing operation window; it creates no second guard
+        # or persistence mechanism. The clamp survives measure/dispatch returns
+        # through publication and the operation's final ACK, then is restored by
+        # operation's existing finally block.
+        _require(type(stop) is int and stop > 0, 'time_unavailable')
+        scope = getattr(self._publication, 'current', None)
+        _require(scope is not None, 'atomicity_unavailable')
+        self._publication.current = (*scope[:2], min(stop, scope[2]))
+
     def _check_publication(self, expected_head=None, *, check_chain=True):
         scope = getattr(self._publication, 'current', None)
         if scope is None:
