@@ -128,8 +128,9 @@ class QdrantSearch:
         ids = tuple(UUID(p['payload']['aggregate_id']) for p,_ in candidates)
         after,_ = await self._snapshot(subject,ids)
         targets = {r['record_id']:r for r in after['targets']}
-        if after['pending_records'] or any(not self._matches(p,targets.get(p['payload']['aggregate_id']))
-                                         for p,_ in candidates):
+        if (after['pending_records'] or self._fresh(after) != self._fresh(before)
+                or any(not self._matches(p,targets.get(p['payload']['aggregate_id']))
+                       for p,_ in candidates)):
             raise CapabilityUnavailable('index_lagging',self._fresh(after))
         return SearchResult(tuple(Hit(p['payload']['aggregate_id'],p['payload']['aggregate_kind'],
             p['payload']['revision'],distance) for p,distance in candidates),self._fresh(after))
@@ -139,7 +140,7 @@ class QdrantSearch:
             raise CapabilityUnavailable('identity_mismatch')
         value,_ = await self._snapshot(subject,tuple(UUID(h.record_id) for h in result.hits))
         rows = {r['record_id']:r for r in value['targets']}
-        if value['pending_records'] or any(
+        if value['pending_records'] or self._fresh(value) != result.freshness or any(
                 h.record_id not in rows or not rows[h.record_id]['indexed']
                 or rows[h.record_id]['tombstone'] or rows[h.record_id]['kind'] != h.kind
                 or rows[h.record_id]['revision'] != h.source_revision
