@@ -17,6 +17,9 @@ HOST_TARGETS = (
     'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_current_four_steps_reconnect_reenter_and_preserve_seed',
     'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_unknown_target_refuses_before_any_later_sql',
     'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_nonprefix_drift_and_future_ledger_refuse_before_sql',
+    'next/tests/core_upgrade/test_migration_steps.py::MigrationSteps::test_caller_begin_refuses_before_any_managed_ddl',
+    'next/tests/core_upgrade/test_migration_steps.py::MigrationSteps::test_idle_top_level_commit_visible_before_return',
+    'next/tests/core_upgrade_head/test_migration_head.py::CurrentManifestStaging::test_selected20_target_reentry_and_preservation',
 )
 MAX_BYTES = 1024 * 1024
 FIELDS = {'schema_version','receipt_run_id','session_finished','worker_sha256',

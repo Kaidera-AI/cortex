@@ -41,7 +41,7 @@ jobs:
             python -m pip install --only-binary=:all: --no-deps psycopg==3.2.9 \
             --target "${{ runner.temp }}/cortex-pg-site"
           python -B .github/scripts/tests/test_u13_gate.py
-      - name: U13 isolated current-v2 PostgreSQL (eight exact methods)
+      - name: U13 isolated current-v2 PostgreSQL (eleven exact methods)
         run: |
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
             python .github/scripts/pytest_u13_pg.py --output "${{ runner.temp }}/cortex-u13-pg" \
