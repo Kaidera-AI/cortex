@@ -585,6 +585,50 @@ class X3(unittest.IsolatedAsyncioTestCase):
         await self.denied(resolver.check(h,e),'deadline_expired')
 
 
+    async def test_x3wait001_pending_connect_cannot_certify_absence(self):
+        api,inputs,resolver,_,_=self.fixture();entered=asyncio.Event()
+        cancelled=asyncio.Event();release=asyncio.Event();child=[];original=inputs.connect
+        async def hung(*args):
+            child.append(asyncio.current_task());entered.set()
+            try:await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled.set();await release.wait()
+            return await original(*args)
+        async def abort(attempt,deadline):
+            inputs.events.append('abort-attempt:'+attempt.attempt)
+            return True  # even an optimistic supplier cannot certify pending work
+        inputs.connect=hung;inputs.abort_connect=abort
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline(2))
+        pending=asyncio.create_task(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100))
+        try:
+            await asyncio.wait_for(entered.wait(),1);pending.cancel()
+            await asyncio.wait_for(cancelled.wait(),1)
+            done,_=await asyncio.wait({pending},timeout=.03)
+            self.assertTrue(done,'caller still waits for a cancellation-swallowing connect')
+            await self.denied(pending,'cleanup_unproved',hold=True)
+            self.assertIn('abort-attempt:attempt-original',inputs.events)
+            self.assertFalse(child[0].done())
+            self.assertIn(child[0],api._pending_waits,'pending supplier became unowned')
+        finally:
+            release.set()
+            try:await pending
+            except (api.SecretRefusal,asyncio.CancelledError):pass
+            if child:await asyncio.gather(*child,return_exceptions=True)
+            for conn in inputs.connections:await conn.close()
+        await asyncio.sleep(0)
+        self.assertNotIn(child[0],api._pending_waits)
+
+    async def test_x3wait001_cancel_before_supplier_start_closes_coroutine(self):
+        api,inputs,resolver,_,_=self.fixture();e=self.deadline()
+        coroutine=inputs.observe(REF,'probe',INSTALL,'api',e)
+        async def cancelled_wait(*args,**kwargs):raise asyncio.CancelledError
+        with patch.object(asyncio,'wait',cancelled_wait):
+            with self.assertRaises(asyncio.CancelledError):await api._bounded(coroutine,e)
+        await asyncio.sleep(0)
+        self.assertIsNone(coroutine.cr_frame,'unstarted supplier coroutine was retained')
+
+
 # Hale's seven reviewer methods are retained verbatim; use this module's fixtures.
 import sys
 fixtures=sys.modules[__name__]
