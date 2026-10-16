@@ -48,7 +48,7 @@ EXEMPT_SYMBOL_FILES = {
 }
 
 
-# Closed classifications for the composed PG-B/P2 inventory. These are retained
+# Closed classifications for the composed PG-B/P2/X3 inventory. These are retained
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
@@ -57,9 +57,11 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
     "schema/auth/007-runtime-grants.sql": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607",
     "src/cortex_core/install/lifecycle.py": "cfb9c7585cca903600988498888f3a0f9826fbfd903ffd80b36a305c71689ec3",
-    "src/cortex_core/install/owner.py": "68c3b039e84b8f5d61868cc39855c38c6ec4364627de7fe5da2b312e8c704fc8",
+    "src/cortex_core/install/owner.py": "12b97f4e9f45c32e5d3deebc0d07d4c6084676d0d5d394c45b678d7ba106ee2d",
     "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
-    "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7"
+    "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
+    "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",
+    "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496"
 }
 
 
@@ -113,6 +115,16 @@ REVIEWED_WRITER_CLASSES = {
     ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.validate_acl', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '83ee99940a41ec174538b74a80a9982e50a169ce3c647bd967d58fc26873f93e'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
     ('src/cortex_core/runtime/role_grants.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
     ('src/cortex_core/runtime/role_grants.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/connections.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '75259fd33189c1a457d22bfd6031e45b68492b405f5a582484c3b7b91b8a1a81'): 'X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/connections.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '8bf1bdd2a518fa8bc709860584a2181498163736ace4974522dc374cbde711cf'): 'X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/connections.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '75259fd33189c1a457d22bfd6031e45b68492b405f5a582484c3b7b91b8a1a81'): 'X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/connections.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '8bf1bdd2a518fa8bc709860584a2181498163736ace4974522dc374cbde711cf'): 'X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '21329c6f12d58a5f62d53b9f7be23d875418554e4aa2c4ed9c66ce80dec15d9f'): 'X3_fixed_Grant_atom_validation_DATA; closed_7_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '728f5d8f24222d3e2e5f002195773c70598ee81b8f0805badbd5e03be7733700'): 'X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:call_target', 'DYNAMIC', '<dynamic_or_unsupported>', 2, '187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561'): 'X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '21329c6f12d58a5f62d53b9f7be23d875418554e4aa2c4ed9c66ce80dec15d9f'): 'X3_fixed_Grant_atom_validation_DATA; closed_7_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '728f5d8f24222d3e2e5f002195773c70598ee81b8f0805badbd5e03be7733700'): 'X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/secret_resolver.py', 'dynamic_name:getattr', 'DYNAMIC', '<dynamic_or_unsupported>', 2, '187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561'): 'X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction',
 }
 
 

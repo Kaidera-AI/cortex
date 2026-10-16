@@ -63,6 +63,8 @@
     "next/tests/install/test_recovery_uninstall.py",
     "next/tests/install/test_trust_repair.py",
     "next/tests/install/test_tuple_revision.py",
+    "next/tests/install/test_x2_linux_observer.py",
+    "next/tests/install/test_x2_macos_collector.py",
     "next/tests/integration/test_cli_status.py",
     "next/tests/integration/test_conductor_tools.py",
     "next/tests/integration/test_dependency_timeout.py",
@@ -183,7 +185,8 @@
     "next/tests/runtime_keyword/test_selection.py",
     "next/tests/runtime_keyword/test_wire.py",
     "next/tests/schema/test_causal_mutations.py",
-    "next/tests/schema/test_mutation_receipts.py"
+    "next/tests/schema/test_mutation_receipts.py",
+    "next/tests/test_x3_secret_resolver.py"
   ],
   "excluded": [
     {

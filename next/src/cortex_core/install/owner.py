@@ -10,6 +10,7 @@ P2a owns actual reserve/intent/consume/result and all durable history/preimages.
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 import re
+import sys
 
 from cortex_core.release.codec import WireValidator, decode_json
 from cortex_core.release.contracts import freeze, thaw
@@ -135,7 +136,13 @@ class OwnerProposal:
 
 def _installed_owner_inputs():
     # ONE fixed private composition; no environment/argv/path/setter/test mode.
-    # Missing any actual peer/code/image/owner/current binding refuses here.
+    # The platform supplier returns only DATA and remains independently fail-closed.
+    if sys.platform.startswith('linux'):
+        from .platforms import linux
+        return linux._installed_owner_inputs()
+    if sys.platform == 'darwin':
+        from .platforms import macos
+        return macos._installed_owner_inputs()
     raise OwnerRefusal('required_binding_gap')
 
 
