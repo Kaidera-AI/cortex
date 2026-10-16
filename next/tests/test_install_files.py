@@ -376,9 +376,12 @@ class FilesTests(unittest.TestCase):
 
     def test_verified_owned_continuation_replace_keeps_provenance(self):
         self.existing(); self.inputs.plan['ownership']='verified_owned_continuation'
-        with self.opened() as p:
-            answer=self.apply(p); self.assertEqual(answer[0],'APPLIED')
-            self.assertEqual(json.loads(answer[1])['observed']['ownership'],'verified_owned_continuation')
+        try:
+            with self.opened() as p:
+                answer=self.apply(p); self.assertEqual(answer[0],'APPLIED')
+                self.assertEqual(json.loads(answer[1])['observed']['ownership'],'verified_owned_continuation')
+        except OwnerRefusal as exc:
+            self.fail('X11B_CONTINUATION_REFUSED: '+exc.detail)
 
     def test_verified_owned_continuation_is_not_transaction_inverse(self):
         path=self.existing('remove'); self.inputs.plan['ownership']='verified_owned_continuation'
