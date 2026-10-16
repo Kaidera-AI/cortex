@@ -720,7 +720,8 @@ class _RoleAdapter:
         if conn is self.connection:
             # The fixed owner supplied this exact finite phase, not SET ROLE or
             # a runtime credential whose name happens to match an admin.
-            private = owner._private(lifecycle._owner_inputs(), thaw(self.context['context']))
+            private = (None if self.context is None else
+                       owner._private(lifecycle._owner_inputs(), thaw(self.context['context'])))
             phase = 'bootstrap' if private is None else private['phase']
             _require(phase in ('bootstrap', 'migrator') and login[2] == self.roles[phase], 'scope_denied')
             if private is not None:

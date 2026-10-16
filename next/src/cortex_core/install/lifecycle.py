@@ -149,8 +149,22 @@ class _History:
         # One resource lock and one original owner/deadline for this operation.
         # Thread-local scope only carries private DATA to existing persistence;
         # it is neither another supplier nor an installed authority capability.
+        # Own the original local cutoff before lock acquisition too. Private
+        # instrumentation may wrap a context manager without forwarding its
+        # yielded DATA; that must neither erase nor renew the operation window.
+        stop = None
+        if deadline is not None:
+            inputs, _ = _admitted_deadline(deadline, expected_context=expected_context)
+            now = owner._decode(inputs.current_clock_raw, 'time_unavailable')
+            budget = min((deadline.expires_at-now['now_utc']-now['uncertainty_seconds'])*1_000_000_000,
+                         deadline.expires_monotonic_ns-now['monotonic_ns'])
+            _require(budget > 0, 'reservation_expired')
+            stop = time.monotonic_ns() + budget
         with self._lock('.operation.lock', **({} if deadline is None else {
-                'deadline': deadline, 'expected_context': expected_context})) as stop:
+                'deadline': deadline, 'expected_context': expected_context})) as lock_stop:
+            if deadline is not None:
+                if type(lock_stop) is int:stop = min(stop, lock_stop)
+                _require(time.monotonic_ns() < stop, 'reservation_expired')
             previous = getattr(self._publication, 'current', None)
             if deadline is not None:
                 if previous is not None:

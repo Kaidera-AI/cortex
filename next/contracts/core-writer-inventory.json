@@ -1018,6 +1018,33 @@
     },
     {
       "file": "src/cortex_core/runtime/role_grants.py",
+      "owner": "_RoleAdapter._demote_sql",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "1399eb3ef146e097748d7f288531035b01535d5ed015761bdb589aaa02841041",
+      "classification": "fixed_P2_finite_close; TXN-001_owned_top_level_SQL; compound_backend_effects_HELD"
+    },
+    {
+      "file": "src/cortex_core/runtime/role_grants.py",
+      "owner": "_RoleAdapter._execute",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "50c7e50147512155acaec47ebc05240e2d117a7f9d12f5cd1ede7fcc89bc18b6",
+      "classification": "fixed_X4_finite_SQL_forwarder; inherited_original_deadline_before_after_IO; no_new_SQL_authority; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/runtime/role_grants.py",
+      "owner": "_RoleAdapter._execute",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "50c7e50147512155acaec47ebc05240e2d117a7f9d12f5cd1ede7fcc89bc18b6",
+      "classification": "fixed_X4_finite_SQL_forwarder; inherited_original_deadline_before_after_IO; no_new_SQL_authority; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/runtime/role_grants.py",
       "owner": "_RoleAdapter._privileges",
       "verb": "DYNAMIC",
       "table": "<dynamic_or_unsupported>",
@@ -1139,8 +1166,8 @@
       "verb": "DYNAMIC",
       "table": "<dynamic_or_unsupported>",
       "ordinal": 2,
-      "statement_sha256": "1399eb3ef146e097748d7f288531035b01535d5ed015761bdb589aaa02841041",
-      "classification": "fixed_P2_finite_close; TXN-001_owned_top_level_SQL; compound_backend_effects_HELD"
+      "statement_sha256": "bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8",
+      "classification": "fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority"
     },
     {
       "file": "src/cortex_core/runtime/role_grants.py",
@@ -1153,12 +1180,12 @@
     },
     {
       "file": "src/cortex_core/runtime/role_grants.py",
-      "owner": "_RoleAdapter.close",
+      "owner": "_RoleAdapter.migrate",
       "verb": "DYNAMIC",
       "table": "<dynamic_or_unsupported>",
-      "ordinal": 4,
-      "statement_sha256": "bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8",
-      "classification": "fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority"
+      "ordinal": 0,
+      "statement_sha256": "05121a4ccd30e60cacbb3a7c690812a217d098f27c38ee107d7864d8b72d7c4e",
+      "classification": "fixed_X4_selected_manifest_hash_read; no_SQL_or_transaction"
     },
     {
       "file": "src/cortex_core/runtime/role_grants.py",
@@ -1294,6 +1321,33 @@
       "ordinal": 1,
       "statement_sha256": "ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4",
       "classification": "common_owner_private_binding_DATA; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/role_grants.py",
+      "owner": "cross_file:_private",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 2,
+      "statement_sha256": "ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4",
+      "classification": "common_owner_private_binding_DATA; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/role_grants.py",
+      "owner": "cross_file:apply_migrations",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "abd15ff6b078e7266015e15e15f2d3d52147c4a560ef97e941d70e908f899122",
+      "classification": "fixed_X4_sole_checksum_migration_engine; original_manifest_target_ledger_join; owned_SQL_commit; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/runtime/role_grants.py",
+      "owner": "cross_file:apply_migrations",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "dce29512236f7020a1a21996094a0c21d8fab0322c08d11da99a69ba786073c8",
+      "classification": "fixed_X4_sole_checksum_migration_engine; original_manifest_target_ledger_join; owned_SQL_commit; native_HELD"
     },
     {
       "file": "src/cortex_core/runtime/secret_resolver.py",

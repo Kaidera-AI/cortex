@@ -34,6 +34,7 @@ class _CoreSQL:
         self.previous_refs = thaw(previous_refs)
         self.sql_mandate_raw = getattr(primitive, 'sql_mandate_raw', None)
         self._stop = None
+        self._budget_subject = None
         self.observation_ref = None
 
     def snapshot(self):
@@ -84,6 +85,15 @@ class _CoreSQL:
         remaining = min(stop - clock['monotonic_ns'],
             (deadline.expires_at-clock['now_utc']-clock['uncertainty_seconds'])*1_000_000_000)
         owner._require(remaining > 0, 'reservation_expired')
+        # A recovery has its own distinct fixed-owner authorization. Preserve
+        # the old attempt/window as history, never its expired local IO stop.
+        fresh_context = thaw(fresh.context)
+        subject = (fresh_context['owner_epoch'], fresh_context['session_id'],
+                   fresh_context['nonce'], fresh.request_sha256)
+        if subject != self._budget_subject:
+            owner._require(self._budget_subject is None or recovery is not None
+                           or self.phase == 'ordinary', 'reservation_used')
+            self._budget_subject, self._stop = subject, None
         local_stop = time.monotonic_ns() + remaining
         self._stop = local_stop if self._stop is None else min(self._stop, local_stop)
         owner._require(time.monotonic_ns() < self._stop, 'reservation_expired')
@@ -261,6 +271,14 @@ class _CoreSQL:
                         yield state, self._finish(context, raw, recovery=recovery)
 
     def measure(self, context, *, recovery=None):
+        if recovery is None:
+            inputs = lifecycle._owner_inputs()
+            fixed = owner._decode(inputs.context_raw, 'owner_unavailable')
+            raw = inputs.originals[fixed['request_ref']['path']]
+            q = thaw(lifecycle.parse_install_message(raw, expected_kind='request').document)
+            if q['operation'] == 'recover':
+                recovery = owner.propose_effect(raw)
+        self._guard(context, recovery=recovery)
         if self.sql_mandate_raw is not None:
             return self._measured(context, recovery=recovery)
         with self._bounded(context, recovery=recovery):
@@ -290,6 +308,8 @@ def _current_baseline(history, original_request):
         owner._require(set(attestation) == {'kind','identity','generation','fence','revision',
             'head_ref','release_binding_ref','journal'} and attestation['identity'] == c['identity'],
             'custody_changed')
+        owner._require(all(type(attestation[k]) is int and attestation[k] > 0
+            for k in ('generation','fence','revision')), 'generation_changed')
         owner._require(attestation['generation'] == c['policy_generation']
             and attestation['revision'] == c['state_revision'], 'generation_changed')
         owner._require(attestation['fence'] == c['host_lease']['fence'], 'fence_changed')

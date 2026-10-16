@@ -19,7 +19,8 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
     ('src/cortex_core/identity.py','Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
     ('src/cortex_core/identity.py','Identity._register'): 'f837fa6fdcc01e32d12b74eb9b8a1390a3305bd8ef256fdf28b6b3b460e820b8',
     ('src/cortex_core/records.py','_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
-    ('src/cortex_core/migrations.py','apply_migrations'): 'f6b91694ad8b164dba2faf88e9d1e67a0d206c8f2a298273aeaf3e59b2c580fb',
+    ('src/cortex_core/migrations.py','apply_migrations'): '74f3dc8f7e4bf9b01de7142c959fdb1ea78d3b577a736c45b5f972d79931d26d',
+    ('src/cortex_core/migrations.py','apply_migrations.execute'): 'c156fbbe3e721960272173bf5ee3f45b77034b0ed6bc5343c5dac1c5ccfcf736',
     ('src/cortex_core/backup_validation.py','read_restored_snapshot'): '138962613394d459cf5c93a5843b2d25a94afc8b8ce2da3b391fea2277ba00eb',
     ('src/cortex_core/release/_pyc_check.py','_compiled_fields_equal'): 'fad0c5ff2c9164641b78522302295d9a76ea58924a1bb460879e8e131f1a09ce',
     ('src/cortex_core/release/build/audit.py','_code_equal'): '25fa770e8b9d590251468d0610c4692a940b05cada23e7cc4736b29b84b63d7c',
@@ -33,7 +34,7 @@ KNOWN_INPUT_FILE_SHA256 = {
     'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
     'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
     'src/cortex_core/records.py': 'e52d86a0cddfa7b98315f87c9904aeb64665e8dc68e353b8280a276ca97a32d3',
-    'src/cortex_core/migrations.py': '2af9a2b517a8646ed819ad7acdeef3522bbcaaaf1ea0a5705ebd614ca9781277',
+    'src/cortex_core/migrations.py': '5a797b9e25eca683d0b4673c8eeae0383d6b87e17aa2902da6e653e1b54ea7e8',
     'src/cortex_core/backup_validation.py': '5d3731e58e5217ba4b2fc6f538679fc4bcc85327924c813f67f6f5bc5819a84a',
     'src/cortex_core/release/_pyc_check.py': '1f35d123db1346056e7b932d8437771c1a4f4d3edc87c25b3bcab00aa40508cf',
     'src/cortex_core/release/build/audit.py': '6639168da2ebb9ab1128b50e6fecf72d7f8f4d6250ced97bfe497900ef9ae306',
@@ -52,20 +53,29 @@ EXEMPT_SYMBOL_FILES = {
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
+    'src/cortex_core/migrations.py': 'acd827e1f9f1c3e77b81acbad997b668b247575f1c2f76dcc1c05573da5137c7',
     'schema/coordination/008-c09-external-v2.sql': '9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11',
     "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
     "schema/auth/007-runtime-grants.sql": "fdd629c4537b82f103977c002597e0259d5213ff0065cf64d674ff0aa7eff607",
-    "src/cortex_core/install/lifecycle.py": "cfb9c7585cca903600988498888f3a0f9826fbfd903ffd80b36a305c71689ec3",
+    "src/cortex_core/install/lifecycle.py": "f148c03433f0d54f91c09a7aae606d8411c7a235431b0097e9a2aa6ad45e7a40",
     "src/cortex_core/install/owner.py": "12b97f4e9f45c32e5d3deebc0d07d4c6084676d0d5d394c45b678d7ba106ee2d",
     "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
-    "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
+    "src/cortex_core/runtime/role_grants.py": "186a6c62af2719c2042b81860b16ff24445370b9ca31f8f0f40cde29fdee4c37",
     "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",
     "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496"
 }
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._demote_sql', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '1399eb3ef146e097748d7f288531035b01535d5ed015761bdb589aaa02841041'): 'fixed_P2_finite_close; TXN-001_owned_top_level_SQL; compound_backend_effects_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._execute', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '50c7e50147512155acaec47ebc05240e2d117a7f9d12f5cd1ede7fcc89bc18b6'): 'fixed_X4_finite_SQL_forwarder; inherited_original_deadline_before_after_IO; no_new_SQL_authority; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter._execute', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '50c7e50147512155acaec47ebc05240e2d117a7f9d12f5cd1ede7fcc89bc18b6'): 'fixed_X4_finite_SQL_forwarder; inherited_original_deadline_before_after_IO; no_new_SQL_authority; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.close', 'DYNAMIC', '<dynamic_or_unsupported>', 2, 'bcc1067e5aa1d30a2c57375165ce14348c9aeeacf6120797c200adb19c2a3fd8'): 'fixed_P2_finite_catalogue_read; SELECT_only; fixed_connection; no_write_authority',
+    ('src/cortex_core/runtime/role_grants.py', '_RoleAdapter.migrate', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '05121a4ccd30e60cacbb3a7c690812a217d098f27c38ee107d7864d8b72d7c4e'): 'fixed_X4_selected_manifest_hash_read; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/role_grants.py', 'cross_file:_private', 'DYNAMIC', '<dynamic_or_unsupported>', 2, 'ce413e51c87d27396e6a18264c423d084e972fca54cbcd73ee939046a18fb1b4'): 'common_owner_private_binding_DATA; no_SQL_or_transaction',
+    ('src/cortex_core/runtime/role_grants.py', 'cross_file:apply_migrations', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'abd15ff6b078e7266015e15e15f2d3d52147c4a560ef97e941d70e908f899122'): 'fixed_X4_sole_checksum_migration_engine; original_manifest_target_ledger_join; owned_SQL_commit; native_HELD',
+    ('src/cortex_core/runtime/role_grants.py', 'cross_file:apply_migrations', 'DYNAMIC', '<dynamic_or_unsupported>', 1, 'dce29512236f7020a1a21996094a0c21d8fab0322c08d11da99a69ba786073c8'): 'fixed_X4_sole_checksum_migration_engine; original_manifest_target_ledger_join; owned_SQL_commit; native_HELD',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c07_record', 'INSERT', 'coordination.vector_applied_heads', 0, '20df52164a58822d5f5fdc62798b15912878bd92e61b0a01229041a1c4877a62'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c09_bind', 'INSERT', 'coordination.vector_bindings', 0, '3229a056b109ec96b75c4715a2847cb982711c8571ccf4f73e7ee4422bf135d2'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('src/cortex_core/auth.py', 'authorized', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '73b404c4edb916b5bf9f29735fa35621b218f0508f2df3604f10cefabf7c73eb'): 'fixed_C04_role_catalogue_read; SELECT_only; owned_request_SQL_transaction; local_request_ROLE; no_canonical_write_authority; native_HELD',
@@ -188,9 +198,19 @@ def reviewed_reflection_calls(file,tree):
     return set()
 
 
+def invalid_source(file, source):
+    # A source-control mutation can become syntactically invalid. Keep it as
+    # unresolved evidence instead of losing the inventory to a parse error.
+    return [dict(file=file, owner='<invalid_source>', verb='DYNAMIC',
+        table='<dynamic_or_unsupported>', ordinal=0,
+        statement_sha256=hashlib.sha256(source.encode()).hexdigest(), classification=None)]
+
+
 def source_reference_flags(file,source):
     """Unreviewed exempt-name references and dynamic reflection in NEXT source."""
-    tree=ast.parse(source);flags=[];ordinals={}
+    try:tree=ast.parse(source)
+    except SyntaxError:return invalid_source(file,source)
+    flags=[];ordinals={}
     reviewed_calls=reviewed_reflection_calls(file,tree)
     call_targets={node.func for node in ast.walk(tree) if isinstance(node,ast.Call)}
     getter_references={node for node in ast.walk(tree) if (
@@ -350,6 +370,9 @@ def scan_source(file,source):
                     and isinstance(node.right,ast.IfExp)
                     and static_text(node.right.body)==' FOR UPDATE'
                     and static_text(node.right.orelse)=='')
+        if (file == 'src/cortex_core/migrations.py' and owner == 'apply_migrations.execute'
+                and isinstance(node,ast.IfExp)):
+            return ast.unparse(node) == '_execute if _execute is not None else connection.execute'
         if not isinstance(node,ast.Name):return False
         name=node.id
         if file=='src/cortex_core/backup_validation.py' and owner=='read_restored_snapshot' and name=='SNAPSHOT_SQL':
@@ -410,7 +433,8 @@ def scan_source(file,source):
                     and ast.unparse(appends[0].args[0])=="(entry['id'], entry['sha256'], data.decode('utf-8'))")
         return False
     if file.endswith('.py'):
-        tree=ast.parse(source)
+        try:tree=ast.parse(source)
+        except SyntaxError:return invalid_source(file,source)
         class Visitor(ast.NodeVisitor):
             def __init__(self):self.owners=[];self.functions=[]
             def visit_ClassDef(self,node):
@@ -421,11 +445,22 @@ def scan_source(file,source):
                 self.functions.pop();self.owners.pop()
             visit_AsyncFunctionDef=visit_FunctionDef
             def visit_Call(self,node):
-                if (isinstance(node.func,ast.Attribute) and node.func.attr in ('execute','executemany')
-                    and node.args and static_text(node.args[0]) is None):
+                query = None
+                if isinstance(node.func,ast.Attribute):
+                    index = 1 if node.func.attr == '_execute' else 0
+                    if (node.func.attr in ('execute','executemany') or
+                            node.func.attr == '_execute' and file == 'src/cortex_core/runtime/role_grants.py') and len(node.args) > index:
+                        query = node.args[index]
+                elif isinstance(node.func,ast.Name) and node.func.id == 'execute' and node.args:
+                    query = node.args[0]
+                elif isinstance(node.func,ast.IfExp):
+                    # The private migration bridge forwards a complete callable;
+                    # keep that unresolved target visible and source-pinned too.
+                    query = node.func
+                if query is not None and static_text(query) is None:
                     owner='.'.join(self.owners) or '<module>'
-                    if not known_existing_input(owner,node.args[0],tree,self.functions[-1] if self.functions else None):
-                        add_dynamic(owner,node.args[0],force=True)
+                    if not known_existing_input(owner,query,tree,self.functions[-1] if self.functions else None):
+                        add_dynamic(owner,query,force=True)
                 self.generic_visit(node)
             def visit_BinOp(self,node):
                 value=static_text(node)
@@ -455,7 +490,8 @@ def scan(root,overrides=None):
     for path in sorted((root/'src').rglob('*.py')):
         name=str(path.relative_to(root));rows.extend(source_reference_flags(name,overrides.get(name,path.read_text())))
     required_sources={key[0] for key in REVIEWED_WRITER_CLASSES} | {
-        'schema/auth/005-first-identity.sql','src/cortex_core/install/lifecycle.py'}
+        'schema/auth/005-first-identity.sql','src/cortex_core/install/lifecycle.py',
+        'src/cortex_core/migrations.py'}
     reviewed_sources=(set(REVIEWED_WRITER_SOURCE_SHA256)==required_sources
         and all(source_hashes.get(name)==digest
                 for name,digest in REVIEWED_WRITER_SOURCE_SHA256.items()))

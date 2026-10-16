@@ -91,7 +91,12 @@ def apply_migrations(connection, directory=SCHEMA, *, through=None, _boundary=No
             for identity, digest, sql in prepared[:prepared_target + 1]:
                 if identity in ledger:
                     continue
-                execute(sql, prepare=False)
+                if _execute is None:
+                    boundary('before_sql')
+                    connection.execute(sql, prepare=False)
+                    boundary('after_sql')
+                else:
+                    execute(sql, prepare=False)
                 execute("INSERT INTO core.schema_migrations (migration_id,sha256) VALUES (%s,%s)", (identity, digest))
                 applied.append(identity)
         boundary('before_commit')

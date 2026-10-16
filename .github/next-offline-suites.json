@@ -191,7 +191,9 @@
     "next/tests/install/test_core_sql_boundaries.py",
     "next/tests/install/test_core_sql_resumed.py",
     "next/tests/install/test_core_sql_seams.py",
-    "next/tests/install/test_lifecycle_ack_deadline.py"
+    "next/tests/install/test_lifecycle_ack_deadline.py",
+    "next/tests/outbox_inventory/test_x4_sql_forwarding.py",
+    "next/tests/outbox_inventory/test_x4_invalid_source.py"
   ],
   "excluded": [
     {
@@ -2471,6 +2473,7 @@
       "isolated": [
         "next/tests/release/test_verifier_boundary.py::OwnerSourceJoin::test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child"
       ]
-    }
+    },
+    "next/tests/install/test_core_sql.py": 4
   }
 }
