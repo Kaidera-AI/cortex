@@ -180,7 +180,7 @@ class X11JoinTests(unittest.TestCase):
                     if kind=='file':
                         with patch.object(j.primitive,'_build',side_effect=OSError('before first write')):j.dispatch(effect)
                     else:
-                        inputs.on_run=lambda *args:None
+                        inputs.on_run=lambda engine:setattr(engine,'state',copy.deepcopy(engine.plan['before']))
                         j.dispatch(effect)
                 else:j.dispatch(effect)
             self.recover(s)
