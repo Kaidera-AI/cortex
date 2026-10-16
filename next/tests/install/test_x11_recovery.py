@@ -17,7 +17,6 @@ from cortex_core.install import lifecycle as p1, owner, files, podman
 from cortex_core.release.codec import canonical_bytes
 from cortex_core.release.contracts import freeze, thaw
 from test_hold1_interface import Subject
-from test_b2_recovery_join import RecoveryFixture
 import test_install_files as file_fixtures
 import test_install_podman as podman_fixtures
 
@@ -37,8 +36,7 @@ class LostResult:
         self.state = state; self.held = False; self.reads = 0
         self.dispatched = 1; self.after_measure = None; self.raw_edit = None
         self.raw = None
-        fixture = RecoveryFixture()
-        s.data = fixture.renewed(s.helper,s.data,s.consumed,recover=True)[0]
+        s.recovery()
         # Independent fresh owner revision is always obtained from real history.
         with s.installed(): s.deadline=s.current().deadline
 
@@ -152,7 +150,7 @@ class X11JoinTests(unittest.TestCase):
                 yield s,self.join(primitive,s.history),engine
 
     def recover(self,s):
-        s.data=RecoveryFixture().renewed(s.helper,s.data,s.consumed,recover=True)[0]
+        s.recovery()
         with s.installed():s.deadline=s.current().deadline
 
     def test_real_files_normal_publication_uses_original_snapshot_and_held_measure(self):
