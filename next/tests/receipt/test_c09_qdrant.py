@@ -917,6 +917,19 @@ class S3Tests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(server.calls,[])
 
 class S3CoreTests(unittest.TestCase):
+    def test_s3_core_engine_failure_has_no_exception_cause_or_traceback_secret(self):
+        import traceback
+        from cortex_core.modules.consumer import ConsumerError
+        x=S3Tests();binding=x.binding()
+        def fail(*args):raise RuntimeError('SYNTHETIC-PRIVATE-CAUSE')
+        port=self.consumer(binding,SimpleNamespace(apply=fail))
+        caught=None
+        try:port._apply_event({'generation':1},x.event())
+        except ConsumerError as error:caught=error
+        self.assertIsInstance(caught,ConsumerError)
+        self.assertIsNone(caught.__cause__)
+        self.assertNotIn('SYNTHETIC-PRIVATE',''.join(traceback.format_exception(caught)))
+
     def consumer(self, binding, sink):
         from cortex_core.modules.consumer import ModuleConsumer
         port = ModuleConsumer(None,b'synthetic',binding.installation_id,binding.project_id,
