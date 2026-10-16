@@ -16,6 +16,10 @@ from cortex_core.runtime.signed_member import Refusal, MISSING_UNIT, MAX_MEMBER_
 
 _ID = re.compile(r'sha256:[0-9a-f]{64}\Z')
 _NAME = re.compile(r'members/[a-z0-9][a-z0-9_.-]*(?:/[a-z0-9][a-z0-9_.-]*)*\Z')
+# CPython 3.12's admitted stdlib typing.py registers exactly these two pure-Python
+# pseudo-modules in sys.modules (kai Q1, 16 Oct). They are the ONLY non-native
+# aliases: owner path = the admitted stdlib typing.py, value = typing's own attribute.
+_TYPING_ALIASES = frozenset(('typing.io', 'typing.re'))
 
 
 @dataclass(frozen=True)
@@ -167,10 +171,11 @@ def _startup_identity(startup):
         if not (type(startup.module_aliases) is tuple and len(startup.module_aliases)<=512):
             raise ValueError('invalid native aliases')
         native_paths={r[1] for r in startup.files if r[0] in {'loader','crypto'}}
+        typing_paths={r[1] for r in startup.files if r[0]=='stdlib' and r[1].endswith('/typing.py')}
         alias_names=[]
         for row in startup.module_aliases:
             if not (type(row) is tuple and len(row)==3 and type(row[0]) is str and 0<len(row[0])<=256
-                    and row[1] is not None and type(row[2]) is str and row[2] in native_paths):
+                    and row[1] is not None and type(row[2]) is str and (row[2] in native_paths or (row[0] in _TYPING_ALIASES and row[2] in typing_paths))):
                 raise ValueError('unbound native alias')
             alias_names.append(row[0])
         if alias_names!=sorted(set(alias_names)):raise ValueError('duplicate native aliases')
@@ -279,8 +284,17 @@ def _admit_startup(startup):
                     for part in name.split('.')),'member_authority_unavailable')
             if name in aliases:
                 value,path=aliases[name]
-                require(origin is None and not locations and objects.get(name) is value and path in loaded_native,
-                        'member_authority_unavailable')
+                if name in _TYPING_ALIASES:
+                    # typing must be loaded from exactly that admitted stdlib row and
+                    # still hold this very object as its own attribute.
+                    owner_row=[m for m in actual.modules if m[0]=='typing']
+                    require(origin is None and not locations and objects.get(name) is value
+                            and owner_row==[('typing',path,machinery.SourceFileLoader,())]
+                            and vars(objects.get('typing')).get(name.split('.')[1]) is value,
+                            'member_authority_unavailable')
+                else:
+                    require(origin is None and not locations and objects.get(name) is value and path in loaded_native,
+                            'member_authority_unavailable')
                 continue  # exact bootstrap-held alias; no new executable import
             if origin in ('built-in','frozen'):
                 require(name in startup.intrinsics and kind is (machinery.BuiltinImporter if origin=='built-in' else machinery.FrozenImporter),
