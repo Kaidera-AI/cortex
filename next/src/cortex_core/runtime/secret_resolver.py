@@ -132,7 +132,10 @@ async def _bounded(awaitable, deadline):
         if hasattr(awaitable, 'close'): awaitable.close()
         raise
     try:
-        async with asyncio.timeout_at(deadline): return await awaitable
+        async with asyncio.timeout_at(deadline):
+            result = await awaitable
+        _deadline(deadline)  # a supplier may swallow cancellation; late success is never current
+        return result
     except TimeoutError:
         raise SecretRefusal('deadline_expired') from None
     except SecretRefusal:
@@ -153,7 +156,6 @@ def _grant(value, reference, purpose, installation, mode, deadline):
     _require((value.reference,value.purpose,value.installation,value.mode) ==
              (reference,purpose,installation,mode), 'authority_changed')
     _deadline(value.expires)
-    _require(value.expires <= deadline, 'authority_changed')
     return value
 
 
@@ -175,9 +177,9 @@ def _handle_port():
         _require(type(handle) is SecretHandle and handle in records, 'invalid_handle')
         return records[handle]
 
-    def seal(inputs, grant):
+    def seal(inputs, grant, deadline):
         handle = object.__new__(SecretHandle)
-        records[handle] = [inputs, grant, grant.expires]
+        records[handle] = [inputs, grant, min(grant.expires,deadline)]
         return handle
 
     return SecretHandle, checked, seal
@@ -206,7 +208,7 @@ class SecretResolver:
         grant = _grant(observed,reference_uuid,purpose,installation_uuid,consumer_mode,deadline)
         # Actual peer/current-authority verification is the protected supplier's
         # obligation. An _Grant or equal fixture receipt does not implement it.
-        return _seal(inputs,grant)
+        return _seal(inputs,grant,deadline)
 
     async def check(self, handle, absolute_deadline):
         await self._current(handle,absolute_deadline)
@@ -267,8 +269,13 @@ class _Carrier:
     @property
     def descriptor(self):
         s,g = self._state,self._grant
-        return (g.original,g.reference,g.revision,g.installation,g.purpose,g.epoch,
-                g.process,s.resource,s.identity,s.uid,s.mode,s.directory_mode)
+        # Original reservation DATA only; this is never a live restore witness.
+        return dict(original=g.original,reference=g.reference,revision=g.revision,
+            installation=g.installation,purpose=g.purpose,mode=g.mode,epoch=g.epoch,
+            generation=g.generation,process=g.process,expires=self._deadline,
+            resource=s.resource,identity=s.identity,uid=s.uid,file_mode=s.mode,
+            directory_mode=s.directory_mode,links=s.links,private=s.private,
+            regular=s.regular,reserved_present=s.present,phase='S02')
     def _valid(self, state, *, present):
         original = self._state
         _require(type(state) is _CarrierState and type(original) is _CarrierState,
