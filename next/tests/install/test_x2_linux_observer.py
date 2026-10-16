@@ -110,7 +110,7 @@ class _FakeLinuxSyscalls:
 
         return {
             'host_snapshot': lambda: dict(os='linux', distribution='rocky', version='10.2',
-                architecture='x86_64', kernel='6.12.0-211.16.1.el10_2', selinux='enforcing'),
+                architecture='x86_64', kernel='6.12.0-211.16.1.el10_2', selinux='enforcing', cgroups='v2', init='systemd'),
             'peer_transport': peer_transport,
             'peer_credentials': peer_credentials,
             'peer_pidfd': peer_pidfd,
@@ -474,9 +474,9 @@ class LinuxObjectSnapshotACLTests(unittest.TestCase):
 
 
 class LinuxGroupAHostFit(unittest.TestCase):
-    """Kai 16:38 source-only host profile; observations are not host authority."""
+    """Kai corrected group-A capabilities/floors; source observations are not host authority."""
     profile = dict(os='linux', distribution='rocky', version='10.2', architecture='x86_64',
-                   kernel='6.12.0-211.16.1.el10_2', selinux='enforcing')
+                   kernel='6.12.0-211.16.1.el10_2', selinux='enforcing', cgroups='v2', init='systemd')
 
     def binding(self):
         inputs = LinuxObserverOracle().inputs('positive')
@@ -519,7 +519,7 @@ class LinuxGroupAHostFit(unittest.TestCase):
         self.assertIn(('peer_pidfd', 700), fake.events)
 
     def test_each_incompatible_profile_refuses_before_peer_or_pidfd(self):
-        for key, value in [('os','darwin'), ('distribution','ubuntu'), ('version','10.1'),
+        for key, value in [('os','darwin'), ('distribution','ubuntu'), ('version','9.9'),
                            ('architecture','aarch64'), ('kernel','6.12.0-other'),
                            ('selinux','permissive')]:
             with self.subTest(key=key):
@@ -567,14 +567,15 @@ class LinuxGroupAHostFit(unittest.TestCase):
         with patch.object(sys, 'platform', 'linux'), \
              patch('platform.freedesktop_os_release', return_value={'ID':'rocky','VERSION_ID':'10.2'}), \
              patch.object(linux.os, 'uname', return_value=SimpleNamespace(release=self.profile['kernel'], machine='x86_64')), \
-             patch.object(linux.os, 'open', return_value=901) as opened, \
-             patch.object(linux, '_read_fd', return_value=b'1\n') as read, \
+             patch.object(linux.os, 'open', side_effect=[901,902,903]) as opened, \
+             patch.object(linux, '_read_fd', side_effect=[b'1\n',b'cpu io memory\n',b'systemd\n']) as read, \
              patch.object(linux.os, 'close') as close:
             self.assertEqual(probe(), self.profile)
-        opened.assert_called_once_with('/sys/fs/selinux/enforce',
-            linux.os.O_RDONLY | linux.os.O_CLOEXEC | linux.os.O_NOFOLLOW)
-        read.assert_called_once_with(901, 2)
-        close.assert_called_once_with(901)
+        flags=linux.os.O_RDONLY | linux.os.O_CLOEXEC | linux.os.O_NOFOLLOW
+        self.assertEqual(opened.call_args_list,[unittest.mock.call(path,flags) for path in
+            ('/sys/fs/selinux/enforce','/sys/fs/cgroup/cgroup.controllers','/proc/1/comm')])
+        self.assertEqual(read.call_args_list,[unittest.mock.call(901,2),unittest.mock.call(902,4096),unittest.mock.call(903,64)])
+        self.assertEqual(close.call_args_list,[unittest.mock.call(fd) for fd in (901,902,903)])
 
     def test_native_unavailable_or_non_enforcing_selinux_refuses_and_closes(self):
         probe = self.native()
@@ -587,6 +588,93 @@ class LinuxGroupAHostFit(unittest.TestCase):
                  patch.object(linux.os, 'close') as close:
                 with self.assertRaises(owner.OwnerRefusal): probe()
                 close.assert_called_once_with(901)
+
+
+    def accepted_host(self, observation):
+        inputs, fake, calls = self.binding()
+        calls['host_snapshot'] = lambda: copy.deepcopy(observation)
+        try:
+            result = self.collect(inputs, calls)
+        except owner.OwnerRefusal as error:
+            self.fail('GA-D-HOST-001 supported observed host refused: '+error.detail)
+        context = owner._decode(result.context_raw, 'owner_unavailable')
+        peer = owner._original(result, context['peer_ref'])
+        receipt = owner._original(result, peer['linux_ref'])
+        self.assertEqual(receipt.get('host'), observation)
+        self.assertIn(('peer_pidfd', 700), fake.events)
+        return result
+
+    def test_raw_SliceF_release_flows_from_native_observer_to_recorded_receipt(self):
+        # Raw host-initial.txt SHA256 f87f1b58...: no truncation/normalization.
+        raw_kernel = '6.12.0-211.16.1.el10_2.0.1.x86_64'
+        with patch.object(sys, 'platform', 'linux'), \
+             patch('platform.freedesktop_os_release', return_value={'ID':'rocky','VERSION_ID':'10.2'}), \
+             patch.object(linux.os, 'uname', return_value=SimpleNamespace(release=raw_kernel,machine='x86_64')), \
+             patch.object(linux.os, 'open', side_effect=[901,902,903]), \
+             patch.object(linux, '_read_fd', side_effect=[b'1\n',b'cpu memory\n',b'systemd\n']), \
+             patch.object(linux.os, 'close'):
+            measured = self.native()()
+        self.assertEqual(measured,dict(self.profile,kernel=raw_kernel))
+        self.accepted_host(measured)
+
+    def test_Rocky10_kernel_floor_variants_keep_the_exact_raw_strings(self):
+        for version,kernel in [('10','6.12.0-1.el10'),('10.0','6.12.0-2.el10_0.x86_64'),
+                               ('10.1','6.12.3-211.el10_1.x86_64'),
+                               ('10.99','6.13.0-999.el10.x86_64'),('10.2','7.0.0-1.el10.x86_64')]:
+            with self.subTest(version=version,kernel=kernel):
+                self.accepted_host(dict(self.profile,version=version,kernel=kernel))
+
+    def test_every_floor_and_capability_refusal_precedes_peer_collection(self):
+        for key,value in [('os','darwin'),('distribution','ubuntu'),('version','9.9'),
+                          ('version','11.0'),('version','100.2'),('version','10.foo'),
+                          ('architecture','aarch64'),('kernel','6.11.99-1.el10.x86_64'),
+                          ('kernel','5.99.0-1.el10.x86_64'),('kernel','6.12.0-1.el9.x86_64'),
+                          ('kernel','6.12.0-1.el100.x86_64'),('kernel','6.12.0-other'),
+                          ('selinux','permissive'),('selinux','disabled'),
+                          ('cgroups','v1'),('cgroups','hybrid'),('init','sysvinit'),('init','')]:
+            with self.subTest(key=key,value=value):
+                inputs,fake,calls=self.binding()
+                calls['host_snapshot']=lambda:dict(self.profile,**{key:value})
+                with self.assertRaises(owner.OwnerRefusal) as caught:self.collect(inputs,calls)
+                self.assertEqual(caught.exception.detail,'required_binding_gap')
+                self.assertEqual(fake.events,[])
+
+    def test_live_SO_PEERPIDFD_remains_required_after_compatible_host(self):
+        inputs,fake,calls=self.binding();events=[]
+        def unavailable(fd):
+            events.append(('SO_PEERPIDFD',fd))
+            raise OSError(errno.ENOPROTOOPT,'synthetic unsupported socket option')
+        calls['peer_pidfd']=unavailable
+        with self.assertRaises(owner.OwnerRefusal) as caught:self.collect(inputs,calls)
+        self.assertEqual(caught.exception.detail,'required_binding_gap')
+        self.assertEqual(events,[('SO_PEERPIDFD',700)])
+        self.assertFalse(any(e[0] in ('pidfd_open','process_snapshot') for e in fake.events))
+
+    def test_native_missing_cgroup_v2_marker_refuses_and_closes(self):
+        opened=[];closed=[]
+        def open_file(path,flags):
+            opened.append(path)
+            if path=='/sys/fs/cgroup/cgroup.controllers':raise FileNotFoundError(path)
+            return 901
+        with patch.object(sys,'platform','linux'), \
+             patch('platform.freedesktop_os_release',return_value={'ID':'rocky','VERSION_ID':'10.2'}), \
+             patch.object(linux.os,'uname',return_value=SimpleNamespace(release=self.profile['kernel'],machine='x86_64')), \
+             patch.object(linux.os,'open',side_effect=open_file), \
+             patch.object(linux,'_read_fd',return_value=b'1\n'), \
+             patch.object(linux.os,'close',side_effect=closed.append):
+            with self.assertRaises(owner.OwnerRefusal):self.native()()
+        self.assertEqual(opened,['/sys/fs/selinux/enforce','/sys/fs/cgroup/cgroup.controllers'])
+        self.assertEqual(closed,[901])
+
+    def test_native_non_systemd_PID1_refuses_after_bounded_closed_reads(self):
+        with patch.object(sys,'platform','linux'), \
+             patch('platform.freedesktop_os_release',return_value={'ID':'rocky','VERSION_ID':'10.2'}), \
+             patch.object(linux.os,'uname',return_value=SimpleNamespace(release=self.profile['kernel'],machine='x86_64')), \
+             patch.object(linux.os,'open',side_effect=[901,902,903]), \
+             patch.object(linux,'_read_fd',side_effect=[b'1\n',b'cpu memory\n',b'init\n']), \
+             patch.object(linux.os,'close') as close:
+            with self.assertRaises(owner.OwnerRefusal):self.native()()
+        self.assertEqual(close.call_args_list,[unittest.mock.call(fd) for fd in (901,902,903)])
 
 
 if __name__ == "__main__":
