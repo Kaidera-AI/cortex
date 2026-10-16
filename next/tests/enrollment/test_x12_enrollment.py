@@ -134,7 +134,7 @@ class X12(unittest.TestCase):
         bad = [canonical(request_doc(extra=1)), json.dumps(request_doc()).encode(),
                canonical(request_doc(credential_digest='A' * 64)), canonical(request_doc(idempotency_key='')),
                canonical(request_doc(principal_id='not-a-uuid')), canonical(request_doc(schema='v2')),
-               canonical(request_doc(credential_secret='x')), canonical(request_doc(principal_id=PRIN.upper())),
+               canonical(request_doc(credential_secret='x')), canonical(request_doc(principal_id='ABCDEF12-3456-4789-8ABC-DEF012345678')),
                canonical({k: v for k, v in request_doc().items() if k != 'consent_ref'})]
         for raw in bad:
             self.refused('enrollment_request_invalid', lambda raw=raw: m.parse_request(raw))
@@ -229,6 +229,11 @@ class X12(unittest.TestCase):
         changed = canonical(request_doc(idempotency_key='enroll-2'))
         self.refused('enrollment_forbidden', lambda: self.enroll(m, core, raw=changed))
         self.assertEqual(core.identities, 1)
+        # 005's answer must name exactly the requested identity.
+        for key, value in (('principal_id', TEN), ('credential_id', TEN), ('project_id', TEN), ('replayed', 'no')):
+            odd = lambda r, key=key, value=value: dict(FakeCore().first_identity(r), **{key: value})
+            self.refused('enrollment_unavailable', lambda odd=odd: self.enroll_with(m, odd))
+        self.refused('enrollment_unavailable', lambda: self.enroll_with(m, lambda r: dict(FakeCore().first_identity(r), x=1)))
 
     def test_E05_receipt_without_roundtrip_is_not_ready(self):
         m = module()
@@ -259,6 +264,7 @@ class X12(unittest.TestCase):
         self.assertEqual(self.state(self.reader(m, 'enrollment_required', receipt, self.row())), 'unavailable')
         self.assertEqual(self.state(self.reader(m, 'READY', receipt, self.row())), 'unavailable')
         self.assertEqual(self.state(self.reader(m, 'ready', b'{}\n', self.row())), 'unavailable')
+        self.assertEqual(self.state(self.reader(m, 'enrollment_required', b'{}\n', self.row())), 'unavailable')
         self.assertEqual(self.state(self.reader(m, 'ready', receipt, self.row())), 'ready')
 
     def test_E08_source_audit_no_route_default_principal_or_raw_writes(self):
@@ -323,7 +329,7 @@ class X12(unittest.TestCase):
         self.assertEqual(doc['request_sha256'], hashlib.sha256(raw).hexdigest())
         self.assertEqual((doc['installation_id'], doc['tenant_id'], doc['project_id'], doc['principal_id']), (INST, TEN, PROJ, PRIN))
         self.assertEqual(doc['roundtrip']['route'], 'C11-D1')
-        self.assertNotIn('replayed', json.dumps(doc))
+        self.assertNotIn('replayed', receipt.decode())
         self.assertNotIn(HANDLE, receipt.decode(), 'BODY: resolver handle copied into the receipt')
         self.refused('enrollment_receipt_invalid', lambda: m.parse_receipt(canonical(dict(json.loads(receipt), extra=1))))
 
