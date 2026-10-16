@@ -155,3 +155,19 @@ those proofs. Sustained all-miss requires Kai's capacity-safe schedule and full
 transport-attempt/retry/failure budget; until then it stays NOT_RUN. Adapter
 embed calls are not HTTP or paid calls.512 scoped occupancy and1800s TTL are
 unchanged; distinct-key arithmetic is not capacity or paid-call authorization.
+
+Implementation detail: the returned run retains `preparation_warmup_records`
+as the exact timed snapshot bound by S4a preparation. `warmup_records` then
+receives offline annotations and any comparison refusal charges, so preparation
+cannot hide a later warmup comparison failure. Verify preparation hashes against
+the retained pre-comparison snapshot, not the annotated rows. Original responses
+carry actual cache-hit/provider-embed observations; report minute windows remain
+the existing offered schedule. No embed observation is promoted to HTTP/budget
+or state proof. The old SQL/proxy CLI remains its existing diagnostic.
+
+The existing mutation runner now discovers and verifies the full copied Python
+namespace package (including product_path) rather than its stale nine-module
+list. The frozen full baseline/restoration is60 tests:13 load,27 report,20 offer
+accounting, including all17 S4b controls; inherited23 recipes are retained and
+15 S4b recipes are added. Copies contain only source modules; product fixtures
+reuse unchanged pinned Core/contracts resources and deny IP sockets.
