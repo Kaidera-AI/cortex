@@ -183,8 +183,12 @@ class ResolverConnection:
                     and attempt.process == grant.process, 'authority_changed')
                 await resolver.check(handle,deadline)
                 _current_sql_policy(inputs,grant,policy)
-                connecting = True
-                connection = await secrets._bounded(inputs.connect(policy,kwargs,deadline,attempt),deadline)
+                async def owned_connect():
+                    nonlocal connection, connecting
+                    connecting = True
+                    connection = await inputs.connect(policy,kwargs,deadline,attempt)
+                    return connection
+                await secrets._bounded(owned_connect(),deadline,handle=handle)
                 kwargs = None
                 observation = await secrets._bounded(
                     inputs.observe_session(connection,grant,policy,deadline),deadline)

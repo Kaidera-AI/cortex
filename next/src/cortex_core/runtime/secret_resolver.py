@@ -127,18 +127,56 @@ def _deadline(value):
     return value
 
 
-async def _bounded(awaitable, deadline):
+# Strong ownership until completion, including suppliers that swallow cancellation.
+# These are pending operations, never authority records or absence receipts.
+_pending_waits = {}
+
+
+async def _private_wait(awaitable, deadline, handle):
+    with private_driver_logs():
+        # Task scheduling is itself a wait: fence material/effect dispatch here.
+        if handle is not None:
+            record = _handle(handle)
+            _require(_inputs() is record[0], 'authority_changed')
+            _deadline(min(deadline,record[2]))
+        return await awaitable
+
+
+def _wait_finished(task):
+    _, _, awaitable = _pending_waits.pop(task)
+    # Cancellation can win before the wrapper's first instruction executes.
+    if hasattr(awaitable, 'close'): awaitable.close()
+    if not task.cancelled(): task.exception()  # consume late exceptions privately
+
+
+async def _bounded(awaitable, deadline, *, handle=None):
     try:
         _deadline(deadline)
     except SecretRefusal:
         if hasattr(awaitable, 'close'): awaitable.close()
         raise
+    owner = asyncio.current_task()
+    task = asyncio.create_task(_private_wait(awaitable,deadline,handle))
+    _pending_waits[task] = (owner, deadline, awaitable)
+    task.add_done_callback(_wait_finished)
     try:
-        with private_driver_logs():
-            async with asyncio.timeout_at(deadline):
-                result = await awaitable
+        done, _ = await asyncio.wait({task}, timeout=max(0, deadline-asyncio.get_running_loop().time()))
+        if not done:
+            task.cancel()
+            raise SecretRefusal('deadline_expired')
+        result = task.result()
         _deadline(deadline)  # a supplier may swallow cancellation; late success is never current
+        # An absence observation cannot certify still-running sibling work from
+        # this owner. Resource callers retain their original cleanup/HOLD path.
+        _require(not any(other is not task and not other.done() and record[0] is owner
+                         for other, record in _pending_waits.items()), 'cleanup_unproved')
         return result
+    except asyncio.CancelledError:
+        task.cancel()
+        # Give cooperative cancellation one scheduling turn, never a new grace
+        # deadline. A connect result that returns here remains owned for retire.
+        await asyncio.sleep(0)
+        raise
     except TimeoutError:
         raise SecretRefusal('deadline_expired') from None
     except SecretRefusal:
@@ -224,18 +262,21 @@ class SecretResolver:
         _require(_inputs() is inputs, 'authority_changed')
         observed = await _bounded(inputs.observe(original.reference,original.purpose,
             original.installation,original.mode,deadline),deadline)
+        # No await may separate this live fence from accepting the observation.
+        _require(_handle(handle) is record, 'invalid_handle')
+        _require(_inputs() is inputs, 'authority_changed')
         current = _grant(observed,original.reference,original.purpose,
                          original.installation,original.mode,deadline)
         _require(all(getattr(current,k) == getattr(original,k) for k in
             ('reference','revision','installation','purpose','mode','process','epoch',
              'generation','original')), 'authority_changed')
-        record[2] = min(expiry,current.expires)
-        return inputs, original, min(deadline,record[2])
+        record[2] = min(record[2],current.expires)
+        return inputs, original, _deadline(min(deadline,record[2]))
 
     @asynccontextmanager
     async def _material(self, handle, deadline):
         inputs, grant, bound = await self._current(handle,deadline)
-        material = await _bounded(inputs.read(grant,bound),bound)
+        material = await _bounded(inputs.read(grant,bound),bound,handle=handle)
         try:
             _require(type(material) is str and 0 < len(material.encode()) <= 65536,
                      'resolver_unavailable')
@@ -255,7 +296,7 @@ class SecretResolver:
         carrier._valid(state,present=False)
         try:
             async with self._material(handle,bound) as material:
-                await _bounded(inputs.create_carrier(state,material,bound),bound)
+                await _bounded(inputs.create_carrier(state,material,bound),bound,handle=handle)
             await carrier.check()
             return carrier
         except BaseException:
