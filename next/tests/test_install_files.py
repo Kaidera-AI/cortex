@@ -374,6 +374,142 @@ class FilesTests(unittest.TestCase):
         with self.opened() as p: self.assertEqual(self.apply(p)[0],'APPLIED')
         self.assertEqual(outside.read_bytes(),b'retain')
 
+    def test_verified_owned_continuation_replace_keeps_provenance(self):
+        self.existing(); self.inputs.plan['ownership']='verified_owned_continuation'
+        with self.opened() as p:
+            answer=self.apply(p); self.assertEqual(answer[0],'APPLIED')
+            self.assertEqual(json.loads(answer[1])['observed']['ownership'],'verified_owned_continuation')
+
+    def test_verified_owned_continuation_is_not_transaction_inverse(self):
+        path=self.existing('remove'); self.inputs.plan['ownership']='verified_owned_continuation'
+        with self.assertRaises(OwnerRefusal):
+            with self.opened() as p: self.apply(p)
+        self.assertEqual(path.read_bytes(),b'before')
+
+    def test_inverse_directory_metadata_change_during_fsync_retains_it(self):
+        path=self.inputs.root/'published'; path.mkdir(mode=0o700)
+        self.inputs.plan.update(action='remove',before=facts(path),after=None,inverse=True)
+        api=self.api(); real=api.os.fsync; identity=path.stat().st_ino
+        def drift(fd):
+            real(fd)
+            if os.fstat(fd).st_ino==identity: os.fchmod(fd,0o750)
+        with self.opened() as p:
+            p.snapshot()
+            with patch.object(api.os,'fsync',side_effect=drift): p.dispatch(SUBJECT)
+            with p.measure(SUBJECT) as answer: self.assertEqual(answer,('UNKNOWN',None))
+        self.assertTrue(path.is_dir())
+
+    def test_large_member_short_writes_keep_original_bytes_and_chunk_bound(self):
+        raw=bytes(range(256))*1100
+        (self.inputs.source/'members/payload').write_bytes(raw)
+        self.inputs.plan['after']=file_node(raw)
+        api=self.api(); real=api.os.write; sizes=[]
+        def short(fd,view):
+            sizes.append(len(view)); return real(fd,view[:max(1,len(view)//2)])
+        with self.opened() as p:
+            with patch.object(api.os,'write',side_effect=short):
+                self.assertEqual(self.apply(p)[0],'APPLIED')
+            self.assertTrue(p.fds)
+            self.assertEqual(p.writers,set())
+        self.assertGreater(len(sizes),4); self.assertLessEqual(max(sizes),65536)
+        self.assertEqual((self.inputs.root/'published').read_bytes(),raw)
+
+    def test_standalone_directory_create(self):
+        self.inputs.plan['after']=dict(kind='directory',mode=0o700,children={})
+        with self.opened() as p: self.assertEqual(self.apply(p)[0],'APPLIED')
+        self.assertTrue((self.inputs.root/'published').is_dir())
+
+    def test_standalone_admitted_link_create_without_target_traversal(self):
+        peer=self.inputs.root/'peer'; peer.write_bytes(b'retain')
+        self.inputs.plan['after']=dict(kind='link',mode=0o777,target='peer')
+        with self.opened() as p: self.assertEqual(self.apply(p)[0],'APPLIED')
+        self.assertEqual(os.readlink(self.inputs.root/'published'),'peer')
+        self.assertEqual(peer.read_bytes(),b'retain')
+
+    def test_identical_existing_file_is_not_new_ownership(self):
+        path=self.inputs.root/'published'; path.write_bytes(b'original member\n'); path.chmod(0o600)
+        before=facts(path)
+        with self.assertRaises(OwnerRefusal):
+            with self.opened() as p: self.apply(p)
+        self.assertEqual(facts(path),before)
+
+    def test_file_drift_during_final_parent_fsync_is_unknown(self):
+        api=self.api(); real=api.os.fsync; path=self.inputs.root/'published'; done=[]
+        def drift(fd):
+            real(fd)
+            if path.exists() and not done:
+                done.append(True); path.write_bytes(b'substituted body')
+        with self.opened() as p:
+            p.snapshot()
+            with patch.object(api.os,'fsync',side_effect=drift): p.dispatch(SUBJECT)
+            with p.measure(SUBJECT) as answer: self.assertEqual(answer,('UNKNOWN',None))
+        self.assertEqual(path.read_bytes(),b'substituted body')
+
+    def test_metadata_change_during_publication_refuses_ack(self):
+        with self.opened() as p:
+            p.snapshot(); p.dispatch(SUBJECT)
+            with self.assertRaises(OwnerRefusal):
+                with p.measure(SUBJECT) as answer:
+                    self.assertEqual(answer[0],'APPLIED')
+                    (self.inputs.root/'published').chmod(0o700)
+
+    def test_consumer_change_during_publication_refuses_ack(self):
+        with self.opened() as p:
+            p.snapshot(); p.dispatch(SUBJECT)
+            with self.assertRaises(OwnerRefusal):
+                with p.measure(SUBJECT) as answer:
+                    self.assertEqual(answer[0],'APPLIED')
+                    self.inputs.binding['consumers']=['new-consumer']
+
+    def test_fifo_preimage_never_opens_or_blocks(self):
+        path=self.inputs.root/'published'; os.mkfifo(path,0o600)
+        self.inputs.plan.update(action='replace',before={'kind':'file'})
+        with self.assertRaises(OwnerRefusal):
+            with self.opened() as p: self.apply(p)
+        self.assertTrue(stat.S_ISFIFO(path.lstat().st_mode))
+
+    def test_empty_owned_directory_atomic_replace(self):
+        path=self.inputs.root/'published'; path.mkdir(mode=0o700)
+        before=facts(path); self.archive()
+        self.inputs.plan.update(action='replace',before=before)
+        with self.opened() as p: self.assertEqual(self.apply(p)[0],'APPLIED')
+        self.assertNotEqual(path.stat().st_ino,before['ino'])
+
+    def test_nonempty_directory_exchange_refuses_without_native_binding(self):
+        path=self.inputs.root/'published'; path.mkdir(mode=0o700)
+        (path/'data').write_bytes(b'retain'); (path/'data').chmod(0o600)
+        before=facts(path); self.archive(); self.inputs.plan.update(action='replace',before=before)
+        with self.assertRaises(OwnerRefusal):
+            with self.opened() as p: self.apply(p)
+        self.assertEqual(facts(path),before)
+
+    def test_failed_inverse_before_unlink_measures_not_applied(self):
+        path=self.existing('remove'); api=self.api()
+        with self.opened() as p:
+            p.snapshot()
+            with patch.object(api.os,'unlink',side_effect=OSError('no effect')): p.dispatch(SUBJECT)
+            with p.measure(SUBJECT) as answer: self.assertEqual(answer[0],'NOT_APPLIED')
+        self.assertEqual(path.read_bytes(),b'before')
+
+    def test_partial_inverse_retains_remaining_members_and_is_unknown(self):
+        path=self.inputs.root/'published'; path.mkdir(mode=0o700)
+        for name in ('a','b'): (path/name).write_bytes(b'retain'); (path/name).chmod(0o600)
+        self.inputs.plan.update(action='remove',before=facts(path),after=None,inverse=True)
+        api=self.api(); real=api.os.unlink
+        def lost(*a,**kw): real(*a,**kw); raise OSError('lost unlink reply')
+        with self.opened() as p:
+            p.snapshot()
+            with patch.object(api.os,'unlink',side_effect=lost): p.dispatch(SUBJECT)
+            with p.measure(SUBJECT) as answer: self.assertEqual(answer,('UNKNOWN',None))
+        self.assertEqual((path/'b').read_bytes(),b'retain')
+
+    def test_source_change_after_publish_retains_effect_and_is_unknown(self):
+        with self.opened() as p:
+            p.snapshot(); p.dispatch(SUBJECT)
+            (self.inputs.source/'members/payload').write_bytes(b'revoked original')
+            with p.measure(SUBJECT) as answer: self.assertEqual(answer,('UNKNOWN',None))
+        self.assertEqual((self.inputs.root/'published').read_bytes(),b'original member\n')
+
 
 if __name__ == '__main__':
     unittest.main()
