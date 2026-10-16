@@ -41,7 +41,19 @@ FILES = {
     SITE + '/cryptography-50.0.0.dist-info/METADATA': ('data', b'Metadata-Version: 2.4\nName: cryptography\nVersion: 50.0.0\n\nbody\n', 0o644),
     SITE + '/cffi-2.1.1.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: cffi\nVersion: 2.1.1\n\n', 0o644),
     SITE + '/pycparser-3.0.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: pycparser\nVersion: 3.0\n\n', 0o644),
+    SITE + '/jsonschema-4.25.1.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: jsonschema\nVersion: 4.25.1\n\n', 0o644),
+    SITE + '/attrs-25.4.0.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: attrs\nVersion: 25.4.0\n\n', 0o644),
+    SITE + '/referencing-0.37.0.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: referencing\nVersion: 0.37.0\n\n', 0o644),
+    SITE + '/rpds_py-0.30.0.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: rpds-py\nVersion: 0.30.0\n\n', 0o644),
+    SITE + '/jsonschema_specifications-2025.9.1.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: jsonschema-specifications\nVersion: 2025.9.1\n\n', 0o644),
+    SITE + '/typing_extensions-4.16.0.dist-info/METADATA': ('data', b'Metadata-Version: 2.1\nName: typing_extensions\nVersion: 4.16.0\n\n', 0o644),
+    STD + '/typing.py': ('stdlib', b'# INERT stdlib typing\n', 0o644),
 }
+# Q2 (kai 16 Oct): the owner closure also needs the jsonschema closure (release/codec imports jsonschema).
+OWNER_PINS = {'cpython': '3.12.15', 'cryptography': '50.0.0', 'cffi': '2.1.1', 'pycparser': '3.0', 'jsonschema': '4.25.1',
+              'attrs': '25.4.0', 'referencing': '0.37.0', 'rpds-py': '0.30.0', 'jsonschema-specifications': '2025.9.1',
+              'typing_extensions': '4.16.0'}
+DIST_DIR = {'rpds-py': 'rpds_py', 'jsonschema-specifications': 'jsonschema_specifications'}
 
 
 def canonical(value):
@@ -50,15 +62,12 @@ def canonical(value):
 
 def selection(**change):
     doc = {'schema': 'cortex.release-bootstrap-selection.v1', 'bootstrap_id': 'host-epoch-1',
-           'pins': {'cpython': '3.12.15', 'cryptography': '50.0.0', 'cffi': '2.1.1', 'pycparser': '3.0',
-                    'cpython_build_sha256': hashlib.sha256(BUILD).hexdigest()},
+           'pins': dict(OWNER_PINS, cpython_build_sha256=hashlib.sha256(BUILD).hexdigest()),
            'executable': PY, 'entrypoint': ENTRY, 'python_version': [3, 12, 15],
            'import_roots': [STD, STD + '/lib-dynload', SITE, SRC], 'cache_prefix': '/opt/cortex/pycache',
            'intrinsics': ['_imp', 'builtins', 'sys'],
            'module_aliases': [['_cffi_backend', SITE + '/_cffi_backend.cpython-312-x86_64-linux-gnu.so']],
-           'dist_metadata': {'cryptography': SITE + '/cryptography-50.0.0.dist-info/METADATA',
-                             'cffi': SITE + '/cffi-2.1.1.dist-info/METADATA',
-                             'pycparser': SITE + '/pycparser-3.0.dist-info/METADATA'},
+           'dist_metadata': {n: f"{SITE}/{DIST_DIR.get(n, n)}-{v}.dist-info/METADATA" for n, v in OWNER_PINS.items() if n != 'cpython'},
            'closure': sorted([[role, path] for path, (role, _, _) in FILES.items()], key=lambda r: r[1])}
     doc.update(change)
     return doc
@@ -151,7 +160,7 @@ class Producer(unittest.TestCase):
     # ---- selection ----------------------------------------------------------------
     def test_S1_selection_is_closed_canonical_and_pins_are_the_selected_closure(self):
         m = module()
-        self.assertEqual(m.SELECTED, {'cpython': '3.12.15', 'cryptography': '50.0.0', 'cffi': '2.1.1', 'pycparser': '3.0'})
+        self.assertEqual(m.SELECTED, OWNER_PINS)
         bad = [selection(extra=1), selection(schema='v2'), selection(python_version=[3, 12, 14]),
                selection(pins=dict(selection()['pins'], cryptography='50.0.1')),
                selection(pins=dict(selection()['pins'], cffi='2.1.0')),
@@ -182,6 +191,24 @@ class Producer(unittest.TestCase):
         doc = selection(dist_metadata=dict(selection()['dist_metadata'], cffi=SITE + '/cffi-elsewhere/METADATA'))
         self.refused('bootstrap_selection_invalid', lambda: self.produce(doc))
         self.assertTrue(self.produce())  # matched positive
+
+    def test_S3_typing_pseudo_module_aliases_bind_only_to_stdlib_typing(self):
+        aliases = [['_cffi_backend', SITE + '/_cffi_backend.cpython-312-x86_64-linux-gnu.so'],
+                   ['typing.io', STD + '/typing.py'], ['typing.re', STD + '/typing.py']]
+        doc = json.loads(self.produce(selection(module_aliases=aliases)))
+        self.assertEqual(doc['module_aliases'], aliases)
+        for bad in ([['typing.other', STD + '/typing.py']], [['typing.io', STD + '/os.py']],
+                    [['typing.io', SRC + '/cortex_core/release/member_admission.py']]):
+            self.refused('bootstrap_selection_invalid', lambda bad=bad: self.produce(selection(module_aliases=sorted(aliases[:1] + bad))))
+
+    def test_S4_every_owner_pin_is_checked_against_its_metadata(self):
+        for name in ('jsonschema', 'rpds-py', 'typing_extensions'):
+            meta = self.root / selection()['dist_metadata'][name][1:]
+            body = meta.read_bytes()
+            meta.write_bytes(body.replace(b'Version: ', b'Version: 9'))
+            self.refused('bootstrap_pin_mismatch', self.produce)
+            meta.write_bytes(body)
+        self.assertTrue(self.produce())
 
     # ---- measurement ----------------------------------------------------------------
     def test_M1_symlink_original_refuses_then_restore(self):
