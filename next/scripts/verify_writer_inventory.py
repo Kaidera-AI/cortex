@@ -61,11 +61,15 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
     "src/cortex_core/install/recovery.py": "f03408b7446258a78facdbc867f4c4be35745e88c8450fcf054cf8d35bbca756",
     "src/cortex_core/runtime/role_grants.py": "88b603698800e6b82a47ded38232f29324cfdbe0fc779dd2e4003038916e97b7",
     "src/cortex_core/runtime/connections.py": "97064447e2f260f563d81858a2d846b6807d0de4bc5a24eb38e6c3933e88daa5",
-    "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496"
+    "src/cortex_core/runtime/secret_resolver.py": "1c5aaf62507c06908397fb4e50bd431e8f55493782ecff61cf4b0c7d31a41496",
+    "src/cortex_core/runtime/enrollment.py": "9f4bd86f2f95e5ae125b97dde6f8b5e27e133e6d9eae8a067ccbd528fd2c856d"
 }
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/runtime/enrollment.py', 'first_identity_sql', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'c20dca8c0df2729dfeab63fa8e70dc247197c3ec9d40212dedc70d11742df372'): 'X12_single_005_first_identity_call; installer_enrollment_login_only; P2a_consumed_dispatch_UNBOUND; caller_SQL_transaction; native_HELD',
+    ('src/cortex_core/runtime/enrollment.py', 'readiness_sql', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '81c25b6a5555e9fffc79fa9fee5269afab4273d7598ba426f8eb73044026148e'): 'X12_D3_006_enum_read; SELECT_only; request_session; no_write_authority',
+    ('src/cortex_core/runtime/enrollment.py', 'scope_sql', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '89d0a17b206b5cb42c5cf7d8ff1a8afe41852190027745be4279c70e32188358'): 'X12_D3_existing_resolve_scope_read; SELECT_only; request_session; no_write_authority',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c07_record', 'INSERT', 'coordination.vector_applied_heads', 0, '20df52164a58822d5f5fdc62798b15912878bd92e61b0a01229041a1c4877a62'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c09_bind', 'INSERT', 'coordination.vector_bindings', 0, '3229a056b109ec96b75c4715a2847cb982711c8571ccf4f73e7ee4422bf135d2'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('src/cortex_core/auth.py', 'authorized', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '73b404c4edb916b5bf9f29735fa35621b218f0508f2df3604f10cefabf7c73eb'): 'fixed_C04_role_catalogue_read; SELECT_only; owned_request_SQL_transaction; local_request_ROLE; no_canonical_write_authority; native_HELD',

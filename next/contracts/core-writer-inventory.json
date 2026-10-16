@@ -981,6 +981,33 @@
       "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
     },
     {
+      "file": "src/cortex_core/runtime/enrollment.py",
+      "owner": "first_identity_sql",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "c20dca8c0df2729dfeab63fa8e70dc247197c3ec9d40212dedc70d11742df372",
+      "classification": "X12_single_005_first_identity_call; installer_enrollment_login_only; P2a_consumed_dispatch_UNBOUND; caller_SQL_transaction; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/runtime/enrollment.py",
+      "owner": "readiness_sql",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "81c25b6a5555e9fffc79fa9fee5269afab4273d7598ba426f8eb73044026148e",
+      "classification": "X12_D3_006_enum_read; SELECT_only; request_session; no_write_authority"
+    },
+    {
+      "file": "src/cortex_core/runtime/enrollment.py",
+      "owner": "scope_sql",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "89d0a17b206b5cb42c5cf7d8ff1a8afe41852190027745be4279c70e32188358",
+      "classification": "X12_D3_existing_resolve_scope_read; SELECT_only; request_session; no_write_authority"
+    },
+    {
       "file": "src/cortex_core/runtime/role_grants.py",
       "owner": "<module>",
       "verb": "UPDATE",
