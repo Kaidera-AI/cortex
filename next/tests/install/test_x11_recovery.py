@@ -28,6 +28,7 @@ class LostResult:
         s.helper.context(s.data, lambda c:c['effect'].update(resource_kind='file'))
         s.helper.scope(s.data, lambda c:c['effect'].update(resource_kind='file'))
         with s.installed():
+            s.proposal=s.current()
             s.reserve(mandate=False); s.consume()
         self.original = s.entry(s.consumed)
         self.subject_key = {k:self.original[0][k] for k in ('identity','effect','request_ref')}
@@ -134,7 +135,8 @@ class X11JoinTests(unittest.TestCase):
         s=Subject(Path(root)/'history')
         s.helper.context(s.data,lambda c:c['effect'].update(resource_kind=kind))
         s.helper.scope(s.data,lambda c:c['effect'].update(resource_kind=kind))
-        with s.installed():c=thaw(s.current().context)
+        with s.installed():
+            s.proposal=s.current();c=thaw(s.proposal.context)
         subject={k:c[k] for k in ('identity','effect','request_ref')}
         if kind=='file':
             inputs=file_fixtures.Inputs(Path(root))
