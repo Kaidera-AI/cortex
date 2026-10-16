@@ -25,8 +25,9 @@ class CoreSQL(unittest.TestCase):
     def fixture(self, root):
         s=Subject(root)
         c=thaw(s.proposal.context)
-        selection={'manifest_sha256':'2'*64,'through':'runtime-grants-0001',
-                   'migrations':[['old','3'*64],['runtime-grants-0001','4'*64]]}
+        schema=json.loads(s.data['runtime_lock_raw'])['current_schema']
+        selection={'manifest_sha256':schema['manifest_sha256'],'through':schema['migrations'][-1]['id'],
+                   'migrations':[[r['id'],r['sha256']] for r in schema['migrations']]}
         s.selection=s.history.retain(canonical_bytes(selection))
         s.windows=s.history.retain(canonical_bytes({'operation':lifecycle._operation(c['identity']),
             'owner_epoch':c['owner_epoch'],'E':s.deadline.expires_monotonic_ns,
@@ -76,7 +77,9 @@ class CoreSQL(unittest.TestCase):
 
     def run_phase(self,s,phase):
         p=self.primitive(s,phase)
-        with s.installed(p):ref=lifecycle.execute_effect(s.data['request_raw'].encode())
+        # Trusted owner clock remains DATA; don't turn CPU/filesystem scheduling into expiry.
+        with s.installed(p),patch.object(lifecycle.time,'monotonic_ns',return_value=101000000000):
+            ref=lifecycle.execute_effect(s.data['request_raw'].encode())
         s.previous.append(thaw(ref));return ref
 
     def prefix(self,s,phase):
