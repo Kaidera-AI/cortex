@@ -27,6 +27,24 @@ def build_argv(engine, source, output, epoch):
     ]
 
 
+def native_base_config(value):
+    """The ONE admitted base: exactly one base_images row, on the target platform.
+
+    Its config digest is the Id the lane's input phase must load (GA-C-R02-001);
+    recipes take it as FROM ${BASE_IMAGE}, never a name or a pull.
+    """
+    rows = value["dependencies"]["base_images"]
+    if (
+        type(rows) is not list
+        or len(rows) != 1
+        or rows[0].get("platform") != value["target"]["oci_platform"]
+        or type(rows[0].get("config_digest")) is not str
+        or re.fullmatch(r"[0-9a-f]{64}", rows[0]["config_digest"]) is None
+    ):
+        raise ValueError("native base identity required")
+    return rows[0]["config_digest"]
+
+
 def native_build_template(value):
     """The ONE canonical native build suffix (R4 v3, Hale R4-TEMPLATE-001).
 
@@ -34,7 +52,8 @@ def native_build_template(value):
     engine prefix (owned store/runroot/tmpdir) is prepended by the lane, the cwd
     is the admitted clone, and every value comes from the admitted input. There
     is no capability, privilege, namespace, logging, hook, volume, secret, ssh,
-    extra context or security option to admit, and no remote operand.
+    extra context or security option to admit, and no remote operand. The only
+    build arguments are SOURCE_DATE_EPOCH and BASE_IMAGE (the admitted base Id).
     """
     epoch = value["determinism"]["epoch"]
     platform = value["target"]["oci_platform"]
@@ -56,6 +75,7 @@ def native_build_template(value):
         "--source-date-epoch=" + str(epoch),
         "--rewrite-timestamp",
         "--build-arg=SOURCE_DATE_EPOCH=" + str(epoch),
+        "--build-arg=BASE_IMAGE=sha256:" + native_base_config(value),
         *cpu_memory_argv(resources["cpu_millicores"], resources["memory_bytes"]),
         "--file=Dockerfile",
         "--iidfile=image.iid",
