@@ -139,6 +139,7 @@
     "next/tests/release/test_original_member_bridge.py",
     "next/tests/release/test_owner_amendments.py",
     "next/tests/release/test_owner_startup_binding.py",
+    "next/tests/release/test_owner_startup_clock.py",
     "next/tests/release/test_owner_startup_order.py",
     "next/tests/release/test_r3_inspector.py",
     "next/tests/release/test_r4_hale_probes.py",
