@@ -5,6 +5,7 @@ import importlib
 import io
 from pathlib import Path
 import sys
+from threading import Event,Thread
 import unittest
 from unittest.mock import patch
 
@@ -227,6 +228,31 @@ class CurrentOwnerReaders(unittest.TestCase):
    current=m._current_owner_reader()
    self.assertEqual(current().context.now,1501);self.assertEqual(current().context.now,1501)
   self.assertEqual(provider.call_count,3,'BODY: current owner observation was memoized')
+
+ def test_one_retained_reader_serializes_concurrent_source_observations(self):
+  m=self.module();s=self.sample(m);first=Event();release=Event();second=Event();errors=[];calls=[]
+  def provider():
+   calls.append(len(calls)+1);n=calls[-1]
+   if n==2:
+    first.set()
+    if not release.wait(5):raise RuntimeError('test worker was not released')
+   if n==3:second.set()
+   return replace(s,context=replace(s.context,now=1499+n))
+  def invoke(current):
+   try:current()
+   except BaseException as e:errors.append(e)
+  with patch.object(m,'_installed_current_owner',provider):
+   current=m._current_owner_reader();a=Thread(target=invoke,args=(current,));b=Thread(target=invoke,args=(current,))
+   a.start()
+   try:
+    self.assertTrue(first.wait(5),'BODY: first current observation did not start')
+    b.start()
+    self.assertFalse(second.wait(.2),'BODY: one retained reader sampled two owner states concurrently')
+   finally:
+    release.set();a.join(5)
+    if b.ident is not None:b.join(5)
+   self.assertFalse(a.is_alive() or b.is_alive());self.assertEqual(errors,[])
+   self.assertEqual(calls,[1,2,3])
 
  def test_clock_rollback_after_advancing_invalidates_retained_reader(self):
   m=self.module();s=self.sample(m);new=replace(s,context=replace(s.context,now=1502))
