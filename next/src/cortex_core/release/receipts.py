@@ -1,4 +1,5 @@
 """Shared build receipt verifier; no assembly, signing or installation effects."""
+from dataclasses import dataclass
 from .artifacts import inspect_oci, measure, require
 from .codec import canonical_bytes, decode_json, ordered_inventory, schema_validate, sha256
 from .contracts import ParsedBuildReceipt, ReceiptRefusal, VerifiedBuildInput, VerifiedBuildReceipt, _SEAL, freeze, thaw
@@ -6,6 +7,96 @@ from .contracts import ParsedBuildReceipt, ReceiptRefusal, VerifiedBuildInput, V
 CLASSES = ('accounts', 'cache', 'clock', 'files', 'input', 'labels', 'logs', 'python', 'runtime', 'serialization', 'xattrs-acls')
 PHASES = ('input', 'parser', 'build', 'export', 'audit', 'cleanup')
 IDENTITIES = ('build_id', 'execution_id', 'store_id', 'runroot_id', 'container_id', 'source_id')
+
+
+QUALIFICATION_SCHEMA = 'cortex.native-qualification.v1'
+QUALIFICATION_KEYS = {'schema', 'architecture', 'platform', 'host', 'engine', 'engine_path', 'engine_environment',
+                      'engine_config', 'inspector', 'containment'}
+PROBES = ('memory', 'mounts_env', 'network', 'pids', 'rootfs_write', 'time', 'tmpfs')
+
+
+@dataclass(frozen=True)
+class MatchedQualification:
+    """R01's statement that measured R6 records matched the accepted context."""
+    closure_sha256: str
+    architecture: str
+    _seal: object
+
+
+def _hex(value):
+    return type(value) is str and len(value) == 64 and all(c in '0123456789abcdef' for c in value)
+
+
+def qualification_complete(doc):
+    """The ONE closed R6 qualification record shape; every result must be a pass.
+
+    Producer completeness (emit) and R01's match both use this check; it is not
+    independent authority by itself.
+    """
+    def run(row):
+        return (type(row) is dict and set(row) == {'status', 'request_sha256', 'reply_sha256'} and
+                row['status'] == 'pass' and _hex(row['request_sha256']) and _hex(row['reply_sha256']))
+    try:
+        valid = (type(doc) is dict and set(doc) == QUALIFICATION_KEYS and doc['schema'] == QUALIFICATION_SCHEMA and
+                 doc['architecture'] in ('amd64', 'arm64') and doc['platform'] == 'linux/' + doc['architecture'] and
+                 type(doc['host']) is dict and set(doc['host']) == {'os', 'arch', 'uid', 'rootless', 'emulated', 'kernel'} and
+                 doc['host']['os'] == 'linux' and doc['host']['rootless'] is True and doc['host']['emulated'] is False and
+                 type(doc['host']['uid']) is int and doc['host']['uid'] > 0 and
+                 type(doc['engine']) is dict and set(doc['engine']) == {'engine_id', 'version', 'sha256'} and
+                 _hex(doc['engine']['sha256']) and type(doc['engine_path']) is str and doc['engine_path'].startswith('/') and
+                 type(doc['engine_environment']) is list and doc['engine_environment'] == sorted(set(doc['engine_environment'])) and
+                 doc['engine_config'].keys() == {'containers_conf', 'storage_conf'} and all(_hex(v) for v in doc['engine_config'].values()) and
+                 type(doc['inspector']) is dict and set(doc['inspector']) == {'closure_sha256', 'positive', 'negative'} and
+                 _hex(doc['inspector']['closure_sha256']) and run(doc['inspector']['positive']) and run(doc['inspector']['negative']) and
+                 type(doc['containment']) is dict and set(doc['containment']) == set(PROBES) and
+                 all(doc['containment'][name] == {'status': 'pass'} for name in PROBES))
+    except (AttributeError, KeyError, TypeError):
+        valid = False
+    require(valid, 'native_qualification_incomplete')
+    return doc
+
+
+def match_qualification(doc, pending, input_value, builds):
+    """Measured records against the independently admitted closure/engine/confs/host/lanes."""
+    qualification_complete(doc)
+    capability = pending.capability
+    descriptor = thaw(capability.descriptor)['descriptor']
+    host = thaw(pending.host)
+    require(doc['architecture'] == input_value['builder_requirements']['architecture'] and
+            doc['platform'] == input_value['target']['oci_platform'] and
+            doc['engine'] == input_value['builder_requirements']['engine'] and
+            all(builds[slot]['observed_builder']['engine'] == doc['engine'] for slot in ('A', 'B')) and
+            doc['engine_path'] == str(capability.engine) and doc['engine']['sha256'] == capability.engine_sha256 and
+            doc['inspector']['closure_sha256'] == capability.closure_sha256 and
+            doc['engine_config'] == {name: descriptor['engine_config'][name]['sha256'] for name in ('containers_conf', 'storage_conf')} and
+            all(doc['host'][key] == host.get(key) for key in ('os', 'arch', 'uid', 'rootless')),
+            'native_inspector_execution_unqualified')
+    return MatchedQualification(capability.closure_sha256, doc['architecture'], _SEAL)
+
+
+def _native_children(build, measured, inventory, doc):
+    """Bind every phase's ordered executed children; the build child is exactly
+    owned prefix + admitted template in the bound clone cwd (Hale R4-MAP-001)."""
+    rows = {row['path']: row for row in inventory}
+    found = {}
+    observed = build['observed_builder']
+    for op in build['operations']:
+        path = op['evidence']['path']
+        require(path.endswith('.json'), 'native_child_evidence')
+        path = path[:-5] + '.children.json'
+        require(path in rows and path in measured, 'native_child_evidence')
+        children = decode_json(measured[path], 8 * 1024 * 1024)
+        require(type(children) is list and all(
+            type(child) is dict and child.get('exit') == 0 and child.get('environment_names') == doc['engine_environment']
+            for child in children), 'native_child_evidence')
+        if op['phase'] == 'build':
+            argv = children[0].get('argv') if len(children) == 1 else None
+            require(type(argv) is list and argv[:6] == [doc['engine_path'], '--remote=false', '--root', observed['store_id'],
+                                                        '--runroot', observed['runroot_id']] and
+                    argv[6:7] == ['--tmpdir'] and argv[8:] == op['argv'] and children[0].get('cwd') == observed['source_id'],
+                    'native_child_evidence')
+        found[path] = rows[path]
+    return found
 
 
 def parse_build_receipt(raw_bytes):
@@ -36,10 +127,12 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
                 policy.get('receipt_sha256') == sha256(receipt.raw), 'native_receipt_not_independently_accepted')
         require(policy.get('policy_sha256') == thaw(verified_input.document)['admission_policy']['policy_sha256'],
                 'receipt_audit_policy')
-        from .inspector import admit_inspection
-        inspection = admit_inspection(verified_input, policy)
+        # Vera Q2 order, step 1: closure/ABI/host preflight only; no session yet.
+        from .inspector import preflight
+        pending = preflight(verified_input, policy)
     else:
-        inspection = None
+        pending = None
+    inspection = None
     parsed = parse_build_receipt(receipt.raw)
     require(parsed.sha256 == receipt.sha256 and parsed.document == receipt.document, 'changed_parsed_receipt')
     value, input_value = thaw(parsed.document), thaw(verified_input.document)
@@ -61,6 +154,19 @@ def verify_build_receipt(receipt, verified_input, output_reader, evidence_reader
     measured = {r['path']: measure(r, evidence_reader, min(limit, 8 * 1024 * 1024)) for r in inventory + [index_record]}
     require(_json_record(index_record, measured) == {'inventory': inventory}, 'evidence_index_closure')
     required_evidence, output_paths, builds = {}, set(), value['builds']
+    if scope == 'native':
+        # Steps 2-4: measured closed native roles, matched to the accepted context,
+        # then the ONE session. Exact-set evidence closure stays below.
+        rows = [row for row in inventory if row['role'] == 'native.qualification']
+        require(len(rows) == 1, 'native_qualification_incomplete')
+        record = rows[0]
+        doc = decode_json(measured[record['path']], 1024 * 1024)
+        matched = match_qualification(doc, pending, input_value, builds)
+        for slot in ('A', 'B'):
+            required_evidence.update(_native_children(builds[slot], measured, inventory, doc))
+        required_evidence[record['path']] = record
+        from .inspector import admit_session
+        inspection = admit_session(pending, matched)
     for slot in ('A', 'B'):
         observed = builds[slot]['observed_builder']
         require(observed['build_id'] == builds[slot]['build_id'], 'observed_build_binding')
@@ -168,6 +274,8 @@ def verify_native_receipt_bytes(raw, verified_input, output_reader, evidence_rea
     require(isinstance(qualification_policy, dict) and type(raw) is bytes and len(raw)<=8*1024*1024 and
             qualification_policy.get('receipt_sha256')==sha256(raw), 'native_receipt_not_independently_accepted')
     require(qualification_policy.get('policy_sha256')==thaw(verified_input.document)['admission_policy']['policy_sha256'], 'receipt_audit_policy')
-    from .inspector import admit_inspection
-    admit_inspection(verified_input, qualification_policy)
+    # Vera Q2 step 1 before any decoding: closure/ABI/host eligibility only. No session
+    # here; verify_build_receipt runs the one preflight/match/session order.
+    from .inspector import preflight
+    preflight(verified_input, qualification_policy)
     return verify_build_receipt(parse_build_receipt(raw), verified_input, output_reader, evidence_reader, qualification_policy)
