@@ -667,6 +667,26 @@ class Composition(Base):
         self.assertEqual(seen['run']['teardown']['remaining_owned_resources'], ['absent', 'user: OSError', 'packages: ValueError'])
         self.once(seen, host)
 
+    def test_a_teardown_marker_is_trusted_only_for_the_setup_it_cleaned(self):
+        lane = Lane(self)
+        drive, seen, host = self.enter(lane)
+        root = lane.fx.top / 'operator'
+        marker = runner._run_file(root, 'teardown')
+        self.assertEqual((marker['run_id'], marker['complete']), (RUN, True))
+        self.assertEqual(marker['setup_sha256'], r4.sha((root / 'operator-setup.json').read_bytes()))
+        # the same setup: ExecStopPost is a no-op returning that result
+        self.assertEqual(runner.operator_teardown(RUN, host, root, clock=r4.Clock()), marker)
+        # another run id, or a setup record that is not the one cleaned: never trusted
+        calls = len(host.calls)
+        other = runner.operator_teardown('cortex-r6-amd64-2', host, root, clock=r4.Clock())
+        self.assertEqual((other['complete'], other['remaining_owned_resources']), (False, ['teardown: marker_mismatch']))
+        setup = root / 'operator-setup.json'
+        setup.chmod(0o644)
+        setup.write_bytes(setup.read_bytes().replace(b'"last_id_before":41', b'"last_id_before":40'))
+        moved = runner.operator_teardown(RUN, host, root, clock=r4.Clock())
+        self.assertEqual(moved['remaining_owned_resources'], ['teardown: marker_mismatch'])
+        self.assertEqual(len(host.calls), calls)  # a distrusted marker never runs a second, blind cleanup
+
     def test_deallocation_error_is_kept_and_never_pass(self):
         lane = Lane(self)
         clock = r4.Clock()
