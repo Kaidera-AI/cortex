@@ -13,7 +13,7 @@ from uuid import UUID
 
 import psycopg
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
-from cortex_core.auth import authorized
+from cortex_core.auth import authorized, AuthError
 from cortex_core.embeddings.projection_revision import EmbeddingIdentity
 from cortex_core.modules.consumer import ModuleConsumer, ConsumerError
 from cortex_core.modules.vector.projection import (
@@ -34,12 +34,15 @@ def admitted_entry():
 
 def copied_database():
     """No connection or reset unless the existing URL names this task's copy."""
-    params=conninfo_to_dict(os.environ.get('TEST_DATABASE_URL',''))
+    url=os.environ.get('TEST_DATABASE_URL','')
+    params=conninfo_to_dict(url)
     prefix='/Users/amadmalik/DevVault/helix/tmp/nemo-qdrant-s3b-20261016/'
-    if (not params.get('dbname','').startswith('nemo_c09_s3b_')
+    if (not url.startswith(('postgresql://postgres@','postgres://postgres@'))
+            or not params.get('dbname','').startswith('nemo_c09_s3b_')
             or params.get('user')!='postgres'
             or not params.get('host','').startswith(prefix)
-            or ',' in params.get('host','')):
+            or not Path(params.get('host','')).resolve().is_relative_to(Path(prefix).resolve())
+            or ',' in params.get('host','') or params.get('hostaddr') or params.get('service')):
         raise RuntimeError('C09 tests require the separately authorized task-owned copied database')
     return params
 
@@ -49,6 +52,25 @@ class AdmissionTests(unittest.TestCase):
         rows=admitted_entry()
         self.assertEqual(len(rows),1,'C09 remains unadmitted: no durable-chain credit')
         self.assertEqual(rows[0]['sha256'],hashlib.sha256((NEXT/'schema'/C09).read_bytes()).hexdigest())
+
+
+class IsolationTests(unittest.TestCase):
+    def test_only_task_owned_copy_url_is_admitted_before_any_connection(self):
+        from unittest.mock import patch
+        import socket
+        host='/Users/amadmalik/DevVault/helix/tmp/nemo-qdrant-s3b-20261016/pg-socket'
+        good='postgresql://postgres@/nemo_c09_s3b_oracle?host='+host
+        bad=['','postgresql://postgres@localhost/cortex',
+             good.replace('nemo_c09_s3b_oracle','cortex'),
+             good.replace('postgres@','kaidera-test-core-api@'),
+             good.replace(host,host+'/../../shared'),good+'&hostaddr=127.0.0.1']
+        with patch.object(psycopg,'connect',side_effect=AssertionError('no DB connect in isolation oracle')), \
+             patch.object(socket.socket,'connect',side_effect=AssertionError('no socket connect in isolation oracle')):
+            for url in bad:
+                with self.subTest(url=url),patch.dict(os.environ,{'TEST_DATABASE_URL':url}):
+                    with self.assertRaises(RuntimeError):copied_database()
+            with patch.dict(os.environ,{'TEST_DATABASE_URL':good}):
+                self.assertEqual(copied_database()['dbname'],'nemo_c09_s3b_oracle')
 
 
 class DurableExternal(Fixture):
@@ -134,7 +156,7 @@ class DurableExternal(Fixture):
         self.assertEqual(self.head()[4],receipt['observed']['effect_sha256'])
         self.assertEqual(self.checkpoint()[:2],(1,1))
         # A matching latest vector head cannot substitute for the missing second outcome.
-        with self.assertRaises(psycopg.Error):self.state((UUID(uid(50)),))
+        with self.assertRaises(AuthError):self.state((UUID(uid(50)),))
         self.receipt(second);p._apply_event({'generation':1},second)
         self.assertEqual(self.checkpoint()[:2],(2,2))
         self.assertTrue(self.state((UUID(uid(50)),))['targets'][0]['indexed'])
@@ -147,7 +169,7 @@ class DurableExternal(Fixture):
         self.admin.execute('''CREATE TRIGGER c09_test_refuse BEFORE INSERT OR UPDATE
             ON coordination.vector_applied_heads FOR EACH ROW EXECUTE FUNCTION public.c09_test_refuse()''')
         with self.assertRaises(ConsumerError) as caught:p._apply_event({'generation':1},event)
-        self.assertEqual(caught.exception.code,'capability_unavailable')
+        self.assertEqual(caught.exception.code,'core_unavailable')
         self.assertEqual(self.checkpoint()[:2],(0,0));self.assertIsNone(self.head())
         self.assertEqual(self.admin.execute("SELECT count(*) FROM coordination.consumer_aggregate_heads WHERE module_id='graph'").fetchone()[0],0)
         self.assertEqual(self.admin.execute("SELECT count(*) FROM coordination.consumer_event_outcomes WHERE module_id='graph'").fetchone()[0],0)
@@ -201,10 +223,10 @@ class DurableExternal(Fixture):
         self.seed();event=self.events()[0];self.receipt(event);p.cycle()
         with self.assertRaises(ConsumerError):p.begin_rebuild(snapshot_cursor=1,generation=2)
         self.assertEqual(self.admin.execute("SELECT count(*) FROM coordination.vector_bindings WHERE generation=2").fetchone()[0],0)
-        with self.assertRaises(psycopg.Error):self.state()
+        with self.assertRaises(AuthError):self.state()
 
     def test_retained_floor_expiry_refuses_old_core_proof(self):
         self.seed();event=self.events()[0];self.receipt(event);p=self.port();p.register();p.cycle()
         self.admin.execute('''UPDATE coordination.feed_state SET project_retained_floors=%s::jsonb
             WHERE installation_id=%s''',(json.dumps({uid(2)+':'+uid(3):2}),uid(1)))
-        with self.assertRaises(psycopg.Error):self.state((UUID(uid(50)),))
+        with self.assertRaises(AuthError):self.state((UUID(uid(50)),))
