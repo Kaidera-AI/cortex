@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kaidera.local/contracts/module-consumer/v2",
+  "title": "C07 external-target v2 Qdrant receipt; Core binding/event checks are additionally mandatory",
+  "type": "object",
+  "required": [
+    "version",
+    "sink",
+    "key",
+    "point_id",
+    "event_id",
+    "aggregate_id",
+    "revision",
+    "tombstone",
+    "payload_sha256",
+    "generation",
+    "stale",
+    "effect_sha256",
+    "observed",
+    "proof",
+    "operation_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "sink": {
+      "const": "qdrant"
+    },
+    "key": {
+      "type": "object",
+      "required": [
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "aggregate_id",
+        "collection_generation",
+        "model_identity",
+        "module_id",
+        "consumer_generation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "installation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "aggregate_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "collection_generation": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "model_identity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "module_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+        },
+        "consumer_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        }
+      }
+    },
+    "point_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "tombstone": {
+      "type": "boolean"
+    },
+    "payload_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "stale": {
+      "type": "boolean"
+    },
+    "effect_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observed": {
+      "type": "object",
+      "required": [
+        "revision",
+        "event_id",
+        "payload_sha256",
+        "tombstone",
+        "effect_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "payload_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "tombstone": {
+          "type": "boolean"
+        },
+        "effect_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "proof": {
+      "const": "completed_keyed_readback"
+    },
+    "operation_id": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

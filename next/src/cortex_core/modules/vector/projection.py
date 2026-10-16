@@ -25,7 +25,8 @@ class ProjectionBinding:
                 (self.installation_id, self.tenant_id, self.project_id, self.collection_generation))
                 or type(self.module_id) is not str or not re.fullmatch(r'[a-z][a-z0-9_-]{0,127}', self.module_id)
                 or type(self.consumer_generation) is not int or not 0 < self.consumer_generation < 2**63
-                or type(self.identity) is not EmbeddingIdentity):
+                or type(self.identity) is not EmbeddingIdentity
+                or type(self.identity.dimensions) is not int):
             raise ValueError('invalid_projection_binding')
         self.identity.key
 
