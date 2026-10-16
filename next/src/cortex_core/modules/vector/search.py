@@ -47,12 +47,17 @@ class QdrantSearch:
         if identity != self.projection.binding.identity:
             raise CapabilityUnavailable('identity_mismatch')
 
+    def _binding_matches(self, value):
+        expected = binding_contract(self.projection.binding)
+        return (type(value) is dict and set(value) == set(expected)
+                and all(type(value[k]) is type(v) and value[k] == v for k,v in expected.items()))
+
     async def _observation(self, connection, ids=()):
         value = _json(await connection.fetchval('SELECT coordination.c09_state($1,$2::uuid[])',
             self.projection.binding.module_id,list(ids)))
         required = {'binding','indexed_records','pending_records','targets'}
         if (type(value) is not dict or set(value) != required
-                or value['binding'] != binding_contract(self.projection.binding)
+                or not self._binding_matches(value['binding'])
                 or any(type(value[k]) is not int or not 0 <= value[k] < 2**63
                        for k in ('indexed_records','pending_records'))
                 or type(value['targets']) is not list or len(value['targets']) > len(ids)):
@@ -118,6 +123,8 @@ class QdrantSearch:
                 self.projection.binding,vector,limit=limit,kind=kind)
         except ProtocolFailure:
             raise CapabilityUnavailable('vector_engine_unavailable') from None
+        if not candidates and before['indexed_records'] and kind is None:
+            raise CapabilityUnavailable('vector_result_unproved')
         ids = tuple(UUID(p['payload']['aggregate_id']) for p,_ in candidates)
         after,_ = await self._snapshot(subject,ids)
         targets = {r['record_id']:r for r in after['targets']}
@@ -126,6 +133,19 @@ class QdrantSearch:
             raise CapabilityUnavailable('index_lagging',self._fresh(after))
         return SearchResult(tuple(Hit(p['payload']['aggregate_id'],p['payload']['aggregate_kind'],
             p['payload']['revision'],distance) for p,distance in candidates),self._fresh(after))
+
+    async def recheck_result(self, subject, result):
+        if result.freshness.identity != self.projection.binding.identity.key:
+            raise CapabilityUnavailable('identity_mismatch')
+        value,_ = await self._snapshot(subject,tuple(UUID(h.record_id) for h in result.hits))
+        rows = {r['record_id']:r for r in value['targets']}
+        if value['pending_records'] or any(
+                h.record_id not in rows or not rows[h.record_id]['indexed']
+                or rows[h.record_id]['tombstone'] or rows[h.record_id]['kind'] != h.kind
+                or rows[h.record_id]['revision'] != h.source_revision
+                or rows[h.record_id]['indexed_revision'] != h.source_revision for h in result.hits):
+            raise CapabilityUnavailable('index_lagging',self._fresh(value))
+        return True
 
     async def projection_revision(self, subject, target, identity, *, recheck):
         record_id, required = validate_target(target,recheck)
