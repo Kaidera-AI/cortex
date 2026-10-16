@@ -1180,3 +1180,71 @@ class S3WorkerOwnership(unittest.TestCase):
             if hasattr(sink,'close'):sink.close(deadline=time.monotonic()+1)
         self.assertEqual(sink.status()['pending_workers'],0)
         self.assertTrue(all(c._http.is_closed for c in clients))
+
+class S3ReviewTests(S3QueryTests):
+    # Explicit load_tests below selects ONLY these new methods, preserving all
+    # prior test method bodies and fixtures without duplicating their counts.
+    async def test_s3_core_binding_boolean_generation_is_not_integer_authority(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();server=QueryProjectionServer();core=self.core(binding)
+        self.core_state['binding']['consumer_generation']=True
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+        self.assertEqual(server.calls,[])
+
+    async def test_s3_empty_engine_response_with_core_indexed_points_is_unproved(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector())
+        core=self.core(binding,[point]);server=QueryProjectionServer();server.query_rows=[]
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+
+    async def test_s3_post_query_core_generation_change_cannot_credit_old_binding(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();server=QueryProjectionServer();core=self.core(binding)
+        server.on_query=lambda:self.core_state['binding'].update(collection_generation=str(UUID(int=999)))
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            with self.assertRaises(CapabilityUnavailable):await query.search(str(UUID(int=50)),binding.identity,self.vector())
+
+    async def test_s3_c11_final_hit_recheck_refuses_fully_indexed_newer_revision(self):
+        from cortex_core.embeddings.projection_revision import CapabilityUnavailable
+        binding=self.binding();point=s3.build_point(binding,self.event(),self.vector())
+        core=self.core(binding,[point]);server=QueryProjectionServer();server.points[point['id']]=point
+        async with self.client(server) as client:
+            query=self.query(core,client,binding)
+            result=await query.search(str(UUID(int=50)),binding.identity,self.vector())
+            self.assertTrue(callable(getattr(query,'recheck_result',None)),'final Core hit recheck absent')
+            self.core_state['targets'][0].update(revision=2,indexed_revision=2)
+            with self.assertRaises(CapabilityUnavailable):await query.recheck_result(str(UUID(int=50)),result)
+
+
+class S3SchemaTests(unittest.TestCase):
+    def test_s3_v2_schema_closed_and_v1_contract_preserved(self):
+        import hashlib
+        import jsonschema
+        root=Path(__file__).resolve().parents[2]
+        path=root/'contracts/module-consumer-v2.schema.json'
+        self.assertTrue(path.is_file(),'external v2 schema absent')
+        schema=json.loads(path.read_bytes());jsonschema.Draft202012Validator.check_schema(schema)
+        validator=jsonschema.Draft202012Validator(schema,format_checker=jsonschema.FormatChecker())
+        x=S3Tests();b=x.binding();e=x.event();p=s3.build_point(b,e,x.vector())
+        receipt=s3.make_receipt(b,e,p,p,1)
+        self.assertEqual(list(validator.iter_errors(receipt)),[])
+        for bad in [dict(receipt,extra=True),dict(receipt,version=1),dict(receipt,proof='acknowledged'),dict(receipt,generation=True)]:
+            self.assertTrue(list(validator.iter_errors(bad)))
+        self.assertEqual(hashlib.sha256((root/'contracts/module-consumer.schema.json').read_bytes()).hexdigest(),
+                         'd199f7c2bea43bdec83105b70c09dcbe8054dbef7e7ecd54451a72de724c4b34')
+
+
+def load_tests(loader,tests,pattern):
+    # unittest's default loader would repeat inherited S3QueryTests in the review
+    # subclass. Select classes explicitly; every defined test body runs once.
+    suite=unittest.TestSuite()
+    for cls in (C09Tests,S2Tests,S3Tests,S3CoreTests,S3QueryTests,S3WorkerOwnership,S3SchemaTests):
+        suite.addTests(loader.loadTestsFromTestCase(cls))
+    for name in sorted(S3ReviewTests.__dict__):
+        if name.startswith('test_'):suite.addTest(S3ReviewTests(name))
+    return suite
