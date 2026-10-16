@@ -463,4 +463,16 @@ class X3(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('connect',inputs.events)
 
 
+    async def test_x304_invalid_original_reservation_dispatches_no_material_or_cleanup(self):
+        api,inputs,resolver,_,_=self.fixture();original=inputs.reserve_carrier
+        for field,value in [('phase','S03'),('consumers',1)]:
+            async def reserve(*args):
+                state=await original(*args);object.__setattr__(state,field,value);return state
+            inputs.reserve_carrier=reserve
+            h=await self.handle(resolver,'bootstrap','core-init')
+            await self.denied(resolver.carrier(h,self.deadline()),'carrier_mismatch')
+            for event in ('read','create','carrier-close'):
+                self.assertNotIn(event,inputs.events,'X3_INVALID_RESERVATION_DISPATCHED')
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
