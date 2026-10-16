@@ -9,7 +9,7 @@ code boundary, not Vera's later OS/process isolation proof.
 import base64
 import binascii
 from collections.abc import Mapping
-from dataclasses import dataclass,field
+from dataclasses import dataclass,field,replace
 import hashlib
 from functools import lru_cache
 import json
@@ -48,6 +48,12 @@ _CUSTODY_FILES=(
     ('custodian-acceptance.json',1151,'7dfe2923368cef237d420aea28159c123f32f48144e329262e496d50815595ac'),
     ('release-public-key.pub',113,'cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef'),
 )
+# Finn 779b6836: canonical pre-cut DATA, never a schema-admitted owner policy.
+_PRECUT_FILES=(
+    ('aggregate-policy.json',1518,'63633c0788d09a746667fb7c4cd0cb4ce949a5e0de22822c3d370a200c97f687'),
+    ('root-store-permission.json',3292,'f61e63cb4e49586d263d875f0db19fd9b79b26a4c893c3a04a6168173006eb6b'),
+    ('owner-policy-custodian-acceptance.json',3379,'dba6162287a132b73a51fbeae9e03c014cb24a91713a467e1fedb0e1666e1607'),
+)
 
 
 @dataclass(frozen=True)
@@ -66,6 +72,20 @@ class _OwnerContext:
     fence: int
     placement: str
     current_state: Mapping
+
+
+@dataclass(frozen=True)
+class _CurrentOwner:
+    """Private current-observation DATA from the fixed protected owner source.
+
+    No default clock, sequence, fresh baseline or restart epoch. The independent
+    owner must attest its current sequence floor (including issuance history),
+    and a durable restart epoch that changes across restart. Python records do
+    not establish that provenance; installed source/clock delivery is UNBOUND.
+    """
+    context: _OwnerContext
+    sequence_floor: int
+    restart_epoch: int
 
 
 @dataclass(frozen=True)
@@ -88,6 +108,8 @@ def _require(value,reason):
 
 def _unbound():
     _public_custody()
+    _precut_policy()
+    _read_current_owner()
     # Observing accepted custody DATA cannot replace any missing owner provider.
     raise Refusal('required_binding_gap',unit=MISSING_UNIT)
 
@@ -123,6 +145,62 @@ def _current_state(context):
     except (ValueError,TypeError,RecursionError,OverflowError):
         raise Refusal('required_binding_gap',unit=MISSING_UNIT) from None
     return state
+
+
+def _installed_current_owner():
+    # Fixed protected source + authentic clock/ledger/baseline/fence/restart
+    # originals have not been delivered. Never infer them from this machine,
+    # candidate, pre-cut placeholders, absence, argv, env or a test fixture.
+    raise Refusal('required_binding_gap',unit=MISSING_UNIT)
+
+
+def _read_current_owner():
+    """One fresh private observation; no selector, public binder or authority."""
+    try:
+        observed=_installed_current_owner()
+        _require(type(observed) is _CurrentOwner,'required_binding_gap')
+        context=observed.context
+        policy=_owner_policy(context)
+        _require(next(_POLICY_VALIDATOR.iter_errors(policy),None) is None,'required_binding_gap')
+        _require(context.placement in ('installer','owner'),'aggregate_scope_mismatch')
+        _root(context,policy)
+        _owner_current(policy,context)
+        _require(all(type(n) is int and 1<=n<=2**63-1
+                     for n in (observed.sequence_floor,observed.restart_epoch)),'required_binding_gap')
+        _require(observed.sequence_floor==policy['sequence_floor'],'aggregate_replay')
+        # Detach even a mutable trusted-source graph; no acceptance is memoized.
+        return replace(observed,context=replace(context,policy=freeze(policy),
+            current_state=freeze(thaw(context.current_state))))
+    except Refusal:raise
+    except Exception:
+        raise Refusal('member_authority_unavailable') from None
+
+
+def _current_owner_reader():
+    """Retained private DATA reader for D4's pre/post-read/delivery seam.
+
+    Every call reloads; a changed/revoked observation permanently invalidates
+    this reader. A new generation requires new admission, not recovery/replay.
+    This never binds _production_context or the original-member/startup ports.
+    """
+    def identity(observed):
+        c=observed.context
+        return (c.policy_raw,c.policy_sha256,c.public_root,c.generation,c.fence,c.placement,
+                canonical_bytes(thaw(c.current_state)),observed.sequence_floor,observed.restart_epoch)
+    previous=_read_current_owner();stamp=identity(previous);failed=False
+    def current():
+        nonlocal previous,failed
+        _require(not failed,'aggregate_replay')
+        try:
+            fresh=_read_current_owner()
+            _require(identity(fresh)==stamp,'aggregate_replay')
+            _require(fresh.context.now>=previous.context.now,'aggregate_replay')
+        except BaseException:
+            failed=True
+            raise
+        previous=fresh
+        return fresh
+    return current
 
 
 def verify_manifest(raw: bytes, signature: bytes) -> ManifestSignature:
@@ -166,6 +244,17 @@ def _root_material(material,root):
     return parsed[2:10],parsed[10:]
 
 
+def _custody_originals(files):
+    # Fixed internal tables only; bytes remain DATA even if the path is replaced.
+    originals=[]
+    for name,size,digest in files:
+        with (_CUSTODY_HOME/name).open('rb') as stream:
+            raw=stream.read(size+1)
+        _require(len(raw)==size and sha256(raw)==digest,'required_binding_gap')
+        originals.append(raw)
+    return originals
+
+
 def _public_custody():
     """Read fixed, bounded, pinned PUBLIC originals as immutable pending DATA.
 
@@ -175,12 +264,7 @@ def _public_custody():
     D2 still owns protected original transport/current-state/bootstrap custody.
     """
     try:
-        originals=[]
-        for name,size,digest in _CUSTODY_FILES:
-            with (_CUSTODY_HOME/name).open('rb') as stream:
-                raw=stream.read(size+1)
-            _require(len(raw)==size and sha256(raw)==digest,'required_binding_gap')
-            originals.append(raw)
+        originals=_custody_originals(_CUSTODY_FILES)
         record=decode_json(originals[0],2920,canonical=False)
         receipt=decode_json(originals[1],1151,canonical=False)
         root=record['root'];permission=record['purpose_and_permission']
@@ -195,6 +279,37 @@ def _public_custody():
                  and receipt['signing_authorized'] is False and receipt['effect_authority'] is False
                  and all(value is False for value in record['limits'].values()),'required_binding_gap')
         return freeze(record)
+    except Exception:
+        raise Refusal('required_binding_gap',unit=MISSING_UNIT) from None
+
+
+def _precut_policy():
+    """Pinned Finn originals as immutable pending DATA, never owner authority."""
+    try:
+        originals=_custody_originals(_PRECUT_FILES)
+        policy,store,receipt=(decode_json(raw,size) for raw,(_,size,_) in zip(originals,_PRECUT_FILES))
+        root=policy['root'];permission=store['purpose_and_permission'];roots=store['roots']
+        _require(len(roots)==1 and all(roots[0][k]==v for k,v in root.items())
+                 and root['key_id']==PRODUCTION_KEY_ID
+                 and policy['purpose']==permission['purpose']=='cortex/core-api/test'
+                 and root['allowed_purposes']==['cortex/core-api/test']
+                 and root['key_use_permission']==permission['key_use_permission']=='cortex-core-api-release'
+                 and permission['status']==receipt['purpose_key_use_confirmation']=='pending CTO confirmation'
+                 and permission['signing_authorized'] is False
+                 and permission['production_purpose_authorized'] is False
+                 and all(v is False for v in store['limits'].values())
+                 and all(receipt[k] is False for k in ('canonical_policy_schema_admitted',
+                     'production_owner_context_bound','protected_root_store_installed',
+                     'signing_authorized','effect_authority','native_qualified')),'required_binding_gap')
+        _require(policy['owner_binding']['root_store_sha256']==receipt['root_store_sha256']==sha256(originals[1])
+                 and receipt['policy_raw_sha256']==sha256(originals[0])
+                 and receipt['public_key_sha256']==root['key_material_sha256']==_CUSTODY_FILES[2][2]
+                 and receipt['policy_bytes']==len(originals[0])
+                 and receipt['root_store_bytes']==len(originals[1]),'required_binding_gap')
+        # Keep every cut placeholder invalid under the unchanged sole schema.
+        paths=sorted('/'+'/'.join(map(str,e.absolute_path)) for e in _POLICY_VALIDATOR.iter_errors(policy))
+        _require(paths==receipt['deferred_cut_fields'] and len(paths)==15,'required_binding_gap')
+        return freeze(policy)
     except Exception:
         raise Refusal('required_binding_gap',unit=MISSING_UNIT) from None
 
@@ -228,19 +343,24 @@ def _comment(raw,value):
             '|sequence='+str(value['sequence'])+'|sha256='+sha256(raw)+'|source='+value['source']['commit']).encode('utf-8')
 
 
-def _current(policy,value,context):
-    root=policy['root']
-    _require(policy['purpose'] in _PURPOSES and value['purpose']==policy['purpose']
-             and policy['purpose'] in root['allowed_purposes'] and root['key_use_permission']=='cortex-core-api-release',
-             'aggregate_scope_mismatch')
+def _owner_current(policy,context):
     validity=policy['validity'];baseline=policy['installed_baseline'];owner=policy['owner_binding'];now=context.now
     state=_current_state(context)
     _require(canonical_bytes(thaw(baseline))==canonical_bytes(thaw(state['installed_baseline'])),'aggregate_replay')
     _require(type(now) is int and type(context.generation) is int and type(context.fence) is int
              and context.generation==owner['policy_generation']==state['policy_generation']
              and context.fence==state['fence'],'aggregate_replay')
-    _require(validity['not_before']<=now<=validity['expires_at'] and value['not_before']<=now<=value['expires_at']
-             and value['not_before']<=value['expires_at'] and validity['not_before']<=validity['expires_at']
+    _require(validity['not_before']<=now<=validity['expires_at'],'aggregate_replay')
+    return now
+
+
+def _current(policy,value,context):
+    root=policy['root']
+    _require(policy['purpose'] in _PURPOSES and value['purpose']==policy['purpose']
+             and policy['purpose'] in root['allowed_purposes'] and root['key_use_permission']=='cortex-core-api-release',
+             'aggregate_scope_mismatch')
+    now=_owner_current(policy,context);validity=policy['validity']
+    _require(value['not_before']<=now<=value['expires_at'] and value['not_before']<=value['expires_at']
              and now-value['not_before']<=validity['maximum_release_age_seconds'],'aggregate_replay')
     _require(value['sequence']>=policy['sequence_floor'],'aggregate_replay')
     _require(value['release']==policy['release'] and value['source']==policy['source'],'aggregate_identity_mismatch')
