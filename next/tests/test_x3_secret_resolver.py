@@ -404,4 +404,28 @@ class X3(unittest.IsolatedAsyncioTestCase):
         await self.denied(resolver.check(h,self.deadline(1)),'deadline_expired')
 
 
+    async def test_x305_supplier_read_policy_and_retire_logs_are_private(self):
+        import logging
+        api,inputs,resolver,_,_=self.fixture()
+        original_read,original_policy,original_retire=inputs.read,inputs.sql_policy,inputs.retire
+        async def read(*args):
+            logging.getLogger('x3-fixture-provider').warning('%s',VALUE)
+            return await original_read(*args)
+        def policy(*args):
+            logging.getLogger('x3-fixture-provider').warning('%s',VALUE)
+            return original_policy(*args)
+        async def retire(*args):
+            logging.getLogger('psycopg').warning('%s',VALUE,exc_info=True)
+            return await original_retire(*args)
+        inputs.read,inputs.sql_policy,inputs.retire=read,policy,retire
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+        with self.assertLogs(level='WARNING') as captured:
+            conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+            await adapter.retire(conn,deadline=self.deadline())
+        self.assertEqual(len(captured.records),3)
+        self.assertNotIn(VALUE,repr(captured.output),'X3_SUPPLIER_LOG_LEAK')
+        self.assertTrue(all(record.exc_info is None for record in captured.records))
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
