@@ -246,7 +246,7 @@ def _execute_recovery(history, original_request, current, primitives):
                 ('expires_at','expires_monotonic_ns','reservation_id')), 'journal_invalid')
     first_result = (latest_attempt['dispatch_state'] == 'consumed_result_unknown'
         and latest_attempt['result_ref'] is None and latest_attempt['reconciliation_ref'] is None)
-    with p2._measurement(primitive,freeze(original),mandated=mandated or first_result,recovery=True) as answer:
+    with p2._measurement(primitive,freeze(original),mandated=mandated,recovery=True,require_held=first_result) as answer:
         owner._require(type(answer) is tuple and len(answer) == 2
             and answer[0] in ('APPLIED','NOT_APPLIED','UNKNOWN'), 'attempt_ambiguous')
         state, raw = answer
@@ -267,7 +267,7 @@ def _execute_recovery(history, original_request, current, primitives):
                 owner._require(first_result and attempt['dispatch_state'] == 'consumed_result_unknown'
                     and attempt['result_ref'] is None and attempt['reconciliation_ref'] is None, 'journal_invalid')
             else:
-                owner._require(history.read(reference) == raw, 'resource_changed')
+                owner._require(history.read(reference) == raw, 'journal_invalid')
         result = p2._decode(raw)
         expected_state = 'applied_verified' if state == 'APPLIED' else 'not_applied_verified'
         owner._require(set(result) == {'identity','effect','request_ref','state','observed'}

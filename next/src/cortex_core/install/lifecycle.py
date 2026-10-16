@@ -573,13 +573,14 @@ class _X11:
 
 
 @contextmanager
-def _measurement(primitive, context, *, mandated, recovery=False):
+def _measurement(primitive, context, *, mandated, recovery=False, require_held=False):
     # ONE held measurement path for SQL and X11. Legacy private source
     # recorders retain their immediate-byte/tuple contract; native X11 never
     # loses its hold at the tuple-to-normal-result projection.
     measured = primitive.measure(context)
     held = hasattr(measured, '__enter__') and hasattr(measured, '__exit__')
     _require(not (mandated or type(primitive) is _X11) or held, 'atomicity_unavailable')
+    _require(not require_held or held, 'attempt_ambiguous')
     def project(answer):
         if not recovery and type(answer) is tuple:
             _require(len(answer) == 2 and answer[0] in ('APPLIED', 'NOT_APPLIED')
