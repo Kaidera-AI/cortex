@@ -104,12 +104,15 @@ class PrivateClient:
         return min(deadline, now + self._budget)
 
     async def probe(self, *, deadline=None):
+        return await self._owned(self._probe, deadline)
+
+    async def _owned(self, operation, deadline):
         if self._closed or self._http is None or self._refused or len(self._jobs) >= MAX_PENDING:
             raise ProtocolFailure('qdrant_unavailable')
         end = self._deadline(deadline)
         if end <= time.monotonic():
             raise ProtocolFailure('qdrant_timeout')
-        task = asyncio.create_task(self._probe(end))
+        task = asyncio.create_task(operation(end))
         self._jobs.add(task)
         task.add_done_callback(self._settled)
         try:
@@ -126,12 +129,15 @@ class PrivateClient:
                 raise
             raise ProtocolFailure('qdrant_unavailable') from None
 
-    async def _request(self, method, path, body, key, deadline, *, expected_status=200):
+    async def _request(self, method, path, body, key, deadline, *, expected_status=200, collection=None):
         try:
             _check(deadline)
             route = ((method == 'GET' and path == '/')
                      or method in ('PUT', 'DELETE') and re.fullmatch(_COLLECTION, path)
                      or method in ('PUT', 'POST') and re.fullmatch(_COLLECTION + '/points', path))
+            if collection is not None:
+                route = (re.fullmatch(r'/collections/cortex-[0-9a-f]{32}', collection) is not None
+                         and path == collection+'/points' and method in ('PUT','POST'))
             if not route or self._http is None or self._closed:
                 raise ValueError()
             if method == 'PUT' and path.endswith('/points') and (
@@ -193,18 +199,7 @@ class PrivateClient:
             verified = []
             try:
                 _check(deadline)
-                try:
-                    writer = await self._resolve_key(self._config['secret_refs']['writer'])
-                    _check(deadline)
-                    reader = await self._resolve_key(self._config['secret_refs']['reader'])
-                except Exception:
-                    # Even a custody exception of OUR type has untrusted text.
-                    raise ProtocolFailure('qdrant_credentials_refused') from None
-                _check(deadline)
-                if (any(type(key) is not str or not 1 <= len(key) <= 4096
-                        or any(not '!' <= ch <= '~' for ch in key) for key in (writer, reader))
-                        or writer == reader):
-                    raise ProtocolFailure('qdrant_credentials_refused')
+                writer, reader = await self._keys(deadline)
                 value = await self._request('GET', '/', None, reader, deadline)
                 if value.get('version') != self._descriptor['version']:
                     raise ProtocolFailure('qdrant_version_refused')
@@ -260,3 +255,76 @@ class PrivateClient:
                 finally:
                     writer = reader = None
             return {**self.status(), 'verified_operations': verified}
+
+
+    async def _keys(self, deadline):
+        try:
+            writer = await self._resolve_key(self._config['secret_refs']['writer'])
+            _check(deadline)
+            reader = await self._resolve_key(self._config['secret_refs']['reader'])
+        except Exception:
+            raise ProtocolFailure('qdrant_credentials_refused') from None
+        _check(deadline)
+        if (any(type(key) is not str or not 1 <= len(key) <= 4096
+                or any(not '!' <= ch <= '~' for ch in key) for key in (writer, reader))
+                or writer == reader):
+            raise ProtocolFailure('qdrant_credentials_refused')
+        return writer, reader
+
+    async def apply_projection(self, binding, event, vector, *, deadline=None):
+        from .projection import build_point
+        try:
+            desired = build_point(binding, event, vector)
+            return await self._owned(lambda end: self._apply_projection(binding, event, desired, end), deadline)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            raise ProtocolFailure('qdrant_projection_unavailable') from None
+
+    async def _projection_read(self, binding, aggregate_id, reader, deadline):
+        from .projection import point_key, point_id, validate_point
+        identity = point_id(point_key(binding, aggregate_id))
+        value = await self._request('POST', binding.collection+'/points',
+            {'ids':[identity], 'with_vector':True, 'with_payload':True}, reader, deadline,
+            collection=binding.collection)
+        rows = value.get('result')
+        if value.get('status') != 'ok' or type(rows) is not list or len(rows) > 1:
+            raise ProtocolFailure('qdrant_readback_refused')
+        return validate_point(rows[0], binding, aggregate_id) if rows else None
+
+    async def _apply_projection(self, binding, event, desired, deadline):
+        from uuid import UUID
+        from .projection import point_key, make_receipt
+        writer = reader = None
+        async with self._slots:
+            try:
+                _check(deadline)
+                writer, reader = await self._keys(deadline)
+                aggregate = UUID(event.envelope['aggregate_id'])
+                observed = await self._projection_read(binding, aggregate, reader, deadline)
+                candidate = desired
+                if observed is None:
+                    body = {'points':[candidate], 'update_mode':'insert_only'}
+                else:
+                    previous = observed['payload']; revision = desired['payload']['revision']
+                    if previous['revision'] == revision and previous['effect_sha256'] != desired['payload']['effect_sha256']:
+                        raise ProtocolFailure('qdrant_effect_conflict')
+                    if previous['revision'] >= revision:
+                        candidate = observed  # Reconcile replay/stale with a conditional complete-point no-op.
+                    conditions = point_key(binding, aggregate) | {
+                        'revision':previous['revision'], 'effect_sha256':previous['effect_sha256']}
+                    body = {'points':[candidate], 'update_mode':'update_only',
+                        'update_filter':{'must':[{'key':k,'match':{'value':v}} for k,v in conditions.items()]}}
+                completion = await self._request('PUT', binding.collection+'/points', body,
+                    writer, deadline, collection=binding.collection)
+                self._completed(completion)
+                actual = await self._projection_read(binding, aggregate, reader, deadline)
+                if actual is None or actual['payload']['revision'] < desired['payload']['revision']:
+                    raise ProtocolFailure('qdrant_effect_unproved')
+                if (actual['payload']['revision'] == desired['payload']['revision']
+                        and actual != desired):
+                    raise ProtocolFailure('qdrant_effect_conflict')
+                _check(deadline)
+                return make_receipt(binding, event, desired, actual, completion['result']['operation_id'])
+            finally:
+                writer = reader = None
