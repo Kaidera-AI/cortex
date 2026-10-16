@@ -29,7 +29,7 @@ def resource(kind):
                     'dev': 1, 'ino': 22, 'uid': 1001})
     if kind == 'network':
         return dict(common, id=ID, name='private-core', driver='bridge',
-                    subnet='10.89.0.0/24', options={}, listeners=[])
+                    subnet='10.89.0.0/24', internal=True, options={}, listeners=[])
     if kind == 'image':
         return dict(common, id=ID, manifest=DIGEST, config='sha256:' + ID, layers=[DIGEST],
                     os='linux', arch='arm64', source='release-one', version='0.2.001', tags=[])
@@ -257,6 +257,26 @@ class PodmanPrimitives(unittest.TestCase):
         self.assertIn('--subnet=10.89.0.0/24', argv)
         e = Engine('network');e.on_run = lambda e: e.state.update(id=OTHER)
         self.assertEqual(self.execute(e)[0], 'UNKNOWN')
+
+    def test_noninternal_network_contract_cannot_be_admitted_as_private(self):
+        for value in (False, None):
+            e = Engine('network');e.plan['after']['internal'] = value
+            with self.subTest(internal=value), self.assertRaises(OwnerRefusal):
+                self.execute(e)
+            self.assertEqual(e.calls, [])
+        e = Engine('network');e.on_run = lambda e: e.state.update(internal=False)
+        self.assertEqual(self.execute(e)[0], 'UNKNOWN')
+
+    def test_creation_and_helper_witnesses_remain_held_through_publication(self):
+        for helper in (False, True):
+            e = Engine('container', 'helper') if helper else Engine('network')
+            with self.subTest(helper=helper), self.opened(e) as p:
+                p.snapshot();p.dispatch(e.plan['subject'])
+                with self.assertRaises(OwnerRefusal):
+                    with p.measure(e.plan['subject']) as result:
+                        self.assertEqual(result[0], 'APPLIED')
+                        if helper:e.execution_fault = lambda w: w.update(execution=None)
+                        else:e.creation_fault = lambda w: w.update(creation=None)
 
     def test_helper_process_uses_exact_container_fixed_vector_and_cleanup_lifetime(self):
         e = Engine('container', 'helper');e.plan['after'] = copy.deepcopy(e.plan['before'])
