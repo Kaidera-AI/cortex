@@ -610,13 +610,20 @@ class Bounds(unittest.TestCase):
 class Lifecycle(Base):
     """Hale H2: owned name, forced removal on every path, absence proven."""
 
-    def run_with(self, fake):
+    def run_with(self, fake, *, removed=True):
         closure = self.fx.admit()
         session = inspector._session(closure, self.fx.profile)
         with patch.object(inspector, '_engine', fake):
             with self.assertRaises(ValueError) as caught:
                 session.check(rows(('a', b'x = 1\n')))
-        self.assertEqual([p for p in self.fx.root.iterdir() if p.name.startswith('session-')], [])
+        left = [p for p in self.fx.root.iterdir() if p.name.startswith('session-')]
+        if removed:
+            self.assertEqual(left, [])
+        else:
+            # Hale R3-H2-CLEANUP-001: unproven absence preserves the owned roots for recovery.
+            self.assertEqual(len(left), 1)
+            self.assertTrue((left[0] / 'store').is_dir())
+            self.assertNotIn('unshare', fake.calls)
         return str(caught.exception)
 
     def test_timeout_after_create_still_removes_by_name_and_proves_absence(self):
@@ -632,10 +639,10 @@ class Lifecycle(Base):
         self.assertNotIn('run', fake.calls)
 
     def test_container_still_listed_after_removal_is_incomplete(self):
-        self.assertEqual(self.run_with(FakeEngine(self.fx, ps=b'abc123\n')), 'inspector_run_incomplete')
+        self.assertEqual(self.run_with(FakeEngine(self.fx, ps=b'abc123\n'), removed=False), 'inspector_run_incomplete')
 
     def test_cleanup_command_failure_is_incomplete_never_pass(self):
-        self.assertEqual(self.run_with(FakeEngine(self.fx, fail='rm')), 'inspector_run_incomplete')
+        self.assertEqual(self.run_with(FakeEngine(self.fx, fail='rm'), removed=False), 'inspector_run_incomplete')
 
     def test_request_replaced_during_the_run_is_incomplete(self):
         fx = self.fx
@@ -650,6 +657,99 @@ class Lifecycle(Base):
                     os.chmod(path, 0o444)
                 return result
         self.assertIn(self.run_with(Replacing(fx)), ('inspector_closure_metadata', 'inspector_closure_changed'))
+
+
+class Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+class TimedEngine(FakeEngine):
+    """Each verb costs fake seconds; a verb that outlives its timeout also spends the kill wait."""
+
+    def __init__(self, fx, clock, costs, **options):
+        super().__init__(fx, **options)
+        self.clock, self.costs, self.timeouts = clock, costs, []
+
+    def __call__(self, argv, environment, session, timeout, output_limit):
+        verb = argv[8]
+        self.timeouts.append((verb, timeout))
+        cost = self.costs.get(verb, 0)
+        if cost > timeout:
+            self.clock.now += timeout + inspector.CLEANUP_SECONDS / 3
+            self.calls.append(verb)
+            raise subprocess.TimeoutExpired(list(argv), timeout)
+        self.clock.now += cost
+        return super().__call__(argv, environment, session, timeout, output_limit)
+
+
+class Budget(Base):
+    """Hale R3-H2-DEADLINE-001 / CLEANUP-001: one work deadline, one cleanup reserve, identity."""
+
+    def test_work_budget_is_shared_across_batches_of_one_session(self):
+        clock = Clock()
+        fake = TimedEngine(self.fx, clock, {'load': 5, 'image': 5, 'run': 10})
+        with patch.object(time, 'monotonic', clock), patch.object(inspector, '_engine', fake):
+            session = inspector._session(self.fx.admit(), self.fx.profile)
+            session.check(rows(('a', b'x = 1\n')))
+            self.refuses('inspector_run_incomplete', session.check, rows(('b', b'y = 2\n')))
+        self.assertLessEqual(clock.now, LIMITS['seconds'] + inspector.CLEANUP_SECONDS)
+
+    def test_late_timeouts_never_exceed_work_plus_cleanup_reserve(self):
+        clock = Clock()
+        fake = TimedEngine(self.fx, clock, {'load': 5, 'image': 5, 'run': 1000, 'rm': 9, 'ps': 9, 'unshare': 1000})
+        with patch.object(time, 'monotonic', clock), patch.object(inspector, '_engine', fake):
+            session = inspector._session(self.fx.admit(), self.fx.profile)
+            self.refuses('inspector_run_incomplete', session.check, rows(('a', b'x = 1\n')))
+        self.assertLessEqual(clock.now, LIMITS['seconds'] + inspector.CLEANUP_SECONDS)
+
+    def test_direct_cleanup_spends_one_reserve_including_kill_waits(self):
+        closure = self.fx.admit()
+        plan = inspector.prepare_plan(closure, self.fx.profile, codec.canonical_bytes({'rows': []}))
+        plan.session.mkdir(mode=0o700)
+        for name in ('store', 'run', 'tmp'):
+            (plan.session / name).mkdir(mode=0o700)
+        clock = Clock()
+        fake = TimedEngine(self.fx, clock, {'rm': 9, 'ps': 9, 'unshare': 1000})
+        with patch.object(time, 'monotonic', clock), patch.object(inspector, '_engine', fake):
+            self.refuses('inspector_run_incomplete', inspector._cleanup, plan, dict(plan.environment), plan.session)
+        self.assertLessEqual(clock.now, inspector.CLEANUP_SECONDS)
+
+    def test_container_still_present_preserves_every_owned_root(self):
+        sessions = []
+        fake = FakeEngine(self.fx, ps=b'0123456789abcdef\n')
+        def recording(argv, environment, session, timeout, output_limit):
+            sessions.append(session)
+            return fake(argv, environment, session, timeout, output_limit)
+        with patch.object(inspector, '_engine', recording):
+            session = inspector._session(self.fx.admit(), self.fx.profile)
+            self.refuses('inspector_run_incomplete', session.check, rows(('a', b'x = 1\n')))
+        self.assertNotIn('unshare', fake.calls)
+        self.assertTrue((sessions[0] / 'store').is_dir() and (sessions[0] / 'run').is_dir())
+
+    def test_same_uid_replacement_root_is_never_deleted(self):
+        fake = FakeEngine(self.fx)
+        seen = {}
+        def replacing(argv, environment, session, timeout, output_limit):
+            result = fake(argv, environment, session, timeout, output_limit)
+            if argv[8] == 'run':
+                held = session.with_name(session.name + '-held')
+                session.rename(held)
+                session.mkdir(mode=0o700)
+                (session / 'store').mkdir(mode=0o700)
+                marker = session / 'foreign-owned-marker'
+                marker.write_text('same uid, different directory inode\n')
+                seen.update(marker=marker, held=held, store=session / 'store')
+            return result
+        with patch.object(inspector, '_engine', replacing):
+            session = inspector._session(self.fx.admit(), self.fx.profile)
+            self.refuses('inspector_run_incomplete', session.check, rows(('a', b'x = 1\n')))
+        self.assertTrue(seen['marker'].exists() and seen['store'].is_dir())
+        self.assertNotIn('unshare', fake.calls)
+        self.assertTrue(seen['held'].is_dir())
 
 
 class Qualification(Base):
