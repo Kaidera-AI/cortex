@@ -117,3 +117,36 @@ material read/create. Invalid original reservations refuse before create or
 cleanup; a bad descriptor is not permission to touch a target. After a valid
 original begins creation, cancellation/uncertainty still reconciles only that
 original and yields HOLD unless measured absence is established.
+
+
+## X3-CLOSE-001 repair plan (2026-10-16)
+
+Kai row c5ee7669-ab5e-422e-bcb8-be7637adeb70 authorizes this bounded repair
+of reviewed head 28177a02553eb41363e9c31e9d8882efc3ea592d. Commit RED
+regressions first: waiting check, final material publication, pre-dispatch
+observation and session check after completed retirement. Preserve all 34
+original test bodies. Add awaited fixed-supplier change and concurrent expiry
+tightening checks. Then repair only existing `_current`: revalidate the same
+live registry record and fixed supplier after observation, preserve the live
+minimum expiry and validate it before success, with no intervening await.
+Existing refusal types remain. No store, channel, lock service or signature.
+Both CI Pythons must retain the four races, original X3 and 144 consumer
+regressions; mutation/removal and byte-restoration receipts are required.
+Plan, ownership inventory and literal results live in
+`output/Cortex/nemo-x3-fix-20261016` under the helix workspace.
+Vera round 2 owns closure; installed supplier/native/SQL/pool/recovery remain
+UNBOUND. The registry fence orders cooperative operations on its existing
+event loop; protected supplier current-authority measurement remains mandatory.
+
+Amendment, Kai 11:53 same-row addendum: incorporate Hale X3-CURRENT-001 and
+X3-WAIT-001, including all five unchanged residual RED methods and two controls.
+WAIT repair: existing `_bounded` owns supplier tasks with strong references until
+completion, enforces the original deadline independently of supplier cancellation,
+and propagates caller cancellation. One scheduling turn permits a just-cancelled
+connect result to become known for retirement; no new cleanup deadline is granted.
+Existing connections.py is added to declared scope: capture the original connect
+result in its owned closure, retain original attempt/deadline, withhold publication
+on cancellation. Unknown pending effects cannot be turned into an absence receipt;
+cleanup stays HOLD while owned child work survives. No new authority store or
+transport. Add pending late-effect/cleanup controls if needed; preserve all earlier
+tests and bind all counts to their actual discovery.

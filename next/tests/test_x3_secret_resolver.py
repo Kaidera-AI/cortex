@@ -475,4 +475,207 @@ class X3(unittest.IsolatedAsyncioTestCase):
                 self.assertNotIn(event,inputs.events,'X3_INVALID_RESERVATION_DISPATCHED')
 
 
+    def park_observation(self, inputs, when):
+        """Capture the observation before yielding, as in Vera's race witnesses."""
+        original=inputs.observe;entered=asyncio.Event();release=asyncio.Event();count=0
+        async def observe(*args):
+            nonlocal count
+            result=await original(*args);count+=1
+            if when(count):
+                entered.set();await release.wait()
+            return result
+        inputs.observe=observe
+        return entered,release
+
+    async def test_x3close001_waiting_check_refuses_closed_handle(self):
+        api,inputs,resolver,_,_=self.fixture();e=self.deadline(2)
+        h=await self.handle(resolver,'probe',deadline=e)
+        entered,release=self.park_observation(inputs,lambda count:count==1)
+        pending=asyncio.create_task(resolver.check(h,e))
+        try:
+            await asyncio.wait_for(entered.wait(),1)
+            h.close()
+            with self.assertRaises(api.SecretRefusal):h.reference
+        finally:release.set()
+        await self.denied(pending,'invalid_handle')
+        await self.denied(resolver.check(h,e),'invalid_handle')
+
+    async def test_x3close001_final_material_observation_refuses_closed_handle(self):
+        api,inputs,resolver,_,_=self.fixture();e=self.deadline(2)
+        h=await self.handle(resolver,'probe',deadline=e)
+        entered,release=self.park_observation(inputs,lambda count:count==3)
+        async def material():
+            async with resolver._material(h,e) as value:return value
+        pending=asyncio.create_task(material())
+        try:
+            await asyncio.wait_for(entered.wait(),1)
+            h.close()
+            with self.assertRaises(api.SecretRefusal):h.reference
+        finally:release.set()
+        await self.denied(pending,'invalid_handle')
+        # The authentic restoration control must still deliver material.
+        fresh=await self.handle(resolver,'probe',deadline=e)
+        async with resolver._material(fresh,e) as value:self.assertTrue(value==VALUE)
+        fresh.close()
+
+    async def test_x3close001_pre_dispatch_observation_never_connects_after_close(self):
+        api,inputs,resolver,_,_=self.fixture();holder={}
+        original=api.SecretResolver.resolve
+        async def resolve(self,*args):
+            handle=await original(self,*args);holder['handle']=handle;return handle
+        def close_during_pre_dispatch_observe(port):
+            if 'connect-reserve' in port.events:
+                holder['handle'].close();port.events.append('handle-closed')
+        inputs.observe_hook=close_during_pre_dispatch_observe
+        from cortex_core.runtime.connections import ResolverConnection
+        with patch.object(api.SecretResolver,'resolve',resolve):
+            adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+            await self.denied(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100),
+                              'invalid_handle')
+        self.assertIn('handle-closed',inputs.events)
+        self.assertNotIn('connect',inputs.events,'driver dispatch occurred after close')
+        self.assertEqual(inputs.connections,[])
+
+    async def test_x3close001_session_check_refuses_completed_retirement(self):
+        api,inputs,resolver,_,_=self.fixture();e=self.deadline(2)
+        from cortex_core.runtime.connections import ResolverConnection
+        adapter=ResolverConnection(REF,'probe',INSTALL,'api',e)
+        conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+        inputs.events.clear()
+        entered,release=self.park_observation(inputs,lambda count:'session-observe' in inputs.events)
+        pending=asyncio.create_task(adapter.check(conn,deadline=e))
+        try:
+            await asyncio.wait_for(entered.wait(),1)
+            await adapter.retire(conn,deadline=e)
+            self.assertTrue(conn.closed)
+        finally:release.set()
+        await self.denied(pending,'invalid_handle')
+
+    async def test_x3close001_waiting_observation_rechecks_fixed_supplier(self):
+        api,inputs,resolver,_,_=self.fixture();e=self.deadline(2)
+        h=await self.handle(resolver,'probe',deadline=e)
+        entered,release=self.park_observation(inputs,lambda count:count==1)
+        pending=asyncio.create_task(resolver.check(h,e))
+        try:
+            await asyncio.wait_for(entered.wait(),1)
+            with patch.object(api,'_installed_inputs',return_value=Inputs(api)):
+                release.set()
+                await self.denied(pending,'authority_changed')
+        finally:release.set()
+
+    async def test_x3close001_waiting_observation_preserves_tighter_live_expiry(self):
+        api,inputs,resolver,_,_=self.fixture();e=self.deadline(2)
+        h=await self.handle(resolver,'probe',deadline=e)
+        original=inputs.observe;entered=asyncio.Event();release=asyncio.Event();count=0
+        async def observe(*args):
+            nonlocal count
+            result=await original(*args);count+=1
+            if count==1:
+                entered.set();await release.wait()
+            else:result=replace(result,expires=self.deadline(.01))
+            return result
+        inputs.observe=observe
+        pending=asyncio.create_task(resolver.check(h,e))
+        try:
+            await asyncio.wait_for(entered.wait(),1)
+            await resolver.check(h,e)  # independently tighten the shared live record
+            await asyncio.sleep(.02)
+        finally:release.set()
+        await self.denied(pending,'deadline_expired')
+        await self.denied(resolver.check(h,e),'deadline_expired')
+
+
+# Hale's seven reviewer methods are retained verbatim; use this module's fixtures.
+import sys
+fixtures=sys.modules[__name__]
+
+class Residual(unittest.IsolatedAsyncioTestCase):
+ api=fixtures.X3.api;fixture=fixtures.X3.fixture;deadline=fixtures.X3.deadline;handle=fixtures.X3.handle;denied=fixtures.X3.denied
+ async def test_control_open_handle_and_current_supplier_pass(self):
+  api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver)
+  await resolver.check(h,self.deadline());h.close()
+  await self.denied(resolver.check(h,self.deadline()),'invalid_handle')
+ async def test_closed_during_current_check_must_refuse(self):
+  api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver)
+  original=inputs.observe;entered=asyncio.Event();release=asyncio.Event()
+  async def waiting(*args):
+   grant=await original(*args);entered.set();await release.wait();return grant
+  inputs.observe=waiting
+  task=asyncio.create_task(resolver.check(h,self.deadline()))
+  await asyncio.wait_for(entered.wait(),.5);h.close();release.set()
+  await self.denied(task,'invalid_handle')
+ async def test_supplier_replaced_during_current_check_must_refuse(self):
+  api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver)
+  original=inputs.observe;entered=asyncio.Event();release=asyncio.Event()
+  async def waiting(*args):
+   grant=await original(*args);entered.set();await release.wait();return grant
+  inputs.observe=waiting
+  task=asyncio.create_task(resolver.check(h,self.deadline()))
+  await asyncio.wait_for(entered.wait(),.5)
+  api._installed_inputs.return_value=Inputs(api);release.set()
+  await self.denied(task,'authority_changed')
+ async def test_closed_during_callback_final_check_must_not_deliver_material(self):
+  api,inputs,resolver,_,_=self.fixture();inputs.driver='asyncpg'
+  from cortex_core.runtime.connections import ResolverConnection
+  adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+  conn=await adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100)
+  h=adapter._sessions[conn][1];calls=0;original=inputs.observe
+  entered=asyncio.Event();release=asyncio.Event()
+  async def waiting(*args):
+   nonlocal calls
+   calls+=1;grant=await original(*args)
+   if calls==3:entered.set();await release.wait()
+   return grant
+  inputs.observe=waiting
+  task=asyncio.create_task(inputs.password_callback())
+  try:
+   await asyncio.wait_for(entered.wait(),.5);h.close();release.set()
+   await self.denied(task,'invalid_handle')
+  finally:
+   release.set();inputs.observe=original
+   await adapter.retire(conn,deadline=self.deadline())
+ async def test_control_cooperative_deadline_returns(self):
+  api,inputs,resolver,_,_=self.fixture();inputs.delay=1
+  await self.denied(self.handle(resolver,deadline=self.deadline(.02)),'deadline_expired')
+ async def test_swallowed_timeout_must_return_before_supplier_release(self):
+  api,inputs,resolver,_,_=self.fixture();h=await self.handle(resolver)
+  original=inputs.observe;seen=asyncio.Event();release=asyncio.Event()
+  async def hung(*args):
+   try:await asyncio.Event().wait()
+   except asyncio.CancelledError:seen.set();await release.wait()
+   return await original(*args)
+  inputs.observe=hung
+  task=asyncio.create_task(resolver.check(h,self.deadline(.02)))
+  try:
+   done,_=await asyncio.wait({asyncio.create_task(seen.wait())},timeout=.15)
+   self.assertTrue(done,'timeout cancellation did not arrive')
+   await asyncio.sleep(.02)
+   returned_by_bound=task.done()
+  finally:
+   release.set()
+   try:await task
+   except api.SecretRefusal:pass
+  self.assertTrue(returned_by_bound,'X3 deadline elapsed but call remained owned by cancellation-swallowing supplier')
+ async def test_external_connect_cancellation_must_not_publish_session(self):
+  api,inputs,resolver,_,_=self.fixture();entered=asyncio.Event()
+  original=inputs.connect
+  async def swallow(*args):
+   conn=await original(*args);entered.set()
+   try:await asyncio.Event().wait()
+   except asyncio.CancelledError:return conn
+  inputs.connect=swallow
+  from cortex_core.runtime.connections import ResolverConnection
+  adapter=ResolverConnection(REF,'probe',INSTALL,'api',self.deadline())
+  task=asyncio.create_task(adapter.connect(connect_timeout_seconds=.2,statement_timeout_ms=100))
+  await asyncio.wait_for(entered.wait(),.5);task.cancel()
+  try:
+   try:conn=await task
+   except asyncio.CancelledError:return
+   await adapter.retire(conn,deadline=self.deadline())
+   self.fail('X3 cancelled connect published a successful physical session')
+  finally:
+   for conn in inputs.connections:
+    if not conn.closed:await conn.close()
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
