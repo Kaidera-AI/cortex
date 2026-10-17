@@ -190,7 +190,7 @@ class SourceRecognition(unittest.TestCase):
             ('prepared = prepare_migrations(directory)', 'prepared = prepare_migrations(other_directory)'),
             ('hashlib.sha256(data).hexdigest() != entry["sha256"]', 'False'),
             ('prepared[:prepared_target + 1]:', 'prepared[prepared_target:]:'),
-            ("data.decode("utf-8")", 'untrusted_sql'),
+            ('data.decode("utf-8")', 'untrusted_sql'),
             ('return prepared', 'return untrusted'),
         ]:
             with self.subTest(after=after):
