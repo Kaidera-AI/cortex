@@ -18,12 +18,12 @@ from next.tests.ci_gates.receipt import (
 _ORACLE = runpy.run_path(str(ROOT / "next/tests/test_receipts.py"))
 
 
-def _nodes(suite):
+def _cases(suite):
     for item in suite:
         if isinstance(item, unittest.TestSuite):
-            yield from _nodes(item)
+            yield from _cases(item)
         else:
-            yield item.id()
+            yield item
 
 
 def execute(root, source, nodes):
@@ -36,7 +36,14 @@ def execute(root, source, nodes):
     for module in ("ci_gates", "floor", "live_contract"):
         sys.path.insert(0, str(root/"next/tests"/module/"tests"))
     suite = unittest.defaultTestLoader.loadTestsFromNames(nodes)
-    selected = list(_nodes(suite))
+    cases = list(_cases(suite))
+    selected = [test.id() for test in cases]
+    test_paths = set()
+    for test in cases:
+        module = sys.modules.get(type(test).__module__)
+        origin = getattr(module, "__file__", None)
+        if origin and Path(origin).resolve().is_relative_to(root):
+            test_paths.add(Path(origin).resolve())
     result = unittest.TextTestRunner(verbosity=2,
         resultclass=_ORACLE["AssertionResult"]).run(suite)
     observed = []
@@ -51,6 +58,9 @@ def execute(root, source, nodes):
         print("CORTEX_LOADED_SOURCE=" + json.dumps(dict(source=source,
             origin=str(target), sha256=digest(target.read_bytes()),
             kind=sorted(set(observed)))), flush=True)
+    print("CORTEX_LOADED_TESTS=" + json.dumps({
+        str(path.relative_to(root)): digest(path.read_bytes()) for path in sorted(test_paths)
+    }), flush=True)
     print(_ORACLE["MARKER"] + json.dumps(dict(
         tests_run=result.testsRun, selected=selected,
         skipped=[test.id() for test, _ in result.skipped],
@@ -70,6 +80,8 @@ def mutate(root, specs, output, scratch):
     require(not output.exists() and not scratch.exists(), "pilot_fresh_directory")
     require(not output.is_relative_to(root) and not scratch.is_relative_to(root), "pilot_output_scope")
     require(bool(specs) and len(specs) == len(set(specs)), "pilot_specs")
+    require(not subprocess.check_output(["git", "-C", str(root), "status", "--porcelain"],
+                                        text=True).strip(), "pilot_dirty_tree")
     output.mkdir(parents=True)
     scratch.mkdir(parents=True)
     archive = subprocess.check_output(["git", "-C", str(root), "archive", "HEAD"])

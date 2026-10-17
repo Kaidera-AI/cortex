@@ -83,8 +83,12 @@ the collector and disposable test environment remain host-owned.
 
 `mutation_complete(root, changed_sources, specs, runs)` checks the exact bijection,
 original/test/spec hashes, computed-versus-observed mutant bytes and raw-log hashes.
-Every process must report the exact expected selected set and observed source hash;
-only intended named BODY AssertionError earns kill credit. Healthy/restored must
+Every process must report the exact expected selected set, observed source hash and
+actual loaded test-file hashes;
+only intended named BODY AssertionError earns kill credit. Product/tool mutants
+require byte-identical loaded assertions. The explicitly labelled oracle-fixture
+mutants change fixture input in their own test file; that one expected mutant hash
+is admitted for the calibration phase only. Healthy/restored must
 be complete clean runs. It does not accept another author's missing obligations.
 
 MUTATION_PACKET contains `root`, independently reviewed `base`, `changed_sources`,

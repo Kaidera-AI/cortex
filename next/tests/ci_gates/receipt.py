@@ -227,7 +227,7 @@ def _source(root, relative):
     return path.read_bytes()
 
 
-def _process(record, expected_hash, source):
+def _process(record, expected_hash, source, tests):
     """Verify raw logs and independently observed loaded-source fingerprint."""
     stdout = Path(record["stdout"]).read_bytes()
     stderr = Path(record["stderr"]).read_bytes()
@@ -240,6 +240,9 @@ def _process(record, expected_hash, source):
     require(loaded.get("source") == source and loaded.get("sha256") == expected_hash
         and type(loaded.get("origin")) is str
         and loaded["origin"].endswith("/" + source), "mutation_loaded_source")
+    test_lines = [line.split("=", 1)[1] for line in stdout.decode().splitlines()
+                  if line.startswith("CORTEX_LOADED_TESTS=")]
+    require(len(test_lines) == 1 and decode(test_lines[0]) == tests, "mutation_loaded_tests")
     return subprocess.CompletedProcess(record.get("command", []), record["returncode"],
                                        stdout.decode(), stderr.decode())
 
@@ -273,9 +276,13 @@ def mutation_complete(root, changed_sources, specs, runs):
             packet = next(row for row in packets if row["source"] == source)
             require(packet["spec_sha256"] == digest(Path(path).read_bytes()), "mutation_spec_hash")
             require(Path(packet["mutant_source"]).read_bytes() == mutant, "mutation_observed")
-            healthy = _process(packet["healthy"], digest(original), source)
-            changed = _process(packet["mutant"], digest(mutant), source)
-            restored = _process(packet["restored"], digest(original), source)
+            mutant_tests = dict(tests)
+            if source in tests:
+                require(spec.get("kind") == "oracle-fixture", "mutation_changed_assertions")
+                mutant_tests[source] = digest(mutant)
+            healthy = _process(packet["healthy"], digest(original), source, tests)
+            changed = _process(packet["mutant"], digest(mutant), source, mutant_tests)
+            restored = _process(packet["restored"], digest(original), source, tests)
             require(oracle_controls(healthy, set(expected)) == "survived"
                 and oracle_controls(changed, set(expected)) == "killed"
                 and oracle_controls(restored, set(expected)) == "survived", "mutation_not_body_kill")
@@ -384,6 +391,9 @@ def main():
                 "--name-only", value["base"], "HEAD", "--", "*.py",
                 "next/tests/floor/profile.json"], text=True).splitlines()
             require(set(changed) == set(value["changed_sources"]), "mutation_changed_source_inventory")
+            head = subprocess.check_output(["git", "-C", value["root"], "rev-parse", "HEAD"], text=True).strip()
+            require(all(read_json(path).get("source_commit") == head for path in value["runs"]),
+                    "mutation_source_commit")
             result = mutation_complete(value["root"], value["changed_sources"], value["specs"], value["runs"])
         print(json.dumps(result, sort_keys=True))
         return 0
