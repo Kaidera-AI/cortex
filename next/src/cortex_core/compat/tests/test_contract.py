@@ -403,5 +403,86 @@ class AcceptedJ06V1Conformance(unittest.TestCase):
         self.assertEqual(a['ai'], 'off; .005 deferred; no provider/model defaults or calls')
 
 
+
+def versioned_cli(case):
+    m = field_map(case)
+    case.assertIn('versioned_cli', m, 'accepted versioned CLI mapping missing')
+    return m['versioned_cli']
+
+
+class VersionedCLIConformance(unittest.TestCase):
+    """Mapping plus actual checkout byte/path checks; no v1/live execution."""
+
+    def test_controlling_versioned_amendment(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['ruling'], {'file': '2026-10-17_cox_a-day2-versioned-cli-ruling-v1.md',
+            'sha256': '11d7ebce3a3f0ebac0ae4f3b85eb5a0a6a5c0e2190a712269ac6231a64ebf1a5',
+            'authority': 'Kai Option A accepted by Cox', 'scope': 'SPEC only'})
+        self.assertEqual(v['supersedes_helper_paths'], ['day2.transport.owner_path', 'accepted_j06_v1.projection.helper'])
+
+    def test_one_v2_module_and_five_transport_test_paths(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['home'], 'next/modules/cli-v2')
+        self.assertEqual(v['helper'], 'next/modules/cli-v2/_cortex_api.sh')
+        self.assertEqual(v['transport_tests'], ['next/modules/cli-v2/tests/test_transport_' + n + '.py'
+            for n in ['admission', 'composition', 'processes', 'projection', 'results']])
+        self.assertEqual(v['module_docs'], ['next/modules/cli-v2/README.md', 'next/modules/cli-v2/UPSTREAM.md'])
+
+    def test_three_versioned_entries_retain_existing_mapping(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['commands'], {('cortex-v2-' + n): {'source': 'next/modules/cli-v2/cortex-v2-' + n,
+            'capability': n} for n in ['boot', 'log', 'search']})
+        self.assertTrue(all(entry['capability'] in field_map(self)['mapping'] for entry in v['commands'].values()))
+        self.assertEqual(v['new_API_capability_from_rename'], False)
+
+    def test_v1_baseline_manifest_binds_all_retained_files(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['v1']['baseline'], '7a1078213ac2497d6219e7778c7866001f97f30b')
+        self.assertEqual(v['v1']['manifest'], 'tests/v1_baseline.json')
+        self.assertEqual(v['v1']['helper_sha256'], 'd78ad0c87ffdf286c69b2485d3224186decc81b37608a4ae92fe40806d84f636')
+        import hashlib
+        p = CONTRACT.parent / v['v1']['manifest']
+        self.assertTrue(p.is_file(), 'retained v1 path/byte manifest missing')
+        self.assertEqual(hashlib.sha256(p.read_bytes()).hexdigest(), v['v1']['manifest_sha256'])
+        self.assertEqual(v['v1']['preserve'], 'every manifest path, name, mode and exact baseline bytes')
+        self.assertEqual(v['v1']['live_contract_tests'], 'retained unchanged; Mike owns actual v1 regression admission/execution')
+
+    def test_actual_checkout_retains_every_v1_path_mode_and_byte(self):
+        import hashlib
+        manifest = json.loads((CONTRACT.parent / 'tests/v1_baseline.json').read_text())
+        root = Path(__file__).resolve().parents[5]
+        observed = {str(p.relative_to(root)) for scope in manifest['scopes']
+            for p in (root / scope).rglob('*') if p.is_file() and '__pycache__' not in p.parts}
+        self.assertEqual(observed, {r['path'] for r in manifest['files']}, 'v1 path/name set drift')
+        self.assertTrue(manifest['files'], 'empty preservation set earns no credit')
+        for row in manifest['files']:
+            p = root / row['path']
+            with self.subTest(path=row['path']):
+                self.assertFalse(p.is_symlink(), 'baseline blob replaced by symlink')
+                self.assertEqual(hashlib.sha256(p.read_bytes()).hexdigest(), row['sha256'], 'v1 bytes drift')
+                self.assertEqual(bool(p.stat().st_mode & 0o111), row['mode'] == '100755', 'v1 executable mode drift')
+
+    def test_private_pipe_and_one_reader_survive_move(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['transport'], {'helper_owner': 'finn', 'launcher_owner': 'bob',
+            'order': ['projector', 'wait/reap', 'exec same reader FD'], 'readers': 1,
+            'private_projection': 'same accepted seven NUL-terminated fields then EOF',
+            'new_HTTP_config_token_parser': False, 'v1_authority_fallback': False,
+            'secret_argv_env_file': False})
+
+    def test_provider_and_unshipped_capabilities_remain_refusals(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['capability_guard'], 'existing accepted mapping and typed unshipped refusals; no capability from rename')
+        self.assertEqual(v['provider_calls'], 0)
+        self.assertEqual(v['live_effects'], {'installed': 0, 'PATH': 0, 'v1_service_DB': 0})
+
+    def test_changed_head_requires_own_ci_and_accountable_review(self):
+        v = versioned_cli(self)
+        self.assertEqual(v['acceptance'], {'old_head_inherited': False, 'author_self_merge': False,
+            'Mike': 'v1 regression plus v2 RUN and exact composed inventory/CI',
+            'Cox': 'decides ONE bounded final exact-head Hale review',
+            'fixtures_as_installed': False})
+
+
 if __name__ == '__main__':
     unittest.main()
