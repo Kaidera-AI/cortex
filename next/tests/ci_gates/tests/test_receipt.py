@@ -244,6 +244,32 @@ class Receipt(unittest.TestCase):
                 gate.merged_tree(directory, expected, receipts)
 
 
+    def test_changed_source_inventory_includes_admission_data(self):
+        self.assertTrue(callable(getattr(gate, "changed_sources", None)),
+                        "mutation admission must independently inventory gate data")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def git(*args):
+                return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
+            git("init", "-q")
+            git("config", "user.name", "Causal fixture")
+            git("config", "user.email", "fixture@example.invalid")
+            expected = {"guard.py", ".github/next-offline-suites.json",
+                        "next/contracts/core-writer-inventory.json", "next/tests/floor/profile.json"}
+            for name in expected | {"documentation.json"}:
+                path = root/name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("before")
+            git("add", ".")
+            git("commit", "-qm", "independent baseline")
+            base = git("rev-parse", "HEAD")
+            for name in expected | {"documentation.json"}:
+                (root/name).write_text("after")
+            git("add", ".")
+            git("commit", "-qm", "changed source and admission data")
+            self.assertEqual(set(gate.changed_sources(root, base)), expected)
+
+
 class SharedAdmission(unittest.TestCase):
     REQUIRED = {
         "next/tests/ci_gates/tests/test_receipt.py",
