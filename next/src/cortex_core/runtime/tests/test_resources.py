@@ -287,7 +287,7 @@ class CatalogConnection(DriverConnection):
         if 'set_config' in str(sql):return SimpleNamespace(fetchone=lambda:(None,None))
         for key,rows in self.rows.items():
             if key in str(sql):return SimpleNamespace(fetchall=lambda:rows,fetchone=lambda:rows[0] if rows else None)
-        if str(sql).startswith('SET TRANSACTION'):return SimpleNamespace()
+        if str(sql).startswith(('SET TRANSACTION','SET LOCAL ROLE')):return SimpleNamespace()
         raise RuntimeError('unexpected SQL public-test-password')
 
 
@@ -377,6 +377,64 @@ class CatalogTests(unittest.TestCase):
                 with r.transaction('bootstrap'):time.sleep(1)
             self.assertLess(time.monotonic()-started,0.7)
             self.assertIn('rollback:cortex_bootstrap',self.events)
+
+
+class ServiceCatalogTests(unittest.TestCase):
+    setUp=ResourceTests.setUp
+    vault=ResourceTests.vault
+    data=CatalogTests.data
+    driver=CatalogTests.driver
+
+    def require_source(self):
+        self.assertTrue(resources is not None and hasattr(resources.CoreResources,'observe_service_catalog'),
+            'actual service raw observation is missing')
+
+    @contextmanager
+    def opened(self):
+        self.config=decode_config(json.dumps(self.value).encode(),mode='serve');self.rows=self.data()
+        self.rows.pop('FROM auth.runtime_login_bindings')
+        self.rows.update({'auth.runtime_request_installation':[(True,)],
+            'auth.enrollment_readiness':[('ready',)]})
+        with self.vault() as vault,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_core_resources(self.config,custody=vault,deadline=self.deadline) as owned:yield owned
+
+    def test_service_uses_actual_api_login_without_private_binding_select(self):
+        self.require_source()
+        with self.opened() as owned:
+            observed=owned.observe_service_catalog()
+            self.assertIsNone(observed['bindings'])
+            self.assertEqual(observed['service'],{'installation_matches':True,'enrollment_readiness':'ready'})
+            self.assertEqual(observed['database'],{'name':'cortex','oid':42,'owner_oid':43})
+            self.assertTrue(self.calls[0].queries);self.assertFalse(self.calls[1].queries)
+            self.assertFalse(any('runtime_login_bindings' in sql for sql,params in self.calls[0].queries))
+            self.assertEqual(self.events.count('begin:cortex_api_request'),1)
+
+    def test_protected_sql_uses_read_committed_local_request_role_and_exact_installation(self):
+        self.require_source()
+        with self.opened() as owned:
+            owned.observe_service_catalog();queries=self.calls[0].queries
+            self.assertTrue(any('READ COMMITTED READ ONLY' in sql for sql,params in queries))
+            self.assertIn(('SET LOCAL ROLE "kaidera-runtime-core-request"',None),queries)
+            for name in ('auth.runtime_request_installation','auth.enrollment_readiness'):
+                self.assertEqual([params for sql,params in queries if name in sql],[(self.config.installation_id,)])
+            self.assertFalse(any('REPEATABLE READ' in sql for sql,params in queries))
+
+    def test_false_or_not_enrolled_is_raw_evidence_and_never_synthesized_ready(self):
+        self.require_source()
+        with self.opened() as owned:
+            self.rows['auth.runtime_request_installation']=[(False,)]
+            self.rows['auth.enrollment_readiness']=[('enrollment_required',)]
+            observed=owned.observe_service_catalog()
+            self.assertEqual(observed['service'],{'installation_matches':False,'enrollment_readiness':'enrollment_required'})
+            self.assertNotIn('admitted',observed);self.assertNotIn('schema_ready',observed)
+
+    def test_malformed_service_rows_refuse_privately_and_rollback(self):
+        self.require_source()
+        with self.opened() as owned:
+            self.rows['auth.runtime_request_installation']=[('public-test-password',)]
+            with self.assertRaisesRegex(ValueError,'catalog_unavailable') as error:owned.observe_service_catalog()
+            self.assertNotIn('public-test-password',str(error.exception))
+            self.assertIn('rollback:cortex_api_request',self.events)
 
 
 class TransactionFailureTests(unittest.TestCase):

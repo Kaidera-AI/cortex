@@ -15,7 +15,7 @@ FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.
 # anywhere in one of these functions invalidates its indirect-SQL exception.
 KNOWN_INPUT_FUNCTION_SHA256 = {
     ('src/cortex_core/runtime/catalog.py', '_rows'): 'b17120d3777bf74fa5cf85d1b88bde54df77aa8e6220ee9f7c79e2367fe114bc',
-    ('src/cortex_core/runtime/catalog.py', 'observe'): '9cbdab069a4a3dab1ba71d3827e86ac0025982b73ef630d3d5e78097af491322',
+    ('src/cortex_core/runtime/catalog.py', 'observe'): '35db9903898abb1e5b7ee95d141b537b1a20861ded8b3778ed24a76cdab7dce1',
     ('src/cortex_core/coordination.py', 'Jobs._load'): 'e10eddc8f089d9ccc97e60e576dedbfe3d39541e3eb8bee0414db28b29407ade',
     ('src/cortex_core/auth.py', 'authorized'): '479d115551dc48de8bbc2e9fba943d21879bf0497f05a5d65610a97dc282ae46',
     ('src/cortex_core/identity.py', 'Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
@@ -36,7 +36,7 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
 # The function pins alone cannot see an aliased caller elsewhere in the module.
 # Every source change in a module that owns an exception requires a reviewed pin.
 KNOWN_INPUT_FILE_SHA256 = {
-    'src/cortex_core/runtime/catalog.py': '5b385b2fcf02c7fcf7a8ea7476112d65a385026808cead549b6d344370602d65',
+    'src/cortex_core/runtime/catalog.py': '7037ac84ecfa02a0e3655c9026336da874b37998fae9e88c8bf0c93e9df8c78f',
     'src/cortex_core/coordination.py': '56c709da4e5caf8d5baceba92d08d60239d1aa07c85d61c1568bb74320d4a70b',
     'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
     'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
@@ -63,7 +63,8 @@ EXEMPT_SYMBOL_FILES = {
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
-    'src/cortex_core/runtime/tests/test_resources.py': 'e9dd67ebda1a36b7ffd64010a0c5460668def8d60933395b5f6da1daed0db156',
+    'src/cortex_core/runtime/resources.py': '750ffdd615a34a74a8bbd6f99e2f6265e9f0e8458ea52c0f01dd9d978e2516c7',
+    'src/cortex_core/runtime/tests/test_resources.py': '528aaf90842109074290701ecb0d33c8f443b60e37edbe214039b0ddcbe19a61',
     'src/cortex_core/schema/tests/test_seed.py': 'f517ff830af89fa040bf433bf1ce22ea33fae7272042daf377a96d2aebc2bda5',
     'schema/coordination/008-c09-external-v2.sql': '9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11',
     "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
@@ -79,6 +80,7 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/runtime/resources.py', '_FiniteResources.transaction', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '8428eded23c3e24d87e19ea92bf82927af65cdff705e0babb9ff83b826d6c6e7'): 'Day2_fixed_readonly_transaction_level_choice; two_literal_SET_branches; no_canonical_write; native_HELD',
     ('src/cortex_core/schema/tests/test_seed.py', '_SeedConnection.execute', 'INSERT', '<unqualified>:<dynamic_or_unsupported>', 0, '3b71213c1851775909097cd24575b58407cb4d907d6021780f317693a7f76dfd'): 'Day2_seed_driver_test_REGEX_DATA; no_SQL_execution_or_installed_credit',
     ('src/cortex_core/schema/tests/test_seed.py', '_SeedConnection.execute', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 0, '2937013f2181810606b2a799b05bda2849f3e369a20982a4138f0e0a55984ce4'): 'Day2_seed_driver_test_denied_keywords_DATA; no_SQL_execution_or_installed_credit',
     ('src/cortex_core/runtime/tests/test_resources.py', 'CatalogTests.test_observer_uses_one_readonly_snapshot_and_bound_identity_parameters', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 0, '6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae'): 'Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution',
@@ -394,6 +396,9 @@ def category(file,owner,verb,table):
 
 
 CATALOG_QUERY_SHA256 = {
+    '29b7135ce57852eab197af92e82a885cd964e75ed239005e3563ff2cbcbf478d',
+    '4cdbd04649b4ee5c673aa7fe12d5f89f6fcb3ebe03bc10013c016f4239867966',
+
     '0270678748d0ce1314395c71e7e2266b110ba28a5804dde753c7f27bb4b1de5b',
     '14ae809f195f5e037d100ccf3c9dbec7f26cf168f9c918702a4735aee5226058',
     '9188618b95ecb6d143d06d837854e1f27d84283ce1f4188e493e57d80f12efcc',
@@ -404,14 +409,14 @@ CATALOG_QUERY_SHA256 = {
 
 
 def reviewed_catalog_inputs(tree):
-    """The sole helper has six fixed reviewed SELECT inputs and no escaped alias."""
+    """The sole helper has eight fixed reviewed SELECT inputs and no escaped alias."""
     calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call)
            and isinstance(n.func,ast.Name) and n.func.id=='_rows']
     references=[n for n in ast.walk(tree) if isinstance(n,ast.Name) and n.id=='_rows']
-    if len(calls)!=6 or set(references)!={call.func for call in calls}:return False
+    if len(calls)!=8 or set(references)!={call.func for call in calls}:return False
     queries=[static_text(call.args[1]) if len(call.args) in (2,3) else None for call in calls]
     return (all(isinstance(sql,str) and hashlib.sha256(sql.encode()).hexdigest() in CATALOG_QUERY_SHA256
-                for sql in queries) and len(set(queries))==6
+                for sql in queries) and len(set(queries))==8
             and all(isinstance(call.args[0],ast.Name) and call.args[0].id=='connection'
                     and not call.keywords for call in calls))
 

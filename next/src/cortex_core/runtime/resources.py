@@ -23,6 +23,27 @@ _CORE_PURPOSES = ('api_request', 'probe')
 _MIGRATE_PURPOSES = ('migrator',)
 
 
+class ShutdownBudget:
+    """One config-bound reducing cap, including connections not yet yielded."""
+    __slots__=('_config','_deadline')
+
+    def __init__(self,config):
+        if type(config) is not BootstrapConfig or config.mode!='serve':raise Refusal('resources_mode')
+        self._config=config;self._deadline=None
+
+    @property
+    def deadline(self):return self._deadline
+
+    def begin(self,deadline=None):
+        if self._deadline is None:
+            now=time.monotonic();cap=now+self._config.limits['shutdown_seconds']
+            if deadline is not None:
+                if type(deadline) not in (int,float) or not now<deadline<=cap:raise Refusal('resources_shutdown')
+                cap=deadline
+            self._deadline=cap
+        return self._deadline
+
+
 def remaining_seconds(deadline, *, connecting=False):
     if type(deadline) not in (int,float) or not math.isfinite(deadline):
         raise Refusal('resources_deadline')
@@ -70,7 +91,7 @@ def _certificate(config):
     return path, hashlib.sha256(read_private_file(path,limit=65536)).digest()
 
 
-def _connect(config, custody, purpose, deadline):
+def _connect(config, custody, purpose, deadline,*,_shutdown=None):
     # Caller admits the mode and exact custody object before entering here.
     remaining = remaining_seconds(deadline, connecting=True)
     password = custody.resolve(purpose)
@@ -93,10 +114,10 @@ def _connect(config, custody, purpose, deadline):
                 options=f'-c statement_timeout={milliseconds} -c lock_timeout={milliseconds}',
                 application_name='cortex-option-a-'+purpose)
     except Refusal:
-        if connection is not None:_close({'opened':connection})
+        if connection is not None:_close({'opened':connection},deadline=_shutdown.deadline if _shutdown is not None else None)
         raise
     except Exception:
-        if connection is not None:_close({'opened':connection})
+        if connection is not None:_close({'opened':connection},deadline=_shutdown.deadline if _shutdown is not None else None)
         raise Refusal('resources_unavailable') from None
     finally:
         del password
@@ -104,13 +125,13 @@ def _connect(config, custody, purpose, deadline):
 
 
 class _Resources:
-    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction','_tainted')
+    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction','_tainted','_shutdown_deadline')
 
     def __init__(self, config, custody, deadline, connections, *, token):
         if token is not _BIRTH:
             raise Refusal('resources_unbound')
         for key,value in (('_config',config),('_custody',custody),('_deadline',deadline),
-                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False),('_tainted',False)):
+                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False),('_tainted',False),('_shutdown_deadline',None)):
             object.__setattr__(self,key,value)
 
     def __setattr__(self,name,value):
@@ -133,11 +154,14 @@ class _Resources:
     @property
     def probe(self):return self._connections['probe']
 
-    def check_deadline(self):
+    def _live(self):
         if self._closed:
             raise Refusal('resources_closed')
         if self._tainted:
             raise Refusal('resources_tainted')
+
+    def check_deadline(self):
+        self._live()
         return remaining_seconds(self._deadline)
 
 
@@ -145,8 +169,9 @@ class _FiniteResources(_Resources):
     __slots__ = ()
 
     @contextmanager
-    def transaction(self,purpose,*,_read_only=False):
+    def transaction(self,purpose,*,_read_only=False,_repeatable=True):
         self.check_deadline()
+        if self._shutdown_deadline is not None:raise Refusal('resources_draining')
         if type(self) is SeedResources:current_seed_resources(self._config,self._deadline)
         if purpose not in self._connections:raise Refusal('resources_purpose')
         if self._in_transaction:raise Refusal('resources_transaction')
@@ -156,7 +181,8 @@ class _FiniteResources(_Resources):
             with private_driver_logs(),_driver_deadline(self._deadline):
                 with connection.transaction():
                     if _read_only:
-                        connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+                        connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY'
+                            if _repeatable else 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY')
                     milliseconds=str(max(1,math.floor(self.check_deadline()*1000)))
                     connection.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true), "
                         "pg_catalog.set_config('lock_timeout',%s,true)",(milliseconds,milliseconds))
@@ -186,12 +212,71 @@ class SeedResources(_FiniteResources):
         from .catalog import observe
         return observe(self)
 
+    def catalog(self):
+        from .catalog import validated_seed
+        return validated_seed(self)
+
     @property
     def installer_enrollment(self):return self._connections['installer_enrollment']
 
 
-class CoreResources(_Resources):
+class CoreResources(_FiniteResources):
     __slots__ = ()
+
+    def begin_shutdown(self,deadline):
+        try:
+            if remaining_seconds(deadline)>self._config.limits['shutdown_seconds']:
+                raise Refusal('resources_shutdown')
+        except Refusal:raise Refusal('resources_shutdown') from None
+        current=self._shutdown_deadline
+        object.__setattr__(self,'_shutdown_deadline',deadline if current is None else min(current,deadline))
+
+    def observe_service_catalog(self):
+        from .catalog import observe_service
+        return observe_service(self)
+
+    @contextmanager
+    def request_connection(self,purpose,*,deadline):
+        """Reuse the two owned sessions under one caller's absolute request cap.
+
+        C04 owns its top-level transaction and cleanup. There is no enclosing
+        transaction/savepoint, executor, reconnect, or automatic write retry.
+        """
+        self._live()
+        if self._shutdown_deadline is not None:raise Refusal('resources_draining')
+        if purpose not in _CORE_PURPOSES:raise Refusal('resources_purpose')
+        if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):
+            raise Refusal('resources_deadline')
+        if self._in_transaction:raise Refusal('resources_transaction')
+        from cortex_core.auth import AuthError
+        from cortex_core.records import RecordError
+        connection=self._connections[purpose]
+        def idle():
+            from psycopg.pq import TransactionStatus
+            try:
+                return (not connection.closed and connection.autocommit is True
+                    and connection.info.transaction_status==TransactionStatus.IDLE)
+            except Exception:return False
+        object.__setattr__(self,'_in_transaction',True)
+        try:
+            with private_driver_logs(),_driver_deadline(deadline):
+                if not idle():raise Refusal('resources_request')
+                milliseconds=str(max(1,math.floor(remaining_seconds(deadline)*1000)))
+                connection.execute("SELECT pg_catalog.set_config('statement_timeout',%s,false), "
+                    "pg_catalog.set_config('lock_timeout',%s,false)",(milliseconds,milliseconds))
+                yield connection
+                remaining_seconds(deadline)
+                if not idle():raise Refusal('resources_request')
+        except BaseException as error:
+            if isinstance(error,(AuthError,RecordError)) and error.code in {
+                    'unauthenticated','forbidden','scope_mismatch','invalid_input','conflict','gone'}:
+                try:remaining_seconds(deadline);reusable=idle()
+                except Refusal:reusable=False
+                if reusable:raise
+            object.__setattr__(self,'_tainted',True)
+            if isinstance(error,(Refusal,KeyboardInterrupt,SystemExit)):raise
+            raise Refusal('resources_request') from None
+        finally:object.__setattr__(self,'_in_transaction',False)
 
 
 class MigrationResources(_Resources):
@@ -223,21 +308,24 @@ def current_seed_resources(config, deadline):
     return current
 
 
-def _close(connections):
+def _close(connections,*,deadline=None):
+    if deadline is None:deadline=time.monotonic()+1
     failed = False
     for connection in reversed(list(connections.values())):
         try:
-            with private_driver_logs():connection.close()
+            with private_driver_logs(),_driver_deadline(deadline):connection.close()
         except Exception:
             failed = True
     return failed
 
 
 @contextmanager
-def _open(config, *, custody, deadline, mode):
+def _open(config, *, custody, deadline, mode,_shutdown=None):
     config_mode='seed' if mode=='bootstrap' else mode
     if type(config) is not BootstrapConfig or config.mode != config_mode:
         raise Refusal('resources_mode')
+    if _shutdown is not None and (type(_shutdown) is not ShutdownBudget or _shutdown._config is not config or mode!='serve'):
+        raise Refusal('resources_shutdown')
     if any(name.startswith('PG') and value for name,value in os.environ.items()):
         raise Refusal('resources_environment')
     remaining_seconds(deadline, connecting=True)
@@ -250,8 +338,10 @@ def _open(config, *, custody, deadline, mode):
     try:
         purposes={'bootstrap':('bootstrap',),'seed':_SEED_PURPOSES,'serve':_CORE_PURPOSES,'migrate':_MIGRATE_PURPOSES}[mode]
         for purpose in purposes:
-            connection, certificate = _connect(config,custody,purpose,deadline)
+            if _shutdown is not None and _shutdown.deadline is not None:raise Refusal('resources_draining')
+            connection, certificate = _connect(config,custody,purpose,deadline,_shutdown=_shutdown)
             connections[purpose] = connection  # ownership precedes any further check
+            if _shutdown is not None and _shutdown.deadline is not None:raise Refusal('resources_draining')
             remaining_seconds(deadline)
             if _certificate(config)[1] != certificate:
                 raise Refusal('resources_changed')
@@ -265,7 +355,11 @@ def _open(config, *, custody, deadline, mode):
     finally:
         if token is not None:_SEED.reset(token)
         if carrier is not None:object.__setattr__(carrier,'_closed',True)
-        cleanup_failed = _close(connections)
+        cleanup_deadline=carrier._shutdown_deadline if carrier is not None else None
+        if _shutdown is not None and _shutdown.deadline is not None:
+            cleanup_deadline=_shutdown.deadline if cleanup_deadline is None else min(cleanup_deadline,_shutdown.deadline)
+        if cleanup_deadline is None:cleanup_deadline=time.monotonic()+config.limits['shutdown_seconds']
+        cleanup_failed = _close(connections,deadline=cleanup_deadline)
         if cleanup_failed and not failed:
             raise Refusal('resources_cleanup')
 
@@ -274,8 +368,8 @@ def open_seed_resources(config, *, custody, deadline):
     return _open(config,custody=custody,deadline=deadline,mode='seed')
 
 
-def open_core_resources(config, *, custody, deadline):
-    return _open(config,custody=custody,deadline=deadline,mode='serve')
+def open_core_resources(config, *, custody, deadline,_shutdown=None):
+    return _open(config,custody=custody,deadline=deadline,mode='serve',_shutdown=_shutdown)
 
 
 def open_migration_resources(config, *, custody, deadline):

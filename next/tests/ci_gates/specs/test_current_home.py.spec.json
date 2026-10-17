@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_current_home.py",
+  "source_sha256": "1a0af2eb0fda5ea91d575152dd4030bc969a14abff01adb4abca2893d01ea15f",
+  "tests": {
+    "next/tests/ci_gates/tests/test_current_home.py": "1a0af2eb0fda5ea91d575152dd4030bc969a14abff01adb4abca2893d01ea15f"
+  },
+  "expected_nodes": [
+    "test_current_home.CurrentHome.test_current_runtime_bindings_and_lifecycle_are_admitted"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "New deciding current-source assertion must execute; source-only",
+  "mutation": {
+    "before": "self.assertIn(RUNTIME+name,self.manifest()['run'])",
+    "after": "self.assertNotIn(RUNTIME+name,self.manifest()['run'])"
+  }
+}

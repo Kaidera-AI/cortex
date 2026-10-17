@@ -981,6 +981,15 @@
       "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
     },
     {
+      "file": "src/cortex_core/runtime/resources.py",
+      "owner": "_FiniteResources.transaction",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "8428eded23c3e24d87e19ea92bf82927af65cdff705e0babb9ff83b826d6c6e7",
+      "classification": "Day2_fixed_readonly_transaction_level_choice; two_literal_SET_branches; no_canonical_write; native_HELD"
+    },
+    {
       "file": "src/cortex_core/runtime/role_grants.py",
       "owner": "<module>",
       "verb": "UPDATE",
