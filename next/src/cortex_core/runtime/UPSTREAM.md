@@ -37,3 +37,12 @@ reject alternate numeric IP and ambiguous double-leading-slash vault spellings.
 The causal helper reuses the shared AssertionResult/report/classifier, executing
 the same exact node healthy, mutant and restored; it admits no skipped, setup,
 undeclared-failure or missing-code-witness result. No new outcome parser.
+
+The fixed PostgreSQL connector uses stock `psycopg==3.2.9`, upstream
+https://github.com/psycopg/psycopg, tag `3.2.9`, LGPL-3.0-or-later. Retain its
+distribution license in the installed closure. No driver implementation is
+copied or forked. Source tests use the pure Python wheel
+`psycopg-3.2.9-py3-none-any.whl`, SHA256
+`01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6`,
+with the existing native libpq. This source-test environment does not qualify
+either target's installer closure or prove an actual TLS connection by itself.
