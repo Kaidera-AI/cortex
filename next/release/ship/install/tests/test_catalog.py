@@ -317,32 +317,37 @@ class ServeRefused(ServeBase):
 
 
 class LedgerGrantText(Base):
-    """Kai Option A, bounded (J06-startup-ledger-access-v1): the API login's schema-ledger access is provisioned in render_post, never to PUBLIC/request group/probe.
-    A real PostgreSQL proof showed the table grant alone is DENIED (the login has no schema USAGE): the schema USAGE is the smallest addition and is listed separately."""
+    """Kai Option A, bounded (J06-startup-ledger-access-v1): the API login's schema-ledger access is provisioned by its OWN installer-owned renderer (render_ledger_grant, run in the
+    post phase after the migrations), never to PUBLIC/request group/probe, and render_post stays byte-for-byte what the nine PG methods run. A real PostgreSQL proof showed the table
+    grant alone is DENIED (the login has no schema USAGE): the schema USAGE is the smallest addition and is listed separately.
+    (Test correction after the RED commit 5b6b9faa: it first asserted these lines inside render_post, which the nine PG bodies run against a stand-in without the ledger.)"""
 
-    def test_render_post_grants_only_the_exact_api_login_the_ledger_select_and_schema_usage(self):
+    def bind(self):
         from _fixtures import config, make_vault
         vault, _ = make_vault()
-        b = R.bind(config(vault))
-        sql = R.render_post(b)
+        return R.bind(config(vault))
+
+    def test_render_ledger_grant_gives_only_the_exact_api_login_the_ledger_select_and_schema_usage(self):
+        b = self.bind()
+        sql = R.render_ledger_grant(b)
         api = b.logins['api_request']
         self.assertIn(f'GRANT USAGE ON SCHEMA core TO "{api}";', sql)
         self.assertIn(f'GRANT SELECT ON core.schema_migrations TO "{api}";', sql)
-        grants = [l for l in sql.splitlines() if 'schema_migrations' in l or 'ON SCHEMA core' in l]
+        grants = [l for l in sql.splitlines() if l.startswith('GRANT') or l.startswith('REVOKE')]
         self.assertEqual(len(grants), 2, grants)
         for l in grants:
             for forbidden in ('PUBLIC', REQUEST_GROUP, VERIFIER_GROUP, b.logins['probe'], b.logins['migrator'], b.logins['bootstrap'], b.logins['installer_enrollment']):
                 self.assertNotIn(forbidden, l)
 
-    def test_the_grants_run_inside_the_post_transaction_before_the_membership_audit(self):
-        from _fixtures import config, make_vault
-        vault, _ = make_vault()
-        sql = R.render_post(R.bind(config(vault)))
-        lines = sql.splitlines()
-        begin, commit = lines.index('BEGIN;'), lines.index('COMMIT;')
-        at = [i for i, l in enumerate(lines) if 'schema_migrations' in l or 'ON SCHEMA core' in l]
-        audit = next(i for i, l in enumerate(lines) if l.startswith('DO $$ DECLARE bad'))
-        self.assertTrue(all(begin < i < audit < commit for i in at), (begin, at, audit, commit))
+    def test_the_ledger_script_is_one_transaction_that_stops_on_error(self):
+        lines = R.render_ledger_grant(self.bind()).splitlines()
+        self.assertEqual(lines[0], '\\set ON_ERROR_STOP on')
+        self.assertEqual((lines[1], lines[-2]), ('BEGIN;', 'COMMIT;'))
+
+    def test_render_post_is_unchanged_by_the_ledger_grant(self):
+        sql = R.render_post(self.bind())
+        self.assertNotIn('schema_migrations', sql)
+        self.assertNotIn('ON SCHEMA core', sql)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-"""REAL-PostgreSQL ACL proof for the bounded startup-ledger access (J06-startup-ledger-access-v1, Kai Option A): after the installer's roles-post, the exact configured API
+"""REAL-PostgreSQL ACL proof for the bounded startup-ledger access (J06-startup-ledger-access-v1, Kai Option A): after the installer's roles-post and roles-ledger (render_ledger_grant), the exact configured API
 login can SELECT core.schema_migrations and nothing else of core; probe, the request group and any other role are denied; nothing goes to PUBLIC.
 The schema is built by the REAL migration SQL in manifest order THROUGH api-replay-0004 (the first ten): later migrations need the pgvector extension, which the
 Homebrew PostgreSQL does not have; the full 21-migration run belongs to the PG-gate image (CORTEX_ACL_THROUGH=<id> selects the last migration to apply).
@@ -41,6 +41,7 @@ class LedgerAcl(unittest.TestCase):
                 break
         assert applied[-1] == THROUGH, applied
         cls.c.psql(R.render_post(cls.b))
+        cls.c.psql(R.render_ledger_grant(cls.b))
         cls.c.psql('CREATE ROLE stranger LOGIN')
 
     @classmethod
@@ -79,6 +80,7 @@ class LedgerAcl(unittest.TestCase):
 
     def test_5_rerunning_post_and_closing_the_finite_logins_keeps_exactly_that_access(self):
         self.c.psql(R.render_post(self.b))
+        self.c.psql(R.render_ledger_grant(self.b))
         self.c.psql(R.render_close(self.b, True))
         r = self.run_as(self.api, SELECT)
         self.assertEqual((r.returncode, r.stdout.strip()), (0, '1'), r.stderr)
