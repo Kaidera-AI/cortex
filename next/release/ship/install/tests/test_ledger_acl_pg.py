@@ -87,5 +87,83 @@ class LedgerAcl(unittest.TestCase):
         self.assertIn('permission denied', self.run_as(self.probe, SELECT).stderr)
 
 
+class ProvisionStepsPg(unittest.TestCase):
+    """The same provisioning through roles.provision_steps (secrets as BOUND parameters, psql \\bind on PostgreSQL 16+) gives the same roles, flags and ACL as the psql scripts."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.c = P.Cluster()
+        cls.vault, cls.values = make_vault()
+        cls.b = R.bind(config(cls.vault))
+        cls.c.psql(LEDGER)
+        cls.c.psql('CREATE ROLE cx_boot LOGIN SUPERUSER')
+        cls.api = cls.b.logins['api_request']
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.c.stop()
+
+    def run_steps(self, phase, values=None, ack=False):
+        """one transaction like Core's .transaction('bootstrap'): each step in order; the secret travels only as the bound parameter"""
+        self.assertTrue(hasattr(R, 'provision_steps'), 'roles.provision_steps')
+        lines = ['\\set ON_ERROR_STOP on', 'BEGIN;']
+        for sql, purpose in R.provision_steps(self.b, phase, seed_ack=ack):
+            if purpose is None:
+                lines.append(sql.rstrip(';') + ';')
+            else:
+                lines.append(sql.replace('%s', '$1') + f" \\bind '{(values or self.values)[purpose]}' \\g")
+        lines.append('COMMIT;')
+        return self.c.psql('\n'.join(lines) + '\n', check=False)
+
+    def test_1_pre_creates_the_four_logins_with_policy_flags_and_scram(self):
+        r = self.run_steps('pre')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        got = {x[0]: x for x in self.c.rows(P.FLAGS)}
+        for p in ('migrator', 'api_request', 'probe', 'installer_enrollment'):
+            self.assertEqual(got[LOGINS[p]], P.flag_row(LOGINS[p], R.load_roles()[p]), p)
+        hashes = dict(self.c.rows("SELECT rolname,left(rolpassword,14) FROM pg_authid WHERE rolname LIKE 'cx\\_%' OR rolname LIKE 'kaidera-%'"))
+        for p in ('migrator', 'api_request', 'probe', 'installer_enrollment'):
+            self.assertEqual(hashes[LOGINS[p]], 'SCRAM-SHA-256$', p)
+
+    def test_2_the_bound_secret_never_appears_in_statement_text(self):
+        self.assertTrue(hasattr(R, 'provision_steps'))
+        text = '\n'.join(s[0] for s in R.provision_steps(self.b, 'pre'))
+        for v in self.values.values():
+            self.assertNotIn(v, text)
+
+    def test_3_a_short_secret_creates_nothing_and_leaves_no_password_setting(self):
+        self.assertTrue(hasattr(R, 'provision_steps'), 'roles.provision_steps')
+        other = P.Cluster()
+        try:
+            short = {k: 'short' for k in self.values}
+            lines = ['\\set ON_ERROR_STOP on', 'BEGIN;']
+            for sql, purpose in R.provision_steps(self.b, 'pre'):
+                lines.append(sql.rstrip(';') + ';' if purpose is None else sql.replace('%s', '$1') + f" \\bind '{short[purpose]}' \\g")
+            lines.append('COMMIT;')
+            r = other.psql('\n'.join(lines) + '\n', check=False)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('secret_missing_or_short:', r.stderr)
+            self.assertEqual(other.rows("SELECT count(*) FROM pg_roles WHERE rolname LIKE 'cx\\_%' OR rolname LIKE 'kaidera-%'"), [('0',)])
+        finally:
+            other.stop()
+
+    def test_4_post_ledger_and_close_steps_apply_and_give_the_same_acl_as_the_scripts(self):
+        self.c.migrate()
+        for phase, ack in (('post', False), ('ledger', False)):
+            r = self.run_steps(phase, ack=ack)
+            self.assertEqual(r.returncode, 0, (phase, r.stderr))
+        self.c.psql("INSERT INTO core.schema_migrations VALUES ('core-0001', repeat('a',64))")
+        self.assertEqual(self.run_as_api(SELECT).stdout.strip(), '1')
+        r = self.run_steps('close', ack=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        got = {x[0]: x for x in self.c.rows(P.FLAGS)}
+        for p in ('migrator', 'installer_enrollment'):
+            self.assertEqual(got[LOGINS[p]][1], 'f', p)
+        self.assertEqual(self.run_as_api(SELECT).stdout.strip(), '1')
+
+    def run_as_api(self, sql):
+        return self.c.psql(sql, user=self.api, check=False)
+
+
 if __name__ == '__main__':
     unittest.main()
