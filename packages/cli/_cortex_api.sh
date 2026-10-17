@@ -277,9 +277,11 @@ try:
         fail('redirect_refused')
     if status >= 400:
         error = result.get('error')
-        if (type(error) is not dict or not set(error) <= {'code', 'capability', 'state', 'reason', 'retryable'}
+        if (type(error) is not dict or not set(error) <= {'code', 'capability', 'state', 'reason', 'retryable', 'message'}
                 or type(error.get('code')) is not str or not error['code']
                 or type(error.get('retryable')) is not bool
+                or ('message' in error and (type(error['message']) is not str
+                    or len(error['message'].encode('utf-8')) > 256))
                 or any(value is not None and type(value) is not str for name, value in error.items() if name != 'retryable')):
             fail('invalid_response')
         print(json.dumps({'error': error}, separators=(',', ':')), file=sys.stderr)
