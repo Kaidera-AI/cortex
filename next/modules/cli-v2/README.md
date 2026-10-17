@@ -32,9 +32,13 @@ curl. Bob still owns wrapper/service cancellation propagation.
 Responses are bounded to 1MiB and decoded once as unambiguous UTF-8 JSON.
 Malformed responses and transport failures emit one typed JSON refusal on stderr.
 
-The HTTP design is accepted in `J06-http-composition-v1.md`: public `/health`
-must report `component=cortex`,
-`status=ready` and the projected installation UUID before Bearer transmission;
+The HTTP design in `J06-http-composition-v1.md` is reconciled by Cox's explicit
+Option A health ruling. Public `/health` must return HTTP 200 and exactly four
+JSON fields: `component=cortex`, `status=ok`, `readiness=ready`, and the exact
+projected `installation_id`. Every condition must hold before Bearer transmission.
+Extra or duplicate fields, missing readiness, nonready states, malformed types,
+wrong component/identity, and the legacy `status=ready` shape refuse through the
+existing strict JSON decoder and transport. There is no legacy fallback;
 successful mutations must contain `receipt` with canonical nonzero UUID
 `record_id,event_id`, positive integer `revision`, and lower-case SHA256
 `payload_sha256`. Legacy 2xx memory responses without that receipt refuse.
@@ -84,15 +88,22 @@ metadata or summary prefix is added; legacy `--goal` is rejected. No command
 fabricates a capability or retries against v1. Actual enrolled API capabilities
 remain Core's responsibility. Loopback command tests grant no SQL/installed credit.
 
-## Open actual health join at retry4
+## Health contract reconciliation
 
-The accepted earlier helper predicate still requires `status=ready` from public
-health. Actual published Core service/status source uses `status=ok` together
-with explicit `readiness=ready`. The new `test_health_join.py` derives its packet
-from actual bound Core services with explicit SQL/policy fixtures, then feeds
-that packet through the sole helper. Two BODY failures expose the mismatch:
-actual ready Core refuses, while legacy ready without readiness is admitted.
-The old30 transport assertion bodies and their packet apparatus remain byte
-unchanged under the namespace amendment. Cox must reconcile the sole health
-contract before that predicate or frozen packet apparatus changes. This source
-publication is PARTIAL and does not claim a functioning installed command join.
+Cox's retry5 ruling is recorded in
+`2026-10-17_cox_finn_a-day2-health-ruling.md`, SHA256
+`5be624ca46df50462669085064b86d95671d102876dd9e001061e64af97113cd`.
+`test_health_join.py` derives packets from actual bound Core services with
+explicit SQL/policy fixtures. Its three test cases remain byte-identical to
+the committed BODY-RED source. Additional controls cover exact packet fields,
+readiness states/types, component and identity, duplicate/malformed JSON,
+HTTP status and legacy-status refusal before any bearer-bearing request.
+
+The separate test-contract commit changes only old synthetic success-health
+packet inputs to canonical `ok` plus `readiness=ready`. All existing assertion
+calls, expected outcomes, payload/private-FD/idempotency/receipt negatives and
+v1 baseline bytes are preserved. Original packets and all RED histories remain
+in the immutable handoff evidence. The explicit old wrong-installation packet
+is retained; a canonical wrong-installation case separately isolates that guard.
+These source fixtures grant no SQL enrollment, installed, native or release
+qualification. Cox owns the final independent source review and composition.
