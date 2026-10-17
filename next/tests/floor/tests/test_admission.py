@@ -16,7 +16,7 @@ NODE = "test_probe.Probe.test_expected"
 
 def process(code=1, phase="test", ids=None, tests_run=1, errors=None):
     ids = [NODE] if ids is None else ids
-    value = dict(tests_run=tests_run, failures=[
+    value = dict(tests_run=tests_run, selected=[NODE], skipped=[], failures=[
         dict(id=node, phase=phase, is_assertion=True, traceback="AssertionError: synthetic",
              exception_type="builtins.AssertionError") for node in ids], errors=errors or [])
     return subprocess.CompletedProcess(["synthetic-control"], code,
