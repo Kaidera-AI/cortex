@@ -273,7 +273,7 @@ def test_launcher_feeds_finns_actual_v2_helper(tmp_path, core_python):
 
         def do_GET(self):
             requests.append((self.path, dict(self.headers)))
-            body = ({"component": "cortex", "status": "ready",
+            body = ({"component": "cortex", "status": "ok", "readiness": "ready",
                      "installation_id": value["installation_id"]}
                     if self.path == "/health" else {"record": {"id": "fixture"}})
             raw = json.dumps(body).encode()
