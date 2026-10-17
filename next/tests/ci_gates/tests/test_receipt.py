@@ -182,6 +182,7 @@ class Receipt(unittest.TestCase):
                         traceback="AssertionError: synthetic BODY", exception_type="builtins.AssertionError")]
                 stdout = ("CORTEX_LOADED_SOURCE=" + json.dumps(dict(source="guard.py",
                           sha256=sha(observed), origin=str(root/"guard.py"))) + "\n" +
+                          "CORTEX_LOADED_TESTS=" + json.dumps(spec["tests"]) + "\n" +
                           "CORTEX_TEST_RESULT=" + json.dumps(value) + "\n").encode()
                 (root/(phase+".out")).write_bytes(stdout)
                 (root/(phase+".err")).write_bytes(b"")
@@ -192,7 +193,7 @@ class Receipt(unittest.TestCase):
             run_path.write_text(json.dumps(packet))
             self.assertEqual(gate.mutation_complete(root, ["guard.py"], [spec_path],
                 [run_path])["body_kills"], 1)
-            for defect in ("spec", "source", "log", "runner"):
+            for defect in ("spec", "source", "log", "runner", "tests"):
                 with self.subTest(defect=defect):
                     changed = copy.deepcopy(packet)
                     if defect == "spec":
@@ -201,8 +202,15 @@ class Receipt(unittest.TestCase):
                         (root/"guard.py").write_bytes(b"changed")
                     elif defect == "log":
                         changed["mutant"]["stdout_sha256"] = "0"*64
-                    else:
+                    elif defect == "runner":
                         changed["mutant"]["returncode"] = 3
+                    else:
+                        data = Path(changed["mutant"]["stdout"]).read_text()
+                        poisoned = data.replace(spec["tests"]["test_guard.py"], "0"*64)
+                        path = root/"changed-tests.out"
+                        path.write_text(poisoned)
+                        changed["mutant"]["stdout"] = str(path)
+                        changed["mutant"]["stdout_sha256"] = sha(path.read_bytes())
                     run_path.write_text(json.dumps(changed))
                     with self.assertRaises(gate.ReceiptRefusal):
                         gate.mutation_complete(root, ["guard.py"], [spec_path], [run_path])
