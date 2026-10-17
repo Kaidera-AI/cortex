@@ -256,7 +256,7 @@ class Receipt(unittest.TestCase):
             git("config", "user.email", "fixture@example.invalid")
             expected = {"guard.py", ".github/next-offline-suites.json",
                         "next/contracts/core-writer-inventory.json", "next/tests/floor/profile.json",
-                        ".github/workflows/ci.yml"}
+                        ".github/workflows/ci.yml", ".github/workflows/next-offline.yml"}
             for name in expected | {"documentation.json"}:
                 path = root/name
                 path.parent.mkdir(parents=True, exist_ok=True)
