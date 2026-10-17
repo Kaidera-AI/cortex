@@ -3,7 +3,7 @@
   "source": "next/tests/ci_gates/receipt.py",
   "source_sha256": "c4296a71bf51038bfafd545728f29d794e3c726439bddf32846ac19e03a8ac2c",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "8aa9915c87a1a8f21d254a91913ab10843a07b7954c89179e40689238ce78c8f"
+    "next/tests/ci_gates/tests/test_receipt.py": "bd57374cdcc12506fd5d64a4b97f46d1cd0c1ea0f97db262072138c657447b95"
   },
   "expected_nodes": [
     "test_receipt.Receipt.test_real_git_composition_not_pr_head"

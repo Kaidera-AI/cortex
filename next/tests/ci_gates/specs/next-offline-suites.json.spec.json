@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": ".github/next-offline-suites.json",
+  "source_sha256": "c097c91cfc3747851510d009700f1ece27584d29babc63d9bb313e8049fdf07d",
+  "tests": {
+    "next/tests/ci_gates/tests/test_receipt.py": "bd57374cdcc12506fd5d64a4b97f46d1cd0c1ea0f97db262072138c657447b95"
+  },
+  "expected_nodes": [
+    "test_receipt.SharedAdmission.test_day2_required_suites_are_RUN"
+  ],
+  "kind": "inventory",
+  "invariant": "all three Mike suites and Nemo compatibility contract are RUN",
+  "mutation": {
+    "before": "\"next/src/cortex_core/compat/tests/test_contract.py\"",
+    "after": "\"next/src/cortex_core/compat/tests/test_unadmitted.py\""
+  }
+}

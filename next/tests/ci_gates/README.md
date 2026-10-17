@@ -31,3 +31,5 @@ Integration owner must admit these three files into the existing strict manifest
 The shared manifest/workflows are outside this dispatch. Unit success is not hosted
 green, real-PG execution, native installation, paired identity, smoke or release credit.
 The other authors still owe their own per-source causal proofs.
+
+Day-2 SharedAdmission checks all three Mike suites and Nemo compatibility contract are RUN and preserves the independently pinned prior admissions/controls. Strict inventory still discovers every next test. Native PostgreSQL execution remains separate from offline passes.
