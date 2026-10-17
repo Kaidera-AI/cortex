@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/receipt.py",
-  "source_sha256": "c4296a71bf51038bfafd545728f29d794e3c726439bddf32846ac19e03a8ac2c",
+  "source_sha256": "84d3f8edbb862e9e50efa8faf80c5f61893eb692bec1f458cf61d104dbc52fd1",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "bd57374cdcc12506fd5d64a4b97f46d1cd0c1ea0f97db262072138c657447b95"
+    "next/tests/ci_gates/tests/test_receipt.py": "d20160b2ebbad908ff91eed8b3fbd4a9d388bedf47982b51f7f210512ba4b722"
   },
   "expected_nodes": [
     "test_receipt.Receipt.test_real_git_composition_not_pr_head"

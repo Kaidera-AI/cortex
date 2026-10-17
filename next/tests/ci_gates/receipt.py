@@ -364,6 +364,14 @@ def collect_history(repository, head, output_directory, fetch=None):
     (output/"index.json").write_text(json.dumps(index, indent=2)+"\n")
     return index
 
+def changed_sources(root, base):
+    """Independently include the source and explicit gate inventory data."""
+    return subprocess.check_output(["git", "-C", str(root), "diff", "--name-only",
+        base, "HEAD", "--", "*.py", "next/tests/floor/profile.json",
+        ".github/next-offline-suites.json", "next/contracts/core-writer-inventory.json"],
+        text=True).splitlines()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("history", "composition", "mutation", "collect"))
@@ -387,9 +395,7 @@ def main():
         elif args.mode == "composition":
             result = merged_tree(value["repository"], value["expected"], value["receipts"])
         else:
-            changed = subprocess.check_output(["git", "-C", value["root"], "diff",
-                "--name-only", value["base"], "HEAD", "--", "*.py",
-                "next/tests/floor/profile.json"], text=True).splitlines()
+            changed = changed_sources(value["root"], value["base"])
             require(set(changed) == set(value["changed_sources"]), "mutation_changed_source_inventory")
             head = subprocess.check_output(["git", "-C", value["root"], "rev-parse", "HEAD"], text=True).strip()
             require(all(read_json(path).get("source_commit") == head for path in value["runs"]),

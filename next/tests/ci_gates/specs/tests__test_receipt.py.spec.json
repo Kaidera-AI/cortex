@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/tests/test_receipt.py",
-  "source_sha256": "bd57374cdcc12506fd5d64a4b97f46d1cd0c1ea0f97db262072138c657447b95",
+  "source_sha256": "d20160b2ebbad908ff91eed8b3fbd4a9d388bedf47982b51f7f210512ba4b722",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "bd57374cdcc12506fd5d64a4b97f46d1cd0c1ea0f97db262072138c657447b95"
+    "next/tests/ci_gates/tests/test_receipt.py": "d20160b2ebbad908ff91eed8b3fbd4a9d388bedf47982b51f7f210512ba4b722"
   },
   "expected_nodes": [
     "test_receipt.Receipt.test_history_complete"
