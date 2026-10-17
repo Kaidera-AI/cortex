@@ -273,6 +273,8 @@ class Receipt(unittest.TestCase):
 
 class SharedAdmission(unittest.TestCase):
     REQUIRED = {
+        "next/release/ship/install/tests/test_sign.py",
+        "next/tests/ci_gates/tests/test_sign_home.py",
         "next/tests/ci_gates/tests/test_receipt.py",
         "next/tests/floor/tests/test_admission.py",
         "next/tests/live_contract/tests/test_live_contract.py",
