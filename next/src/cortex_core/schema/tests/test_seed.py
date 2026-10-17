@@ -343,7 +343,7 @@ class DurableSeedTests(unittest.TestCase):
     def refuse(self, action):
         with self.assertRaises(ValueError) as observed:
             action()
-        self.assertIsInstance(getattr(observed.exception, 'reason', None), str,
+        self.assertIsInstance(observed.exception.reason, str,
                               'seed failure must have a sanitized typed reason')
         return observed.exception
 
