@@ -32,3 +32,16 @@ Cox's custody and Finn's seed (make_secret, write_config, provision_roles, boots
 install exists; `--only load` is the unit entry. The pinned release key line is the 7BBB4B7E0CE8852E key from the design pack: its byte equality with the KOS
 public-key file is not yet checked here (open). `--trust-key-file` is explicit and printed. Tests: `tests/test_sign.py` (needs `minisign` and sh; a missing tool FAILS),
 causal controls `tests/mutate_sign.py` (12 mutants). Source/file proof only: no installed, paired or signed-candidate credit.
+
+## J06 sole catalog validator and the closure package (Day 2 continuation 2)
+`roles.validate_catalog(config, observation, *, phase='seed') -> dict | RoleRefusal` is the ONE policy check of Cox's raw read-only catalog observation
+(runtime/catalog.py, J06-catalog-observation-v1): same five-purpose policy and flags as `render_*`; the actual bootstrap session (name AND oid) and database; five
+roles; the two fixed NOLOGIN groups with no privileges or memberships; EVERY edge incident on them (foreign incoming included) must equal the one set-only
+api_request membership; no service role (api_request, probe, installer_enrollment) owns the database or a protected schema/relation; bindings are absent (fresh)
+or exactly the three revision-1 rows of ONE operation (replay). Typed reasons: catalog_phase/config/shape/database/session/roles/flags:<purpose>/groups/
+membership/ownership/bindings. The result is a deep copy (detached) carrying the explicit revision INTENT (bootstrap/migrator 0 = not protected-bound;
+api_request/probe/installer_enrollment 1 = intended initial binding); an observed revision is never copied as authority. Source fixtures are not production
+authority: only Cox's own observer feeds it. `package_closure.py --out DIR` stages the SAME roles.py and the SAME runtime-operations-v1.json as
+`cortex_ship/install/` plus `cortex_ship/receipt.json` (digests); standard library only, so the closure is identical for linux/amd64 and linux/arm64; the
+packaged module reads only its packaged contract (no tree fallback). Wiring the staged tree into the API image (recipes/api) is the next source step; the image
+rebuild and per-arch smoke stay a separate, heavy-run gate. Controls: `tests/mutate_catalog.py` (26 mutants).

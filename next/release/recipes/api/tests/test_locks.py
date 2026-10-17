@@ -4,7 +4,10 @@ environment. Byte checks of the archive and the image smoke are the scripts in .
 import ast
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -158,6 +161,41 @@ class LockMatchesReceipt(unittest.TestCase):
         text = (HERE.parent / 'UPSTREAM.md').read_text().lower()
         for name, (version, _) in read_lock('arm64').items():
             self.assertIn(f'| {name} {version}', text, f'UPSTREAM.md needs a table row for {name} {version}')
+
+
+class ClosureWiring(unittest.TestCase):
+    """J06: the sole catalog validator ships INSIDE the API image closure as cortex_ship.install.roles (same module bytes, same contract), on both arches."""
+    ROLES = 'COPY next/release/ship/install/roles.py /opt/cortex/next/src/cortex_ship/install/roles.py'
+    CONTRACT = 'COPY next/contracts/runtime/runtime-operations-v1.json /opt/cortex/next/src/cortex_ship/install/runtime-operations-v1.json'
+
+    def lines(self):
+        return (HERE.parent / 'Containerfile').read_text().splitlines()
+
+    def test_the_containerfile_copies_the_one_module_and_its_contract_into_the_fixed_namespace_before_bytecode_compilation(self):
+        lines = self.lines()
+        self.assertIn(self.ROLES, lines)
+        self.assertIn(self.CONTRACT, lines)
+        src = lines.index('COPY next/src/ /opt/cortex/next/src/')
+        compile_at = next(i for i, l in enumerate(lines) if 'compileall' in l)
+        self.assertLess(src, lines.index(self.ROLES))
+        self.assertLess(lines.index(self.CONTRACT), compile_at)
+
+    def test_the_copied_sources_exist_in_the_build_context_and_nothing_else_is_staged_into_cortex_ship(self):
+        self.assertTrue((NEXT / 'release/ship/install/roles.py').is_file())
+        self.assertTrue((NEXT / 'contracts/runtime/runtime-operations-v1.json').is_file())
+        extra = [l for l in self.lines() if 'cortex_ship' in l and l not in (self.ROLES, self.CONTRACT)]
+        self.assertEqual(extra, [])
+
+    def test_a_tree_laid_out_exactly_like_the_copy_lines_imports_without_package_markers(self):
+        root = Path(tempfile.mkdtemp(prefix='nix-wiring-'))
+        self.addCleanup(shutil.rmtree, root, True)
+        dest = root / 'cortex_ship/install'
+        dest.mkdir(parents=True)
+        shutil.copy(NEXT / 'release/ship/install/roles.py', dest / 'roles.py')
+        shutil.copy(NEXT / 'contracts/runtime/runtime-operations-v1.json', dest / 'runtime-operations-v1.json')
+        code = "import sys; sys.path.insert(0, sys.argv[1])\nfrom cortex_ship.install.roles import validate_catalog, load_roles; print(len(load_roles()))\n"
+        r = subprocess.run([sys.executable, '-I', '-c', code, str(root)], capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, '5'), r.stderr)
 
 
 if __name__ == '__main__':
