@@ -205,12 +205,12 @@ class InstallSpine(unittest.TestCase):
         self.prefix = self.r.tmp / 'prefix'
         self.vault = self.r.tmp / 'vault'
 
-    def run_install(self, *extra, version=None, path=None, pub=None):
+    def run_install(self, *extra, version=None, path=None, pub=None, pinned=False):
         env = dict(os.environ, PATH=path or f'{self.bin}:{os.environ["PATH"]}', STUB_LOG=str(self.log))
         if version:
             env['STUB_VERSION'] = version
         return sh(['sh', str(self.r.dir / 'install.sh'), '--vault', str(self.vault), '--project', 'demo', '--prefix', str(self.prefix),
-                   '--trust-key-file', str(pub or self.r.pub), '--platform', 'linux-arm64', *extra], env=env)
+                   *([] if pinned else ['--trust-key-file', str(pub or self.r.pub)]), '--platform', 'linux-arm64', *extra], env=env)
 
     def calls(self):
         return self.log.read_text().splitlines() if self.log.exists() else []
@@ -250,6 +250,12 @@ class InstallSpine(unittest.TestCase):
         self.log = fresh.tmp / 'stub.log'
         self.prefix = fresh.tmp / 'prefix'
         self.vault = fresh.tmp / 'vault'
+
+    def test_without_a_trust_key_file_the_pinned_release_key_decides_and_a_foreign_signature_is_refused(self):
+        res = self.run_install(pinned=True)
+        self.assertEqual((res.returncode, reason(res)), (2, 'release_signature_invalid'))
+        self.assertEqual(self.effects(), [])
+        self.assertFalse(self.prefix.exists())
 
     def test_a_missing_minisign_is_a_typed_refusal_with_no_effects(self):
         res = self.run_install(path=f'{self.bin}:/usr/bin:/bin')
