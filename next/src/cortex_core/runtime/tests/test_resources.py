@@ -344,4 +344,53 @@ class TransactionFailureTests(unittest.TestCase):
             self.assertLess(time.monotonic()-started,0.7,'rollback extended original SQL deadline')
 
 
+class MigrationResourceTests(unittest.TestCase):
+    setUp=ResourceTests.setUp
+    vault=ResourceTests.vault
+    driver=ResourceTests.driver
+
+    def require_source(self):
+        self.assertIsNotNone(resources)
+        self.assertTrue(hasattr(resources,'open_migration_resources'),'actual migrator resource owner is missing')
+        return decode_config(json.dumps(self.value).encode(),mode='migrate')
+
+    def test_only_migrator_login_and_no_seed_context_or_nested_transaction(self):
+        config=self.require_source()
+        with self.vault(config) as v,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_migration_resources(config,custody=v,deadline=self.deadline) as r:
+                self.assertEqual(set(r.connections),{'migrator'})
+                with self.assertRaisesRegex(ValueError,'resources_unbound'):
+                    resources.current_seed_resources(config,self.deadline)
+                with patch('cortex_core.schema.migrate.apply_forward_migrations',return_value=['001']) as engine:
+                    self.assertEqual(r.migrate(),['001'])
+                    engine.assert_called_once_with(r.connections['migrator'])
+            self.assertEqual(self.events,['open:cortex_migrator','close:cortex_migrator'])
+
+    def test_wrong_mode_refuses_before_custody_or_driver(self):
+        self.require_source()
+        with patch.object(resources,'_driver_connect',side_effect=AssertionError('driver reached')):
+            with self.assertRaisesRegex(ValueError,'resources_mode'):
+                with resources.open_migration_resources(self.config,custody=None,deadline=self.deadline):pass
+
+    def test_failed_engine_is_private_taints_and_closes_its_owned_connection(self):
+        config=self.require_source()
+        with self.vault(config) as v,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_migration_resources(config,custody=v,deadline=self.deadline) as r:
+                with patch('cortex_core.schema.migrate.apply_forward_migrations',side_effect=RuntimeError('public-test-secret')):
+                    with self.assertRaisesRegex(ValueError,'schema_migration') as caught:r.migrate()
+                    self.assertNotIn('public-test-secret',str(caught.exception))
+                    with self.assertRaisesRegex(ValueError,'resources_tainted'):r.migrate()
+            self.assertEqual(self.events[-1],'close:cortex_migrator')
+
+    def test_engine_cannot_extend_original_deadline(self):
+        config=self.require_source()
+        with self.vault(config) as v,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_migration_resources(config,custody=v,deadline=self.deadline) as r:
+                object.__setattr__(r,'_deadline',time.monotonic()+0.15)
+                start=time.monotonic()
+                with patch('cortex_core.schema.migrate.apply_forward_migrations',side_effect=lambda c:time.sleep(1)):
+                    with self.assertRaisesRegex(ValueError,'resources_deadline'):r.migrate()
+                self.assertLess(time.monotonic()-start,0.7)
+
+
 if __name__=='__main__':unittest.main()

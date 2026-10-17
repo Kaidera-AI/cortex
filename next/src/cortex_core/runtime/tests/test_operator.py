@@ -13,6 +13,7 @@ from cortex_core.runtime.bootstrap_config import decode_config
 from cortex_core.runtime.custody import open_custody
 from cortex_core.runtime.tests.test_bootstrap_config import sample
 from cortex_core.runtime.tests.test_custody import intent,receipt,SECRET,KEY
+from cortex_core.runtime.tests.test_resources import DriverConnection
 try:
     from cortex_core.runtime import operator
 except ImportError:
@@ -146,6 +147,57 @@ class OperatorTests(unittest.TestCase):
                                     'CORTEX_API_KEY':'public-test-secret'}),patch('socket.socket',side_effect=AssertionError('network reached')):
             code,raw,eof,out,err=self.invoke()
         self.assertEqual(code,0,err);self.assertTrue(eof);self.assertNotIn(b'public.invalid',raw)
+
+
+class MigrationOperatorTests(unittest.TestCase):
+    setUp=OperatorTests.setUp
+    save=OperatorTests.save
+
+    def invoke_migration(self):
+        kr,kw=os.pipe();os.write(kw,KEY);os.close(kw)
+        out,err=io.StringIO(),io.StringIO()
+        try:
+            with redirect_stdout(out),redirect_stderr(err):
+                code=operator.main(['migrate','--config',str(self.path),'--unlock-fd',str(kr),'--key-id','test-key'])
+            return code,out.getvalue(),err.getvalue()
+        finally:os.close(kr)
+
+    def stage_role(self):
+        config=decode_config(json.dumps(self.value).encode(),mode='migrate');r,w=os.pipe()
+        try:
+            os.write(w,KEY);os.close(w)
+            with open_custody(config,unlock_fd=r,key_id='test-key') as v:v.import_credential('migrator',b'public-test-password')
+        finally:os.close(r)
+        p=self.root/'secrets/cortex/ca';p.write_bytes(b'public-test-certificate');p.chmod(0o600)
+
+    def test_actual_dispatch_uses_one_config_one_finite_login_and_existing_engine(self):
+        self.assertIsNotNone(operator);self.stage_role();events=[];calls=[]
+        def driver(**kwargs):calls.append(kwargs);return DriverConnection(kwargs['user'],events)
+        with patch('cortex_core.runtime.resources._driver_connect',side_effect=driver),patch(
+                'cortex_core.schema.migrate.apply_forward_migrations',return_value=['001','002']) as engine:
+            code,out,err=self.invoke_migration()
+        self.assertEqual(code,0,err);self.assertEqual(err,'');self.assertEqual(len(calls),1)
+        self.assertEqual(calls[0]['user'],'cortex_migrator');self.assertEqual(engine.call_count,1)
+        self.assertEqual(events,['close:cortex_migrator'])
+        self.assertEqual(json.loads(out),{'schema':'cortex.operator.v1','ok':True,'operation':'migrate',
+            'installation_id':self.value['installation_id'],'applied':['001','002']})
+        self.assertNotIn('public-test-password',out)
+
+    def test_engine_error_returns_one_typed_line_no_success_or_driver_text(self):
+        self.assertIsNotNone(operator);self.stage_role();events=[]
+        with patch('cortex_core.runtime.resources._driver_connect',return_value=DriverConnection('migrator',events)),patch(
+                'cortex_core.schema.migrate.apply_forward_migrations',side_effect=RuntimeError('public-test-secret')):
+            code,out,err=self.invoke_migration()
+        self.assertEqual(code,2);self.assertEqual(out,'');self.assertEqual(len(err.splitlines()),1)
+        self.assertEqual(json.loads(err)['error']['reason'],'schema_migration')
+        self.assertNotIn('public-test-secret',err);self.assertEqual(events,['close:migrator'])
+
+    def test_config_refusal_precedes_migration_unlock_and_sql(self):
+        self.assertIsNotNone(operator);self.path.chmod(0o644)
+        with patch.object(operator,'open_custody',side_effect=AssertionError('unlock reached')):
+            code,out,err=self.invoke_migration()
+        self.assertEqual(code,2);self.assertEqual(out,'')
+        self.assertEqual(json.loads(err)['error']['reason'],'private_file_required')
 
 
 if __name__=='__main__':unittest.main()
