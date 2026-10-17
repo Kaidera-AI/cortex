@@ -144,7 +144,7 @@ def test_db_argv_comes_from_operations(inputs):
     assert pod["spec"]["containers"][0]["command"] == resolved_vector("core-server")
     steps = {s["name"]: s for s in plan["steps"]}
     assert steps["core-init"]["argv"] == resolved_vector("core-init")
-    assert steps["core-init"]["when"] == "absent:/var/lib/cortex/core/PG_VERSION"
+    assert steps["core-init"].get("when") == "absent:/var/lib/cortex/core/PG_VERSION"
     assert steps["temporary-db"]["argv"] == resolved_vector("core-server")
 
 

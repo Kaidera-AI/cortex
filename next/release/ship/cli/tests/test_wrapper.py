@@ -148,6 +148,9 @@ def test_credential_symlink(world):
     real.chmod(0o600)
     world["cred"].unlink()
     os.symlink(real, world["cred"])
+    if hasattr(os, "lchmod"):
+        # A 0600 link must still refuse: the mode check alone would pass it.
+        os.lchmod(world["cred"], 0o600)
     assert refusal(world, call(world, render(world))) == f"credential_unsafe:{world['cred']}"
 
 
