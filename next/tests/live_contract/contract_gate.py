@@ -177,11 +177,16 @@ def bound_spec_complete(spec, binding, published_operations):
             require(bool(success) and bool(errors), "spec_incomplete")
             for response in (*success, *errors):
                 _content(response, document)
-            links = {}
+            link_names = set()
+            owned_links = []
             for response in success:
-                links.update(response.get("links", {}))
-            require(set(published_operations[key]) <= set(links), "spec_incomplete")
-            for link in links.values():
+                links = response.get("links", {})
+                require(type(links) is dict and all(type(name) is str and bool(name)
+                                                   for name in links), "spec_incomplete")
+                link_names.update(links)
+                owned_links.extend((response, link) for link in links.values())
+            require(set(published_operations[key]) <= link_names, "spec_incomplete")
+            for response, link in owned_links:
                 require(type(link) is dict and link.get("operationId") in ids
                     and type(link.get("parameters")) is dict and bool(link["parameters"]),
                     "spec_incomplete")
@@ -194,14 +199,12 @@ def bound_spec_complete(spec, binding, published_operations):
                     fields = expression.removeprefix("$response.body#/").split("/")
                     require(len(fields) == 1, "spec_incomplete")
                     field = fields[0].replace("~1", "/").replace("~0", "~")
-                    # Narrow Day-1 link preflight: a required top-level response
-                    # property. General OpenAPI runtime expressions remain the
-                    # Schemathesis job; no second expression parser is added.
-                    shapes = [media["schema"] for response in success
-                              for media in response["content"].values()]
+                    # Each actual media alternative of this containing response
+                    # must supply the field. Another status/media cannot lend it.
+                    shapes = [media["schema"] for media in response["content"].values()]
                     shapes = [_ref(document, value["$ref"]) if "$ref" in value else value
                               for value in shapes]
-                    require(any(field in shape.get("required", [])
+                    require(all(field in shape.get("required", [])
                                 and field in shape.get("properties", {}) for shape in shapes),
                             "spec_incomplete")
         return dict(operations=sorted(operations), spec_sha256=digest(spec),

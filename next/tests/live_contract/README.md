@@ -37,3 +37,5 @@ and reviewed policy in day 2. No provider is selected or called.
 No installed export has been qualified. Generated coverage, authorized outcomes,
 all-401 rejection, two-identity CRUD/foreign-ID isolation, original-ID recovery,
 bounded HTTP cleanup and both native installations remain release obligations.
+
+Link preflight retains the containing successful response and checks every admitted media alternative for its required body field. Repeated Link names in another response cannot overwrite an invalid earlier Link. This is metadata admission only.
