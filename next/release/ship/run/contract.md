@@ -84,4 +84,9 @@ reasons pass through unchanged (for example `config_shape`, `unshipped_provider_
 - day 2, real podman: `kube play` of the JSON-text pod, the `subPath` single-file secret
   projection, file ownership as Core's resolver requires, and the bootstrap run on both hosts.
   These render tests use source fixtures and are not install proof.
-- J06 custody encryption/layout/unlock is the CTO's next-slice decision; nothing here stores secrets.
+- J06 (interface v1, review/cortex/design/J06-interface-v1.md sha256 25f208b9...): the encrypted
+  vault is canonical; the `cortex-v2-<name>` podman secrets above are disposable projections of it.
+  Not yet composed, pending cox's actual custody/operator/cli source pin: the explicit unlock
+  descriptor and key id for the effectful finite steps (seed), the Core command that writes serve's
+  api_request/probe disposable projections, and the seed record's writable location. Until then the
+  unlock gate stays visibly unconfigured; nothing here stores, generates or infers a key.

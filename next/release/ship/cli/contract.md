@@ -6,6 +6,13 @@ Owner bob@helix. Accepted plan: DAY-1 + INDEX v2 (J06, J11). Interface receipt; 
 
 Status: the argv and the three-line client wire below are PROPOSED day-2 seams (cox, rework of
 row e8798066). Core's `client` mode and the projector are not implemented here; no installed credit.
+They are SUPERSEDED, not accepted: J06 interface v1 section 7 (review/cortex/design/J06-interface-v1.md,
+sha256 25f208b9...) fixes the client projection as Core's
+`python -m cortex_core.runtime.operator config client --config FILE --unlock-fd N --key-id ID
+--projection-fd M`, seven NUL-terminated fields on a private anonymous pipe, read by Finn's existing
+helper. `CORTEX_CREDENTIAL_FILE` is not a custody interface. This wrapper is not adoptable until that
+Core source, the helper's descriptor input and an explicit unlock input exist; the gate stays visibly
+unconfigured, with no default.
 
 One template, `wrapper.sh.in`, rendered once per command (`cortex-boot`, `cortex-log`,
 `cortex-search`). Placeholders: `@CLIENT@` (the frozen client), `@PROJECTOR@` (the client
@@ -54,6 +61,8 @@ Refusals (exit 2, same JSON line): `input_missing:<flag>`, `bad_argument:<arg>`,
 
 ## Open joins
 
-- finn: the credential variable name (`CORTEX_CREDENTIAL_FILE` is provisional) and the transport
-  that sends it.
-- cox: the projector command and its three-line output above.
+- finn: the descriptor the helper reads the seven-field projection from (replaces
+  `CORTEX_CREDENTIAL_FILE`).
+- cox: the actual `cortex_core.runtime.operator config client` source pin (J06 v1 section 7).
+- operator: an explicit unlock descriptor and key id per invocation; never a key path or default
+  baked into the generated wrapper.
