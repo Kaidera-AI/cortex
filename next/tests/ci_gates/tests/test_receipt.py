@@ -116,8 +116,8 @@ class Receipt(unittest.TestCase):
                 return json.dumps(responses[endpoint]).encode()
             collected = gate.collect_history("fixture/project", HEAD, root, fetch=fetch)
             self.assertEqual(len(collected["attempts"]), 2)
-            self.assertEqual(len(collected["raw_artifacts"]), 5)
-            self.assertEqual(len(called), 5)
+            self.assertEqual(len(collected["raw_artifacts"]), 6)
+            self.assertEqual(len(called), 6)
             for row in collected["raw_artifacts"]:
                 self.assertEqual(hashlib.sha256(Path(row["path"]).read_bytes()).hexdigest(), row["sha256"])
             with self.assertRaises(gate.ReceiptRefusal):
