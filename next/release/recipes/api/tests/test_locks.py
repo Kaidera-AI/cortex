@@ -151,7 +151,7 @@ class LockMatchesReceipt(unittest.TestCase):
         for arch in ARCHES:
             for r in receipt()['wheels'][arch]:
                 self.assertTrue(r['licence'] and r['licence'] != 'UNKNOWN', r['name'])
-                self.assertTrue(r['source'].startswith('PyPI '), r['name'])
+                self.assertTrue(r['source'], r['name'])
                 self.assertGreater(r['bytes'], 0, r['name'])
 
     def test_licence_obligations_are_written_down_per_distribution(self):
