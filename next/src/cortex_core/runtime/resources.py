@@ -103,13 +103,13 @@ def _connect(config, custody, purpose, deadline):
 
 
 class _Resources:
-    __slots__ = ('_config','_custody','_deadline','_connections','_closed')
+    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction')
 
     def __init__(self, config, custody, deadline, connections, *, token):
         if token is not _BIRTH:
             raise Refusal('resources_unbound')
         for key,value in (('_config',config),('_custody',custody),('_deadline',deadline),
-                          ('_connections',MappingProxyType(connections)),('_closed',False)):
+                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False)):
             object.__setattr__(self,key,value)
 
     def __setattr__(self,name,value):
@@ -141,6 +141,34 @@ class _Resources:
 class SeedResources(_Resources):
     __slots__ = ()
     def __repr__(self):return '<SeedResources private>'
+
+    @contextmanager
+    def transaction(self,purpose,*,_read_only=False):
+        self.check_deadline()
+        current_seed_resources(self._config,self._deadline)
+        if purpose not in _SEED_PURPOSES:raise Refusal('resources_purpose')
+        if self._in_transaction:raise Refusal('resources_transaction')
+        connection=self._connections[purpose]
+        object.__setattr__(self,'_in_transaction',True)
+        try:
+            with private_driver_logs(),_driver_deadline(self._deadline):
+                with connection.transaction():
+                    if _read_only:
+                        connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+                    milliseconds=str(max(1,math.floor(self.check_deadline()*1000)))
+                    connection.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true), "
+                        "pg_catalog.set_config('lock_timeout',%s,true)",(milliseconds,milliseconds))
+                    yield connection
+                    self.check_deadline()
+                self.check_deadline()
+        except Refusal:raise
+        except Exception:raise Refusal('resources_transaction') from None
+        finally:object.__setattr__(self,'_in_transaction',False)
+
+    def observe_catalog(self):
+        from .catalog import observe
+        return observe(self)
+
     @property
     def bootstrap(self):return self._connections['bootstrap']
     @property

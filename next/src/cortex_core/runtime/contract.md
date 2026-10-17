@@ -127,3 +127,5 @@ argv, environment, network or a plaintext temporary file. Missing, unsafe,
 wrong-key, uncommitted, malformed or unconfigured input yields one sanitized
 typed JSON refusal. Other operator effects remain explicitly unbound at this
 partial dependency publication; no placeholder permits them.
+
+Day-2 raw catalog reader (source stage): SeedResources.observe_catalog observes its actual bootstrap connection in one read-only repeatable snapshot; actual authenticated session OID comes from pg_stat_activity. It retains incident memberships, full protected binding rows and schema/relation owners for the sole Nix validator. No revisions/authority are synthesized and no policy binder is duplicated. SeedResources.transaction admits only its three purposes, refreshes statement/lock timeout from the SAME original absolute deadline, checks completion and suppresses driver details. A configured purpose/mode or source fixture supplies no installed authority. Fixed Nix validation, revision agreement and real PG/TLS proof remain open until separately pinned and measured.
