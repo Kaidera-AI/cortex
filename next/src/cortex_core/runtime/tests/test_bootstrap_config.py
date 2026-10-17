@@ -1,5 +1,6 @@
 """Day-1 config admission: tests committed RED before implementation."""
 import copy
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -109,6 +110,15 @@ class ConfigTests(unittest.TestCase):
         self.assertIsNotNone(decode_config)
         with self.assertRaises(ValueError):decode_config(json.dumps(self.value).encode(),mode='owner')
 
+    def test_os_root_and_public_database_refuse(self):
+        self.assertIsNotNone(decode_config)
+        for mutate in [lambda v:v.update(vault_root='/'),
+                       lambda v:v['database'].update(host='8.8.8.8'),
+                       lambda v:v['database'].update(host='169.254.169.254')]:
+            value=copy.deepcopy(self.value);mutate(value)
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                decode_config(json.dumps(value).encode(),mode='serve')
+
 
 class CredentialTests(unittest.TestCase):
     def setUp(self):
@@ -168,6 +178,13 @@ class CredentialTests(unittest.TestCase):
         config=decode_config(json.dumps(self.value).encode(),mode='serve')
         with self.assertRaises((TypeError,AttributeError)):
             config.roles['bootstrap']=config.roles['api_request']
+
+    def test_reconstructed_view_cannot_widen_mode_purposes(self):
+        self.assertIsNotNone(resolve_credential)
+        config=decode_config(json.dumps(self.value).encode(),mode='serve')
+        config=replace(config,roles={'migrator':config.roles['api_request']})
+        with self.assertRaisesRegex(ValueError,'purpose_not_admitted'):
+            resolve_credential(config,'migrator')
 
 
 if __name__=='__main__':unittest.main()
