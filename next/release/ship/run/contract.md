@@ -54,8 +54,10 @@ custody), mounted read-only at `/run/cortex/secrets/<p>`. The config file is mou
 ## Typed refusals
 
 Exit 2, stderr one JSON line `{"reason": ..., "unit": "ship/run"}`, nothing written:
-`input_missing:<name>`, `operations_mismatch`, `ai_mode_missing`, `ai_mode_not_off:<v>`,
-`transport_unratified:<mode>`, `unsafe_publish:<host>`, `purpose_missing:<p>`, `out_not_empty`.
+`input_missing:<name>`, `input_invalid:<name>`, `duplicate_key:<name>.<key>`, `bad_argument:<flag>`,
+`operations_mismatch` (checked on the raw bytes, before any decode), `ai_mode_missing`,
+`ai_mode_not_off:<v>`, `transport_unratified:<mode>`, `unsafe_publish:<host>`, `purpose_missing:<p>`,
+`vector_field_unknown:<field>`, `out_not_empty`.
 
 ## Open joins
 
@@ -63,3 +65,12 @@ Exit 2, stderr one JSON line `{"reason": ..., "unit": "ship/run"}`, nothing writ
   `serve/migrate/seed/status --config` argv above.
 - nix: TLS material for verify-full (make_tls, J08) is not projected here until ratified.
 - nix: `core-init` runs only when `PG_VERSION` is absent (`when` field in the plan).
+- nix: the role steps log in to the temporary DB as the bootstrap role with the bootstrap secret
+  projected as `PGPASSWORD` inside that one container (never host argv or a host file); `roles-pre`
+  also gets the four login secrets at `/run/cortex/secrets/<p>` for nix's `\set pw` reads.
+- nix + mike: step deadlines are named contract budgets (`initdb_ms`, `migration_ms`,
+  `shutdown_ms`); tighten by changing the budget mapping in one table, `STEP_BUDGET`.
+- day 2, real podman: `podman kube play` of the JSON-text pod and the `secret` volume form of a
+  raw podman secret are checked on both hosts; render tests here are source fixtures, not install proof.
+- one parser: `render.py` decodes `cortex.json` with stdlib `json` (duplicate keys refuse) and reads
+  only the fields above. It switches to cox's hashed pure config helper once that is published.

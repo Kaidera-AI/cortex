@@ -9,10 +9,9 @@ One template, `wrapper.sh.in`, rendered once per command (`cortex-boot`, `cortex
 projection command), `@EMPTY_AGENTS@` (an empty private folder).
 
 In order, the wrapper:
-1. Unsets `CORTEX_ADMIN_TOKEN CORTEX_CTO_OVERRIDE CORTEX_API_WITH_ADMIN CORTEX_API_URL CORTEX_API
-   CORTEX_PROJECT CORTEX_PROJECT_ID CORTEX_PROJECT_ROOT CORTEX_WORKSPACE_PROJECT CORTEX_CREDENTIAL_FILE`.
+1. Unsets every exported `CORTEX_*` variable (admin token, CTO override, v1 URL, project, ...).
 2. Runs the projector (cox's `cortex config client --config FILE` on host python3) and reads its
-   stdout through a pipe. It must print exactly these three lines, in this order:
+   stdout through a pipe. It must print exactly these three keys, once each, nothing else:
 
        CORTEX_API_URL=http://127.0.0.1:<port>
        CORTEX_PROJECT=<key>
@@ -28,16 +27,25 @@ It never retries and never calls another URL.
 
 Exit 2, stderr one JSON line `{"reason": ..., "unit": "ship/cli"}`, the client never runs:
 `projection_failed:<rc>`, `projection_field_missing:<k>`, `projection_field_unknown:<k>`,
+`projection_duplicate:<k>`, `projection_field_invalid:CORTEX_PROJECT` (not `[A-Za-z0-9_-]+`),
 `url_not_v2:<url>` (not `http://127.0.0.1:<port>`, or port 8501, the v1 fallback),
-`credential_missing:<path>`, `credential_unsafe:<path>` (symlink, not regular, or not mode 0600).
+`credential_missing:<path>`, `credential_unsafe:<path>` (relative, symlink, not regular, not owned
+by the caller, or not mode 0600).
 
 ## Install
 
-    install_cli.sh --prefix P --client-dir DIR --projector CMD --link-dir DIR
+    install_cli.sh --prefix P --client-dir DIR --projector FILE --link-dir DIR [--no-link]
 
-Renders `P/bin/<command>` from the template. If any command name already resolves on `PATH` to a file
-that is not our link, it refuses `path_collision:<path>` and links nothing. `--no-link` keeps the
-wrappers in `P/bin` only.
+Renders `P/bin/<command>` from the template, makes the empty `P/cli/agents-empty`, then links
+`<link-dir>/<command>` to `P/bin/<command>`. All checks run before the first write. If a command name
+already resolves on `PATH`, or exists in the link folder, as anything but our own link, it refuses
+`path_collision:<path>` and writes nothing. `--no-link` skips the PATH check and keeps the wrappers
+in `P/bin` only.
+
+Refusals (exit 2, same JSON line): `input_missing:<flag>`, `bad_argument:<arg>`,
+`unsafe_path:<path>` (relative, or contains a quote, `$`, backquote, backslash, `|`, `&` or newline),
+`client_missing:<command>`, `projector_missing:<path>`, `link_dir_missing:<dir>`,
+`path_collision:<path>`, `write_failed:<path>`.
 
 ## Open joins
 
