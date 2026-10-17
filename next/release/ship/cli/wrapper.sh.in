@@ -1,0 +1,66 @@
+#!/bin/bash
+# Cortex v2 client wrapper (ship/cli), rendered by install_cli.sh. Contract: contract.md.
+# It pins the client to this host's v2 through the client projection and never falls back.
+set -u
+
+refuse() {
+    local reason="${1//\\/\\\\}"
+    reason="${reason//\"/\\\"}"
+    reason="$(printf '%s' "$reason" | tr -d '\000-\037')"
+    printf '{"reason": "%s", "unit": "ship/cli"}\n' "$reason" >&2
+    exit 2
+}
+
+for name in $(compgen -e); do
+    case "$name" in CORTEX_*) unset "$name" ;; esac
+done
+
+projection="$("@PROJECTOR@")"
+rc=$?
+[ "$rc" -eq 0 ] || refuse "projection_failed:$rc"
+
+while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    [ "$key" != "$line" ] || refuse "projection_field_unknown:$line"
+    case "$key" in
+        CORTEX_API_URL) [ -z "${got_url+x}" ] || refuse "projection_duplicate:$key"; got_url="$value" ;;
+        CORTEX_PROJECT) [ -z "${got_project+x}" ] || refuse "projection_duplicate:$key"; got_project="$value" ;;
+        CORTEX_CREDENTIAL_FILE) [ -z "${got_cred+x}" ] || refuse "projection_duplicate:$key"; got_cred="$value" ;;
+        *) refuse "projection_field_unknown:$key" ;;
+    esac
+done <<EOF
+$projection
+EOF
+
+[ -n "${got_url+x}" ] || refuse "projection_field_missing:CORTEX_API_URL"
+[ -n "${got_project+x}" ] || refuse "projection_field_missing:CORTEX_PROJECT"
+[ -n "${got_cred+x}" ] || refuse "projection_field_missing:CORTEX_CREDENTIAL_FILE"
+
+case "$got_url" in
+    http://127.0.0.1:*) url_port="${got_url#http://127.0.0.1:}" ;;
+    *) refuse "url_not_v2:$got_url" ;;
+esac
+case "$url_port" in
+    ''|0*|*[!0-9]*|??????*) refuse "url_not_v2:$got_url" ;;
+esac
+[ "$url_port" -le 65535 ] && [ "$url_port" -ne 8501 ] || refuse "url_not_v2:$got_url"
+
+case "$got_project" in
+    ''|*[!A-Za-z0-9_-]*) refuse "projection_field_invalid:CORTEX_PROJECT" ;;
+esac
+
+[ -e "$got_cred" ] || [ -L "$got_cred" ] || refuse "credential_missing:$got_cred"
+case "$got_cred" in /*) ;; *) refuse "credential_unsafe:$got_cred" ;; esac
+[ ! -L "$got_cred" ] && [ -f "$got_cred" ] && [ -O "$got_cred" ] || refuse "credential_unsafe:$got_cred"
+if [ "$(uname -s)" = Darwin ]; then
+    cred_mode="$(stat -f '%Lp' "$got_cred")"
+else
+    cred_mode="$(stat -c '%a' "$got_cred")"
+fi
+[ "$cred_mode" = 600 ] || refuse "credential_unsafe:$got_cred"
+
+export CORTEX_API_URL="$got_url" CORTEX_PROJECT="$got_project" CORTEX_CREDENTIAL_FILE="$got_cred"
+export CORTEX_AGENTS_DIR="@EMPTY_AGENTS@" CORTEX_RUNTIME_CONFIG=/dev/null CORTEX_WORKSPACE_CONFIG=/dev/null
+exec "@CLIENT@" "$@"
