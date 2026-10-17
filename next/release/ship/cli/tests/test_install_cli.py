@@ -1,4 +1,5 @@
-"""Spec for ship/cli/install_cli.sh: render the launchers, refuse PATH collisions."""
+"""Spec for ship/cli/install_cli.sh: render the v2-only launchers, refuse PATH collisions."""
+import hashlib
 import json
 import pathlib
 import re
@@ -8,7 +9,9 @@ import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
 INSTALL = HERE.parent / "install_cli.sh"
-COMMANDS = ["cortex-boot", "cortex-log", "cortex-search"]
+# Versioned v2 commands only (Kai Option A, cox ruling 11d7ebce); v1 names are never written.
+COMMANDS = ["cortex-v2-boot", "cortex-v2-log", "cortex-v2-search"]
+V1 = ["cortex-boot", "cortex-log", "cortex-search"]
 BASH_DIAGNOSTIC = re.compile(r": line \d+: ")
 
 
@@ -78,7 +81,7 @@ def test_links_wrappers_when_path_is_free(world):
 
 
 def test_path_collision_refused_and_nothing_written(world):
-    foreign = world["other"] / "cortex-log"
+    foreign = world["other"] / "cortex-v2-log"
     foreign.write_text("#!/bin/sh\n")
     foreign.chmod(0o755)
     proc = install(world, path_dirs=[world["other"], world["link"]])
@@ -88,7 +91,7 @@ def test_path_collision_refused_and_nothing_written(world):
 
 
 def test_no_link_keeps_wrappers_private(world):
-    foreign = world["other"] / "cortex-boot"
+    foreign = world["other"] / "cortex-v2-boot"
     foreign.write_text("#!/bin/sh\n")
     foreign.chmod(0o755)
     proc = install(world, "--no-link", path_dirs=[world["other"], world["link"]])
@@ -104,9 +107,9 @@ def test_rerun_over_own_links_is_not_a_collision(world):
 
 
 def test_missing_client_refused(world):
-    (world["clients"] / "cortex-search").unlink()
+    (world["clients"] / "cortex-v2-search").unlink()
     proc = install(world, path_dirs=[world["link"]])
-    assert refusal(proc) == "client_missing:cortex-search"
+    assert refusal(proc) == "client_missing:cortex-v2-search"
     assert not world["prefix"].exists()
 
 
@@ -128,3 +131,22 @@ def test_unsafe_path_refused(world, flag, bad):
     proc = child(argv, {"PATH": "/usr/bin:/bin", "HOME": str(world["tmp"])})
     assert refusal(proc) == f"unsafe_path:{bad}"
     assert not world["prefix"].exists()
+
+
+def test_v1_commands_are_never_touched(world):
+    # Live v1 commands on PATH and in the link folder keep their names, bytes and links.
+    v1 = {}
+    for folder in (world["other"], world["link"]):
+        for name in V1:
+            path = folder / name
+            path.write_text(f"#!/bin/sh\n# v1 {name} in {folder.name}\n")
+            path.chmod(0o755)
+            v1[path] = hashlib.sha256(path.read_bytes()).hexdigest()
+    proc = install(world, path_dirs=[world["other"], world["link"]])
+    assert proc.returncode == 0, proc.stderr
+    for path, digest in v1.items():
+        assert not path.is_symlink() and hashlib.sha256(path.read_bytes()).hexdigest() == digest, path
+    assert sorted(p.name for p in (world["prefix"] / "bin").iterdir()) == COMMANDS
+    assert sorted(p.name for p in world["link"].iterdir()) == sorted(COMMANDS + V1)
+    for name in COMMANDS:
+        assert (world["link"] / name).resolve() == (world["prefix"] / "bin" / name).resolve()
