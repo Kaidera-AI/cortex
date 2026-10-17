@@ -273,6 +273,10 @@ class Receipt(unittest.TestCase):
 
 class SharedAdmission(unittest.TestCase):
     REQUIRED = {
+        'next/src/cortex_core/runtime/tests/test_custody.py',
+        'next/src/cortex_core/runtime/tests/test_resources.py',
+        'next/src/cortex_core/runtime/tests/test_operator.py',
+        'next/tests/ci_gates/tests/test_loopback_home.py',
         "next/release/ship/install/tests/test_sign.py",
         "next/tests/ci_gates/tests/test_sign_home.py",
         "next/tests/ci_gates/tests/test_receipt.py",

@@ -30,6 +30,26 @@ class SourceRecognition(unittest.TestCase):
         sys.modules[spec.name] = cls.checker
         spec.loader.exec_module(cls.checker)
 
+    def test_day2_catalog_fixed_read_inputs_are_recognized(self):
+        file='src/cortex_core/runtime/catalog.py'
+        self.assertEqual(self.unresolved(file,self.source(file)),[])
+
+    def test_day2_catalog_query_and_helper_rebinding_refuse_even_with_new_pins(self):
+        file='src/cortex_core/runtime/catalog.py'
+        for before,after in (("SELECT datname,oid::bigint,datdba::bigint","SELECT dangerous_side_effect(),oid::bigint,datdba::bigint"),
+                             ("connection.execute(sql,parameters)","connection.execute(other_sql,parameters)"),
+                             ("databases=_rows(connection,", "databases=untrusted(connection,")):
+            source=self.changed(file,before,after)
+            tree=ast.parse(source)
+            module_pin=hashlib.sha256(source.encode()).hexdigest()
+            pins=dict(self.checker.KNOWN_INPUT_AST_SHA256)
+            for fn in tree.body:
+                if isinstance(fn,ast.FunctionDef):pins[(file,fn.name)]=self.checker.normalized_function_digest(fn)
+            with patch.dict(self.checker.KNOWN_INPUT_FILE_SHA256,{file:module_pin}),patch.dict(self.checker.KNOWN_INPUT_AST_SHA256,pins):
+                self.assertTrue(self.unresolved(file,source),before)
+        for extra in ('\n_rows = untrusted\n','\nrows_alias = _rows\n'):
+            self.assertTrue(self.unresolved(file,self.source(file)+extra))
+
     def source(self, file):
         return (NEXT/file).read_text()
 
