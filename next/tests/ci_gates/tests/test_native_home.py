@@ -53,6 +53,20 @@ def packet():
 
 
 class NativeHome(unittest.TestCase):
+    def test_deleted_data_directory_cannot_hide_an_owned_postmaster(self):
+        scan = getattr(worker, 'owned_native_postmasters', None)
+        self.assertTrue(callable(scan), 'removed data directories can hide daemon leakage')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); scratch = root / 'owned'; scratch.mkdir()
+            pg = root / 'bin'; pg.mkdir(); proc = root / 'proc'; proc.mkdir()
+            for pid, executable, data in ((101, pg / 'postgres', scratch / 'removed/data'),
+                                          (102, pg / 'postgres', root / 'foreign'),
+                                          (103, root / 'other/postgres', scratch / 'data')):
+                item = proc / str(pid); item.mkdir()
+                (item / 'cmdline').write_bytes(b'\0'.join(str(x).encode() for x in
+                    (executable, '-D', data)) + b'\0')
+            self.assertEqual(scan(scratch, pg, proc), [101])
+
     def test_exact_nine_phase_receipt(self):
         check = getattr(worker, 'native_roles_result', None)
         self.assertTrue(callable(check), 'native roles phase admission is absent')
