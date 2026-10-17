@@ -10,19 +10,8 @@ class MigrationError(ValueError):
     """Untrusted migration input or an incompatible applied ledger."""
 
 
-def apply_migrations(connection, directory=SCHEMA, *, through=None):
-    from psycopg.pq import TransactionStatus
-
-    def require_state(expected):
-        try:
-            autocommit = connection.autocommit
-            status = connection.info.transaction_status
-        except Exception:
-            raise MigrationError("Migration connection state unavailable") from None
-        if autocommit is not True or type(status) is not TransactionStatus or status is not expected:
-            raise MigrationError(f"Migration connection must use autocommit and driver {expected.name}")
-
-    require_state(TransactionStatus.IDLE)
+def prepare_migrations(directory=SCHEMA):
+    """The existing byte/manifest preparation, shared by apply and readiness."""
     directory = Path(directory).resolve()
     manifest = json.loads((directory / "manifest.json").read_text())
     if type(manifest.get("version")) is not int or manifest["version"] != 1:
@@ -38,6 +27,24 @@ def apply_migrations(connection, directory=SCHEMA, *, through=None):
             raise MigrationError("Migration checksum differs")
         prepared.append((entry["id"], entry["sha256"], data.decode("utf-8")))
         seen.add(entry["id"])
+    return prepared
+
+
+def apply_migrations(connection, directory=SCHEMA, *, through=None):
+    from psycopg.pq import TransactionStatus
+
+    def require_state(expected):
+        try:
+            autocommit = connection.autocommit
+            status = connection.info.transaction_status
+        except Exception:
+            raise MigrationError("Migration connection state unavailable") from None
+        if autocommit is not True or type(status) is not TransactionStatus or status is not expected:
+            raise MigrationError(f"Migration connection must use autocommit and driver {expected.name}")
+
+    require_state(TransactionStatus.IDLE)
+    prepared = prepare_migrations(directory)
+    seen = {item[0] for item in prepared}
     if through is not None:
         if type(through) is not str or through not in seen:
             raise MigrationError("Unknown migration target")

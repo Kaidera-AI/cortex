@@ -1,6 +1,8 @@
 {
   "run": [
     "next/docs/runtime/rc0/test_oracle.py",
+    "next/src/cortex_core/runtime/tests/test_bootstrap_config.py",
+    "next/src/cortex_core/schema/tests/test_readiness.py",
     "next/tests/artifact/test_c03_receipts.py",
     "next/tests/artifact/test_legacy_map.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
