@@ -167,6 +167,7 @@ class _SeedDatabase:
 class _SeedConnection:
     def __init__(self, database, purpose):
         self.db, self.purpose = database, purpose
+        self.local_role = None
     def close(self):
         self.db.events.append(('close', self.purpose))
     @contextmanager
@@ -184,6 +185,8 @@ class _SeedConnection:
             if self.db.lose_commit == self.purpose:
                 self.db.lose_commit = None
                 raise OSError('test lost acknowledgement after durable DB commit')
+        finally:
+            self.local_role = None
 
     def execute(self, sql, params=None):
         text = ' '.join(str(sql).split())
@@ -192,6 +195,11 @@ class _SeedConnection:
         self.db.events.append(('sql', self.purpose, text, params))
         if lower.startswith('set transaction') or 'set_config(' in lower:
             return _Rows([(None, None)])
+        if lower == 'set local role "kaidera-runtime-core-request"':
+            if self.purpose != 'api_request':
+                raise AssertionError('request group belongs only to API session')
+            self.local_role = 'kaidera-runtime-core-request'
+            return _Rows()
         if 'pg_advisory' in lower or lower.startswith('lock table'):
             self.db.events.append(('lock', self.purpose))
             return _Rows([(True,)])
@@ -213,7 +221,8 @@ class _SeedConnection:
         if 'from core.schema_migrations' in lower:
             return _Rows(self.db.prefix)
         if 'auth.enrollment_readiness(' in lower:
-            if self.purpose != 'api_request':
+            if (self.purpose != 'api_request'
+                    or self.local_role != 'kaidera-runtime-core-request'):
                 raise AssertionError('readiness must use actual api_request connection')
             self.db.events.append(('readiness', self.purpose))
             return _Rows([(self.db.readiness,)])
