@@ -74,5 +74,25 @@ class Package(unittest.TestCase):
         r = subprocess.run([sys.executable, '-I', '-c', code, str(self.out)], capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), 'roles_contract_invalid', r.stderr)
 
+class PinnedKey(unittest.TestCase):
+    """The release public key pinned in install.sh equals the AUTHORITATIVE KOS key, compared by full bytes (not the 8-byte key id). The fixture is the public key
+    file Cox supplied (KOS commit 26107b5b0ac5, scripts/release/installer/kos_installer/release-public-key.pub, blob 5535ec7bf8a7); public data only, no key use."""
+    FIXTURE = HERE / 'fixtures/KOS-release-public-key.pub'
+    AUTH_SHA256 = 'cc789827d21f6db4b3d74c39709b78d2ab6a636b28489d58d3b7ec442b66c8ef'
+
+    def test_the_authoritative_public_key_file_is_carried_byte_exact(self):
+        self.assertTrue(self.FIXTURE.is_file(), 'tests/fixtures/KOS-release-public-key.pub')
+        self.assertEqual((sha(self.FIXTURE), self.FIXTURE.stat().st_size), (self.AUTH_SHA256, 113))
+
+    def test_install_sh_pins_exactly_the_key_line_of_that_file_and_its_key_id(self):
+        self.assertTrue(self.FIXTURE.is_file())
+        comment, key = self.FIXTURE.read_text().splitlines()
+        import re
+        m = re.search(r"^PINNED_PUBKEY='([^']+)'.*7BBB4B7E0CE8852E", (INSTALL / 'install.sh').read_text(), re.M)
+        self.assertIsNotNone(m, 'install.sh must pin the key and name key id 7BBB4B7E0CE8852E')
+        self.assertEqual(m.group(1), key)
+        self.assertEqual(comment, 'untrusted comment: minisign public key 7BBB4B7E0CE8852E')
+
+
 if __name__ == '__main__':
     unittest.main()

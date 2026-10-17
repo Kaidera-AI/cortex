@@ -204,5 +204,146 @@ class Refused(Base):
         self.edit(lambda o: o['bindings'][1].update(operation_id=str(uuid.uuid4())), 'catalog_bindings', bound=True)
 
 
+class ServeBase(Base):
+    """Serve phase: Core's observe_service_catalog() raw shape = the seed shape with bindings=None (deliberately unreadable) plus service={installation_matches, enrollment_readiness},
+    read over the ACTUAL API session; finite roles are NOLOGIN by now. The same ONE policy checks flags/groups/memberships/ownership."""
+
+    def setUp(self):
+        super().setUp()
+        path = self.vault / 'config/cortex.json'
+        self.seed_cfg = self.cfg
+        self.cfg = read_config_file(path, mode='serve')
+
+    def serve_flags(self, purpose):
+        f = dict(self.flags(purpose))
+        f['login'] = self.policy[purpose]['lifetime'] == 'service'
+        return f
+
+    def healthy_serve(self, readiness='ready'):
+        o = self.healthy()
+        for p in FIVE:
+            o['roles'][p]['flags'] = self.serve_flags(p)
+        o['session'] = {'login': LOGINS['api_request'], 'oid': OID['api_request'], 'database_oid': DB_OID}
+        o['bindings'] = None
+        o['service'] = {'installation_matches': True, 'enrollment_readiness': readiness}
+        return o
+
+    def admit(self, obs, phase='serve', cfg=None):
+        try:
+            return R.validate_catalog(cfg or self.cfg, obs, phase=phase)
+        except R.RoleRefusal as e:
+            self.fail(f'a healthy catalog was refused: {e.reason}')
+
+    def serve_refused(self, mutate, reason):
+        o = self.healthy_serve()
+        mutate(o)
+        with self.assertRaises(R.RoleRefusal) as e:
+            R.validate_catalog(self.cfg, o, phase='serve')
+        self.assertEqual(e.exception.reason, reason)
+
+
+class ServeAdmitted(ServeBase):
+    def test_a_healthy_service_catalog_is_admitted_with_the_published_service_result(self):
+        out = self.admit(self.healthy_serve())
+        self.assertEqual(out['phase'], 'serve')
+        self.assertEqual(out['service'], {'installation_matches': True, 'enrollment_readiness': 'ready'})
+        self.assertEqual(out['bindings'], {'state': 'unobserved', 'rows': []})
+        self.assertEqual(out['session']['login'], LOGINS['api_request'])
+
+    def test_finite_roles_are_nologin_and_service_roles_login_in_the_admitted_flags(self):
+        out = self.admit(self.healthy_serve())
+        self.assertEqual({p: out['roles'][p]['flags']['login'] for p in FIVE}, {'bootstrap': False, 'migrator': False, 'installer_enrollment': False, 'api_request': True, 'probe': True})
+        for p in FIVE:
+            self.assertEqual({k: v for k, v in out['roles'][p]['flags'].items() if k != 'login'}, {k: v for k, v in self.flags(p).items() if k != 'login'}, p)
+
+    def test_every_enrollment_readiness_value_is_passed_through_as_data(self):
+        for value in ('ready', 'enrollment_required', 'unavailable'):
+            out = self.admit(self.healthy_serve(value))
+            self.assertEqual(out['service']['enrollment_readiness'], value)
+
+    def test_the_serve_snapshot_is_detached(self):
+        obs = self.healthy_serve()
+        out = self.admit(obs)
+        out['service']['installation_matches'] = False
+        out['roles']['api_request']['flags']['superuser'] = True
+        self.assertTrue(obs['service']['installation_matches'])
+        self.assertFalse(obs['roles']['api_request']['flags']['superuser'])
+
+
+class ServeRefused(ServeBase):
+    def test_the_config_must_be_the_serve_view(self):
+        with self.assertRaises(R.RoleRefusal) as e:
+            R.validate_catalog(self.seed_cfg, self.healthy_serve(), phase='serve')
+        self.assertEqual(e.exception.reason, 'catalog_config')
+
+    def test_the_session_must_be_the_configured_api_login_by_name_oid_and_database(self):
+        self.serve_refused(lambda o: o['session'].update(login=LOGINS['bootstrap'], oid=OID['bootstrap']), 'catalog_session')
+        self.serve_refused(lambda o: o['session'].update(oid=OID['probe']), 'catalog_session')
+        self.serve_refused(lambda o: o['session'].update(database_oid=1), 'catalog_session')
+
+    def test_a_finite_login_that_can_still_log_in_is_refused(self):
+        for p in ('bootstrap', 'migrator', 'installer_enrollment'):
+            self.serve_refused(lambda o: o['roles'][p]['flags'].update(login=True), f'catalog_flags:{p}')
+
+    def test_the_service_logins_must_keep_their_policy_flags(self):
+        for p in ('api_request', 'probe'):
+            self.serve_refused(lambda o: o['roles'][p]['flags'].update(login=False), f'catalog_flags:{p}')
+            self.serve_refused(lambda o: o['roles'][p]['flags'].update(superuser=True), f'catalog_flags:{p}')
+
+    def test_bindings_are_unreadable_in_serve_so_a_list_is_refused(self):
+        self.serve_refused(lambda o: o.update(bindings=[]), 'catalog_shape')
+
+    def test_the_service_result_must_be_exactly_the_published_shape(self):
+        self.serve_refused(lambda o: o.pop('service'), 'catalog_shape')
+        self.serve_refused(lambda o: o['service'].pop('enrollment_readiness'), 'catalog_shape')
+        self.serve_refused(lambda o: o['service'].update(extra=1), 'catalog_shape')
+        self.serve_refused(lambda o: o['service'].update(installation_matches=1), 'catalog_shape')
+        self.serve_refused(lambda o: o['service'].update(enrollment_readiness='maybe'), 'catalog_service')
+
+    def test_a_catalog_that_does_not_match_this_installation_is_refused(self):
+        self.serve_refused(lambda o: o['service'].update(installation_matches=False), 'catalog_service')
+
+    def test_the_shared_membership_group_and_ownership_policy_still_applies(self):
+        self.serve_refused(lambda o: o['memberships'].clear(), 'catalog_membership')
+        self.serve_refused(lambda o: o['groups'][REQUEST_GROUP]['flags'].update(login=True), 'catalog_groups')
+        self.serve_refused(lambda o: o['protected_owners'].append({'kind': 'relation', 'schema': 'core', 'name': 'x', 'owner_oid': OID['api_request']}), 'catalog_ownership')
+
+    def test_a_seed_observation_with_a_service_block_is_refused_by_the_seed_phase(self):
+        o = self.healthy()
+        o['service'] = {'installation_matches': True, 'enrollment_readiness': 'ready'}
+        with self.assertRaises(R.RoleRefusal) as e:
+            R.validate_catalog(self.seed_cfg, o)
+        self.assertEqual(e.exception.reason, 'catalog_shape')
+
+
+class LedgerGrantText(Base):
+    """Kai Option A, bounded (J06-startup-ledger-access-v1): the API login's schema-ledger access is provisioned in render_post, never to PUBLIC/request group/probe.
+    A real PostgreSQL proof showed the table grant alone is DENIED (the login has no schema USAGE): the schema USAGE is the smallest addition and is listed separately."""
+
+    def test_render_post_grants_only_the_exact_api_login_the_ledger_select_and_schema_usage(self):
+        from _fixtures import config, make_vault
+        vault, _ = make_vault()
+        b = R.bind(config(vault))
+        sql = R.render_post(b)
+        api = b.logins['api_request']
+        self.assertIn(f'GRANT USAGE ON SCHEMA core TO "{api}";', sql)
+        self.assertIn(f'GRANT SELECT ON core.schema_migrations TO "{api}";', sql)
+        grants = [l for l in sql.splitlines() if 'schema_migrations' in l or 'ON SCHEMA core' in l]
+        self.assertEqual(len(grants), 2, grants)
+        for l in grants:
+            for forbidden in ('PUBLIC', REQUEST_GROUP, VERIFIER_GROUP, b.logins['probe'], b.logins['migrator'], b.logins['bootstrap'], b.logins['installer_enrollment']):
+                self.assertNotIn(forbidden, l)
+
+    def test_the_grants_run_inside_the_post_transaction_before_the_membership_audit(self):
+        from _fixtures import config, make_vault
+        vault, _ = make_vault()
+        sql = R.render_post(R.bind(config(vault)))
+        lines = sql.splitlines()
+        begin, commit = lines.index('BEGIN;'), lines.index('COMMIT;')
+        at = [i for i, l in enumerate(lines) if 'schema_migrations' in l or 'ON SCHEMA core' in l]
+        audit = next(i for i, l in enumerate(lines) if l.startswith('DO $$ DECLARE bad'))
+        self.assertTrue(all(begin < i < audit < commit for i in at), (begin, at, audit, commit))
+
+
 if __name__ == '__main__':
     unittest.main()
