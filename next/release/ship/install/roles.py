@@ -155,6 +155,15 @@ def render_close(b, seed_ack):
     return '\n'.join(out)
 
 
+def render_ledger_grant(b):
+    """Own installer script for the bounded startup-ledger access (J06-startup-ledger-access-v1, Kai Option A): ONLY the exact configured API login may read the schema ledger.
+    Run in the post phase AFTER the migrations (the table exists then). A real PostgreSQL proof showed the table SELECT alone is DENIED (the login has no schema USAGE, its group
+    membership is NOINHERIT), so the schema USAGE is granted too: the smallest addition; it exposes only core.schema_migrations and the PUBLIC trigger function core.refuse_update.
+    Never to PUBLIC, the request group, probe or a finite login; no business-data privilege."""
+    api = _q(b.logins['api_request'])
+    return '\n'.join(['\\set ON_ERROR_STOP on', 'BEGIN;', f'GRANT USAGE ON SCHEMA core TO {api};', f'GRANT SELECT ON core.schema_migrations TO {api};', 'COMMIT;', ''])
+
+
 # ---- J06: the SOLE role-catalog policy validator. Cox's read-only observer (runtime/catalog.py) returns the raw observation; this admits or refuses it. ----
 INTENDED_REVISION = {'bootstrap': 0, 'migrator': 0, 'api_request': 1, 'probe': 1, 'installer_enrollment': 1}  # intent, never an observed authority (Cox v2 proposal)
 BOUND = ('api_request', 'probe', 'installer_enrollment')
@@ -196,15 +205,21 @@ def _members(value):
     return out
 
 
+SERVICE_READINESS = ('ready', 'enrollment_required', 'unavailable')
+
+
 def validate_catalog(config, observation, *, phase='seed'):
-    """Admit (a detached dict) or refuse (RoleRefusal catalog_*) one raw catalog observation for the seed phase: same policy and flags as render_*, the
-    actual bootstrap session and database, five roles, the two fixed groups, EVERY edge incident on them (foreign incoming too), no service ownership of the
-    database or protected objects, and bindings that are absent (fresh) or exactly the three revision-1 rows (replay). An observed revision is never copied
-    as authority: the intent comes from INTENDED_REVISION."""
-    if phase != 'seed':
+    """Admit (a detached dict) or refuse (RoleRefusal catalog_*) one raw catalog observation for the seed or serve phase: same policy and flags as render_*, the actual session (seed:
+    bootstrap, serve: the configured API login; name AND oid) and database, five roles, the two fixed NOLOGIN groups, EVERY edge incident on them (foreign incoming too) equal to the one
+    set-only api_request membership, no service ownership of the database or protected objects. Seed: bindings absent (fresh) or exactly the three revision-1 rows of ONE operation (replay).
+    Serve: finite logins (bootstrap, migrator, installer_enrollment) are NOLOGIN, bindings are deliberately unreadable (None), and the published service result
+    {installation_matches: bool, enrollment_readiness: ready|enrollment_required|unavailable} must say the catalog matches this installation; the readiness enum is passed through as data
+    for Core to decide. An observed revision is never copied as authority: the intent comes from INTENDED_REVISION."""
+    if phase not in ('seed', 'serve'):
         raise RoleRefusal('catalog_phase')
+    serve = phase == 'serve'
     try:
-        if config.mode != 'seed':
+        if config.mode != phase:
             raise RoleRefusal('catalog_config')
         logins = dict(config.role_logins)
         installation, db_name = str(config.installation_id), config.database['name']
@@ -212,7 +227,7 @@ def validate_catalog(config, observation, *, phase='seed'):
     except (AttributeError, TypeError, KeyError):
         raise RoleRefusal('catalog_config') from None
     policy = load_roles()
-    obs = _dict(observation, ('database', 'session', 'roles', 'groups', 'memberships', 'bindings', 'protected_owners'))
+    obs = _dict(observation, ('database', 'session', 'roles', 'groups', 'memberships', 'bindings', 'protected_owners') + (('service',) if serve else ()))
     db = _dict(obs['database'], ('name', 'oid', 'owner_oid'))
     _shape(type(db['name']) is str)
     _int(db['oid']), _int(db['owner_oid'])
@@ -234,7 +249,11 @@ def validate_catalog(config, observation, *, phase='seed'):
     for g in GROUPS:
         r = _dict(raw_groups[g], ('login', 'oid', 'flags', 'memberships'))
         groups[g] = {'login': r['login'], 'oid': _int(r['oid']), 'flags': dict(_flags_of(r['flags'])), 'memberships': _members(r['memberships'])}
-    _shape(type(obs['memberships']) is list and type(obs['protected_owners']) is list and type(obs['bindings']) is list)
+    _shape(type(obs['memberships']) is list and type(obs['protected_owners']) is list and (obs['bindings'] is None if serve else type(obs['bindings']) is list))
+    if serve:
+        svc = _dict(obs['service'], ('installation_matches', 'enrollment_readiness'))
+        _shape(type(svc['installation_matches']) is bool and type(svc['enrollment_readiness']) is str)
+        svc = dict(svc)
     edges = []
     for e in obs['memberships']:
         _dict(e, _EDGE_KEYS)
@@ -247,7 +266,7 @@ def validate_catalog(config, observation, *, phase='seed'):
         _shape(all(type(o[k]) is str for k in ('kind', 'schema', 'name')))
         owners.append({**o, 'owner_oid': _int(o['owner_oid'])})
     bindings = []
-    for b in obs['bindings']:
+    for b in (obs['bindings'] or []):
         _dict(b, _BINDING_KEYS)
         _shape(all(type(b[k]) is str for k in ('role_name', 'logical_role', 'installation_id', 'operation_id'))
                and all(type(b[k]) is int for k in ('role_oid', 'revision', 'database_oid', 'database_owner_oid'))
@@ -255,13 +274,17 @@ def validate_catalog(config, observation, *, phase='seed'):
         bindings.append(dict(b))
     if db['name'] != db_name:
         raise RoleRefusal('catalog_database')
-    if sess['login'] != logins['bootstrap'] or sess['oid'] != roles['bootstrap']['oid'] or sess['database_oid'] != db['oid']:
+    actor = 'api_request' if serve else 'bootstrap'
+    if sess['login'] != logins[actor] or sess['oid'] != roles[actor]['oid'] or sess['database_oid'] != db['oid']:
         raise RoleRefusal('catalog_session')
     oids = [roles[p]['oid'] for p in A_PURPOSES] + [groups[g]['oid'] for g in GROUPS]
     if any(roles[p]['login'] != logins[p] for p in A_PURPOSES) or len(set(oids)) != len(oids):
         raise RoleRefusal('catalog_roles')
     for p in A_PURPOSES:
-        if roles[p]['flags'] != {k: policy[p][k] for k in _FLAG_KEYS}:
+        expected_flags = {k: policy[p][k] for k in _FLAG_KEYS}
+        if serve:
+            expected_flags['login'] = policy[p]['lifetime'] == 'service'  # finite logins are closed by serve time
+        if roles[p]['flags'] != expected_flags:
             raise RoleRefusal(f'catalog_flags:{p}')
     for g in GROUPS:
         if groups[g]['login'] != g or any(groups[g]['flags'].values()) or groups[g]['memberships']:
@@ -276,6 +299,9 @@ def validate_catalog(config, observation, *, phase='seed'):
     service = {roles[p]['oid'] for p in BOUND}
     if db['owner_oid'] in service or any(o['owner_oid'] in service for o in owners):
         raise RoleRefusal('catalog_ownership')
+    if serve:
+        if svc['enrollment_readiness'] not in SERVICE_READINESS or not svc['installation_matches']:
+            raise RoleRefusal('catalog_service')
     if bindings:
         by_oid = {roles[p]['oid']: p for p in BOUND}
         seen = {}
@@ -291,5 +317,5 @@ def validate_catalog(config, observation, *, phase='seed'):
     return copy.deepcopy({'phase': phase, 'database': db, 'session': sess,
                           'roles': {p: {**roles[p], 'intended_revision': INTENDED_REVISION[p]} for p in A_PURPOSES},
                           'groups': {g: {'oid': groups[g]['oid']} for g in GROUPS},
-                          'bindings': {'state': 'bound' if bindings else 'absent', 'rows': sorted(bindings, key=lambda b: b['role_oid'])},
-                          'intended_revision': dict(INTENDED_REVISION)})
+                          'bindings': ({'state': 'unobserved', 'rows': []} if serve else {'state': 'bound' if bindings else 'absent', 'rows': sorted(bindings, key=lambda b: b['role_oid'])}),
+                          'intended_revision': dict(INTENDED_REVISION), **({'service': svc} if serve else {})})
