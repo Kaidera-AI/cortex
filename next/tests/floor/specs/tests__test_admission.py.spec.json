@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/floor/tests/test_admission.py",
+  "source_sha256": "756ebb2adda745dfe270b13c5a2716551a96698339a36596c18e24ad6a0b6c01",
+  "tests": {
+    "next/tests/floor/tests/test_admission.py": "756ebb2adda745dfe270b13c5a2716551a96698339a36596c18e24ad6a0b6c01"
+  },
+  "expected_nodes": [
+    "test_admission.Admission.test_oracle_controls"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "exit3 never becomes a body kill",
+  "mutation": {
+    "before": "def process(code=1, phase=\"test\"",
+    "after": "def process(code=3, phase=\"test\""
+  }
+}

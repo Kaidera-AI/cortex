@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/floor/release_profile.py",
+  "source_sha256": "51629c33dafa660b29cd6bfe1054aaec930e15b6bbb5e5e38bfd454baeaf3342",
+  "tests": {
+    "next/tests/floor/tests/test_admission.py": "756ebb2adda745dfe270b13c5a2716551a96698339a36596c18e24ad6a0b6c01"
+  },
+  "expected_nodes": [
+    "test_admission.Admission.test_oracle_controls"
+  ],
+  "kind": "tool",
+  "invariant": "expected BODY kill remains distinguishable from a survivor",
+  "mutation": {
+    "before": "return _ORACLE[\"classify\"](completed_process, set(expected_nodes))",
+    "after": "return \"survived\""
+  }
+}

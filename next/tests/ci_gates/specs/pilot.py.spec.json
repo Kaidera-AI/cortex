@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/pilot.py",
+  "source_sha256": "87a388af7fad6943b73b2f41efb5f024ae0176d1d3fcbebbb649739c700d2ca4",
+  "tests": {
+    "next/tests/ci_gates/tests/test_receipt.py": "ad0a6f2f009705587fb6abfae4b3ea97028b2b186a4a990af303dad3a3db7fda"
+  },
+  "expected_nodes": [
+    "test_receipt.Receipt.test_pilot_retains_required_skip_and_loaded_source"
+  ],
+  "kind": "tool",
+  "invariant": "required skips are retained without kill credit",
+  "mutation": {
+    "before": "skipped=[test.id() for test, _ in result.skipped]",
+    "after": "skipped=[]"
+  }
+}

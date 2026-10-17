@@ -1,0 +1,33 @@
+# Day-1 CI evidence controls
+
+Owner: Mike; accountable lead: Cox. Scope is source/unit evidence admission for Option A
+v0.1.004. This module cannot issue release GO. It adds no workflow, service or dependency.
+
+Run from the repository root with Python 3.13.7 and Python 3.14.0:
+
+```sh
+python -m unittest discover -s next/tests/ci_gates/tests -v
+python -m next.tests.ci_gates.receipt composition COMPOSITION_PACKET.json
+python -m next.tests.ci_gates.receipt collect COLLECTION_PACKET.json
+python -m next.tests.ci_gates.receipt history HISTORY_PACKET.json
+python -m next.tests.ci_gates.pilot mutate --root REPOSITORY --spec SPEC.json --output FRESH_OUTPUT --scratch FRESH_SSD_SCRATCH
+python -m next.tests.ci_gates.receipt mutation MUTATION_PACKET.json
+```
+
+Repeat `--spec` for every changed source. Output and scratch must be fresh directories
+outside the repository; use the project SSD output/tmp homes. Scratch may be removed
+after the lead accepts the immutable logs and source copies, or by the dated project
+cleanup process. The author tree is never mutated.
+
+The module reuses the existing phase-attributing unittest result/classifier and strict
+JSON/refusal helpers. Read [the contract](/Users/amadmalik/DevVault/helix/cortex/next/tests/ci_gates/contract.md).
+Raw provider collection uses read-only `gh api` and inherits its existing authentication;
+the causal children receive a minimal environment without credentials.
+
+Integration owner must admit these three files into the existing strict manifest:
+`next/tests/ci_gates/tests/test_receipt.py`,
+`next/tests/floor/tests/test_admission.py`,
+`next/tests/live_contract/tests/test_live_contract.py`.
+The shared manifest/workflows are outside this dispatch. Unit success is not hosted
+green, real-PG execution, native installation, paired identity, smoke or release credit.
+The other authors still owe their own per-source causal proofs.

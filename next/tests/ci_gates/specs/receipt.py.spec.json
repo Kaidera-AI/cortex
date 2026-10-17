@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/receipt.py",
+  "source_sha256": "77651138dcc5d5e6e7f5bf7e88e937d2c22e98fe763be52439b32ad878608b09",
+  "tests": {
+    "next/tests/ci_gates/tests/test_receipt.py": "ad0a6f2f009705587fb6abfae4b3ea97028b2b186a4a990af303dad3a3db7fda"
+  },
+  "expected_nodes": [
+    "test_receipt.Receipt.test_real_git_composition_not_pr_head"
+  ],
+  "kind": "tool",
+  "invariant": "receipts bind actual composition, not the PR head",
+  "mutation": {
+    "before": "row.get(\"source_commit\") == expected[\"composition\"]",
+    "after": "True"
+  }
+}
