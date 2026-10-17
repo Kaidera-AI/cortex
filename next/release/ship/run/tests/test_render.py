@@ -1,6 +1,5 @@
 """Spec for ship/run/render.py: DB + API only serve pod and the finite bootstrap plan."""
 import copy
-import importlib.util
 import json
 import pathlib
 import re
@@ -23,6 +22,8 @@ CORE_IMAGE = "sha256:" + "c" * 64
 API_IMAGE = "sha256:" + "a" * 64
 PY = "/opt/cortex/python/bin/python3"
 CFG = "/run/cortex/config/cortex.json"
+OPERATOR = "cortex_core.runtime.operator"
+OUTPUTS = ("bootstrap.plan.json", "inventory.json")
 PURPOSES = ("api_request", "probe", "bootstrap", "migrator", "installer_enrollment")
 # Refs deliberately differ from purpose names: targets must come from the Core refs.
 REFS = {"bootstrap": "secrets/cortex/pg_boot", "migrator": "secrets/cortex/pg_mig",
@@ -32,8 +33,6 @@ CA_REF = "secrets/cortex/db_ca"
 STEPS = ["core-init", "temporary-db", "roles-pre", "migrate", "roles-post",
          "seed", "roles-close", "stop-temporary-db", "serve"]
 FORBIDDEN = re.compile(r"embed|tei|qdrant|rerank|supervisor|conductor|observer|worker", re.I)
-# A Pod volume name is a DNS-1123 label.
-VOLUME = re.compile(r"[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?\Z")
 
 
 class ChildError(Exception):
@@ -114,9 +113,29 @@ def rendered(paths):
     proc = run(paths)
     assert proc.returncode == 0, proc.stderr
     out = paths["out"]
-    return (json.loads((out / "cortex-v2.pod.yaml").read_text()),
-            json.loads((out / "bootstrap.plan.json").read_text()),
-            json.loads((out / "inventory.json").read_text()))
+    plan = json.loads((out / "bootstrap.plan.json").read_text())
+    serve = next(s for s in plan["steps"] if s["name"] == "serve")
+    # Serve is three explicit Podman invocations: pod create, then the DB and API containers.
+    assert len(serve["podman"]) == 3, serve["podman"]
+    return serve, plan, json.loads((out / "inventory.json").read_text())
+
+
+def operator(verb, *extra):
+    return [PY, "-I", "-B", "-m", OPERATOR, verb, "--config", CFG,
+            "--unlock-fd", "3", "--key-id", {"input": "key_id"}, *extra]
+
+
+def named(argv):
+    return argv[argv.index("--name") + 1]
+
+
+def option(argv, flag):
+    return [argv[i + 1] for i, arg in enumerate(argv) if arg == flag]
+
+
+def command(argv, image):
+    assert image in argv, argv
+    return argv[argv.index(image) + 1:]
 
 
 def refusal(proc):
@@ -139,43 +158,42 @@ def resolved_vector(mode):
 
 
 def test_rung_feature_db_and_api_only(inputs):
-    pod, plan, inventory = rendered(inputs)
-    containers = pod["spec"]["containers"]
-    assert [c["name"] for c in containers] == ["core", "api"]
-    assert {c["image"] for c in containers} == {CORE_IMAGE, API_IMAGE}
-    assert pod["spec"].get("initContainers", []) == []
+    serve, plan, inventory = rendered(inputs)
+    pod_create, core, api = serve["podman"]
+    assert pod_create[:3] == ["podman", "pod", "create"]
+    assert [named(core), named(api)] == ["cortex-v2-core", "cortex-v2-api"]
+    assert {core[core.index(CORE_IMAGE)], api[api.index(API_IMAGE)]} == {CORE_IMAGE, API_IMAGE}
     assert inventory["serve"]["containers"] == ["core", "api"]
     images = {step["image"] for step in plan["steps"] if "image" in step}
     assert images <= {CORE_IMAGE, API_IMAGE}
     # Host paths are installer inputs, not run inventory: mask the fixture root before scanning.
     fixture_root = str(inputs["root"])
-    for name in ("cortex-v2.pod.yaml", "bootstrap.plan.json", "inventory.json"):
+    for name in OUTPUTS:
         text = (inputs["out"] / name).read_text().replace(fixture_root, "<fixture>")
         assert fixture_root not in text
         assert FORBIDDEN.search(text) is None, (name, FORBIDDEN.search(text))
+    assert sorted(p.name for p in inputs["out"].iterdir()) == sorted(OUTPUTS)
 
 
 def test_ready_identity_on_api_listener(inputs):
-    pod, _plan, inventory = rendered(inputs)
+    serve, _plan, inventory = rendered(inputs)
     assert inventory["ready"] == {"url": "http://127.0.0.1:18601/health",
                                   "fields": ["component", "status", "readiness"],
                                   "source_commit": SOURCE}
-    labels = pod["metadata"]["labels"]
-    assert labels["ai.kaidera.product"] == "cortex-v2"
-    assert labels["ai.kaidera.cortex.source"] == SOURCE
-    assert labels["ai.kaidera.cortex.installation"] == base_config()["installation_id"]
-    api = pod["spec"]["containers"][1]
-    assert api["command"] == [PY, "-I", "-B", "-m", "cortex_core.cli", "serve", "--config", CFG]
-    assert api["ports"] == [{"containerPort": 8000, "hostIP": "127.0.0.1", "hostPort": 18601}]
-    assert inventory["status_argv"] == [PY, "-I", "-B", "-m", "cortex_core.cli", "status",
-                                        "--config", CFG, "--json"]
-    for name in ("cortex-v2.pod.yaml", "bootstrap.plan.json", "inventory.json"):
-        assert "9309" not in (inputs["out"] / name).read_text()
+    pod_create, _core, api = serve["podman"]
+    labels = {pod_create[i + 1] for i, arg in enumerate(pod_create) if arg == "--label"}
+    assert {"ai.kaidera.product=cortex-v2", f"ai.kaidera.cortex.source={SOURCE}",
+            "ai.kaidera.cortex.installation=" + base_config()["installation_id"]} <= labels
+    assert command(api, API_IMAGE) == operator("serve") == serve["argv"]
+    assert inventory["status_argv"] == [PY, "-I", "-B", "-m", OPERATOR, "status", "--config", CFG]
+    for name in OUTPUTS:
+        text = (inputs["out"] / name).read_text()
+        assert "9309" not in text and "cortex_core.cli" not in text
 
 
 def test_db_argv_comes_from_operations(inputs):
-    pod, plan, _inventory = rendered(inputs)
-    assert pod["spec"]["containers"][0]["command"] == resolved_vector("core-server")
+    serve, plan, _inventory = rendered(inputs)
+    assert command(serve["podman"][1], CORE_IMAGE) == resolved_vector("core-server")
     steps = {s["name"]: s for s in plan["steps"]}
     assert steps["core-init"]["argv"] == resolved_vector("core-init")
     assert steps["core-init"].get("when") == "absent:/var/lib/cortex/core/PG_VERSION"
@@ -186,28 +204,29 @@ def target(inputs, ref):
     return str(inputs["vault"] / ref)
 
 
+def private_parents(inputs, *, records=True):
+    dirs = [inputs["vault"], inputs["vault"] / "secrets"]
+    if records:
+        dirs.append(inputs["vault"] / "secrets" / "cortex")
+    return [f"{d}:rw,mode=0700,size=64k" for d in dirs]
+
+
 def test_serve_mounts_only_request_and_probe(inputs):
-    pod, _plan, inventory = rendered(inputs)
-    core, api = pod["spec"]["containers"]
-    volumes = {v["name"]: v for v in pod["spec"]["volumes"]}
-    assert not [m for m in core["volumeMounts"] if "secret" in volumes[m["name"]]]
-    projected = {m["mountPath"]: (volumes[m["name"]]["secret"]["secretName"], m.get("subPath"),
-                                  m.get("readOnly"))
-                 for m in api["volumeMounts"] if "secret" in volumes[m["name"]]}
-    assert projected == {
-        target(inputs, REFS["api_request"]): ("cortex-v2-pg_req", "pg_req", True),
-        target(inputs, REFS["probe"]): ("cortex-v2-pg_probe", "pg_probe", True),
-        target(inputs, CA_REF): ("cortex-v2-db_ca", "db_ca", True)}
-    vault = inputs["vault"]
-    mounts = [m["mountPath"] for c in (core, api) for m in c["volumeMounts"]]
-    assert not {str(vault), str(vault / "secrets"), str(vault / "secrets" / "cortex")} & set(mounts)
-    host_paths = sorted((v["hostPath"]["path"], v["hostPath"]["type"])
-                        for v in volumes.values() if "hostPath" in v)
-    conf = inputs["core_conf"]
-    assert host_paths == sorted([(str(inputs["config"]), "File"),
-                                 (str(conf / "postgresql.conf"), "File"),
-                                 (str(conf / "pg_hba.conf"), "File")])
-    assert inventory["serve"]["secrets"] == sorted(MODE_PURPOSES["serve"]) == ["api_request", "probe"]
+    serve, _plan, inventory = rendered(inputs)
+    _pod, core, api = serve["podman"]
+    assert option(core, "-v") == [f"cortex-v2-core:/var/lib/cortex/core",
+                                  f"{inputs['core_conf'] / 'postgresql.conf'}:/run/cortex/postgresql.conf:ro",
+                                  f"{inputs['core_conf'] / 'pg_hba.conf'}:/run/cortex/pg_hba.conf:ro"]
+    # The actual encrypted adapter reads the two role records and the CA in place; no plaintext copy.
+    assert sorted(option(api, "-v")) == sorted([
+        f"{inputs['config']}:{CFG}:ro",
+        f"{target(inputs, REFS['api_request'])}:{target(inputs, REFS['api_request'])}:ro",
+        f"{target(inputs, REFS['probe'])}:{target(inputs, REFS['probe'])}:ro",
+        f"{target(inputs, CA_REF)}:{target(inputs, CA_REF)}:ro"])
+    assert option(api, "--tmpfs") == ["/tmp"] + private_parents(inputs)
+    assert not [a for step in serve["podman"] for a in step if a.startswith("--secret")]
+    assert serve["secrets"] == inventory["serve"]["secrets"] == sorted(MODE_PURPOSES["serve"])
+    assert inventory["serve"]["secrets"] == ["api_request", "probe"]
 
 
 @pytest.mark.parametrize("request_name,probe_name", [
@@ -215,54 +234,48 @@ def test_serve_mounts_only_request_and_probe(inputs):
     ("x" * 95 + "a", "x" * 95 + "b"),
     ("y" * 50 + "_1", "y" * 50 + "-1"),
 ], ids=["case-underscore", "max-length-last-char", "long-prefix-underscore"])
-def test_projection_volume_ids_are_injective(inputs, request_name, probe_name):
+def test_serve_record_mounts_keep_each_ref(inputs, request_name, probe_name):
     def change(cfg):
         cfg["roles"]["api_request"]["secret_ref"] = "secrets/cortex/" + request_name
         cfg["roles"]["probe"]["secret_ref"] = "secrets/cortex/" + probe_name
     mutate_config(inputs, change)
-    pod, _plan, _inventory = rendered(inputs)
-    names = [v["name"] for v in pod["spec"]["volumes"]]
-    assert len(names) == len(set(names)), sorted(n for n in names if names.count(n) > 1)
-    assert all(VOLUME.fullmatch(name) for name in names), names
-    volumes = {v["name"]: v for v in pod["spec"]["volumes"]}
-    api = pod["spec"]["containers"][1]
-    sources = {m["mountPath"]: volumes[m["name"]]["secret"]["secretName"]
-               for m in api["volumeMounts"] if "secret" in volumes[m["name"]]}
-    assert sources == {target(inputs, "secrets/cortex/" + request_name): "cortex-v2-" + request_name,
-                       target(inputs, "secrets/cortex/" + probe_name): "cortex-v2-" + probe_name,
-                       target(inputs, CA_REF): "cortex-v2-db_ca"}
-
-
-def test_volume_id_collision_refuses_before_publish(inputs, monkeypatch, capsys):
-    # Simulate a derivation collision: the renderer must refuse before it writes anything.
-    spec = importlib.util.spec_from_file_location("ship_render_under_test", RENDER)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    monkeypatch.setattr(module, "volume_id", lambda ref: "proj-same", raising=False)
-    assert module.main(flags(inputs)) == 2
-    lines = capsys.readouterr().err.strip().splitlines()
-    assert [json.loads(line) for line in lines] == [{"reason": "projection_collision",
-                                                     "unit": "ship/run"}]
-    assert not inputs["out"].exists()
+    serve, _plan, _inventory = rendered(inputs)
+    records = [m for m in option(serve["podman"][2], "-v") if "/secrets/cortex/" in m]
+    assert sorted(records) == sorted(
+        f"{target(inputs, 'secrets/cortex/' + n)}:{target(inputs, 'secrets/cortex/' + n)}:ro"
+        for n in (request_name, probe_name, CA_REF.rsplit("/", 1)[1]))
 
 
 def test_only_loopback_publish(inputs):
-    pod, _plan, _inventory = rendered(inputs)
-    ports = [p for c in pod["spec"]["containers"] for p in c.get("ports", [])]
-    assert len(ports) == 1
-    assert ports[0]["hostIP"] == "127.0.0.1"
-    assert all(p["containerPort"] != 5432 for p in ports)
-    assert pod["spec"]["hostNetwork"] is False
+    serve, plan, _inventory = rendered(inputs)
+    publish = [a for step in plan["steps"] for argv in step["podman"] for a in option(argv, "--publish")]
+    assert publish == ["127.0.0.1:18601:8000"]
+    assert option(serve["podman"][0], "--publish") == publish
+    for argv in serve["podman"]:
+        assert not [a for a in argv if a.startswith("--network") and "host" in a]
+        assert "-p" not in argv
+
+
+def test_serve_unlock_is_explicit_and_never_auto_restarted(inputs):
+    serve, plan, _inventory = rendered(inputs)
+    _pod, core, api = serve["podman"]
+    assert plan["inputs"] == ["unlock_descriptor", "key_id", "seed_operation_key"]
+    assert "--preserve-fds=1" in api and "--preserve-fds=1" not in core
+    assert "--restart=no" in core and "--restart=no" in api
+    assert command(api, API_IMAGE)[-4:] == ["--unlock-fd", "3", "--key-id", {"input": "key_id"}]
+    for name in OUTPUTS:
+        text = (inputs["out"] / name).read_text()
+        assert "restartPolicy" not in text and "Always" not in text and "kube" not in text
 
 
 def test_bootstrap_is_finite_and_ordered(inputs):
-    _pod, plan, _inventory = rendered(inputs)
+    _serve, plan, _inventory = rendered(inputs)
     assert [s["name"] for s in plan["steps"]] == STEPS
     expected = {"core-init": ["bootstrap"], "temporary-db": [],
                 "roles-pre": ["api_request", "bootstrap", "installer_enrollment", "migrator", "probe"],
                 "migrate": ["migrator"], "roles-post": ["bootstrap"],
                 "seed": ["api_request", "bootstrap", "installer_enrollment"], "roles-close": ["bootstrap"],
-                "stop-temporary-db": [], "serve": []}
+                "stop-temporary-db": [], "serve": ["api_request", "probe"]}
     assert expected["migrate"] == sorted(MODE_PURPOSES["migrate"])
     assert expected["seed"] == sorted(MODE_PURPOSES["seed"])
     for step in plan["steps"]:
@@ -270,10 +283,9 @@ def test_bootstrap_is_finite_and_ordered(inputs):
         assert isinstance(step["deadline_ms"], int) and step["deadline_ms"] > 0
         assert step.get("retries", 0) == 0
     steps = {s["name"]: s for s in plan["steps"]}
-    assert steps["migrate"]["argv"] == [PY, "-I", "-B", "-m", "cortex_core.cli", "migrate", "--config", CFG]
-    assert steps["seed"]["argv"] == [PY, "-I", "-B", "-m", "cortex_core.cli", "seed", "--config", CFG]
+    assert steps["migrate"]["argv"] == operator("migrate")
+    assert steps["seed"]["argv"] == operator("seed", "--operation-key", {"input": "seed_operation_key"})
     assert steps["roles-pre"]["argv"][-2:] == ["-f", "/run/cortex/sql/roles-pre.sql"]
-    assert steps["serve"]["pod_file"] == "cortex-v2.pod.yaml"
     assert plan["restart"] == "never"
 
 
@@ -282,20 +294,25 @@ def secret_flags(step):
 
 
 def test_bootstrap_projections_follow_core_refs(inputs):
-    _pod, plan, _inventory = rendered(inputs)
+    _serve, plan, _inventory = rendered(inputs)
     steps = {s["name"]: s for s in plan["steps"]}
-    ca = f"--secret=cortex-v2-db_ca,type=mount,target={target(inputs, CA_REF)},mode=0400"
-
-    def flags(*purposes):
-        return sorted([f"--secret=cortex-v2-{REFS[p].rsplit('/', 1)[1]},type=mount,"
-                       f"target={target(inputs, REFS[p])},mode=0400" for p in purposes] + [ca])
-    assert secret_flags(steps["migrate"]) == flags("migrator")
-    assert secret_flags(steps["seed"]) == flags("bootstrap", "installer_enrollment", "api_request")
+    migrate, seed = steps["migrate"]["podman"][0], steps["seed"]["podman"][0]
+    assert command(migrate, API_IMAGE) == operator("migrate")
+    assert sorted(option(migrate, "-v")) == sorted([
+        f"{inputs['config']}:{CFG}:ro",
+        f"{target(inputs, REFS['migrator'])}:{target(inputs, REFS['migrator'])}:ro",
+        f"{target(inputs, CA_REF)}:{target(inputs, CA_REF)}:ro"])
+    assert option(migrate, "--tmpfs") == private_parents(inputs)
+    # Seed alone gets its one encrypted-record directory writable (atomic replace + lock).
+    records = inputs["vault"] / "secrets" / "cortex"
+    assert sorted(option(seed, "-v")) == sorted([f"{inputs['config']}:{CFG}:ro", f"{records}:{records}:rw"])
+    assert option(seed, "--tmpfs") == private_parents(inputs, records=False)
+    for argv in (migrate, seed):
+        assert "--preserve-fds=1" in argv
+        assert not [a for a in argv if a.startswith("--secret")]
     assert secret_flags(steps["core-init"]) == [
         "--secret=cortex-v2-pg_boot,type=mount,target=/run/cortex/bootstrap/initdb-password,mode=0400"]
-    for name in ("migrate", "seed"):
-        assert f"{inputs['config']}:/run/cortex/config/cortex.json:ro" in steps[name]["podman"][0]
-    for name in ("cortex-v2.pod.yaml", "bootstrap.plan.json", "inventory.json"):
+    for name in OUTPUTS:
         assert "/run/cortex/secrets" not in (inputs["out"] / name).read_text()
 
 

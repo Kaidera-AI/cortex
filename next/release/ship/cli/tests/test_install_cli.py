@@ -1,4 +1,4 @@
-"""Spec for ship/cli/install_cli.sh: render wrappers, refuse PATH collisions."""
+"""Spec for ship/cli/install_cli.sh: render the launchers, refuse PATH collisions."""
 import json
 import pathlib
 import re
@@ -24,23 +24,25 @@ def world(tmp_path):
         path = clients / name
         path.write_text("#!/bin/sh\nexit 0\n")
         path.chmod(0o555)
-    projector = tmp_path / "projector"
-    projector.write_text("#!/bin/sh\nexit 0\n")
-    projector.chmod(0o755)
+    core_python = tmp_path / "core" / "bin" / "python3"
+    core_python.parent.mkdir(parents=True)
+    core_python.write_text("#!/bin/sh\nexit 0\n")
+    core_python.chmod(0o755)
     link = tmp_path / "link"
     link.mkdir()
     other = tmp_path / "other-bin"
     other.mkdir()
-    return {"tmp": tmp_path, "clients": clients, "projector": projector, "link": link,
-            "other": other, "prefix": tmp_path / "prefix"}
+    return {"tmp": tmp_path, "clients": clients, "core_python": core_python, "link": link,
+            "other": other, "prefix": tmp_path / "prefix",
+            "config": tmp_path / "vault" / "config" / "cortex.json"}
 
 
 def install(world, *extra, path_dirs=None):
     assert INSTALL.is_file(), f"missing {INSTALL}"
     dirs = [str(d) for d in (path_dirs or [])] + ["/usr/bin", "/bin"]
     argv = ["/bin/bash", str(INSTALL), "--prefix", str(world["prefix"]),
-            "--client-dir", str(world["clients"]), "--projector", str(world["projector"]),
-            "--link-dir", str(world["link"]), *extra]
+            "--client-dir", str(world["clients"]), "--core-python", str(world["core_python"]),
+            "--config", str(world["config"]), "--link-dir", str(world["link"]), *extra]
     return child(argv, {"PATH": ":".join(dirs), "HOME": str(world["tmp"])})
 
 
@@ -65,9 +67,11 @@ def test_links_wrappers_when_path_is_free(world):
     for name in COMMANDS:
         wrapper = world["prefix"] / "bin" / name
         text = wrapper.read_text()
-        assert "@" not in text.replace("\"$@\"", "")
-        assert f'exec "{world["clients"] / name}" "$@"' in text
-        assert str(world["projector"]) in text
+        assert "@" not in text
+        assert text.startswith(f"#!{world['core_python']} -IS\n")
+        assert f'CLIENT = "{world["clients"] / name}"' in text
+        assert f'CORE_PYTHON = "{world["core_python"]}"' in text
+        assert f'CONFIG = "{world["config"]}"' in text
         assert (world["link"] / name).resolve() == wrapper.resolve()
     assert (world["prefix"] / "cli" / "agents-empty").is_dir()
     assert list((world["prefix"] / "cli" / "agents-empty").iterdir()) == []
@@ -106,12 +110,21 @@ def test_missing_client_refused(world):
     assert not world["prefix"].exists()
 
 
+def test_missing_core_python_refused(world):
+    world["core_python"].unlink()
+    proc = install(world, path_dirs=[world["link"]])
+    assert refusal(proc) == f"core_python_missing:{world['core_python']}"
+    assert not world["prefix"].exists()
+
+
+@pytest.mark.parametrize("flag", ["--core-python", "--config"])
 @pytest.mark.parametrize("bad", ['/tmp/a"b', "/tmp/a$b", "/tmp/a`b", "relative/path"])
-def test_unsafe_projector_path_refused(world, bad):
+def test_unsafe_path_refused(world, flag, bad):
     assert INSTALL.is_file(), f"missing {INSTALL}"
+    values = {"--core-python": str(world["core_python"]), "--config": str(world["config"]), flag: bad}
     argv = ["/bin/bash", str(INSTALL), "--prefix", str(world["prefix"]),
-            "--client-dir", str(world["clients"]), "--projector", bad,
-            "--link-dir", str(world["link"])]
+            "--client-dir", str(world["clients"]), "--core-python", values["--core-python"],
+            "--config", values["--config"], "--link-dir", str(world["link"])]
     proc = child(argv, {"PATH": "/usr/bin:/bin", "HOME": str(world["tmp"])})
     assert refusal(proc) == f"unsafe_path:{bad}"
     assert not world["prefix"].exists()
