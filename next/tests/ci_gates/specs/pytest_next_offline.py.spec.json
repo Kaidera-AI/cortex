@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "source": ".github/scripts/pytest_next_offline.py",
-  "source_sha256": "9f89759af228cfe5812b1869f624673c56d9ede2ed402bb4b6d997f7480c7108",
+  "source_sha256": "69b15ac77aed6985048f2e6085c43f36c52804e757cc09faf46921429da40037",
   "tests": {
-    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6"
+    "next/tests/ci_gates/tests/test_packaged_policy.py": "fb77c8897adb2ca6483b86a614d1345e73d8bbd894bd82c083d516dadcef0b17"
   },
   "expected_nodes": [
-    "test_ledger_home.LedgerHome.test_both_suite_and_imported_cluster_are_pinned"
+    "test_packaged_policy.PackagedPolicy.test_copied_policy_drift_refuses_even_with_a_rewritten_packager_receipt"
   ],
   "kind": "tool",
-  "invariant": "ledger witness requires the source and imported Cluster pins",
+  "invariant": "Copied policy must match the current actual ship source even if a copied receipt is rewritten",
   "mutation": {
-    "before": "if hashlib.sha256((root/native).read_bytes()).hexdigest()!=fixture['sha256']:return False",
-    "after": "if False:return False"
+    "before": "if (destination/target).read_bytes()!=(root/source).read_bytes():raise ValueError('ship_closure_source_drift')",
+    "after": "if False:raise ValueError('ship_closure_source_drift')"
   }
 }

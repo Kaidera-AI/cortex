@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_packaged_policy.py",
+  "source_sha256": "fb77c8897adb2ca6483b86a614d1345e73d8bbd894bd82c083d516dadcef0b17",
+  "tests": {
+    "next/tests/ci_gates/tests/test_packaged_policy.py": "fb77c8897adb2ca6483b86a614d1345e73d8bbd894bd82c083d516dadcef0b17"
+  },
+  "expected_nodes": [
+    "test_packaged_policy.PackagedPolicy.test_actual_package_closure_contains_only_source_identical_ship_bytes"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "Source-only packaged policy byte equality must execute",
+  "mutation": {
+    "before": "self.assertEqual((destination/target).read_bytes(),(ROOT/source).read_bytes())",
+    "after": "self.assertNotEqual((destination/target).read_bytes(),(ROOT/source).read_bytes())"
+  }
+}

@@ -713,6 +713,43 @@ def execute_partitioned(command, count, destination, root, environment, isolated
     return (0 if combined is not None else 1), '\n'.join(logs), records
 
 
+def stage_ship_closure(root,destination,environment):
+    """Reuse the actual ship packager; copied source is never installed authority."""
+    root,destination=Path(root),Path(destination)
+    packager='next/release/ship/install/package_closure.py'
+    sources={
+        'next/release/ship/install/roles.py':'cortex_ship/install/roles.py',
+        'next/release/ship/install/provision.py':'cortex_ship/install/provision.py',
+        'next/contracts/runtime/runtime-operations-v1.json':'cortex_ship/install/runtime-operations-v1.json',
+    }
+    if destination.exists():raise ValueError('ship_closure_exists')
+    process=subprocess.run([sys.executable,'-B',str(root/packager),'--out',str(destination)],
+        cwd=root,env=environment,capture_output=True,text=True,timeout=30)
+    if process.returncode:raise ValueError('ship_closure_packager')
+    try:
+        receipt=destination/'cortex_ship/receipt.json'
+        value=json.loads(receipt.read_bytes())
+        files={row['path']:row['sha256'] for row in value['files']}
+        expected=set(sources.values())|{'cortex_ship/__init__.py','cortex_ship/install/__init__.py'}
+        if (set(files)!=expected or len(value['files'])!=len(expected)
+                or value['schema']!='cortex.ship.closure.v1'
+                or value['namespace']!='cortex_ship.install.roles'):raise ValueError('ship_closure_receipt')
+        actual={str(path.relative_to(destination)) for path in destination.rglob('*') if path.is_file()}
+        if actual!=expected|{'cortex_ship/receipt.json'}:raise ValueError('ship_closure_files')
+        for path in destination.rglob('*'):
+            if path.is_symlink():raise ValueError('ship_closure_symlink')
+        for target,digest in files.items():
+            if hashlib.sha256((destination/target).read_bytes()).hexdigest()!=digest:raise ValueError('ship_closure_hash')
+        for source,target in sources.items():
+            if (destination/target).read_bytes()!=(root/source).read_bytes():raise ValueError('ship_closure_source_drift')
+        return dict(qualification='SOURCE_COPIED_POLICY_ONLY',path=str(destination),
+            receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest(),
+            source_sha256={source:hashlib.sha256((root/source).read_bytes()).hexdigest()
+                           for source in [packager,*sources]})
+    except (OSError,KeyError,TypeError,json.JSONDecodeError) as error:
+        raise ValueError('ship_closure_invalid') from error
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -796,6 +833,14 @@ def main():
                            CORTEX_U13_CASE_ROOT=str(case), PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',
                            PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
         (case / 'home').mkdir()
+        try:
+            closure=stage_ship_closure(ROOT,case/'ship-source-closure',environment)
+        except (ValueError,subprocess.SubprocessError) as error:
+            packet['ship_closure_error']=type(error).__name__;write(result,packet)
+            print('NEXT_SHIP_SOURCE_CLOSURE_RED',flush=True);return 1
+        packet['ship_source_closure']=closure;write(result,packet)
+        shutil.copyfile(Path(closure['path'])/'cortex_ship/receipt.json',args.output/'ship-source-closure.json')
+        environment['PYTHONPATH']=closure['path']
         proofs=retirement_proofs(ROOT,[] if args.loopback else checked['retirement_checks'],args.output/'retirement-proofs',case,environment)
         packet['retirement_proofs']=proofs;write(result,packet)
         if not all(row['ok'] for row in proofs):

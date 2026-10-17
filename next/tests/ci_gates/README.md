@@ -1,61 +1,27 @@
-# Day-1 CI evidence controls
+# CI evidence controls
 
-Owner: Mike; accountable lead: Cox. Scope is source/unit evidence admission for Option A
-v0.1.004. This module cannot issue release GO. It adds no workflow, service or dependency.
+Owner: Mike; accountable lead: Cox. Scope is source/unit evidence admission for Option A v0.1.004. These controls cannot issue release GO.
 
-Run from the repository root with Python 3.13.7 and Python 3.14.0:
+Use both existing Python 3.13.7 and 3.14.0 runtimes. The unchanged strict per-file worker records every collected setup/call/teardown phase. Missing dependencies, skips, deselection, phase errors and changed sources refuse. Keep complete raw attempts and exact source hashes.
 
 ```sh
+python .github/scripts/pytest_next_offline.py --inventory-only --output FRESH_OUTPUT
 python -m unittest discover -s next/tests/ci_gates/tests -v
 python -m next.tests.ci_gates.receipt composition COMPOSITION_PACKET.json
 python -m next.tests.ci_gates.receipt collect COLLECTION_PACKET.json
 python -m next.tests.ci_gates.receipt history HISTORY_PACKET.json
-python -m next.tests.ci_gates.pilot mutate --root REPOSITORY --spec SPEC.json --output FRESH_OUTPUT --scratch FRESH_SSD_SCRATCH
+python -m next.tests.ci_gates.pilot mutate --root REPOSITORY --spec SPEC.json --output FRESH_OUTPUT --scratch FRESH_SCRATCH
 python -m next.tests.ci_gates.receipt mutation MUTATION_PACKET.json
 ```
 
-Repeat `--spec` for every changed source. Output and scratch must be fresh directories
-outside the repository; use the project SSD output/tmp homes. Scratch may be removed
-after the lead accepts the immutable logs and source copies, or by the dated project
-cleanup process. The author tree is never mutated.
+Repeat `--spec` for every changed source. Output and scratch must be fresh project output/tmp homes outside the repository. Causal children use a minimal environment without credentials and never mutate the author tree. A source comparator with peer bytes composed is not an accepted policy base or an installed candidate.
 
-The module reuses the existing phase-attributing unittest result/classifier and strict
-JSON/refusal helpers. Read [the contract](/Users/amadmalik/DevVault/helix/cortex/next/tests/ci_gates/contract.md).
-Raw provider collection uses read-only `gh api` and inherits its existing authentication;
-the causal children receive a minimal environment without credentials.
+Current Day-2 admission includes the actual runtime catalog/lifecycle/status suites, actual seed-owner contract and Nix pure catalog/package/provision suites as RUN. The actual seed suite, seed/operator join and seven versioned CLI transport/namespace/health suites have explicit loopback homes. The v2 source is `next/modules/cli-v2`; the original v1 helper and `packages/api/tests/test_mcp_live.py` remain unchanged. No projection injection supplies v1 authority. Loopback execution uses the required Linux namespace with only lo, no-new-privileges, both runtimes and the unchanged 180-second file ceiling. Local loopback fixtures provide source evidence only.
 
-Integration owner must admit these three files into the existing strict manifest:
-`next/tests/ci_gates/tests/test_receipt.py`,
-`next/tests/floor/tests/test_admission.py`,
-`next/tests/live_contract/tests/test_live_contract.py`.
-The shared manifest/workflows are outside this dispatch. Unit success is not hosted
-green, real-PG execution, native installation, paired identity, smoke or release credit.
-The other authors still owe their own per-source causal proofs.
+The owned runner reuses Nix's actual `next/release/ship/install/package_closure.py` to expose `cortex_ship.install.roles` to source-only child interpreters. It checks the exact copied file set, receipt digests and each policy payload against the current source bytes. A modified policy with a rewritten copied receipt still refuses. This copied namespace is labelled SOURCE_COPIED_POLICY_ONLY; it supplies no native or installed authority and introduces no alternate policy implementation.
 
-Day-2 SharedAdmission checks all three Mike suites and Nemo compatibility contract are RUN and preserves the independently pinned prior admissions/controls. Strict inventory still discovers every next test. Native PostgreSQL execution remains separate from offline passes.
+`pytest-pg` retains separate required installer-role and installer-ledger steps after earlier failures unless cancelled. Their source-pinned exact method sets are nine role methods and eleven ledger/provisioning methods. The existing private native-cluster worker keeps the 180-second cap, strict phases and owned cleanup. The closed worker environment selects only `api-replay-0004` (ten real migrations); full21/pgvector remains a separate gate. Credentials and caller migration selectors are not inherited. Both ledger suite and its imported Cluster are pinned. Synthetic receipt controls grant source/unit admission evidence only.
 
-Day-2 native installer-role join: `pytest-pg` runs `pytest_pg_worker.py --mode
-installer-roles --pg-bin EXPLICIT_BIN --site EXPLICIT_TEST_SITE --output FRESH_DIR`.
-The nine source-pinned role methods have their own exact setup/call/teardown gate,
-180-second worker ceiling and private cluster scratch. Missing tools, skips,
-deselection, phase errors, source drift and failed cleanup refuse. Synthetic
-receipt controls are unit evidence only; the hosted native packet is still required.
+Writer controls retain precise per-site classification as well as whole-file pins: actual seed has four bootstrap writes following private PREPARED custody, and three closed identity reads. Changed query bytes, source aliases and added writes must refuse even when a whole-file checksum is renewed. No generic SELECT/getattr bypass is permitted.
 
-Day-2 admission continuation: the three actual Core runtime suites are ordinary
-RUN, alongside the Nix signature/spine suite and all earlier admissions. Finn's
-five `packages/cli/tests/test_transport*.py` suites and the actual seed contract
-suite have an explicit `loopback` home in the same inventory. The existing runner
-`--loopback` uses the unchanged strict per-file worker and phase classifier, an
-isolated Linux network namespace with only `lo`, no-new-privileges, the same
-resource limits, both required Python versions and the unchanged180s file cap.
-The required workflow step still runs after an earlier failure and uploads all
-receipts. It grants source-contract credit only. A missing seed module remains
-an executed ModuleNotFoundError and a RED gate; it is never skipped, declared
-unbuilt, counted as a BODY kill or accepted as installed proof. The transport
-family outside next/ is inventoried explicitly; unrelated retained CLI history
-suites keep their existing homes. Symlinks, missing, stale and duplicate entries
-refuse, and ordinary RUN cannot migrate into loopback as a coverage reduction.
-
-The exact published Finn seed driver contains two SQL-looking regex/denied-keyword DATA strings. Existing per-site writer classifications pin their exact file/owner/verb/ordinal/statement bytes and the complete test-file hash. They confer no SQL or installed authority. Independent controls refuse changed regex bytes, renamed owners and an added real execute call even when the whole-file pin is renewed.
-
-Nix ledger admission consult: the actual catalog, package-closure and provisioning-step pure suites are RUN. `pytest-pg` also has a required `installer-ledger` step that runs after earlier failures unless cancelled. It uses the existing private native-cluster worker, exact nine ledger/provisioning methods, unchanged 180s cap, strict phases and owned cleanup. The fixture row pins both the ledger suite and its imported real Cluster source. The closed worker environment selects only `api-replay-0004` (ten real migrations); the full21/pgvector run is a separate gate. Credentials and caller migration selectors are not inherited. LedgerHome synthetic controls provide source/unit admission evidence only, no native or installed-candidate acceptance.
+Read-only CI collection preserves every failed run/attempt and does not close history_snapshot_drift. The unavailable real OpenAPI/runtime export remains bound_spec_complete=spec_incomplete with zero mutation credit. Source success is distinct from hosted green, native PostgreSQL, image installation, paired identity, smoke and release acceptance. Current owner source REDs must remain visible.
