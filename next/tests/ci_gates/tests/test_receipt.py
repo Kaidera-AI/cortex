@@ -108,6 +108,28 @@ class Receipt(unittest.TestCase):
             with self.assertRaises(gate.ReceiptRefusal):
                 gate.collect_history("fixture/project", HEAD, root, fetch=fetch)
 
+
+    def test_pilot_retains_required_skip_and_loaded_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/"probe.py").write_text(
+                "import unittest\nclass Probe(unittest.TestCase):\n"
+                " @unittest.skip('deliberate required skip')\n"
+                " def test_expected(self): self.assertTrue(True)\n")
+            command = [sys.executable, str(ROOT/"next/tests/ci_gates/pilot.py"), "run",
+                       "--root", str(root), "--source", "probe.py", "--node",
+                       "probe.Probe.test_expected"]
+            done = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            packet = json.loads(next(line.split("=", 1)[1] for line in done.stdout.splitlines()
+                if line.startswith("CORTEX_TEST_RESULT=")))
+            self.assertEqual(packet["skipped"], ["probe.Probe.test_expected"])
+            loaded = json.loads(next(line.split("=", 1)[1] for line in done.stdout.splitlines()
+                if line.startswith("CORTEX_LOADED_SOURCE=")))
+            self.assertEqual(loaded["sha256"], hashlib.sha256((root/"probe.py").read_bytes()).hexdigest())
+            from next.tests.floor.release_profile import oracle_controls
+            self.assertEqual(oracle_controls(done, {"probe.Probe.test_expected"}), "inconclusive")
+
     def test_mutation_complete(self):
         with self.assertRaises(gate.ReceiptRefusal):
             gate.mutation_complete(ROOT, ["next/tests/ci_gates/receipt.py"], [], [])
