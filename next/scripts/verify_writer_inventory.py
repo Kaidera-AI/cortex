@@ -14,16 +14,21 @@ FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.
 # Source-reviewed, normalized ASTs of the complete enclosing functions. A change
 # anywhere in one of these functions invalidates its indirect-SQL exception.
 KNOWN_INPUT_FUNCTION_SHA256 = {
-    ('src/cortex_core/coordination.py','Jobs._load'): 'e10eddc8f089d9ccc97e60e576dedbfe3d39541e3eb8bee0414db28b29407ade',
-    ('src/cortex_core/auth.py','authorized'): '479d115551dc48de8bbc2e9fba943d21879bf0497f05a5d65610a97dc282ae46',
-    ('src/cortex_core/identity.py','Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
-    ('src/cortex_core/identity.py','Identity._register'): 'f837fa6fdcc01e32d12b74eb9b8a1390a3305bd8ef256fdf28b6b3b460e820b8',
-    ('src/cortex_core/records.py','_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
-    ('src/cortex_core/migrations.py','apply_migrations'): 'f6b91694ad8b164dba2faf88e9d1e67a0d206c8f2a298273aeaf3e59b2c580fb',
-    ('src/cortex_core/backup_validation.py','read_restored_snapshot'): '138962613394d459cf5c93a5843b2d25a94afc8b8ce2da3b391fea2277ba00eb',
-    ('src/cortex_core/release/_pyc_check.py','_compiled_fields_equal'): 'fad0c5ff2c9164641b78522302295d9a76ea58924a1bb460879e8e131f1a09ce',
-    ('src/cortex_core/release/build/audit.py','_code_equal'): '25fa770e8b9d590251468d0610c4692a940b05cada23e7cc4736b29b84b63d7c',
-    ('src/vector_baseline/product_path.py','snapshot_corpus'): 'a89b8ce6091ec7c232f6a81f2202d6c04f903f01132d2ddfd6329363ba393f24',
+    ('src/cortex_core/coordination.py', 'Jobs._load'): 'e10eddc8f089d9ccc97e60e576dedbfe3d39541e3eb8bee0414db28b29407ade',
+    ('src/cortex_core/auth.py', 'authorized'): '479d115551dc48de8bbc2e9fba943d21879bf0497f05a5d65610a97dc282ae46',
+    ('src/cortex_core/identity.py', 'Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
+    ('src/cortex_core/identity.py', 'Identity._register'): 'f837fa6fdcc01e32d12b74eb9b8a1390a3305bd8ef256fdf28b6b3b460e820b8',
+    ('src/cortex_core/records.py', '_private'): '7b69423595de4126e83a8b345bf785b84f62510d05f451eac13981455d8f2e66',
+    ('src/cortex_core/migrations.py', 'apply_migrations'): '52072eecb96a95154f4a003f66157ec962a92f76fa923c84abe9b8ebdd77c76d',
+    ('src/cortex_core/backup_validation.py', 'read_restored_snapshot'): '138962613394d459cf5c93a5843b2d25a94afc8b8ce2da3b391fea2277ba00eb',
+    ('src/cortex_core/release/_pyc_check.py', '_compiled_fields_equal'): 'fad0c5ff2c9164641b78522302295d9a76ea58924a1bb460879e8e131f1a09ce',
+    ('src/cortex_core/release/build/audit.py', '_code_equal'): '25fa770e8b9d590251468d0610c4692a940b05cada23e7cc4736b29b84b63d7c',
+    ('src/vector_baseline/product_path.py', 'snapshot_corpus'): 'a89b8ce6091ec7c232f6a81f2202d6c04f903f01132d2ddfd6329363ba393f24',
+    ('src/cortex_core/migrations.py', 'prepare_migrations'): '068d58f96eab206b695d4154121d6036d7a285f36e0369b78bf96c6827ba9938',
+    ('src/cortex_core/release/codec.py', '_validator_class'): 'f4a06714c0db3b1a24356c3c9579bbfef559552b6254d0fb99de646da65f3cd1',
+    ('src/cortex_core/release/codec.py', 'schema_validate'): 'a90f530072af970c807dbea7fc7c0a82ddfdb4bed9362af32ab147c6cef86a14',
+    ('src/cortex_core/schema/migrate.py', 'apply_forward_migrations'): 'b845ab9b1fedd1786937d3060392ba053046b745583cc56f8ba39f90a70336b0',
+    ('src/cortex_core/schema/tests/test_readiness.py', 'ReadinessTests.test_existing_runner_is_only_migration_engine'): '5897b37afa56870f264c902b334e9ab94f5d6147f0e2099a11352160429478b8',
 }
 
 # The function pins alone cannot see an aliased caller elsewhere in the module.
@@ -33,11 +38,14 @@ KNOWN_INPUT_FILE_SHA256 = {
     'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
     'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
     'src/cortex_core/records.py': 'e52d86a0cddfa7b98315f87c9904aeb64665e8dc68e353b8280a276ca97a32d3',
-    'src/cortex_core/migrations.py': '2af9a2b517a8646ed819ad7acdeef3522bbcaaaf1ea0a5705ebd614ca9781277',
+    'src/cortex_core/migrations.py': 'a54f8564f61ba6a94e9aed91f85416eec71bac43864415bfa71538230f7d8a35',
     'src/cortex_core/backup_validation.py': '5d3731e58e5217ba4b2fc6f538679fc4bcc85327924c813f67f6f5bc5819a84a',
     'src/cortex_core/release/_pyc_check.py': '1f35d123db1346056e7b932d8437771c1a4f4d3edc87c25b3bcab00aa40508cf',
     'src/cortex_core/release/build/audit.py': '6639168da2ebb9ab1128b50e6fecf72d7f8f4d6250ced97bfe497900ef9ae306',
     'src/vector_baseline/product_path.py': '68776fc8ec72034bcc1dad696ffff8158b178a8291da14c2a7fa5733de41dca1',
+    'src/cortex_core/release/codec.py': '4b72872a8f812701f447dc05bb29d70638cfd1eee5ae3ab5d45df256688ee024',
+    'src/cortex_core/schema/migrate.py': '7e05599c53272c0015b919e8e93d1c246477fc7ce297db23ebed9cb5ad18c008',
+    'src/cortex_core/schema/tests/test_readiness.py': 'b9793ee18dc425e7a5aa4f174c61e4b046df2ebb51ad2f8f58420e811a5af2d7',
 }
 EXEMPT_SYMBOL_FILES = {
     '_private': {'src/cortex_core/records.py'},
@@ -188,10 +196,56 @@ def reviewed_reflection_calls(file,tree):
     return set()
 
 
+def reviewed_factory_calls(file,tree):
+    """Only codec's reviewed jsonschema class factory, applied to its schema."""
+    if file!='src/cortex_core/release/codec.py':return set()
+    functions={n.name:n for n in tree.body if isinstance(n,ast.FunctionDef)}
+    factory,consumer=functions.get('_validator_class'),functions.get('schema_validate')
+    if not all(reviewed_input(file,name,tree,fn) for name,fn in
+               [('_validator_class',factory),('schema_validate',consumer)]):return set()
+    assignments=[n for n in ast.walk(factory) if isinstance(n,ast.Assign)]
+    shapes={ast.unparse(n) for n in assignments}
+    expected={"value = globals().get('WireValidator')",
+              "value = extend(Draft202012Validator, {'maxLength': _byte_length, 'uniqueItems': _unique_items, 'contains': _contains})",
+              "globals()['WireValidator'] = value"}
+    returns=[ast.unparse(n) for n in ast.walk(factory) if isinstance(n,ast.Return)]
+    imports=[ast.unparse(n) for n in factory.body if isinstance(n,ast.ImportFrom)]
+    if (len(assignments)!=3 or shapes!=expected or returns!=['return value']
+            or imports!=['from jsonschema import Draft202012Validator',
+                         'from jsonschema.exceptions import ValidationError',
+                         'from jsonschema.validators import extend']):return set()
+    return {n.func for n in ast.walk(consumer) if isinstance(n,ast.Call)
+            and ast.unparse(n)=="_validator_class()(schema)"}
+
+
+def reviewed_migration_references(file,tree):
+    """Close only the one forwarding call and the exact mock attribute label."""
+    if file=='src/cortex_core/schema/migrate.py':
+        functions=[n for n in tree.body if isinstance(n,ast.FunctionDef)
+                   and n.name=='apply_forward_migrations']
+        if len(functions)!=1:return set()
+        fn=functions[0]
+        if (not reviewed_input(file,fn.name,tree,fn) or len(fn.body)!=1
+                or ast.unparse(fn.body[0])!='return migrations.apply_migrations(connection, directory)'):
+            return set()
+        return {fn.body[0].value.func}
+    if file=='src/cortex_core/schema/tests/test_readiness.py':
+        classes=[n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='ReadinessTests']
+        functions=[n for cls in classes for n in cls.body if isinstance(n,ast.FunctionDef)
+                   and n.name=='test_existing_runner_is_only_migration_engine']
+        if len(functions)!=1:return set()
+        fn=functions[0]
+        if not reviewed_input(file,'ReadinessTests.'+fn.name,tree,fn):return set()
+        return {n.args[1] for n in ast.walk(fn) if isinstance(n,ast.Call)
+                and ast.unparse(n)=="patch.object(migrations, 'apply_migrations', return_value=['core-0001'])"}
+    return set()
+
+
 def source_reference_flags(file,source):
     """Unreviewed exempt-name references and dynamic reflection in NEXT source."""
     tree=ast.parse(source);flags=[];ordinals={}
-    reviewed_calls=reviewed_reflection_calls(file,tree)
+    reviewed_calls=reviewed_reflection_calls(file,tree) | reviewed_factory_calls(file,tree)
+    reviewed_references=reviewed_migration_references(file,tree)
     call_targets={node.func for node in ast.walk(tree) if isinstance(node,ast.Call)}
     getter_references={node for node in ast.walk(tree) if (
         isinstance(node,ast.Name) and node.id=='getattr'
@@ -210,7 +264,8 @@ def source_reference_flags(file,source):
         elif isinstance(node,ast.alias):symbols=[node.name,node.asname]
         elif isinstance(node,ast.Constant) and isinstance(node.value,str):symbols=[node.value]
         for symbol in symbols:
-            if symbol in EXEMPT_SYMBOL_FILES and file not in EXEMPT_SYMBOL_FILES[symbol]:
+            if (symbol in EXEMPT_SYMBOL_FILES and file not in EXEMPT_SYMBOL_FILES[symbol]
+                    and node not in reviewed_references):
                 flag('cross_file:'+symbol,node)
         if node in getter_references and node not in call_targets:
             flag('dynamic_name:getattr_alias',node)
@@ -400,7 +455,14 @@ def scan_source(file,source):
             loops=[n for n in ast.walk(fn) if isinstance(n,ast.For) and isinstance(n.target,ast.Tuple)
                    and [getattr(t,'id',None) for t in n.target.elts]==['identity','digest','sql']
                    and ast.unparse(n.iter)=='prepared[:prepared_target + 1]']
-            appends=[n for n in ast.walk(fn) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute)
+            helpers=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='prepare_migrations']
+            if len(helpers)!=1 or not reviewed_input(file,'prepare_migrations',tree,helpers[0]):return False
+            helper=helpers[0]
+            bindings=[n for n in ast.walk(fn) if isinstance(n,ast.Assign)
+                      and any(isinstance(t,ast.Name) and t.id=='prepared' for t in n.targets)]
+            if len(bindings)!=1 or ast.unparse(bindings[0])!='prepared = prepare_migrations(directory)':return False
+            if [ast.unparse(n) for n in ast.walk(helper) if isinstance(n,ast.Return)]!=['return prepared']:return False
+            appends=[n for n in ast.walk(helper) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute)
                      and n.func.attr=='append' and isinstance(n.func.value,ast.Name) and n.func.value.id=='prepared']
             other_assignments=[n for n in ast.walk(fn) if isinstance(n,(ast.Assign,ast.AnnAssign,ast.NamedExpr))
                                and any(isinstance(t,ast.Name) and t.id=='sql' for t in
