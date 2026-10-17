@@ -1,6 +1,7 @@
 """Actual descriptor/resources/lifespan; policy and SQL are explicit doubles."""
 import asyncio
 from contextlib import contextmanager
+import io
 import json
 import os
 import signal
@@ -139,6 +140,31 @@ class LifecycleTests(unittest.TestCase):
         for config in (None,self.value,decode_config(json.dumps(self.value).encode(),mode='seed')):
             with self.assertRaisesRegex(ValueError,'resources_mode'):
                 lifecycle.RuntimeApp(config,unlock_fd=9999,key_id='unit-public-key')
+
+    def test_already_admitted_handler_cannot_open_sql_after_shutdown(self):
+        self.require_source()
+        with self.app() as app:
+            async def check():
+                incoming,outgoing,task,message=await self.start(app)
+                app.begin_shutdown();queries=sum(len(c.queries) for c in self.calls)
+                with self.assertRaisesRegex(ValueError,'resources_draining'):
+                    with app.resources.request_connection('api_request',deadline=time.monotonic()+1):pass
+                self.assertEqual(sum(len(c.queries) for c in self.calls),queries)
+                await incoming.put(dict(type='lifespan.shutdown'));await outgoing.get();await task
+            asyncio.run(check())
+
+    def test_operator_serve_calls_actual_fixed_composition_with_same_config_and_descriptors(self):
+        self.require_source()
+        from cortex_core.runtime import operator
+        path=self.root/'config.json';path.write_text(json.dumps(self.value));path.chmod(0o600)
+        calls=[]
+        async def serve(config,*,unlock_fd,key_id):calls.append((config,unlock_fd,key_id));return 0
+        out,err=io.StringIO(),io.StringIO()
+        with patch.object(lifecycle,'serve_runtime',side_effect=serve),patch('sys.stdout',out),patch('sys.stderr',err):
+            result=operator.main(['serve','--config',str(path),'--unlock-fd','11','--key-id','unit-public-key'])
+        self.assertEqual(result,0,err.getvalue());self.assertEqual(out.getvalue(),'');self.assertEqual(err.getvalue(),'')
+        self.assertEqual(len(calls),1);self.assertEqual(calls[0][0].mode,'serve')
+        self.assertEqual(calls[0][1:],(11,'unit-public-key'))
 
 
 if __name__=='__main__':unittest.main()
