@@ -368,7 +368,8 @@ def changed_sources(root, base):
     """Independently include the source and explicit gate inventory data."""
     return subprocess.check_output(["git", "-C", str(root), "diff", "--name-only",
         base, "HEAD", "--", "*.py", "next/tests/floor/profile.json",
-        ".github/next-offline-suites.json", "next/contracts/core-writer-inventory.json"],
+        ".github/next-offline-suites.json", "next/contracts/core-writer-inventory.json",
+        ".github/workflows/ci.yml"],
         text=True).splitlines()
 
 
