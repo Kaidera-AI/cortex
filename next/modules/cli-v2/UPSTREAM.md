@@ -46,3 +46,10 @@
   synthetic success-health inputs; existing assertions and the actual Core
   health tests remain unchanged. No dependency, parser, config source or
   legacy fallback is added. SQL/native/installed qualification stays separate.
+
+- P1 HALE-A2-FINN-PIPE-001: reuse the anonymous-pipe identity concept from
+  MIT Core `next/src/cortex_core/runtime/custody_fs.py:anonymous_pipe` at
+  `7609af0139da370a7001a72a32ade18ccc2ce1c7`: Darwin zero links, Linux
+  `/proc/self/fd` `pipe:[inode]` identity, with shared FIFO/uid/access checks.
+  The existing projection reader, frame/EOF bounds and health guard remain
+  the sole path; no parser, credential channel or dependency is added.

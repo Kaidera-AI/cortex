@@ -10,7 +10,11 @@ number for an owned read-only anonymous pipe. Its complete UTF-8 frame is seven
 NUL-terminated fields followed by EOF: protocol `cortex.client.v1`, loopback
 URL, installation UUID, project UUID, project name, committed 64-hex Bearer,
 and total request seconds (1–10). Reading is bounded to one second and 8192
-bytes. Regular files, extra fields, unclosed pipes and unsafe values refuse.
+bytes. Darwin requires the anonymous pipe's zero link count; Linux requires the
+opened descriptor's `/proc/self/fd` target to be `pipe:[inode]`, following Core's
+existing custody descriptor check. Both require FIFO type, effective ownership
+and read-only access. Linked named FIFOs, regular files, extra fields, unclosed pipes
+and unsafe values refuse.
 No config file, legacy project discovery, environment credential, admin.env
 scan, token file or alternate credential source is consumed.
 
