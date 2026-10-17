@@ -98,7 +98,7 @@ class SeedOperatorCompositionTests(unittest.TestCase):
                 pass
             def do_GET(self):
                 requests.append((self.path, dict(self.headers)))
-                packet = ({'component': 'cortex', 'status': 'ready', 'installation_id': installation}
+                packet = ({'component': 'cortex', 'status': 'ok', 'readiness': 'ready', 'installation_id': installation}
                           if self.path == '/health' else {'record': {'id': 'source-fixture'}})
                 raw = json.dumps(packet).encode()
                 self.send_response(200)

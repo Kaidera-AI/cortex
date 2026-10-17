@@ -46,7 +46,7 @@ class CoreClientCompositionTests(unittest.TestCase):
                 def respond(self):
                     requests.append((self.path, dict(self.headers)))
                     health = self.path == '/health'
-                    body = ({'component': 'cortex', 'status': 'ready',
+                    body = ({'component': 'cortex', 'status': 'ok', 'readiness': 'ready',
                              'installation_id': alternate if wrong_installation else value['installation_id']}
                             if health else packet if packet is not None else {'record': {'id': 'fixture'}})
                     raw = json.dumps(body).encode()
