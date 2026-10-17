@@ -1,9 +1,11 @@
 """Explicit Option-A command dispatcher; existing signed runtime remains separate."""
 import json
+import hashlib
 import os
 import re
 import sys
 import time
+from uuid import UUID
 
 from .bootstrap_config import read_config_file
 from .custody import open_custody
@@ -95,6 +97,49 @@ def dispatch_operator_command(argv):
         # Success is emitted only after the actual engine and owned cleanup.
         print(json.dumps({'schema':'cortex.operator.v1','ok':True,'operation':'migrate',
             'installation_id':config.installation_id,'applied':applied},separators=(',',':')))
+        return 0
+    if command=='seed':
+        from .resources import open_seed_resources,remaining_seconds
+        from cortex_core.release.codec import canonical_bytes
+        config=read_config_file(values['--config'],mode='seed')
+        key=values['--operation-key']
+        try:
+            if (not 1<=len(key)<=256 or len(key.encode('utf-8','strict'))>1024
+                    or any(ord(char)<32 or ord(char)==127 for char in key)):
+                raise ValueError
+        except (ValueError,UnicodeError):raise Refusal('seed_operation_key') from None
+        deadline=time.monotonic()+config.limits['request_seconds']
+        try:
+            from cortex_core.schema.seed import seed_runtime_bindings
+        except ImportError:raise Refusal('seed_unavailable') from None
+        with open_custody(config,unlock_fd=values['--unlock-fd'],key_id=values['--key-id']) as vault:
+            with open_seed_resources(config,custody=vault,deadline=deadline):
+                result=seed_runtime_bindings(config,key,deadline)
+            # A callable's return alone is not durable seed acknowledgement.
+            # Reload only after all owned SQL connections have closed.
+            with vault.seed_record() as record:
+                material=record.load()
+                keys={'installation_id','tenant_id','project_id','principal_id','credential_id',
+                    'operation_key','credential_sha256','intent_sha256'}
+                if (material is None or material.state!='committed' or type(result) is not dict
+                        or set(result)!=keys or material.receipt!=result):
+                    raise Refusal('seed_receipt')
+                intent=material.intent
+                expected={name:intent.get(name) for name in keys-{'intent_sha256'}}
+                expected['intent_sha256']=hashlib.sha256(canonical_bytes(intent)).hexdigest()
+                if (result!=expected or result['operation_key']!=key
+                        or result['installation_id']!=config.installation_id
+                        or result['tenant_id']!=config.tenant_id or result['project_id']!=config.project_id
+                        or result['credential_sha256']!=hashlib.sha256(material.credential).hexdigest()):
+                    raise Refusal('seed_receipt')
+                try:
+                    for name in ('principal_id','credential_id'):
+                        if type(result[name]) is not str or str(UUID(result[name]))!=result[name] or UUID(result[name]).int==0:
+                            raise ValueError
+                except (ValueError,TypeError,AttributeError):raise Refusal('seed_receipt') from None
+                remaining_seconds(deadline)
+        print(json.dumps({'schema':'cortex.operator.v1','ok':True,'operation':'seed',
+            'installation_id':config.installation_id,'receipt':result},separators=(',',':')))
         return 0
     # Partial dependency publication: no placeholder can admit another effect.
     raise Refusal('operator_unbound')

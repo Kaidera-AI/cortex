@@ -207,6 +207,73 @@ class ResourceTests(unittest.TestCase):
             self.assertLess(time.monotonic()-started,2.75)
 
 
+class BootstrapResourceTests(unittest.TestCase):
+    setUp=ResourceTests.setUp
+    vault=ResourceTests.vault
+
+    def require_source(self):
+        self.assertTrue(resources is not None and hasattr(resources,'open_bootstrap_resources'),
+            'actual bootstrap-only resource opener is missing')
+
+    def driver(self,**kwargs):
+        self.calls.append(kwargs)
+        return CatalogConnection(kwargs['user'],self.events,{})
+
+    def test_only_bootstrap_opens_before_other_roles_exist_and_no_seed_context(self):
+        self.require_source()
+        with self.vault() as vault,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_bootstrap_resources(self.config,custody=vault,deadline=self.deadline) as owned:
+                self.assertEqual(set(owned.connections),{'bootstrap'})
+                self.assertEqual(owned.bootstrap.name,'cortex_bootstrap')
+                self.assertEqual([call['user'] for call in self.calls],['cortex_bootstrap'])
+                with self.assertRaisesRegex(ValueError,'resources_unbound'):
+                    resources.current_seed_resources(self.config,self.deadline)
+        self.assertEqual(self.events,['close:cortex_bootstrap'])
+
+    def test_finite_transaction_owns_same_deadline_timeouts_and_completion(self):
+        self.require_source()
+        with self.vault() as vault,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_bootstrap_resources(self.config,custody=vault,deadline=self.deadline) as owned:
+                with owned.transaction('bootstrap') as connection:
+                    self.assertIs(connection,owned.bootstrap)
+                    budgets=[params for sql,params in connection.queries if 'set_config' in sql]
+                    self.assertEqual(len(budgets),1);self.assertGreater(int(budgets[0][0]),0)
+                    self.assertLessEqual(int(budgets[0][0]),60000)
+                self.assertIn('commit:cortex_bootstrap',self.events)
+
+    def test_other_purposes_and_nested_transactions_refuse_before_effect(self):
+        self.require_source()
+        with self.vault() as vault,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_bootstrap_resources(self.config,custody=vault,deadline=self.deadline) as owned:
+                for purpose in ('migrator','installer_enrollment','api_request','probe'):
+                    with self.assertRaisesRegex(ValueError,'resources_purpose'):
+                        with owned.transaction(purpose):pass
+                with owned.transaction('bootstrap'):
+                    with self.assertRaisesRegex(ValueError,'resources_transaction'):
+                        with owned.transaction('bootstrap'):pass
+
+    def test_failed_bootstrap_stage_taints_and_closes_before_later_attempt(self):
+        self.require_source()
+        with self.vault() as vault,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_bootstrap_resources(self.config,custody=vault,deadline=self.deadline) as owned:
+                with self.assertRaisesRegex(ValueError,'resources_transaction') as error:
+                    with owned.transaction('bootstrap'):raise RuntimeError('public-test-secret')
+                self.assertNotIn('public-test-secret',str(error.exception))
+                with self.assertRaisesRegex(ValueError,'resources_tainted'):
+                    with owned.transaction('bootstrap'):pass
+                self.assertIn('rollback:cortex_bootstrap',self.events)
+        self.assertEqual(self.events[-1],'close:cortex_bootstrap')
+        with self.assertRaisesRegex(ValueError,'resources_closed'):owned.check_deadline()
+
+    def test_wrong_mode_and_nonactual_custody_refuse_before_connect(self):
+        self.require_source();serve=decode_config(json.dumps(self.value).encode(),mode='serve')
+        with patch.object(resources,'_driver_connect',side_effect=AssertionError('driver reached')):
+            with self.assertRaisesRegex(ValueError,'resources_mode'):
+                with resources.open_bootstrap_resources(serve,custody=object(),deadline=self.deadline):pass
+            with self.assertRaisesRegex(ValueError,'resources_custody'):
+                with resources.open_bootstrap_resources(self.config,custody=object(),deadline=self.deadline):pass
+
+
 class CatalogConnection(DriverConnection):
     def __init__(self,name,events,rows):super().__init__(name,events);self.rows=rows;self.queries=[]
     @contextmanager

@@ -141,15 +141,14 @@ class _Resources:
         return remaining_seconds(self._deadline)
 
 
-class SeedResources(_Resources):
+class _FiniteResources(_Resources):
     __slots__ = ()
-    def __repr__(self):return '<SeedResources private>'
 
     @contextmanager
     def transaction(self,purpose,*,_read_only=False):
         self.check_deadline()
-        current_seed_resources(self._config,self._deadline)
-        if purpose not in _SEED_PURPOSES:raise Refusal('resources_purpose')
+        if type(self) is SeedResources:current_seed_resources(self._config,self._deadline)
+        if purpose not in self._connections:raise Refusal('resources_purpose')
         if self._in_transaction:raise Refusal('resources_transaction')
         connection=self._connections[purpose]
         object.__setattr__(self,'_in_transaction',True)
@@ -170,12 +169,23 @@ class SeedResources(_Resources):
             raise Refusal('resources_transaction') from None
         finally:object.__setattr__(self,'_in_transaction',False)
 
+    @property
+    def bootstrap(self):return self._connections['bootstrap']
+
+
+class BootstrapResources(_FiniteResources):
+    __slots__ = ()
+    def __repr__(self):return '<BootstrapResources private>'
+
+
+class SeedResources(_FiniteResources):
+    __slots__ = ()
+    def __repr__(self):return '<SeedResources private>'
+
     def observe_catalog(self):
         from .catalog import observe
         return observe(self)
 
-    @property
-    def bootstrap(self):return self._connections['bootstrap']
     @property
     def installer_enrollment(self):return self._connections['installer_enrollment']
 
@@ -225,7 +235,8 @@ def _close(connections):
 
 @contextmanager
 def _open(config, *, custody, deadline, mode):
-    if type(config) is not BootstrapConfig or config.mode != mode:
+    config_mode='seed' if mode=='bootstrap' else mode
+    if type(config) is not BootstrapConfig or config.mode != config_mode:
         raise Refusal('resources_mode')
     if any(name.startswith('PG') and value for name,value in os.environ.items()):
         raise Refusal('resources_environment')
@@ -233,18 +244,18 @@ def _open(config, *, custody, deadline, mode):
     if type(custody) is not CustodyVault or custody._config is not config:
         raise Refusal('resources_custody')
     custody._live()
-    if mode == 'seed' and _SEED.get() is not None:
+    if mode in ('seed','bootstrap') and _SEED.get() is not None:
         raise Refusal('resources_bound')
     connections = {};carrier=token=None;failed=False
     try:
-        purposes={'seed':_SEED_PURPOSES,'serve':_CORE_PURPOSES,'migrate':_MIGRATE_PURPOSES}[mode]
+        purposes={'bootstrap':('bootstrap',),'seed':_SEED_PURPOSES,'serve':_CORE_PURPOSES,'migrate':_MIGRATE_PURPOSES}[mode]
         for purpose in purposes:
             connection, certificate = _connect(config,custody,purpose,deadline)
             connections[purpose] = connection  # ownership precedes any further check
             remaining_seconds(deadline)
             if _certificate(config)[1] != certificate:
                 raise Refusal('resources_changed')
-        cls = {'seed':SeedResources,'serve':CoreResources,'migrate':MigrationResources}[mode]
+        cls = {'bootstrap':BootstrapResources,'seed':SeedResources,'serve':CoreResources,'migrate':MigrationResources}[mode]
         carrier = cls(config,custody,deadline,connections,token=_BIRTH)
         if mode=='seed':token=_SEED.set(carrier)
         yield carrier
@@ -269,3 +280,7 @@ def open_core_resources(config, *, custody, deadline):
 
 def open_migration_resources(config, *, custody, deadline):
     return _open(config,custody=custody,deadline=deadline,mode='migrate')
+
+
+def open_bootstrap_resources(config, *, custody, deadline):
+    return _open(config,custody=custody,deadline=deadline,mode='bootstrap')

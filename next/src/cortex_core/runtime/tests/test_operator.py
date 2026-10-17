@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -198,6 +200,87 @@ class MigrationOperatorTests(unittest.TestCase):
             code,out,err=self.invoke_migration()
         self.assertEqual(code,2);self.assertEqual(out,'')
         self.assertEqual(json.loads(err)['error']['reason'],'private_file_required')
+
+
+class SeedOperatorTests(unittest.TestCase):
+    setUp=OperatorTests.setUp
+    save=OperatorTests.save
+
+    def invoke_seed(self,key='test-operation'):
+        kr,kw=os.pipe();os.write(kw,KEY);os.close(kw)
+        out,err=io.StringIO(),io.StringIO()
+        try:
+            with redirect_stdout(out),redirect_stderr(err):
+                code=operator.main(['seed','--config',str(self.path),'--unlock-fd',str(kr),
+                    '--key-id','test-key','--operation-key',key])
+            return code,out.getvalue(),err.getvalue()
+        finally:os.close(kr)
+
+    def stage_roles(self):
+        config=decode_config(json.dumps(self.value).encode(),mode='seed');r,w=os.pipe()
+        try:
+            os.write(w,KEY);os.close(w)
+            with open_custody(config,unlock_fd=r,key_id='test-key') as vault:
+                for purpose in config.roles:vault.import_credential(purpose,b'public-test-password')
+        finally:os.close(r)
+        p=self.root/'secrets/cortex/ca';p.write_bytes(b'public-test-certificate');p.chmod(0o600)
+
+    def seed(self,config,key,deadline,*,commit=True,extra=False):
+        from cortex_core.runtime.resources import current_seed_resources
+        owned=current_seed_resources(config,deadline);self.assertIs(owned._config,config)
+        self.assertEqual(config.mode,'seed');self.assertGreater(deadline,time.monotonic())
+        self.assertLessEqual(deadline-time.monotonic(),config.limits['request_seconds'])
+        self.assertEqual(set(owned.connections),{'bootstrap','installer_enrollment','api_request'})
+        value=intent(self.value);value['operation_key']=key;ack=receipt(value)
+        with owned.custody.seed_record() as record:
+            record.create(intent=value,credential=SECRET)
+            if commit:record.commit(receipt=ack)
+        return {**ack,'secret':SECRET.decode()} if extra else ack
+
+    def test_fixed_seed_call_same_config_context_then_closed_committed_public_receipt(self):
+        self.assertIsNotNone(operator);self.stage_roles();events=[];calls=[]
+        def driver(**kwargs):calls.append(kwargs);return DriverConnection(kwargs['user'],events)
+        with patch('cortex_core.runtime.resources._driver_connect',side_effect=driver),patch.dict('sys.modules',
+                {'cortex_core.schema.seed':SimpleNamespace(seed_runtime_bindings=self.seed)}):
+            code,out,err=self.invoke_seed()
+        self.assertEqual(code,0,err);self.assertEqual(err,'');packet=json.loads(out)
+        self.assertEqual(packet,{'schema':'cortex.operator.v1','ok':True,'operation':'seed',
+            'installation_id':self.value['installation_id'],'receipt':receipt(intent(self.value))})
+        self.assertNotIn(SECRET.decode(),out)
+        self.assertEqual([c['user'] for c in calls],['cortex_bootstrap','cortex_installer_enrollment','cortex_api_request'])
+        self.assertEqual(events,['close:cortex_api_request','close:cortex_installer_enrollment','close:cortex_bootstrap'])
+
+    def test_returned_receipt_without_durable_commit_is_never_success(self):
+        self.assertIsNotNone(operator);self.stage_roles();events=[]
+        with patch('cortex_core.runtime.resources._driver_connect',side_effect=lambda **kw:DriverConnection(kw['user'],events)),patch.dict('sys.modules',
+                {'cortex_core.schema.seed':SimpleNamespace(seed_runtime_bindings=lambda *args:self.seed(*args,commit=False))}):
+            code,out,err=self.invoke_seed()
+        self.assertEqual(code,2);self.assertEqual(out,'');self.assertEqual(len(err.splitlines()),1)
+        self.assertEqual(json.loads(err)['error']['reason'],'seed_receipt')
+
+    def test_extra_result_field_never_exposes_secret_even_after_commit(self):
+        self.assertIsNotNone(operator);self.stage_roles();events=[]
+        with patch('cortex_core.runtime.resources._driver_connect',side_effect=lambda **kw:DriverConnection(kw['user'],events)),patch.dict('sys.modules',
+                {'cortex_core.schema.seed':SimpleNamespace(seed_runtime_bindings=lambda *args:self.seed(*args,extra=True))}):
+            code,out,err=self.invoke_seed()
+        self.assertEqual(code,2);self.assertEqual(out,'');self.assertNotIn(SECRET.decode(),err)
+        self.assertEqual(json.loads(err)['error']['reason'],'seed_receipt')
+
+    def test_cleanup_failure_after_commit_never_publishes_success(self):
+        self.assertIsNotNone(operator);self.stage_roles();events=[]
+        with patch('cortex_core.runtime.resources._driver_connect',side_effect=lambda **kw:DriverConnection(kw['user'],events,True)),patch.dict('sys.modules',
+                {'cortex_core.schema.seed':SimpleNamespace(seed_runtime_bindings=self.seed)}):
+            code,out,err=self.invoke_seed()
+        self.assertEqual(code,2);self.assertEqual(out,'');self.assertEqual(len(events),3)
+        self.assertEqual(json.loads(err)['error']['reason'],'resources_cleanup')
+
+    def test_invalid_operation_key_refuses_before_unlock_or_sql(self):
+        self.assertIsNotNone(operator)
+        for key in ('x'*257,'line\nkey','\x00key'):
+            with patch.object(operator,'open_custody',side_effect=AssertionError('unlock reached')):
+                code,out,err=self.invoke_seed(key)
+            self.assertEqual(code,2);self.assertEqual(out,'')
+            self.assertEqual(json.loads(err)['error']['reason'],'seed_operation_key')
 
 
 if __name__=='__main__':unittest.main()

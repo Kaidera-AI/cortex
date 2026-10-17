@@ -63,7 +63,7 @@ EXEMPT_SYMBOL_FILES = {
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
-    'src/cortex_core/runtime/tests/test_resources.py': 'f6995d34b8d71d69b30162e09917c7f91912471091d35e7935c1e97370d717ff',
+    'src/cortex_core/runtime/tests/test_resources.py': 'e9dd67ebda1a36b7ffd64010a0c5460668def8d60933395b5f6da1daed0db156',
     'schema/coordination/008-c09-external-v2.sql': '9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11',
     "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",

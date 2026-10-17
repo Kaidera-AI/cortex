@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": "next/scripts/verify_writer_inventory.py",
-  "source_sha256": "cca3be8cd5280522abe3a78b3ac881d4b6fca5fad8ded0970c98a03a5bfe9a2f",
+  "source_sha256": "ac85a7c1c53c563c79c875ff7a9c8daad9bdc3d9c026ed36b51e179824bd50d6",
   "tests": {
     "next/tests/outbox_inventory/test_source_recognition.py": "fc5d2d1a84701d6d12074075d0e81326eb79b0d84e1d1f448587bcba4e84ec72"
   },
