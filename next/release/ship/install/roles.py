@@ -46,11 +46,19 @@ def load_roles(path=None):
     return {p: roles[p] for p in A_PURPOSES}
 
 
+def _shared(cfg):
+    """Everything a mode view carries besides its mode and its own purposes: the identity of the ONE decoded snapshot."""
+    return {k: v for k, v in vars(cfg).items() if k not in ('mode', 'roles')}
+
+
 def bind(configs, roles=None):
+    """Join the seed/serve/migrate views of ONE Core snapshot. Refuses views of different snapshots (HALE-A1-NIX-JOIN-001: every shared field must
+    be equal) and a combined set whose logins or resolved secret paths are not unique, because each view only checks its own purposes."""
     policy = roles or load_roles()
-    roots, merged = set(), {}
+    roots, merged, shared = set(), {}, []
     for cfg in configs:
         roots.add(str(cfg.vault_root))
+        shared.append(_shared(cfg))
         for purpose, role in dict(cfg.roles).items():
             if purpose not in A_PURPOSES:
                 raise RoleRefusal(f'role_config_unknown:{purpose}')
@@ -62,6 +70,8 @@ def bind(configs, roles=None):
     missing = [p for p in A_PURPOSES if p not in merged]
     if missing:
         raise RoleRefusal('role_config_incomplete:' + ','.join(missing))
+    if any(other != shared[0] for other in shared[1:]):
+        raise RoleRefusal('role_config_conflict:snapshot')
     root = roots.pop()
     logins, secrets = {}, {}
     for purpose in A_PURPOSES:
@@ -75,6 +85,11 @@ def bind(configs, roles=None):
                 or not root.startswith('/') or '..' in PurePosixPath(root).parts):
             raise RoleRefusal(f'role_ref_unsafe:{purpose}')
         logins[purpose], secrets[purpose] = login, f'{root.rstrip("/")}/{ref}'
+    if len(set(logins.values())) != len(logins):
+        raise RoleRefusal('role_config_collision:login')
+    paths = [str(PurePosixPath(v)) for v in secrets.values()]
+    if len(set(paths)) != len(paths):
+        raise RoleRefusal('role_config_collision:secret')
     return Binding(policy, logins, secrets, root)
 
 
