@@ -179,5 +179,20 @@ class ResourceTests(unittest.TestCase):
                 with self.assertRaises(AttributeError):r.bootstrap=object()
                 self.assertNotIn('public-test-password',repr(r))
 
+    def test_ambient_libpq_configuration_refuses_before_any_driver_attempt(self):
+        self.require_source()
+        with self.vault() as v,patch.dict(os.environ,{'PGHOSTADDR':'192.0.2.1'}),patch.object(resources,'_driver_connect',side_effect=AssertionError('ambient driver reached')):
+            with self.assertRaisesRegex(ValueError,'resources_environment'):
+                with resources.open_seed_resources(self.config,custody=v,deadline=self.deadline):pass
+
+    def test_blocking_connector_cannot_extend_original_absolute_deadline(self):
+        self.require_source()
+        def blocked(**kw):time.sleep(3);return self.driver(**kw)
+        with self.vault() as v,patch.object(resources,'_driver_connect',side_effect=blocked):
+            started=time.monotonic()
+            with self.assertRaisesRegex(ValueError,'resources_deadline'):
+                with resources.open_seed_resources(self.config,custody=v,deadline=started+2.1):pass
+            self.assertLess(time.monotonic()-started,2.75,'connector exceeded the original absolute deadline')
+
 
 if __name__=='__main__':unittest.main()
