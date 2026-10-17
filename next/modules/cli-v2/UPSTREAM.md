@@ -31,3 +31,10 @@
   Both parent and helper are bound to Python 3.13.7 or 3.14.0 in these runs.
   The cryptography dependency belongs to Core; the helper still uses stdlib
   plus curl only. No new production dependency or copied validator is added.
+
+- Retry4 namespace authority: Cox/Kai versioned-cli-ruling-v1 SHA256
+  11d7ebce3a3f0ebac0ae4f3b85eb5a0a6a5c0e2190a712269ac6231a64ebf1a5.
+  Three adapters reuse MIT `packages/cli/cortex-{boot,log,search}` at baseline
+  7a1078213ac2497d6219e7778c7866001f97f30b with versioned names, explicit
+  keyword mode/defaults and exact-string logging per Nemo's compatibility map.
+  There is one moved strict helper; v1's original bytes are restored separately.

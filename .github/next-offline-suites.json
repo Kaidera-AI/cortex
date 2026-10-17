@@ -17,6 +17,7 @@
     "next/src/cortex_core/runtime/tests/test_services.py",
     "next/src/cortex_core/runtime/tests/test_status_binding.py",
     "next/src/cortex_core/schema/tests/test_readiness.py",
+    "next/src/cortex_core/schema/tests/test_seed_owner_contract.py",
     "next/tests/artifact/test_c03_receipts.py",
     "next/tests/artifact/test_legacy_map.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
@@ -2525,10 +2526,13 @@
   },
   "loopback": [
     "next/src/cortex_core/schema/tests/test_seed.py",
-    "packages/cli/tests/test_transport_admission.py",
-    "packages/cli/tests/test_transport_composition.py",
-    "packages/cli/tests/test_transport_processes.py",
-    "packages/cli/tests/test_transport_projection.py",
-    "packages/cli/tests/test_transport_results.py"
+    "next/modules/cli-v2/tests/test_transport_admission.py",
+    "next/modules/cli-v2/tests/test_transport_composition.py",
+    "next/modules/cli-v2/tests/test_transport_processes.py",
+    "next/modules/cli-v2/tests/test_transport_projection.py",
+    "next/modules/cli-v2/tests/test_transport_results.py",
+    "next/modules/cli-v2/tests/test_namespace.py",
+    "next/modules/cli-v2/tests/test_health_join.py",
+    "next/src/cortex_core/schema/tests/test_seed_operator.py"
   ]
 }

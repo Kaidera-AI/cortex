@@ -1368,6 +1368,42 @@
       "classification": "Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution"
     },
     {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "auth.runtime_login_bindings",
+      "ordinal": 0,
+      "statement_sha256": "189f4d871643a5fb28dcd7458af137d5dc3ae3e576f2ca119f0287edceed00ed",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "core.installations",
+      "ordinal": 0,
+      "statement_sha256": "33dc059d127f915476cb341af7d67ad5992a0c7d04a65841e42b0ed2b5a14b1b",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "core.projects",
+      "ordinal": 0,
+      "statement_sha256": "167c8613c525fa8d70be1e7a6cd0009e5734c7927db8c433e1ad1be8f8770d2c",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "core.tenants",
+      "ordinal": 0,
+      "statement_sha256": "bf11c18c4541e4d01f7c49ef99381f5f5c217ca89303f4e7e8110473ebdaa259",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
       "file": "src/cortex_core/schema/tests/test_seed.py",
       "owner": "_SeedConnection.execute",
       "verb": "INSERT",
