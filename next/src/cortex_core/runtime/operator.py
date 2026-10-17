@@ -87,6 +87,14 @@ def dispatch_operator_command(argv):
     if command=='client':
         _client(values)
         return 0
+    if command=='status':
+        from .status import read_status
+        return read_status(read_config_file(values['--config'],mode='status'))
+    if command=='serve':
+        import asyncio
+        from .lifecycle import serve_runtime
+        config=read_config_file(values['--config'],mode='serve')
+        return asyncio.run(serve_runtime(config,unlock_fd=values['--unlock-fd'],key_id=values['--key-id']))
     if command=='migrate':
         from .resources import open_migration_resources
         config=read_config_file(values['--config'],mode='migrate')

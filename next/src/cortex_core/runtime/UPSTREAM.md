@@ -46,3 +46,30 @@ copied or forked. Source tests use the pure Python wheel
 `01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6`,
 with the existing native libpq. This source-test environment does not qualify
 either target's installer closure or prove an actual TLS connection by itself.
+
+Day-2 lifespan reuses stock Starlette0.50.0 Router lifespan and
+Uvicorn0.40.0 Server.serve/shutdown (BSD-3-Clause), asyncio and h11. Upstream
+source inspected from the installed distributions at those exact versions:
+https://github.com/encode/starlette/tree/0.50.0 and
+https://github.com/encode/uvicorn/tree/0.40.0. No protocol server was copied or
+forked. The subclass only binds first-signal admission/drain/cleanup to one
+absolute owner budget and reports unresolved work as failure. One worker,
+asyncio, h11, explicit bind, no reload, proxy interpretation or access log.
+Keep the distribution licenses in the installed closure.
+
+The owned temporary source-test environments subsequently admit the exact
+hash-pinned pure packages from Nix883ccc66's Linux lock, including
+psycopg3.2.13 (same upstream/license), starlette0.50.0 and uvicorn0.40.0.
+That change does not re-label earlier psycopg3.2.9 receipts or qualify target
+images/native installations. cryptography remains50.0.0; the earlier named
+macOS lock gap remains open. No product-side package install or bootstrap is
+implemented by Core.
+
+Day-2 public status reader reuses stock `httpx==0.28.1` from the existing
+hash-pinned closure, upstream https://github.com/encode/httpx/tree/0.28.1,
+BSD-3-Clause (license verified in the installed distribution). Retain its
+distribution license. Core uses its synchronous streaming client with ambient
+proxy settings disabled, no redirects, a bounded body and the existing strict
+decoder/CLI status emitter. No HTTP implementation or parser is copied; the
+one absolute process timer also bounds a blocking read. This source dependency
+receipt does not qualify either target's packaged executable.
