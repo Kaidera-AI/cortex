@@ -18,7 +18,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[5]
-HELPER = ROOT / 'packages/cli/_cortex_api.sh'
+HELPER = ROOT / 'next/modules/cli-v2/_cortex_api.sh'
 
 
 class SeedFoundationTests(unittest.TestCase):

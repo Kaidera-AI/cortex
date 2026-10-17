@@ -1,4 +1,4 @@
-# Packaged Cortex HTTP helper
+# Versioned Cortex v2 CLI
 
 `_cortex_api.sh` is the one packaged A transport. Core owns config admission,
 project selection, encrypted custody and the seven-field private projection.
@@ -53,7 +53,7 @@ without SQL enrollment; its HTTP recorder is synthetic loopback. The 401 packet
 alone comes from the existing gateway `_error_status`. These controls demonstrate
 the source composition and never grant SQL, installed, native or release credit.
 
-Run source controls with `python3 -B -m unittest discover -s packages/cli/tests
+Run source controls with `python3 -B -m unittest discover -s next/modules/cli-v2/tests
 -p 'test_transport_*.py' -v` with the composed Core source and its pinned crypto
 dependency available. Bind PATH to the same interpreter directory so the helper
 subprocess uses that actual runtime too. Existing paused CLI sources are retained; this
@@ -62,3 +62,24 @@ slice does not claim their complete A command-surface integration.
 LEAN: one Core config/custody authority, one private transient projection, one
 existing helper and one stock curl transport; no second HTTP/config client or
 persisted credential store.
+
+## Versioned entries
+
+Only `cortex-v2-boot`, `cortex-v2-log`, and `cortex-v2-search` in this module
+source this strict helper. Bob owns installation/launcher names and the actual
+projector -> wait/reap -> same-reader-FD transfer. This source move never edits
+PATH or a live installation. All retained `packages/cli` sources are restored
+to main `7a1078213ac2497d6219e7778c7866001f97f30b`; v1 command names retain
+their prior contract and never source this module.
+
+The three adapters reuse the existing shell argument and JSON serialization.
+Boot keeps its agent/budget/full/query API shape; unsupported historical requests
+must receive the actual Core refusal. Search sends explicit `mode=keyword`,
+`type=all`, `hall=project`, `rerank=false`, `graph=false`; other existing flags
+remain explicit requests for Core to admit or refuse. Log preserves exact
+summary strings and ordered duplicate file names, requires a caller-supplied
+stable `CORTEX_IDEMPOTENCY_KEY`, the committed receipt and verified response,
+and defaults to the existing exact `/verify/write` readback. No automatic goal
+metadata or summary prefix is added; legacy `--goal` is rejected. No command
+fabricates a capability or retries against v1. Actual enrolled API capabilities
+remain Core's responsibility. Loopback command tests grant no SQL/installed credit.
