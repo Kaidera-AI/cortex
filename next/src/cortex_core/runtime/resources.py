@@ -171,6 +171,7 @@ class _FiniteResources(_Resources):
     @contextmanager
     def transaction(self,purpose,*,_read_only=False,_repeatable=True):
         self.check_deadline()
+        if self._shutdown_deadline is not None:raise Refusal('resources_draining')
         if type(self) is SeedResources:current_seed_resources(self._config,self._deadline)
         if purpose not in self._connections:raise Refusal('resources_purpose')
         if self._in_transaction:raise Refusal('resources_transaction')
