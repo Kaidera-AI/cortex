@@ -3,7 +3,7 @@
   "source": ".github/workflows/next-offline.yml",
   "source_sha256": "f2c3a734d177ae701d07537487619f5da1d237b16f4d60a3ae14efde556c8299",
   "tests": {
-    "next/tests/ci_gates/tests/test_loopback_home.py": "d6d1f706d5c2bb1fdac03036fdbefa1b9c136e9dcdfecdd5c88620a1ab7b5acb",
+    "next/tests/ci_gates/tests/test_loopback_home.py": "5848eb054f8dc35927574f0878b17aa39d9f0a8bd963ef20a8bb69e51b0ceb81",
     "next/tests/ci_gates/tests/test_sign_home.py": "328d6f34a36a624d4dfbdba555960434397bc9558080f9142a03420fbdab5061"
   },
   "expected_nodes": [

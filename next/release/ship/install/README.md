@@ -45,3 +45,14 @@ authority: only Cox's own observer feeds it. `package_closure.py --out DIR` stag
 `cortex_ship/install/` plus `cortex_ship/receipt.json` (digests); standard library only, so the closure is identical for linux/amd64 and linux/arm64; the
 packaged module reads only its packaged contract (no tree fallback). Wiring the staged tree into the API image (recipes/api) is the next source step; the image
 rebuild and per-arch smoke stay a separate, heavy-run gate. Controls: `tests/mutate_catalog.py` (26 mutants).
+
+## Installer caller (provision.py; J06)
+`provision.run_phase(config, custody=, deadline=, phase=, seed_ack=False)` is the only caller of `roles.provision_steps`. It is not a second executor: it opens Core's
+`open_bootstrap_resources(config, custody=, deadline=)` (config.mode must be `seed`), runs the phase's steps on `.transaction('bootstrap')` (ONE transaction, rolled back on any error), and
+resolves each step's secret with `custody.resolve(purpose)` at the moment the step runs, passing it as the single bound parameter (never statement text, file, env, argv or shell).
+Refusals before any resource opens: `provision_phase`, `provision_config`, `ledger_not_accepted`, `seed_not_acknowledged`; `provision_secret` (empty/NUL/non-UTF-8) before binding.
+`provision.provision_sequence(config, custody=, deadline=, migrate=, seed=)`: pre -> `migrate()` (Core's unchanged command) -> post -> ledger grant -> `seed()` (Finn's durable seed; must return exactly `True`) -> close.
+The ledger step is ACCEPTED (Kai Option A, relayed in Cox's rework5; consult fb3b7996 resolved): ONLY the exact configured API login gains `USAGE ON SCHEMA core` and `SELECT ON core.schema_migrations`; no new PUBLIC/request-group/probe grant, the existing request-group and verifier
+USAGE is retained, migration bytes unchanged. It is never skipped: a ledger failure (or `LEDGER_ACCEPTED=False`) stops before seed and close. Real-PG proof so far is the FIRST TEN migrations only (`CORTEX_ACL_THROUGH`); the full 21 run stays a separate gate.
+Packaging: `provision.py` ships with `roles.py` as `cortex_ship.install.provision` (package_closure, the API/Core-Python Containerfile; the database-only image grows nothing).
+Open: `bootstrap_init_custody_unbuilt` (the `bootstrap` login is created by the stock initdb with a password from the encrypted custody over the private descriptor discipline; Bob owns the init/run wiring and there is no supported descriptor caller in this slice), the real Core opener/TLS/custody run, Finn's real seed and Bob's real invocation.

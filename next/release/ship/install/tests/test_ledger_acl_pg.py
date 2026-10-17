@@ -21,6 +21,14 @@ LEDGER = ("CREATE SCHEMA IF NOT EXISTS core; CREATE TABLE IF NOT EXISTS core.sch
           "migration_id text PRIMARY KEY, sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'), applied_at timestamptz NOT NULL DEFAULT now())")  # the engine's own statement (migrations.py)
 SELECT = 'SELECT count(*) FROM core.schema_migrations'
 
+SNAPSHOT = ("SELECT 'ns', nspname, coalesce(nspacl::text,'') FROM pg_namespace WHERE nspname !~ '^pg_|information_schema' "
+            "UNION ALL SELECT 'rel', n.nspname||'.'||c.relname, coalesce(c.relacl::text,'') FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname !~ '^pg_|information_schema' AND c.relkind IN ('r','v','m','p','S') "
+            "UNION ALL SELECT 'fn', n.nspname||'.'||p.proname||'/'||p.oid, coalesce(p.proacl::text,'') FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname !~ '^pg_|information_schema' ORDER BY 1,2")
+
+
+def items(acl):
+    return set(x for x in acl.strip('{}').split(',') if x)
+
 
 class LedgerAcl(unittest.TestCase):
     @classmethod
@@ -41,7 +49,9 @@ class LedgerAcl(unittest.TestCase):
                 break
         assert applied[-1] == THROUGH, applied
         cls.c.psql(R.render_post(cls.b))
+        cls.before = cls.c.rows(SNAPSHOT)
         cls.c.psql(R.render_ledger_grant(cls.b))
+        cls.after = cls.c.rows(SNAPSHOT)
         cls.c.psql('CREATE ROLE stranger LOGIN')
 
     @classmethod
@@ -85,6 +95,34 @@ class LedgerAcl(unittest.TestCase):
         r = self.run_as(self.api, SELECT)
         self.assertEqual((r.returncode, r.stdout.strip()), (0, '1'), r.stderr)
         self.assertIn('permission denied', self.run_as(self.probe, SELECT).stderr)
+
+    def test_6_the_ledger_step_changes_exactly_two_acls_and_adds_only_the_api_login(self):
+        before = {(k, n): a for k, n, a in self.before}
+        after = {(k, n): a for k, n, a in self.after}
+        self.assertEqual(set(before), set(after))
+        changed = {key for key in after if after[key] != before[key]}
+        self.assertEqual(changed, {('ns', 'core'), ('rel', 'core.schema_migrations')})
+        for key, priv in ((('ns', 'core'), 'U'), (('rel', 'core.schema_migrations'), 'r')):
+            self.assertEqual(items(before[key]) - items(after[key]), set(), 'nothing is revoked')
+            added = items(after[key]) - items(before[key])
+            self.assertEqual(len(added), 1, added)
+            grantee, _, rest = next(iter(added)).partition('=')
+            self.assertEqual((grantee.strip('"'), rest.split('/')[0]), (self.api, priv))
+
+    def test_7_probe_has_no_core_usage_the_request_group_has_no_ledger_select_and_baseline_usage_remains(self):
+        yes = lambda q: self.c.rows(q)[0][0] == 't'
+        self.assertFalse(yes(f"SELECT has_schema_privilege('{self.probe}','core','USAGE')"))
+        self.assertFalse(yes(f"SELECT has_table_privilege('{R.REQUEST_GROUP}','core.schema_migrations','SELECT')"))
+        self.assertFalse(yes(f"SELECT has_table_privilege('{R.VERIFIER_GROUP}','core.schema_migrations','SELECT')"))
+        for schema in ('core', 'auth', 'coordination', 'retrieval'):
+            if self.c.rows(f"SELECT 1 FROM pg_namespace WHERE nspname='{schema}'"):
+                self.assertTrue(yes(f"SELECT has_schema_privilege('{R.REQUEST_GROUP}','{schema}','USAGE')"), schema)
+        for schema in ('core', 'auth'):
+            self.assertTrue(yes(f"SELECT has_schema_privilege('{R.VERIFIER_GROUP}','{schema}','USAGE')"), schema)
+        pub = lambda rows: sorted((k, n, x) for k, n, a in rows for x in items(a) if x.startswith('='))
+        self.assertEqual(pub(self.after), pub(self.before), 'no PUBLIC entry added anywhere (stock defaults unchanged)')
+        self.assertEqual([r for r in pub(self.after) if r[:2] in (('ns', 'core'), ('rel', 'core.schema_migrations'))], [])
+
 
 
 class ProvisionStepsPg(unittest.TestCase):

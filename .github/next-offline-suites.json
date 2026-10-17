@@ -4,6 +4,7 @@
     "next/release/recipes/api/tests/test_locks.py",
     "next/release/ship/install/tests/test_catalog.py",
     "next/release/ship/install/tests/test_package.py",
+    "next/release/ship/install/tests/test_provision.py",
     "next/release/ship/install/tests/test_provision_steps.py",
     "next/release/ship/install/tests/test_roles.py",
     "next/release/ship/install/tests/test_sign.py",
@@ -49,6 +50,7 @@
     "next/tests/c11a/test_run_pg.py",
     "next/tests/c11b2/test_credential.py",
     "next/tests/ci_gates/tests/test_current_home.py",
+    "next/tests/ci_gates/tests/test_current_ledger.py",
     "next/tests/ci_gates/tests/test_ledger_home.py",
     "next/tests/ci_gates/tests/test_loopback_home.py",
     "next/tests/ci_gates/tests/test_native_home.py",
@@ -622,7 +624,7 @@
       "evidence": {
         "kind": "native_postgres_fixture",
         "source": "next/release/ship/install/tests/test_ledger_acl_pg.py",
-        "sha256": "6c214f3407e4701cf8959885cdcb417802069059833ee826ddd9ed821563b9f4",
+        "sha256": "3af637fcf11d051dda9db6cc6be28bb7469abc4d4a34d411cac5efe20ce6fa3d",
         "symbol": "LedgerAcl.setUpClass",
         "fixture": {
           "source": "next/release/ship/install/tests/test_roles_pg.py",

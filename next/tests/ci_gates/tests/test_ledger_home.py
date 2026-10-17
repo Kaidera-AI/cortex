@@ -21,6 +21,8 @@ METHODS = (
     'LedgerAcl::test_3_probe_the_request_group_and_a_stranger_are_denied',
     'LedgerAcl::test_4_nothing_is_granted_to_public_and_the_exact_privilege_set_is_known',
     'LedgerAcl::test_5_rerunning_post_and_closing_the_finite_logins_keeps_exactly_that_access',
+    'LedgerAcl::test_6_the_ledger_step_changes_exactly_two_acls_and_adds_only_the_api_login',
+    'LedgerAcl::test_7_probe_has_no_core_usage_the_request_group_has_no_ledger_select_and_baseline_usage_remains',
     'ProvisionStepsPg::test_1_pre_creates_the_four_logins_with_policy_flags_and_scram',
     'ProvisionStepsPg::test_2_the_bound_secret_never_appears_in_statement_text',
     'ProvisionStepsPg::test_3_a_short_secret_creates_nothing_and_leaves_no_password_setting',
@@ -60,7 +62,7 @@ def packet():
 
 
 class LedgerHome(unittest.TestCase):
-    def test_nine_exact_ledger_nodes_and_all_phases_are_required(self):
+    def test_eleven_exact_ledger_nodes_and_all_phases_are_required(self):
         self.assertEqual(getattr(worker, 'NATIVE_LEDGER_NODES', None), NODES)
         check = worker.native_roles_result
         clean = dict(ok=True, errors=[], residual=[])
@@ -135,8 +137,8 @@ class LedgerHome(unittest.TestCase):
 
     def test_hosted_ledger_step_is_required_bounded_and_receipted(self):
         source = (ROOT / '.github/workflows/ci.yml').read_text()
-        self.assertIn('installer ledger (nine exact methods; native PostgreSQL)', source)
-        step = source.split('installer ledger (nine exact methods; native PostgreSQL)', 1)[1].split('      - ', 1)[0]
+        self.assertIn('installer ledger (eleven exact methods; native PostgreSQL)', source)
+        step = source.split('installer ledger (eleven exact methods; native PostgreSQL)', 1)[1].split('      - ', 1)[0]
         for required in ('--mode installer-ledger', '--pg-bin', '--site', 'pg_config --bindir',
                          'MemoryMax=1G', 'MemorySwapMax=0', 'CPUQuota=200%', '!cancelled()'):
             self.assertIn(required, step)

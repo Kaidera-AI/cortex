@@ -30,11 +30,12 @@ def main():
     files = {'cortex_ship/__init__.py': b'"""Kaidera ship closure namespace (J06): installed validators only."""\n',
              'cortex_ship/install/__init__.py': b'',
              'cortex_ship/install/roles.py': (HERE / 'roles.py').read_bytes(),
+             'cortex_ship/install/provision.py': (HERE / 'provision.py').read_bytes(),
              'cortex_ship/install/runtime-operations-v1.json': CONTRACT.read_bytes()}
     for rel, data in files.items():
         (out / rel).write_bytes(data)
     receipt = {'schema': 'cortex.ship.closure.v1', 'namespace': 'cortex_ship.install.roles', 'platform_independent': True,
-               'source_roles_sha256': sha(files['cortex_ship/install/roles.py']), 'contract_sha256': sha(files['cortex_ship/install/runtime-operations-v1.json']),
+               'source_roles_sha256': sha(files['cortex_ship/install/roles.py']), 'source_provision_sha256': sha(files['cortex_ship/install/provision.py']), 'contract_sha256': sha(files['cortex_ship/install/runtime-operations-v1.json']),
                'files': [{'path': rel, 'sha256': sha(data)} for rel, data in sorted(files.items())]}
     (out / 'cortex_ship/receipt.json').write_text(json.dumps(receipt, indent=1, sort_keys=True) + '\n')
 

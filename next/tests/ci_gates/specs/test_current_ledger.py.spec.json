@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_current_ledger.py",
+  "source_sha256": "688ed403daf513729fe0c2a42b7414f9471bd396de8fe93f16d56b650deb572f",
+  "tests": {
+    "next/tests/ci_gates/tests/test_current_ledger.py": "688ed403daf513729fe0c2a42b7414f9471bd396de8fe93f16d56b650deb572f"
+  },
+  "expected_nodes": [
+    "test_current_ledger.CurrentLedger.test_all_eleven_actual_ledger_methods_are_required_by_the_worker"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "Eleven-method ledger source control must execute its deciding assertion",
+  "mutation": {
+    "before": "self.assertEqual(len(worker.NATIVE_LEDGER_NODES),11)",
+    "after": "self.assertNotEqual(len(worker.NATIVE_LEDGER_NODES),11)"
+  }
+}

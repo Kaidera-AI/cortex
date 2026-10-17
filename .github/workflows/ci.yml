@@ -42,7 +42,7 @@ jobs:
             python .github/scripts/pytest_pg_worker.py --mode installer-roles \
             --output "${{ runner.temp }}/cortex-installer-roles-pg" \
             --pg-bin "$PG_BINDIR" --site "${{ runner.temp }}/cortex-pg-site"
-      - name: installer ledger (nine exact methods; native PostgreSQL)
+      - name: installer ledger (eleven exact methods; native PostgreSQL)
         if: ${{ !cancelled() }}
         run: |
           PG_BINDIR="$(pg_config --bindir)"
