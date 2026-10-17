@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -193,6 +194,17 @@ class ResourceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'resources_deadline'):
                 with resources.open_seed_resources(self.config,custody=v,deadline=started+2.1):pass
             self.assertLess(time.monotonic()-started,2.75,'connector exceeded the original absolute deadline')
+
+    def test_fixed_driver_wrapper_preserves_absolute_timeout_refusal(self):
+        self.require_source()
+        class BlockingDriver:
+            @staticmethod
+            def connect(**kw):time.sleep(3);raise RuntimeError('late public-test-secret')
+        with self.vault() as v,patch.dict('sys.modules',{'psycopg':SimpleNamespace(Connection=BlockingDriver)}):
+            started=time.monotonic()
+            with self.assertRaisesRegex(ValueError,'resources_deadline'):
+                with resources.open_seed_resources(self.config,custody=v,deadline=started+2.1):pass
+            self.assertLess(time.monotonic()-started,2.75)
 
 
 if __name__=='__main__':unittest.main()
