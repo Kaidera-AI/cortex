@@ -207,7 +207,7 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
         expected={suite_name+'::'+method for method in names}
         actual={suite+'::'+cls.name+'::'+method.name for cls in candidate.body if isinstance(cls,ast.ClassDef)
             for method in cls.body if isinstance(method,ast.FunctionDef) and method.name.startswith('test_')}
-        if suite_name!=suite or len(expected)!=9 or actual!=expected:return False
+        if suite_name!=suite or len(expected)!=(11 if suite==ledger else 9) or actual!=expected:return False
         psql=symbol(tree,'Cluster.psql');stop=symbol(tree,'Cluster.stop')
         def direct_command(function,tool):
             if not isinstance(function,ast.FunctionDef):return False

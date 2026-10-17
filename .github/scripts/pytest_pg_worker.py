@@ -292,7 +292,7 @@ NATIVE_LEDGER_NODES = [NATIVE_LEDGER_SUITE + "::" + name for name in (
 
 
 def native_roles_result(packet, process_exit, source_sha256, cleanup, suite=NATIVE_ROLES_SUITE):
-    """Nine exact native methods; unit packets do not themselves execute PostgreSQL."""
+    """Exact nine-role or eleven-ledger native methods; unit packets do not themselves execute PostgreSQL."""
     spec = importlib.util.spec_from_file_location("native_roles_phase_gate",
         Path(__file__).with_name("pytest_next_offline.py"))
     gate = importlib.util.module_from_spec(spec)
