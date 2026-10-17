@@ -12,6 +12,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 RENDER = HERE.parent / "render.py"
 REPO_NEXT = HERE.parents[3]
 OPERATIONS = REPO_NEXT / "contracts" / "runtime" / "runtime-operations-v1.json"
+sys.path.insert(0, str(REPO_NEXT / "src"))
+from cortex_core.runtime.bootstrap_config import MODE_PURPOSES, decode_config  # noqa: E402
+from cortex_core.runtime.signed_member import Refusal  # noqa: E402
 
 SOURCE = "7a1078213ac2497d6219e7778c7866001f97f30b"
 CORE_IMAGE = "sha256:" + "c" * 64
@@ -19,23 +22,32 @@ API_IMAGE = "sha256:" + "a" * 64
 PY = "/opt/cortex/python/bin/python3"
 CFG = "/run/cortex/config/cortex.json"
 PURPOSES = ("api_request", "probe", "bootstrap", "migrator", "installer_enrollment")
+# Refs deliberately differ from purpose names: targets must come from the Core refs.
+REFS = {"bootstrap": "secrets/cortex/pg_boot", "migrator": "secrets/cortex/pg_mig",
+        "api_request": "secrets/cortex/pg_req", "probe": "secrets/cortex/pg_probe",
+        "installer_enrollment": "secrets/cortex/pg_enrol"}
+CA_REF = "secrets/cortex/db_ca"
 STEPS = ["core-init", "temporary-db", "roles-pre", "migrate", "roles-post",
          "seed", "roles-close", "stop-temporary-db", "serve"]
 FORBIDDEN = re.compile(r"embed|tei|qdrant|rerank|supervisor|conductor|observer|worker", re.I)
 
 
-def base_config():
+def base_config(vault="/vault/helix"):
     return {
         "version": 1,
         "installation_id": "11111111-1111-4111-8111-111111111111",
+        "tenant_id": "22222222-2222-4222-8222-222222222222",
+        "project_id": "33333333-3333-4333-8333-333333333333",
+        "project_names": {"helix": "33333333-3333-4333-8333-333333333333"},
         "ai_mode": "off",
+        "vault_root": vault,
         "bind": {"host": "0.0.0.0", "port": 8000},
         "publish": {"host": "127.0.0.1", "port": 18601},
+        "client": {"credential_ref": "secrets/cortex/client_bob"},
         "database": {"host": "127.0.0.1", "port": 5432, "name": "cortex",
-                     "tls": {"mode": "verify-full"}},
-        "purposes": {p: {"login": "cortex_" + p, "secret_ref": "secrets/cortex/" + p}
-                     for p in PURPOSES},
-        "vault_root": "/vault/helix",
+                     "tls": {"mode": "verify-full", "root_cert_ref": CA_REF}},
+        "roles": {p: {"login": "cortex_" + p, "secret_ref": REFS[p]} for p in PURPOSES},
+        "limits": {"request_seconds": 10, "shutdown_seconds": 15},
     }
 
 
@@ -57,12 +69,20 @@ def inputs(tmp_path):
         (conf / name).write_text("# fixture\n")
     for step in ("pre", "post", "close"):
         (conf / "sql" / f"roles-{step}.sql").write_text("-- fixture\n")
-    paths = {"config": tmp_path / "cortex.json", "release": tmp_path / "release.json",
-             "operations": tmp_path / "ops.json", "core_conf": conf, "out": tmp_path / "out"}
-    paths["config"].write_text(json.dumps(base_config()))
+    vault = tmp_path.resolve() / "vault"
+    (vault / "config").mkdir(parents=True)
+    paths = {"config": vault / "config" / "cortex.json", "release": tmp_path / "release.json",
+             "operations": tmp_path / "ops.json", "core_conf": conf, "out": tmp_path / "out",
+             "vault": vault, "root": tmp_path.resolve()}
+    write_config(paths, base_config(str(vault)))
     paths["release"].write_text(json.dumps(base_release()))
     paths["operations"].write_bytes(OPERATIONS.read_bytes())
     return paths
+
+
+def write_config(paths, value, raw=None):
+    paths["config"].write_bytes(raw if raw is not None else json.dumps(value).encode())
+    paths["config"].chmod(0o600)
 
 
 def run(paths, drop=None):
@@ -114,7 +134,7 @@ def test_rung_feature_db_and_api_only(inputs):
     images = {step["image"] for step in plan["steps"] if "image" in step}
     assert images <= {CORE_IMAGE, API_IMAGE}
     # Host paths are installer inputs, not run inventory: mask the fixture root before scanning.
-    fixture_root = str(inputs["config"].parent.resolve())
+    fixture_root = str(inputs["root"])
     for name in ("cortex-v2.pod.yaml", "bootstrap.plan.json", "inventory.json"):
         text = (inputs["out"] / name).read_text().replace(fixture_root, "<fixture>")
         assert fixture_root not in text
@@ -148,24 +168,32 @@ def test_db_argv_comes_from_operations(inputs):
     assert steps["temporary-db"]["argv"] == resolved_vector("core-server")
 
 
+def target(inputs, ref):
+    return str(inputs["vault"] / ref)
+
+
 def test_serve_mounts_only_request_and_probe(inputs):
     pod, _plan, inventory = rendered(inputs)
     core, api = pod["spec"]["containers"]
-    assert not [m for m in core["volumeMounts"] if m["name"].startswith("secret-")]
-    api_secrets = {m["name"]: m["mountPath"] for m in api["volumeMounts"]
-                   if m["name"].startswith("secret-")}
-    assert api_secrets == {"secret-api-request": "/run/cortex/secrets/api_request",
-                           "secret-probe": "/run/cortex/secrets/probe"}
     volumes = {v["name"]: v for v in pod["spec"]["volumes"]}
-    assert volumes["secret-api-request"]["secret"]["secretName"] == "cortex-v2-api_request"
-    assert volumes["secret-probe"]["secret"]["secretName"] == "cortex-v2-probe"
+    assert not [m for m in core["volumeMounts"] if "secret" in volumes[m["name"]]]
+    projected = {m["mountPath"]: (volumes[m["name"]]["secret"]["secretName"], m.get("subPath"),
+                                  m.get("readOnly"))
+                 for m in api["volumeMounts"] if "secret" in volumes[m["name"]]}
+    assert projected == {
+        target(inputs, REFS["api_request"]): ("cortex-v2-pg_req", "pg_req", True),
+        target(inputs, REFS["probe"]): ("cortex-v2-pg_probe", "pg_probe", True),
+        target(inputs, CA_REF): ("cortex-v2-db_ca", "db_ca", True)}
+    vault = inputs["vault"]
+    mounts = [m["mountPath"] for c in (core, api) for m in c["volumeMounts"]]
+    assert not {str(vault), str(vault / "secrets"), str(vault / "secrets" / "cortex")} & set(mounts)
     host_paths = sorted((v["hostPath"]["path"], v["hostPath"]["type"])
                         for v in volumes.values() if "hostPath" in v)
     conf = inputs["core_conf"]
     assert host_paths == sorted([(str(inputs["config"]), "File"),
                                  (str(conf / "postgresql.conf"), "File"),
                                  (str(conf / "pg_hba.conf"), "File")])
-    assert inventory["serve"]["secrets"] == ["api_request", "probe"]
+    assert inventory["serve"]["secrets"] == sorted(MODE_PURPOSES["serve"]) == ["api_request", "probe"]
 
 
 def test_only_loopback_publish(inputs):
@@ -183,8 +211,10 @@ def test_bootstrap_is_finite_and_ordered(inputs):
     expected = {"core-init": ["bootstrap"], "temporary-db": [],
                 "roles-pre": ["api_request", "bootstrap", "installer_enrollment", "migrator", "probe"],
                 "migrate": ["migrator"], "roles-post": ["bootstrap"],
-                "seed": ["installer_enrollment"], "roles-close": ["bootstrap"],
+                "seed": ["api_request", "bootstrap", "installer_enrollment"], "roles-close": ["bootstrap"],
                 "stop-temporary-db": [], "serve": []}
+    assert expected["migrate"] == sorted(MODE_PURPOSES["migrate"])
+    assert expected["seed"] == sorted(MODE_PURPOSES["seed"])
     for step in plan["steps"]:
         assert step["secrets"] == expected[step["name"]], step["name"]
         assert isinstance(step["deadline_ms"], int) and step["deadline_ms"] > 0
@@ -195,6 +225,28 @@ def test_bootstrap_is_finite_and_ordered(inputs):
     assert steps["roles-pre"]["argv"][-2:] == ["-f", "/run/cortex/sql/roles-pre.sql"]
     assert steps["serve"]["pod_file"] == "cortex-v2.pod.yaml"
     assert plan["restart"] == "never"
+
+
+def secret_flags(step):
+    return sorted(arg for argv in step["podman"] for arg in argv if arg.startswith("--secret="))
+
+
+def test_bootstrap_projections_follow_core_refs(inputs):
+    _pod, plan, _inventory = rendered(inputs)
+    steps = {s["name"]: s for s in plan["steps"]}
+    ca = f"--secret=cortex-v2-db_ca,type=mount,target={target(inputs, CA_REF)},mode=0400"
+
+    def flags(*purposes):
+        return sorted([f"--secret=cortex-v2-{REFS[p].rsplit('/', 1)[1]},type=mount,"
+                       f"target={target(inputs, REFS[p])},mode=0400" for p in purposes] + [ca])
+    assert secret_flags(steps["migrate"]) == flags("migrator")
+    assert secret_flags(steps["seed"]) == flags("bootstrap", "installer_enrollment", "api_request")
+    assert secret_flags(steps["core-init"]) == [
+        "--secret=cortex-v2-pg_boot,type=mount,target=/run/cortex/bootstrap/initdb-password,mode=0400"]
+    for name in ("migrate", "seed"):
+        assert f"{inputs['config']}:/run/cortex/config/cortex.json:ro" in steps[name]["podman"][0]
+    for name in ("cortex-v2.pod.yaml", "bootstrap.plan.json", "inventory.json"):
+        assert "/run/cortex/secrets" not in (inputs["out"] / name).read_text()
 
 
 def test_operations_mismatch_refuses(inputs):
@@ -217,24 +269,41 @@ def test_missing_flag_is_typed_gap(inputs, flag, reason):
 
 
 def mutate_config(inputs, fn):
-    cfg = base_config()
+    cfg = base_config(str(inputs["vault"]))
     fn(cfg)
-    inputs["config"].write_text(json.dumps(cfg))
+    write_config(inputs, cfg)
 
 
 @pytest.mark.parametrize("change,reason", [
-    (lambda c: c.pop("ai_mode"), "ai_mode_missing"),
-    (lambda c: c.__setitem__("ai_mode", "hosted"), "ai_mode_not_off:hosted"),
-    (lambda c: c["database"]["tls"].__setitem__("mode", "disable"), "transport_unratified:disable"),
-    (lambda c: c["publish"].__setitem__("host", "0.0.0.0"), "unsafe_publish:0.0.0.0"),
-    (lambda c: c["purposes"].pop("probe"), "purpose_missing:probe"),
-    (lambda c: c["purposes"].pop("migrator"), "purpose_missing:migrator"),
-    (lambda c: c.pop("installation_id"), "input_missing:config.installation_id"),
-    (lambda c: c["publish"].pop("port"), "input_missing:config.publish.port"),
+    (lambda c: c.pop("ai_mode"), "config_shape"),
+    (lambda c: c.__setitem__("ai_mode", "hosted"), "unshipped_provider_refusal"),
+    (lambda c: c["database"]["tls"].__setitem__("mode", "disable"), "config_transport_unratified"),
+    (lambda c: c["database"]["tls"].pop("root_cert_ref"), "config_shape"),
+    (lambda c: c["publish"].__setitem__("host", "0.0.0.0"), "config_binding"),
+    (lambda c: c["roles"].pop("probe"), "config_shape"),
+    (lambda c: c.__setitem__("purposes", c.pop("roles")), "config_shape"),
+    (lambda c: c.pop("installation_id"), "config_shape"),
+    (lambda c: c["roles"].__setitem__("observer", {"login": "o", "secret_ref": "secrets/cortex/o"}),
+     "config_shape"),
 ])
 def test_config_refusals(inputs, change, reason):
     mutate_config(inputs, change)
     assert refusal(run(inputs)) == reason
+    assert not inputs["out"].exists()
+
+
+@pytest.mark.parametrize("raw", [b'{"version": 1, "version": 1}', b"[]", b"\xff", b"{"])
+def test_config_refusal_is_cores_own(inputs, raw):
+    write_config(inputs, None, raw=raw)
+    with pytest.raises(Refusal) as core:
+        decode_config(raw, mode="serve")
+    assert refusal(run(inputs)) == core.value.reason
+    assert not inputs["out"].exists()
+
+
+def test_config_file_must_be_private(inputs):
+    inputs["config"].chmod(0o644)
+    assert refusal(run(inputs)) == "private_file_required"
     assert not inputs["out"].exists()
 
 
