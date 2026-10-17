@@ -168,6 +168,18 @@ class CustodyTests(unittest.TestCase):
         with self.opened('serve') as vault:
             with self.assertRaisesRegex(ValueError,'custody_invalid'):vault.resolve('probe')
 
+    def test_denied_purpose_precedes_even_directory_identity_checks(self):
+        self.assertIsNotNone(custody)
+        with self.opened('serve') as vault:
+            with patch.object(custody_fs.PrivateDirectory,'check',side_effect=AssertionError('directory identity reached')):
+                for purpose in ('bootstrap','migrator','installer_enrollment','client'):
+                    with self.subTest(purpose=purpose),self.assertRaisesRegex(ValueError,'purpose_not_admitted'):
+                        vault.resolve(purpose)
+                with self.subTest(operation='seed'),self.assertRaisesRegex(ValueError,'purpose_not_admitted'):
+                    with vault.seed_record():pass
+                with self.subTest(operation='import'),self.assertRaisesRegex(ValueError,'purpose_not_admitted'):
+                    vault.import_credential('bootstrap',b'public-test-password')
+
     def test_wrong_key_key_id_or_tag_closed_refusal(self):
         self.assertIsNotNone(custody)
         self.stage()
