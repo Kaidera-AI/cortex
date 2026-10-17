@@ -7,7 +7,8 @@
     "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
   },
   "expected_nodes": [
-    "test_ledger_home.LedgerHome.test_hosted_ledger_step_is_required_bounded_and_receipted"
+    "test_ledger_home.LedgerHome.test_hosted_ledger_step_is_required_bounded_and_receipted",
+    "test_native_home.NativeHome.test_hosted_native_step_is_required_and_bounded"
   ],
   "kind": "inventory",
   "invariant": "ledger native home is required and bounded",
