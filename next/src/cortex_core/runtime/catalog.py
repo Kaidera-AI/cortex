@@ -10,6 +10,19 @@ def _rows(connection,sql,parameters=None):
     return connection.execute(sql,parameters).fetchall()
 
 
+def _service(connection,config):
+    """Read the protected current state inside the caller's read-only transaction."""
+    connection.execute('SET LOCAL ROLE "kaidera-runtime-core-request"')
+    installation=_rows(connection,'SELECT auth.runtime_request_installation(%s::uuid)',
+        (config.installation_id,))
+    enrollment=_rows(connection,'SELECT auth.enrollment_readiness(%s::uuid)::text',
+        (config.installation_id,))
+    if (len(installation)!=1 or len(installation[0])!=1 or type(installation[0][0]) is not bool
+            or len(enrollment)!=1 or len(enrollment[0])!=1
+            or enrollment[0][0] not in ('ready','enrollment_required','unavailable')):raise ValueError
+    return dict(installation_matches=installation[0][0],enrollment_readiness=enrollment[0][0])
+
+
 def observe(resources):
     # No public snapshot/connection argument is used by the production accessor.
     from .resources import current_seed_resources
@@ -80,15 +93,7 @@ def _observe(resources,*,service):
                 groups={name:by_name[name] for name in _GROUPS if name in by_name},
                 memberships=memberships,bindings=bindings,protected_owners=protected)
             if service:
-                connection.execute('SET LOCAL ROLE "kaidera-runtime-core-request"')
-                installation=_rows(connection,'SELECT auth.runtime_request_installation(%s::uuid)',
-                    (resources._config.installation_id,))
-                enrollment=_rows(connection,'SELECT auth.enrollment_readiness(%s::uuid)::text',
-                    (resources._config.installation_id,))
-                if (len(installation)!=1 or len(installation[0])!=1 or type(installation[0][0]) is not bool
-                        or len(enrollment)!=1 or len(enrollment[0])!=1
-                        or enrollment[0][0] not in ('ready','enrollment_required','unavailable')):raise ValueError
-                observation['service']=dict(installation_matches=installation[0][0],enrollment_readiness=enrollment[0][0])
+                observation['service']=_service(connection,resources._config)
             return observation
     except Refusal as error:
         if error.reason in ('resources_deadline','resources_closed','resources_unbound'):raise

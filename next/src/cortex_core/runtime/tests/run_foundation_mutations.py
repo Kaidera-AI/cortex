@@ -36,6 +36,11 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/resources.py',"'bootstrap':('bootstrap',)","'bootstrap':_SEED_PURPOSES",'runtime','test_resources.BootstrapResourceTests.test_only_bootstrap_opens_before_other_roles_exist_and_no_seed_context'),
  ('src/cortex_core/runtime/operator.py',"result=seed_runtime_bindings(config,key,deadline)","result={}",'runtime','test_operator.SeedOperatorTests.test_fixed_seed_call_same_config_context_then_closed_committed_public_receipt'),
  ('src/cortex_core/runtime/catalog.py',"installation_matches=installation[0][0]","installation_matches=True",'runtime','test_resources.ServiceCatalogTests.test_false_or_not_enrolled_is_raw_evidence_and_never_synthesized_ready'),
+ ('src/cortex_core/runtime/services.py',"if check_schema_ready(connection) is not True:","if False:",'runtime','test_services.ServiceTests.test_startup_checks_actual_ledger_catalog_policy_and_probe_before_ready'),
+ ('src/cortex_core/runtime/services.py',"response={**(value.response or {}),'receipt':receipt}","response={**(value.response or {}),'receipt':{}}",'runtime','test_services.ServiceTests.test_same_c05_committed_receipt_and_existing_body_parser_reach_wire'),
+ ('src/cortex_core/runtime/services.py',"if name!=name.lower() or name in seen:","if False:",'runtime','test_services.ServiceTests.test_duplicate_authority_headers_and_missing_key_refuse_before_principal'),
+ ('src/cortex_core/runtime/services.py',"state=_service(connection,self._resources._config)","state={'installation_matches':True,'enrollment_readiness':'ready'}",'runtime','test_services.ServiceTests.test_health_rechecks_protected_state_and_cannot_reuse_startup_ready'),
+ ('src/cortex_core/runtime/resources.py',"if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):","if False:",'runtime','test_services.ServiceTests.test_request_connection_refuses_invalid_budget_purpose_nested_and_closed'),
 ]
 
 
@@ -101,6 +106,7 @@ def main():
             case=Path(tmp)/'next'
             shutil.copytree(NEXT/'src',case/'src',ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
             shutil.copytree(NEXT/'schema',case/'schema')
+            shutil.copytree(NEXT/'contracts',case/'contracts')
             path=case/relative;before=path.read_bytes();text=before.decode()
             if text.count(old)!=1:raise ValueError('mutation anchor must be unique: '+relative)
             testfile=case/'src/cortex_core'/group/'tests'/(expected.split('.')[0]+'.py')

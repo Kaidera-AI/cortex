@@ -133,11 +133,14 @@ class _Resources:
     @property
     def probe(self):return self._connections['probe']
 
-    def check_deadline(self):
+    def _live(self):
         if self._closed:
             raise Refusal('resources_closed')
         if self._tainted:
             raise Refusal('resources_tainted')
+
+    def check_deadline(self):
+        self._live()
         return remaining_seconds(self._deadline)
 
 
@@ -197,6 +200,48 @@ class CoreResources(_FiniteResources):
     def observe_service_catalog(self):
         from .catalog import observe_service
         return observe_service(self)
+
+    @contextmanager
+    def request_connection(self,purpose,*,deadline):
+        """Reuse the two owned sessions under one caller's absolute request cap.
+
+        C04 owns its top-level transaction and cleanup. There is no enclosing
+        transaction/savepoint, executor, reconnect, or automatic write retry.
+        """
+        self._live()
+        if purpose not in _CORE_PURPOSES:raise Refusal('resources_purpose')
+        if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):
+            raise Refusal('resources_deadline')
+        if self._in_transaction:raise Refusal('resources_transaction')
+        from cortex_core.auth import AuthError
+        from cortex_core.records import RecordError
+        connection=self._connections[purpose]
+        def idle():
+            from psycopg.pq import TransactionStatus
+            try:
+                return (not connection.closed and connection.autocommit is True
+                    and connection.info.transaction_status==TransactionStatus.IDLE)
+            except Exception:return False
+        object.__setattr__(self,'_in_transaction',True)
+        try:
+            with private_driver_logs(),_driver_deadline(deadline):
+                if not idle():raise Refusal('resources_request')
+                milliseconds=str(max(1,math.floor(remaining_seconds(deadline)*1000)))
+                connection.execute("SELECT pg_catalog.set_config('statement_timeout',%s,false), "
+                    "pg_catalog.set_config('lock_timeout',%s,false)",(milliseconds,milliseconds))
+                yield connection
+                remaining_seconds(deadline)
+                if not idle():raise Refusal('resources_request')
+        except BaseException as error:
+            if isinstance(error,(AuthError,RecordError)) and error.code in {
+                    'unauthenticated','forbidden','scope_mismatch','invalid_input','conflict','gone'}:
+                try:remaining_seconds(deadline);reusable=idle()
+                except Refusal:reusable=False
+                if reusable:raise
+            object.__setattr__(self,'_tainted',True)
+            if isinstance(error,(Refusal,KeyboardInterrupt,SystemExit)):raise
+            raise Refusal('resources_request') from None
+        finally:object.__setattr__(self,'_in_transaction',False)
 
 
 class MigrationResources(_Resources):
