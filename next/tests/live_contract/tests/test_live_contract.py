@@ -113,6 +113,49 @@ class LiveContract(unittest.TestCase):
                 gate.bound_spec_complete(raw, dict(BINDING,
                     spec_sha256=hashlib.sha256(raw).hexdigest()), OPERATIONS)
 
+    def test_link_field_cannot_come_from_another_status(self):
+        doc = fixture()
+        create = doc["paths"]["/records"]["post"]
+        create["responses"]["201"] = copy.deepcopy(create["responses"]["200"])
+        del create["responses"]["201"]["links"]
+        create["responses"]["200"]["content"]["application/json"]["schema"] = dict(
+            type="object", properties=dict(other=dict(type="string")), required=["other"])
+        raw, binding = bound(doc)
+        with self.assertRaises(gate.ReceiptRefusal) as raised:
+            gate.bound_spec_complete(raw, binding, OPERATIONS)
+        self.assertEqual(raised.exception.code, "spec_incomplete")
+
+    def test_link_field_cannot_come_from_another_media_alternative(self):
+        doc = fixture()
+        response = doc["paths"]["/records"]["post"]["responses"]["200"]
+        response["content"]["application/xml"] = copy.deepcopy(response["content"]["application/json"])
+        response["content"]["application/json"]["schema"] = dict(
+            type="object", properties=dict(other=dict(type="string")), required=["other"])
+        raw, binding = bound(doc)
+        with self.assertRaises(gate.ReceiptRefusal) as raised:
+            gate.bound_spec_complete(raw, binding, OPERATIONS)
+        self.assertEqual(raised.exception.code, "spec_incomplete")
+
+    def test_later_response_link_cannot_hide_a_broken_earlier_link(self):
+        doc = fixture()
+        create = doc["paths"]["/records"]["post"]
+        create["responses"]["201"] = copy.deepcopy(create["responses"]["200"])
+        create["responses"]["200"]["links"]["read"]["parameters"]["id"] = "$response.body#/missing"
+        raw, binding = bound(doc)
+        with self.assertRaises(gate.ReceiptRefusal):
+            gate.bound_spec_complete(raw, binding, OPERATIONS)
+
+    def test_every_containing_alternative_can_supply_the_link(self):
+        doc = fixture()
+        create = doc["paths"]["/records"]["post"]
+        create["responses"]["201"] = copy.deepcopy(create["responses"]["200"])
+        create["responses"]["200"]["content"]["application/xml"] = copy.deepcopy(
+            create["responses"]["200"]["content"]["application/json"])
+        raw, binding = bound(doc)
+        result = gate.bound_spec_complete(raw, binding, OPERATIONS)
+        self.assertEqual(result["qualification"], "preflight_only")
+        self.assertEqual(result["mutating_requests"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
