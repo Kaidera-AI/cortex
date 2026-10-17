@@ -52,12 +52,13 @@ def read_private_file(path, *, limit):
 
 
 def resolve_credential(config, purpose):
-    from .bootstrap_config import BootstrapConfig
+    from .bootstrap_config import BootstrapConfig, MODE_PURPOSES
     if type(config) is not BootstrapConfig or type(purpose) is not str:
         raise Refusal('purpose_not_admitted')
     if purpose == 'client' and config.mode == 'client':
         reference = config.client_ref
-    elif purpose in config.roles:
+    elif (type(config.mode) is str and purpose in MODE_PURPOSES.get(config.mode, ())
+          and purpose in config.roles):
         reference = config.roles[purpose].secret_ref
     else:
         raise Refusal('purpose_not_admitted')

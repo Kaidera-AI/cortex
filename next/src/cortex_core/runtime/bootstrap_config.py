@@ -108,7 +108,7 @@ def validate_bootstrap(value, *, mode):
         raise Refusal('config_projects')
     root = value['vault_root']
     if (type(root) is not str or not 1 <= len(root.encode('utf-8')) <= 4096
-            or not root.startswith('/') or str(PurePosixPath(root)) != root
+            or root == '/' or not root.startswith('/') or str(PurePosixPath(root)) != root
             or '..' in PurePosixPath(root).parts):
         raise Refusal('config_vault')
     bind = _listener(value['bind'], loopback=False)
@@ -118,6 +118,17 @@ def validate_bootstrap(value, *, mode):
     host = database['host']
     if type(host) is not str or len(host) > 253 or re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.:-]*', host) is None:
         raise Refusal('config_database')
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        if any(re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', label) is None
+               for label in host.split('.')):
+            raise Refusal('config_database') from None
+    else:
+        networks = map(ipaddress.ip_network, ('127.0.0.0/8', '::1/128', '10.0.0.0/8',
+                       '172.16.0.0/12', '192.168.0.0/16', 'fc00::/7'))
+        if not any(address.version == net.version and address in net for net in networks):
+            raise Refusal('config_database')
     _integer(database['port'], 1, 65535); _identifier(database['name'])
     tls = database['tls']; _shape(tls, {'mode', 'root_cert_ref'}); _reference(tls['root_cert_ref'])
     if tls['mode'] != 'verify-full':
