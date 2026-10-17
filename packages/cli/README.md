@@ -27,7 +27,8 @@ config/input pipes, response bounds and one absolute deadline. Authorization
 is absent from argv, the child environment, temporary files and public health.
 Curl startup configuration and proxies are disabled; redirects are refused;
 HTTPS keeps stock certificate/hostname verification. No insecure flag or
-certificate override exists. Cancellation closes pipes and reaps the owned curl.
+certificate override exists. A signal delivered to the Python supervisor closes pipes and reaps its owned
+curl. Bob still owns wrapper/service cancellation propagation.
 Responses are bounded to 1MiB and decoded once as unambiguous UTF-8 JSON.
 Malformed responses and transport failures emit one typed JSON refusal on stderr.
 

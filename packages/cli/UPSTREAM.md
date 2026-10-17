@@ -12,8 +12,10 @@
 - Python uses only stdlib framing, process supervision and JSON validation;
   no Python networking library or additional package is introduced. Test parents
   are Python 3.13.7 and 3.14.0; the helper's existing `python3` command resolved
-  to Python 3.14.0 during these author runs. Parent interpreter repetitions do
-  not prove two different helper interpreter closures.
+  to Python 3.14.0 during these author runs. Earlier parent-only repetitions did not prove two helper closures. The later
+  BOUND_RUNTIME and PROCESS receipts prepend each interpreter directory to
+  PATH and freshly record helper `python3 -V` as 3.13.7 or 3.14.0. These remain
+  host source controls, not paired installed/native qualification.
 - Framing/custody interface: Cox's accepted
   `review/cortex/design/J06-interface-v1.md`, SHA256
   `25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49`.
