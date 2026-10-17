@@ -3,7 +3,8 @@
 # Refuses before writing anything; never shadows a command it did not install.
 set -u
 
-COMMANDS="cortex-boot cortex-log cortex-search"
+# Versioned v2 names only; live v1 cortex-boot/log/search are never written, linked or shadowed.
+COMMANDS="cortex-v2-boot cortex-v2-log cortex-v2-search"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 refuse() {

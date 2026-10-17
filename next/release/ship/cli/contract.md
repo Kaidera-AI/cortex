@@ -6,8 +6,11 @@ Owner bob@helix. Accepted plan: DAY-1 + INDEX v2 (J06, J11), DAY-2 (H-D622). Joi
 
 ## Launcher
 
-One template, `launcher.py.in`, rendered once per command (`cortex-boot`, `cortex-log`,
-`cortex-search`). Placeholders: `@CORE_PYTHON@` (the installed Core interpreter; also the
+One template, `launcher.py.in`, rendered once per versioned command (`cortex-v2-boot`,
+`cortex-v2-log`, `cortex-v2-search`; Kai Option A, cox ruling
+`docs/handoffs/2026-10-17_cox_a-day2-versioned-cli-ruling-v1.md`). The clients are finn's v2 module
+commands (`next/modules/cli-v2`). Live v1 `cortex-boot`/`log`/`search` and `packages/cli` are never
+written, linked, shadowed or changed by this module. Placeholders: `@CORE_PYTHON@` (the installed Core interpreter; also the
 launcher's own `-IS` interpreter), `@CONFIG@` (the ONE vault config), `@CLIENT@` (the frozen
 client), `@EMPTY_AGENTS@` (an empty private folder). Standard library only.
 
@@ -50,6 +53,9 @@ Refusals (exit 2, same JSON line): `input_missing:<flag>`, `bad_argument:<arg>`,
 
 ## Open joins
 
+- finn: the `next/modules/cli-v2` helper and `cortex-v2-*` commands (and the exact v1
+  `packages/cli` restore); until they are published the launcher's end-to-end control runs only
+  against finn's 491d795c helper (scratch probe, not this tree).
 - nix: the installed Core interpreter with its qualified cryptography closure on both hosts, and the
-  operator-facing way to supply the unlock descriptor; the frozen clients sourcing finn's helper.
+  operator-facing way to supply the unlock descriptor.
 - day 2, real hosts: a shebang path within the kernel limit, and the actual client commands end to end.
