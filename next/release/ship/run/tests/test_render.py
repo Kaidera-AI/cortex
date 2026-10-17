@@ -1,5 +1,6 @@
 """Spec for ship/run/render.py: DB + API only serve pod and the finite bootstrap plan."""
 import copy
+import importlib.util
 import json
 import pathlib
 import re
@@ -13,7 +14,8 @@ RENDER = HERE.parent / "render.py"
 REPO_NEXT = HERE.parents[3]
 OPERATIONS = REPO_NEXT / "contracts" / "runtime" / "runtime-operations-v1.json"
 sys.path.insert(0, str(REPO_NEXT / "src"))
-from cortex_core.runtime.bootstrap_config import MODE_PURPOSES, decode_config  # noqa: E402
+from cortex_core.runtime.bootstrap_config import (MODE_PURPOSES, decode_config,  # noqa: E402
+                                                  read_config_file)
 from cortex_core.runtime.signed_member import Refusal  # noqa: E402
 
 SOURCE = "7a1078213ac2497d6219e7778c7866001f97f30b"
@@ -30,6 +32,12 @@ CA_REF = "secrets/cortex/db_ca"
 STEPS = ["core-init", "temporary-db", "roles-pre", "migrate", "roles-post",
          "seed", "roles-close", "stop-temporary-db", "serve"]
 FORBIDDEN = re.compile(r"embed|tei|qdrant|rerank|supervisor|conductor|observer|worker", re.I)
+# A Pod volume name is a DNS-1123 label.
+VOLUME = re.compile(r"[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?\Z")
+
+
+class ChildError(Exception):
+    """The renderer crashed (traceback or undeclared exit): never a behavioral assertion."""
 
 
 def base_config(vault="/vault/helix"):
@@ -85,15 +93,21 @@ def write_config(paths, value, raw=None):
     paths["config"].chmod(0o600)
 
 
-def run(paths, drop=None):
+def flags(paths, drop=None, config=None):
+    values = {"--config": paths["config"] if config is None else config,
+              "--operations": paths["operations"], "--release": paths["release"],
+              "--core-conf": paths["core_conf"], "--out": paths["out"]}
+    return [arg for flag, value in values.items() if flag != drop for arg in (flag, str(value))]
+
+
+def run(paths, drop=None, config=None, cwd=None):
     assert RENDER.is_file(), f"missing {RENDER}"
-    flags = {"--config": paths["config"], "--operations": paths["operations"],
-             "--release": paths["release"], "--core-conf": paths["core_conf"], "--out": paths["out"]}
-    argv = [sys.executable, "-I", str(RENDER)]
-    for flag, value in flags.items():
-        if flag != drop:
-            argv += [flag, str(value)]
-    return subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    argv = [sys.executable, "-I", str(RENDER), *flags(paths, drop, config)]
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout=60, cwd=cwd)
+    # render declares exit 0 (written) and 2 (one typed refusal); anything else is a crash.
+    if proc.returncode not in (0, 2) or "Traceback (most recent call last)" in proc.stderr:
+        raise ChildError(proc.returncode, proc.stderr[-2000:])
+    return proc
 
 
 def rendered(paths):
@@ -194,6 +208,42 @@ def test_serve_mounts_only_request_and_probe(inputs):
                                  (str(conf / "postgresql.conf"), "File"),
                                  (str(conf / "pg_hba.conf"), "File")])
     assert inventory["serve"]["secrets"] == sorted(MODE_PURPOSES["serve"]) == ["api_request", "probe"]
+
+
+@pytest.mark.parametrize("request_name,probe_name", [
+    ("Case_A", "case-a"),
+    ("x" * 95 + "a", "x" * 95 + "b"),
+    ("y" * 50 + "_1", "y" * 50 + "-1"),
+], ids=["case-underscore", "max-length-last-char", "long-prefix-underscore"])
+def test_projection_volume_ids_are_injective(inputs, request_name, probe_name):
+    def change(cfg):
+        cfg["roles"]["api_request"]["secret_ref"] = "secrets/cortex/" + request_name
+        cfg["roles"]["probe"]["secret_ref"] = "secrets/cortex/" + probe_name
+    mutate_config(inputs, change)
+    pod, _plan, _inventory = rendered(inputs)
+    names = [v["name"] for v in pod["spec"]["volumes"]]
+    assert len(names) == len(set(names)), sorted(n for n in names if names.count(n) > 1)
+    assert all(VOLUME.fullmatch(name) for name in names), names
+    volumes = {v["name"]: v for v in pod["spec"]["volumes"]}
+    api = pod["spec"]["containers"][1]
+    sources = {m["mountPath"]: volumes[m["name"]]["secret"]["secretName"]
+               for m in api["volumeMounts"] if "secret" in volumes[m["name"]]}
+    assert sources == {target(inputs, "secrets/cortex/" + request_name): "cortex-v2-" + request_name,
+                       target(inputs, "secrets/cortex/" + probe_name): "cortex-v2-" + probe_name,
+                       target(inputs, CA_REF): "cortex-v2-db_ca"}
+
+
+def test_volume_id_collision_refuses_before_publish(inputs, monkeypatch, capsys):
+    # Simulate a derivation collision: the renderer must refuse before it writes anything.
+    spec = importlib.util.spec_from_file_location("ship_render_under_test", RENDER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "volume_id", lambda ref: "proj-same", raising=False)
+    assert module.main(flags(inputs)) == 2
+    lines = capsys.readouterr().err.strip().splitlines()
+    assert [json.loads(line) for line in lines] == [{"reason": "projection_collision",
+                                                     "unit": "ship/run"}]
+    assert not inputs["out"].exists()
 
 
 def test_only_loopback_publish(inputs):
@@ -304,6 +354,37 @@ def test_config_refusal_is_cores_own(inputs, raw):
 def test_config_file_must_be_private(inputs):
     inputs["config"].chmod(0o644)
     assert refusal(run(inputs)) == "private_file_required"
+    assert not inputs["out"].exists()
+
+
+def core_reason(path):
+    with pytest.raises(Refusal) as core:
+        read_config_file(path, mode="serve")
+    return core.value.reason
+
+
+def test_config_leaf_symlink_refuses_like_core(inputs):
+    real = inputs["config"].with_name("real.json")
+    inputs["config"].rename(real)
+    inputs["config"].symlink_to(real)
+    assert core_reason(inputs["config"]) == "private_file_required"
+    assert refusal(run(inputs)) == "private_file_required"
+    assert not inputs["out"].exists()
+
+
+def test_config_parent_symlink_refuses_like_core(inputs):
+    link = inputs["root"] / "linked-config"
+    link.symlink_to(inputs["config"].parent, target_is_directory=True)
+    path = link / inputs["config"].name
+    assert core_reason(path) == "private_file_required"
+    assert refusal(run(inputs, config=path)) == "private_file_required"
+    assert not inputs["out"].exists()
+
+
+def test_config_relative_path_refuses_like_core(inputs):
+    relative = pathlib.Path(inputs["config"].name)
+    assert core_reason(relative) == "private_file_required"
+    assert refusal(run(inputs, config=relative, cwd=inputs["config"].parent)) == "private_file_required"
     assert not inputs["out"].exists()
 
 

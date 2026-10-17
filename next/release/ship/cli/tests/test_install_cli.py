@@ -1,6 +1,7 @@
 """Spec for ship/cli/install_cli.sh: render wrappers, refuse PATH collisions."""
 import json
 import pathlib
+import re
 import subprocess
 
 import pytest
@@ -8,6 +9,11 @@ import pytest
 HERE = pathlib.Path(__file__).resolve().parent
 INSTALL = HERE.parent / "install_cli.sh"
 COMMANDS = ["cortex-boot", "cortex-log", "cortex-search"]
+BASH_DIAGNOSTIC = re.compile(r": line \d+: ")
+
+
+class ChildError(Exception):
+    """The installer crashed (bash diagnostic or undeclared exit): never a behavioral assertion."""
 
 
 @pytest.fixture
@@ -35,8 +41,15 @@ def install(world, *extra, path_dirs=None):
     argv = ["/bin/bash", str(INSTALL), "--prefix", str(world["prefix"]),
             "--client-dir", str(world["clients"]), "--projector", str(world["projector"]),
             "--link-dir", str(world["link"]), *extra]
-    return subprocess.run(argv, capture_output=True, text=True, timeout=30,
-                          env={"PATH": ":".join(dirs), "HOME": str(world["tmp"])})
+    return child(argv, {"PATH": ":".join(dirs), "HOME": str(world["tmp"])})
+
+
+def child(argv, env):
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout=30, env=env)
+    # The installer declares exit 0 and exit 2 (typed refusal); anything else is a crash.
+    if proc.returncode not in (0, 2) or BASH_DIAGNOSTIC.search(proc.stderr):
+        raise ChildError(proc.returncode, proc.stderr[-2000:])
+    return proc
 
 
 def refusal(proc):
@@ -99,7 +112,6 @@ def test_unsafe_projector_path_refused(world, bad):
     argv = ["/bin/bash", str(INSTALL), "--prefix", str(world["prefix"]),
             "--client-dir", str(world["clients"]), "--projector", bad,
             "--link-dir", str(world["link"])]
-    proc = subprocess.run(argv, capture_output=True, text=True, timeout=30,
-                          env={"PATH": "/usr/bin:/bin", "HOME": str(world["tmp"])})
+    proc = child(argv, {"PATH": "/usr/bin:/bin", "HOME": str(world["tmp"])})
     assert refusal(proc) == f"unsafe_path:{bad}"
     assert not world["prefix"].exists()

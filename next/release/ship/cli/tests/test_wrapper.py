@@ -2,6 +2,7 @@
 import json
 import os
 import pathlib
+import re
 import stat
 import subprocess
 
@@ -9,6 +10,13 @@ import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
 TEMPLATE = HERE.parent / "wrapper.sh.in"
+# bash reports its own failures (unbound variable, syntax, ...) as "<script>: line N: ...".
+BASH_DIAGNOSTIC = re.compile(r": line \d+: ")
+LEAK = "fixture-only projector diagnostic token=not-a-real-secret"
+
+
+class ChildError(Exception):
+    """The wrapper or fake client crashed: never a behavioral assertion."""
 
 FAKE_CLIENT = """#!/usr/bin/env python3
 import json, os, sys
@@ -39,10 +47,12 @@ def world(tmp_path):
             "out": tmp_path / "client-out.json", "lines": lines}
 
 
-def render(world, lines=None, rc=0):
+def render(world, lines=None, rc=0, stderr=None):
     assert TEMPLATE.is_file(), f"missing {TEMPLATE}"
     lines = world["lines"] if lines is None else lines
     body = "".join(f"echo '{line}'\n" for line in lines)
+    if stderr is not None:
+        body += f"echo '{stderr}' >&2\n"
     projector = write_exec(world["tmp"] / "projector", f"#!/bin/sh\n{body}exit {rc}\n")
     text = TEMPLATE.read_text()
     text = text.replace("@CLIENT@", str(world["client"]))
@@ -55,8 +65,12 @@ def call(world, wrapper, cwd=None, extra_env=None):
     env = {"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(world["tmp"]),
            "FAKE_CLIENT_OUT": str(world["out"])}
     env.update(extra_env or {})
-    return subprocess.run([str(wrapper), "bob", "--flag"], capture_output=True, text=True,
+    proc = subprocess.run([str(wrapper), "bob", "--flag"], capture_output=True, text=True,
                           cwd=cwd or world["tmp"], env=env, timeout=30)
+    # The wrapper declares exit 2 (one typed refusal); the fake client exits 0.
+    if proc.returncode not in (0, 2) or BASH_DIAGNOSTIC.search(proc.stderr):
+        raise ChildError(proc.returncode, proc.stderr[-2000:])
+    return proc
 
 
 def refusal(world, proc):
@@ -104,6 +118,19 @@ def test_cwd_runtime_yaml_does_not_change_target(world):
 
 def test_projector_failure_refuses(world):
     assert refusal(world, call(world, render(world, rc=3))) == "projection_failed:3"
+
+
+def test_failing_projector_stderr_is_not_forwarded(world):
+    proc = call(world, render(world, rc=3, stderr=LEAK))
+    assert refusal(world, proc) == "projection_failed:3"
+    assert "not-a-real-secret" not in proc.stderr
+
+
+def test_projector_stderr_is_not_forwarded_on_success(world):
+    proc = call(world, render(world, stderr=LEAK))
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stderr == ""
+    assert json.loads(world["out"].read_text())["argv"] == ["bob", "--flag"]
 
 
 @pytest.mark.parametrize("drop", [0, 1, 2])
