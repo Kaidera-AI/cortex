@@ -21,7 +21,7 @@ class TransportResultTests(unittest.TestCase):
         if body is None:
             body = b'{"record":{"id":"synthetic"}}'
         if health is None:
-            health = {'component': 'cortex', 'installation_id': INSTALLATION, 'status': 'ready'}
+            health = {'component': 'cortex', 'installation_id': INSTALLATION, 'status': 'ok', 'readiness': 'ready'}
 
         class Recorder(BaseHTTPRequestHandler):
             def log_message(self, *_args):

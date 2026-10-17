@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/tests/test_loopback_home.py",
-  "source_sha256": "5848eb054f8dc35927574f0878b17aa39d9f0a8bd963ef20a8bb69e51b0ceb81",
+  "source_sha256": "9ef5998ff0cede7c65298003bd4070ee24e41db4c33d4d834c6845e0017ed0cd",
   "tests": {
-    "next/tests/ci_gates/tests/test_loopback_home.py": "5848eb054f8dc35927574f0878b17aa39d9f0a8bd963ef20a8bb69e51b0ceb81"
+    "next/tests/ci_gates/tests/test_loopback_home.py": "9ef5998ff0cede7c65298003bd4070ee24e41db4c33d4d834c6845e0017ed0cd"
   },
   "expected_nodes": [
     "test_loopback_home.LoopbackHome.test_same_phase_oracle_rejects_seed_import_error_and_skips"

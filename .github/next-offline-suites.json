@@ -2536,6 +2536,7 @@
     "next/modules/cli-v2/tests/test_transport_results.py",
     "next/modules/cli-v2/tests/test_namespace.py",
     "next/modules/cli-v2/tests/test_health_join.py",
-    "next/src/cortex_core/schema/tests/test_seed_operator.py"
+    "next/src/cortex_core/schema/tests/test_seed_operator.py",
+    "next/modules/cli-v2/tests/test_health_contract.py"
   ]
 }

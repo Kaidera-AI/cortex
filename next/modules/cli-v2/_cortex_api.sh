@@ -264,7 +264,9 @@ try:
     if payload:
         decode(payload)
     status, health = request(base.rstrip('/') + '/health', 'GET', {}, b'', deadline)
-    if (status != 200 or health.get('component') != 'cortex' or health.get('status') != 'ready'
+    if (status != 200 or set(health) != {'component', 'status', 'readiness', 'installation_id'}
+            or health.get('component') != 'cortex' or health.get('status') != 'ok'
+            or health.get('readiness') != 'ready'
             or health.get('installation_id') != installation):
         fail('installation_mismatch')
     headers = {'Authorization': 'Bearer ' + credential, 'X-Project': project, 'X-Project-Id': project_id}

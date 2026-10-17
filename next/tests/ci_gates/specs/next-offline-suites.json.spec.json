@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": ".github/next-offline-suites.json",
-  "source_sha256": "6eab064263806527660078d93eb58b3bec469324bb0da5f9de22abb7b95d5567",
+  "source_sha256": "bf4ea8d4feecbd14f8a07ec85ef8ca366c0befebdfc857d71fcfbf25b37ff031",
   "tests": {
     "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6"
   },

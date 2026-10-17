@@ -31,7 +31,7 @@ class VersionedNamespaceTests(unittest.TestCase):
             def do_GET(self):
                 requests.append((self.command, self.path, dict(self.headers), None))
                 if self.path == '/health':
-                    packet = dict(component='cortex', status='ready', installation_id=INSTALLATION)
+                    packet = dict(component='cortex', status='ok', readiness='ready', installation_id=INSTALLATION)
                 elif self.path.startswith('/verify/write?'):
                     packet = {'row': {'summary': 'line one\nΩ\n', 'event_type': 'commit',
                                       'files': ['same.py', 'same.py']}}
