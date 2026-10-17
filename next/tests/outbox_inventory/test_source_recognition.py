@@ -4,11 +4,17 @@ import ast
 import hashlib
 from pathlib import Path
 import unittest
+import sys
+from contextlib import ExitStack
 from unittest.mock import patch
 
 NEXT = Path(__file__).resolve().parents[2]
 BACKUP = 'src/cortex_core/backup_validation.py'
 MIGRATIONS = 'src/cortex_core/migrations.py'
+CODEC = 'src/cortex_core/release/codec.py'
+WRAPPER = 'src/cortex_core/schema/migrate.py'
+WRAPPER_TEST = 'src/cortex_core/schema/tests/test_readiness.py'
+PROFILE = NEXT/'contracts/core-writer-inventory.json'
 REFLECTION = {
     'src/cortex_core/release/_pyc_check.py': ('_compiled_fields_equal', 'getattr(actual, field)', "'co_cellvars'"),
     'src/cortex_core/release/build/audit.py': ('_code_equal', 'getattr(left, k)', '"co_cellvars"'),
@@ -21,6 +27,7 @@ class SourceRecognition(unittest.TestCase):
     def setUpClass(cls):
         spec = importlib.util.spec_from_file_location('reviewed_inventory_checker', NEXT/'scripts/verify_writer_inventory.py')
         cls.checker = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = cls.checker
         spec.loader.exec_module(cls.checker)
 
     def source(self, file):
@@ -151,6 +158,81 @@ class SourceRecognition(unittest.TestCase):
         module_pin, function_pin = self.renewed_pins(MIGRATIONS, 'apply_migrations', source)
         with module_pin, function_pin:
             self.assertTrue(self.unresolved(MIGRATIONS, source))
+
+
+    def renew_all(self, file, source):
+        tree = ast.parse(source)
+        stack = ExitStack()
+        stack.enter_context(patch.dict(self.checker.KNOWN_INPUT_FILE_SHA256,
+                                       {file: self.checker.normalized_function_digest(tree)}))
+        def visit(nodes, prefix=''):
+            for node in nodes:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    owner = prefix + node.name
+                    if not isinstance(node, ast.ClassDef):
+                        stack.enter_context(patch.dict(self.checker.KNOWN_INPUT_FUNCTION_SHA256,
+                            {(file, owner): self.checker.normalized_function_digest(node)}))
+                    visit(node.body, owner + '.')
+        visit(tree.body)
+        return stack
+
+    def test_day2_lazy_validator_and_schema_forwarder_are_recognized(self):
+        for file in (CODEC, WRAPPER, WRAPPER_TEST):
+            with self.subTest(file=file):
+                self.assertEqual(self.unresolved(file, self.source(file)), [])
+
+    def test_day2_inventory_is_source_bound(self):
+        self.assertTrue(self.checker.audit(NEXT)['passed'])
+
+    def test_day2_migration_helper_provenance_even_with_renewed_pins(self):
+        for before, after in [
+            ('prepared = prepare_migrations(directory)', 'prepared = untrusted(directory)'),
+            ('prepared = prepare_migrations(directory)', 'prepared = prepare_migrations(other_directory)'),
+            ('hashlib.sha256(data).hexdigest() != entry["sha256"]', 'False'),
+            ('prepared[:prepared_target + 1]:', 'prepared[prepared_target:]:'),
+            ("data.decode("utf-8")", 'untrusted_sql'),
+            ('return prepared', 'return untrusted'),
+        ]:
+            with self.subTest(after=after):
+                changed = self.changed(MIGRATIONS, before, after)
+                with self.renew_all(MIGRATIONS, changed):
+                    self.assertTrue(self.unresolved(MIGRATIONS, changed))
+
+    def test_day2_validator_factory_is_not_a_general_call_exception(self):
+        for before, after in [
+            ('_validator_class()(schema)', 'other_factory()(schema)'),
+            ('_validator_class()(schema)', '_validator_class()(other_schema)'),
+            ('_validator_class()(schema)', '_validator_class()(schema, extra)'),
+            ('value = extend(Draft202012Validator,', 'value = untrusted(Draft202012Validator,'),
+            ("'maxLength': _byte_length", "'maxLength': untrusted"),
+            ('return value', 'return untrusted'),
+        ]:
+            with self.subTest(after=after):
+                changed = self.changed(CODEC, before, after)
+                with self.renew_all(CODEC, changed):
+                    self.assertTrue(self.unresolved(CODEC, changed))
+
+    def test_day2_forwarder_and_test_reference_are_exact(self):
+        for file, before, after in [
+            (WRAPPER, 'migrations.apply_migrations(connection, directory)',
+             'migrations.apply_migrations(connection, untrusted)'),
+            (WRAPPER, 'migrations.apply_migrations(connection, directory)',
+             'other.apply_migrations(connection, directory)'),
+            (WRAPPER_TEST, "patch.object(migrations,'apply_migrations',",
+             "patch.object(other,'apply_migrations',"),
+        ]:
+            with self.subTest(file=file, after=after):
+                changed = self.changed(file, before, after)
+                with self.renew_all(file, changed):
+                    self.assertTrue(self.unresolved(file, changed))
+
+    def test_day2_added_aliases_calls_and_file_moves_fail_closed(self):
+        for file in (MIGRATIONS, CODEC, WRAPPER, WRAPPER_TEST):
+            extra = ("\napply_alias = apply_migrations\n" if file == MIGRATIONS else
+                     "\ndef unreviewed(obj, name):\n    return getattr(obj, name)\n")
+            with self.subTest(file=file):
+                self.assertTrue(self.unresolved(file, self.source(file) + extra))
+                self.assertTrue(self.unresolved('src/cortex_core/unreviewed.py', self.source(file)))
 
 
 if __name__ == '__main__':
