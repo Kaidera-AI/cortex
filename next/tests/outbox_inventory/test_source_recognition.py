@@ -205,7 +205,7 @@ class SourceRecognition(unittest.TestCase):
             ('_validator_class()(schema)', '_validator_class()(schema, extra)'),
             ('value = extend(Draft202012Validator,', 'value = untrusted(Draft202012Validator,'),
             ("'maxLength': _byte_length", "'maxLength': untrusted"),
-            ('return value', 'return untrusted'),
+            ('return value\n\n\ndef __getattr__', 'return untrusted\n\n\ndef __getattr__'),
         ]:
             with self.subTest(after=after):
                 changed = self.changed(CODEC, before, after)
