@@ -234,6 +234,17 @@ class SourceRecognition(unittest.TestCase):
                 self.assertTrue(self.unresolved(file, self.source(file) + extra))
                 self.assertTrue(self.unresolved('src/cortex_core/unreviewed.py', self.source(file)))
 
+    def test_day2_renewed_pins_cannot_approve_module_binding_replacement(self):
+        for file, extra in [
+            (MIGRATIONS, '\nprepare_migrations = untrusted\n'),
+            (CODEC, '\n_validator_class = untrusted\n'),
+            (WRAPPER, '\nmigrations = untrusted\n'),
+        ]:
+            with self.subTest(file=file):
+                changed = self.source(file) + extra
+                with self.renew_all(file, changed):
+                    self.assertTrue(self.unresolved(file, changed))
+
 
 if __name__ == '__main__':
     unittest.main()
