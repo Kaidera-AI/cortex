@@ -15,6 +15,7 @@ from next.tests.ci_gates import receipt as gate
 
 HEAD = "a" * 40
 TREE = "b" * 40
+PROFILE = ROOT / ".github/next-offline-suites.json"
 
 
 def history():
@@ -241,6 +242,37 @@ class Receipt(unittest.TestCase):
             expected["head"] = base
             with self.assertRaises(gate.ReceiptRefusal):
                 gate.merged_tree(directory, expected, receipts)
+
+
+class SharedAdmission(unittest.TestCase):
+    REQUIRED = {
+        "next/tests/ci_gates/tests/test_receipt.py",
+        "next/tests/floor/tests/test_admission.py",
+        "next/tests/live_contract/tests/test_live_contract.py",
+        "next/src/cortex_core/compat/tests/test_contract.py",
+    }
+
+    def test_day2_required_suites_are_RUN(self):
+        manifest = json.loads(PROFILE.read_bytes())
+        self.assertTrue(self.REQUIRED <= set(manifest["run"]))
+        self.assertFalse(self.REQUIRED & {row["path"] for row in manifest["excluded"]})
+
+    def test_day2_inventory_and_all_prior_admissions_remain_complete(self):
+        runner = ROOT / ".github/scripts/pytest_next_offline.py"
+        spec = importlib.util.spec_from_file_location("day2_shared_inventory", runner)
+        inventory = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(inventory)
+        retained = json.loads((ROOT/"next/tests/floor/profile.json").read_bytes())
+        baseline = dict(retained["prior_controls"], run=retained["prior_run"],
+                        excluded=retained["prior_excluded"])
+        current = json.loads(PROFILE.read_bytes())
+        result = inventory.inventory(ROOT, current, base_manifest=baseline)
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(set(baseline["run"]) <= set(current["run"]))
+        self.assertTrue(all(row in current["excluded"] for row in baseline["excluded"]))
+        self.assertTrue(all(current.get(key) == value
+                            for key, value in retained["prior_controls"].items()))
+
 
 
 if __name__ == "__main__":
