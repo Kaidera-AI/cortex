@@ -35,6 +35,17 @@ class Admission(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(floor.oracle_controls(value, {NODE}), "inconclusive")
 
+
+    def test_required_skip_xfail_and_duplicate_json_are_inconclusive(self):
+        for key in ("skipped", "expected_failures", "unexpected_successes"):
+            value = json.loads(process().stdout.split("=", 1)[1])
+            value[key] = [NODE]
+            result = subprocess.CompletedProcess([], 1, "CORTEX_TEST_RESULT=" + json.dumps(value), "")
+            self.assertEqual(floor.oracle_controls(result, {NODE}), "inconclusive")
+        result = process()
+        result.stdout = result.stdout.replace('"tests_run": 1', '"tests_run": 1, "tests_run": 1')
+        self.assertEqual(floor.oracle_controls(result, {NODE}), "inconclusive")
+
     def test_missing_extra_skipped_or_duplicate_nodes_refuse(self):
         self.assertEqual(floor.oracle_controls(process(tests_run=2), {NODE}), "inconclusive")
         self.assertEqual(floor.oracle_controls(process(ids=[NODE, NODE]), {NODE}), "inconclusive")
@@ -52,6 +63,15 @@ class Admission(unittest.TestCase):
         self.assertEqual(result["prior_excluded"], baseline["excluded"])
         self.assertEqual(result["passed"], 0)
         self.assertEqual(result["qualification"], "inventory_only")
+
+
+    def test_pinned_retained_profile_is_admitted(self):
+        try:
+            result = floor.profile(ROOT, ROOT / ".github/next-offline-suites.json")
+        except floor.ReceiptRefusal as error:
+            self.fail("BODY: accepted retained inventory refused: " + error.code)
+        self.assertEqual(len(result["floor_nodes"]), 107)
+        self.assertEqual(len(set(result["crypto_nodes"])), 32)
 
     def test_profile_detects_source_drift(self):
         with tempfile.TemporaryDirectory() as directory:
