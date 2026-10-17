@@ -1,11 +1,9 @@
-"""API image inputs (J01): the two hash locks must cover what the serve entry can import, agree across arches, and match the ONE archive.
-No network, no podman. Archive tests need CORTEX_BUILD_ARCHIVE (the frozen, hash-pinned input folder); the image smoke needs CORTEX_API_IMAGE."""
+"""API image inputs (J01): the two hash locks must cover what the API composition can import (asyncpg, and the signature-verification closure
+cryptography -> cffi -> pycparser), agree across arches, and agree with the committed inputs receipt of the ONE archive. Pure and offline: no skips, no
+environment. Byte checks of the archive and the image smoke are the scripts in ../tools (verify_inputs.py, smoke_image.py), run by the build."""
 import ast
-import hashlib
 import json
-import os
 import re
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -20,9 +18,6 @@ ENTRIES = ('cortex_core.runtime.__main__', 'cortex_core.runtime.connections', 'c
 ARCHES = ('amd64', 'arm64')
 # Import names that are not their distribution name: none today; identity otherwise.
 DIST = {}
-# Names reachable from the API composition (ENTRIES) that are NOT locked and are open with the owner. A name here must stay missing from the
-# locks (test_open_consults_are_named), so the day cox answers, the entry is deleted or the lock gains it - never both silently.
-CONSULT_OPEN = {'cryptography': 'row f11f8ccc consult to cox: runtime lock verification imports it lazily (release/ed25519.py:28) and the API lock has no wheel'}
 LINE = re.compile(r'^([A-Za-z0-9_.-]+)==([0-9][A-Za-z0-9_.+!-]*) --hash=sha256:([0-9a-f]{64})$')
 
 
@@ -106,65 +101,63 @@ def sha(path):
     return h.hexdigest()
 
 
+RECEIPT = HERE.parent / 'inputs-receipt.json'
+
+
+def receipt():
+    assert RECEIPT.is_file(), 'SURFACE_ABSENCE:inputs-receipt.json'
+    return json.loads(RECEIPT.read_text())
+
+
+def norm(name):
+    return name.lower().replace('_', '-')
+
+
 class LockCoverage(unittest.TestCase):
     def test_lock_covers_runtime_imports(self):
-        need = runtime_imports() - set(CONSULT_OPEN)
-        self.assertIn('asyncpg', need, 'the closure scan must see the asyncpg driver the runtime calls')
+        need = runtime_imports()
+        self.assertTrue({'asyncpg', 'cryptography'} <= need, 'the closure scan must see the async driver and the signature provider')
         for arch in ARCHES:
             self.assertEqual(sorted(need - set(read_lock(arch))), [], f'imports with no locked wheel on {arch}')
 
-    def test_open_consults_are_named(self):
+    def test_lock_is_closed_under_the_wheels_own_requirements(self):
         for arch in ARCHES:
-            self.assertEqual(sorted(set(CONSULT_OPEN) & set(read_lock(arch))), [], 'a name in CONSULT_OPEN is locked now: delete the entry')
-        self.assertLessEqual(set(CONSULT_OPEN), runtime_imports(), 'a CONSULT_OPEN name is no longer imported: delete the entry')
+            lock = read_lock(arch)
+            for row in receipt()['wheels'][arch]:
+                for dep in row['requires']:
+                    self.assertIn(norm(dep), lock, f'{row["name"]} needs {dep} on {arch}')
 
     def test_both_arch_locks_pin_the_same_distributions_and_versions(self):
         a, b = read_lock('amd64'), read_lock('arm64')
         self.assertEqual({k: v[0] for k, v in a.items()}, {k: v[0] for k, v in b.items()})
 
-    def test_asyncpg_is_pinned_to_the_reviewed_release(self):
+    def test_reviewed_pins(self):
         for arch in ARCHES:
-            self.assertEqual(read_lock(arch)['asyncpg'][0], '0.32.0')
+            lock = read_lock(arch)
+            self.assertEqual(lock['asyncpg'][0], '0.32.0')
+            self.assertEqual(lock['cryptography'][0], '50.0.0')  # release/ed25519.py refuses any other version
 
 
-class LockMatchesArchive(unittest.TestCase):
-    def test_every_locked_wheel_is_in_the_archive_and_nothing_else_is(self):
-        root = archive()
+class LockMatchesReceipt(unittest.TestCase):
+    def test_lock_hashes_equal_the_receipt_hashes_per_arch(self):
         for arch in ARCHES:
-            wheels = root / f'linux-{arch}' / 'assets' / 'wheels'
-            by_hash = {sha(p): p.name for p in wheels.iterdir() if p.suffix == '.whl'}
-            lock = {h for _, h in read_lock(arch).values()}
-            self.assertEqual(sorted(lock - set(by_hash)), [], f'locked hash with no wheel file on {arch}')
-            self.assertEqual(sorted(set(by_hash) - lock), [], f'wheel file with no lock line on {arch}')
+            lock = read_lock(arch)
+            rows = {norm(r['name']): r for r in receipt()['wheels'][arch]}
+            self.assertEqual(sorted(lock), sorted(rows), f'distributions differ on {arch}')
+            for name, (version, digest) in lock.items():
+                self.assertEqual((rows[name]['version'], rows[name]['sha256']), (version, digest), f'{name} on {arch}')
 
-    def test_archive_verifies_against_its_sums(self):
-        root = archive()
-        bad = []
-        for line in (root / 'SHA256SUMS').read_text().splitlines():
-            digest, name = line.split('  ', 1)
-            if not (root / name).is_file() or sha(root / name) != digest:
-                bad.append(name)
-        self.assertEqual(bad, [])
+    def test_every_wheel_records_licence_source_and_size(self):
+        for arch in ARCHES:
+            for r in receipt()['wheels'][arch]:
+                self.assertTrue(r['licence'] and r['licence'] != 'UNKNOWN', r['name'])
+                self.assertTrue(r['source'].startswith('PyPI '), r['name'])
+                self.assertGreater(r['bytes'], 0, r['name'])
 
-    def test_receipt_lists_every_file_and_records_a_licence_for_asyncpg(self):
-        root = archive()
-        receipt = json.loads((root / 'RECEIPT.json').read_text())
-        sums = {l.split('  ', 1)[1]: l.split('  ', 1)[0] for l in (root / 'SHA256SUMS').read_text().splitlines()}
-        self.assertEqual({r['path']: r['sha256'] for r in receipt['files']}, sums)
-        rows = [r for r in receipt['files'] if '/asyncpg-' in r['path']]
-        self.assertEqual(len(rows), 2)
-        self.assertTrue(all(r.get('licence') == 'Apache-2.0' for r in rows))
-
-
-class ImageSmoke(unittest.TestCase):
-    def test_smoke_api_imports(self):
-        image = os.environ.get('CORTEX_API_IMAGE')
-        if not image:
-            raise unittest.SkipTest('CORTEX_API_IMAGE not set')
-        code = 'import jsonschema, psycopg, asyncpg, uvicorn, starlette, httpx, cortex_core.runtime; print(asyncpg.__version__)'
-        r = subprocess.run(['podman', 'run', '--rm', '--network=none', '--entrypoint', '/opt/cortex/python/bin/python3', image, '-I', '-c', code],
-                           capture_output=True, text=True)
-        self.assertEqual((r.returncode, r.stdout.strip()), (0, '0.32.0'), r.stderr[-400:])
+    def test_licence_obligations_are_written_down_per_distribution(self):
+        text = (HERE.parent / 'UPSTREAM.md').read_text().lower()
+        for name in read_lock('arm64'):
+            self.assertIn(name, text, f'UPSTREAM.md must record {name}')
 
 
 if __name__ == '__main__':
