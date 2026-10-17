@@ -312,4 +312,36 @@ class CatalogTests(unittest.TestCase):
             self.assertIn('rollback:cortex_bootstrap',self.events)
 
 
+class TransactionFailureTests(unittest.TestCase):
+    setUp=ResourceTests.setUp
+    vault=ResourceTests.vault
+    driver=CatalogTests.driver
+    data=CatalogTests.data
+    opened=CatalogTests.opened
+    require_source=CatalogTests.require_source
+    def test_failed_sql_stage_taints_carrier_until_complete_resource_close(self):
+        self.require_source()
+        with self.opened() as r:
+            with self.assertRaisesRegex(ValueError,'resources_transaction'):
+                with r.transaction('bootstrap'):raise RuntimeError('private SQL state')
+            with self.assertRaisesRegex(ValueError,'resources_tainted'):
+                resources.current_seed_resources(self.config,self.deadline)
+            with self.assertRaisesRegex(ValueError,'resources_tainted'):
+                with r.transaction('installer_enrollment'):pass
+            self.assertFalse(any(c.queries for c in self.calls[1:]))
+    def test_deadline_also_bounds_driver_rollback_after_body_interruption(self):
+        self.require_source()
+        with self.opened() as r:
+            @contextmanager
+            def stalled_rollback():
+                try:yield
+                except BaseException:time.sleep(1);raise
+            self.calls[0].transaction=stalled_rollback
+            object.__setattr__(r,'_deadline',time.monotonic()+0.15)
+            started=time.monotonic()
+            with self.assertRaisesRegex(ValueError,'resources_deadline'):
+                with r.transaction('bootstrap'):time.sleep(1)
+            self.assertLess(time.monotonic()-started,0.7,'rollback extended original SQL deadline')
+
+
 if __name__=='__main__':unittest.main()
